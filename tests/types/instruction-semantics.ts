@@ -1,10 +1,11 @@
+import { instructions as control68000 } from "../../src/components/cpus/generated/68000-control.js";
 import { instructions as arithmetic68000 } from "../../src/components/cpus/generated/68000-arithmetic.js";
 import { instructions as bits68000 } from "../../src/components/cpus/generated/68000-bits.js";
 import { instructions as wordArithmetic68000 } from "../../src/components/cpus/generated/68000-word-arithmetic.js";
 import { instructions as decimal68000 } from "../../src/components/cpus/generated/68000-decimal.js";
 import { instructions as logic68000 } from "../../src/components/cpus/generated/68000-logic.js";
 import { instructions as moves68000 } from "../../src/components/cpus/generated/68000-moves.js";
-import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../src/components/cpus/68000-context.js";
+import type { Cpu68000AddressContext, Cpu68000ControlContext, OperandAlignmentFault, TargetAlignmentFault } from "../../src/components/cpus/68000-context.js";
 import { alignmentFault, commitAddressUpdates, fetchWord, readProgramMemory, resolveAddress } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated68000 } from "../../src/components/cpus/generated/68000.js";
 import { instructions as quick68000 } from "../../src/components/cpus/generated/68000-quick.js";
@@ -59,8 +60,8 @@ export function check68000MoveTypes(state: Cpu68000State, context: Cpu68000Addre
   moves68000["8_immediate_d0"](state, 7, 4, 0, 0, { fetchWord: () => false });
   // @ts-expect-error Selector expressions must be captured numbers, not conditions.
   resolveAddress("address", 32, flagValue("supervisor"), literal(3, 2));
-  // @ts-expect-error Alignment faults describe operand accesses, not instruction fetches.
-  alignmentFault("fetch", literal(32, 1));
+  // @ts-expect-error Alignment faults require a native access kind.
+  alignmentFault("execute", literal(32, 1));
   // @ts-expect-error Fault descriptions are readonly.
   if (fault) fault.address = 0;
 }
@@ -996,4 +997,25 @@ export function check68000WordAndDecimalTypes(state: Cpu68000State): void {
   wordArithmetic68000.CHK_immediate_d0(state, 7, 4, 0, 0, { fetchByte: () => 0 });
   // @ts-expect-error Decimal paired operands require destination writeback.
   decimal68000.SBCD_memory_memory(state, 4, 7, 4, 7, { ...addressing, readByte: () => 0 });
+}
+
+
+export function check68000ControlTypes(state: Cpu68000State, flow: Cpu68000ControlContext): void {
+  const operand = { resolveAddress: () => 0, commitAddressUpdates: () => {}, readByte: () => 0, writeByte: () => {} };
+  control68000.SNE_d0(state, 0, 0, 0);
+  const lea: void = control68000.LEA_a7(state, 7, 2, 0, { resolveAddress: () => 0 });
+  const branch: void | TargetAlignmentFault = control68000.BNE_byte(state, 0, 0, 2, flow);
+  const call: void | TargetAlignmentFault | OperandAlignmentFault = control68000.JSR(state, 7, 2, 0, { ...flow, resolveAddress: () => 0, writeByte: () => {} });
+  control68000.SNE_memory(state, 3, 7, 0, operand);
+  control68000.LINK_a7(state, 0, 0, 0, { fetchWord: () => 0, writeByte: () => {} });
+  // @ts-expect-error Word displacements require native-word fetching.
+  control68000.BNE_word(state, 0, 0, 0, flow);
+  // @ts-expect-error LEA calculates an address without target selection or memory reads.
+  control68000.LEA_a7(state, 7, 2, 0, { resolveAddress: () => 0, jump: () => {} });
+  // @ts-expect-error A taken branch can reject its target alignment.
+  const success: void = control68000.BNE_byte(state, 0, 0, 2, flow);
+  // @ts-expect-error Returns read a complete long before selecting the target.
+  control68000.RTS(state, 0, 0, 0, flow);
+  // @ts-expect-error Scc reads memory even when its condition is always true.
+  control68000.ST_memory(state, 3, 7, 0, { resolveAddress: () => 0, commitAddressUpdates: () => {}, writeByte: () => {} });
 }

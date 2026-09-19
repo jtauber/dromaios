@@ -105,8 +105,8 @@ export function motorolaSubroutines(cpu: FlowCpu, pointer: Register, position: "
   };
 }
 
-/** Native condition pairs share explicit flag-read order; 6800 omits BRN and 6809 also supplies long forms. */
-export function motorolaBranches(cpu: MotorolaCpu & FlowCpu, names: readonly (typeof motorolaBranchNames)[number][], long = false) {
+/** Motorola cccc=tttp: capture a pair's flags in native order, then optionally invert its test. */
+export function motorolaCondition(cpu: { flag(field: "n" | "z" | "v" | "c"): Flag }, code: number): Condition {
   const n = flagValue("n"), z = flagValue("z"), v = flagValue("v"), c = flagValue("c");
   // ttt selects T/HI/CC/NE/VC/PL/GE/GT; p in cccc=tttp negates the chosen test.
   const conditions: readonly Condition[] = [
@@ -119,11 +119,17 @@ export function motorolaBranches(cpu: MotorolaCpu & FlowCpu, names: readonly (ty
     { steps: [readFlag("n", cpu.flag("n")), readFlag("v", cpu.flag("v"))], test: not(xor(n, v)) },
     { steps: [readFlag("n", cpu.flag("n")), readFlag("v", cpu.flag("v")), readFlag("z", cpu.flag("z"))], test: and(not(z), not(xor(n, v))) },
   ];
+  const condition = conditions[code >> 1]!;
+  return { steps: condition.steps, test: code & 1 ? not(condition.test) : condition.test };
+}
+
+/** Native condition pairs share explicit flag-read order; 6800 omits BRN and 6809 also supplies long forms. */
+export function motorolaBranches(cpu: MotorolaCpu & FlowCpu, names: readonly (typeof motorolaBranchNames)[number][], long = false) {
   return Object.fromEntries(motorolaBranchNames.flatMap((name, code) => {
     if (!names.includes(name)) return [];
-    const condition = conditions[code >> 1]!, key = `${long ? "l" : ""}${name}`;
+    const key = `${long ? "l" : ""}${name}`;
     return [[key, relativeBranch(cpu, key.toUpperCase(), long ? immediateWord : immediateByte,
-      code === 0 ? undefined : { steps: condition.steps, test: code & 1 ? not(condition.test) : condition.test })]];
+      code === 0 ? undefined : motorolaCondition(cpu, code))]];
   }));
 }
 

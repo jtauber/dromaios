@@ -21,6 +21,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 68000 ADD/SUB/CMP, immediate/quick/address forms, ADDX/SUBX, NEG/NEGX, CMPM | Shared destination stages and arithmetic; X and cumulative Z; signed word sources for 32-bit address arithmetic; repeated An operands and fault commit points |
 | 68000 BTST/BCHG/BCLR/BSET, shifts/rotates, and TAS | Modulo bit numbers; aliased count registers; zero-count flags; named local iteration for result/X/C/overflow; flags before partial writes |
 | 68000 MULU/MULS/DIVU/DIVS, CHK, ABCD/SBCD/NBCD | Source updates after word results and before exceptions; separate quotient-overflow capture; signed bounds; explicit digit correction and cumulative decimal flags |
+| 68000 Scc/DBcc, BRA/Bcc/BSR, LEA/PEA/JMP/JSR, LINK/UNLK/RTS | Shared native condition captures; separate sequential cursor and target selection; stack-before-target validation; delayed stack/counter commits and A7 aliases |
 | 8088 immediate MOV and accumulator ALU/TEST, word INC/DEC, AX/register exchanges | Low/high byte views with live preservation of the other half; operand-before-CF capture; low-byte parity for words; explicit flag/write ordering; generated encoding bindings |
 | 8088 ModR/M MOV/XCHG, absolute accumulator MOV, and immediate r/m MOV | Resolved segment/offset inputs; byte-offset wrap before physical projection; complete source capture and low-first partial writes |
 | 8088 ModR/M and immediate ALU/TEST | Reuse resolved operands and accumulator arithmetic; source before destination before CF; sign-extended immediates; flags before partial writes; CMP/TEST without operand writes |
@@ -76,14 +77,15 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 11,508 generated, executable bodies. All serve CPU execution;
-11,503 are bound through opcode or postbyte selection. Five boundary helpers
+There are 11,840 generated, executable bodies. All serve CPU execution;
+11,835 are bound through opcode or postbyte selection. Five boundary helpers
 serve 6502/6800/8088 entry, 6809 frame pushing, and 8088 WAIT resumption.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
 All six 8-bit CPUs and the 8088 have complete instruction-definition migration;
-the 68000 has 34,162 documented forms migrated, including ordinary MOVE/MOVEA,
+the 68000 has 35,447 documented forms migrated, including ordinary MOVE/MOVEA,
 data logic, arithmetic/comparison, bit operations, shifts/rotates, TAS, word
-products/division, signed bounds, and decimal arithmetic. Bodies
+products/division, signed bounds, decimal arithmetic, ordinary control flow,
+address calculation, and stack frames. Bodies
 start after opcode selection. Each 6809 memory
 body starts after successful address resolution and serves direct, indexed, and
 extended forms, including all legal indexed postbytes. The 6800 memory
@@ -1106,10 +1108,12 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `exchange-flags` | Capture the right complete flag object, then the left; assign left, then right, without inspecting or copying their bits |
 | `fetch-byte` | Request one byte from the instruction context's fetch interface and capture it after success |
 | `fetch-word` | Fetch one complete native-order operand word, preserving the CPU's word-level fetch-commit boundary |
+| `read-next-address` | Capture the 68000's sequential fetch cursor as a long, independently of architectural PC and any selected target |
+| `select-target` | Select a logical long target for successful 68000 retirement, without fetching from it or changing the sequential cursor; alignment checks are explicit preceding statements |
 | `resolve-address` | Ask the 68000 decoder for a logical memory EA from explicit size/mode/register inputs; stage auto-updates for later address calculations |
 | `commit-address-updates` | Commit the decoder's pending registers in first-use order, with each register's final staged value |
 | `read-program-memory` | Read one byte through the 68000 program-space connection at an explicit logical address |
-| `alignment-fault` | Return a structured logical operand fault immediately; the definition tests alignment and the CPU delivers the exception |
+| `alignment-fault` | Return a rejected logical read, write, or target-fetch access immediately; program/data space is explicit for reads, writes are data, and fetches are program; the CPU delivers the error |
 | `read-port` | Read one byte from a captured 16-bit port address, separately from memory; capture it after success |
 | `read-memory` | Read one byte at an explicit 16-bit address, or a 32-bit logical address on the 68000; capture it after success |
 | `write-register` | Replace the stored register with an equal-width unsigned value |
@@ -1497,7 +1501,7 @@ optimization pass into this review.
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,68000,8008,8080,8088,6809,z80}.ts`,
 `6502-interrupts.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, `68000-bits.ts`, `68000-word-arithmetic.ts`,
-`68000-decimal.ts`, and the separate 8088 transfer, ALU, unary,
+`68000-decimal.ts`, `68000-control.ts`, and the separate 8088 transfer, ALU, unary,
 stack, addressing, string, arithmetic, and control modules. The separate 8088
 operand modules contain specialized resolved bodies; its numeric opcode module retains automatic bindings.
 These files are ignored build output and removed by `npm run clean`.
@@ -1653,6 +1657,49 @@ effect, and check signed limits with BigInt and every packed-byte input with
 separate digit and valid-decimal oracles. Shared division tests cover both
 outcome modes and capture validation. CPU bus tests check A7 source/destination
 faults and retained flags in both stack banks. Earlier definitions and generated
+modules remain unchanged.
+
+The [control inventory](../../src/components/cpus/68000-control.ts) binds Scc,
+DBcc, BRA/Bcc/BSR, LEA/PEA/JMP/JSR, LINK/UNLK, and RTS: 1,285 forms through
+332 bodies, serving 5,349 operation words. The byte displacement is a decoded
+parameter, while its zero encoding selects the word-fetch body. Modes and
+register selectors remain separate three-bit inputs. Body keys use native
+mnemonics, including ST/SF, DBT/DBF, BRA, and BSR.
+
+`motorolaCondition` now shares the native flag-capture sequence between the
+6800, 6809, and 68000. The 68000's branches and DBcc capture those flags before
+reading the sequential cursor or fetching the extension, whereas Scc captures
+them after its destination read. The superseded runtime condition table is
+removed; its independent arithmetic-comparison tests exercise generated Scc.
+
+`readNextAddress` and `selectTarget` expose narrow control capabilities. They
+keep the sequential fetch cursor separate from the selected target and stored
+PC. A branch uses the cursor before an extension fetch as its base. Only a
+taken branch checks target alignment; DBcc's terminating counter likewise
+ignores target alignment. A target fault returns a distinct
+`TargetAlignmentFault`, while operand paths retain `OperandAlignmentFault`.
+Both propagate through nested statements; no target byte is fetched. The CPU
+still commits PC and trace state at retirement and uses the sequential cursor
+for fault delivery, including failures after a call has selected its target.
+
+Long pushes share explicit stack-bank selection, decremented-address alignment,
+high-first byte writes, and pointer commit after complete writes. Calls check
+stack alignment before target alignment, select their target, then write the
+return address and commit SP. LINK reuses this construction with a different
+finish: write the frame register before the allocated SP. LINK A7 saves the
+decremented address itself. UNLK advances the captured stack bank before
+restoring the frame register; RTS validates its whole popped target before
+advancing the stack. LEA selects its destination register identity before
+source decoding; PEA selects the stack afterward. These distinctions stay
+visible in the definitions rather than becoming runtime callbacks.
+
+The [control probes](../../tests/components/cpus/semantics/68000-control.test.ts)
+independently scan every operation word, verify all conditions and displacement
+boundaries, and compare every failed effect with live callback mutations.
+Compiler/type probes cover widths, lexical scope, capabilities, and target
+faults. CPU bus tests fail every stack byte in both banks, both Scc accesses,
+and branch extension bytes, retaining partial writes, original pointers,
+counters, and the sequential fault PC. Earlier definitions and generated
 modules remain unchanged.
 
 Program/data byte callbacks retain full logical addresses until the existing

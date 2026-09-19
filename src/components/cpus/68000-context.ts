@@ -11,3 +11,15 @@ export interface OperandAlignmentFault {
   readonly address: number;
   readonly programSpace?: boolean;
 }
+
+/** Control flow selects a target independently of the sequential instruction-fetch cursor. */
+export interface Cpu68000ControlContext {
+  readonly nextAddress: () => number;
+  readonly jump: (address: number) => void;
+}
+
+/** A taken odd target is rejected before selection; no instruction byte is fetched there. */
+export interface TargetAlignmentFault {
+  readonly operation: "fetch";
+  readonly address: number;
+}

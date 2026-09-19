@@ -104,6 +104,8 @@ export function describeInstruction(definition: InstructionDefinition): string {
         }
         case "fetch-byte": emit(`${step.name}:u8 := fetch byte`); break;
         case "fetch-word": emit(`${step.name}:u16 := fetch complete native-order word`); break;
+        case "read-next-address": emit(`${step.name}:u32 := read sequential fetch cursor`); break;
+        case "select-target": emit(`select instruction target ${number(step.address)} for successful retirement; preserve the sequential fetch cursor`); break;
         case "resolve-address": emit(`${step.name}:u32 := resolve ${step.size}-bit memory EA (mode ${number(step.mode)}, register ${number(step.code)}); stage auto-updates for later operands`); break;
         case "commit-address-updates": emit("commit staged address-register updates in first-use order; repeated registers receive their final staged value"); break;
         case "alignment-fault": emit(`return ${step.space}-space ${step.operation} alignment fault at ${number(step.address)}; no later effects`); break;

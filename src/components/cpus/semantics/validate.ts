@@ -253,6 +253,12 @@ export function validateInstruction(definition: InstructionDefinition): void {
         }
         case "fetch-byte": captured = 8; break;
         case "fetch-word": captured = 16; break;
+        case "read-next-address":
+          if (cpu.name !== "68000") fail(where, "a separate fetch cursor requires a 68000 context");
+          captured = 32; break;
+        case "select-target":
+          if (cpu.name !== "68000") fail(where, "separate target selection requires a 68000 context");
+          expect(step.address, 32); return;
         case "resolve-address":
           if (cpu.name !== "68000") fail(where, "staged address decoding requires a 68000 context");
           if (![8, 16, 32].includes(step.size)) fail(where, "operand size must be 8, 16, or 32");
@@ -261,10 +267,10 @@ export function validateInstruction(definition: InstructionDefinition): void {
           if (cpu.name !== "68000") fail(where, "staged address updates require a 68000 context");
           return;
         case "alignment-fault":
-          if (cpu.name !== "68000") fail(where, "operand alignment faults require a 68000 boundary");
+          if (cpu.name !== "68000") fail(where, "alignment faults require a 68000 boundary");
           if (!allowRejection) fail(where, "value sources cannot reject an instruction");
-          if (!["read", "write"].includes(step.operation) || !["data", "program"].includes(step.space)
-            || (step.operation === "write" && step.space === "program")) fail(where, "invalid operand fault access space");
+          if (!["read", "write", "fetch"].includes(step.operation) || !["data", "program"].includes(step.space)
+            || (step.operation === "write" && step.space === "program") || (step.operation === "fetch" && step.space !== "program")) fail(where, "invalid alignment fault access space");
           expect(step.address, 32); return;
         case "read-program-memory":
           if (cpu.name !== "68000") fail(where, "program-space reads require a 68000 context");

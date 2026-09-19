@@ -24,12 +24,12 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [548](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [952](../../src/components/cpus/68000.ts) | 34,162 / 36,029 | 94.8% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [825](../../src/components/cpus/68000.ts) | 35,447 / 36,029 | 98.4% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **11,508 generated bodies**, all used by CPU execution,
+contains **11,840 generated bodies**, all used by CPU execution,
 including 6502/6800/8088 entry helpers, a 6809 frame-push helper, and 8088 WAIT
-resumption. They cover **36,261 complete opcode forms**. All six 8-bit CPUs and
+resumption. They cover **37,546 complete opcode forms**. All six 8-bit CPUs and
 the 8088 now have complete instruction-definition migration. The current
 family inventory is:
 
@@ -443,8 +443,18 @@ family inventory is:
   on success and changes only N on failure. Decimal operations reuse the ALU
   destination stages, correct low then high digit, set C/X, read cumulative Z,
   and finally write the byte, retaining deterministic invalid-digit behavior.
-  The remaining **1,867 forms** cover specialized transfers, control flow,
-  and status/system instructions.
+  Scc, DBcc, BRA/Bcc/BSR, LEA/PEA/JMP/JSR, LINK/UNLK, and RTS add
+  **1,285 forms** through **332 shared bodies** (**5,349 operation words**).
+  Conditions share construction with the 6800/6809. Branches capture flags
+  before any displacement extension; targets use the pre-extension cursor.
+  Calls check stack alignment before target alignment, select the target before
+  stacking, and commit the original stack bank only after all bytes succeed.
+  DBcc validates a taken target before changing its counter. LEA selects its
+  destination A7 bank before source resolution. Frame instructions retain A7
+  aliases, and RTS validates the full return target before advancing the stack.
+  Scc reads its destination before testing flags and writing even unchanged
+  bytes. The unused runtime Motorola condition table is removed.
+  The remaining **582 forms** cover MOVEP/MOVEM and status/system instructions.
 
 The [current review](instruction-semantics.md#decision-and-next-review)
 focuses on complete operation families, explicit carry and writeback stages,
@@ -490,30 +500,31 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 3,001 |
-| CPU-specific instruction definition files | 2,256 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,684 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,941** |
+| Eight CPU implementation files | 2,874 |
+| CPU-specific instruction definition files | 2,354 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,745 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,973** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
-| Generated CPU output, counted separately | 294,204 |
+| Generated CPU output, counted separately | 299,589 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The 68000 word/decimal migration adds **579 shared bodies** for **2,426
-forms**, reusing operand stages and the existing multiply, arithmetic, and
-flag vocabulary. Shared division can now capture quotient overflow separately
-from its zero-divisor outcome. Decimal correction expands two explicit digit
-stages, with no new runtime helper or decimal primitive.
+The 68000 control migration adds **332 shared bodies** for **1,285 forms**.
+Embedded branch displacements remain parameters. Definitions reuse the shared
+Motorola condition construction, ALU destination stages, partial-register
+writes, and explicit high-first byte transfers. Two narrow statements read the
+sequential cursor and select a target; fetch-alignment outcomes preserve the
+CPU's distinct retirement and fault-delivery responsibilities.
 
-The 68000 module falls from **1,043 to 952 lines** (**91 fewer**), removing
-word-source and decimal family wrappers plus their arithmetic implementations.
-Definitions add **78 lines** and supporting CPU source adds **44**, including
-the encoding inventories and division validation/generation/reporting.
-Total authored CPU source increases from **8,910 to 8,941 lines** (**31 more**);
-generated output adds **16,609**. This batch reduces the core while adding
-shared expressive capability; it does not yet reduce the total authored code.
-All **10,929 earlier definitions** remain structurally unchanged, and all 22
+The 68000 module falls from **952 to 825 lines** (**127 fewer**), removing
+control-family wrappers and their branch, call, push, frame, and RTS bodies.
+Definitions add **98 lines** and supporting CPU source adds **61**, including
+the control inventory and cursor/target vocabulary; the obsolete runtime
+Motorola condition table is removed. Total authored CPU source increases from
+**8,941 to 8,973 lines** (**32 more**); generated output adds **5,385**.
+The smaller core does not yet mean a reduction in total authored source.
+All **11,508 earlier definitions** remain structurally unchanged, and all 24
 previously generated modules remain byte-identical.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate

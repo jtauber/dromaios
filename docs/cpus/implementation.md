@@ -204,6 +204,17 @@ policies explicit. Decimal pairs reuse the ALU destination stages, correct low
 then high digit, and publish C/X before reading cumulative Z. This differs from
 binary extended arithmetic's earlier Z capture.
 
+The [control inventory](../../src/components/cpus/68000-control.ts) shares
+Motorola condition construction and names bodies with native mnemonics. Keep
+condition captures before branch extensions and after Scc's destination read.
+Use `readNextAddress` and `selectTarget` for the distinct sequential cursor and
+retirement target, with explicit target-alignment checks. Calls check stack
+alignment before target alignment, select the target before writing, and
+commit the captured stack bank only after all bytes succeed. Frame instructions
+share those byte stages while retaining their own commit order and A7 aliases.
+LEA selects its destination bank before source resolution. These bodies never
+replace native fetch-cursor or exception-delivery handling.
+
 The complete support inventory belongs in [CPU implementation coverage](coverage.md).
 This guide describes organization and does not replace the model contracts or
 manufacturer references for instruction behavior.
@@ -812,9 +823,10 @@ matches; retain the CPU's explicit sequence where it differs.
 
 [Motorola helpers](../../src/components/cpus/motorola.ts) capture specific
 family relationships. The 6800, 6809, and 68000 use the T/F, HI/LS, CC/CS,
-NE/EQ, VC/VS, PL/MI, GE/LT, and GT/LE condition encoding. The 68000 retains
-runtime condition tests. The 6800/6809 share generated branch construction
-with explicit flag captures and native branch names. The opcode tables retain
+NE/EQ, VC/VS, PL/MI, GE/LT, and GT/LE condition encoding. All three share
+generated condition construction with explicit flag captures and native names.
+The obsolete runtime condition table is removed. The 6800/6809 also share
+whole branch construction; the 68000 retains its distinct cursor stages. The opcode tables retain
 the 6800's absent BRN, the 6809's standalone LBRA, and the 68000's BSR exception.
 
 [Shared decimal construction](../../src/components/cpus/semantics/decimal.ts)

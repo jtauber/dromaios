@@ -87,9 +87,11 @@ export type Statement =
   | { readonly kind: "exchange-flags"; readonly left: FlagGroup; readonly right: FlagGroup }
   | { readonly kind: "fetch-byte"; readonly name: string }
   | { readonly kind: "fetch-word"; readonly name: string }
+  | { readonly kind: "read-next-address"; readonly name: string }
+  | { readonly kind: "select-target"; readonly address: NumberExpression }
   | { readonly kind: "resolve-address"; readonly name: string; readonly size: 8 | 16 | 32; readonly mode: NumberExpression; readonly code: NumberExpression }
   | { readonly kind: "commit-address-updates" }
-  | { readonly kind: "alignment-fault"; readonly operation: "read" | "write"; readonly address: NumberExpression; readonly space: "data" | "program" }
+  | { readonly kind: "alignment-fault"; readonly operation: "read" | "write" | "fetch"; readonly address: NumberExpression; readonly space: "data" | "program" }
   | { readonly kind: "read-program-memory"; readonly name: string; readonly address: NumberExpression }
   | { readonly kind: "read-port"; readonly name: string; readonly port: NumberExpression }
   | { readonly kind: "read-memory"; readonly name: string; readonly address: AddressExpression }
@@ -231,11 +233,15 @@ export const capture = (name: string, value: NumberExpression): Statement => ({ 
 export const fetchByte = (name: string): Statement => ({ kind: "fetch-byte", name });
 /** Fetch one complete operand word in the CPU's native order and retain its fetch-commit boundary. */
 export const fetchWord = (name: string): Statement => ({ kind: "fetch-word", name });
+/** Capture the CPU's sequential fetch cursor, independently of architectural PC or a selected target. */
+export const readNextAddress = (name: string): Statement => ({ kind: "read-next-address", name });
+/** Select a target for successful retirement; the definition must check its alignment first. */
+export const selectTarget = (address: NumberExpression): Statement => ({ kind: "select-target", address });
 /** Decode a 68000 memory EA now, retaining staged address-register updates for later operands. */
 export const resolveAddress = (name: string, size: 8 | 16 | 32, mode: NumberExpression, code: NumberExpression): Statement => ({ kind: "resolve-address", name, size, mode, code });
 export const commitAddressUpdates = (): Statement => ({ kind: "commit-address-updates" });
 /** Return a rejected logical access; test alignment explicitly before this statement. */
-export const alignmentFault = (operation: "read" | "write", address: NumberExpression, space: "data" | "program" = "data"): Statement => ({ kind: "alignment-fault", operation, address, space });
+export const alignmentFault = (operation: "read" | "write" | "fetch", address: NumberExpression, space: "data" | "program" = operation === "fetch" ? "program" : "data"): Statement => ({ kind: "alignment-fault", operation, address, space });
 export const readProgramMemory = (name: string, address: NumberExpression): Statement => ({ kind: "read-program-memory", name, address });
 export const readRegister = (name: string, register: Register): Statement => ({ kind: "read-register", name, register });
 export const readElement = (name: string, array: RegisterArray, index: NumberExpression): Statement => ({ kind: "read-element", name, array, index });

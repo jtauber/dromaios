@@ -5,23 +5,6 @@ import type { WordInstructionContext } from "./instruction-context.ts";
 import { opcodePattern } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
 
-interface ConditionCodes { n: boolean; z: boolean; v: boolean; c: boolean }
-type Condition = (flags: Readonly<ConditionCodes>) => boolean;
-
-// Motorola condition pairs: ttt selects a test, p selects that test or its inverse.
-// The 6800 omits BRN; the 68000 gives condition 0001 a BSR meaning only in its branch family.
-export const motorolaConditionPairs: readonly Condition[] = [
-  () => true,                    // 000: T / F (BRA / BRN)
-  ({ c, z }) => !c && !z,         // 001: HI / LS
-  ({ c }) => !c,                 // 010: CC (HS) / CS (LO)
-  ({ z }) => !z,                 // 011: NE / EQ
-  ({ v }) => !v,                 // 100: VC / VS
-  ({ n }) => !n,                 // 101: PL / MI
-  ({ n, v }) => n === v,         // 110: GE / LT
-  ({ n, v, z }) => !z && n === v, // 111: GT / LE
-];
-export const motorolaConditions: readonly Condition[] = motorolaConditionPairs.flatMap(test => [test, flags => !test(flags)]);
-
 // 0010 ttt p: ttt selects T/HI/CC/NE/VC/PL/GE/GT; p selects the test or its inverse.
 export const motorolaBranchNames = ["bra", "brn", "bhi", "bls", "bcc", "bcs", "bne", "beq",
   "bvc", "bvs", "bpl", "bmi", "bge", "blt", "bgt", "ble"] as const;

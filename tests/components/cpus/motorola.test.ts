@@ -1,17 +1,23 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { add, subtract } from "../../../src/components/cpus/alu.js";
-import { motorolaConditions, motorolaArithmeticFlags } from "../../../src/components/cpus/motorola.js";
+import { motorolaArithmeticFlags } from "../../../src/components/cpus/motorola.js";
 
+import { initialState } from "../../helpers/68000-state.js";
+import { instructions as m68000 } from "../../../src/components/cpus/generated/68000-control.js";
 import { instructions as m6800 } from "../../../src/components/cpus/generated/6800.js";
 
 test("Motorola condition encodings agree with unsigned and signed comparisons", () => {
+  const state = initialState(), conditions = [m68000.ST_d0, m68000.SF_d0, m68000.SHI_d0, m68000.SLS_d0,
+    m68000.SCC_d0, m68000.SCS_d0, m68000.SNE_d0, m68000.SEQ_d0, m68000.SVC_d0, m68000.SVS_d0,
+    m68000.SPL_d0, m68000.SMI_d0, m68000.SGE_d0, m68000.SLT_d0, m68000.SGT_d0, m68000.SLE_d0];
   for (let left = 0; left < 256; left++) for (let right = 0; right < 256; right++) {
     const signedLeft = left < 128 ? left : left - 256, signedRight = right < 128 ? right : right - 256;
     const difference = signedLeft - signedRight;
     const byte = (left - right + 256) % 256;
     const flags = { n: byte >= 128, z: byte === 0, v: difference < -128 || difference > 127, c: left < right };
-    assert.deepEqual(motorolaConditions.map(test => test(flags)), [
+    Object.assign(state.flags, flags);
+    assert.deepEqual(conditions.map(run => { run(state, 0, 0, 0); return state.d0 % 256 === 255; }), [
       true, false, left > right, left <= right, left >= right, left < right, left !== right, left === right,
       difference >= -128 && difference <= 127, difference < -128 || difference > 127,
       byte < 128, byte >= 128, signedLeft >= signedRight, signedLeft < signedRight,

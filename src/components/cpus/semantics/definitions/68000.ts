@@ -1,3 +1,7 @@
+import { controlForms68000, conditionNames68000 as conditionNames } from "../../68000-control.ts";
+import type { ControlForm68000 } from "../../68000-control.ts";
+import { motorolaBranchNames } from "../../motorola.ts";
+import { motorolaCondition } from "../motorola.ts";
 import { cpu68000StateDescription } from "../../state/68000.ts";
 import { opcodeFamily } from "../../opcodes.ts";
 import { operandMoveForms68000 } from "../../68000-moves.ts";
@@ -10,7 +14,7 @@ import type { LogicOperation68000, LogicOperand68000 } from "../../68000-logic.t
 import { dataRegisters68000 as dataRegisters, addressRegisters68000 as addressRegisters, selectors68000 as codes } from "../../68000-operands.ts";
 import type { Operand68000, OperandSize68000 as Size, OperandRegister68000 as RegisterName } from "../../68000-operands.ts";
 import { addOverflow, addWrap, alignmentFault, and, borrow, carry, overflow, select, subtract, bitAnd, bitOr, bitXor, capture, commitAddressUpdates, concat, cpuSymbols, extend, fetchWord, flagLiteral, flagValue, literal, lowBit, negative, readFlag, readMemory, readProgramMemory, readRegister,
-  divide, multiply, not, reject, iterate, iterateTogether, or, xor, shiftLeft, resolveAddress, shiftBits, signExtend, truncate, updateFlags, value, when, writeMemory, writeRegister, zero } from "../model.ts";
+  readNextAddress, selectTarget, divide, multiply, not, reject, iterate, iterateTogether, or, xor, shiftLeft, resolveAddress, shiftBits, signExtend, truncate, updateFlags, value, when, writeMemory, writeRegister, zero } from "../model.ts";
 import type { FlagExpression, InstructionDefinition, NumberExpression, Register, Statement } from "../model.ts";
 import { arithmetic, instructionSet, shift, transfer } from "../builders.ts";
 import { choose } from "../control-flow.ts";
@@ -120,9 +124,9 @@ function memoryRead(size: Size, address: string, result: string, program = false
     capture(result, size === 8 ? byte(0) : size === 16 ? concat(byte(0), byte(1)) : concat(concat(byte(0), byte(1)), concat(byte(2), byte(3))))];
 }
 
-function memoryWrite(size: Size): readonly Statement[] {
-  return Array.from({ length: size / 8 }, (_, offset) => writeMemory(byteAddress("destinationAddress", offset),
-    size === 8 ? value("result") : truncate(shiftBits(value("result"), "right", size - 8 - offset * 8), 8)));
+function memoryWrite(size: Size, address = "destinationAddress", result = "result"): readonly Statement[] {
+  return Array.from({ length: size / 8 }, (_, offset) => writeMemory(byteAddress(address, offset),
+    size === 8 ? value(result) : truncate(shiftBits(value(result), "right", size - 8 - offset * 8), 8)));
 }
 
 function immediateRead(size: Size, result: string): readonly Statement[] {
@@ -147,7 +151,7 @@ function withSource(size: Size, source: Operand68000, result: string, next: read
 
 /** Commit before reading an ALU destination; retain the selected register bank through writeback. */
 function aluDestination(size: Size, destination: Operand68000, pending: boolean,
-  apply: readonly Statement[], writeBack: boolean): readonly Statement[] {
+  apply: readonly Statement[], writeBack: boolean, selectors = { mode: "destinationMode", code: "destinationCode" }): readonly Statement[] {
   if (destination.kind === "immediate") {
     if (writeBack) throw new Error("An immediate operand cannot receive ALU writeback.");
     return [...immediateRead(size, "destination"), ...apply];
@@ -157,7 +161,7 @@ function aluDestination(size: Size, destination: Operand68000, pending: boolean,
     ? withRegister(destination.name, "destinationSupervisor", register => [...commit,
       readRegister("destinationRegister", register), capture("destination", narrow(value("destinationRegister"), size)),
       ...apply, ...(writeBack ? writeData(register, size, value("result")) : [])])
-    : [resolveAddress("destinationAddress", size, value("destinationMode"), value("destinationCode")),
+    : [resolveAddress("destinationAddress", size, value(selectors.mode), value(selectors.code)),
       ...checkAlignment(size, "destinationAddress", "read", destination.name === "program"), ...commit,
       ...memoryRead(size, "destinationAddress", "destination", destination.name === "program"),
       ...apply, ...(writeBack ? memoryWrite(size) : [])];
@@ -410,3 +414,97 @@ for (const form of wordArithmeticForms68000) if (!wordBodies.has(form.body)) wor
 for (const form of decimalForms68000) if (!decimalBodies.has(form.body)) decimalBodies.set(form.body, decimalArithmetic(form));
 export const wordArithmetic68000 = Object.freeze(Object.fromEntries(wordBodies));
 export const decimal68000 = Object.freeze(Object.fromEntries(decimalBodies));
+
+
+/** Only taken transfers validate and select a target; selection never advances the fetch cursor. */
+function jumpTarget(): readonly Statement[] {
+  return [when(lowBit(value("target")), [alignmentFault("fetch", value("target"))]), selectTarget(value("target"))];
+}
+
+/** A long push commits its original stack bank only after all four writes succeed. */
+function pushLong(contents: string, prepare: readonly Statement[] = [],
+  finish = (stack: Register): readonly Statement[] => [writeRegister(stack, value("stackAddress"))]): readonly Statement[] {
+  return withRegister("a7", "stackSupervisor", stack => [readRegister("stack", stack),
+    capture("stackAddress", subtract(value("stack"), literal(32, 4))), ...checkAlignment(32, "stackAddress", "write"),
+    ...prepare, ...memoryWrite(32, "stackAddress", contents), ...finish(stack)]);
+}
+
+const callTarget = (): readonly Statement[] => [readNextAddress("returnAddress"), ...pushLong("returnAddress", jumpTarget())];
+
+/** Displacements are relative to the cursor before an extension word is fetched. */
+function branchTarget(word: boolean): readonly Statement[] {
+  return [readNextAddress("base"), ...(word ? [fetchWord("offset")] : []),
+    capture("target", addWrap(value("base"), signExtend(value(word ? "offset" : "displacement"), 32)))];
+}
+
+function control(form: ControlForm68000): InstructionDefinition {
+  let name: string, explanation: string, steps: readonly Statement[];
+  switch (form.kind) {
+    case "condition": {
+      const condition = motorolaCondition(cpu, form.condition);
+      name = `S${conditionNames[form.condition]} ${form.destination.name.toUpperCase()}`;
+      explanation = "Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. "
+        + "Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.";
+      steps = aluDestination(8, form.destination, form.destination.kind === "memory",
+        [...condition.steps, capture("result", select(condition.test, literal(8, 255), literal(8, 0)))], true, { mode: "mode", code: "code" });
+      break;
+    }
+    case "decrement": {
+      const condition = motorolaCondition(cpu, form.condition), register = cpu.register(form.register);
+      name = `DB${conditionNames[form.condition]} ${form.register.toUpperCase()},label`;
+      explanation = "Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. "
+        + "Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. "
+        + "Select a valid target before writing the counter, preserving live upper Dn bits and every flag.";
+      steps = [...condition.steps, ...branchTarget(true), when(not(condition.test), [readRegister("counter", register),
+        capture("result", subtract(truncate(value("counter"), 16), literal(16, 1))),
+        when(not(zero(subtract(value("result"), literal(16, 0xffff)))), jumpTarget()), ...writeData(register, 16, value("result"))])];
+      break;
+    }
+    case "branch": {
+      const call = form.condition === 1, condition = motorolaCondition(cpu, call ? 0 : form.condition);
+      name = `${call ? "BSR" : motorolaBranchNames[form.condition]!.toUpperCase()}.${form.word ? "W" : "B"} label`;
+      explanation = "Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. "
+        + (call ? "Capture the return cursor after fetching. Check the decremented active stack before the target; select the target, write the return address high byte first, then commit the captured stack bank."
+          : "Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.");
+      steps = [...condition.steps, ...branchTarget(form.word), ...(call ? callTarget() : [when(condition.test, jumpTarget())])];
+      break;
+    }
+    case "address": {
+      const resolve = [resolveAddress("target", 32, value("mode"), value("code"))];
+      name = `${form.operation} control EA${form.register ? `,${form.register.toUpperCase()}` : ""}`;
+      explanation = "Resolve the control address without reading its data or requiring even alignment. Preserve flags. "
+        + (form.operation === "LEA" ? "Select the destination A7 bank before resolving the source, then write the full address."
+          : form.operation === "PEA" ? "Select the active stack after resolving the address. Check stack alignment, write the address high byte first, then commit that stack bank."
+          : form.operation === "JMP" ? "Reject an odd target before selection, without fetching any target byte."
+          : "Capture the return cursor after all extensions. Check stack alignment before target alignment; select the target before stacking, and commit the original stack bank after all bytes succeed.");
+      steps = form.operation === "LEA" ? withRegister(form.register, "destinationSupervisor", register => [...resolve, writeRegister(register, value("target"))])
+        : [...resolve, ...(form.operation === "PEA" ? pushLong("target") : form.operation === "JSR" ? callTarget() : jumpTarget())];
+      break;
+    }
+    case "frame": {
+      const link = form.operation === "LINK";
+      name = `${form.operation} ${form.register.toUpperCase()}${link ? ",#allocation" : ""}`;
+      explanation = "Preserve flags and resolve the frame register's identity before the active stack bank. "
+        + (link ? "Fetch the signed allocation word first. Check decremented stack alignment before reading the saved register. LINK A7 saves the decremented stack itself. "
+          + "After all four writes, set the frame register, then apply the allocation to the captured stack address."
+          : "Read the whole saved long through the frame register, checking alignment before access. Only after all bytes succeed, advance the captured stack bank by four and restore the frame register. UNLK A7 leaves the popped value in SP.");
+      steps = [...(link ? [fetchWord("allocation")] : []), ...withRegister(form.register, "frameSupervisor", register => link
+        ? pushLong("saved", [form.register === "a7" ? capture("saved", value("stackAddress")) : readRegister("saved", register)], stack => [
+          writeRegister(register, value("stackAddress")), writeRegister(stack, addWrap(value("stackAddress"), signExtend(value("allocation"), 32)))])
+        : withRegister("a7", "stackSupervisor", stack => [readRegister("frameAddress", register), ...checkAlignment(32, "frameAddress", "read"),
+          ...memoryRead(32, "frameAddress", "saved"), writeRegister(stack, addWrap(value("frameAddress"), literal(32, 4))), writeRegister(register, value("saved"))]))];
+      break;
+    }
+    case "return":
+      name = "RTS";
+      explanation = "Select and capture the active stack before reading. Check its alignment, read the complete return long high byte first, then validate and select the target. "
+        + "Only after target selection, advance the original stack bank by four. Failed reads and odd targets leave the pointer unchanged; preserve every flag.";
+      steps = withRegister("a7", "stackSupervisor", stack => [readRegister("stackAddress", stack), ...checkAlignment(32, "stackAddress", "read"),
+        ...memoryRead(32, "stackAddress", "target"), ...jumpTarget(), writeRegister(stack, addWrap(value("stackAddress"), literal(32, 4)))]);
+  }
+  return defineInstruction({ cpu: cpu.declaration, name, inputs: { mode: 3, code: 3, displacement: 8 }, explanation, steps });
+}
+
+const controlBodies = new Map<string, InstructionDefinition>();
+for (const form of controlForms68000) if (!controlBodies.has(form.body)) controlBodies.set(form.body, control(form));
+export const control68000 = Object.freeze(Object.fromEntries(controlBodies));

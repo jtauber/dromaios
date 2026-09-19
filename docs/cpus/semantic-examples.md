@@ -215850,6 +215850,8036 @@ write memory[destinationAddress] := result
 
 Flags preserved throughout: N, V, T, S.
 
+### 68000 ST D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+result := select(1:flag, FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 ST D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+result := select(1:flag, FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 ST D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+result := select(1:flag, FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 ST D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+result := select(1:flag, FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 ST D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+result := select(1:flag, FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 ST D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+result := select(1:flag, FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 ST D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+result := select(1:flag, FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 ST D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+result := select(1:flag, FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBT D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(1:flag) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBT D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(1:flag) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBT D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(1:flag) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBT D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(1:flag) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBT D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(1:flag) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBT D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(1:flag) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBT D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(1:flag) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBT D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(1:flag) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 ST MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+result := select(1:flag, FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SF D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+result := select(not(1:flag), FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SF D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+result := select(not(1:flag), FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SF D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+result := select(not(1:flag), FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SF D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+result := select(not(1:flag), FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SF D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+result := select(not(1:flag), FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SF D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+result := select(not(1:flag), FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SF D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+result := select(not(1:flag), FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SF D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+result := select(not(1:flag), FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBF D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(1:flag)) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBF D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(1:flag)) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBF D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(1:flag)) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBF D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(1:flag)) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBF D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(1:flag)) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBF D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(1:flag)) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBF D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(1:flag)) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBF D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(1:flag)) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SF MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+result := select(not(1:flag), FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SHI D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(and(not(c), not(z)), FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SHI D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(and(not(c), not(z)), FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SHI D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(and(not(c), not(z)), FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SHI D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(and(not(c), not(z)), FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SHI D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(and(not(c), not(z)), FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SHI D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(and(not(c), not(z)), FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SHI D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(and(not(c), not(z)), FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SHI D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(and(not(c), not(z)), FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBHI D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(c), not(z))) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBHI D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(c), not(z))) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBHI D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(c), not(z))) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBHI D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(c), not(z))) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBHI D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(c), not(z))) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBHI D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(c), not(z))) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBHI D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(c), not(z))) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBHI D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(c), not(z))) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SHI MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+c:flag := read C
+z:flag := read Z
+result := select(and(not(c), not(z)), FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLS D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(not(and(not(c), not(z))), FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLS D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(not(and(not(c), not(z))), FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLS D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(not(and(not(c), not(z))), FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLS D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(not(and(not(c), not(z))), FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLS D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(not(and(not(c), not(z))), FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLS D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(not(and(not(c), not(z))), FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLS D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(not(and(not(c), not(z))), FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLS D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+c:flag := read C
+z:flag := read Z
+result := select(not(and(not(c), not(z))), FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLS D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(c), not(z)))) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLS D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(c), not(z)))) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLS D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(c), not(z)))) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLS D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(c), not(z)))) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLS D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(c), not(z)))) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLS D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(c), not(z)))) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLS D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(c), not(z)))) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLS D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(c), not(z)))) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLS MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+c:flag := read C
+z:flag := read Z
+result := select(not(and(not(c), not(z))), FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCC D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(c), FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCC D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(c), FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCC D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(c), FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCC D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(c), FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCC D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(c), FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCC D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(c), FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCC D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(c), FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCC D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(c), FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCC D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(c)) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCC D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(c)) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCC D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(c)) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCC D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(c)) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCC D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(c)) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCC D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(c)) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCC D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(c)) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCC D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(c)) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCC MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+c:flag := read C
+result := select(not(c), FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCS D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(not(c)), FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCS D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(not(c)), FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCS D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(not(c)), FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCS D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(not(c)), FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCS D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(not(c)), FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCS D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(not(c)), FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCS D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(not(c)), FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCS D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+c:flag := read C
+result := select(not(not(c)), FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCS D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(c))) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCS D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(c))) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCS D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(c))) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCS D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(c))) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCS D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(c))) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCS D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(c))) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCS D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(c))) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBCS D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(c))) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SCS MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+c:flag := read C
+result := select(not(not(c)), FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SNE D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(z), FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SNE D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(z), FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SNE D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(z), FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SNE D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(z), FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SNE D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(z), FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SNE D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(z), FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SNE D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(z), FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SNE D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(z), FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBNE D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(z)) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBNE D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(z)) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBNE D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(z)) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBNE D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(z)) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBNE D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(z)) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBNE D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(z)) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBNE D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(z)) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBNE D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(z)) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SNE MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+z:flag := read Z
+result := select(not(z), FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SEQ D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(not(z)), FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SEQ D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(not(z)), FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SEQ D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(not(z)), FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SEQ D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(not(z)), FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SEQ D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(not(z)), FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SEQ D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(not(z)), FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SEQ D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(not(z)), FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SEQ D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+z:flag := read Z
+result := select(not(not(z)), FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBEQ D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(z))) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBEQ D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(z))) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBEQ D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(z))) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBEQ D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(z))) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBEQ D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(z))) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBEQ D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(z))) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBEQ D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(z))) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBEQ D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(z))) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SEQ MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+z:flag := read Z
+result := select(not(not(z)), FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVC D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(v), FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVC D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(v), FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVC D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(v), FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVC D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(v), FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVC D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(v), FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVC D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(v), FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVC D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(v), FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVC D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(v), FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVC D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(v)) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVC D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(v)) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVC D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(v)) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVC D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(v)) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVC D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(v)) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVC D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(v)) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVC D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(v)) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVC D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(v)) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVC MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+v:flag := read V
+result := select(not(v), FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVS D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(not(v)), FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVS D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(not(v)), FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVS D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(not(v)), FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVS D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(not(v)), FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVS D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(not(v)), FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVS D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(not(v)), FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVS D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(not(v)), FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVS D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+v:flag := read V
+result := select(not(not(v)), FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVS D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(v))) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVS D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(v))) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVS D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(v))) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVS D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(v))) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVS D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(v))) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVS D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(v))) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVS D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(v))) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBVS D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(v))) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SVS MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+v:flag := read V
+result := select(not(not(v)), FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SPL D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(n), FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SPL D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(n), FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SPL D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(n), FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SPL D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(n), FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SPL D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(n), FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SPL D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(n), FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SPL D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(n), FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SPL D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(n), FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBPL D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(n)) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBPL D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(n)) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBPL D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(n)) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBPL D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(n)) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBPL D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(n)) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBPL D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(n)) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBPL D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(n)) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBPL D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(n)) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SPL MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+n:flag := read N
+result := select(not(n), FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SMI D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(not(n)), FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SMI D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(not(n)), FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SMI D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(not(n)), FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SMI D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(not(n)), FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SMI D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(not(n)), FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SMI D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(not(n)), FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SMI D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(not(n)), FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SMI D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+n:flag := read N
+result := select(not(not(n)), FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBMI D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(n))) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBMI D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(n))) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBMI D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(n))) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBMI D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(n))) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBMI D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(n))) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBMI D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(n))) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBMI D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(n))) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBMI D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(n))) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SMI MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+n:flag := read N
+result := select(not(not(n)), FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGE D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(xor(n, v)), FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGE D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(xor(n, v)), FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGE D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(xor(n, v)), FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGE D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(xor(n, v)), FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGE D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(xor(n, v)), FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGE D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(xor(n, v)), FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGE D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(xor(n, v)), FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGE D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(xor(n, v)), FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGE D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(xor(n, v))) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGE D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(xor(n, v))) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGE D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(xor(n, v))) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGE D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(xor(n, v))) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGE D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(xor(n, v))) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGE D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(xor(n, v))) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGE D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(xor(n, v))) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGE D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(xor(n, v))) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGE MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+n:flag := read N
+v:flag := read V
+result := select(not(xor(n, v)), FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLT D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLT D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLT D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLT D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLT D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLT D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLT D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLT D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+result := select(not(not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLT D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(xor(n, v)))) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLT D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(xor(n, v)))) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLT D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(xor(n, v)))) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLT D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(xor(n, v)))) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLT D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(xor(n, v)))) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLT D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(xor(n, v)))) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLT D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(xor(n, v)))) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLT D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(not(xor(n, v)))) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLT MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+n:flag := read N
+v:flag := read V
+result := select(not(not(xor(n, v))), FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGT D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(and(not(z), not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGT D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(and(not(z), not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGT D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(and(not(z), not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGT D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(and(not(z), not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGT D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(and(not(z), not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGT D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(and(not(z), not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGT D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(and(not(z), not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGT D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(and(not(z), not(xor(n, v))), FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGT D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(z), not(xor(n, v)))) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGT D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(z), not(xor(n, v)))) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGT D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(z), not(xor(n, v)))) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGT D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(z), not(xor(n, v)))) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGT D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(z), not(xor(n, v)))) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGT D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(z), not(xor(n, v)))) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGT D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(z), not(xor(n, v)))) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBGT D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(z), not(xor(n, v)))) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SGT MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(and(not(z), not(xor(n, v))), FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLE D0
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(not(and(not(z), not(xor(n, v)))), FF:u8, 00:u8)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLE D1
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(not(and(not(z), not(xor(n, v)))), FF:u8, 00:u8)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLE D2
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(not(and(not(z), not(xor(n, v)))), FF:u8, 00:u8)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLE D3
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(not(and(not(z), not(xor(n, v)))), FF:u8, 00:u8)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLE D4
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(not(and(not(z), not(xor(n, v)))), FF:u8, 00:u8)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLE D5
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(not(and(not(z), not(xor(n, v)))), FF:u8, 00:u8)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLE D6
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(not(and(not(z), not(xor(n, v)))), FF:u8, 00:u8)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLE D7
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(not(and(not(z), not(xor(n, v)))), FF:u8, 00:u8)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLE D0,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(z), not(xor(n, v))))) {
+  counter:u32 := read D0
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLE D1,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(z), not(xor(n, v))))) {
+  counter:u32 := read D1
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLE D2,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(z), not(xor(n, v))))) {
+  counter:u32 := read D2
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLE D3,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(z), not(xor(n, v))))) {
+  counter:u32 := read D3
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLE D4,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(z), not(xor(n, v))))) {
+  counter:u32 := read D4
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLE D5,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(z), not(xor(n, v))))) {
+  counter:u32 := read D5
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLE D6,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(z), not(xor(n, v))))) {
+  counter:u32 := read D6
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 DBLE D7,label
+
+Capture the condition before fetching the complete displacement word. If true, leave Dn and target untouched. Otherwise decrement only the low word; FFFF falls through without validating the target. For every other result, reject an odd target before changing Dn. Select a valid target before writing the counter, preserving live upper Dn bits and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(and(not(z), not(xor(n, v))))) {
+  counter:u32 := read D7
+  result := subtract(low16(counter), 0001:u16)
+  when not(isZero(subtract(result, FFFF:u16))) {
+    when lowBit(target) {
+      return program-space fetch alignment fault at target; no later effects
+    }
+    select instruction target target for successful retirement; preserve the sequential fetch cursor
+  }
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SLE MEMORY
+
+Resolve and read the byte destination, committing its auto-updates before the read. Then test the captured condition flags in native order. Write FF when true or 00 when false, including unchanged bytes; preserve flags and live upper Dn bits. A failed read retains address updates; a failed write retains completed effects.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode mode, register code); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+result := select(not(and(not(z), not(xor(n, v)))), FF:u8, 00:u8)
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BRA.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when 1:flag {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BRA.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+when 1:flag {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BSR.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Capture the return cursor after fetching. Check the decremented active stack before the target; select the target, write the return address high byte first, then commit the captured stack bank.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+returnAddress:u32 := read sequential fetch cursor
+stackSupervisor:flag := read S
+when stackSupervisor {
+  stack:u32 := read SSP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+  write memory[stackAddress] := low8(shiftBitsRight(returnAddress, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(returnAddress, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(returnAddress, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(returnAddress, 0))
+  write SSP:u32 := stackAddress
+}
+when not(stackSupervisor) {
+  stack:u32 := read USP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+  write memory[stackAddress] := low8(shiftBitsRight(returnAddress, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(returnAddress, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(returnAddress, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(returnAddress, 0))
+  write USP:u32 := stackAddress
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BSR.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Capture the return cursor after fetching. Check the decremented active stack before the target; select the target, write the return address high byte first, then commit the captured stack bank.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+returnAddress:u32 := read sequential fetch cursor
+stackSupervisor:flag := read S
+when stackSupervisor {
+  stack:u32 := read SSP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+  write memory[stackAddress] := low8(shiftBitsRight(returnAddress, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(returnAddress, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(returnAddress, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(returnAddress, 0))
+  write SSP:u32 := stackAddress
+}
+when not(stackSupervisor) {
+  stack:u32 := read USP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+  write memory[stackAddress] := low8(shiftBitsRight(returnAddress, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(returnAddress, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(returnAddress, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(returnAddress, 0))
+  write USP:u32 := stackAddress
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BHI.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when and(not(c), not(z)) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BHI.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+when and(not(c), not(z)) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BLS.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(c), not(z))) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BLS.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+when not(and(not(c), not(z))) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BCC.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(c) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BCC.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+when not(c) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BCS.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(c)) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BCS.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+c:flag := read C
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+when not(not(c)) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BNE.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(z) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BNE.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+when not(z) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BEQ.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(z)) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BEQ.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+when not(not(z)) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BVC.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(v) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BVC.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+when not(v) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BVS.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(v)) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BVS.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+v:flag := read V
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+when not(not(v)) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BPL.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(n) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BPL.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+when not(n) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BMI.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(n)) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BMI.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+when not(not(n)) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BGE.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(xor(n, v)) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BGE.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+when not(xor(n, v)) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BLT.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(not(xor(n, v))) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BLT.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+when not(not(xor(n, v))) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BGT.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when and(not(z), not(xor(n, v))) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BGT.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+when and(not(z), not(xor(n, v))) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BLE.W label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+offset:u16 := fetch complete native-order word
+target := addWrap(base, signExtend32(offset))
+when not(and(not(z), not(xor(n, v)))) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 BLE.B label
+
+Capture condition flags before the displacement. Read the sequential cursor before fetching any extension word; add the signed displacement with 32-bit wrap. Only a taken branch validates and selects the target; untaken odd targets are harmless. Preserve all registers and flags.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+base:u32 := read sequential fetch cursor
+target := addWrap(base, signExtend32(displacement))
+when not(and(not(z), not(xor(n, v)))) {
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LEA control EA,A0
+
+Resolve the control address without reading its data or requiring even alignment. Preserve flags. Select the destination A7 bank before resolving the source, then write the full address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+target:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+write A0:u32 := target
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LEA control EA,A1
+
+Resolve the control address without reading its data or requiring even alignment. Preserve flags. Select the destination A7 bank before resolving the source, then write the full address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+target:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+write A1:u32 := target
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LEA control EA,A2
+
+Resolve the control address without reading its data or requiring even alignment. Preserve flags. Select the destination A7 bank before resolving the source, then write the full address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+target:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+write A2:u32 := target
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LEA control EA,A3
+
+Resolve the control address without reading its data or requiring even alignment. Preserve flags. Select the destination A7 bank before resolving the source, then write the full address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+target:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+write A3:u32 := target
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LEA control EA,A4
+
+Resolve the control address without reading its data or requiring even alignment. Preserve flags. Select the destination A7 bank before resolving the source, then write the full address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+target:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+write A4:u32 := target
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LEA control EA,A5
+
+Resolve the control address without reading its data or requiring even alignment. Preserve flags. Select the destination A7 bank before resolving the source, then write the full address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+target:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+write A5:u32 := target
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LEA control EA,A6
+
+Resolve the control address without reading its data or requiring even alignment. Preserve flags. Select the destination A7 bank before resolving the source, then write the full address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+target:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+write A6:u32 := target
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LEA control EA,A7
+
+Resolve the control address without reading its data or requiring even alignment. Preserve flags. Select the destination A7 bank before resolving the source, then write the full address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  target:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+  write SSP:u32 := target
+}
+when not(destinationSupervisor) {
+  target:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+  write USP:u32 := target
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 PEA control EA
+
+Resolve the control address without reading its data or requiring even alignment. Preserve flags. Select the active stack after resolving the address. Check stack alignment, write the address high byte first, then commit that stack bank.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+target:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+stackSupervisor:flag := read S
+when stackSupervisor {
+  stack:u32 := read SSP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  write memory[stackAddress] := low8(shiftBitsRight(target, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(target, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(target, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(target, 0))
+  write SSP:u32 := stackAddress
+}
+when not(stackSupervisor) {
+  stack:u32 := read USP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  write memory[stackAddress] := low8(shiftBitsRight(target, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(target, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(target, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(target, 0))
+  write USP:u32 := stackAddress
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 JSR control EA
+
+Resolve the control address without reading its data or requiring even alignment. Preserve flags. Capture the return cursor after all extensions. Check stack alignment before target alignment; select the target before stacking, and commit the original stack bank after all bytes succeed.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+target:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+returnAddress:u32 := read sequential fetch cursor
+stackSupervisor:flag := read S
+when stackSupervisor {
+  stack:u32 := read SSP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+  write memory[stackAddress] := low8(shiftBitsRight(returnAddress, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(returnAddress, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(returnAddress, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(returnAddress, 0))
+  write SSP:u32 := stackAddress
+}
+when not(stackSupervisor) {
+  stack:u32 := read USP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+  write memory[stackAddress] := low8(shiftBitsRight(returnAddress, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(returnAddress, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(returnAddress, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(returnAddress, 0))
+  write USP:u32 := stackAddress
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 JMP control EA
+
+Resolve the control address without reading its data or requiring even alignment. Preserve flags. Reject an odd target before selection, without fetching any target byte.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+target:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+when lowBit(target) {
+  return program-space fetch alignment fault at target; no later effects
+}
+select instruction target target for successful retirement; preserve the sequential fetch cursor
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LINK A0,#allocation
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Fetch the signed allocation word first. Check decremented stack alignment before reading the saved register. LINK A7 saves the decremented stack itself. After all four writes, set the frame register, then apply the allocation to the captured stack address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+allocation:u16 := fetch complete native-order word
+stackSupervisor:flag := read S
+when stackSupervisor {
+  stack:u32 := read SSP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  saved:u32 := read A0
+  write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+  write A0:u32 := stackAddress
+  write SSP:u32 := addWrap(stackAddress, signExtend32(allocation))
+}
+when not(stackSupervisor) {
+  stack:u32 := read USP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  saved:u32 := read A0
+  write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+  write A0:u32 := stackAddress
+  write USP:u32 := addWrap(stackAddress, signExtend32(allocation))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LINK A1,#allocation
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Fetch the signed allocation word first. Check decremented stack alignment before reading the saved register. LINK A7 saves the decremented stack itself. After all four writes, set the frame register, then apply the allocation to the captured stack address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+allocation:u16 := fetch complete native-order word
+stackSupervisor:flag := read S
+when stackSupervisor {
+  stack:u32 := read SSP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  saved:u32 := read A1
+  write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+  write A1:u32 := stackAddress
+  write SSP:u32 := addWrap(stackAddress, signExtend32(allocation))
+}
+when not(stackSupervisor) {
+  stack:u32 := read USP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  saved:u32 := read A1
+  write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+  write A1:u32 := stackAddress
+  write USP:u32 := addWrap(stackAddress, signExtend32(allocation))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LINK A2,#allocation
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Fetch the signed allocation word first. Check decremented stack alignment before reading the saved register. LINK A7 saves the decremented stack itself. After all four writes, set the frame register, then apply the allocation to the captured stack address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+allocation:u16 := fetch complete native-order word
+stackSupervisor:flag := read S
+when stackSupervisor {
+  stack:u32 := read SSP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  saved:u32 := read A2
+  write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+  write A2:u32 := stackAddress
+  write SSP:u32 := addWrap(stackAddress, signExtend32(allocation))
+}
+when not(stackSupervisor) {
+  stack:u32 := read USP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  saved:u32 := read A2
+  write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+  write A2:u32 := stackAddress
+  write USP:u32 := addWrap(stackAddress, signExtend32(allocation))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LINK A3,#allocation
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Fetch the signed allocation word first. Check decremented stack alignment before reading the saved register. LINK A7 saves the decremented stack itself. After all four writes, set the frame register, then apply the allocation to the captured stack address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+allocation:u16 := fetch complete native-order word
+stackSupervisor:flag := read S
+when stackSupervisor {
+  stack:u32 := read SSP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  saved:u32 := read A3
+  write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+  write A3:u32 := stackAddress
+  write SSP:u32 := addWrap(stackAddress, signExtend32(allocation))
+}
+when not(stackSupervisor) {
+  stack:u32 := read USP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  saved:u32 := read A3
+  write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+  write A3:u32 := stackAddress
+  write USP:u32 := addWrap(stackAddress, signExtend32(allocation))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LINK A4,#allocation
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Fetch the signed allocation word first. Check decremented stack alignment before reading the saved register. LINK A7 saves the decremented stack itself. After all four writes, set the frame register, then apply the allocation to the captured stack address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+allocation:u16 := fetch complete native-order word
+stackSupervisor:flag := read S
+when stackSupervisor {
+  stack:u32 := read SSP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  saved:u32 := read A4
+  write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+  write A4:u32 := stackAddress
+  write SSP:u32 := addWrap(stackAddress, signExtend32(allocation))
+}
+when not(stackSupervisor) {
+  stack:u32 := read USP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  saved:u32 := read A4
+  write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+  write A4:u32 := stackAddress
+  write USP:u32 := addWrap(stackAddress, signExtend32(allocation))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LINK A5,#allocation
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Fetch the signed allocation word first. Check decremented stack alignment before reading the saved register. LINK A7 saves the decremented stack itself. After all four writes, set the frame register, then apply the allocation to the captured stack address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+allocation:u16 := fetch complete native-order word
+stackSupervisor:flag := read S
+when stackSupervisor {
+  stack:u32 := read SSP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  saved:u32 := read A5
+  write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+  write A5:u32 := stackAddress
+  write SSP:u32 := addWrap(stackAddress, signExtend32(allocation))
+}
+when not(stackSupervisor) {
+  stack:u32 := read USP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  saved:u32 := read A5
+  write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+  write A5:u32 := stackAddress
+  write USP:u32 := addWrap(stackAddress, signExtend32(allocation))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LINK A6,#allocation
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Fetch the signed allocation word first. Check decremented stack alignment before reading the saved register. LINK A7 saves the decremented stack itself. After all four writes, set the frame register, then apply the allocation to the captured stack address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+allocation:u16 := fetch complete native-order word
+stackSupervisor:flag := read S
+when stackSupervisor {
+  stack:u32 := read SSP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  saved:u32 := read A6
+  write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+  write A6:u32 := stackAddress
+  write SSP:u32 := addWrap(stackAddress, signExtend32(allocation))
+}
+when not(stackSupervisor) {
+  stack:u32 := read USP
+  stackAddress := subtract(stack, 00000004:u32)
+  when lowBit(stackAddress) {
+    return data-space write alignment fault at stackAddress; no later effects
+  }
+  saved:u32 := read A6
+  write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+  write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+  write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+  write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+  write A6:u32 := stackAddress
+  write USP:u32 := addWrap(stackAddress, signExtend32(allocation))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LINK A7,#allocation
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Fetch the signed allocation word first. Check decremented stack alignment before reading the saved register. LINK A7 saves the decremented stack itself. After all four writes, set the frame register, then apply the allocation to the captured stack address.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+allocation:u16 := fetch complete native-order word
+frameSupervisor:flag := read S
+when frameSupervisor {
+  stackSupervisor:flag := read S
+  when stackSupervisor {
+    stack:u32 := read SSP
+    stackAddress := subtract(stack, 00000004:u32)
+    when lowBit(stackAddress) {
+      return data-space write alignment fault at stackAddress; no later effects
+    }
+    saved := stackAddress
+    write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+    write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+    write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+    write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+    write SSP:u32 := stackAddress
+    write SSP:u32 := addWrap(stackAddress, signExtend32(allocation))
+  }
+  when not(stackSupervisor) {
+    stack:u32 := read USP
+    stackAddress := subtract(stack, 00000004:u32)
+    when lowBit(stackAddress) {
+      return data-space write alignment fault at stackAddress; no later effects
+    }
+    saved := stackAddress
+    write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+    write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+    write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+    write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+    write SSP:u32 := stackAddress
+    write USP:u32 := addWrap(stackAddress, signExtend32(allocation))
+  }
+}
+when not(frameSupervisor) {
+  stackSupervisor:flag := read S
+  when stackSupervisor {
+    stack:u32 := read SSP
+    stackAddress := subtract(stack, 00000004:u32)
+    when lowBit(stackAddress) {
+      return data-space write alignment fault at stackAddress; no later effects
+    }
+    saved := stackAddress
+    write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+    write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+    write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+    write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+    write USP:u32 := stackAddress
+    write SSP:u32 := addWrap(stackAddress, signExtend32(allocation))
+  }
+  when not(stackSupervisor) {
+    stack:u32 := read USP
+    stackAddress := subtract(stack, 00000004:u32)
+    when lowBit(stackAddress) {
+      return data-space write alignment fault at stackAddress; no later effects
+    }
+    saved := stackAddress
+    write memory[stackAddress] := low8(shiftBitsRight(saved, 24))
+    write memory[addWrap(stackAddress, 00000001:u32)] := low8(shiftBitsRight(saved, 16))
+    write memory[addWrap(stackAddress, 00000002:u32)] := low8(shiftBitsRight(saved, 8))
+    write memory[addWrap(stackAddress, 00000003:u32)] := low8(shiftBitsRight(saved, 0))
+    write USP:u32 := stackAddress
+    write USP:u32 := addWrap(stackAddress, signExtend32(allocation))
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 UNLK A0
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Read the whole saved long through the frame register, checking alignment before access. Only after all bytes succeed, advance the captured stack bank by four and restore the frame register. UNLK A7 leaves the popped value in SP.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+stackSupervisor:flag := read S
+when stackSupervisor {
+  frameAddress:u32 := read A0
+  when lowBit(frameAddress) {
+    return data-space read alignment fault at frameAddress; no later effects
+  }
+  savedByte0:u8 := read memory[frameAddress]
+  savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+  savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+  savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+  saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+  write SSP:u32 := addWrap(frameAddress, 00000004:u32)
+  write A0:u32 := saved
+}
+when not(stackSupervisor) {
+  frameAddress:u32 := read A0
+  when lowBit(frameAddress) {
+    return data-space read alignment fault at frameAddress; no later effects
+  }
+  savedByte0:u8 := read memory[frameAddress]
+  savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+  savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+  savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+  saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+  write USP:u32 := addWrap(frameAddress, 00000004:u32)
+  write A0:u32 := saved
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 UNLK A1
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Read the whole saved long through the frame register, checking alignment before access. Only after all bytes succeed, advance the captured stack bank by four and restore the frame register. UNLK A7 leaves the popped value in SP.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+stackSupervisor:flag := read S
+when stackSupervisor {
+  frameAddress:u32 := read A1
+  when lowBit(frameAddress) {
+    return data-space read alignment fault at frameAddress; no later effects
+  }
+  savedByte0:u8 := read memory[frameAddress]
+  savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+  savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+  savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+  saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+  write SSP:u32 := addWrap(frameAddress, 00000004:u32)
+  write A1:u32 := saved
+}
+when not(stackSupervisor) {
+  frameAddress:u32 := read A1
+  when lowBit(frameAddress) {
+    return data-space read alignment fault at frameAddress; no later effects
+  }
+  savedByte0:u8 := read memory[frameAddress]
+  savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+  savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+  savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+  saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+  write USP:u32 := addWrap(frameAddress, 00000004:u32)
+  write A1:u32 := saved
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 UNLK A2
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Read the whole saved long through the frame register, checking alignment before access. Only after all bytes succeed, advance the captured stack bank by four and restore the frame register. UNLK A7 leaves the popped value in SP.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+stackSupervisor:flag := read S
+when stackSupervisor {
+  frameAddress:u32 := read A2
+  when lowBit(frameAddress) {
+    return data-space read alignment fault at frameAddress; no later effects
+  }
+  savedByte0:u8 := read memory[frameAddress]
+  savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+  savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+  savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+  saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+  write SSP:u32 := addWrap(frameAddress, 00000004:u32)
+  write A2:u32 := saved
+}
+when not(stackSupervisor) {
+  frameAddress:u32 := read A2
+  when lowBit(frameAddress) {
+    return data-space read alignment fault at frameAddress; no later effects
+  }
+  savedByte0:u8 := read memory[frameAddress]
+  savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+  savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+  savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+  saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+  write USP:u32 := addWrap(frameAddress, 00000004:u32)
+  write A2:u32 := saved
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 UNLK A3
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Read the whole saved long through the frame register, checking alignment before access. Only after all bytes succeed, advance the captured stack bank by four and restore the frame register. UNLK A7 leaves the popped value in SP.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+stackSupervisor:flag := read S
+when stackSupervisor {
+  frameAddress:u32 := read A3
+  when lowBit(frameAddress) {
+    return data-space read alignment fault at frameAddress; no later effects
+  }
+  savedByte0:u8 := read memory[frameAddress]
+  savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+  savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+  savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+  saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+  write SSP:u32 := addWrap(frameAddress, 00000004:u32)
+  write A3:u32 := saved
+}
+when not(stackSupervisor) {
+  frameAddress:u32 := read A3
+  when lowBit(frameAddress) {
+    return data-space read alignment fault at frameAddress; no later effects
+  }
+  savedByte0:u8 := read memory[frameAddress]
+  savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+  savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+  savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+  saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+  write USP:u32 := addWrap(frameAddress, 00000004:u32)
+  write A3:u32 := saved
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 UNLK A4
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Read the whole saved long through the frame register, checking alignment before access. Only after all bytes succeed, advance the captured stack bank by four and restore the frame register. UNLK A7 leaves the popped value in SP.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+stackSupervisor:flag := read S
+when stackSupervisor {
+  frameAddress:u32 := read A4
+  when lowBit(frameAddress) {
+    return data-space read alignment fault at frameAddress; no later effects
+  }
+  savedByte0:u8 := read memory[frameAddress]
+  savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+  savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+  savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+  saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+  write SSP:u32 := addWrap(frameAddress, 00000004:u32)
+  write A4:u32 := saved
+}
+when not(stackSupervisor) {
+  frameAddress:u32 := read A4
+  when lowBit(frameAddress) {
+    return data-space read alignment fault at frameAddress; no later effects
+  }
+  savedByte0:u8 := read memory[frameAddress]
+  savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+  savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+  savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+  saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+  write USP:u32 := addWrap(frameAddress, 00000004:u32)
+  write A4:u32 := saved
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 UNLK A5
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Read the whole saved long through the frame register, checking alignment before access. Only after all bytes succeed, advance the captured stack bank by four and restore the frame register. UNLK A7 leaves the popped value in SP.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+stackSupervisor:flag := read S
+when stackSupervisor {
+  frameAddress:u32 := read A5
+  when lowBit(frameAddress) {
+    return data-space read alignment fault at frameAddress; no later effects
+  }
+  savedByte0:u8 := read memory[frameAddress]
+  savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+  savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+  savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+  saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+  write SSP:u32 := addWrap(frameAddress, 00000004:u32)
+  write A5:u32 := saved
+}
+when not(stackSupervisor) {
+  frameAddress:u32 := read A5
+  when lowBit(frameAddress) {
+    return data-space read alignment fault at frameAddress; no later effects
+  }
+  savedByte0:u8 := read memory[frameAddress]
+  savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+  savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+  savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+  saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+  write USP:u32 := addWrap(frameAddress, 00000004:u32)
+  write A5:u32 := saved
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 UNLK A6
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Read the whole saved long through the frame register, checking alignment before access. Only after all bytes succeed, advance the captured stack bank by four and restore the frame register. UNLK A7 leaves the popped value in SP.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+stackSupervisor:flag := read S
+when stackSupervisor {
+  frameAddress:u32 := read A6
+  when lowBit(frameAddress) {
+    return data-space read alignment fault at frameAddress; no later effects
+  }
+  savedByte0:u8 := read memory[frameAddress]
+  savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+  savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+  savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+  saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+  write SSP:u32 := addWrap(frameAddress, 00000004:u32)
+  write A6:u32 := saved
+}
+when not(stackSupervisor) {
+  frameAddress:u32 := read A6
+  when lowBit(frameAddress) {
+    return data-space read alignment fault at frameAddress; no later effects
+  }
+  savedByte0:u8 := read memory[frameAddress]
+  savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+  savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+  savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+  saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+  write USP:u32 := addWrap(frameAddress, 00000004:u32)
+  write A6:u32 := saved
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 UNLK A7
+
+Preserve flags and resolve the frame register's identity before the active stack bank. Read the whole saved long through the frame register, checking alignment before access. Only after all bytes succeed, advance the captured stack bank by four and restore the frame register. UNLK A7 leaves the popped value in SP.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+frameSupervisor:flag := read S
+when frameSupervisor {
+  stackSupervisor:flag := read S
+  when stackSupervisor {
+    frameAddress:u32 := read SSP
+    when lowBit(frameAddress) {
+      return data-space read alignment fault at frameAddress; no later effects
+    }
+    savedByte0:u8 := read memory[frameAddress]
+    savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+    savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+    savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+    saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+    write SSP:u32 := addWrap(frameAddress, 00000004:u32)
+    write SSP:u32 := saved
+  }
+  when not(stackSupervisor) {
+    frameAddress:u32 := read SSP
+    when lowBit(frameAddress) {
+      return data-space read alignment fault at frameAddress; no later effects
+    }
+    savedByte0:u8 := read memory[frameAddress]
+    savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+    savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+    savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+    saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+    write USP:u32 := addWrap(frameAddress, 00000004:u32)
+    write SSP:u32 := saved
+  }
+}
+when not(frameSupervisor) {
+  stackSupervisor:flag := read S
+  when stackSupervisor {
+    frameAddress:u32 := read USP
+    when lowBit(frameAddress) {
+      return data-space read alignment fault at frameAddress; no later effects
+    }
+    savedByte0:u8 := read memory[frameAddress]
+    savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+    savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+    savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+    saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+    write SSP:u32 := addWrap(frameAddress, 00000004:u32)
+    write USP:u32 := saved
+  }
+  when not(stackSupervisor) {
+    frameAddress:u32 := read USP
+    when lowBit(frameAddress) {
+      return data-space read alignment fault at frameAddress; no later effects
+    }
+    savedByte0:u8 := read memory[frameAddress]
+    savedByte1:u8 := read memory[addWrap(frameAddress, 00000001:u32)]
+    savedByte2:u8 := read memory[addWrap(frameAddress, 00000002:u32)]
+    savedByte3:u8 := read memory[addWrap(frameAddress, 00000003:u32)]
+    saved := concatHighLow(concatHighLow(savedByte0, savedByte1), concatHighLow(savedByte2, savedByte3))
+    write USP:u32 := addWrap(frameAddress, 00000004:u32)
+    write USP:u32 := saved
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 RTS
+
+Select and capture the active stack before reading. Check its alignment, read the complete return long high byte first, then validate and select the target. Only after target selection, advance the original stack bank by four. Failed reads and odd targets leave the pointer unchanged; preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+displacement:u8 := input
+stackSupervisor:flag := read S
+when stackSupervisor {
+  stackAddress:u32 := read SSP
+  when lowBit(stackAddress) {
+    return data-space read alignment fault at stackAddress; no later effects
+  }
+  targetByte0:u8 := read memory[stackAddress]
+  targetByte1:u8 := read memory[addWrap(stackAddress, 00000001:u32)]
+  targetByte2:u8 := read memory[addWrap(stackAddress, 00000002:u32)]
+  targetByte3:u8 := read memory[addWrap(stackAddress, 00000003:u32)]
+  target := concatHighLow(concatHighLow(targetByte0, targetByte1), concatHighLow(targetByte2, targetByte3))
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+  write SSP:u32 := addWrap(stackAddress, 00000004:u32)
+}
+when not(stackSupervisor) {
+  stackAddress:u32 := read USP
+  when lowBit(stackAddress) {
+    return data-space read alignment fault at stackAddress; no later effects
+  }
+  targetByte0:u8 := read memory[stackAddress]
+  targetByte1:u8 := read memory[addWrap(stackAddress, 00000001:u32)]
+  targetByte2:u8 := read memory[addWrap(stackAddress, 00000002:u32)]
+  targetByte3:u8 := read memory[addWrap(stackAddress, 00000003:u32)]
+  target := concatHighLow(concatHighLow(targetByte0, targetByte1), concatHighLow(targetByte2, targetByte3))
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+  write USP:u32 := addWrap(stackAddress, 00000004:u32)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
 ### 6502 BRK
 
 Fetch padding before saving PC; stack B set. Push PC high then live PC low, then packed status with old I. Set I only after those writes; preserve NMOS D. Read the complete low-first vector before replacing PC. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.

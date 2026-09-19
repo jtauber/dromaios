@@ -613,3 +613,62 @@ test("68000 decimal bus faults preserve paired A7 predecrements, cumulative flag
     }
   }
 });
+
+test("68000 control stack faults retain each completed byte without committing frames or pointers in either bank", () => {
+  // Calls, an odd PEA value, both frame-register aliases, and the ordinary return.
+  const programs = [
+    [0x61, 0, 0xff, 0xfe], [0x4e, 0xb9, 0xcd, 0, 0x20, 0], [0x48, 0x78, 0x12, 0x35],
+    [0x4e, 0x50, 0xff, 0xf0], [0x4e, 0x57, 0xff, 0xf0], [0x4e, 0x58], [0x4e, 0x5f], [0x4e, 0x75],
+  ];
+  for (const bytes of programs) for (const s of [false, true]) for (let offset = 0; offset < 4; offset++) {
+    const before = state(); before.flags.s = s; before.flags.t = false;
+    const opcode = bytes[0]! * 256 + bytes[1]!, stack = s ? before.ssp : before.usp;
+    const reading = [0x4e58, 0x4e5f, 0x4e75].includes(opcode), address = reading ? opcode === 0x4e58 ? before.a0 : stack : stack - 4;
+    const contents = reading ? 0x89008000 : opcode === 0x4878 ? 0x1235 : opcode === 0x4e50 ? before.a0 : opcode === 0x4e57 ? stack - 4 : before.pc + bytes.length;
+    const { memory, cpu } = fixture(bytes, before);
+    if (reading) memory.load(address, long(contents));
+    let failed = false;
+    memory.fail = (kind, a) => {
+      if (!failed && kind === (reading ? "read" : "write") && a === physical(address + offset)) { failed = true; return true; }
+      return false; // Exception stacking may revisit the same physical bytes.
+    };
+    const record = cpu.step();
+    checkBusFrame(record, memory, { operation: reading ? "read" : "write", address: address + offset,
+      returnPc: before.pc + bytes.length, ir: opcode, code: s ? 5 : 1, status: s ? 0x2217 : 0x0217 });
+    assert.equal(record.after.usp, before.usp); assert.equal(record.after.a0, before.a0);
+    assert.deepEqual(record.accesses.slice(bytes.length, -18), accesses(reading ? "read" : "write", address, long(contents).slice(0, offset)));
+  }
+});
+
+test("68000 Scc bus faults retain committed A7 byte updates and preserved flags before unchanged writes", () => {
+  for (const mode of [3, 4]) for (const s of [false, true]) for (const writing of [false, true]) {
+    const before = state(); before.flags.s = s; before.flags.t = false;
+    const opcode = 0x5ec0 + mode * 8 + 7, stack = s ? before.ssp : before.usp, address = stack - (mode === 4 ? 2 : 0);
+    const committed = stack + (mode === 3 ? 2 : -2), { memory, cpu } = fixture(word(opcode), before);
+    memory.load(address, [0]); // SGT is false with these flags, so the successful write would be unchanged.
+    let failed = false;
+    memory.fail = (kind, a) => {
+      if (!failed && kind === (writing ? "write" : "read") && a === physical(address)) { failed = true; return true; }
+      return false;
+    };
+    const record = cpu.step();
+    checkBusFrame(record, memory, { operation: writing ? "write" : "read", address, returnPc: before.pc + 2,
+      ir: opcode, code: s ? 5 : 1, status: s ? 0x2217 : 0x0217, stack: (s ? committed : before.ssp) - 14 });
+    assert.equal(record.after.usp, s ? before.usp : committed);
+    assert.deepEqual(record.accesses.slice(2, -18), writing ? accesses("read", address, [0]) : []);
+  }
+});
+
+test("68000 conditional branch extension faults leave counters and selected targets uncommitted", () => {
+  for (let condition = 0; condition < 16; condition++) for (const decrement of [false, true]) for (const s of [false, true]) for (const offset of [0, 1]) {
+    const before = state({ d7: 0x12340002 }); before.flags.s = s; before.flags.t = false;
+    const opcode = (decrement ? 0x50cf : 0x6000) + condition * 256;
+    const { memory, cpu } = fixture([...word(opcode), 0, 2], before);
+    memory.fail = (kind, a) => kind === "read" && a === physical(before.pc + 2 + offset);
+    const record = cpu.step();
+    checkBusFrame(record, memory, { operation: "fetch", address: before.pc + 2 + offset, returnPc: before.pc + 2,
+      ir: opcode, code: s ? 6 : 2, status: s ? 0x2217 : 0x0217 });
+    assert.equal(record.after.d7, before.d7); assert.equal(record.after.usp, before.usp);
+    assert.deepEqual(record.instruction?.bytes, word(opcode));
+  }
+});
