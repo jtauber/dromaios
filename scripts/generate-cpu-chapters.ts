@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { cpu6502StateDescription } from "../src/components/cpus/state/6502.ts";
+import { cpu8008StateDescription } from "../src/components/cpus/state/8008.ts";
 import { compileCpuChapter } from "../src/components/cpus/semantics/literate/compile.ts";
 import type { CpuChapter } from "../src/components/cpus/semantics/literate/compile.ts";
 
@@ -28,14 +29,19 @@ function chapterModule(chapter: CpuChapter): string {
 /** Bootstrap chapter data before loading the registry that consumes it; paths are independent of cwd. */
 export function generateCpuChapters(): void {
   const root = new URL("../src/components/cpus/", import.meta.url);
-  const source = new URL("specifications/6502-load-store.md", root);
-  const chapter = compileCpuChapter(readFileSync(source, "utf8"), { name: "6502", state: cpu6502StateDescription }, fileURLToPath(source));
-  const module = chapterModule(chapter);
+  const chapters = [
+    { name: "6502-load-store", cpu: "6502", state: cpu6502StateDescription },
+    { name: "8008-transfers", cpu: "8008", state: cpu8008StateDescription },
+  ].map(({ name, cpu, state }) => {
+    const source = new URL(`specifications/${name}.md`, root);
+    const chapter = compileCpuChapter(readFileSync(source, "utf8"), { name: cpu, state }, fileURLToPath(source));
+    return { name, module: chapterModule(chapter) };
+  });
   const output = new URL("semantics/generated/", root);
-  // Compilation succeeds before existing output is removed.
+  // Every chapter compiles before any existing output is removed.
   rmSync(output, { recursive: true, force: true });
   mkdirSync(output, { recursive: true });
-  writeFileSync(new URL("6502-load-store.ts", output), module);
+  for (const { name, module } of chapters) writeFileSync(new URL(`${name}.ts`, output), module);
 }
 
 if (import.meta.main) generateCpuChapters();

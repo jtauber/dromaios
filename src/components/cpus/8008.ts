@@ -1,4 +1,4 @@
-import { instructions as semantics } from "./generated/8008.ts";
+import { instructions as semantics, opcodeEntries as transferEntries } from "./generated/8008.ts";
 import { cpu8008StateDescription } from "./state/8008.ts";
 import type { Cpu8008State, Cpu8008StoredState } from "./state/8008.ts";
 import type { Ram } from "../memory/ram.js";
@@ -17,7 +17,7 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { intel8008PortForms, intel8008ByteTransferForms, intel8008ControlForms as controlForms } from "./intel-encodings.ts";
+import { intel8008PortForms, intel8008ControlForms as controlForms } from "./intel-encodings.ts";
 
 export { cpu8008StateDescription } from "./state/8008.ts";
 export type { Cpu8008State, Cpu8008AddressStack, Cpu8008Flags } from "./state/8008.ts";
@@ -54,6 +54,7 @@ export class Cpu8008 {
   readonly #ram: Ram;
   readonly #ports: BytePorts | undefined;
   readonly #state: Cpu8008StoredState;
+  readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>>;
   readonly #atBoundary = executionBoundary("8008 step, reset, and interrupt calls must not be reentrant.");
   readonly #counter = programCounter(() => this.#pc, value => { this.#pc = value & 0x3fff; });
 
@@ -62,6 +63,7 @@ export class Cpu8008 {
     this.#ram = ram;
     this.#ports = ports;
     this.#state = readState(cpu8008StateDescription, initialState);
+    this.#opcodeHandlers = this.#createOpcodeHandlers();
   }
 
   /** Inspect detached state, the selected PC, and the raw H:L pair without RAM accesses. */
@@ -164,54 +166,55 @@ export class Cpu8008 {
 
   // Native 8008 opcode bits: 7 6 | 5 4 3 | 2 1 0 = xx yyy zzz.
   // xx selects a block; the other fields select its operation and operands.
-  readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
-    // 00 rrr 00d: d=0 increments, d=1 decrements B/C/D/E/H/L; preserve carry.
-    // rrr=000 selects HLT (00/01); rrr=111 is undefined, with no memory adjustment.
-    ...this.#adjustHandlers("00 rrr 00d"), // INr / DCr / HLT
+  #createOpcodeHandlers(): Readonly<Partial<Record<number, OpcodeHandler>>> {
+    return opcodeTable<OpcodeHandler>([
+      // 00 rrr 00d: d=0 increments, d=1 decrements B/C/D/E/H/L; preserve carry.
+      // rrr=000 selects HLT (00/01); rrr=111 is undefined, with no memory adjustment.
+      ...this.#adjustHandlers("00 rrr 00d"), // INr / DCr / HLT
 
-    // 00 0td 010: t=0 circular, t=1 through carry; d=0 left, d=1 right.
-    // Only carry changes; the four 00 1xx 010 encodings are undefined.
-    ...opcodePattern("00 000 010", () => semantics.rlc(this.#state)), // RLC
-    ...opcodePattern("00 001 010", () => semantics.rrc(this.#state)), // RRC
-    ...opcodePattern("00 010 010", () => semantics.ral(this.#state)), // RAL
-    ...opcodePattern("00 011 010", () => semantics.rar(this.#state)), // RAR
+      // 00 0td 010: t=0 circular, t=1 through carry; d=0 left, d=1 right.
+      // Only carry changes; the four 00 1xx 010 encodings are undefined.
+      ...opcodePattern("00 000 010", () => semantics.rlc(this.#state)), // RLC
+      ...opcodePattern("00 001 010", () => semantics.rrc(this.#state)), // RRC
+      ...opcodePattern("00 010 010", () => semantics.ral(this.#state)), // RAL
+      ...opcodePattern("00 011 010", () => semantics.rar(this.#state)), // RAR
 
-    // 00 ccc 011: conditional return; ccc=vff, v=false/true, ff=C/Z/S/P.
-    ...this.#instructionHandlers(controlForms.conditionalReturns), // RFc / RTc
+      // 00 ccc 011: conditional return; ccc=vff, v=false/true, ff=C/Z/S/P.
+      ...this.#instructionHandlers(controlForms.conditionalReturns), // RFc / RTc
 
-    // 00 ooo 100: ooo (bits 5..3) selects the ALU operation; the next byte is its operand.
-    ...opcodeFamily("00 ooo 100", { o: this.#aluInstructions }, ({ o: instruction }) => instruction("immediate")), // ADI / ACI / SUI / SBI / NDI / XRI / ORI / CPI
+      // 00 ooo 100: ooo (bits 5..3) selects the ALU operation; the next byte is its operand.
+      ...opcodeFamily("00 ooo 100", { o: this.#aluInstructions }, ({ o: instruction }) => instruction("immediate")), // ADI / ACI / SUI / SBI / NDI / XRI / ORI / CPI
 
-    // 00 vvv 101: a one-byte call to 0000..0038; vvv supplies address bits 5..3.
-    ...this.#instructionHandlers(controlForms.restarts), // RST
+      // 00 vvv 101: a one-byte call to 0000..0038; vvv supplies address bits 5..3.
+      ...this.#instructionHandlers(controlForms.restarts), // RST
 
-    // 00 rrr 110: rrr (bits 5..3) selects the destination, including memory at rrr=111.
-    ...this.#instructionHandlers(intel8008ByteTransferForms.immediate), // LrI n / LMI n
+      // Chapter-defined transfers: 00 ddd 110 loads an immediate byte; 11 ddd sss copies an operand.
+      // ddd/sss select A/B/C/D/E/H/L/M; the chapter excludes 11 111 111 (HLT).
+      ...transferEntries(this.#state), // LrI n / LMI n / Lr1r2 / LrM / LMr
 
-    // 00 xxx 111: RET. Bits 5–3 are don't-care bits: all eight encodings return.
-    ...this.#instructionHandlers(controlForms.return), // RET
+      // 00 xxx 111: RET. Bits 5–3 are don't-care bits: all eight encodings return.
+      ...this.#instructionHandlers(controlForms.return), // RET
 
-    // 01 ccc 000/010: conditional jump/call; ccc = vff uses the same conditions as returns.
-    // Both paths fetch llllllll, xxhhhhhh (low byte first), ignoring the high two address bits.
-    ...this.#instructionHandlers(controlForms.conditionalJumps), // JFc / JTc addr
-    ...this.#instructionHandlers(controlForms.conditionalCalls), // CFc / CTc addr
+      // 01 ccc 000/010: conditional jump/call; ccc = vff uses the same conditions as returns.
+      // Both paths fetch llllllll, xxhhhhhh (low byte first), ignoring the high two address bits.
+      ...this.#instructionHandlers(controlForms.conditionalJumps), // JFc / JTc addr
+      ...this.#instructionHandlers(controlForms.conditionalCalls), // CFc / CTc addr
 
-    // 01 xxx 100/110: unconditional JMP/CAL; xxx is ignored, not a condition.
-    ...this.#instructionHandlers(controlForms.jump), // JMP addr
-    ...this.#instructionHandlers(controlForms.call), // CAL addr
+      // 01 xxx 100/110: unconditional JMP/CAL; xxx is ignored, not a condition.
+      ...this.#instructionHandlers(controlForms.jump), // JMP addr
+      ...this.#instructionHandlers(controlForms.call), // CAL addr
 
-    // 01 ppppp 1: bits 5..1 select the port. ppppp = rrmmm: rr=00 inputs 0..7;
-    // rr=01/10/11 outputs 8..31. INP replaces A; OUT sends A; both preserve flags.
-    ...this.#instructionHandlers(intel8008PortForms), // INP / OUT
+      // 01 ppppp 1: bits 5..1 select the port. ppppp = rrmmm: rr=00 inputs 0..7;
+      // rr=01/10/11 outputs 8..31. INP replaces A; OUT sends A; both preserve flags.
+      ...this.#instructionHandlers(intel8008PortForms), // INP / OUT
 
-    // 10 ooo sss: ooo (bits 5..3) selects the operation; sss (bits 2..0) selects A/B/C/D/E/H/L/M.
-    ...opcodeFamily("10 ooo sss", { o: this.#aluInstructions, s: this.#byteOperands }, ({ o: instruction, s: source }) => instruction(source)), // ADr / ACr / SUr / SBr / NDr / XRr / ORr / CPr (including M)
+      // 10 ooo sss: ooo (bits 5..3) selects the operation; sss (bits 2..0) selects A/B/C/D/E/H/L/M.
+      ...opcodeFamily("10 ooo sss", { o: this.#aluInstructions, s: this.#byteOperands }, ({ o: instruction, s: source }) => instruction(source)), // ADr / ACr / SUr / SBr / NDr / XRr / ORr / CPr (including M)
 
-    // 11 ddd sss: ddd (bits 5..3) selects destination; sss (bits 2..0) selects source.
-    // 11 111 111 is HLT, not LMM; it performs no data access.
-    ...this.#instructionHandlers(intel8008ByteTransferForms.matrix), // Lr1r2 / LrM / LMr
-    ...opcodePattern("11 111 111", () => semantics[0xff](this.#state)), // HLT
-  ]);
+      // 11 111 111 belongs to HLT and performs no data access.
+      ...opcodePattern("11 111 111", () => semantics[0xff](this.#state)), // HLT
+    ]);
+  }
 
   #adjustHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
     return opcodeFamily(pattern, { r: this.#byteOperands, d: ["in", "dc"] as const }, ({ r: operand, d: operation }) => {

@@ -23,7 +23,7 @@ test("the chapter owns exactly the documented LDA/STA opcodes and the production
   }
   const { immediateByte: _immediate, ...addresses } = chapter.sources;
   assert.deepEqual(addresses, sources6502.groups.addresses);
-  assert.equal(chapter.modes.accumulator![2]!.address, undefined);
+  assert.equal(chapter.modes.accumulator![2]!.kind, "value");
 });
 
 test("family prose is authored in Markdown and statements carry Markdown line positions", () => {

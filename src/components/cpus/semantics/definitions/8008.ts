@@ -1,24 +1,26 @@
 import { cpu8008StateDescription } from "../../state/8008.ts";
-import { addWrap, bitAnd, borrow, capture, carry, concat, cpuSymbols, evenParity, extend, fetchByte, flagLiteral, flagValue, literal, negative,
-  readMemory, readRegister, readSource, subtract, truncate, updateFlags, value, writeElement, writeLatch, writeRegister, zero } from "../model.ts";
+import { addWrap, borrow, capture, carry, concat, cpuSymbols, evenParity, extend, fetchByte, flagLiteral, flagValue, literal, negative,
+  readRegister, readSource, subtract, truncate, updateFlags, value, writeElement, writeLatch, writeRegister, zero } from "../model.ts";
 import type { FlagPolicy, InstructionDefinition, Statement, ValueSource } from "../model.ts";
-import { immediateByte, instructionSet, registerSource, registerView } from "../builders.ts";
-import { intelAccumulatorRotate, intelByteAlu, intelByteTransfer } from "../intel.ts";
+import { immediateByte, instructionSet, memorySource, registerSource, registerView } from "../builders.ts";
+import { intelAccumulatorRotate, intelByteAlu } from "../intel.ts";
 import type { IntelByteOperation } from "../intel.ts";
-import { intel8008PortForms, intel8008ByteTransferForms, intel8008ControlForms as controlForms } from "../../intel-encodings.ts";
+import { intel8008PortForms, intel8008ControlForms as controlForms } from "../../intel-encodings.ts";
 import { conditional, flagCondition } from "../control-flow.ts";
 import { defineInstruction } from "../validate.ts";
 import { portTransfer } from "../ports.ts";
+import { families, sources as chapterSources } from "../generated/8008-transfers.ts";
+
+// The chapter owns transfer encodings as well as behavior; generation binds these same keys.
+export const transfers8008 = instructionSet([...families.immediate, ...families.transfer]);
 
 const cpu = cpuSymbols("8008", cpu8008StateDescription);
 const addressStack = cpu.array("addressStack"), stackIndex = cpu.register("stackIndex");
 const targetAddress: ValueSource = { name: "14-bit target, low byte first", width: 14,
   steps: [fetchByte("low"), fetchByte("high")], result: truncate(concat(value("high"), value("low")), 14) };
 
-const throughHL: ValueSource = { name: "memory through low 14 bits of HL", width: 8, steps: [
-  readRegister("high", cpu.register("h")), readRegister("low", cpu.register("l")),
-  readMemory("byte", bitAnd(concat(value("high"), value("low")), literal(16, 0x3fff))),
-], result: value("byte") };
+// Arithmetic reads use the chapter's address rule too; only the chapter's complete bodies earn migration credit.
+const throughHL = memorySource(chapterSources.throughHL);
 // The 8008's sss order is A/B/C/D/E/H/L/M, unlike the 8080/Z80. Immediate is a separate encoding.
 const sources = [
   ...(["a", "b", "c", "d", "e", "h", "l"] as const).map(name => [name.toUpperCase(), registerSource(cpu.register(name))] as const),
@@ -116,8 +118,7 @@ export const instructions8008 = {
   ...instructionSet(intel8008PortForms.map(([opcode, port]) => [opcode,
     portTransfer(cpu.declaration, `${port < 8 ? "INP" : "OUT"} ${port}`, { name: "encoded port selector", width: 16,
       steps: [], result: literal(16, port) }, registerView(cpu.register("a")), port >= 8)])),
-  ...instructionSet([...intel8008ByteTransferForms.immediate, ...intel8008ByteTransferForms.matrix].map(([opcode, { destination, source }]) =>
-    [opcode, intelByteTransfer(cpu, destination, source, `L${destination.toUpperCase()}${source === "immediate" ? "I n" : source.toUpperCase()}`, { mask: 0x3fff })])),
+  ...transfers8008,
   // 00 rrr 00d: rrr=001..110 selects B/C/D/E/H/L; d=0 increments, d=1 decrements.
   ...adjustment("IN"), ...adjustment("DC"),
   // 00 0td 010: t=0 circular, t=1 through carry; d=0 left, d=1 right.

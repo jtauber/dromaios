@@ -244155,9 +244155,12 @@ Use the selected byte registers; memory uses H then L at the access point. Mask 
 
 ```text
 result:u8 := fetch byte
-high:u8 := read H
-low:u8 := read L
-write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+destinationAddress0:u16 := source "memory address through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+}
+write memory[destinationAddress0] := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -245368,9 +245371,15 @@ Flags preserved throughout: S, Z, P, C.
 Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
 
 ```text
-high:u8 := read H
-low:u8 := read L
-result:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+result:u8 := source "byte at memory address through low 14 bits of HL" {
+  address:u16 := source "memory address through low 14 bits of HL" {
+    high:u8 := read H
+    low:u8 := read L
+    yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
 write A:u8 := result
 ```
 
@@ -245458,9 +245467,15 @@ Flags preserved throughout: S, Z, P, C.
 Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
 
 ```text
-high:u8 := read H
-low:u8 := read L
-result:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+result:u8 := source "byte at memory address through low 14 bits of HL" {
+  address:u16 := source "memory address through low 14 bits of HL" {
+    high:u8 := read H
+    low:u8 := read L
+    yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
 write B:u8 := result
 ```
 
@@ -245548,9 +245563,15 @@ Flags preserved throughout: S, Z, P, C.
 Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
 
 ```text
-high:u8 := read H
-low:u8 := read L
-result:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+result:u8 := source "byte at memory address through low 14 bits of HL" {
+  address:u16 := source "memory address through low 14 bits of HL" {
+    high:u8 := read H
+    low:u8 := read L
+    yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
 write C:u8 := result
 ```
 
@@ -245638,9 +245659,15 @@ Flags preserved throughout: S, Z, P, C.
 Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
 
 ```text
-high:u8 := read H
-low:u8 := read L
-result:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+result:u8 := source "byte at memory address through low 14 bits of HL" {
+  address:u16 := source "memory address through low 14 bits of HL" {
+    high:u8 := read H
+    low:u8 := read L
+    yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
 write D:u8 := result
 ```
 
@@ -245728,9 +245755,15 @@ Flags preserved throughout: S, Z, P, C.
 Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
 
 ```text
-high:u8 := read H
-low:u8 := read L
-result:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+result:u8 := source "byte at memory address through low 14 bits of HL" {
+  address:u16 := source "memory address through low 14 bits of HL" {
+    high:u8 := read H
+    low:u8 := read L
+    yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
 write E:u8 := result
 ```
 
@@ -245818,9 +245851,15 @@ Flags preserved throughout: S, Z, P, C.
 Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
 
 ```text
-high:u8 := read H
-low:u8 := read L
-result:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+result:u8 := source "byte at memory address through low 14 bits of HL" {
+  address:u16 := source "memory address through low 14 bits of HL" {
+    high:u8 := read H
+    low:u8 := read L
+    yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
 write H:u8 := result
 ```
 
@@ -245908,9 +245947,15 @@ Flags preserved throughout: S, Z, P, C.
 Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
 
 ```text
-high:u8 := read H
-low:u8 := read L
-result:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+result:u8 := source "byte at memory address through low 14 bits of HL" {
+  address:u16 := source "memory address through low 14 bits of HL" {
+    high:u8 := read H
+    low:u8 := read L
+    yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
 write L:u8 := result
 ```
 
@@ -245922,9 +245967,12 @@ Use the selected byte registers; memory uses H then L at the access point. Mask 
 
 ```text
 result:u8 := read A
-high:u8 := read H
-low:u8 := read L
-write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+destinationAddress0:u16 := source "memory address through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+}
+write memory[destinationAddress0] := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -245935,9 +245983,12 @@ Use the selected byte registers; memory uses H then L at the access point. Mask 
 
 ```text
 result:u8 := read B
-high:u8 := read H
-low:u8 := read L
-write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+destinationAddress0:u16 := source "memory address through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+}
+write memory[destinationAddress0] := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -245948,9 +245999,12 @@ Use the selected byte registers; memory uses H then L at the access point. Mask 
 
 ```text
 result:u8 := read C
-high:u8 := read H
-low:u8 := read L
-write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+destinationAddress0:u16 := source "memory address through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+}
+write memory[destinationAddress0] := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -245961,9 +246015,12 @@ Use the selected byte registers; memory uses H then L at the access point. Mask 
 
 ```text
 result:u8 := read D
-high:u8 := read H
-low:u8 := read L
-write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+destinationAddress0:u16 := source "memory address through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+}
+write memory[destinationAddress0] := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -245974,9 +246031,12 @@ Use the selected byte registers; memory uses H then L at the access point. Mask 
 
 ```text
 result:u8 := read E
-high:u8 := read H
-low:u8 := read L
-write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+destinationAddress0:u16 := source "memory address through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+}
+write memory[destinationAddress0] := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -245987,9 +246047,12 @@ Use the selected byte registers; memory uses H then L at the access point. Mask 
 
 ```text
 result:u8 := read H
-high:u8 := read H
-low:u8 := read L
-write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+destinationAddress0:u16 := source "memory address through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+}
+write memory[destinationAddress0] := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -246000,9 +246063,12 @@ Use the selected byte registers; memory uses H then L at the access point. Mask 
 
 ```text
 result:u8 := read L
-high:u8 := read H
-low:u8 := read L
-write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+destinationAddress0:u16 := source "memory address through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+}
+write memory[destinationAddress0] := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -246442,10 +246508,13 @@ Flags preserved throughout: none.
 Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
 
 ```text
-right:u8 := source "memory through low 14 bits of HL" {
-  high:u8 := read H
-  low:u8 := read L
-  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+right:u8 := source "byte at memory address through low 14 bits of HL" {
+  address:u16 := source "memory address through low 14 bits of HL" {
+    high:u8 := read H
+    low:u8 := read L
+    yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 left:u8 := read A
@@ -246649,10 +246718,13 @@ Flags preserved throughout: none.
 Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
 
 ```text
-right:u8 := source "memory through low 14 bits of HL" {
-  high:u8 := read H
-  low:u8 := read L
-  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+right:u8 := source "byte at memory address through low 14 bits of HL" {
+  address:u16 := source "memory address through low 14 bits of HL" {
+    high:u8 := read H
+    low:u8 := read L
+    yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 carry:flag := read C
@@ -246851,10 +246923,13 @@ Flags preserved throughout: none.
 Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
 
 ```text
-right:u8 := source "memory through low 14 bits of HL" {
-  high:u8 := read H
-  low:u8 := read L
-  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+right:u8 := source "byte at memory address through low 14 bits of HL" {
+  address:u16 := source "memory address through low 14 bits of HL" {
+    high:u8 := read H
+    low:u8 := read L
+    yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 left:u8 := read A
@@ -247058,10 +247133,13 @@ Flags preserved throughout: none.
 Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
 
 ```text
-right:u8 := source "memory through low 14 bits of HL" {
-  high:u8 := read H
-  low:u8 := read L
-  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+right:u8 := source "byte at memory address through low 14 bits of HL" {
+  address:u16 := source "memory address through low 14 bits of HL" {
+    high:u8 := read H
+    low:u8 := read L
+    yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 carry:flag := read C
@@ -247260,10 +247338,13 @@ Flags preserved throughout: none.
 Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
 
 ```text
-right:u8 := source "memory through low 14 bits of HL" {
-  high:u8 := read H
-  low:u8 := read L
-  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+right:u8 := source "byte at memory address through low 14 bits of HL" {
+  address:u16 := source "memory address through low 14 bits of HL" {
+    high:u8 := read H
+    low:u8 := read L
+    yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 left:u8 := read A
@@ -247460,10 +247541,13 @@ Flags preserved throughout: none.
 Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
 
 ```text
-right:u8 := source "memory through low 14 bits of HL" {
-  high:u8 := read H
-  low:u8 := read L
-  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+right:u8 := source "byte at memory address through low 14 bits of HL" {
+  address:u16 := source "memory address through low 14 bits of HL" {
+    high:u8 := read H
+    low:u8 := read L
+    yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 left:u8 := read A
@@ -247660,10 +247744,13 @@ Flags preserved throughout: none.
 Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
 
 ```text
-right:u8 := source "memory through low 14 bits of HL" {
-  high:u8 := read H
-  low:u8 := read L
-  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+right:u8 := source "byte at memory address through low 14 bits of HL" {
+  address:u16 := source "memory address through low 14 bits of HL" {
+    high:u8 := read H
+    low:u8 := read L
+    yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 left:u8 := read A
@@ -247853,10 +247940,13 @@ Flags preserved throughout: none.
 Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then retain A without a write. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
 
 ```text
-right:u8 := source "memory through low 14 bits of HL" {
-  high:u8 := read H
-  low:u8 := read L
-  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+right:u8 := source "byte at memory address through low 14 bits of HL" {
+  address:u16 := source "memory address through low 14 bits of HL" {
+    high:u8 := read H
+    low:u8 := read L
+    yield bitAnd(concatHighLow(high, low), 3FFF:u16)
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 left:u8 := read A

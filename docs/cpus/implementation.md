@@ -15,11 +15,13 @@ in the CPU class:
 | --- | --- |
 | `<cpu>.ts` and CPU-specific support modules | Public execution contract, native decoding, generated-body binding, recording, and lifecycle orchestration |
 | `state/<cpu>.ts` | Stored-state declarations, derived types, and packed-status layouts |
-| `semantics/definitions/<cpu>.ts` | Instruction definitions and their explanations |
+| `semantics/definitions/<cpu>.ts` | TypeScript-authored instruction definitions, explanations, and chapter integration |
+| `specifications/*.md` | Executable literate chapters that own selected instruction families and their encodings |
 | `semantics/` shared builders | Reusable operand sources, ordered effects, calculations, and CPU policies |
 | Encoding inventories beside the cores | Selector mappings shared by definition construction and execution binding |
 | `semantics/{model,validate,generate,describe}.ts` | Definition representation, validation, executable generation, and explanation generation |
 | `generated/` | Regenerated instruction bodies; never edit these by hand |
+| `semantics/generated/` | Regenerated chapter data consumed by TypeScript definitions; never edit these by hand |
 
 The [instruction semantics guide](instruction-semantics.md) defines the language
 contracts. The [development workflow](../../README.md#development) explains

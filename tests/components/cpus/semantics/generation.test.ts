@@ -202,6 +202,22 @@ test("generated numeric inputs preserve declaration order, widths, and names ind
   assert.equal(state.pc, 0xffff); assert.equal(state.a, 0x80); assert.equal(state.x, 0);
 });
 
+test("selected opcode bindings coexist with unbound helpers and reject missing, repeated, or input-bearing entries", async () => {
+  const definition = instructions6502[0xaa]!;
+  const helper = { ...definition, inputs: { address: 16 as const } };
+  const definitions = { 170: definition, helper };
+  const source = generateInstructions("6502", definitions, { bindOpcodes: [170] });
+  const compiled: { opcodeEntries(state: Cpu6502State): readonly (readonly [number, () => void])[] } =
+    await import(`data:text/javascript,${encodeURIComponent(stripTypeScriptTypes(source))}`);
+  const state = mosState(); state.a = 0x80;
+  const entries = compiled.opcodeEntries(state);
+  assert.deepEqual(entries.map(([opcode]) => opcode), [170]);
+  entries[0]![1](); assert.equal(state.x, 0x80);
+  assert.throws(() => generateInstructions("6502", definitions, { bindOpcodes: [171] }), /no instruction definition/);
+  assert.throws(() => generateInstructions("6502", definitions, { bindOpcodes: [170, 170] }), /Duplicate opcode/);
+  assert.throws(() => generateInstructions("6502", { 170: helper }, { bindOpcodes: [170] }), /cannot supply instruction inputs/);
+});
+
 test("generated opcode bindings capture their own CPU instance and read live state only on execution", () => {
   const first = mosState(), second = mosState();
   let a = 0x12, reads = 0;

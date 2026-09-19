@@ -1,13 +1,18 @@
-import { opcodeFamily } from "../../opcodes.ts";
+import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
 import type { OpcodeEntry } from "../../opcodes.ts";
-import { memorySource } from "../builders.ts";
-import { addWrap, capture, concat, extend, fetchByte, isWidth, literal, negative, readMemory, readRegister,
+import { memorySource, registerSource } from "../builders.ts";
+import { addWrap, bitAnd, capture, concat, extend, fetchByte, isWidth, literal, negative, readMemory, readRegister,
   readSource, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
 import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, NumberExpression, Register, Statement, ValueSource, Width } from "../model.ts";
 import { defineInstruction, validateInstruction } from "../validate.ts";
 import { chapterBlocks, ChapterError, ChapterTokens } from "./document.ts";
 
-export interface ChapterMode { readonly name: string; readonly read: ValueSource; readonly address?: ValueSource }
+export type ChapterMode = { readonly name: string; readonly read: ValueSource } & (
+  | { readonly kind: "memory"; readonly address: ValueSource }
+  | { readonly kind: "register"; readonly register: Register }
+  | { readonly kind: "value" }
+);
+interface Selector { readonly choices: readonly ChapterMode[]; readonly view: "read" | "address" | "operand" }
 export interface CpuChapter {
   readonly sources: Readonly<Record<string, ValueSource>>;
   readonly policies: Readonly<Record<string, FlagPolicy>>;
@@ -51,15 +56,25 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
       if (!isWidth(bits)) return tokens.fail("Unsupported literal width.");
       result = literal(bits, tokens.number());
     } else {
-      if (!["add", "concat", "extend"].includes(name)) tokens.fail(`Unknown numeric operation ${name}.`);
+      if (!["add", "and", "concat", "extend"].includes(name)) tokens.fail(`Unknown numeric operation ${name}.`);
       const left = expression(tokens); tokens.expect(",");
       result = name === "extend" ? extend(left, width(tokens))
-        : (name === "add" ? addWrap : concat)(left, expression(tokens));
+        : (name === "add" ? addWrap : name === "and" ? bitAnd : concat)(left, expression(tokens));
     }
     tokens.expect(")"); return result;
   }
-  function steps(lines: readonly ChapterTokens[], bindings: ReadonlyMap<string, ValueSource> = sources): Statement[] {
+  function steps(lines: readonly ChapterTokens[], bindings: ReadonlyMap<string, ValueSource> = sources,
+    operands: ReadonlyMap<string, ChapterMode> = new Map()): Statement[] {
     const result: Statement[] = [];
+    // Lowering a memory destination needs a capture. Keep it distinct from every authored
+    // name, including later references, so it cannot collide with or become visible to the author.
+    const usedNames = new Set(lines.flatMap(tokens => tokens.source.text.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? []));
+    let nextTemporary = 0;
+    const temporary = () => {
+      let name: string;
+      do { name = `destinationAddress${nextTemporary++}`; } while (usedNames.has(name));
+      return name;
+    };
     for (const tokens of lines) {
       if (tokens.take("apply")) {
         const policy = lookup(policies, tokens); tokens.expect("(");
@@ -68,6 +83,14 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
           if (index) tokens.expect(","); args[name] = expression(tokens);
         }
         tokens.expect(")"); result.push(updateFlags(policy, args));
+      } else if (tokens.take("operand")) {
+        const operand = lookup(operands, tokens); tokens.expect("<-"); const contents = expression(tokens);
+        if (operand.kind === "value") tokens.fail("A value-only operand cannot be written.");
+        if (operand.kind === "register") result.push(writeRegister(operand.register, contents));
+        if (operand.kind === "memory") {
+          const address = temporary();
+          result.push(readSource(address, operand.address), writeMemory(value(address), contents));
+        }
       } else if (tokens.take("memory")) {
         tokens.expect("("); const address = expression(tokens); tokens.expect(")"); tokens.expect("<-");
         result.push(writeMemory(address, expression(tokens)));
@@ -81,6 +104,10 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
           if (tokens.take("fetch")) result.push(fetchByte(name));
           else if (tokens.take("register")) result.push(readRegister(name, lookup(registers, tokens)));
           else if (tokens.take("source")) result.push(readSource(name, lookup(bindings, tokens)));
+          else if (tokens.take("operand")) {
+            const operand = lookup(operands, tokens);
+            result.push(operand.kind === "register" ? readRegister(name, operand.register) : readSource(name, operand.read));
+          }
           else if (tokens.take("memory")) {
             tokens.expect("("); result.push(readMemory(name, expression(tokens))); tokens.expect(")");
           } else result.push(capture(name, expression(tokens)));
@@ -158,29 +185,68 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
             tokens.fail("Mode codes must be consecutive binary values of equal width, starting at zero.");
           }
           const description = tokens.quoted(); tokens.expect("="); const modeKind = tokens.word();
-          if (modeKind !== "memory" && modeKind !== "value") tokens.fail("Expected memory or value mode.");
-          const source = lookup(sources, tokens); tokens.end();
-          if (modeKind === "memory" && source.width !== 16) tokens.fail("Memory modes require a 16-bit address source.");
-          entries.push(modeKind === "memory" ? { name: description, address: source, read: memorySource(source) } : { name: description, read: source });
+          if (modeKind === "register") {
+            const register = lookup(registers, tokens);
+            entries.push({ kind: "register", name: description, register, read: registerSource(register) });
+          } else {
+            if (modeKind !== "memory" && modeKind !== "value") tokens.fail("Expected register, memory, or value mode.");
+            const source = lookup(sources, tokens);
+            if (modeKind === "memory" && source.width !== 16) tokens.fail("Memory modes require a 16-bit address source.");
+            entries.push(modeKind === "memory" ? { kind: "memory", name: description, address: source, read: memorySource(source) }
+              : { kind: "value", name: description, read: source });
+          }
+          tokens.end();
         }
         if (digits === undefined || entries.length !== 2 ** digits) header.fail("Modes must describe every value of their selector.");
         modes.set(name, entries);
       } else if (kind === "family") {
-        const pattern = header.quoted(); header.expect("for"); const selector = header.word(); header.expect("in");
-        const choices = lookup(modes, header); header.expect("."); const selectedField = header.word(); open();
-        const selection = selectedField === "read" || selectedField === "address" ? selectedField : header.fail("Select modes.read or modes.address.");
+        const pattern = header.quoted(); header.expect("for");
+        const selectors = new Map<string, Selector>();
+        do {
+          const selector = header.word(); header.expect("in"); const choices = lookup(modes, header);
+          const requested = header.take(".") ? header.word() : "operand";
+          if (selectors.has(selector)) header.fail(`Duplicate selector ${selector}.`);
+          if (names.has(selector)) header.fail("A family selector must not shadow a source or other declaration.");
+          const view = requested === "read" || requested === "address" || requested === "operand" ? requested
+            : header.fail("Select modes.read or modes.address, or an operand catalogue.");
+          selectors.set(selector, { choices, view });
+        } while (header.take(","));
+        const template = header.take("named") ? header.quoted() : undefined;
+        if (template === undefined && selectors.size !== 1) header.fail("A multi-selector family needs an explicit instruction name template.");
+        // Substitution happens once over authored text; braces in operand labels stay literal.
+        const instructionName = (selected: Readonly<Record<string, ChapterMode>>) => template === undefined
+          ? `${name} ${Object.values(selected)[0]!.name}`
+          : template.replace(/\{([^{}]*)\}|[{}]/g, (placeholder, field: string | undefined) =>
+            field !== undefined && Object.hasOwn(selected, field) ? selected[field]!.name : header.fail(`Unknown name placeholder ${placeholder}.`));
+        const excluded = new Set<number>();
+        if (header.take("except")) do {
+          for (const [opcode] of checked(header, () => opcodePattern(header.quoted(), undefined))) {
+            if (excluded.has(opcode)) header.fail(`Duplicate exclusion $${opcode.toString(16)}.`);
+            excluded.add(opcode);
+          }
+        } while (header.take(","));
+        open();
         if (!block.explanation) header.fail("A family needs an explanatory paragraph before its cpu fence.");
-        if (sources.has(selector)) header.fail("A family selector must not shadow a source.");
-        const entries = checked(header, () => opcodeFamily(pattern, { [selector]: choices }, selected => selected[selector]!));
+        const choices = Object.fromEntries([...selectors].map(([selector, { choices }]) => [selector, choices]));
+        const entries = checked(header, () => opcodeFamily(pattern, choices, selected => selected));
+        for (const opcode of excluded) if (!entries.some(([candidate]) => opcode === candidate)) header.fail(`Excluded opcode $${opcode.toString(16)} is outside this family.`);
         const definitions: OpcodeEntry<InstructionDefinition>[] = [];
-        for (const [opcode, mode] of entries) {
-          const source = mode[selection];
-          if (source === undefined) continue; // Value-only modes have no writable address.
+        for (const [opcode, selected] of entries) {
+          if (excluded.has(opcode)) continue;
+          const bindings = new Map(sources), operands = new Map<string, ChapterMode>();
+          let available = true;
+          for (const [selector, { view }] of selectors) {
+            const mode = selected[selector]!;
+            if (view === "operand") operands.set(selector, mode);
+            else if (view === "read") bindings.set(selector, mode.read);
+            else if (mode.kind === "memory") bindings.set(selector, mode.address);
+            else available = false; // Only memory modes supply an address view.
+          }
+          if (!available) continue;
           if (opcodes.has(opcode)) header.fail(`Duplicate opcode $${opcode.toString(16)}.`);
           opcodes.add(opcode);
-          const bindings = new Map(sources); bindings.set(selector, source);
-          const bodySteps = steps(body.map(tokens => new ChapterTokens(tokens.source, file)), bindings);
-          definitions.push([opcode, checked(header, () => defineInstruction({ cpu, name: `${name} ${mode.name}`,
+          const bodySteps = steps(body.map(tokens => new ChapterTokens(tokens.source, file)), bindings, operands);
+          definitions.push([opcode, checked(header, () => defineInstruction({ cpu, name: instructionName(selected),
             explanation: block.explanation, steps: bodySteps }))]);
         }
         if (!definitions.length) header.fail("A family must define at least one instruction.");

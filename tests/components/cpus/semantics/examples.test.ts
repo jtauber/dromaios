@@ -502,8 +502,11 @@ test("Z80 bit explanations expose fixed masks, BIT's preserved carry, and flag-f
 
 test("8008 ALU explanations retain native mnemonics, 14-bit memory, parity, and carry-before-A ordering", () => {
   const memory = description("8008", "ACM");
-  assert.match(memory, /read memory\[bitAnd\(concatHighLow\(high, low\), 3FFF:u16\)\]/);
+  assert.match(memory, /address:u16 := source "memory address through low 14 bits of HL"/);
+  assert.match(memory, /yield bitAnd\(concatHighLow\(high, low\), 3FFF:u16\)/);
+  assert.match(memory, /read memory\[address\]/);
   assert.ok(memory.indexOf("read H") < memory.indexOf("read L"));
+  assert.ok(memory.indexOf("yield bitAnd(") < memory.indexOf("read memory[address]"));
   assert.ok(memory.indexOf("carry:flag := read C") > memory.indexOf("read memory["));
   assert.ok(memory.indexOf("left:u8 := read A") > memory.indexOf("carry:flag := read C"));
   assert.match(memory, /P := evenParity8\(result\)/); assert.match(memory, /C := carry\(left, right, carry\)/);

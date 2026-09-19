@@ -13,9 +13,9 @@ structured bodies. This representation is independent of the external grammar
 and document format used to author a CPU.
 
 The [literate specification prototype](literate-specifications.md) now provides
-an external authoring path into this representation. Its 6502 chapter owns
-LDA/STA and shared addressing rules; the rest of the definitions remain
-TypeScript-authored.
+an external authoring path into this representation. The language guide records
+the executable chapters and their shared addressing rules; other definitions
+remain TypeScript-authored.
 
 ## The review slice
 
@@ -50,7 +50,7 @@ TypeScript-authored.
 | 8080 LXI/LHLD/SHLD/SPHL and Z80 word loads/stores and SP copies, including ED and IX/IY forms | Share complete bodies with low-first fetching and memory accesses, high-first pair reads/writes, captured sources, and explicit second-byte failures; ED's HL forms reuse the unprefixed bodies |
 | 8080 INX/DCX/DAD and Z80 word INC/DEC, ADD HL/IX/IY, ADC/SBC HL | Reuse pair descriptions and native base encodings; source before destination, optional C after both; write before flags; preserve all flags on adjustments and use the bit-11 H boundary on Z80 arithmetic |
 | 8080 XTHL/XCHG and Z80 EX DE,HL and EX (SP),HL/IX/IY | Capture the register before SP; read memory low/high, write high/low, then replace the register; preserve completed writes on failure, SP, and flags; register-only exchanges swap high bytes before low bytes |
-| 8008 Lr1r2/LrM/LMr and immediate LrI/LMI | Reuse Intel transfer construction with native register selectors, matrix prefix, mnemonics, and a 14-bit memory mask; preserve full H/L bytes, source-before-address ordering, and address-slot fetching |
+| 8008 Lr1r2/LrM/LMr and immediate LrI/LMI | Literate operand selection with native register selectors, matrix prefix, mnemonics, and a 14-bit memory mask; preserve full H/L bytes, source-before-address ordering, and address-slot fetching |
 | 8008 AD/AC/SU/SB/ND/XR/OR/CP, every register/memory/immediate form | Reuse Intel ALU construction with S/Z/P/C, native register order, and an explicit 14-bit memory mask; retain address-slot fetching and supplied-byte rules |
 | 8008 INr/DCr and RLC/RRC/RAL/RAR | Preserve C on adjustments; share 8080 rotate construction with explicit A-before-C writeback and preserved S/Z/P |
 | 8008 conditional/unconditional jumps, calls, returns, restarts, and halts | Explicit 14-bit targets and three-bit selector wrap; checked physical register arrays; no RAM-stack effects; retain ordinary versus supplied-byte fetching and all documented aliases |
@@ -244,8 +244,8 @@ The authoring layers have separate homes:
 | [ports.ts](../../src/components/cpus/semantics/ports.ts) | Shared byte/word port transfers: capture addresses before operands, transfer low byte first, and commit input only after complete reads |
 | [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, ordered frames, and complete push/pop instruction construction |
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, byte/word-transfer, branch, and subroutine construction, with explicit access and flag policies |
-| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 byte ALU and transfers, 8080/Z80 word transfers, arithmetic, exchanges, jumps, stacks, and subroutines, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
-| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 transfer/control/port and 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted, with 8008 HALT defined separately |
+| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 byte ALU, 8080/Z80 byte and word transfers, arithmetic, exchanges, jumps, stacks, and subroutines, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
+| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 control/port and 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted, with 8008 HALT defined separately |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
 | [decimal.ts](../../src/components/cpus/semantics/decimal.ts) | Shared decimal-correction selection with explicit Intel/Motorola flag and result stages |
 | [mos.ts](../../src/components/cpus/semantics/mos.ts) | NMOS ADC/SBC binary facts, decimal digit correction, and distinct flag/write stages |
@@ -450,15 +450,17 @@ reaches the destination write or flag update. Motorola byte/word loads and
 TAB/TBA use the same recipe with a width-dependent N/Z policy and V cleared.
 
 `intelByteTransfer` builds explicit source-capture and destination-write
-statements for the 8008/8080/Z80 transfer families. Register transfers retain a real
+statements for the 8080/Z80 transfer families. Register transfers retain a real
 read and write even when the source equals the destination. Loads through HL
 read H then L before memory and destination writeback. Stores capture the source
 or fetch the immediate first, then read H/L and write memory without a destination
 read. None accesses flags, alternate banks, or control state. A failed source
 access prevents destination writes; completed fetching and decoding remain.
 
-The 8008 supplies `{ mask: 0x3fff }` to the shared construction, so memory
-accesses use only H:L's low 14 bits without narrowing the stored bytes. Its
+The [8008 chapter](../../src/components/cpus/specifications/8008-transfers.md)
+expresses its `3FFF` mask directly, so memory accesses use only H:L's low 14 bits
+without narrowing the stored bytes. The earlier masked Intel-helper path is
+removed. Its
 native inventory uses A/B/C/D/E/H/L/M selector order and the `11 ddd sss`
 matrix, excluding `FF` HLT. Definition names retain Intel's Lr1r2/LrM/LMr and
 LrI/LMI spelling. Immediate and register stores still capture the source before
@@ -1548,13 +1550,17 @@ Opcode selection remains in the CPU tables. For the 6502 and numeric 8088 famili
 `opcodeEntries(state)`, connecting every defined opcode to its body. The CPU
 constructs its table after initializing state. The 6502 uses generated entries
 exclusively; the 8088 combines them with handwritten entries. In both cases
-`opcodeTable` rejects collisions.
+`opcodeTable` rejects collisions. A numeric list such as
+`{ bindOpcodes: [0xC0, 0xC1] }` binds only those definition keys, allowing other
+bodies in the same module to retain explicit bindings or decoded inputs. The
+8008 uses this for chapter-owned transfers alongside its remaining native
+families; their opcode list comes from the chapter definitions.
 Each instance binds its own state; no register or memory read occurs during
 binding. Generated methods retain their precise callback types, while the
 bound handlers accept the shared byte instruction context, with deferral when
 the module requires it. Automatic opcode
-bindings reject definitions with numeric inputs, since they cannot supply
-those values; such bodies require an explicit CPU-owned binding.
+bindings reject selected definitions with numeric inputs, since they cannot
+supply those values; such bodies require an explicit CPU-owned binding.
 
 The 68000 keeps its static dispatch table. Its numeric register definitions
 supply 792 entries directly, while eight MOVEQ bodies receive the decoded

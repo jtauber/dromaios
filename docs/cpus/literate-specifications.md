@@ -1,10 +1,13 @@
 # Literate CPU specifications
 
-The first executable chapter is
-[MOS 6502: loading and storing the accumulator](../../src/components/cpus/specifications/6502-load-store.md).
-It is the maintained source for LDA, STA, their addressing catalogue, and the
-shared N/Z flag policy. The remaining 6502 definitions import those shared
-descriptions rather than maintaining another copy.
+Executable chapters are maintained instruction sources:
+
+- [MOS 6502: loading and storing the accumulator](../../src/components/cpus/specifications/6502-load-store.md)
+  defines LDA/STA and the addressing catalogue and N/Z policy reused by the
+  remaining 6502 definitions.
+- [Intel 8008: moving bytes between registers and memory](../../src/components/cpus/specifications/8008-transfers.md)
+  defines register/memory transfers and immediate loads, including their runtime
+  opcode bindings. Its H:L address source also serves the arithmetic definitions.
 
 This is an authoring-language prototype over the existing
 [instruction representation](instruction-semantics.md), with a deliberately
@@ -44,8 +47,8 @@ formal statements into the same typed representation as TypeScript-authored
 definitions. It uses the existing width, scope, state-reference, and ordered
 effect validator. Diagnostics include the Markdown filename, line, and column.
 Statement errors identify the statement; declaration-wide errors identify the
-declaration. A malformed chapter stops generation before existing output is
-removed. There is no host-language evaluation or TypeScript escape hatch.
+declaration. All chapters must compile successfully before any existing output
+is removed. There is no host-language evaluation or TypeScript escape hatch.
 
 ## Syntax in this slice
 
@@ -67,11 +70,13 @@ Quoted descriptions use JSON string escaping.
 | `byte = memory(address)` | Read and capture one byte. |
 | `pointer = add(offset, index)` | Capture a pure numeric expression. Addition wraps at the operands' equal width. |
 | `A <- result`, `memory(address) <- byte` | Write the captured value to a register or byte memory location. |
+| `result = operand s`, `operand d <- result` | Read or write a selected register/memory operand at this point. |
 | `apply NZ(result)` | Apply a declared flag policy to a captured argument. |
 
 Numeric expressions are capture names, explicitly sized literals such as
-`u8($01)` or `u16($FFFF)`, and `add(left, right)`, `concat(high, low)`, or
-`extend(value, width)`. Calls can nest. Numbers are decimal unless prefixed
+`u8($01)` or `u16($FFFF)`, and `add(left, right)`, `and(left, right)`,
+`concat(high, low)`, or `extend(value, width)`. `and` is bitwise AND on
+equal-width values. Calls can nest. Numbers are decimal unless prefixed
 with `$`; widths are decimal. Captures and literals retain their widths, so
 zero-page wrapping follows from eight-bit addition rather than a special
 6502 operation.
@@ -91,10 +96,10 @@ are rejected. These are the first supported flag expressions, not the intended
 limit of the language.
 
 A `modes` declaration lists every binary selector value in numeric order, each
-with a quoted operand label and either `memory sourceName` or `value sourceName`.
-For this slice, memory sources return sixteen-bit addresses and reads fetch one
-byte. Each memory mode supplies `.read` and `.address`; a value mode supplies
-only `.read`. A family binds a single named encoding field to that catalogue:
+with a quoted operand label and `register A`, `memory sourceName`, or
+`value sourceName`. For this slice, memory sources return sixteen-bit addresses
+and memory accesses transfer one byte. Every mode supplies `.read`; only a memory
+mode supplies `.address`. A family can select a source view from a catalogue:
 
 ```text
 family LDA "101 bbb 01" for b in accumulator.read {
@@ -105,10 +110,38 @@ family LDA "101 bbb 01" for b in accumulator.read {
 ```
 
 The existing [opcode-pattern rules](opcode-definitions.md) expand the bits.
-The selector must match the pattern's cardinality. `.address` excludes
-value-only modes, which explains the missing immediate STA form. Duplicate
-opcodes are rejected, including collisions between families. Family names plus
-operand labels become the instruction names.
+Each selector must match its encoding field's cardinality. `.address` excludes
+non-memory modes, which explains the missing immediate STA form. Duplicate
+opcodes are rejected, including collisions between families. With one selector,
+the default instruction name is the family name followed by its operand label.
+
+A family can also bind several fields independently. A catalogue without a
+source-view suffix binds an operand, preserving its register or memory identity:
+
+```text
+family transfer "11 ddd sss" for d in bytes, s in bytes named "L{d}{s}" except "11 111 111" {
+  result = operand s
+  operand d <- result
+}
+```
+
+The first statement captures the source; the second writes the destination.
+A memory operand resolves its address at the statement that accesses it. Thus
+a store reads its address registers after capturing the source, and never reads
+the destination byte. Value-only operands can be read but cannot be written.
+Address sources keep their own capture scope. Compiler-created address captures
+cannot collide with, or be referenced by, authored names.
+
+`named` provides an instruction-name template, required for multiple selectors.
+Braced placeholders select operand labels; unknown placeholders are errors.
+Labels are inserted literally, with no recursive substitution or host evaluation.
+`except` accepts one or more comma-separated fixed/alias opcode patterns, where
+`x` is ignored. Exclusions must belong to the family, must not overlap, and
+must leave at least one instruction. The 8008 excludes its HLT encoding here;
+HLT remains implemented separately.
+
+These expanded opcode entries also supply the 8008's selected runtime bindings.
+The build does not maintain a second transfer-encoding table in the CPU core.
 
 ## Boundaries and next evidence
 
@@ -118,18 +151,19 @@ not yet generate that schema. Native opcode fetching, execution records, reset,
 interrupt recognition, and retirement remain in the existing CPU core. Most
 instruction families are still authored in TypeScript.
 
-The next language experiments should use contrasting instruction families,
-such as the 8008's narrow state and the 68000's word operations and ordered
-effects. Use their requirements to revise the vocabulary before migrating a
-complete CPU. The later milestone is a whole CPU description, including its
-state and lifecycle contracts, that needs no CPU-specific compiler changes.
-This first chapter establishes an executable authoring path, not a percentage
+The 8008 chapter adds register selectors, ordered operand reads/writes, and
+14-bit address masking. It does not yet describe the three-bit address-stack
+selector or the stack array. A 68000 word-transfer chapter should next challenge
+widths and ordered effects before we migrate a complete CPU. The later milestone
+is a whole CPU description, including its state and lifecycle contracts, that needs no CPU-specific compiler changes.
+These chapters establish an executable authoring path, not a percentage
 estimate of the work remaining toward that goal.
 
-The [language tests](../../tests/components/cpus/semantics/literate.test.ts)
-check the fifteen encodings, production integration, prose, malformed syntax,
-width and scope errors, and a formal edit that changes generated execution.
-Existing independent 6502 tests continue to cover values, wrapping, read/write
-order, live state changes, and failure boundaries. The initial migration also
-compared every definition and generated module with the pre-chapter baseline;
-no parallel handwritten LDA/STA implementation is retained.
+The [6502 language tests](../../tests/components/cpus/semantics/literate.test.ts)
+and [8008 language tests](../../tests/components/cpus/semantics/literate-8008.test.ts)
+check inventories, runtime integration, document diagnostics, malformed selectors
+and exclusions, capture isolation, and formal edits that change execution.
+Independent CPU tests retain their expected values, wrapping, access-order,
+live-state, and failure-boundary checks. The 8008 migration also compared the
+old and new generated execution, including every transfer and memory ALU form.
+The chapter replaces the maintained transfer definitions and encoding table.

@@ -15,13 +15,14 @@ test("native CPU generation bootstraps without generated files and removes obsol
   const output = join(directory, "src/components/cpus/generated");
   rmSync(output, { recursive: true, force: true });
   const chapters = join(directory, "src/components/cpus/semantics/generated");
+  const chapterNames = ["6502-load-store.ts", "8008-transfers.ts"];
   rmSync(chapters, { recursive: true, force: true });
   const run = () => {
     const result = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { cwd: tmpdir(), encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(readdirSync(chapters), ["6502-load-store.ts"]);
-    assert.equal(readFileSync(join(chapters, "6502-load-store.ts"), "utf8"),
-      readFileSync("src/components/cpus/semantics/generated/6502-load-store.ts", "utf8"));
+    assert.deepEqual(readdirSync(chapters).sort(), chapterNames);
+    for (const name of chapterNames) assert.equal(readFileSync(join(chapters, name), "utf8"),
+      readFileSync(`src/components/cpus/semantics/generated/${name}`, "utf8"));
     assert.deepEqual(readdirSync(output).sort(), ["6502-interrupts.ts", "6502.ts", "6800.ts", "68000-arithmetic.ts", "68000-bits.ts", "68000-control.ts", "68000-decimal.ts", "68000-logic.ts", "68000-moves.ts", "68000-quick.ts", "68000-system.ts", "68000-transfers.ts", "68000-word-arithmetic.ts", "68000.ts", "6809.ts", "8008.ts", "8080.ts", "8088-addressing.ts", "8088-alu.ts", "8088-arithmetic.ts", "8088-control.ts", "8088-stack.ts", "8088-strings.ts", "8088-transfers.ts", "8088-unary.ts", "8088.ts", "z80.ts"]);
     for (const cpu of ["6502-interrupts", "6502", "6800", "68000-arithmetic", "68000-bits", "68000-control", "68000-decimal", "68000-logic", "68000-moves", "68000-quick", "68000-system", "68000-transfers", "68000-word-arithmetic", "68000", "6809", "8008", "8080", "8088-addressing", "8088-alu", "8088-arithmetic", "8088-control", "8088-stack", "8088-strings", "8088-transfers", "8088-unary", "8088", "z80"]) {
       assert.equal(readFileSync(join(output, `${cpu}.ts`), "utf8"), readFileSync(`src/components/cpus/generated/${cpu}.ts`, "utf8"));
@@ -32,12 +33,20 @@ test("native CPU generation bootstraps without generated files and removes obsol
   writeFileSync(join(output, "6502.ts"), "stale");
   writeFileSync(join(chapters, "obsolete.ts"), "obsolete");
   run();
-  const source = join(directory, "src/components/cpus/specifications/6502-load-store.md");
-  writeFileSync(source, readFileSync(source, "utf8").replace("A <- result", "A <- missing"));
-  const result = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /6502-load-store\.md:\d+:\d+: .*missing/);
-  assert.equal(readFileSync(join(output, "6502.ts"), "utf8"), readFileSync("src/components/cpus/generated/6502.ts", "utf8"));
-  assert.equal(readFileSync(join(chapters, "6502-load-store.ts"), "utf8"),
-    readFileSync("src/components/cpus/semantics/generated/6502-load-store.ts", "utf8"));
+  for (const [name, before, after] of [
+    ["6502-load-store", "A <- result", "A <- missing"],
+    ["8008-transfers", "result = fetch", "result = source missing"],
+  ] as const) {
+    const source = join(directory, `src/components/cpus/specifications/${name}.md`);
+    const original = readFileSync(source, "utf8");
+    writeFileSync(source, original.replace(before, after));
+    const result = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, new RegExp(`${name}\\.md:\\d+:\\d+: .*missing`));
+    assert.equal(readFileSync(join(output, "6502.ts"), "utf8"), readFileSync("src/components/cpus/generated/6502.ts", "utf8"));
+    assert.equal(readFileSync(join(output, "8008.ts"), "utf8"), readFileSync("src/components/cpus/generated/8008.ts", "utf8"));
+    for (const chapter of chapterNames) assert.equal(readFileSync(join(chapters, chapter), "utf8"),
+      readFileSync(`src/components/cpus/semantics/generated/${chapter}`, "utf8"));
+    writeFileSync(source, original);
+  }
 });
