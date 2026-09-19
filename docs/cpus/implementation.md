@@ -209,7 +209,15 @@ order when sharing the underlying operand helpers.
 
 The [arithmetic inventory](../../src/components/cpus/68000-arithmetic.ts) supplies
 the same decoded operand inputs; quick constants reuse the source selector
-field instead of multiplying bodies. Logic and arithmetic share an ALU
+field instead of multiplying bodies. Both inventories use
+[`aluForms68000`](../../src/components/cpus/68000-alu.ts) to classify encoded
+`[mode, register]` operand pairs and name their shared bodies. An omitted source
+denotes a unary operation; a third source item gives quick constants their own
+operand identity while retaining the encoded amount. The builder excludes unused
+sizes and invalid source/destination EAs. Each family keeps its narrower rules
+beside its bit patterns, including logic's exclusion of An and arithmetic's
+memory-only destinations in the Dn-to-EA direction.
+Logic and arithmetic share an ALU
 destination recipe, with calculation and optional writeback kept explicit.
 Address-register destinations select their A7 bank before committing pending
 updates and read the updated register afterward. Their arithmetic width is

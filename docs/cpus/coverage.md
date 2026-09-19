@@ -516,25 +516,26 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Eight CPU implementation files | 2,619 |
 | CPU-specific instruction definition files | 2,477 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,888 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,984** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,870 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,966** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 16 |
 | Generated CPU output, counted separately | 310,832 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-Shared word-read and word-write builders now serve Intel transfers and stack
-exchange, Motorola word operands, and 8088 memory and stack access. Callers
-specify byte significance and both addresses in access order, retaining their
-wrapping, segmentation, and state-update boundaries. All **12,197 definitions**
-remain structurally unchanged, and all **27 generated modules** remain
-byte-identical.
+The 68000 logic and arithmetic inventories now share
+[operand classification and body naming](../../src/components/cpus/68000-alu.ts).
+The tables retain their bit patterns and family-specific restrictions while
+specifying source and destination as encoded mode/register pairs. All **22,596
+encoding entries** across the logical, arithmetic, word-arithmetic, and decimal
+inventories remain unchanged, including their order. All **12,197 definitions**
+remain structurally unchanged, and all **27 generated modules** remain byte-identical.
 
-This extraction increases authored CPU source from **8,971 to 8,984 lines**
-(**13 more**): CPU-specific definitions add **2**, and shared support adds **11**.
-It replaces repeated byte assembly/splitting with explicit word operations;
-it does not achieve a net line reduction. Further source reduction remains ahead.
+This consolidation reduces authored CPU source from **8,984 to 8,966 lines**
+(**18 fewer**), including the new shared builder. The cores and CPU-specific
+instruction definition counts are unchanged; the reduction is in supporting
+encoding construction.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

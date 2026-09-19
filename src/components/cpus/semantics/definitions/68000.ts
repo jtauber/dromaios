@@ -14,7 +14,7 @@ import type { ArithmeticOperation68000, ArithmeticSource68000, WordArithmeticFor
 import { bitForms68000 } from "../../68000-bits.ts";
 import type { BitForm68000, ShiftKind68000 } from "../../68000-bits.ts";
 import { logicForms68000 } from "../../68000-logic.ts";
-import type { LogicOperation68000, LogicOperand68000 } from "../../68000-logic.ts";
+import type { LogicOperation68000 } from "../../68000-logic.ts";
 import { dataRegisters68000 as dataRegisters, addressRegisters68000 as addressRegisters, selectors68000 as codes } from "../../68000-operands.ts";
 import type { Operand68000, OperandSize68000 as Size, OperandRegister68000 as RegisterName } from "../../68000-operands.ts";
 import { readSource, resetDevices, writeLatch, addOverflow, addWrap, alignmentFault, and, borrow, carry, overflow, select, subtract, bitAnd, bitOr, bitXor, capture, commitAddressUpdates, concat, cpuSymbols, extend, fetchWord, flagLiteral, flagValue, literal, lowBit, negative, readFlag, readMemory, readProgramMemory, readRegister,
@@ -249,7 +249,7 @@ function multipleTransfer({ size, load, base, predecrement, program }: Extract<T
 export const transfers68000 = instructionBodies(transferForms68000, form => form.kind === "peripheral" ? peripheralTransfer(form) : multipleTransfer(form));
 
 /** Logical ALU stages differ from MOVE: commit before reading the destination, flags before writing it. */
-function logic(operation: LogicOperation68000, size: Size, source: LogicOperand68000 | undefined, destination: Exclude<LogicOperand68000, { kind: "immediate" }>) {
+function logic(operation: LogicOperation68000, size: Size, source: Operand68000 | undefined, destination: Exclude<Operand68000, { kind: "immediate" }>) {
   const result = {
     AND: bitAnd(value("destination"), value("source")), OR: bitOr(value("destination"), value("source")),
     EOR: bitXor(value("destination"), value("source")), NOT: bitXor(value("destination"), literal(size, 2 ** size - 1)),
