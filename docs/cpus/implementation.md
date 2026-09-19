@@ -178,6 +178,16 @@ including CLR's real memory read. Logical flags precede writeback, while TST
 omits writeback altogether. Keep these stages explicit beside MOVE's distinct
 order when sharing the underlying operand helpers.
 
+The [arithmetic inventory](../../src/components/cpus/68000-arithmetic.ts) supplies
+the same decoded operand inputs; quick constants reuse the source selector
+field instead of multiplying bodies. Logic and arithmetic share an ALU
+destination recipe, with calculation and optional writeback kept explicit.
+Address-register destinations select their A7 bank before committing pending
+updates and read the updated register afterward. Their arithmetic width is
+always 32 bits; word EA sources sign-extend, while quick values remain positive.
+Comparisons omit writeback. Extended arithmetic captures Z then X after operand
+reads and applies cumulative zero separately from ordinary result flags.
+
 The complete support inventory belongs in [CPU implementation coverage](coverage.md).
 This guide describes organization and does not replace the model contracts or
 manufacturer references for instruction behavior.

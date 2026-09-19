@@ -24,12 +24,12 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [548](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1278](../../src/components/cpus/68000.ts) | 16,610 / 36,029 | 46.1% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1139](../../src/components/cpus/68000.ts) | 27,796 / 36,029 | 77.1% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **6,165 generated bodies**, all used by CPU execution,
+contains **8,843 generated bodies**, all used by CPU execution,
 including 6502/6800/8088 entry helpers, a 6809 frame-push helper, and 8088 WAIT
-resumption. They cover **18,709 complete opcode forms**. All six 8-bit CPUs and
+resumption. They cover **29,895 complete opcode forms**. All six 8-bit CPUs and
 the 8088 now have complete instruction-definition migration. The current
 family inventory is:
 
@@ -409,6 +409,20 @@ family inventory is:
   so failed writes retain computed flags and completed bytes; TST never writes.
   AND/OR immediate source-EA encodings share bodies with their ANDI/ORI-to-Dn
   equivalents. CCR/SR immediates retain their separate handwritten delivery paths.
+  ADD/SUB/CMP, their immediate/quick/address-register forms, ADDX/SUBX,
+  NEG/NEGX, and CMPM add **11,186 forms** through **2,678 shared bodies**.
+  Quick constants remain decoded parameters, so these forms cover **13,510
+  operation words**. Logic and arithmetic share the complete destination
+  read/modify/write sequence. Arithmetic reuses the shared calculation recipe
+  with 68000 flag policies: comparisons preserve X and never write a result;
+  other data arithmetic copies carry/borrow to X. Extended operations capture
+  Z then X after the operand reads and accumulate zero across results. Address
+  arithmetic uses all 32 destination bits, sign-extends word EA sources, keeps
+  quick constants positive, and preserves flags except for CMPA. Resolve A7's
+  destination bank before committing updates, then read its updated value.
+  Paired memory operands resolve source before destination, including repeated
+  predecrement/postincrement of one register. Alignment failures discard both
+  pending updates; destination-read/write failures retain committed updates.
 
 The [current review](instruction-semantics.md#decision-and-next-review)
 focuses on complete operation families, explicit carry and writeback stages,
@@ -454,33 +468,35 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 3,327 |
-| CPU-specific instruction definition files | 2,057 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,455 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,839** |
+| Eight CPU implementation files | 3,188 |
+| CPU-specific instruction definition files | 2,118 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,532 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,838** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
-| Generated CPU output, counted separately | 126,129 |
+| Generated CPU output, counted separately | 195,044 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The 68000 logical migration adds **906 shared bodies** for **6,660 forms**.
-The encoding inventory supplies register/memory roles and decoded selectors;
-addressing variants share bodies with the same data flow. It reuses MOVE's
-staged addressing vocabulary and factors common source reads, immediate
-fetches, and byte transfers into shared construction. No new semantic
-statements, expressions, or generator features are needed.
+The 68000 addition/subtraction/comparison migration adds **2,678 shared bodies**
+for **11,186 forms**. Literal quick values select operation words without
+multiplying coverage or generated bodies. The definitions reuse the existing
+source stages and extract an ALU destination recipe shared with logic: resolve,
+check alignment, commit updates, read, calculate, then optionally write back.
+Shared arithmetic construction supplies the calculation; 68000 policies retain
+X, cumulative Z, and flag-free address arithmetic. No new semantic statements,
+expressions, or generator features are needed.
 
-The 68000 module falls from **1,294 to 1,278 lines** (**16 fewer**), retiring its
-logical helper and migrated handwritten bindings. Definitions add **46 lines**
-and supporting CPU source adds **60**. Total authored CPU source rises from
-**8,749 to 8,839 lines** (**90 more**); generated output adds **19,603**.
-The shared stages expose the distinct MOVE and logical commit/flag schedules;
-this batch does not reduce total authored source.
-All **5,090 definitions outside the factored MOVE bodies** remain structurally
-unchanged, and all eighteen other previously generated modules remain
-byte-identical. The 169 MOVE bodies change only temporary names as their source
-reads move into shared construction; their generated operations are unchanged.
+The 68000 module falls from **1,278 to 1,139 lines** (**139 fewer**), retiring
+seven family builders and its immediate/add/subtract/compare helpers. The
+remaining paired-operand helper now describes only decimal byte pairs.
+Definitions add **61 lines** and supporting CPU source adds **77**. Total
+authored CPU source falls from **8,839 to 8,838 lines** (**one fewer**), while
+generated output adds **68,915**. The core is substantially smaller; the full
+authored source footprint is essentially unchanged after including the new
+encoding inventory and shared construction.
+All **6,165 earlier definitions** remain structurally unchanged, and all twenty
+previously generated modules remain byte-identical.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

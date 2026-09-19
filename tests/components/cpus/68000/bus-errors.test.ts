@@ -479,3 +479,37 @@ test("68000 AND/OR source faults discard auto-updates and retain PC-relative pro
     }
   }
 });
+
+test("68000 paired arithmetic bus faults preserve the correct stage when both operands use A7", () => {
+  for (const base of [0xdf0f, 0x9f0f, 0xbf0f]) for (const size of [1, 2, 4]) for (const supervisor of [false, true]) {
+    const compare = base === 0xbf0f, step = size === 1 ? 2 : size;
+    const opcode = base + (size === 1 ? 0 : size === 2 ? 64 : 128);
+    for (const phase of compare ? ["source", "destination"] : ["source", "destination", "write"]) for (let offset = 0; offset < size; offset++) {
+      const before = state(); before.flags.s = supervisor;
+      const active = supervisor ? before.ssp : before.usp, source = active + (compare ? 0 : -step);
+      const destination = active + (compare ? step : -2 * step), committed = active + (compare ? 2 * step : -2 * step);
+      const { memory, cpu } = fixture(word(opcode), before);
+      const sourceBytes = Array<number>(size).fill(0xff), destinationBytes = Array<number>(size).fill(0);
+      memory.load(source, sourceBytes); memory.load(destination, destinationBytes);
+      const operation = phase === "write" ? "write" : "read", faultAddress = (phase === "source" ? source : destination) + offset;
+      // Let frame writes succeed even if they overlap the faulting operand.
+      let reported = false;
+      memory.fail = (kind, address) => {
+        if (reported || kind !== operation || address !== physical(faultAddress)) return false;
+        reported = true; return true;
+      };
+      const record = cpu.step(), updated = phase === "source" ? active : committed;
+      // 0 + FF..FF + X and 0 - FF..FF - X both produce zero with C=X=Z=1.
+      checkBusFrame(record, memory, { operation, address: faultAddress, returnPc: before.pc + 2, ir: opcode,
+        code: supervisor ? 5 : 1, status: (supervisor ? 0xa200 : 0x8200) + (phase === "write" ? 0x15 : 0x17),
+        stack: (supervisor ? updated : before.ssp) - 14 });
+      assert.equal(record.after.usp, supervisor ? before.usp : updated);
+      assert.deepEqual(record.after.flags, { ...before.flags, s: true, t: false, ...(phase === "write" ? { v: false } : {}) });
+      assert.deepEqual(record.accesses.slice(2, -18), [
+        ...accesses("read", source, sourceBytes.slice(0, phase === "source" ? offset : size)),
+        ...(phase === "source" ? [] : accesses("read", destination, destinationBytes.slice(0, phase === "destination" ? offset : size))),
+        ...(phase === "write" ? accesses("write", destination, destinationBytes.slice(0, offset)) : []),
+      ]);
+    }
+  }
+});

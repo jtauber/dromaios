@@ -15,14 +15,16 @@ import { instructions as generated } from "./generated/68000.ts";
 import { instructions as quick } from "./generated/68000-quick.ts";
 import { instructions as moveBodies } from "./generated/68000-moves.ts";
 import { instructions as logicBodies } from "./generated/68000-logic.ts";
+import { instructions as arithmeticBodies } from "./generated/68000-arithmetic.ts";
+import { arithmeticForms68000 } from "./68000-arithmetic.ts";
 import { logicForms68000 } from "./68000-logic.ts";
 import { operandMoveForms68000 } from "./68000-moves.ts";
 import type { Cpu68000AddressContext } from "./68000-context.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { flagRegister, negativeZero } from "./flags.ts";
-import { motorolaConditions, motorolaArithmeticFlags } from "./motorola.ts";
-import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
+import { motorolaConditions } from "./motorola.ts";
+import { shiftLeft, shiftRight } from "./alu.ts";
 
 export type Cpu68000Snapshot = ReadonlyState<Cpu68000State> & {
   /** Active stack pointer: SSP in supervisor mode, USP in user mode. */
@@ -147,7 +149,7 @@ interface InstructionContext extends MemoryContext {
 
 // Shared bodies receive decoded selectors and only the context capabilities their stages require.
 const operandBodies: Readonly<Record<string, (state: Cpu68000State, sourceMode: number, sourceCode: number,
-  destinationMode: number, destinationCode: number, instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = { ...moveBodies, ...logicBodies };
+  destinationMode: number, destinationCode: number, instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = { ...moveBodies, ...logicBodies, ...arithmeticBodies };
 
 type OpcodeHandler = (cpu: Cpu68000, instruction: InstructionContext) => InstructionFault | void;
 type ControlOperation = (cpu: Cpu68000, address: number, instruction: InstructionContext) => AlignmentFault | void;
@@ -159,8 +161,6 @@ type ShiftKind = "arithmetic" | "logical" | "extend" | "rotate";
 type BitChange = (value: number, mask: number) => number;
 // A result requests writeback; comparisons and tests update flags and return nothing.
 type AluOperation = (cpu: Cpu68000, size: OperandSize, left: number, right: number) => number | void;
-// The EA field's role and permitted set; only plain sources allow An (word/long).
-type AluAddressing = "source" | "memory-destination";
 type Operand =
   | { readonly kind: "data"; readonly register: DataRegister }
   | { readonly kind: "address"; readonly register: AddressRegister }
@@ -398,15 +398,8 @@ export class Cpu68000 {
     // Register transfers, EXT/SWAP, and EXG own their patterns in semantics/definitions/68000.ts.
     ...Object.entries(generated).map(([opcode, execute]): OpcodeEntry<OpcodeHandler> =>
       [Number(opcode), cpu => execute(cpu.#state)]),
-    ...[...operandMoveForms68000, ...logicForms68000].map(({ opcode, body, sourceMode, sourceCode, destinationMode, destinationCode }): OpcodeEntry<OpcodeHandler> =>
+    ...[...operandMoveForms68000, ...logicForms68000, ...arithmeticForms68000].map(({ opcode, body, sourceMode, sourceCode, destinationMode, destinationCode }): OpcodeEntry<OpcodeHandler> =>
       [opcode, (cpu, instruction) => operandBodies[body]!(cpu.#state, sourceMode, sourceCode, destinationMode, destinationCode, cpu.#addressContext(instruction))]),
-    // Immediate ALU: 0000 ooo 0 ss mmm rrr. ooo selects the operation below;
-    // ss=00 byte, 01 word, 10 long (11 reserved); mmm rrr selects a data-alterable EA.
-    // An, PC-relative, and immediate destinations are excluded, including CCR/SR encodings.
-    ...this.#immediateHandlers("0000 010 0 ss mmm rrr", (cpu, size, left, right) => cpu.#subtract(size, left, right)), // SUBI #n,<ea>
-    ...this.#immediateHandlers("0000 011 0 ss mmm rrr", (cpu, size, left, right) => cpu.#add(size, left, right)), // ADDI #n,<ea>
-    ...this.#immediateHandlers("0000 110 0 ss mmm rrr", (cpu, size, left, right) => { cpu.#compare(size, left, right); }), // CMPI #n,<ea>
-
     // Status immediates reuse EA=111100: f=0 CCR (low five bits), f=1 privileged SR.
     ...this.#statusImmediateHandlers("0000 0000 0 f 111100", (left, right) => left | right), // ORI #n,CCR/SR
     ...this.#statusImmediateHandlers("0000 0010 0 f 111100", (left, right) => left & right), // ANDI #n,CCR/SR
@@ -423,12 +416,6 @@ export class Cpu68000 {
     // MOVEP: 0000 ddd 1 t s 001 aaa. t=0 memory to Dn, 1 Dn to memory;
     // s=0 word, 1 long. A signed displacement precedes alternate-byte transfers, even at odd addresses.
     ...opcodeFamily("0000 ddd 1 t s 001 aaa", { d: this.#dataRegisters, t: [false, true], s: [16, 32] as const, a: this.#selectors }, ({ d, t: store, s: size, a }) => (cpu: Cpu68000, instruction: InstructionContext) => cpu.#movePeripheral(d, a, size, store, instruction)), // MOVEP
-
-    // Unary arithmetic: 0100 oooo ss mmm rrr. ss=00 byte, 01 word, 10 long;
-    // mmm rrr selects a data-alterable EA; CLR/NOT/TST now live in 68000-logic.ts.
-    // ss=11 belongs to status transfers, TAS, or other instructions, not this family.
-    ...this.#unaryHandlers("0100 0000 ss mmm rrr", (cpu, size, value) => cpu.#subtract(size, 0, value, true)), // NEGX <ea>
-    ...this.#unaryHandlers("0100 0100 ss mmm rrr", (cpu, size, value) => cpu.#subtract(size, 0, value)), // NEG <ea>
 
     // Status transfers: ss=11 reuses unary slots. Sources are data EAs, word-sized even for CCR.
     // MOVE from SR is unprivileged on the original 68000; its memory destination is read first.
@@ -480,12 +467,7 @@ export class Cpu68000 {
     ...this.#controlHandlers("0100 1110 10 mmm rrr", (cpu, address, instruction) => cpu.#call(address, instruction)), // JSR <ea>
     ...this.#controlHandlers("0100 1110 11 mmm rrr", (cpu, address, instruction) => cpu.#jump(address, instruction)), // JMP <ea>
 
-    // Quick ALU: 0101 qqq d ss mmm rrr. qqq=000 means 8, otherwise 1..7;
-    // d=0 ADDQ, 1 SUBQ; ss=00 byte, 01 word, 10 long. An allows word/long,
-    // always operates on all 32 bits, and preserves flags. Other EAs are data-alterable.
-    ...this.#quickHandlers("0101 qqq 0 ss mmm rrr", 1), // ADDQ #n,<ea>
-    ...this.#quickHandlers("0101 qqq 1 ss mmm rrr", -1), // SUBQ #n,<ea>
-    // ss=11 repurposes bits 11..8 as cccc: 0101 cccc 11 mmm rrr is Scc.
+    // Condition bytes: 0101 cccc 11 mmm rrr is Scc; cccc selects the condition.
     // Scc writes a condition byte to a data-alterable EA; mmm=001 instead selects DBcc.
     ...this.#conditionHandlers("0101 cccc 11 mmm rrr"), // Scc <ea>
     // 0101 cccc 11001 rrr: cccc is the termination condition; rrr selects Dn.W.
@@ -500,17 +482,6 @@ export class Cpu68000 {
     // Bit 8 must be zero. Immediate values select handlers but do not add coverage forms.
     ...opcodeFamily("0111 rrr 0 iiiiiiii", { r: this.#dataRegisters, i: this.#immediateBytes }, ({ r: register, i: value }) => (cpu: Cpu68000) => quick[register](cpu.#state, value)), // MOVEQ #n,Dn
 
-    // Data ALU: oooo rrr d ss mmm eee. rrr selects Dn; ss=00 byte, 01 word, 10 long.
-    // d=0 reads EA into arithmetic/logic on Dn; d=1 reads/modifies/writes EA using Dn.
-    // Sources permit An for word/long; destinations allow only alterable memory.
-    // The logical families now own their patterns in 68000-logic.ts.
-    ...this.#dataAluHandlers("1001 rrr 0 ss mmm eee", "source", (cpu, size, left, right) => cpu.#subtract(size, left, right)), // SUB <ea>,Dn
-    ...this.#dataAluHandlers("1001 rrr 1 ss mmm eee", "memory-destination", (cpu, size, left, right) => cpu.#subtract(size, left, right)), // SUB Dn,<ea>
-    ...this.#dataAluHandlers("1011 rrr 0 ss mmm eee", "source", (cpu, size, left, right) => { cpu.#compare(size, left, right); }), // CMP <ea>,Dn
-    ...this.#dataAluHandlers("1101 rrr 0 ss mmm eee", "source", (cpu, size, left, right) => cpu.#add(size, left, right)), // ADD <ea>,Dn
-    ...this.#dataAluHandlers("1101 rrr 1 ss mmm eee", "memory-destination", (cpu, size, left, right) => cpu.#add(size, left, right)), // ADD Dn,<ea>
-    // The d=1 register modes select the paired, decimal, and exchange families below.
-
     // Word sources beside data ALU: oooo ddd s11 mmm rrr, s=0 unsigned, 1 signed.
     // MUL reads Dn.W and writes Dn.L; DIV reads Dn.L and packs remainder:quotient into Dn.
     ...this.#wordSourceHandlers("1100 ddd 011 mmm rrr", (cpu, register, value) => cpu.#multiply(register, value, false)), // MULU.W <ea>,Dn
@@ -518,25 +489,10 @@ export class Cpu68000 {
     ...this.#wordSourceHandlers("1000 ddd 011 mmm rrr", (cpu, register, value) => cpu.#divide(register, value, false)), // DIVU.W <ea>,Dn
     ...this.#wordSourceHandlers("1000 ddd 111 mmm rrr", (cpu, register, value) => cpu.#divide(register, value, true)), // DIVS.W <ea>,Dn
 
-    // Paired ALU: oooo ddd 1 ss 00 m rrr; ddd selects destination, rrr source.
-    // ADDX/SUBX use m=0 for Dn,Dn and m=1 for -(An),-(An); ss=00/01/10 byte/word/long.
-    // Both consume X and accumulate Z. CMPM fixes m=1 for (An)+,(An)+ and preserves X.
-    ...this.#pairedAluHandlers("1001 ddd 1 ss 00 0 rrr", 0b000, (cpu, size, left, right) => cpu.#subtract(size, left, right, true)), // SUBX Dn,Dn
-    ...this.#pairedAluHandlers("1001 ddd 1 ss 00 1 rrr", 0b100, (cpu, size, left, right) => cpu.#subtract(size, left, right, true)), // SUBX -(An),-(An)
-    ...this.#pairedAluHandlers("1011 ddd 1 ss 00 1 rrr", 0b011, (cpu, size, left, right) => { cpu.#compare(size, left, right); }), // CMPM (An)+,(An)+
-    ...this.#pairedAluHandlers("1101 ddd 1 ss 00 0 rrr", 0b000, (cpu, size, left, right) => cpu.#add(size, left, right, true)), // ADDX Dn,Dn
-    ...this.#pairedAluHandlers("1101 ddd 1 ss 00 1 rrr", 0b100, (cpu, size, left, right) => cpu.#add(size, left, right, true)), // ADDX -(An),-(An)
-
     // Decimal: oooo ddd 10000 m rrr; oooo=1000 SBCD / 1100 ABCD, byte only.
     // ddd is destination, rrr source; m=0 Dn,Dn, m=1 -(An),-(An). Both consume X and accumulate Z.
     ...this.#decimalHandlers("1000 ddd 10000 m rrr", -1), // SBCD
     ...this.#decimalHandlers("1100 ddd 10000 m rrr", 1), // ABCD
-
-    // Address ALU: oooo rrr s11 mmm eee. rrr selects An; s=0 signed word, 1 long source.
-    // Every source EA is legal. The operation is always 32-bit; only CMPA changes flags.
-    ...this.#addressAluHandlers("1001 rrr s11 mmm eee", (_cpu, _size, left, right) => (left - right) >>> 0), // SUBA <ea>,An
-    ...this.#addressAluHandlers("1011 rrr s11 mmm eee", (cpu, size, left, right) => { cpu.#compare(size, left, right); }), // CMPA <ea>,An
-    ...this.#addressAluHandlers("1101 rrr s11 mmm eee", (_cpu, _size, left, right) => (left + right) >>> 0), // ADDA <ea>,An
 
     // Register shifts: 1110 ccc d ss i tt rrr. d=0 right, 1 left; ss=00 byte, 01 word, 10 long.
     // i=0: ccc is an immediate count (000 means 8); i=1: Dccc supplies its low six bits (0..63).
@@ -550,18 +506,6 @@ export class Cpu68000 {
     ...opcodePattern("1010 xxxx xxxx xxxx", (): Cpu68000Exception => "line-a"), // Line-A emulator
     ...opcodePattern("1111 xxxx xxxx xxxx", (): Cpu68000Exception => "line-f"), // Line-F emulator
   ], 16);
-
-  static #immediateHandlers(pattern: string, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
-    return this.#sizedDataHandlers(pattern, (size, mode, code) =>
-      (cpu, instruction) => cpu.#immediate(size, mode, code, apply, instruction));
-  }
-
-  static #sizedDataHandlers(pattern: string, bind: (size: OperandSize, mode: number, code: number) => OpcodeHandler): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { s: this.#sizes, m: this.#selectors, r: this.#selectors }, ({ s: size, m, r }) => {
-      if (size === undefined || m === 1 || (m === 7 && r > 1)) return undefined;
-      return bind(size, m, r);
-    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
-  }
 
   static #statusImmediateHandlers(pattern: string, apply: (left: number, right: number) => number): readonly OpcodeEntry<OpcodeHandler>[] {
     return opcodeFamily(pattern, { f: [false, true] }, ({ f: full }) => (cpu: Cpu68000, instruction: InstructionContext) => {
@@ -587,11 +531,6 @@ export class Cpu68000 {
       const bit = register === undefined ? instruction.fetchWord() : cpu.#state[register];
       return cpu.#effectiveAddressAlu(size, mode, code, bit, apply, instruction);
     };
-  }
-
-  static #unaryHandlers(pattern: string, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
-    return this.#sizedDataHandlers(pattern, (size, mode, code) =>
-      (cpu, instruction) => cpu.#effectiveAddressAlu(size, mode, code, 0, apply, instruction));
   }
 
   static #fixedAluHandlers(pattern: string, size: OperandSize, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
@@ -646,19 +585,6 @@ export class Cpu68000 {
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
-  static #quickHandlers(pattern: string, direction: 1 | -1): readonly OpcodeEntry<OpcodeHandler>[] {
-    const apply: AluOperation = direction === 1 ? (cpu, size, left, right) => cpu.#add(size, left, right)
-      : (cpu, size, left, right) => cpu.#subtract(size, left, right);
-    return opcodeFamily(pattern, { q: [8, 1, 2, 3, 4, 5, 6, 7], s: this.#sizes, m: this.#selectors, r: this.#selectors }, ({ q: amount, s: size, m, r }) => {
-      if (size === undefined || (m === 1 && size === 8) || (m === 7 && r > 1)) return undefined;
-      if (m === 1) return (cpu: Cpu68000) => {
-        const register = cpu.#addressRegister(r);
-        cpu.#state[register] = (cpu.#state[register] + direction * amount) >>> 0;
-      };
-      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#effectiveAddressAlu(size, m, r, amount, apply, instruction);
-    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
-  }
-
   static #conditionHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
     return opcodeFamily(pattern, { c: motorolaConditions, m: this.#selectors, r: this.#selectors }, ({ c: test, m, r }) => {
       if (m === 1 || (m === 7 && r > 1)) return undefined;
@@ -677,38 +603,10 @@ export class Cpu68000 {
     });
   }
 
-  static #dataAluHandlers(pattern: string, addressing: AluAddressing, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
-    const source = addressing === "source";
-    return opcodeFamily(pattern, { r: this.#selectors, s: this.#sizes, m: this.#selectors, e: this.#selectors }, ({ r, s: size, m, e }) => {
-      if (size === undefined) return undefined;
-      if (m === 7 && e > (source ? 4 : 1)) return undefined;
-      if (m === 1 && (!source || size === 8)) return undefined;
-      if (m === 0 && addressing === "memory-destination") return undefined;
-      if (source) {
-        return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#pairedAlu(size, m, e, 0, r, apply, instruction);
-      }
-      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#effectiveAddressAlu(size, m, e, cpu.#state[Cpu68000.#dataRegisters[r]!] % 2 ** size, apply, instruction);
-    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
-  }
-
-  static #pairedAluHandlers(pattern: string, mode: 0 | 3 | 4, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { d: this.#selectors, s: this.#sizes, r: this.#selectors }, ({ d, s: size, r }) => {
-      if (size === undefined) return undefined;
-      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#pairedAlu(size, mode, r, mode, d, apply, instruction);
-    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
-  }
-
   static #decimalHandlers(pattern: string, direction: 1 | -1): readonly OpcodeEntry<OpcodeHandler>[] {
     const apply: AluOperation = (cpu, _size, left, right) => cpu.#decimal(left, right, direction);
-    return opcodeFamily(pattern, { d: this.#selectors, m: [0, 4], r: this.#selectors }, ({ d, m: mode, r }) =>
-      (cpu: Cpu68000, instruction: InstructionContext) => cpu.#pairedAlu(8, mode, r, mode, d, apply, instruction));
-  }
-
-  static #addressAluHandlers(pattern: string, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { r: this.#selectors, s: [16, 32] as const, m: this.#selectors, e: this.#selectors }, ({ r, s: size, m, e }) => {
-      if (m === 7 && e > 4) return undefined;
-      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#pairedAlu(size, m, e, 1, r, apply, instruction);
-    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
+    return opcodeFamily(pattern, { d: this.#selectors, m: [0, 4] as const, r: this.#selectors }, ({ d, m: mode, r }) =>
+      (cpu: Cpu68000, instruction: InstructionContext) => cpu.#decimalPair(mode, r, d, apply, instruction));
   }
 
   static #registerShiftHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
@@ -1105,12 +1003,6 @@ export class Cpu68000 {
     // X is unchanged; this model also preserves the undefined N/Z/V/C on a successful check.
   }
 
-  #immediate(size: OperandSize, mode: number, code: number, apply: AluOperation,
-    instruction: InstructionContext): AlignmentFault | void {
-    const value = this.#fetchImmediate(size, instruction);
-    return this.#effectiveAddressAlu(size, mode, code, value, apply, instruction);
-  }
-
   #effectiveAddressAlu(size: OperandSize, mode: number, code: number, value: number, apply: AluOperation,
     instruction: InstructionContext): AlignmentFault | void {
     const updates: AddressUpdates = new Map();
@@ -1120,25 +1012,18 @@ export class Cpu68000 {
     this.#applyAlu(size, destination, value, apply, updates, instruction);
   }
 
-  #pairedAlu(size: OperandSize, sourceMode: number, sourceCode: number, destinationMode: number, destinationCode: number,
-    apply: AluOperation, instruction: InstructionContext): AlignmentFault | void {
+  #decimalPair(mode: 0 | 4, sourceCode: number, destinationCode: number, apply: AluOperation, instruction: InstructionContext): void {
     const updates: AddressUpdates = new Map();
-    const source = this.#resolveOperand(size, sourceMode, sourceCode, instruction, updates);
-    if (source.kind === "memory" && size !== 8 && source.address % 2 !== 0) return { operation: "read", address: source.address, programSpace: source.programSpace };
-    let value = this.#readOperand(size, source, instruction);
-    // Two auto-updates of the same An use successive addresses, source before destination.
-    const destination = this.#resolveOperand(size, destinationMode, destinationCode, instruction, updates);
-    if (destination.kind === "memory" && size !== 8 && destination.address % 2 !== 0) return { operation: "read", address: destination.address };
-    if (destination.kind === "address") {
-      if (size === 16) value = (value << 16 >> 16) >>> 0;
-      size = 32;
-    }
-    this.#applyAlu(size, destination, value, apply, updates, instruction);
+    const source = this.#resolveOperand(8, mode, sourceCode, instruction, updates);
+    const value = this.#readOperand(8, source, instruction);
+    // Byte operands need no alignment check; repeated -(An) uses successive addresses.
+    const destination = this.#resolveOperand(8, mode, destinationCode, instruction, updates);
+    this.#applyAlu(8, destination, value, apply, updates, instruction);
   }
 
   #applyAlu(size: OperandSize, destination: Operand, value: number,
     apply: AluOperation, updates: AddressUpdates, instruction: InstructionContext): void {
-    // All alignment checks have passed. An destinations see source pre/post-updates.
+    // All alignment checks have passed. Commit auto-updates before reading the destination.
     for (const [register, address] of updates) this.#state[register] = address;
     const result = apply(this, size, this.#readOperand(size, destination, instruction), value);
     // Comparisons and tests retain address auto-updates without writing a result.
@@ -1167,30 +1052,6 @@ export class Cpu68000 {
     const mask = 2 ** (bit % size);
     this.#state.flags.z = (value & mask) === 0; // Test the original bit, before any change; preserve every other flag.
     if (change) return change(value, mask) >>> 0;
-  }
-
-  #add(size: OperandSize, left: number, right: number, extended = false): number {
-    const zero = this.#state.flags.z;
-    const { result, carry, overflow } = add(size, left, right, extended && this.#state.flags.x ? 1 : 0);
-    this.#setResultFlags(result, size);
-    this.#state.flags.x = this.#state.flags.c = carry;
-    this.#state.flags.v = overflow;
-    if (extended) this.#state.flags.z = zero && result === 0; // Preserve a nonzero earlier result.
-    return result;
-  }
-
-  #subtract(size: OperandSize, left: number, right: number, extended = false): number {
-    const zero = this.#state.flags.z;
-    const result = this.#compare(size, left, right, extended && this.#state.flags.x ? 1 : 0);
-    this.#state.flags.x = this.#state.flags.c;
-    if (extended) this.#state.flags.z = zero && result === 0;
-    return result;
-  }
-
-  #compare(size: OperandSize, left: number, right: number, borrowIn: 0 | 1 = 0): number {
-    const facts = subtract(size, left, right, borrowIn);
-    Object.assign(this.#state.flags, motorolaArithmeticFlags(size, facts));
-    return facts.result;
   }
 
   #shift(kind: ShiftKind, left: boolean, size: OperandSize, value: number, count: number): number {

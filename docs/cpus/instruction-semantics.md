@@ -18,6 +18,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | --- | --- |
 | 68000 all MOVE/MOVEA, MOVEQ, EXT, SWAP, and EXG | Byte/word register views; active SSP/USP selection; source-before-destination decoding; pending auto-updates; program-space reads; alignment outcomes and partial writes |
 | 68000 AND/OR/EOR, ordinary ANDI/ORI/EORI, CLR/NOT/TST | Shared operand/source construction; destination updates before reads; flags before writes; real CLR reads and no TST writeback |
+| 68000 ADD/SUB/CMP, immediate/quick/address forms, ADDX/SUBX, NEG/NEGX, CMPM | Shared destination stages and arithmetic; X and cumulative Z; signed word sources for 32-bit address arithmetic; repeated An operands and fault commit points |
 | 8088 immediate MOV and accumulator ALU/TEST, word INC/DEC, AX/register exchanges | Low/high byte views with live preservation of the other half; operand-before-CF capture; low-byte parity for words; explicit flag/write ordering; generated encoding bindings |
 | 8088 ModR/M MOV/XCHG, absolute accumulator MOV, and immediate r/m MOV | Resolved segment/offset inputs; byte-offset wrap before physical projection; complete source capture and low-first partial writes |
 | 8088 ModR/M and immediate ALU/TEST | Reuse resolved operands and accumulator arithmetic; source before destination before CF; sign-extended immediates; flags before partial writes; CMP/TEST without operand writes |
@@ -73,13 +74,13 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 6,165 generated, executable bodies. All serve CPU execution;
-6,160 are bound through opcode or postbyte selection. Five boundary helpers
+There are 8,843 generated, executable bodies. All serve CPU execution;
+8,838 are bound through opcode or postbyte selection. Five boundary helpers
 serve 6502/6800/8088 entry, 6809 frame pushing, and 8088 WAIT resumption.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
 All six 8-bit CPUs and the 8088 have complete instruction-definition migration;
-the 68000 has 16,610 documented forms migrated, including all ordinary MOVE/MOVEA
-and the data logical families. Bodies start after opcode selection. Each 6809 memory
+the 68000 has 27,796 documented forms migrated, including ordinary MOVE/MOVEA,
+data logic, and addition/subtraction/comparison families. Bodies start after opcode selection. Each 6809 memory
 body starts after successful address resolution and serves direct, indexed, and
 extended forms, including all legal indexed postbytes. The 6800 memory
 comparisons, logic, arithmetic, and byte/word transfers likewise serve direct/indexed/extended
@@ -1486,7 +1487,7 @@ optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,68000,8008,8080,8088,6809,z80}.ts`,
-`6502-interrupts.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-logic.ts`, and the separate 8088 transfer, ALU, unary,
+`6502-interrupts.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, and the separate 8088 transfer, ALU, unary,
 stack, addressing, string, arithmetic, and control modules. The separate 8088
 operand modules contain specialized resolved bodies; its numeric opcode module retains automatic bindings.
 These files are ignored build output and removed by `npm run clean`.
@@ -1554,6 +1555,32 @@ a destination-read failure retains them. Logical flags precede writeback,
 so a failed write retains the computed flags and earlier bytes. Keep this
 ordering distinct from MOVE's write-before-flags sequence. CCR/SR immediate
 logic remains in its separate status path.
+
+The addition/subtraction/comparison families add 2,678 bodies for 11,186 forms.
+Their [encoding inventory](../../src/components/cpus/68000-arithmetic.ts) supplies
+exact source/destination selectors through the same binding. Quick constants
+use the source selector input: zero means eight; other codes mean one through
+seven. Literal values do not add coverage or bodies. Ordinary immediate and
+source-EA encodings share bodies where their data flow matches.
+
+A shared ALU destination recipe now serves logic and arithmetic. It resolves
+the destination, checks alignment, commits pending updates, reads the value,
+applies the calculation, and optionally writes back. A7's bank is selected
+before committing updates, while its value is read afterward. ADDA/SUBA/CMPA
+sign-extend a word source and operate on all 32 destination bits. Quick
+address-register operations use positive constants and also operate at 32 bits.
+Only CMPA changes flags for these address destinations.
+
+Shared arithmetic construction applies the 68000 N/Z/V/C policy; ordinary data
+arithmetic also sets X from carry/borrow, while comparisons preserve X and
+never write a result. ADDX/SUBX/NEGX capture Z then X after all operand reads;
+a separate cumulative-zero stage combines the captured Z with the result.
+Paired memory operands preserve source-before-destination resolution and
+successive updates to the same An. A source or alignment failure discards
+pending updates. A failed destination read retains committed updates, and a
+failed write also retains calculated flags and earlier bytes. These definitions
+use the existing vocabulary and compiler; earlier definitions and generated
+modules are unchanged.
 
 Program/data byte callbacks retain full logical addresses until the existing
 adapter projects the bus and records access/fault metadata. Alignment outcomes

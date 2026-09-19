@@ -1,3 +1,4 @@
+import { instructions as arithmetic68000 } from "../../src/components/cpus/generated/68000-arithmetic.js";
 import { instructions as logic68000 } from "../../src/components/cpus/generated/68000-logic.js";
 import { instructions as moves68000 } from "../../src/components/cpus/generated/68000-moves.js";
 import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../src/components/cpus/68000-context.js";
@@ -942,4 +943,20 @@ export function check68000LogicTypes(state: Cpu68000State): void {
   logic68000.OR_32_program_d0(state, 7, 2, 0, 0, { ...addressing, readByte: () => 0 });
   // @ts-expect-error Immediate logical operands require complete native-word fetching.
   logic68000.EOR_8_immediate_d0(state, 7, 4, 0, 0, { fetchByte: () => 0 });
+}
+
+export function check68000ArithmeticTypes(state: Cpu68000State): void {
+  const addressing = { resolveAddress: () => 0, commitAddressUpdates: () => {} };
+  arithmetic68000.ADD_16_quick_a7(state, 0, 0, 1, 7);
+  arithmetic68000.CMP_32_memory_memory(state, 3, 7, 3, 7, { ...addressing, readByte: () => 0 });
+  arithmetic68000.ADDX_32_memory_memory(state, 4, 7, 4, 7, { ...addressing, readByte: () => 0, writeByte: () => {} });
+  arithmetic68000.CMP_16_program_a7(state, 7, 2, 1, 7, { ...addressing, readProgramByte: () => 0 });
+  // @ts-expect-error CMPM never requests destination writeback.
+  arithmetic68000.CMP_32_memory_memory(state, 3, 7, 3, 7, { ...addressing, readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Extended memory arithmetic needs writeback even when the result is unchanged.
+  arithmetic68000.ADDX_32_memory_memory(state, 4, 7, 4, 7, { ...addressing, readByte: () => 0 });
+  // @ts-expect-error Quick constants are decoded values; no instruction fetch is needed.
+  arithmetic68000.ADD_16_quick_a7(state, 0, 0, 1, 7, { fetchWord: () => 0 });
+  // @ts-expect-error Arithmetic operand faults cannot be narrowed to unconditional success.
+  const success: void = arithmetic68000.NEGX_16_none_memory(state, 0, 0, 3, 7, { ...addressing, readByte: () => 0, writeByte: () => {} });
 }
