@@ -14,6 +14,13 @@ export function instructionSet(entries: readonly OpcodeEntry<InstructionDefiniti
   return Object.freeze(Object.fromEntries(entries));
 }
 
+/** Encoding forms with the same body key share one definition, built from their first occurrence. */
+export function instructionBodies<Form extends { readonly body: string }>(forms: readonly Form[], define: (form: Form) => InstructionDefinition): Readonly<Record<string, InstructionDefinition>> {
+  const bodies = new Map<string, InstructionDefinition>();
+  for (const form of forms) if (!bodies.has(form.body)) bodies.set(form.body, define(form));
+  return Object.freeze(Object.fromEntries(bodies));
+}
+
 /** Unsigned comparison expressed through the existing subtraction-borrow fact. */
 export const atLeast = (left: NumberExpression, right: NumberExpression): FlagExpression => not(borrow(left, right));
 

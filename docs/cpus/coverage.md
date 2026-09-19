@@ -7,8 +7,8 @@ completed instruction-definition migration and current source footprint. The
 detailed support inventory remains below as a reference for implemented behavior
 and processor limitations.
 
-Update this document whenever migration or CPU support changes. The
-[model contracts](../README.md#cpu-models) define state and execution policies;
+Update this document whenever migration, CPU support, or source footprint changes.
+The [model contracts](../README.md#cpu-models) define state and execution policies;
 example specifications define programs and expected results. [CPU scope](scope.md)
 records intended targets and the reasons for choosing them. Existing reference
 emulators do not count toward implementation here.
@@ -23,7 +23,7 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | 151 / 151 | 100% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [548](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [522](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [596](../../src/components/cpus/68000.ts) | 36,029 / 36,029 | 100% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
@@ -514,29 +514,27 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 2,645 |
-| CPU-specific instruction definition files | 2,500 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,831 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,976** |
+| Eight CPU implementation files | 2,619 |
+| CPU-specific instruction definition files | 2,475 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,838 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,932** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
 | Generated CPU output, counted separately | 310,832 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The final 68000 instruction migration adds **63 bodies** for **186 documented
-forms**, also binding TRAP literals and software emulator lines. Status packing
-and restoration reuse shared flag construction and CPU-owned layouts. One narrow
-statement asserts the existing device reset connection; the CPU still owns its
-recording and retirement. Native address decoding remains in the core.
+The first consolidation after completing migration replaces nine repeated 68000
+body-inventory loops with one shared builder. Encoding forms with the same body
+key build their definition once, from the first form. The 8088 uses one dispatcher
+for register and memory forms of immediate ALU operations, unary operations, shifts,
+multiply/divide, and segment moves. Callers retain their invalid-selector checks
+before displacement fetching; the selected body owns its effects and rejections.
 
-The 68000 module falls from **775 to 596 lines** (**179 fewer**), removing the
-remaining handwritten instruction handlers, operand wrappers, and status/return
-helpers. Definitions add **92 lines** and supporting CPU source adds **60**,
-including the system inventory, shared layouts, and device-reset vocabulary.
-Total authored CPU source falls from **9,003 to 8,976 lines** (**27 fewer**);
-generated output adds **1,338**. All **12,134 earlier definitions** remain
-structurally unchanged, and all 26 previously generated modules remain
+The 8088 core falls from **548 to 522 lines** (**26 fewer**), 68000 definitions
+remove **25 lines**, and the shared builder adds **7**. Total authored CPU source
+falls from **8,976 to 8,932 lines** (**44 fewer**). All **12,197 definitions**
+remain structurally unchanged, and all **27 generated modules** remain
 byte-identical. Completing migration does not imply that the shared vocabulary
 or source-reduction work is finished.
 The 16 standalone address/operand readers remain generator probes; CPU execution

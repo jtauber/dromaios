@@ -20,7 +20,7 @@ import type { Operand68000, OperandSize68000 as Size, OperandRegister68000 as Re
 import { readSource, resetDevices, writeLatch, addOverflow, addWrap, alignmentFault, and, borrow, carry, overflow, select, subtract, bitAnd, bitOr, bitXor, capture, commitAddressUpdates, concat, cpuSymbols, extend, fetchWord, flagLiteral, flagValue, literal, lowBit, negative, readFlag, readMemory, readProgramMemory, readRegister,
   readNextAddress, selectTarget, divide, multiply, not, reject, iterate, iterateTogether, or, xor, shiftLeft, resolveAddress, shiftBits, signExtend, truncate, updateFlags, value, when, writeMemory, writeRegister, zero } from "../model.ts";
 import type { FlagExpression, InstructionDefinition, NumberExpression, Register, Statement } from "../model.ts";
-import { arithmetic, instructionSet, shift, transfer } from "../builders.ts";
+import { arithmetic, instructionBodies, instructionSet, shift, transfer } from "../builders.ts";
 import { choose } from "../control-flow.ts";
 import { flagPolicy, packedStatus, updateStatus } from "../status.ts";
 import { defineInstruction } from "../validate.ts";
@@ -198,11 +198,7 @@ function operandMove(size: Size, source: Operand68000, destination: Exclude<Oper
 
 // Addressing modes share a body when their register/memory/space roles match.
 // Decoder inputs retain the exact mode and register selectors for each operation word.
-const moveBodies = new Map<string, InstructionDefinition>();
-for (const { body, size, source, destination } of operandMoveForms68000) {
-  if (!moveBodies.has(body)) moveBodies.set(body, operandMove(size, source, destination));
-}
-export const moves68000 = Object.freeze(Object.fromEntries(moveBodies));
+export const moves68000 = instructionBodies(operandMoveForms68000, ({ size, source, destination }) => operandMove(size, source, destination));
 
 function peripheralTransfer({ size, register, base, store }: Extract<TransferForm68000, { kind: "peripheral" }>) {
   const data = cpu.register(register);
@@ -250,11 +246,7 @@ function multipleTransfer({ size, load, base, predecrement, program }: Extract<T
   });
 }
 
-const transferBodies = new Map<string, InstructionDefinition>();
-for (const form of transferForms68000) {
-  if (!transferBodies.has(form.body)) transferBodies.set(form.body, form.kind === "peripheral" ? peripheralTransfer(form) : multipleTransfer(form));
-}
-export const transfers68000 = Object.freeze(Object.fromEntries(transferBodies));
+export const transfers68000 = instructionBodies(transferForms68000, form => form.kind === "peripheral" ? peripheralTransfer(form) : multipleTransfer(form));
 
 /** Logical ALU stages differ from MOVE: commit before reading the destination, flags before writing it. */
 function logic(operation: LogicOperation68000, size: Size, source: LogicOperand68000 | undefined, destination: Exclude<LogicOperand68000, { kind: "immediate" }>) {
@@ -280,11 +272,7 @@ function logic(operation: LogicOperation68000, size: Size, source: LogicOperand6
 }
 
 // Immediate AND/OR-to-Dn encodings share their bodies with the corresponding data-EA forms.
-const logicBodies = new Map<string, InstructionDefinition>();
-for (const { body, operation, size, source, destination } of logicForms68000) {
-  if (!logicBodies.has(body)) logicBodies.set(body, logic(operation, size, source, destination));
-}
-export const logic68000 = Object.freeze(Object.fromEntries(logicBodies));
+export const logic68000 = instructionBodies(logicForms68000, ({ operation, size, source, destination }) => logic(operation, size, source, destination));
 
 /** Calculation is shared; the 68000 supplies its X policy and cumulative-zero stage. */
 function arithmeticSteps(operation: ArithmeticOperation68000, size: Size, address: boolean): readonly Statement[] {
@@ -334,11 +322,7 @@ function operandArithmetic(operation: ArithmeticOperation68000, size: Size, sour
 }
 
 // Literal quick values select bindings, while operand roles select shared bodies.
-const arithmeticBodies = new Map<string, InstructionDefinition>();
-for (const { body, operation, size, source, destination } of arithmeticForms68000) {
-  if (!arithmeticBodies.has(body)) arithmeticBodies.set(body, operandArithmetic(operation, size, source, destination));
-}
-export const arithmetic68000 = Object.freeze(Object.fromEntries(arithmeticBodies));
+export const arithmetic68000 = instructionBodies(arithmeticForms68000, ({ operation, size, source, destination }) => operandArithmetic(operation, size, source, destination));
 
 /** Fold the result and shift flags together; no architectural flags change during the calculation. */
 function shiftSteps(kind: ShiftKind68000, direction: "L" | "R", size: Size): readonly Statement[] {
@@ -389,9 +373,7 @@ function operandBits(form: BitForm68000): InstructionDefinition {
   });
 }
 
-const bitBodies = new Map<string, InstructionDefinition>();
-for (const form of bitForms68000) if (!bitBodies.has(form.body)) bitBodies.set(form.body, operandBits(form));
-export const bits68000 = Object.freeze(Object.fromEntries(bitBodies));
+export const bits68000 = instructionBodies(bitForms68000, operandBits);
 
 /** Word-source operations commit source updates after their result/flags, including completed exceptions. */
 function wordArithmetic({ operation, source, destination }: WordArithmeticForm68000): InstructionDefinition {
@@ -465,11 +447,8 @@ function decimalArithmetic({ operation, source, destination }: DecimalForm68000)
   });
 }
 
-const wordBodies = new Map<string, InstructionDefinition>(), decimalBodies = new Map<string, InstructionDefinition>();
-for (const form of wordArithmeticForms68000) if (!wordBodies.has(form.body)) wordBodies.set(form.body, wordArithmetic(form));
-for (const form of decimalForms68000) if (!decimalBodies.has(form.body)) decimalBodies.set(form.body, decimalArithmetic(form));
-export const wordArithmetic68000 = Object.freeze(Object.fromEntries(wordBodies));
-export const decimal68000 = Object.freeze(Object.fromEntries(decimalBodies));
+export const wordArithmetic68000 = instructionBodies(wordArithmeticForms68000, wordArithmetic);
+export const decimal68000 = instructionBodies(decimalForms68000, decimalArithmetic);
 
 
 /** Only taken transfers validate and select a target; selection never advances the fetch cursor. */
@@ -561,9 +540,7 @@ function control(form: ControlForm68000): InstructionDefinition {
   return defineInstruction({ cpu: cpu.declaration, name, inputs: { mode: 3, code: 3, displacement: 8 }, explanation, steps });
 }
 
-const controlBodies = new Map<string, InstructionDefinition>();
-for (const form of controlForms68000) if (!controlBodies.has(form.body)) controlBodies.set(form.body, control(form));
-export const control68000 = Object.freeze(Object.fromEntries(controlBodies));
+export const control68000 = instructionBodies(controlForms68000, control);
 
 const privileged = (): readonly Statement[] => [readFlag("supervisor", cpu.flag("s")), when(not(flagValue("supervisor")), [reject("privilege-violation")])];
 
@@ -651,6 +628,4 @@ function system(form: SystemForm68000): InstructionDefinition {
   return defineInstruction({ cpu: cpu.declaration, name, explanation, inputs: { mode: 3, code: 3 }, steps });
 }
 
-const systemBodies = new Map<string, InstructionDefinition>();
-for (const form of systemForms68000) if (!systemBodies.has(form.body)) systemBodies.set(form.body, system(form));
-export const system68000 = Object.freeze(Object.fromEntries(systemBodies));
+export const system68000 = instructionBodies(systemForms68000, system);

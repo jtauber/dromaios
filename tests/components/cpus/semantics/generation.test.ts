@@ -8,7 +8,7 @@ import { instructions as motorola } from "../../../../src/components/cpus/genera
 import { instructions as motorola6800 } from "../../../../src/components/cpus/generated/6800.js";
 import { instructions68000, quick68000, moves68000, logic68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000, instructions6502, interrupts6502, sources6502, instructions6800, instructions8008, instructions8080, instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088, instructions6809, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
-import { instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
+import { instructionBodies, instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
 import { cpuSymbols, addWrap, capture, highByte, lowByte, literal, readRegister, value, writeLatch, writeRegister, zero } from "../../../../src/components/cpus/semantics/model.js";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/state/6502.js";
 import type { Cpu6502State } from "../../../../src/components/cpus/state/6502.js";
@@ -28,6 +28,21 @@ function motorolaState(): Cpu6809State {
   return { a: 0, b: 0, dp: 0, x: 0, y: 0, s: 0xffff, u: 0, pc: 0x1000, waitMode: "none", nmiArmed: true,
     flags: { e: true, f: true, h: true, i: true, n: false, z: false, v: true, c: true } };
 }
+
+test("shared body keys build only their first form and retain encounter order, including object-property names", () => {
+  const first = instructions6502[0xea]!, later = instructions6502[0x18]!;
+  const forms = [
+    { body: "second", definition: first }, { body: "first", definition: later },
+    { body: "second", definition: later }, { body: "__proto__", definition: first },
+  ];
+  const built: typeof forms = [];
+  const bodies = instructionBodies(forms, form => { built.push(form); return form.definition; });
+  assert.deepEqual(built, [forms[0], forms[1], forms[3]]);
+  assert.deepEqual(Object.keys(bodies), ["second", "first", "__proto__"]);
+  assert.equal(bodies.second, first);
+  assert.equal(bodies.__proto__, first);
+  assert.ok(Object.isFrozen(bodies));
+});
 
 test("all generated modules reproduce from definitions without changing them", () => {
   for (const [cpu, definitions] of [["68000", instructions68000], ["6502", instructions6502], ["6800", instructions6800], ["8008", instructions8008], ["8080", instructions8080], ["8088", instructions8088], ["6809", instructions6809], ["z80", instructionsZ80]] as const) {
