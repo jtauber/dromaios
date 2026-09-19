@@ -10,9 +10,10 @@ Keep overview documentation stable across small implementation changes.
 Update README.md, ROADMAP.md, docs/architecture.md, and docs/cpus/scope.md
 when project scope, milestones, architecture, or development workflow changes;
 do not update them just to add an opcode to a progress list. Track current CPU
-instruction coverage and implementation progress in docs/cpus/coverage.md,
-updating it in the same change as CPU support. Keep CPU state, execution-record,
-and reset contracts in docs/cpus/<cpu>/model.md; keep program behavior and
+support, instruction-definition coverage, and source footprint in
+docs/cpus/coverage.md, updating the affected figures and descriptions in the
+same change. Keep CPU state, execution-record, and reset contracts in
+docs/cpus/<cpu>/model.md; keep program behavior and
 acceptance criteria in the relevant example specifications. Avoid duplicate
 status lists.
 
@@ -37,3 +38,27 @@ something higher up. The implementation itself should help explain the hardware.
 For CPU models, follow the [CPU source organization guide](docs/cpus/implementation.md).
 Use its common reading order while preserving each processor's encoding and
 execution conventions.
+
+## Authored and generated sources
+
+Instruction behavior is authored in `src/components/cpus/semantics/`, using
+CPU definitions and shared builders. Follow the
+[instruction semantics guide](docs/cpus/instruction-semantics.md) when changing
+these definitions; decoding and execution-boundary logic also remain in the
+CPU cores. For generated machine factories, edit the `.machine` sources under
+`src/machines/`, following the [machine definition guide](docs/machines/definitions.md).
+Do not hand-edit or commit `src/components/cpus/generated/`,
+`src/machines/generated/`, or `dist/`; the build regenerates them.
+
+The tracked [expanded instruction listing](docs/cpus/semantic-examples.md) is
+also generated. When definitions or their descriptions change, regenerate it
+with `node scripts/describe-cpu-semantics.ts`; the build does not refresh it.
+
+## Validation
+
+Use the Node version in `.nvmrc` and the [development workflow](README.md#development).
+CPU-filtered test runs include that CPU's component tests and machine examples,
+but omit shared-helper and semantics tests. Use the full `npm test` suite for
+the final regression check on code changes. Use `npm run test:built` only while
+compiled output is current. For documentation-only changes, check links and
+consistency; a full test run is unnecessary.

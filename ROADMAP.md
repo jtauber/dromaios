@@ -9,12 +9,16 @@ is a point to discuss the next slice. Later stages are provisional.
 Every commit requires maintainer review and an explicit go-ahead.
 
 The introductory examples were built in the order **8080 → 6502 → 6809**.
-The CPU milestone is **complete documented opcode coverage across all eight
-initial targets**. The [capability audit](docs/cpus/completion.md#cpu-only-checkpoint-review)
-found that all eight meet the CPU-only checkpoint; interrupt and I/O work now
-proceeds in bounded completion slices. Shared-code and DSL
-experiments, and browser work, can proceed alongside CPU completion; none is
-a prerequisite for finishing the instruction sets.
+All eight initial targets now have **complete documented opcode coverage** and
+use shared instruction definitions that generate execution and explanations.
+The [capability audit](docs/cpus/completion.md#cpu-only-checkpoint-review) records
+the earlier CPU-only checkpoint; [CPU implementation coverage](docs/cpus/coverage.md)
+tracks current support, source footprint, and remaining fidelity limits.
+
+Current CPU work focuses on consolidating those definitions and shared code.
+Reusable memory and byte-I/O compositions also work in simulation; the browser
+interface and complete historical machines remain ahead. The stages overlap:
+browser work can build on these foundations while CPU and component work continues.
 Implementation order is independent of the tutorial's historical teaching
 order. See [CPU scope](docs/cpus/scope.md) for the rationale,
 eventual targets, and current reference coverage.
@@ -48,48 +52,43 @@ language support to develop alongside the machine format and eventual CPU DSL.
 - Add the MIT license alongside the first code.
 
 **Review point:** We can account for what each instruction reads and changes.
-The supported instruction subset and execution granularity are documented.
+The initial instruction subset and execution granularity are documented.
 
 Current support is tracked in [CPU implementation coverage](docs/cpus/coverage.md).
 Acceptance checks are defined in the [8080 example specification](docs/cpus/8080/examples/arithmetic.md).
 
-## 2. Expand CPU support and test generalizations — current
+## 2. Consolidate CPU models and shared definitions — current
 
-- Use the [shared CPU runner](docs/runtime/runner.md), now exercised against
-  the implemented CPU examples. It has an explicit step budget,
-  stops before a caller completion address or after a halt or unsupported
-  attempt, and returns captured records and the reason for stopping while
-  preserving CPU-specific types.
-- Expand opcode support in reviewable instruction-family batches: control flow,
-  loads and transfers, arithmetic and logic, and stack operations.
-  Use independent expected behavior and exhaustive checks where practical.
-- Continue focused comparisons with the 6502 and 6809, expanding their support
-  as we exercise register relationships, stacks, addressing, and memory access.
-- Compare execution records and inspection needs across the current CPUs.
-- Consolidate shared support where the examples justify it. Keep decoding,
-  flags, addressing, and timing specific to each CPU where appropriate.
-- Extend the initial Z80 slice, now using the same RAM setup and runner with
-  its own state and flags. Paired 8080/Z80 programs test common encodings and
-  different semantics. Use further related instruction families to judge which
-  implementation details should be shared.
-- Extend the initial 8008 slice, exercising its native encodings, 14-bit
-  addresses, and internal address stack.
-- Extend the initial 6800 slice with further addressing, control-flow, and
-  stack operations while checking its distinctions from the 6809.
-- Extend the initial 8088 slice, exercising its word and byte register views,
-  segmented addresses, and instruction forms.
-- Extend the initial 68000 slice, exercising long registers, word encodings,
-  effective addresses, and separate user and supervisor stacks.
+Opcode expansion and instruction-definition migration are complete for the
+initial eight CPUs. The next work is to review the resulting abstractions and
+reduce duplication while preserving each processor's behavior.
 
-**Review points:** The runner handles each CPU's stopping behavior correctly.
-Instruction-family additions have explicit expected behavior and documented
-limits. Each of the eight CPUs reaches the capability checkpoint below;
-generalizations remain open to revision as their instruction families expand.
+- Reduce repeated definition construction and remove obsolete helpers where
+  this improves clarity. Measure total authored source, including definitions,
+  shared support, and generation machinery; keep generated output separate.
+- Preserve native encodings, register relationships, flags, addressing,
+  access order, and partial-failure behavior. Check shared behavior against
+  independently authored expectations, including boundary cases.
+- Compare execution records and inspection needs across the CPUs as examples
+  and browser views develop. The [shared CPU runner](docs/runtime/runner.md)
+  already supports bounded execution, completion addresses, halt/wait outcomes,
+  unsupported attempts, and retained CPU-specific records.
+- Review further decoder and lifecycle generalizations through concrete cases.
+  Keep the eventual literate CPU description format open while the shared
+  semantics and their explanations develop.
+- Address remaining accuracy and machine-integration needs in reviewable
+  changes, with explicit model contracts and documented limits. Keep their
+  detailed status in the coverage tracker.
+
+**Review points:** Behavior remains independently checked, and definitions and
+generated explanations make the order of effects clear. Shared construction
+reduces duplication without hiding hardware distinctions. Judge changes by
+[correctness, clarity, elegance, then performance](AGENTS.md#priorities-for-source-code).
 
 ### CPU-only checkpoint
 
 The initial eight targets are **Intel 8008, Intel 8080, Motorola 6800, MOS 6502,
-Zilog Z80, Motorola 6809, Intel 8088, and Motorola 68000**. Each should have:
+Zilog Z80, Motorola 6809, Intel 8088, and Motorola 68000**. Each now has:
 
 - Explicit state, detached snapshots, instruction stepping, and a defined reset
   contract.
@@ -98,61 +97,45 @@ Zilog Z80, Motorola 6809, Intel 8088, and Motorola 68000**. Each should have:
 - A useful combined CPU-and-RAM program with independently checked execution
   records and bounded running through the shared runner.
 
-These are capability criteria. They do not require equal opcode percentages or
-nearly complete instruction sets. Coverage continues to use the full documented
-opcode totals, including instructions deferred from this checkpoint; timing and
-interrupt delivery remain separate measures.
-
 The [checkpoint audit](docs/cpus/completion.md#cpu-only-checkpoint-review)
-records passing evidence for all eight. The earlier deferral of interrupt
-controls, delivery, and I/O has served its purpose. The
-[CPU completion sequence](docs/cpus/completion.md#completion-sequence)
-now records complete documented opcode coverage across all eight, with timing
-and remaining processor features tracked separately.
+records passing evidence for all eight. This was an intermediate capability
+milestone; interrupts and I/O were deferred until after it. Their subsequent
+implementation is recorded in the
+[CPU completion sequence](docs/cpus/completion.md#completion-sequence).
 
-The introductory [8080](docs/cpus/8080/examples/arithmetic.md), [6502](docs/cpus/6502/examples/arithmetic.md),
-[6809](docs/cpus/6809/examples/arithmetic.md), [Z80](docs/cpus/z80/examples/arithmetic.md), [8008](docs/cpus/8008/examples/arithmetic.md),
-[6800](docs/cpus/6800/examples/arithmetic.md), [8088](docs/cpus/8088/examples/arithmetic.md),
-and [68000](docs/cpus/68000/examples/arithmetic.md) examples are complete. Their specifications
-define behavior and acceptance checks; the [coverage tracker](docs/cpus/coverage.md)
-records current support. Focused examples are extending this comparison;
-the [example catalog](docs/README.md#cpu-examples) lists the completed programs.
-Further examples and comparison of the models continue within this stage.
+The [example catalog](docs/README.md#cpu-examples) links to the introductory
+and combined programs, their behavior specifications, and acceptance checks.
+Further examples can continue to test the models and their shared interfaces.
 
 ### Complete opcode coverage for all eight
 
-This milestone is complete; the criteria below governed the implementation.
-Current evidence and remaining processor features are in the
-[coverage inventory](docs/cpus/coverage.md).
+This milestone is complete for all eight, including their documented I/O,
+interrupt-control, and system instructions. The models also provide explicit
+interrupt and exception delivery and the external connections required by
+their declared contracts. The [completion sequence](docs/cpus/completion.md#completion-sequence)
+records that work; the [coverage inventory](docs/cpus/coverage.md) owns current
+counts and limitations.
 
-Finish every documented opcode form for each initial CPU, using the existing
-[coverage definitions and inventories](docs/cpus/coverage.md). The CPU-only
-checkpoint is an intermediate milestone, not the endpoint of CPU work.
+Timing, signal scheduling, full bus behavior, and other processor features
+remain separate work. Complete opcode coverage establishes the instruction
+inventory at the declared modeling fidelity; machine accuracy still needs
+validation against each machine's requirements.
 
-- Use the completed checkpoint audit as the baseline for the remaining work.
-- Define the required I/O, interrupt, exception, and external-processor
-  interfaces and delivery contracts in reviewable slices, then implement the
-  remaining instruction families with independent checks.
-- Reach 100% documented opcode coverage for each of the eight. Keep timing,
-  bus behavior, and other processor features separately tracked; a complete
-  opcode inventory does not establish a cycle-accurate or complete machine.
-
-Finish these instructions in the current TypeScript cores as needed. Neither
-a finished DSL, migration to it, nor additional CPU targets are prerequisites.
-At each shared-code or language review, choose the next bounded experiment
-alongside accuracy and machine integration work. Current counts and specific
-gaps belong in the coverage tracker.
+### Shared instruction definitions
 
 Instruction-definition migration is now complete for all eight documented
-instruction inventories. The definitions generate execution and explanations;
-the next review should reduce repeated construction and obsolete helpers while
-measuring total authored source. Native decoders, lifecycle contracts, and the
-eventual literate authoring format remain separate work.
+instruction inventories. The [typed definitions](docs/cpus/instruction-semantics.md)
+generate execution and explanations. CPU cores still own native decoding,
+recording, and lifecycle orchestration. A complete declarative CPU model and
+the eventual literate authoring format remain open design work; the
+[shared-building-blocks proposal](docs/cpus/shared-building-blocks.md) records
+the broader goal. Neither further language work nor another CPU target is a
+prerequisite for browser or machine development.
 
 ## 3. Make the examples explorable in the browser
 
-This work can begin with the existing examples and shared runner, alongside
-opcode expansion and the introduction of further CPUs.
+Browser implementation is planned. It can begin with the existing examples,
+shared runner, and machine compositions while CPU consolidation continues.
 
 The [pedagogical roadmap](docs/pedagogy.md#pedagogical-roadmap) defines the
 learning milestones and review points, beginning with an arithmetic explorer
@@ -161,7 +144,7 @@ guided analysis of substantial software.
 The [web design plan](docs/web-design.md) proposes the sitemap and shared
 workspace, with delivery steps from page sketches and one working example to
 learning paths and machine exploration. Its browser checkpoints develop
-alongside the learning milestones and retain the device dependencies below.
+alongside the learning milestones and build on the composition work below.
 
 - Review page sketches for an introductory instruction lesson and a substantial
   software-analysis chapter alongside the CPU overview and example workspace.
@@ -177,23 +160,32 @@ to actual execution. Inspection does not alter the machine's behavior.
 
 ## 4. Prove reuse with another composition
 
-Device integration follows the [CPU-only checkpoint](#cpu-only-checkpoint).
+The simulation milestone is complete; browser inspection remains planned.
+The [ROM-boot example](docs/cpus/68000/examples/rom-boot.md) connects separate
+ROM and RAM through a fixed memory map. The
+[8080](docs/cpus/8080/examples/echo.md) and
+[68000](docs/cpus/68000/examples/echo.md) echo examples reuse the same byte-input
+and byte-output devices through port and memory-mapped connections.
+[Machine definitions](docs/machines/definitions.md) now describe these
+components, images, connections, and reset behavior.
 
-- Put one of the existing CPU models and memory components in another small
-  configuration. This tests machine composition as well as CPU conventions.
-- Add a simple device and make its connection to the CPU visible.
-- Reuse the inspection views where they fit.
-- Revisit the interfaces using what the second example teaches us.
+- Make those connections and device interactions visible in the browser.
+- Reuse inspection views where they fit, without triggering device reads or
+  other side effects during inspection.
+- Revisit the interfaces when another concrete device or composition exposes
+  a new requirement.
 
-**Review point:** Both examples use the same components. Their differences can
-be explained through configuration, connections, and any necessary glue code.
+**Review point:** Shared components retain their behavior across compositions.
+Learners can explain the differences through configuration and connections,
+and follow their effects during execution.
 
 ## 5. Build the first complete machine incrementally
 
 - Choose a machine and a clear, modest software target.
-- Add the required instructions, memory mapping, devices, and timing in small
-  steps, with an explanation and appropriate checks for each addition.
-- Introduce ROM or program loading and input/output as needed.
+- Connect the CPU, memory, and devices, adding machine-specific behavior and
+  timing in small steps with explanations and appropriate checks.
+- Build on existing ROM, program-image, and input/output support, extending
+  loading and device behavior as the target software requires.
 - Identify the existing emulator behavior that the new machine can replace.
 
 **Review point:** The target software runs with understood limitations, and

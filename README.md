@@ -44,9 +44,9 @@ be small enough to understand before we build on it.
   the differences between CPUs, devices, and machines.
 - **Separate simulation from the browser interface.** The same models should
   support automated checks, interactive lessons, and a complete machine UI.
-- **Develop abstractions through concrete examples.** Start with a small working
-  case, then exercise three distinct CPUs before settling shared CPU and
-  inspection interfaces. Use a rule of three to judge generalizations.
+- **Develop abstractions through concrete examples.** Exercise shared CPU and
+  inspection interfaces across distinct architectures. Use a rule of three to
+  judge generalizations, including examples that expose hardware differences.
 - **Explain the model's limits.** Teaching views should make clear what is
   simulated, simplified, or still missing.
 
@@ -63,19 +63,24 @@ agents follow this rule in [AGENTS.md](AGENTS.md).
 ## Status
 
 The platform has instruction-level models with complete documented opcode coverage
-for the 8008, 8080, 6502, 6800, 6809, Z80, 8088, and 68000, plus small RAM-based
-examples tested independently of the browser. Timing and other processor features
-remain separately tracked. The [example catalog](docs/README.md#cpu-examples) links to their specifications.
+for the 8008, 8080, 6800, 6502, Z80, 6809, 8088, and 68000. Small examples cover
+CPU-and-RAM programs, ROM boot, mapped memory, and shared byte-input and
+byte-output devices. They run through a shared CPU runner and are tested
+independently of the browser. The [example catalog](docs/README.md#cpu-examples)
+links to their specifications. A browser interface and complete historical
+machines are still planned.
+
 All eight documented instruction sets now use shared definitions that generate
 execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)
-tracks that completed migration, source footprint, supported features, and remaining gaps; the [roadmap](ROADMAP.md) describes
-the development stages.
+tracks that completed migration, source footprint, supported features, and
+remaining gaps, including timing. The [roadmap](ROADMAP.md) describes the
+development stages.
 
 The implementation uses **TypeScript**, compiled to JavaScript ES modules,
 with **Node.js 24 LTS** and its built-in test runner for development.
 
-Each initial example has a deliberately small scope: one CPU, RAM, a tiny
-program, and a way to step through it and see what changes.
+Each example has a deliberately small scope: a short program, the components
+it needs, and a way to step through it and inspect what changes.
 
 ## Development
 
@@ -90,15 +95,21 @@ npm test
 ```
 
 `npm ci` installs the locked development dependencies. `npm test` cleans generated
-output, generates the bounded [CPU semantics](docs/cpus/instruction-semantics.md)
+code, generates instruction bodies from the [CPU definitions](docs/cpus/instruction-semantics.md)
 and factories from the [machine definitions](docs/machines/definitions.md),
 checks the simulation without Node or browser ambient types, compiles the source,
-build script, and tests, and runs the compiled tests.
+scripts, and tests, and runs the compiled tests.
 `npm run build` performs the same checks and compilation without running tests.
 `npm run check:src` regenerates both outputs and runs the simulation check
 using [tsconfig.src.json](tsconfig.src.json), without emitting JavaScript.
 `npm run generate:cpus` refreshes just the generated instruction bodies.
 `npm run generate:machines` refreshes just the generated TypeScript factories.
+
+The tracked [expanded instruction listing](docs/cpus/semantic-examples.md) is
+generated separately. After changing definitions or their descriptions, run
+`node scripts/describe-cpu-semantics.ts` and review the resulting documentation.
+Add `--check` to check freshness without writing; the full test suite also
+checks this listing, but the build does not refresh it.
 
 Optional [Zed language support](editors/zed/README.md) adds syntax highlighting
 and bracket matching for `.machine` files. Its build and tests use a separate,
@@ -112,10 +123,11 @@ npm test -- 8008 --test-name-pattern=interrupt
 npm run test:built -- z80 --test-name-pattern=interrupt
 ```
 
-A CPU selection includes its component tests and machine examples. `test:built`
-skips the build; use it only while the compiled output is current. With no CPU
-selection, either command runs the whole suite, including shared helpers,
-the parser, generator, and runner. Keep `npm test` as the final regression
+A CPU selection includes its component tests and machine examples, but omits
+shared-helper and semantics tests. `test:built` skips the build; use it only
+while the compiled output is current. With no CPU selection or name filter,
+either command runs the whole suite, including shared helpers, semantics,
+the parser, generators, and runner. Keep `npm test` as the final regression
 check; focused runs retain the selected tests' exhaustive cases and assertions.
 
 CPU tests can use topic files under `tests/components/cpus/<cpu>/`, as the Z80
@@ -124,12 +136,14 @@ This lets Node run independent topics in separate processes. Shared fixtures
 and independent expected-value calculations belong in `helpers.ts`, which
 registers no tests. Smaller CPU suites can keep their existing single file.
 
-Generated output and `node_modules/` are ignored by Git. There are no runtime
-dependencies; machine parsing happens during the build. The simulation source uses
-no Node or browser APIs.
+Generated TypeScript, compiled output, and `node_modules/` are ignored by Git;
+the generated instruction listing is tracked. There are no runtime dependencies;
+machine parsing happens during the build. The simulation source uses no Node or
+browser APIs.
 
 The [GitHub Actions workflow](.github/workflows/ci.yml) runs `npm ci` and
 `npm test` on pushes and pull requests, using the Node version in `.nvmrc`.
+A separate job installs and tests the Zed editor tooling.
 
 Runtime imports along the generator's native TypeScript path use `.ts`
 extensions: the build script, parser, CPU modules, and their shared helpers.
@@ -152,14 +166,19 @@ Released under the [MIT license](LICENSE).
 - [Documentation](docs/README.md) is the entry point for architecture, CPU
   scope, model contracts and coverage, example specifications, machine
   definitions, and reference notes.
-- [src/components/memory/ram.ts](src/components/memory/ram.ts) owns byte storage
-  and validates reads and writes.
+- [src/components/memory/](src/components/memory/) contains RAM, ROM, memory
+  connections, and fixed memory maps.
 - [src/components/cpus/](src/components/cpus/) contains the CPU models,
-  each with its own state, supported instruction subset, detached snapshots,
-  and step records.
-- [src/machines/](src/machines/) prepares fresh RAM and CPU state for starting
-  or restarting each example.
-- [tests/](tests/) checks RAM, the supported CPU behavior, and the examples.
+  stored-state descriptions, authored instruction definitions, shared helpers,
+  detached snapshots, and step records.
+- [src/components/devices/](src/components/devices/) contains the shared byte-input
+  and byte-output devices.
+- [src/machines/](src/machines/) contains `.machine` definitions, their parser,
+  and example setup support for CPU, memory, and device compositions.
+- [src/runtime/](src/runtime/) provides bounded CPU execution with retained
+  step records.
+- [tests/](tests/) checks component behavior, instruction definitions and
+  generation, machine parsing and examples, execution support, and public types.
 
 ## Existing work
 
