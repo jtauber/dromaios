@@ -417,3 +417,65 @@ test("68000 pending-entry state validates, detaches, and clears once a handler o
     assert.throws(() => new Cpu68000(memory, before), RangeError);
   }
 });
+
+test("68000 logical destination faults retain committed A7 updates and only completed flags and bytes", () => {
+  const left = [0x89, 0xab, 0xcd, 0xef], right = [0x12, 0x34, 0x56, 0x78];
+  const families = [
+    { opcode: 0xc31f, result: 0x00204468 }, // AND D1,(A7)+
+    { opcode: 0x831f, result: 0x9bbfdfff }, // OR D1,(A7)+
+    { opcode: 0xb31f, result: 0x9b9f9b97 }, // EOR D1,(A7)+
+    { opcode: 0x021f, result: 0x00204468 }, // ANDI #n,(A7)+
+    { opcode: 0x001f, result: 0x9bbfdfff }, // ORI #n,(A7)+
+    { opcode: 0x0a1f, result: 0x9b9f9b97 }, // EORI #n,(A7)+
+    { opcode: 0x421f, result: 0 }, // CLR (A7)+
+    { opcode: 0x461f, result: 0x76543210 }, // NOT (A7)+
+    { opcode: 0x4a1f, result: 0x89abcdef }, // TST (A7)+
+  ];
+  for (const family of families) for (const size of [1, 2, 4]) for (const supervisor of [false, true]) {
+    const opcode = family.opcode + (size === 1 ? 0 : size === 2 ? 64 : 128);
+    const bytes = [...word(opcode), ...(family.opcode < 0x1000 ? size === 4 ? right : right.slice(2) : [])];
+    const value = family.result % 2 ** (size * 8), flags = { x: true, n: value >= 2 ** (size * 8 - 1), z: value === 0, v: false, c: false };
+    for (const operation of family.opcode === 0x4a1f ? ["read"] as const : ["read", "write"] as const) for (let offset = 0; offset < size; offset++) {
+      const before = state({ d1: 0x12345678 }); before.flags.s = supervisor;
+      const active = supervisor ? before.ssp : before.usp, increment = size === 1 ? 2 : size;
+      const { memory, cpu } = fixture(bytes, before);
+      memory.load(active, left.slice(4 - size));
+      // Report only the operand fault: the supervisor frame can overlap the old (A7)+ destination.
+      let reported = false;
+      memory.fail = (kind, address) => {
+        if (reported || kind !== operation || address !== physical(active + offset)) return false;
+        reported = true; return true;
+      };
+      const record = cpu.step(), completedFlags = operation === "write" ? { ...before.flags, ...flags } : before.flags;
+      const lowStatus = operation === "write" ? 0x10 + (flags.n ? 8 : 0) + (flags.z ? 4 : 0) : 0x17;
+      checkBusFrame(record, memory, { operation, address: active + offset, returnPc: before.pc + bytes.length, ir: opcode,
+        code: supervisor ? 5 : 1, status: (supervisor ? 0xa200 : 0x8200) + lowStatus,
+        stack: (supervisor ? active + increment : before.ssp) - 14 });
+      assert.equal(record.after.usp, before.usp + (supervisor ? 0 : increment));
+      assert.deepEqual(record.after.flags, { ...completedFlags, s: true, t: false });
+      assert.deepEqual(record.accesses.slice(bytes.length, -18), [
+        ...accesses("read", active, left.slice(4 - size, operation === "read" ? 4 - size + offset : 4)),
+        ...(operation === "write" ? accesses("write", active, long(value).slice(4 - size, 4 - size + offset)) : []),
+      ]);
+    }
+  }
+});
+
+test("68000 AND/OR source faults discard auto-updates and retain PC-relative program-space identity", () => {
+  for (const base of [0x8000, 0xc000]) for (const size of [1, 2, 4]) for (const supervisor of [false, true]) for (const pcRelative of [false, true]) {
+    const before = state(); before.flags.s = supervisor;
+    const opcode = base + (size === 1 ? 0 : size === 2 ? 64 : 128) + (pcRelative ? 0x3a : 0x1f);
+    const bytes = [...word(opcode), ...(pcRelative ? [0, 0x20] : [])], active = supervisor ? before.ssp : before.usp;
+    const source = pcRelative ? before.pc + 0x22 : active;
+    for (let offset = 0; offset < size; offset++) {
+      const { memory, cpu } = fixture(bytes, before);
+      memory.load(source, [0x89, 0xab, 0xcd, 0xef].slice(4 - size));
+      memory.fail = (kind, address) => kind === "read" && address === physical(source + offset);
+      const record = cpu.step();
+      checkBusFrame(record, memory, { operation: "read", address: source + offset, returnPc: before.pc + bytes.length, ir: opcode,
+        code: pcRelative ? supervisor ? 6 : 2 : supervisor ? 5 : 1, status: supervisor ? 0xa217 : 0x8217 });
+      assert.equal(record.after.d0, before.d0); assert.equal(record.after.usp, before.usp);
+      assert.deepEqual(record.after.flags, { ...before.flags, s: true, t: false });
+    }
+  }
+});

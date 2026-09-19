@@ -24,12 +24,12 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [548](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1294](../../src/components/cpus/68000.ts) | 9,950 / 36,029 | 27.6% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1278](../../src/components/cpus/68000.ts) | 16,610 / 36,029 | 46.1% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **5,259 generated bodies**, all used by CPU execution,
+contains **6,165 generated bodies**, all used by CPU execution,
 including 6502/6800/8088 entry helpers, a 6809 frame-push helper, and 8088 WAIT
-resumption. They cover **12,049 complete opcode forms**. All six 8-bit CPUs and
+resumption. They cover **18,709 complete opcode forms**. All six 8-bit CPUs and
 the 8088 now have complete instruction-definition migration. The current
 family inventory is:
 
@@ -400,6 +400,15 @@ family inventory is:
   words; data reads/writes remain explicit high-first byte accesses. PC-relative
   sources retain program-space identity in both bus and alignment faults.
   The CPU still owns EA decoding, fetch cursors, exception delivery, and retirement.
+  AND/OR/EOR, ordinary ANDI/ORI/EORI, and CLR/NOT/TST add **6,660 forms**
+  through **906 shared bodies**. MOVE and logic now share operand classification,
+  source reads, immediate fetching, byte transfers, alignment checks, partial Dn
+  writes, and result flags. Logical memory destinations commit staged updates
+  before their read, including CLR's otherwise unused read. Source-read failures
+  discard updates; destination-read failures retain them. Flags precede writeback,
+  so failed writes retain computed flags and completed bytes; TST never writes.
+  AND/OR immediate source-EA encodings share bodies with their ANDI/ORI-to-Dn
+  equivalents. CCR/SR immediates retain their separate handwritten delivery paths.
 
 The [current review](instruction-semantics.md#decision-and-next-review)
 focuses on complete operation families, explicit carry and writeback stages,
@@ -445,32 +454,33 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 3,343 |
-| CPU-specific instruction definition files | 2,011 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,395 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,749** |
+| Eight CPU implementation files | 3,327 |
+| CPU-specific instruction definition files | 2,057 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,455 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,839** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
-| Generated CPU output, counted separately | 106,526 |
+| Generated CPU output, counted separately | 126,129 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-Completing 68000 MOVE/MOVEA adds **169 shared bodies** for **9,150 forms**.
+The 68000 logical migration adds **906 shared bodies** for **6,660 forms**.
 The encoding inventory supplies register/memory roles and decoded selectors;
-addressing variants share bodies with the same data flow. Native-word fetch,
-address-resolution and update-commit stages, program-space byte reads, and
-structured operand faults extend the vocabulary. The original address decoder
-remains behind a narrow context interface; no opaque instruction callback
-replaces the transfer sequence.
+addressing variants share bodies with the same data flow. It reuses MOVE's
+staged addressing vocabulary and factors common source reads, immediate
+fetches, and byte transfers into shared construction. No new semantic
+statements, expressions, or generator features are needed.
 
-The 68000 module falls from **1,305 to 1,294 lines** (**11 fewer**), retiring its
-MOVE builder and handwritten transfer sequence. Definitions add **61 lines**
-and supporting CPU source adds **100**. Total authored CPU source rises from
-**8,599 to 8,749 lines** (**150 more**); generated output adds **3,351**.
-The new stage vocabulary makes the transfer order explicit and supports later
-families; this batch does not reduce total authored source.
-All **5,090 earlier definitions** remain structurally unchanged, and all eighteen
-previously generated modules remain byte-identical.
+The 68000 module falls from **1,294 to 1,278 lines** (**16 fewer**), retiring its
+logical helper and migrated handwritten bindings. Definitions add **46 lines**
+and supporting CPU source adds **60**. Total authored CPU source rises from
+**8,749 to 8,839 lines** (**90 more**); generated output adds **19,603**.
+The shared stages expose the distinct MOVE and logical commit/flag schedules;
+this batch does not reduce total authored source.
+All **5,090 definitions outside the factored MOVE bodies** remain structurally
+unchanged, and all eighteen other previously generated modules remain
+byte-identical. The 169 MOVE bodies change only temporary names as their source
+reads move into shared construction; their generated operations are unchanged.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

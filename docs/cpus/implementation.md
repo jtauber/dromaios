@@ -162,12 +162,21 @@ MOVE/MOVEQ/EXT's write-before-flags order.
 For memory/immediate MOVE forms, the definition requests EA resolution at the
 source and destination stages separately. Keep the existing decoder behind
 `Cpu68000AddressContext`; it owns extension decoding and an instruction-local
-map of pending auto-updates. Generated bodies own alignment checks, all operand
-byte accesses, the explicit update-commit point, writeback, and flags. Do not
-resolve the destination before completing the source read. Keep logical
+map of pending auto-updates. The [logical inventory](../../src/components/cpus/68000-logic.ts)
+uses the same context and binding, with [operand classification](../../src/components/cpus/68000-operands.ts)
+shared across both inventories. Source reads, immediate fetches, byte transfers,
+partial Dn writes, and result flags share construction in the definitions.
+Generated bodies own alignment checks, all operand byte accesses, the explicit
+update-commit point, writeback, and flags. Do not resolve the destination before
+completing the source read. Keep logical
 32-bit addresses until the memory adapter maps the physical bus, retaining
 program/data space for fault delivery. Native-word operand fetching preserves
 the core's complete-word cursor and instruction-byte recording boundary.
+
+Logical memory destinations commit pending updates before reading their value,
+including CLR's real memory read. Logical flags precede writeback, while TST
+omits writeback altogether. Keep these stages explicit beside MOVE's distinct
+order when sharing the underlying operand helpers.
 
 The complete support inventory belongs in [CPU implementation coverage](coverage.md).
 This guide describes organization and does not replace the model contracts or

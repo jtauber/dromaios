@@ -1,8 +1,11 @@
 import { cpu68000StateDescription } from "../../state/68000.ts";
 import { opcodeFamily } from "../../opcodes.ts";
 import { operandMoveForms68000 } from "../../68000-moves.ts";
-import type { MoveOperand } from "../../68000-moves.ts";
-import { addWrap, alignmentFault, bitAnd, bitOr, capture, commitAddressUpdates, concat, cpuSymbols, extend, fetchWord, flagLiteral, flagValue, literal, lowBit, negative, readFlag, readMemory, readProgramMemory, readRegister,
+import { logicForms68000 } from "../../68000-logic.ts";
+import type { LogicOperation68000, LogicOperand68000 } from "../../68000-logic.ts";
+import { dataRegisters68000 as dataRegisters, addressRegisters68000 as addressRegisters, selectors68000 as codes } from "../../68000-operands.ts";
+import type { Operand68000, OperandSize68000 as Size, OperandRegister68000 as RegisterName } from "../../68000-operands.ts";
+import { addWrap, alignmentFault, bitAnd, bitOr, bitXor, capture, commitAddressUpdates, concat, cpuSymbols, extend, fetchWord, flagLiteral, flagValue, literal, lowBit, negative, readFlag, readMemory, readProgramMemory, readRegister,
   resolveAddress, shiftBits, signExtend, truncate, updateFlags, value, when, writeMemory, writeRegister, zero } from "../model.ts";
 import type { InstructionDefinition, NumberExpression, Register, Statement } from "../model.ts";
 import { instructionSet, transfer } from "../builders.ts";
@@ -11,11 +14,6 @@ import { flagPolicy } from "../status.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("68000", cpu68000StateDescription);
-const dataRegisters = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
-const addressRegisters = ["a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"] as const;
-type RegisterName = typeof dataRegisters[number] | typeof addressRegisters[number];
-type Size = 8 | 16 | 32;
-const codes = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 const sizes = { 8: "B", 16: "W", 32: "L" } as const;
 
 /** Resolve A7 at this operand's turn, reading only the selected stored stack pointer. */
@@ -111,11 +109,11 @@ export const quick68000 = Object.fromEntries(dataRegisters.map(name => [name, de
 // while retaining the logical address and program/data space for a possible bus fault.
 const byteAddress = (name: string, offset: number) => offset ? addWrap(value(name), literal(32, offset)) : value(name);
 
-function memoryRead(size: Size, program: boolean): readonly Statement[] {
+function memoryRead(size: Size, address: string, result: string, program = false): readonly Statement[] {
   const read = program ? readProgramMemory : readMemory;
-  return [...Array.from({ length: size / 8 }, (_, offset) => read(`byte${offset}`, byteAddress("sourceAddress", offset))),
-    capture("result", size === 8 ? value("byte0") : size === 16 ? concat(value("byte0"), value("byte1"))
-      : concat(concat(value("byte0"), value("byte1")), concat(value("byte2"), value("byte3"))))];
+  const byte = (offset: number) => value(`${result}Byte${offset}`);
+  return [...Array.from({ length: size / 8 }, (_, offset) => read(`${result}Byte${offset}`, byteAddress(address, offset))),
+    capture(result, size === 8 ? byte(0) : size === 16 ? concat(byte(0), byte(1)) : concat(concat(byte(0), byte(1)), concat(byte(2), byte(3))))];
 }
 
 function memoryWrite(size: Size): readonly Statement[] {
@@ -123,12 +121,28 @@ function memoryWrite(size: Size): readonly Statement[] {
     size === 8 ? value("result") : truncate(shiftBits(value("result"), "right", size - 8 - offset * 8), 8)));
 }
 
+function immediateRead(size: Size, result: string): readonly Statement[] {
+  const high = `${result}High`, low = `${result}Low`;
+  return [fetchWord(high), ...(size === 32 ? [fetchWord(low)] : []),
+    capture(result, size === 32 ? concat(value(high), value(low)) : size === 16 ? value(high) : truncate(value(high), 8))];
+}
+
 function checkAlignment(size: Size, name: string, operation: "read" | "write", program = false): readonly Statement[] {
   return size === 8 ? [] : [when(lowBit(value(name)), [alignmentFault(operation, value(name), program ? "program" : "data")])];
 }
 
+/** A7 reads introduce a scope; keep stages consuming the captured value inside it. */
+function withSource(size: Size, source: Operand68000, result: string, next: readonly Statement[]): readonly Statement[] {
+  return source.kind === "register"
+    ? withRegister(source.name, "sourceSupervisor", from => [readRegister("sourceRegister", from), capture(result, narrow(value("sourceRegister"), size)), ...next])
+    : source.kind === "immediate" ? [...immediateRead(size, result), ...next]
+    : [resolveAddress("sourceAddress", size, value("sourceMode"), value("sourceCode")),
+      ...checkAlignment(size, "sourceAddress", "read", source.name === "program"),
+      ...memoryRead(size, "sourceAddress", result, source.name === "program"), ...next];
+}
+
 /** Resolve and read the source before any destination extension fetch; only complete writes set flags. */
-function operandMove(size: Size, source: MoveOperand, destination: Exclude<MoveOperand, { kind: "immediate" }>) {
+function operandMove(size: Size, source: Operand68000, destination: Exclude<Operand68000, { kind: "immediate" }>) {
   const address = destination.kind === "register" && destination.name.startsWith("a");
   const pending = source.kind === "memory" || destination.kind === "memory";
   const commit = pending ? [commitAddressUpdates()] : [];
@@ -139,12 +153,6 @@ function operandMove(size: Size, source: MoveOperand, destination: Exclude<MoveO
       : [...writeData(to, size, value("result")), ...flags])])
     : [resolveAddress("destinationAddress", size, value("destinationMode"), value("destinationCode")),
       ...checkAlignment(size, "destinationAddress", "write"), ...commit, ...memoryWrite(size), ...flags];
-  const read: readonly Statement[] = source.kind === "register"
-    ? withRegister(source.name, "sourceSupervisor", from => [readRegister("source", from), capture("result", narrow(value("source"), size)), ...write])
-    : source.kind === "immediate" ? [fetchWord("immediateHigh"), ...(size === 32 ? [fetchWord("immediateLow")] : []),
-      capture("result", size === 32 ? concat(value("immediateHigh"), value("immediateLow")) : size === 16 ? value("immediateHigh") : truncate(value("immediateHigh"), 8)), ...write]
-    : [resolveAddress("sourceAddress", size, value("sourceMode"), value("sourceCode")),
-      ...checkAlignment(size, "sourceAddress", "read", source.name === "program"), ...memoryRead(size, source.name === "program"), ...write];
   return defineInstruction({ cpu: cpu.declaration,
     name: `${address ? "MOVEA" : "MOVE"}.${sizes[size]} ${source.name.toUpperCase()},${destination.name.toUpperCase()}`,
     inputs: { sourceMode: 3, sourceCode: 3, destinationMode: 3, destinationCode: 3 },
@@ -154,7 +162,7 @@ function operandMove(size: Size, source: MoveOperand, destination: Exclude<MoveO
       + "failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. "
       + (address ? "MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register."
         : "Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S."),
-    steps: read,
+    steps: withSource(size, source, "result", write),
   });
 }
 
@@ -165,3 +173,41 @@ for (const { body, size, source, destination } of operandMoveForms68000) {
   if (!moveBodies.has(body)) moveBodies.set(body, operandMove(size, source, destination));
 }
 export const moves68000 = Object.freeze(Object.fromEntries(moveBodies));
+
+/** Logical ALU stages differ from MOVE: commit before reading the destination, flags before writing it. */
+function logic(operation: LogicOperation68000, size: Size, source: LogicOperand68000 | undefined, destination: Exclude<LogicOperand68000, { kind: "immediate" }>) {
+  const memory = destination.kind === "memory";
+  const result = {
+    AND: bitAnd(value("destination"), value("source")), OR: bitOr(value("destination"), value("source")),
+    EOR: bitXor(value("destination"), value("source")), NOT: bitXor(value("destination"), literal(size, 2 ** size - 1)),
+    CLR: literal(size, 0), TST: value("destination"),
+  }[operation];
+  const register = destination.kind === "register" ? cpu.register(destination.name) : undefined;
+  const steps = [
+    ...(memory ? [resolveAddress("destinationAddress", size, value("destinationMode"), value("destinationCode")),
+      ...checkAlignment(size, "destinationAddress", "read")] : []),
+    ...(memory || source?.kind === "memory" ? [commitAddressUpdates()] : []),
+    ...(register ? [readRegister("destinationRegister", register), capture("destination", narrow(value("destinationRegister"), size))]
+      : memoryRead(size, "destinationAddress", "destination")),
+    capture("result", result), updateFlags(resultFlags(size), { result: value("result") }),
+    ...(operation === "TST" ? [] : register ? writeData(register, size, value("result")) : memoryWrite(size))];
+  return defineInstruction({ cpu: cpu.declaration,
+    name: `${source?.kind === "immediate" ? `${operation}I` : operation}.${sizes[size]} ${source ? `${source.name.toUpperCase()},` : ""}${destination.name.toUpperCase()}`,
+    inputs: { sourceMode: 3, sourceCode: 3, destinationMode: 3, destinationCode: 3 },
+    explanation: (source ? "Capture the source before resolving the destination. " : "Resolve the destination once. ")
+      + "Reject odd word/long operands before committing address updates. "
+      + "Commit staged updates before the destination read; a failed source discards them, while a failed destination read retains them. "
+      + "Memory transfers are high byte first with 32-bit logical wrap; PC-relative sources use program space. "
+      + (operation === "CLR" ? "Read the destination even though the result is zero. " : "")
+      + "Set N/Z and clear V/C after the reads; preserve X/T/S. "
+      + (operation === "TST" ? "Do not write the tested operand." : "Write the result after flags, preserving live upper Dn bits on byte/word writes. Failed writes retain flags and completed bytes."),
+    steps: source ? withSource(size, source, "source", steps) : steps,
+  });
+}
+
+// Immediate AND/OR-to-Dn encodings share their bodies with the corresponding data-EA forms.
+const logicBodies = new Map<string, InstructionDefinition>();
+for (const { body, operation, size, source, destination } of logicForms68000) {
+  if (!logicBodies.has(body)) logicBodies.set(body, logic(operation, size, source, destination));
+}
+export const logic68000 = Object.freeze(Object.fromEntries(logicBodies));

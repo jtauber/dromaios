@@ -17,6 +17,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | Definitions | What they challenge |
 | --- | --- |
 | 68000 all MOVE/MOVEA, MOVEQ, EXT, SWAP, and EXG | Byte/word register views; active SSP/USP selection; source-before-destination decoding; pending auto-updates; program-space reads; alignment outcomes and partial writes |
+| 68000 AND/OR/EOR, ordinary ANDI/ORI/EORI, CLR/NOT/TST | Shared operand/source construction; destination updates before reads; flags before writes; real CLR reads and no TST writeback |
 | 8088 immediate MOV and accumulator ALU/TEST, word INC/DEC, AX/register exchanges | Low/high byte views with live preservation of the other half; operand-before-CF capture; low-byte parity for words; explicit flag/write ordering; generated encoding bindings |
 | 8088 ModR/M MOV/XCHG, absolute accumulator MOV, and immediate r/m MOV | Resolved segment/offset inputs; byte-offset wrap before physical projection; complete source capture and low-first partial writes |
 | 8088 ModR/M and immediate ALU/TEST | Reuse resolved operands and accumulator arithmetic; source before destination before CF; sign-extended immediates; flags before partial writes; CMP/TEST without operand writes |
@@ -72,12 +73,13 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 5,259 generated, executable bodies. All serve CPU execution;
-5,254 are bound through opcode or postbyte selection. Five boundary helpers
+There are 6,165 generated, executable bodies. All serve CPU execution;
+6,160 are bound through opcode or postbyte selection. Five boundary helpers
 serve 6502/6800/8088 entry, 6809 frame pushing, and 8088 WAIT resumption.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
 All six 8-bit CPUs and the 8088 have complete instruction-definition migration;
-the 68000 has 9,950 documented forms migrated, including all ordinary MOVE/MOVEA. Bodies start after opcode selection. Each 6809 memory
+the 68000 has 16,610 documented forms migrated, including all ordinary MOVE/MOVEA
+and the data logical families. Bodies start after opcode selection. Each 6809 memory
 body starts after successful address resolution and serves direct, indexed, and
 extended forms, including all legal indexed postbytes. The 6800 memory
 comparisons, logic, arithmetic, and byte/word transfers likewise serve direct/indexed/extended
@@ -1484,7 +1486,7 @@ optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,68000,8008,8080,8088,6809,z80}.ts`,
-`6502-interrupts.ts`, `68000-quick.ts`, `68000-moves.ts`, and the separate 8088 transfer, ALU, unary,
+`6502-interrupts.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-logic.ts`, and the separate 8088 transfer, ALU, unary,
 stack, addressing, string, arithmetic, and control modules. The separate 8088
 operand modules contain specialized resolved bodies; its numeric opcode module retains automatic bindings.
 These files are ignored build output and removed by `npm run clean`.
@@ -1535,6 +1537,23 @@ follow a complete ordinary MOVE write. MOVEA keeps flags and overwrites any
 pending update to its destination register. The decoder's pending values feed
 later base/index calculations; first-use order governs commits when operands
 share a register. Abandoned bodies discard their pending map automatically.
+
+The data logical families add 906 bodies for 6,660 forms through the same
+binding and address context. Their [encoding inventory](../../src/components/cpus/68000-logic.ts)
+shares [operand classification](../../src/components/cpus/68000-operands.ts)
+with MOVE. The definitions share source reads (including A7's scoped bank
+selection), complete immediate fetching, high-first byte transfers, alignment
+checks, partial data-register writes, and N/Z/V/C policy. No new vocabulary or
+compiler behavior is needed. AND/OR with an immediate source EA share bodies
+with the equivalent ANDI/ORI-to-Dn encodings.
+
+The logical sequence commits pending address updates before reading the
+destination. CLR performs that read despite discarding its value; TST reads
+and updates flags without writing. A source failure discards pending updates;
+a destination-read failure retains them. Logical flags precede writeback,
+so a failed write retains the computed flags and earlier bytes. Keep this
+ordering distinct from MOVE's write-before-flags sequence. CCR/SR immediate
+logic remains in its separate status path.
 
 Program/data byte callbacks retain full logical addresses until the existing
 adapter projects the bus and records access/fault metadata. Alignment outcomes
@@ -1768,6 +1787,8 @@ loops, wider register masks, and exception delivery remain outside the
 semantic bodies. Pending 68000 address updates now have an explicit commit
 stage while the decoder still owns their calculation. Bounded numeric iteration and named instruction outcomes now
 serve 8088 arithmetic without moving CPU boundaries into the language. Register views and byte-mask stacks now have
-construction recipes, but no new runtime or primitive representation. The 68000 MOVE traces now exercise the staged address and commit vocabulary. The 6507 address-projection
-and 4004 nibble/interface probes remain acceptance requirements, not capabilities
+construction recipes, but no new runtime or primitive representation. The 68000
+MOVE and logical traces exercise distinct schedules with the same staged address
+and commit vocabulary. The 6507 address-projection and 4004 nibble/interface
+probes remain acceptance requirements, not capabilities
 of this instruction-definition slice.
