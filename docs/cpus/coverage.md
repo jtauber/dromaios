@@ -24,12 +24,12 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [548](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1139](../../src/components/cpus/68000.ts) | 27,796 / 36,029 | 77.1% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1043](../../src/components/cpus/68000.ts) | 31,736 / 36,029 | 88.1% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **8,843 generated bodies**, all used by CPU execution,
+contains **10,929 generated bodies**, all used by CPU execution,
 including 6502/6800/8088 entry helpers, a 6809 frame-push helper, and 8088 WAIT
-resumption. They cover **29,895 complete opcode forms**. All six 8-bit CPUs and
+resumption. They cover **33,835 complete opcode forms**. All six 8-bit CPUs and
 the 8088 now have complete instruction-definition migration. The current
 family inventory is:
 
@@ -423,6 +423,17 @@ family inventory is:
   Paired memory operands resolve source before destination, including repeated
   predecrement/postincrement of one register. Alignment failures discard both
   pending updates; destination-read/write failures retain committed updates.
+  BTST/BCHG/BCLR/BSET, every register/memory shift and rotate, and TAS add
+  **3,940 forms** through **2,086 shared bodies** (**5,284 operation words**).
+  Bit numbers and register counts are captured before the tested operand,
+  including aliased registers. Bits test modulo 32 for Dn and modulo 8 otherwise;
+  BTST writes only Z and retains its program-space and immediate-source forms.
+  TAS derives flags from the old byte before setting bit 7. Memory operands
+  reuse the destination stages, including A7 byte stepping and update/fault
+  boundaries. Shifts reuse the shared one-bit recipe with named local values
+  for result, X, C, and accumulated ASL overflow; flags publish after the loop.
+  Zero-count shifts still set N/Z, clear V, and preserve X; ROX copies X to C,
+  while the other families clear C. Ordinary rotates preserve X for all counts.
 
 The [current review](instruction-semantics.md#decision-and-next-review)
 focuses on complete operation families, explicit carry and writeback stages,
@@ -468,34 +479,33 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 3,188 |
-| CPU-specific instruction definition files | 2,118 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,532 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,838** |
+| Eight CPU implementation files | 3,092 |
+| CPU-specific instruction definition files | 2,178 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,640 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,910** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
-| Generated CPU output, counted separately | 195,044 |
+| Generated CPU output, counted separately | 277,595 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The 68000 addition/subtraction/comparison migration adds **2,678 shared bodies**
-for **11,186 forms**. Literal quick values select operation words without
-multiplying coverage or generated bodies. The definitions reuse the existing
-source stages and extract an ALU destination recipe shared with logic: resolve,
-check alignment, commit updates, read, calculate, then optionally write back.
-Shared arithmetic construction supplies the calculation; 68000 policies retain
-X, cumulative Z, and flag-free address arithmetic. No new semantic statements,
-expressions, or generator features are needed.
+The 68000 bit/shift/TAS migration adds **2,086 shared bodies** for **3,940
+forms**. Quick shift counts remain decoded parameters. The definitions reuse
+ALU destination stages and the shared one-bit shift recipe. A typed
+`iterateTogether` statement carries numeric and Boolean local values through
+one bounded loop, evaluating all next values before updating any. It avoids
+packing unrelated flags into a number or writing architectural flags during
+calculation. BTST extends the destination recipe to read program space and
+immediate bytes without writeback.
 
-The 68000 module falls from **1,278 to 1,139 lines** (**139 fewer**), retiring
-seven family builders and its immediate/add/subtract/compare helpers. The
-remaining paired-operand helper now describes only decimal byte pairs.
-Definitions add **61 lines** and supporting CPU source adds **77**. Total
-authored CPU source falls from **8,839 to 8,838 lines** (**one fewer**), while
-generated output adds **68,915**. The core is substantially smaller; the full
-authored source footprint is essentially unchanged after including the new
-encoding inventory and shared construction.
-All **6,165 earlier definitions** remain structurally unchanged, and all twenty
+The 68000 module falls from **1,139 to 1,043 lines** (**96 fewer**), removing
+four bit/shift family builders and the private bit/shift implementations.
+Definitions add **60 lines** and supporting CPU source adds **108**, including
+the encoding inventory, named iteration, and its validation/generation/reporting.
+Total authored CPU source increases from **8,838 to 8,910 lines** (**72 more**);
+generated output adds **82,551**. This batch reduces the core while adding
+shared expressive capability; it does not yet reduce the total authored code.
+All **8,843 earlier definitions** remain structurally unchanged, and all 21
 previously generated modules remain byte-identical.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate

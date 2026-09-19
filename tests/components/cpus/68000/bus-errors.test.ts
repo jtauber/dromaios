@@ -111,12 +111,50 @@ test("68000 PC-relative operands and MOVEM use program function codes while MOVE
     [[0x4c, 0xfa, 0, 1, 0, 0x20], 0xab001025, "read", s ? 6 : 2, 6], // MOVEM.L (32,PC),D0
     [[0x01, 0x48, 0, 0], 0xcd002004, "read", s ? 5 : 1, 4], // MOVEP.L (0,A0),D0
     [[0x01, 0xc8, 0, 0], 0xcd002004, "write", s ? 5 : 1, 4], // MOVEP.L D0,(0,A0)
+    [[0x01, 0x3a, 0, 0x20], 0xab001022, "read", s ? 6 : 2, 4], // BTST D0,(32,PC)
+    [[0x08, 0x3a, 0, 7, 0, 0x20], 0xab001024, "read", s ? 6 : 2, 6], // BTST #7,(32,PC)
   ] as const) {
     const before = state(); before.flags.s = s;
     const { memory, cpu } = fixture(bytes, before);
     memory.fail = (kind, physicalAddress) => kind === operation && physicalAddress === physical(address);
     checkBusFrame(cpu.step(), memory, { operation, address, returnPc: before.pc + cursor,
       ir: bytes[0]! * 256 + bytes[1]!, code, status: s ? 0xa217 : 0x8217 });
+  }
+});
+
+test("68000 bit modifiers, TAS, and memory shifts retain A7 updates and flags at every failed operand byte", () => {
+  // Opcode without EA, input bytes, output bytes, and resulting XNZVC. BTST has no output.
+  const cases = [
+    [0x0100, [1], [], 0x13], [0x0140, [1], [0], 0x13], [0x0180, [1], [0], 0x13], [0x01c0, [1], [1], 0x13],
+    [0x4ac0, [1], [0x81], 0x10],
+    [0xe0c0, [0x80, 1], [0xc0, 0], 0x19], [0xe1c0, [0x80, 1], [0, 2], 0x13],
+    [0xe2c0, [0x80, 1], [0x40, 0], 0x11], [0xe3c0, [0x80, 1], [0, 2], 0x11],
+    [0xe4c0, [0x80, 1], [0xc0, 0], 0x19], [0xe5c0, [0x80, 1], [0, 3], 0x11],
+    [0xe6c0, [0x80, 1], [0xc0, 0], 0x19], [0xe7c0, [0x80, 1], [0, 3], 0x11],
+  ] as const;
+  for (const [base, input, output, flags] of cases) for (const s of [false, true]) for (const mode of [3, 4]) {
+    const opcode = base + mode * 8 + 7;
+    for (let failAt = 0; failAt < input.length + output.length; failAt++) {
+      const before = state({ d0: 0 }); before.flags.s = s; before.flags.t = false;
+      const stack = s ? before.ssp : before.usp, address = stack - (mode === 4 ? 2 : 0), updated = stack + (mode === 3 ? 2 : -2);
+      const { memory, cpu } = fixture(word(opcode), before);
+      memory.load(address, input);
+      const writing = failAt >= input.length, offset = writing ? failAt - input.length : failAt;
+      let failed = false;
+      memory.fail = (kind, a) => {
+        if (failed || kind !== (writing ? "write" : "read") || a !== physical(address + offset)) return false;
+        failed = true; return true;
+      };
+      const record = cpu.step();
+      checkBusFrame(record, memory, { operation: writing ? "write" : "read", address: address + offset,
+        returnPc: before.pc + 2, ir: opcode, code: s ? 5 : 1, stack: (s ? updated : before.ssp) - 14,
+        status: (s ? 0x2200 : 0x0200) + (writing ? flags : 0x17) });
+      assert.equal(record.after.usp, s ? before.usp : updated);
+      assert.deepEqual(record.accesses.slice(2, -18), writing
+        ? [...accesses("read", address, input), ...accesses("write", address, output.slice(0, offset))]
+        : accesses("read", address, input.slice(0, offset)));
+      assert.equal(record.after.d0, 0);
+    }
   }
 });
 

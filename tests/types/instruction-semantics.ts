@@ -1,4 +1,5 @@
 import { instructions as arithmetic68000 } from "../../src/components/cpus/generated/68000-arithmetic.js";
+import { instructions as bits68000 } from "../../src/components/cpus/generated/68000-bits.js";
 import { instructions as logic68000 } from "../../src/components/cpus/generated/68000-logic.js";
 import { instructions as moves68000 } from "../../src/components/cpus/generated/68000-moves.js";
 import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../src/components/cpus/68000-context.js";
@@ -959,4 +960,20 @@ export function check68000ArithmeticTypes(state: Cpu68000State): void {
   arithmetic68000.ADD_16_quick_a7(state, 0, 0, 1, 7, { fetchWord: () => 0 });
   // @ts-expect-error Arithmetic operand faults cannot be narrowed to unconditional success.
   const success: void = arithmetic68000.NEGX_16_none_memory(state, 0, 0, 3, 7, { ...addressing, readByte: () => 0, writeByte: () => {} });
+}
+
+export function check68000BitTypes(state: Cpu68000State): void {
+  const addressing = { resolveAddress: () => 0, commitAddressUpdates: () => {} };
+  bits68000.ROXL_32_quick_d0(state, 0, 0, 0, 0);
+  bits68000.BTST_8_d0_immediate(state, 0, 0, 7, 4, { fetchWord: () => 0 });
+  bits68000.BTST_8_d0_program(state, 0, 0, 7, 2, { ...addressing, readProgramByte: () => 0 });
+  bits68000.TAS_8_none_memory(state, 0, 0, 3, 7, { ...addressing, readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Register shifts have no memory or fetch capability.
+  bits68000.ROXL_32_quick_d0(state, 0, 0, 0, 0, { fetchWord: () => 0 });
+  // @ts-expect-error BTST never requests writeback.
+  bits68000.BTST_8_d0_memory(state, 0, 0, 3, 7, { ...addressing, readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error PC-relative tests require program-space reads.
+  bits68000.BTST_8_d0_program(state, 0, 0, 7, 2, { ...addressing, readByte: () => 0 });
+  // @ts-expect-error A word shift can reject alignment before reading the operand.
+  const success: void = bits68000.ASL_16_one_memory(state, 0, 0, 3, 7, { ...addressing, readByte: () => 0, writeByte: () => {} });
 }

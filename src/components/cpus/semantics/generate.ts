@@ -160,6 +160,30 @@ export function generateInstructions(cpu: "6502" | "6800" | "68000" | "8008" | "
             scope.set(step.name, { code: current, type: initial.type });
             continue;
           }
+          case "iterate-together": {
+            const count = local("count"), index = local("iteration"), inner = new Map(scope);
+            const expression = (expr: Expression, type: ValueType, names: Scope) => type === "flag" ? flag(expr, names) : number(expr, names).code;
+            emit(`const ${count} = ${number(step.count, scope).code};`);
+            const entries = Object.entries(step.values).map(([name, item]) => {
+              const code = local(name);
+              emit(`let ${code}: ${item.type === "flag" ? "boolean" : "number"} = ${expression(item.initial, item.type, scope)};`);
+              inner.set(name, { code, type: item.type });
+              return { name, code, type: item.type, next: item.next };
+            });
+            emit(`for (let ${index} = 0; ${index} < ${count}; ${index}++) {`);
+            depth += "  ";
+            body(step.steps, inner);
+            const updates = entries.map(item => {
+              const next = local("next");
+              emit(`const ${next}: ${item.type === "flag" ? "boolean" : "number"} = ${expression(item.next, item.type, inner)};`);
+              return `${item.code} = ${next};`;
+            });
+            updates.forEach(emit);
+            depth = depth.slice(0, -2);
+            emit("}");
+            for (const item of entries) scope.set(item.name, { code: item.code, type: item.type });
+            continue;
+          }
           case "reject": emit(reject(step.reason)); continue;
           case "divide": {
             const dividend = number(step.dividend, scope), divisor = number(step.divisor, scope);

@@ -70,6 +70,16 @@ export function describeInstruction(definition: InstructionDefinition): string {
           emit(`  yield ${number(step.result)} as the next ${step.name}`);
           emit("} // Zero iterations retain the initial value and perform no body effects.");
           break;
+        case "iterate-together": {
+          const entries = Object.entries(step.values);
+          const expression = (expr: Expression, type: string | number) => type === "flag" ? flag(expr, {}) : number(expr);
+          for (const [name, item] of entries) emit(`${name}:${item.type === "flag" ? "flag" : `u${item.type}`} := ${expression(item.initial, item.type)}`);
+          emit(`iterate ${number(step.count)} times with ${entries.map(([name]) => name).join(", ")} {`);
+          body(step.steps, indent + "  ");
+          for (const [name, item] of entries) emit(`  next ${name} := ${expression(item.next, item.type)}`);
+          emit("} // Update all values together; zero iterations retain their initial values without body effects.");
+          break;
+        }
         case "reject": emit(`return outcome ${JSON.stringify(step.reason)}; no later effects`); break;
         case "divide":
           emit(`${step.quotient}, ${step.remainder} := divide${step.signed ? "Signed" : "Unsigned"}(${number(step.dividend)}, ${number(step.divisor)})`);

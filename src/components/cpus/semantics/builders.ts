@@ -63,15 +63,15 @@ export function negativeZeroPolicy(name: string, n: Flag, z: Flag, width: Width)
   ] };
 }
 
-export type ShiftInput = "zero" | "sign" | "outgoing" | Flag;
+export type ShiftInput = "zero" | "sign" | "outgoing" | Flag | FlagExpression;
 
 /** Consume "original", capture "result", and describe outgoing carry. The caller schedules flags and writeback. */
 export function shift(direction: "left" | "right", incoming: ShiftInput = "zero") {
   const original = value("original"), carry = direction === "left" ? negative(original) : lowBit(original);
   const bit = typeof incoming === "string"
-    ? { zero: flagLiteral(false), sign: negative(original), outgoing: carry }[incoming] : flagValue("carry");
+    ? { zero: flagLiteral(false), sign: negative(original), outgoing: carry }[incoming] : incoming.kind === "flag" ? flagValue("carry") : incoming;
   return { carry, steps: [
-    ...(typeof incoming === "string" ? [] : [readFlag("carry", incoming)]),
+    ...(typeof incoming !== "string" && incoming.kind === "flag" ? [readFlag("carry", incoming)] : []),
     capture("result", (direction === "left" ? shiftLeft : shiftRight)(original, bit)),
   ] };
 }

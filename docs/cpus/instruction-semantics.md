@@ -19,6 +19,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 68000 all MOVE/MOVEA, MOVEQ, EXT, SWAP, and EXG | Byte/word register views; active SSP/USP selection; source-before-destination decoding; pending auto-updates; program-space reads; alignment outcomes and partial writes |
 | 68000 AND/OR/EOR, ordinary ANDI/ORI/EORI, CLR/NOT/TST | Shared operand/source construction; destination updates before reads; flags before writes; real CLR reads and no TST writeback |
 | 68000 ADD/SUB/CMP, immediate/quick/address forms, ADDX/SUBX, NEG/NEGX, CMPM | Shared destination stages and arithmetic; X and cumulative Z; signed word sources for 32-bit address arithmetic; repeated An operands and fault commit points |
+| 68000 BTST/BCHG/BCLR/BSET, shifts/rotates, and TAS | Modulo bit numbers; aliased count registers; zero-count flags; named local iteration for result/X/C/overflow; flags before partial writes |
 | 8088 immediate MOV and accumulator ALU/TEST, word INC/DEC, AX/register exchanges | Low/high byte views with live preservation of the other half; operand-before-CF capture; low-byte parity for words; explicit flag/write ordering; generated encoding bindings |
 | 8088 ModR/M MOV/XCHG, absolute accumulator MOV, and immediate r/m MOV | Resolved segment/offset inputs; byte-offset wrap before physical projection; complete source capture and low-first partial writes |
 | 8088 ModR/M and immediate ALU/TEST | Reuse resolved operands and accumulator arithmetic; source before destination before CF; sign-extended immediates; flags before partial writes; CMP/TEST without operand writes |
@@ -74,13 +75,14 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 8,843 generated, executable bodies. All serve CPU execution;
-8,838 are bound through opcode or postbyte selection. Five boundary helpers
+There are 10,929 generated, executable bodies. All serve CPU execution;
+10,924 are bound through opcode or postbyte selection. Five boundary helpers
 serve 6502/6800/8088 entry, 6809 frame pushing, and 8088 WAIT resumption.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
 All six 8-bit CPUs and the 8088 have complete instruction-definition migration;
-the 68000 has 27,796 documented forms migrated, including ordinary MOVE/MOVEA,
-data logic, and addition/subtraction/comparison families. Bodies start after opcode selection. Each 6809 memory
+the 68000 has 31,736 documented forms migrated, including ordinary MOVE/MOVEA,
+data logic, arithmetic/comparison, bit operations, shifts/rotates, and TAS. Bodies
+start after opcode selection. Each 6809 memory
 body starts after successful address resolution and serves direct, indexed, and
 extended forms, including all legal indexed postbytes. The 6800 memory
 comparisons, logic, arithmetic, and byte/word transfers likewise serve direct/indexed/extended
@@ -1125,6 +1127,7 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `replace-flags` | Bind and evaluate a complete flag policy, then assign a fresh flag object; reject policies missing any stored flag |
 | `when` | Evaluate a Boolean condition; execute the nested ordered statements only if true, with no body effects otherwise |
 | `iterate` | Capture a byte count and initial numeric value; perform 0–255 ordered iterations with a fresh immutable current value in each iteration, then capture the final value under its name |
+| `iterate-together` | Carry named numeric/Boolean values through a byte-counted loop; initialize from the outer scope, evaluate all next values before updating any, and publish only those names after the loop; zero iterations retain the initials |
 | `divide` | Divide a double-width dividend by a byte/word divisor with explicit signedness; truncate toward zero, retain dividend sign on the remainder, and capture both results at divisor width; zero or overflow returns the named `onError` outcome |
 | `reject` | Return a named outcome immediately from the complete instruction body; preserve completed effects and perform no later statement |
 
@@ -1487,7 +1490,7 @@ optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,68000,8008,8080,8088,6809,z80}.ts`,
-`6502-interrupts.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, and the separate 8088 transfer, ALU, unary,
+`6502-interrupts.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, `68000-bits.ts`, and the separate 8088 transfer, ALU, unary,
 stack, addressing, string, arithmetic, and control modules. The separate 8088
 operand modules contain specialized resolved bodies; its numeric opcode module retains automatic bindings.
 These files are ignored build output and removed by `npm run clean`.
@@ -1581,6 +1584,37 @@ pending updates. A failed destination read retains committed updates, and a
 failed write also retains calculated flags and earlier bytes. These definitions
 use the existing vocabulary and compiler; earlier definitions and generated
 modules are unchanged.
+
+The [bit/shift inventory](../../src/components/cpus/68000-bits.ts) adds 2,086
+bodies for 3,940 documented forms. All families reuse the ALU destination
+recipe. Bit-number immediates fetch a complete word before target extensions;
+dynamic bit numbers and register shift counts are captured before the target,
+including when both operands select the same Dn. BTST also admits PC-relative
+program reads and, in its dynamic form, a fetched immediate byte. Only Z changes
+for bit operations. TAS sets N/Z and clears V/C from the old byte, then writes
+that byte with bit 7 set.
+
+`iterateTogether` extends bounded iteration to named numeric and Boolean
+values. Initial expressions use only the outer scope. Every next expression
+uses the current iteration's values and local captures; all next values are
+computed before any accumulator changes. Zero iterations retain the initials,
+and internal captures never escape. The validator checks names, widths, flag
+expressions, byte counts, and rejection restrictions; the generator infers
+capabilities inside the body and preserves early outcomes and failed effects.
+The explanatory listing shows the same parallel update semantics.
+
+68000 shifts use that loop for the result, X, C, and overflow, reusing the shared
+one-bit recipe with a captured incoming bit. They read X after the operand and
+write architectural flags only after the loop. ASL accumulates any sign change.
+Zero counts still set N/Z and clear V while preserving X; ROX copies X to C,
+whereas other zero-count families clear C. Ordinary rotates preserve X.
+The [iteration tests](../../tests/components/cpus/semantics/iteration.test.ts)
+exercise simultaneous updates, lexical scopes, zero/maximum counts, and failure
+or rejection before publishing results. The [bit/shift tests](../../tests/components/cpus/semantics/68000-bits.test.ts)
+scan every operation word independently, compare every generated body and effect
+failure, and use a bit-array oracle for all six-bit counts and sign boundaries.
+CPU bus tests retain byte failures, A7 updates in both banks, and program-space
+function codes. Earlier definitions and generated modules remain unchanged.
 
 Program/data byte callbacks retain full logical addresses until the existing
 adapter projects the bus and records access/fault metadata. Alignment outcomes

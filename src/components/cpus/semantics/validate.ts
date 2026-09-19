@@ -212,6 +212,24 @@ export function validateInstruction(definition: InstructionDefinition): void {
           bind(step.name, initial);
           return;
         }
+        case "iterate-together": {
+          expect(step.count, 8);
+          const entries = Object.entries(step.values), local = new Map(scope);
+          if (!entries.length) fail(where, "iteration requires at least one value");
+          const check = (expr: Expression, type: ValueType, names: ReadonlyMap<string, ValueType>) => {
+            if (type === "flag") flagExpression(expr, names, where);
+            else if (expression(expr, names, where) !== width(type, where)) fail(where, "iteration value must retain its declared width");
+          };
+          for (const [name, item] of entries) {
+            identifier(name, where);
+            if (scope.has(name)) fail(where, `duplicate capture ${name}`);
+            check(item.initial, item.type, scope);
+            local.set(name, item.type);
+          }
+          steps(step.steps, local, where, allowRejection);
+          for (const [name, item] of entries) { check(item.next, item.type, local); bind(name, item.type); }
+          return;
+        }
         case "reject": rejection(step.reason); return;
         case "divide": {
           rejection(step.onError);

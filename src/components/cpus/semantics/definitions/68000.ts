@@ -3,14 +3,16 @@ import { opcodeFamily } from "../../opcodes.ts";
 import { operandMoveForms68000 } from "../../68000-moves.ts";
 import { arithmeticForms68000 } from "../../68000-arithmetic.ts";
 import type { ArithmeticOperation68000, ArithmeticSource68000 } from "../../68000-arithmetic.ts";
+import { bitForms68000 } from "../../68000-bits.ts";
+import type { BitForm68000, ShiftKind68000 } from "../../68000-bits.ts";
 import { logicForms68000 } from "../../68000-logic.ts";
 import type { LogicOperation68000, LogicOperand68000 } from "../../68000-logic.ts";
 import { dataRegisters68000 as dataRegisters, addressRegisters68000 as addressRegisters, selectors68000 as codes } from "../../68000-operands.ts";
 import type { Operand68000, OperandSize68000 as Size, OperandRegister68000 as RegisterName } from "../../68000-operands.ts";
 import { addOverflow, addWrap, alignmentFault, and, borrow, carry, overflow, select, subtract, bitAnd, bitOr, bitXor, capture, commitAddressUpdates, concat, cpuSymbols, extend, fetchWord, flagLiteral, flagValue, literal, lowBit, negative, readFlag, readMemory, readProgramMemory, readRegister,
-  resolveAddress, shiftBits, signExtend, truncate, updateFlags, value, when, writeMemory, writeRegister, zero } from "../model.ts";
+  iterate, iterateTogether, or, xor, shiftLeft, resolveAddress, shiftBits, signExtend, truncate, updateFlags, value, when, writeMemory, writeRegister, zero } from "../model.ts";
 import type { InstructionDefinition, NumberExpression, Register, Statement } from "../model.ts";
-import { arithmetic, instructionSet, transfer } from "../builders.ts";
+import { arithmetic, instructionSet, shift, transfer } from "../builders.ts";
 import { choose } from "../control-flow.ts";
 import { flagPolicy } from "../status.ts";
 import { defineInstruction } from "../validate.ts";
@@ -144,15 +146,20 @@ function withSource(size: Size, source: Operand68000, result: string, next: read
 }
 
 /** Commit before reading an ALU destination; retain the selected register bank through writeback. */
-function aluDestination(size: Size, destination: Exclude<Operand68000, { kind: "immediate" }>, pending: boolean,
+function aluDestination(size: Size, destination: Operand68000, pending: boolean,
   apply: readonly Statement[], writeBack: boolean): readonly Statement[] {
+  if (destination.kind === "immediate") {
+    if (writeBack) throw new Error("An immediate operand cannot receive ALU writeback.");
+    return [...immediateRead(size, "destination"), ...apply];
+  }
   const commit = pending ? [commitAddressUpdates()] : [];
   return destination.kind === "register"
     ? withRegister(destination.name, "destinationSupervisor", register => [...commit,
       readRegister("destinationRegister", register), capture("destination", narrow(value("destinationRegister"), size)),
       ...apply, ...(writeBack ? writeData(register, size, value("result")) : [])])
     : [resolveAddress("destinationAddress", size, value("destinationMode"), value("destinationCode")),
-      ...checkAlignment(size, "destinationAddress", "read"), ...commit, ...memoryRead(size, "destinationAddress", "destination"),
+      ...checkAlignment(size, "destinationAddress", "read", destination.name === "program"), ...commit,
+      ...memoryRead(size, "destinationAddress", "destination", destination.name === "program"),
       ...apply, ...(writeBack ? memoryWrite(size) : [])];
 }
 
@@ -272,3 +279,56 @@ for (const { body, operation, size, source, destination } of arithmeticForms6800
   if (!arithmeticBodies.has(body)) arithmeticBodies.set(body, operandArithmetic(operation, size, source, destination));
 }
 export const arithmetic68000 = Object.freeze(Object.fromEntries(arithmeticBodies));
+
+/** Fold the result and shift flags together; no architectural flags change during the calculation. */
+function shiftSteps(kind: ShiftKind68000, direction: "L" | "R", size: Size): readonly Statement[] {
+  const bit = shift(direction === "L" ? "left" : "right", kind === "ROX" ? flagValue("extendBit") : kind === "RO" ? "outgoing"
+    : kind === "AS" && direction === "R" ? "sign" : "zero");
+  return [readFlag("initialExtend", cpu.flag("x")), iterateTogether(value("count"), {
+    shifted: { type: size, initial: value("destination"), next: value("result") },
+    extendBit: { type: "flag", initial: flagValue("initialExtend"), next: kind === "RO" ? flagValue("extendBit") : bit.carry },
+    carryBit: { type: "flag", initial: kind === "ROX" ? flagValue("initialExtend") : flagLiteral(false), next: bit.carry },
+    overflowBit: { type: "flag", initial: flagLiteral(false), next: kind === "AS" && direction === "L"
+      ? or(flagValue("overflowBit"), xor(negative(value("original")), negative(value("result")))) : flagLiteral(false) },
+  }, [capture("original", value("shifted")), ...bit.steps]), capture("result", value("shifted")),
+  updateFlags(flagPolicy(cpu, "68000 shift result", { result: size, extend: "flag", carry: "flag", overflow: "flag" }, {
+    n: negative(value("result")), z: zero(value("result")), v: flagValue("overflow"), c: flagValue("carry"), x: flagValue("extend"),
+  }), { result: value("result"), extend: flagValue("extendBit"), carry: flagValue("carryBit"), overflow: flagValue("overflowBit") })];
+}
+
+function operandBits(form: BitForm68000): InstructionDefinition {
+  const { kind, operation, size, source, destination } = form;
+  let read: readonly Statement[], apply: readonly Statement[];
+  if (kind === "shift") {
+    read = source.kind === "register" ? [readRegister("countRegister", cpu.register(source.name)), capture("count", bitAnd(truncate(value("countRegister"), 8), literal(8, 63)))]
+      : [capture("count", source.name === "one" ? literal(8, 1) : select(zero(value("sourceCode")), literal(8, 8), extend(value("sourceCode"), 8)))];
+    apply = shiftSteps(form.shift, form.direction, size);
+  } else if (kind === "bit") {
+    read = source.kind === "register" ? [readRegister("bitRegister", cpu.register(source.name)), capture("bitNumber", truncate(value("bitRegister"), 8))]
+      : [fetchWord("bitWord"), capture("bitNumber", truncate(value("bitWord"), 8))];
+    const changed = operation === "BCHG" ? bitXor(value("destination"), value("mask")) : operation === "BSET" ? bitOr(value("destination"), value("mask"))
+      : bitAnd(value("destination"), bitXor(value("mask"), literal(size, 2 ** size - 1)));
+    apply = [iterate("mask", bitAnd(value("bitNumber"), literal(8, size - 1)), literal(size, 1), [], shiftLeft(value("mask"), flagLiteral(false))),
+      updateFlags(flagPolicy(cpu, "68000 tested bit", { original: size, mask: size }, { z: zero(bitAnd(value("original"), value("mask"))) }),
+        { original: value("destination"), mask: value("mask") }), ...(operation === "BTST" ? [] : [capture("result", changed)])];
+  } else {
+    read = [];
+    apply = [updateFlags(resultFlags(8), { result: value("destination") }), capture("result", bitOr(value("destination"), literal(8, 0x80)))];
+  }
+  return defineInstruction({ cpu: cpu.declaration, name: `${operation}.${sizes[size]} ${source ? `${source.name.toUpperCase()},` : ""}${destination.name.toUpperCase()}`,
+    inputs: { sourceMode: 3, sourceCode: 3, destinationMode: 3, destinationCode: 3 },
+    explanation: (kind === "shift" ? "Capture the count before reading the operand, including aliased registers. Quick zero encodes eight; register counts use six bits; memory shifts once. "
+      + "Capture X after the operand read. Carry the result, X, C, and accumulated ASL sign-change overflow through the loop without flag writes. "
+      + "Zero counts still set N/Z, clear V, and preserve X; ROX copies X to C, while other zero-count shifts clear C. Ordinary rotates preserve X. "
+      : kind === "bit" ? "Capture the bit-number register or complete immediate word before resolving the tested operand. Test modulo 32 for Dn and modulo 8 otherwise. "
+        + "Set only Z from the original bit; BTST omits writeback and may read program space or a dynamic form's immediate byte. "
+        : "Read the original byte, set N/Z and clear V/C from that byte, then set bit 7; preserve X/T/S. ")
+      + "Resolve the operand once and check word alignment before committing pending address updates. Commit before reading memory. "
+      + "Failed reads retain committed updates but not new flags; failed writes retain flags and completed bytes. Preserve live upper Dn bits on partial writes.",
+    steps: [...read, ...aluDestination(size, destination, destination.kind === "memory", apply, operation !== "BTST")],
+  });
+}
+
+const bitBodies = new Map<string, InstructionDefinition>();
+for (const form of bitForms68000) if (!bitBodies.has(form.body)) bitBodies.set(form.body, operandBits(form));
+export const bits68000 = Object.freeze(Object.fromEntries(bitBodies));

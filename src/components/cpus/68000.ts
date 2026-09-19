@@ -16,6 +16,8 @@ import { instructions as quick } from "./generated/68000-quick.ts";
 import { instructions as moveBodies } from "./generated/68000-moves.ts";
 import { instructions as logicBodies } from "./generated/68000-logic.ts";
 import { instructions as arithmeticBodies } from "./generated/68000-arithmetic.ts";
+import { instructions as bitBodies } from "./generated/68000-bits.ts";
+import { bitForms68000 } from "./68000-bits.ts";
 import { arithmeticForms68000 } from "./68000-arithmetic.ts";
 import { logicForms68000 } from "./68000-logic.ts";
 import { operandMoveForms68000 } from "./68000-moves.ts";
@@ -24,7 +26,6 @@ import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { flagRegister, negativeZero } from "./flags.ts";
 import { motorolaConditions } from "./motorola.ts";
-import { shiftLeft, shiftRight } from "./alu.ts";
 
 export type Cpu68000Snapshot = ReadonlyState<Cpu68000State> & {
   /** Active stack pointer: SSP in supervisor mode, USP in user mode. */
@@ -149,7 +150,7 @@ interface InstructionContext extends MemoryContext {
 
 // Shared bodies receive decoded selectors and only the context capabilities their stages require.
 const operandBodies: Readonly<Record<string, (state: Cpu68000State, sourceMode: number, sourceCode: number,
-  destinationMode: number, destinationCode: number, instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = { ...moveBodies, ...logicBodies, ...arithmeticBodies };
+  destinationMode: number, destinationCode: number, instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = { ...moveBodies, ...logicBodies, ...arithmeticBodies, ...bitBodies };
 
 type OpcodeHandler = (cpu: Cpu68000, instruction: InstructionContext) => InstructionFault | void;
 type ControlOperation = (cpu: Cpu68000, address: number, instruction: InstructionContext) => AlignmentFault | void;
@@ -157,8 +158,6 @@ type WordOperation = (cpu: Cpu68000, register: DataRegister, value: number) => C
 type DataRegister = `d${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`;
 type AddressRegister = `a${0 | 1 | 2 | 3 | 4 | 5 | 6}` | "usp" | "ssp";
 type OperandSize = 8 | 16 | 32;
-type ShiftKind = "arithmetic" | "logical" | "extend" | "rotate";
-type BitChange = (value: number, mask: number) => number;
 // A result requests writeback; comparisons and tests update flags and return nothing.
 type AluOperation = (cpu: Cpu68000, size: OperandSize, left: number, right: number) => number | void;
 type Operand =
@@ -380,14 +379,6 @@ export class Cpu68000 {
   static readonly #dataRegisters = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
   static readonly #addressRegisters = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
   static readonly #selectors = [0, 1, 2, 3, 4, 5, 6, 7] as const;
-  static readonly #sizes = [8, 16, 32, undefined] as const;
-  static readonly #shiftKinds: readonly ShiftKind[] = ["arithmetic", "logical", "extend", "rotate"];
-  static readonly #bitChanges: readonly (BitChange | undefined)[] = [
-    undefined, // 00: BTST reads without writeback.
-    (value, mask) => value ^ mask, // 01: BCHG
-    (value, mask) => value & ~mask, // 10: BCLR
-    (value, mask) => value | mask, // 11: BSET
-  ];
   static readonly #immediateBytes = Array.from({ length: 0x100 }, (_, value) => value);
 
   // cccc condition encodings. BRA uses T; BSR replaces F in the branch family.
@@ -398,20 +389,12 @@ export class Cpu68000 {
     // Register transfers, EXT/SWAP, and EXG own their patterns in semantics/definitions/68000.ts.
     ...Object.entries(generated).map(([opcode, execute]): OpcodeEntry<OpcodeHandler> =>
       [Number(opcode), cpu => execute(cpu.#state)]),
-    ...[...operandMoveForms68000, ...logicForms68000, ...arithmeticForms68000].map(({ opcode, body, sourceMode, sourceCode, destinationMode, destinationCode }): OpcodeEntry<OpcodeHandler> =>
+    ...[...operandMoveForms68000, ...logicForms68000, ...arithmeticForms68000, ...bitForms68000].map(({ opcode, body, sourceMode, sourceCode, destinationMode, destinationCode }): OpcodeEntry<OpcodeHandler> =>
       [opcode, (cpu, instruction) => operandBodies[body]!(cpu.#state, sourceMode, sourceCode, destinationMode, destinationCode, cpu.#addressContext(instruction))]),
     // Status immediates reuse EA=111100: f=0 CCR (low five bits), f=1 privileged SR.
     ...this.#statusImmediateHandlers("0000 0000 0 f 111100", (left, right) => left | right), // ORI #n,CCR/SR
     ...this.#statusImmediateHandlers("0000 0010 0 f 111100", (left, right) => left & right), // ANDI #n,CCR/SR
     ...this.#statusImmediateHandlers("0000 1010 0 f 111100", (left, right) => left ^ right), // EORI #n,CCR/SR
-
-    // Bit operations: oo=00 BTST, 01 BCHG, 10 BCLR, 11 BSET; mmm rrr selects the tested operand.
-    // Dn uses all 32 bits (bit number modulo 32); every other EA uses a byte (modulo 8).
-    // Static form fetches a bit-number word before EA extensions; dynamic form reads Dbbb.
-    // BTST also allows PC-relative EAs, and an immediate tested byte only in the dynamic form.
-    // Other operations require data-alterable EAs. Dynamic mode 001 selects MOVEP below.
-    ...this.#bitHandlers("0000 1000 oo mmm rrr", false), // BTST/BCHG/BCLR/BSET #n,<ea>
-    ...this.#bitHandlers("0000 bbb 1 oo mmm rrr", true), // BTST/BCHG/BCLR/BSET Dn,<ea>
 
     // MOVEP: 0000 ddd 1 t s 001 aaa. t=0 memory to Dn, 1 Dn to memory;
     // s=0 word, 1 long. A signed displacement precedes alternate-byte transfers, even at odd addresses.
@@ -425,9 +408,8 @@ export class Cpu68000 {
     // CHK: 0100 ddd 110 mmm rrr; signed Dn.W must lie between zero and a signed EA word.
     ...this.#wordSourceHandlers("0100 ddd 110 mmm rrr", (cpu, register, bound) => cpu.#checkBounds(register, bound)), // CHK.W <ea>,Dn
 
-    // Fixed-size data operations: NBCD negates a packed byte; TAS tests the old byte then sets bit 7.
+    // NBCD negates a packed byte, consuming X and accumulating Z.
     ...this.#fixedAluHandlers("0100 1000 00 mmm rrr", 8, (cpu, _size, value) => cpu.#decimal(0, value, -1)), // NBCD <ea>
-    ...this.#fixedAluHandlers("0100 1010 11 mmm rrr", 8, (cpu, _size, value) => { cpu.#setResultFlags(value, 8); return value | 0x80; }), // TAS <ea>
 
     // TAS's forbidden immediate slot is the explicit ILLEGAL instruction.
     ...opcodePattern("0100 1010 1111 1100", (): Cpu68000Exception => "illegal-instruction"), // ILLEGAL
@@ -494,14 +476,6 @@ export class Cpu68000 {
     ...this.#decimalHandlers("1000 ddd 10000 m rrr", -1), // SBCD
     ...this.#decimalHandlers("1100 ddd 10000 m rrr", 1), // ABCD
 
-    // Register shifts: 1110 ccc d ss i tt rrr. d=0 right, 1 left; ss=00 byte, 01 word, 10 long.
-    // i=0: ccc is an immediate count (000 means 8); i=1: Dccc supplies its low six bits (0..63).
-    // tt=00 arithmetic, 01 logical, 10 rotate through X, 11 rotate; rrr selects the destination Dn.
-    ...this.#registerShiftHandlers("1110 ccc d ss i tt rrr"), // ASR/ASL, LSR/LSL, ROXR/ROXL, ROR/ROL
-    // ss=11 moves tt to bits 10..9: 1110 0 tt d 11 mmm rrr shifts a memory word once.
-    // Only memory-alterable EAs are legal; bit 11=1 belongs to later chips' bit-field instructions.
-    ...this.#memoryShiftHandlers("1110 0 tt d 11 mmm rrr"), // ASR/ASL, LSR/LSL, ROXR/ROXL, ROR/ROL <ea>
-
     // Emulator lines: bits 15..12 select vector 10 or 11; all low twelve bits belong to software.
     ...opcodePattern("1010 xxxx xxxx xxxx", (): Cpu68000Exception => "line-a"), // Line-A emulator
     ...opcodePattern("1111 xxxx xxxx xxxx", (): Cpu68000Exception => "line-f"), // Line-F emulator
@@ -512,25 +486,6 @@ export class Cpu68000 {
       if (full && !cpu.#state.flags.s) return "privilege-violation";
       cpu.#setStatus(apply(cpu.#status, instruction.fetchWord()), full);
     });
-  }
-
-  static #bitHandlers(pattern: string, fromRegister: boolean): readonly OpcodeEntry<OpcodeHandler>[] {
-    const operands = { o: this.#bitChanges, m: this.#selectors, r: this.#selectors };
-    const entries = fromRegister
-      ? opcodeFamily(pattern, { b: this.#dataRegisters, ...operands }, ({ b, o, m, r }) => this.#bitHandler(o, m, r, b))
-      : opcodeFamily(pattern, operands, ({ o, m, r }) => this.#bitHandler(o, m, r));
-    return entries.flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
-  }
-
-  static #bitHandler(change: BitChange | undefined, mode: number, code: number, register?: DataRegister): OpcodeHandler | undefined {
-    const lastSpecial = change ? 1 : register === undefined ? 3 : 4; // Absolute, PC-relative, or immediate.
-    if (mode === 1 || (mode === 7 && code > lastSpecial)) return undefined;
-    const size = mode === 0 ? 32 : 8;
-    const apply: AluOperation = (cpu, width, value, bit) => cpu.#bit(width, value, bit, change);
-    return (cpu, instruction) => {
-      const bit = register === undefined ? instruction.fetchWord() : cpu.#state[register];
-      return cpu.#effectiveAddressAlu(size, mode, code, bit, apply, instruction);
-    };
   }
 
   static #fixedAluHandlers(pattern: string, size: OperandSize, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
@@ -607,26 +562,6 @@ export class Cpu68000 {
     const apply: AluOperation = (cpu, _size, left, right) => cpu.#decimal(left, right, direction);
     return opcodeFamily(pattern, { d: this.#selectors, m: [0, 4] as const, r: this.#selectors }, ({ d, m: mode, r }) =>
       (cpu: Cpu68000, instruction: InstructionContext) => cpu.#decimalPair(mode, r, d, apply, instruction));
-  }
-
-  static #registerShiftHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { c: this.#selectors, d: [false, true], s: this.#sizes, i: [false, true], t: this.#shiftKinds, r: this.#selectors }, ({ c, d: left, s: size, i: fromRegister, t: kind, r }) => {
-      if (size === undefined) return undefined;
-      const apply: AluOperation = (cpu, width, value, count) => cpu.#shift(kind, left, width, value, count);
-      return (cpu: Cpu68000, instruction: InstructionContext) => {
-        // Capture the count before writing the destination, including Dn,Dn aliases.
-        const count = fromRegister ? cpu.#state[Cpu68000.#dataRegisters[c]!] & 63 : c || 8;
-        return cpu.#effectiveAddressAlu(size, 0, r, count, apply, instruction);
-      };
-    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
-  }
-
-  static #memoryShiftHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { t: this.#shiftKinds, d: [false, true], m: this.#selectors, r: this.#selectors }, ({ t: kind, d: left, m, r }) => {
-      if (m < 2 || (m === 7 && r > 1)) return undefined;
-      const apply: AluOperation = (cpu, size, value, count) => cpu.#shift(kind, left, size, value, count);
-      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#effectiveAddressAlu(16, m, r, 1, apply, instruction);
-    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
   // Exception entry and return. The original 68000 has no stacked frame-format word.
@@ -1046,37 +981,6 @@ export class Cpu68000 {
     this.#state.flags.x = this.#state.flags.c = carry !== 0;
     this.#state.flags.z = this.#state.flags.z && result === 0;
     return result; // N/V are undefined in the manual; this model preserves them.
-  }
-
-  #bit(size: OperandSize, value: number, bit: number, change: BitChange | undefined): number | void {
-    const mask = 2 ** (bit % size);
-    this.#state.flags.z = (value & mask) === 0; // Test the original bit, before any change; preserve every other flag.
-    if (change) return change(value, mask) >>> 0;
-  }
-
-  #shift(kind: ShiftKind, left: boolean, size: OperandSize, value: number, count: number): number {
-    const move = left ? shiftLeft : shiftRight;
-    const sign = 2 ** (size - 1);
-    let extend = this.#state.flags.x;
-    let carry = kind === "extend" && extend; // A zero-count ROX copies X to C; other families clear C.
-    let overflow = false;
-    for (let bit = 0; bit < count; bit++) {
-      let incoming = false;
-      if (kind === "extend") incoming = extend;
-      else if (kind === "rotate") incoming = left ? value >= sign : (value & 1) !== 0;
-      else if (kind === "arithmetic" && !left) incoming = value >= sign;
-      const shifted = move(size, value, incoming ? 1 : 0);
-      // ASL remembers any sign change, even if later shifts restore the original sign.
-      if (kind === "arithmetic" && left && (value >= sign) !== (shifted.result >= sign)) overflow = true;
-      value = shifted.result;
-      carry = shifted.carry;
-      if (kind !== "rotate") extend = carry;
-    }
-    this.#setResultFlags(value, size); // Even a zero count replaces N/Z and clears V.
-    this.#state.flags.x = extend;
-    this.#state.flags.c = carry;
-    this.#state.flags.v = overflow;
-    return value;
   }
 
   #setResultFlags(value: number, size: OperandSize = 32): void {

@@ -38,6 +38,7 @@ export type FlagExpression =
   | { readonly kind: "negative" | "low-bit" | "zero" | "even-parity"; readonly value: NumberExpression }
   | ({ readonly kind: "borrow" | "half-borrow" | "subtract-overflow" | "carry" | "half-carry" | "add-overflow" } & ArithmeticOperands);
 export type Expression = NumberExpression | FlagExpression;
+export interface IterationValue { readonly type: ValueType; readonly initial: Expression; readonly next: Expression }
 
 /** Project captured words onto a physical byte bus; logical offset progression precedes projection. */
 export interface AddressProjection {
@@ -74,6 +75,7 @@ export interface EscapeRequest {
 export type Statement =
   | { readonly kind: "when"; readonly condition: FlagExpression; readonly steps: readonly Statement[] }
   | { readonly kind: "iterate"; readonly name: string; readonly count: NumberExpression; readonly initial: NumberExpression; readonly steps: readonly Statement[]; readonly result: NumberExpression }
+  | { readonly kind: "iterate-together"; readonly count: NumberExpression; readonly values: Readonly<Record<string, IterationValue>>; readonly steps: readonly Statement[] }
   | { readonly kind: "reject"; readonly reason: string }
   | { readonly kind: "divide"; readonly quotient: string; readonly remainder: string; readonly dividend: NumberExpression; readonly divisor: NumberExpression; readonly signed: boolean; readonly onError: string }
   | { readonly kind: "capture"; readonly name: string; readonly value: NumberExpression }
@@ -218,6 +220,9 @@ export const when = (condition: FlagExpression, steps: readonly Statement[]): St
 /** Fold a byte count of iterations over an immutable per-iteration value; publish the final value under name. */
 export const iterate = (name: string, count: NumberExpression, initial: NumberExpression, steps: readonly Statement[], result: NumberExpression): Statement =>
   ({ kind: "iterate", name, count, initial, steps, result });
+/** Carry named numbers/flags through a byte-counted loop; evaluate all next values before updating any. */
+export const iterateTogether = (count: NumberExpression, values: Readonly<Record<string, IterationValue>>, steps: readonly Statement[]): Statement =>
+  ({ kind: "iterate-together", count, values, steps });
 /** End this body with a named outcome; the CPU boundary decides how to deliver it. */
 export const reject = (reason: string): Statement => ({ kind: "reject", reason });
 /** Divide a double-width dividend by a byte/word; reject zero divisors and quotients outside the divisor width. */
