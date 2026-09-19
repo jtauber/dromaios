@@ -516,27 +516,26 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Eight CPU implementation files | 2,619 |
 | CPU-specific instruction definition files | 2,475 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,838 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,932** |
-| CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,877 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,971** |
+| CPU generation script (`scripts/generate-cpu-semantics.ts`) | 16 |
 | Generated CPU output, counted separately | 310,832 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The first consolidation after completing migration replaces nine repeated 68000
-body-inventory loops with one shared builder. Encoding forms with the same body
-key build their definition once, from the first form. The 8088 uses one dispatcher
-for register and memory forms of immediate ALU operations, unary operations, shifts,
-multiply/divide, and segment moves. Callers retain their invalid-selector checks
-before displacement fetching; the selected body owns its effects and rejections.
+The module catalogue now drives executable generation, explanation, and
+reproducibility checks. It replaces three separately maintained lists, keeping
+generation options beside each module and preserving explanation order.
+All **12,197 definitions** remain structurally unchanged, and all **27 generated
+modules** remain byte-identical.
 
-The 8088 core falls from **548 to 522 lines** (**26 fewer**), 68000 definitions
-remove **25 lines**, and the shared builder adds **7**. Total authored CPU source
-falls from **8,976 to 8,932 lines** (**44 fewer**). All **12,197 definitions**
-remain structurally unchanged, and all **27 generated modules** remain
-byte-identical. Completing migration does not imply that the shared vocabulary
-or source-reduction work is finished.
+Putting each catalogue entry on its own line and declaring its type increases
+authored CPU source from **8,932 to 8,971 lines** (**39 more**); the generation
+script shrinks from **18 to 16 lines**. Across the catalogue, script, and
+reproducibility test, removing repeated lists eliminates **3,033 characters**.
+This change consolidates bookkeeping rather than instruction behavior. Further
+source reduction remains ahead.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { instructions as mos, opcodeEntries } from "../../../../src/components/cpus/generated/6502.js";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as motorola } from "../../../../src/components/cpus/generated/6809.js";
 import { instructions as motorola6800 } from "../../../../src/components/cpus/generated/6800.js";
-import { instructions68000, quick68000, moves68000, logic68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000, instructions6502, interrupts6502, sources6502, instructions6800, instructions8008, instructions8080, instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088, instructions6809, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructionModules, instructions6502, instructions6809 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { instructionBodies, instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
 import { cpuSymbols, addWrap, capture, highByte, lowByte, literal, readRegister, value, writeLatch, writeRegister, zero } from "../../../../src/components/cpus/semantics/model.js";
@@ -44,33 +44,22 @@ test("shared body keys build only their first form and retain encounter order, i
   assert.ok(Object.isFrozen(bodies));
 });
 
-test("all generated modules reproduce from definitions without changing them", () => {
-  for (const [cpu, definitions] of [["68000", instructions68000], ["6502", instructions6502], ["6800", instructions6800], ["8008", instructions8008], ["8080", instructions8080], ["8088", instructions8088], ["6809", instructions6809], ["z80", instructionsZ80]] as const) {
-    const before = JSON.stringify(definitions);
-    const source = generateInstructions(cpu, definitions, { bindOpcodes: cpu === "6502" || cpu === "8088", sources: cpu === "6502" ? sources6502 : undefined });
-    assert.equal(source, readFileSync(`src/components/cpus/generated/${cpu}.ts`, "utf8"));
-    assert.equal(generateInstructions(cpu, definitions, { bindOpcodes: cpu === "6502" || cpu === "8088", sources: cpu === "6502" ? sources6502 : undefined }), source);
-    assert.equal(JSON.stringify(definitions), before);
+test("the catalogue names exactly the generated modules, each reproducible without changing its inputs", () => {
+  const directory = "src/components/cpus/generated";
+  const filenames = instructionModules.map(({ name }) => `${name}.ts`);
+  assert.equal(new Set(filenames).size, filenames.length, "module names must not overwrite one another");
+  assert.deepEqual(readdirSync(directory).sort(), filenames.sort());
+  for (const module of instructionModules) {
+    const { name, cpu, definitions, options } = module;
+    const before = JSON.stringify(module);
+    const source = generateInstructions(cpu, definitions, options);
+    assert.equal(source, readFileSync(`${directory}/${name}.ts`, "utf8"), name);
+    assert.equal(generateInstructions(cpu, definitions, options), source, `${name}: repeat generation`);
+    assert.equal(JSON.stringify(module), before, `${name}: unchanged inputs`);
   }
-  assert.equal(generateInstructions("68000", wordArithmetic68000), readFileSync("src/components/cpus/generated/68000-word-arithmetic.ts", "utf8"));
-  assert.equal(generateInstructions("68000", system68000), readFileSync("src/components/cpus/generated/68000-system.ts", "utf8"));
-  assert.equal(generateInstructions("68000", transfers68000), readFileSync("src/components/cpus/generated/68000-transfers.ts", "utf8"));
-  assert.equal(generateInstructions("68000", control68000), readFileSync("src/components/cpus/generated/68000-control.ts", "utf8"));
-  assert.equal(generateInstructions("68000", decimal68000), readFileSync("src/components/cpus/generated/68000-decimal.ts", "utf8"));
-  assert.equal(generateInstructions("68000", bits68000), readFileSync("src/components/cpus/generated/68000-bits.ts", "utf8"));
-  assert.equal(generateInstructions("68000", arithmetic68000), readFileSync("src/components/cpus/generated/68000-arithmetic.ts", "utf8"));
-  assert.equal(generateInstructions("68000", logic68000), readFileSync("src/components/cpus/generated/68000-logic.ts", "utf8"));
-  assert.equal(generateInstructions("68000", moves68000), readFileSync("src/components/cpus/generated/68000-moves.ts", "utf8"));
-  assert.equal(generateInstructions("68000", quick68000), readFileSync("src/components/cpus/generated/68000-quick.ts", "utf8"));
-  assert.equal(generateInstructions("6502", interrupts6502), readFileSync("src/components/cpus/generated/6502-interrupts.ts", "utf8"));
-  assert.equal(generateInstructions("8088", transfers8088), readFileSync("src/components/cpus/generated/8088-transfers.ts", "utf8"));
-  assert.equal(generateInstructions("8088", alu8088), readFileSync("src/components/cpus/generated/8088-alu.ts", "utf8"));
-  assert.equal(generateInstructions("8088", unary8088), readFileSync("src/components/cpus/generated/8088-unary.ts", "utf8"));
-  assert.equal(generateInstructions("8088", stack8088), readFileSync("src/components/cpus/generated/8088-stack.ts", "utf8"));
-  assert.equal(generateInstructions("8088", addressing8088), readFileSync("src/components/cpus/generated/8088-addressing.ts", "utf8"));
-  assert.equal(generateInstructions("8088", strings8088), readFileSync("src/components/cpus/generated/8088-strings.ts", "utf8"));
-  assert.equal(generateInstructions("8088", control8088), readFileSync("src/components/cpus/generated/8088-control.ts", "utf8"));
-  assert.equal(generateInstructions("8088", arithmetic8088), readFileSync("src/components/cpus/generated/8088-arithmetic.ts", "utf8"));
+});
+
+test("generation rejects definitions from a different CPU", () => {
   assert.throws(() => generateInstructions("8080", instructions6502), /expected a 8080 definition/);
 });
 
