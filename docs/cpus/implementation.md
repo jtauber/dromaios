@@ -772,9 +772,13 @@ physical address with `projectAddress(segment, offset, 4, 20)`, wrapping each
 logical byte offset before projection. Keep complete source capture, low-first
 accesses, and partial writeback explicit; never replace them with an opaque
 address callback. Register-pair bodies specialize the selectors at construction.
-Reuse these operand definitions for arithmetic and logic. MOV/XCHG/ALU/TEST
-share one ModR/M binding; their bodies retain different effect schedules.
-ALU/TEST capture the source before the destination, then CF for ADC/SBB.
+`operandSet` builds each width's register, memory, and immediate definitions,
+plus a register/memory list carrying the selectors used in body names. Transfers,
+ALU, unary, shift, multiply/divide, control, and segment-move families reuse these
+catalogues. `resolvedInstruction` declares segment/offset inputs when an operand
+uses memory; families retain their own exclusions and ordered effect statements.
+MOV/XCHG/ALU/TEST share one ModR/M binding; their bodies retain different effect
+schedules. ALU/TEST capture the source before the destination, then CF for ADC/SBB.
 Share their arithmetic/flag recipe with accumulator forms; update flags before
 writeback, preserve live byte halves, and omit writes entirely for CMP/TEST.
 

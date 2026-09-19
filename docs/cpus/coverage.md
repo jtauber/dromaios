@@ -515,27 +515,26 @@ judging source reduction; all counts include comments and blank lines.
 | Scope | Lines |
 | --- | ---: |
 | Eight CPU implementation files | 2,619 |
-| CPU-specific instruction definition files | 2,477 |
+| CPU-specific instruction definition files | 2,470 |
 | Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,870 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,966** |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,959** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 16 |
 | Generated CPU output, counted separately | 310,832 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The 68000 logic and arithmetic inventories now share
-[operand classification and body naming](../../src/components/cpus/68000-alu.ts).
-The tables retain their bit patterns and family-specific restrictions while
-specifying source and destination as encoded mode/register pairs. All **22,596
-encoding entries** across the logical, arithmetic, word-arithmetic, and decimal
-inventories remain unchanged, including their order. All **12,197 definitions**
-remain structurally unchanged, and all **27 generated modules** remain byte-identical.
+The [8088 definitions](../../src/components/cpus/semantics/definitions/8088.ts)
+now share byte/word operand catalogues and memory-input declarations across
+transfers, ALU, unary, shift, multiply/divide, control, and segment-move families.
+Register/memory selectors used in body names come from the catalogue; each family
+retains its exclusions and ordered effects. All **12,197 definitions**, including
+body names and ordering, remain unchanged, and all **27 generated modules** remain
+byte-identical.
 
-This consolidation reduces authored CPU source from **8,984 to 8,966 lines**
-(**18 fewer**), including the new shared builder. The cores and CPU-specific
-instruction definition counts are unchanged; the reduction is in supporting
-encoding construction.
+This consolidation reduces the 8088 definition file from **653 to 646 lines**
+and total authored CPU source from **8,966 to 8,959 lines** (**7 fewer**), including
+the local helpers. Core and shared-support line counts are unchanged.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

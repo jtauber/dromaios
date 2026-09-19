@@ -356,10 +356,6 @@ interface OperandDefinition {
   readonly write: (contents: NumberExpression, captureName: string) => readonly Statement[];
 }
 
-function registerOperands(width: 8 | 16): readonly OperandDefinition[] {
-  return registers[width === 8 ? 0 : 1].map(({ name, view }) => ({ name, read: name => [readSource(name, view.source)], write: view.write }));
-}
-
 function memoryOperand(width: 8 | 16, segment = value("segment"), offset = value("offset")): OperandDefinition {
   const address = (next: boolean) => projectAddress(segment, next ? addWrap(offset, literal(16, 1)) : offset, 4, 20);
   return { name: `${width === 8 ? "byte" : "word"} [segment:offset]`, memory: true,
@@ -372,15 +368,32 @@ function memoryOperand(width: 8 | 16, segment = value("segment"), offset = value
   };
 }
 
+/** Register-pair families and r/m families share the same operand definitions and selectors. */
+function operandSet(width: 8 | 16) {
+  const choices: readonly OperandDefinition[] = registers[width === 8 ? 0 : 1]
+    .map(({ name, view }) => ({ name, read: name => [readSource(name, view.source)], write: view.write }));
+  const memory = memoryOperand(width);
+  return { width, registers: choices, memory,
+    immediate: { name: "n", read: (name: string) => [readSource(name, immediates[width])] },
+    resolved: [...choices.map((operand, selector) => [selector, operand] as const), ["memory", memory] as const] };
+}
+
+const byteOperands = operandSet(8), wordOperands = operandSet(16);
+const operandSets = [byteOperands, wordOperands];
+
+function resolvedInstruction(operands: readonly Pick<OperandDefinition, "memory">[], definition: Omit<InstructionDefinition, "cpu" | "inputs">): InstructionDefinition {
+  return defineInstruction({ cpu: cpu.declaration,
+    ...(operands.some(operand => operand.memory) ? { inputs: { segment: 16, offset: 16 } as const } : {}), ...definition });
+}
+
 function readFarPointer(): readonly Statement[] {
-  return [...memoryOperand(16).read("targetOffset"),
+  return [...wordOperands.memory.read("targetOffset"),
     ...memoryOperand(16, value("segment"), addWrap(value("offset"), literal(16, 2))).read("targetSegment")];
 }
 
 function transferDefinition(destination: OperandDefinition, source: Pick<OperandDefinition, "name" | "memory">, steps: readonly Statement[], exchange = false): InstructionDefinition {
   const memory = destination.memory || source.memory;
-  return defineInstruction({ cpu: cpu.declaration, name: `${exchange ? "XCHG" : "MOV"} ${destination.name},${source.name} (resolved)`,
-    ...(memory ? { inputs: { segment: 16, offset: 16 } as const } : {}),
+  return resolvedInstruction([destination, source], { name: `${exchange ? "XCHG" : "MOV"} ${destination.name},${source.name} (resolved)`,
     explanation: "Enter after successful operand resolution. "
       + (exchange ? "Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. "
         : "Read the complete source before writing the destination; never read a memory destination. ")
@@ -400,24 +413,19 @@ function exchangeBody(left: OperandDefinition, right: OperandDefinition) {
 }
 
 /** Specialized register choices; memory bodies share every decoder-resolved addressing mode. */
-export const transfers8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries(widths.flatMap(width => {
-  const operands = registerOperands(width);
-  const memory = memoryOperand(width);
-  return [
-    ...operands.flatMap((destination, d) => operands.flatMap((source, s) => [
-      [`move_${width}_${d}_${s}`, moveBody(destination, source)], [`exchange_${width}_${d}_${s}`, exchangeBody(destination, source)],
-    ])),
-    ...operands.flatMap((register, r) => [
-      [`load_${width}_${r}`, moveBody(register, memory)], [`store_${width}_${r}`, moveBody(memory, register)],
-      [`exchangeMemory_${width}_${r}`, exchangeBody(memory, register)],
-    ]),
-    [`immediate_${width}`, moveBody(memory, { name: "n", read: name => [readSource(name, immediates[width])] })],
-  ];
-}));
+export const transfers8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries(operandSets.flatMap(({ width, registers: operands, memory, immediate }) => [
+  ...operands.flatMap((destination, d) => operands.flatMap((source, s) => [
+    [`move_${width}_${d}_${s}`, moveBody(destination, source)], [`exchange_${width}_${d}_${s}`, exchangeBody(destination, source)],
+  ])),
+  ...operands.flatMap((register, r) => [
+    [`load_${width}_${r}`, moveBody(register, memory)], [`store_${width}_${r}`, moveBody(memory, register)],
+    [`exchangeMemory_${width}_${r}`, exchangeBody(memory, register)],
+  ]),
+  [`immediate_${width}`, moveBody(memory, immediate)],
+]));
 
 function aluDefinition(operation: Operation, width: 8 | 16, destination: OperandDefinition, source: Pick<OperandDefinition, "name" | "read" | "memory">): InstructionDefinition {
-  return defineInstruction({ cpu: cpu.declaration, name: `${operation} ${destination.name},${source.name} (resolved)`,
-    ...(destination.memory || source.memory ? { inputs: { segment: 16, offset: 16 } as const } : {}),
+  return resolvedInstruction([destination, source], { name: `${operation} ${destination.name},${source.name} (resolved)`,
     explanation: "Enter after successful operand resolution. Read the complete source before the destination, then capture CF for ADC/SBB. "
       + "Transfer low byte first, wrapping each logical offset before physical projection. Update arithmetic CF/AF/OF or clear logical OF/CF/AF, then ZF/SF/PF; word parity uses the low byte. "
       + (operation === "CMP" || operation === "TEST" ? "Do not write either operand. " : "Write the destination after flags; byte views retain their live other half. ")
@@ -427,35 +435,28 @@ function aluDefinition(operation: Operation, width: 8 | 16, destination: Operand
 }
 
 /** ModR/M ALU bodies share resolved operands with MOV/XCHG and flags with the accumulator forms. */
-export const alu8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries(widths.flatMap(width => {
-  const operands = registerOperands(width), memory = memoryOperand(width);
-  return [...operations, "TEST" as const].flatMap(operation => [
+export const alu8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries(operandSets.flatMap(({ width, registers: operands, memory, immediate, resolved }) =>
+  [...operations, "TEST" as const].flatMap(operation => [
     ...operands.flatMap((destination, d) => operands.map((source, s) =>
       [`${operation}_${width}_${d}_${s}`, aluDefinition(operation, width, destination, source)])),
     ...operands.flatMap((register, r) => [
       [`${operation}_toMemory_${width}_${r}`, aluDefinition(operation, width, memory, register)],
       ...(operation === "TEST" ? [] : [[`${operation}_fromMemory_${width}_${r}`, aluDefinition(operation, width, register, memory)]]),
     ]),
-    ...[...operands, memory].flatMap((destination, r) => {
-      const selector = destination.memory ? "memory" : r;
-      const immediate = { name: "n", read: (name: string) => [readSource(name, immediates[width])] };
-      return [
-        [`${operation}_immediate_${width}_${selector}`, aluDefinition(operation, width, destination, immediate)],
-        ...(width !== 16 || !["ADD", "ADC", "SBB", "SUB", "CMP"].includes(operation) ? [] : [
-          [`${operation}_signed_${width}_${selector}`, aluDefinition(operation, width, destination,
-            { name: "sign-extended n8", read: (name: string) => [readSource("immediate", immediateByte), capture(name, signExtend(value("immediate"), 16))] })],
-        ]),
-      ];
-    }),
-  ]);
-}));
+    ...resolved.flatMap(([selector, destination]) => [
+      [`${operation}_immediate_${width}_${selector}`, aluDefinition(operation, width, destination, immediate)],
+      ...(width !== 16 || !["ADD", "ADC", "SBB", "SUB", "CMP"].includes(operation) ? [] : [
+        [`${operation}_signed_${width}_${selector}`, aluDefinition(operation, width, destination,
+          { name: "sign-extended n8", read: (name: string) => [readSource("immediate", immediateByte), capture(name, signExtend(value("immediate"), 16))] })],
+      ]),
+    ]),
+  ])));
 
 /** INC/DEC restore captured CF before writeback; NOT has no flag effects and NEG uses ordinary subtraction flags. */
-export const unary8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries(widths.flatMap(width =>
-  ["INC", "DEC", "NOT", "NEG"].flatMap(operation => [...registerOperands(width), memoryOperand(width)].map((operand, r) => [
-    `${operation}_${width}_${operand.memory ? "memory" : r}`, defineInstruction({
-      cpu: cpu.declaration, name: `${operation} ${operand.name} (resolved)`,
-      ...(operand.memory ? { inputs: { segment: 16, offset: 16 } as const } : {}),
+export const unary8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries(operandSets.flatMap(({ width, resolved }) =>
+  ["INC", "DEC", "NOT", "NEG"].flatMap(operation => resolved.map(([selector, operand]) => [
+    `${operation}_${width}_${selector}`, resolvedInstruction([operand], {
+      name: `${operation} ${operand.name} (resolved)`,
       explanation: "Enter after operand resolution and read the complete operand low byte first. "
         + (operation === "NOT" ? "Complement every operand bit without reading or writing flags. "
           : operation === "NEG" ? "Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. "
@@ -483,8 +484,7 @@ const shiftOperations: readonly (readonly [string, "left" | "right", ShiftInput]
 function shiftedOperand(width: 8 | 16, selector: number, useCL: boolean, operand: OperandDefinition): InstructionDefinition {
   const [name, direction, incoming] = shiftOperations[selector]!, bit = shift(direction, incoming);
   const result = [updateFlags(flagPolicy(cpu, "shift result", { result: width }, { ...resultFlags(width), af: flagLiteral(false) }), { result: value("shifted") })];
-  return defineInstruction({ cpu: cpu.declaration, name: `${name} ${operand.name},${useCL ? "CL" : "1"} (resolved)`,
-    ...(operand.memory ? { inputs: { segment: 16, offset: 16 } as const } : {}),
+  return resolvedInstruction([operand], { name: `${name} ${operand.name},${useCL ? "CL" : "1"} (resolved)`,
     explanation: (useCL ? "Capture the full eight-bit CL count before reading the resolved operand. " : "Read the resolved operand and move it one bit. ")
       + "Each iteration moves one bit and writes CF; through-carry forms reread CF each time. "
       + "Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. "
@@ -504,8 +504,7 @@ function productOrQuotient(width: 8 | 16, operation: "MUL" | "IMUL" | "DIV" | "I
   const low = (contents: NumberExpression) => truncate(contents, width);
   const high = (contents: NumberExpression) => truncate(shiftBits(contents, "right", width), width);
   const product = value("product"), overflow = signed ? not(zero(bitXor(product, signExtend(low(product), wide)))) : not(zero(high(product)));
-  return defineInstruction({ cpu: cpu.declaration, name: `${operation} ${operand.name} (resolved)`,
-    ...(operand.memory ? { inputs: { segment: 16, offset: 16 } as const } : {}),
+  return resolvedInstruction([operand], { name: `${operation} ${operand.name} (resolved)`,
     explanation: "Read the complete resolved source before the accumulator, retaining low-first segmented reads. " + (dividing
       ? "Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes."
       : "Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags."),
@@ -522,29 +521,24 @@ function productOrQuotient(width: 8 | 16, operation: "MUL" | "IMUL" | "DIV" | "I
 }
 
 /** 1101 00vw shifts and 1111 011w /4-7 products/quotients share resolved register and memory operands. */
-export const arithmetic8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries(widths.flatMap(width =>
-  [...registerOperands(width), memoryOperand(width)].flatMap((operand, r) => {
-    const target = `${width}_${operand.memory ? "memory" : r}`;
-    return [
-      ...shiftOperations.flatMap((operation, selector) => operation ? [false, true].map(useCL =>
-        [`shift_${selector}_${useCL ? "cl" : "one"}_${target}`, shiftedOperand(width, selector, useCL, operand)]) : []),
-      ...(["MUL", "IMUL", "DIV", "IDIV"] as const).map(operation => [`${operation}_${target}`, productOrQuotient(width, operation, operand)]),
-    ];
-  })));
-
+export const arithmetic8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries(operandSets.flatMap(({ width, resolved }) =>
+  resolved.flatMap(([target, operand]) => [
+    ...shiftOperations.flatMap((operation, selector) => operation ? [false, true].map(useCL =>
+      [`shift_${selector}_${useCL ? "cl" : "one"}_${width}_${target}`, shiftedOperand(width, selector, useCL, operand)]) : []),
+    ...(["MUL", "IMUL", "DIV", "IDIV"] as const).map(operation => [`${operation}_${width}_${target}`, productOrQuotient(width, operation, operand)]),
+  ])));
 
 /** Resolved stack/control operands; register PUSH/POP reuse their short-encoding bodies. */
 export const stack8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries([
   ["PUSH_memory", defineInstruction({ cpu: cpu.declaration, name: "PUSH word [segment:offset] (resolved)", inputs: { segment: 16, offset: 16 },
     explanation: "Read the complete resolved source before adjusting SP or writing the stack. " + stack.explanation,
-    steps: [...memoryOperand(16).read("word"), ...stack.push(value("word"))] })],
+    steps: [...wordOperands.memory.read("word"), ...stack.push(value("word"))] })],
   ["POP_memory", defineInstruction({ cpu: cpu.declaration, name: "POP word [segment:offset] (resolved)", inputs: { segment: 16, offset: 16 },
     explanation: "Enter with the destination resolved before the pop. Capture the complete stack word, increment SP, then write the destination low/high without reading it. " + stack.explanation,
-    steps: [readSource("word", stack.pop), ...memoryOperand(16).write(value("word"), "unused")] })],
-  ...[...registerOperands(16), memoryOperand(16)].flatMap((operand, r) => [false, true].map(call => [
-    (call ? "CALL_" : "JMP_") + (operand.memory ? "memory" : r), defineInstruction({
-      cpu: cpu.declaration, name: (call ? "CALL " : "JMP ") + operand.name + " (resolved)",
-      ...(operand.memory ? { inputs: { segment: 16, offset: 16 } as const } : {}),
+    steps: [readSource("word", stack.pop), ...wordOperands.memory.write(value("word"), "unused")] })],
+  ...wordOperands.resolved.flatMap(([selector, operand]) => [false, true].map(call => [
+    (call ? "CALL_" : "JMP_") + selector, resolvedInstruction([operand], {
+      name: (call ? "CALL " : "JMP ") + operand.name + " (resolved)",
       explanation: "Capture the complete target before any stack writes. " + (call
         ? "Capture and push return IP, then write the captured target. " + stack.explanation : "Write IP without reading the instruction at the target or accessing the stack. Preserve flags."),
       steps: [...operand.read("target"), ...(call ? [readRegister("returnIP", cpu.register("ip")), ...stack.push(value("returnIP"))] : []),
@@ -561,9 +555,8 @@ export const stack8088: Readonly<Record<string, InstructionDefinition>> = Object
 
 // Segment writes from MOV have the same inhibition policy as POP; LES/LDS do not request it.
 function segmentMove(segment: typeof segmentRegisters[number], operand: OperandDefinition, toSegment: boolean) {
-  return defineInstruction({ cpu: cpu.declaration,
+  return resolvedInstruction([operand], {
     name: `MOV ${toSegment ? segment.toUpperCase() + "," + operand.name : operand.name + "," + segment.toUpperCase()} (resolved)`,
-    ...(operand.memory ? { inputs: { segment: 16, offset: 16 } as const } : {}),
     explanation: "Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. "
       + (toSegment ? "Write the segment, then request all-interrupt inhibition at successful retirement. " : "Capture the segment before writing the destination. ")
       + "Preserve flags. Failed effects retain completed byte transfers and prevent later effects.",
@@ -574,9 +567,9 @@ function segmentMove(segment: typeof segmentRegisters[number], operand: OperandD
 
 /** Remaining transfers: resolved segment moves and address loads, plus XLAT's live table lookup. */
 export const addressing8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries([
-  ...segmentRegisters.flatMap(segment => [...registerOperands(16), memoryOperand(16)].flatMap((operand, r) =>
+  ...segmentRegisters.flatMap(segment => wordOperands.resolved.flatMap(([selector, operand]) =>
     [false, true].filter(toSegment => !toSegment || segment !== "cs").map(toSegment => [
-      `segment_${toSegment ? "load" : "store"}_${segment}_${operand.memory ? "memory" : r}`, segmentMove(segment, operand, toSegment),
+      `segment_${toSegment ? "load" : "store"}_${segment}_${selector}`, segmentMove(segment, operand, toSegment),
     ]))),
   ...wordRegisters8088.flatMap((register, r) => [
     [`LEA_${r}`, defineInstruction({ cpu: cpu.declaration, name: `LEA ${register.toUpperCase()},m (resolved)`, inputs: { offset: 16 },
@@ -596,7 +589,7 @@ export const addressing8088: Readonly<Record<string, InstructionDefinition>> = O
     steps: [readRegister("base", cpu.register("bx")), readSource("index", registers[0][0]!.view.source),
       capture("offset", addWrap(value("base"), extend(value("index"), 16))),
       ...(override ? [] : [readRegister("segment", cpu.register("ds"))]),
-      ...memoryOperand(8).read("contents"), ...registers[0][0]!.view.write(value("contents"))],
+      ...byteOperands.memory.read("contents"), ...registers[0][0]!.view.write(value("contents"))],
   })]),
 ]);
 
