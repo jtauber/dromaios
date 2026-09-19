@@ -235834,6 +235834,1610 @@ when not(isZero(mask)) {
 
 Flags preserved throughout: X, N, Z, V, C, T, S.
 
+### 68000 ORI #n,CCR
+
+Check SR privilege before any status capture or operand fetch. Capture old packed SR before fetching the complete immediate word. Apply logical status changes to that captured value, ignoring reserved bits. CCR preserves T/S and the live interrupt mask; SR restores them after X/N/Z/V/C.
+
+```text
+mode:u3 := input
+code:u3 := input
+system:u16 := source "packed status" {
+  t:flag := read T
+  s:flag := read S
+  yield bitOr(bitOr(0000:u16, select(t, 8000:u16, 0000:u16)), select(s, 2000:u16, 0000:u16))
+}
+interruptMask:u3 := read INTERRUPTMASK
+condition:u16 := source "packed status" {
+  x:flag := read X
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(0000:u16, select(x, 0010:u16, 0000:u16)), select(n, 0008:u16, 0000:u16)), select(z, 0004:u16, 0000:u16)), select(v, 0002:u16, 0000:u16)), select(c, 0001:u16, 0000:u16))
+}
+status := bitOr(bitOr(system, shiftBitsLeft(zeroExtend16(interruptMask), 8)), condition)
+immediate:u16 := fetch complete native-order word
+result := bitOr(status, immediate)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(result, 0010:u16)))
+  N := not(isZero(bitAnd(result, 0008:u16)))
+  Z := not(isZero(bitAnd(result, 0004:u16)))
+  V := not(isZero(bitAnd(result, 0002:u16)))
+  C := not(isZero(bitAnd(result, 0001:u16)))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: T, S.
+
+### 68000 ORI #n,SR
+
+Check SR privilege before any status capture or operand fetch. Capture old packed SR before fetching the complete immediate word. Apply logical status changes to that captured value, ignoring reserved bits. CCR preserves T/S and the live interrupt mask; SR restores them after X/N/Z/V/C.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+system:u16 := source "packed status" {
+  t:flag := read T
+  s:flag := read S
+  yield bitOr(bitOr(0000:u16, select(t, 8000:u16, 0000:u16)), select(s, 2000:u16, 0000:u16))
+}
+interruptMask:u3 := read INTERRUPTMASK
+condition:u16 := source "packed status" {
+  x:flag := read X
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(0000:u16, select(x, 0010:u16, 0000:u16)), select(n, 0008:u16, 0000:u16)), select(z, 0004:u16, 0000:u16)), select(v, 0002:u16, 0000:u16)), select(c, 0001:u16, 0000:u16))
+}
+status := bitOr(bitOr(system, shiftBitsLeft(zeroExtend16(interruptMask), 8)), condition)
+immediate:u16 := fetch complete native-order word
+result := bitOr(status, immediate)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(result, 0010:u16)))
+  N := not(isZero(bitAnd(result, 0008:u16)))
+  Z := not(isZero(bitAnd(result, 0004:u16)))
+  V := not(isZero(bitAnd(result, 0002:u16)))
+  C := not(isZero(bitAnd(result, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(result, 8000:u16)))
+  S := not(isZero(bitAnd(result, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(result, 8))
+```
+
+Flags preserved throughout: none.
+
+### 68000 ANDI #n,CCR
+
+Check SR privilege before any status capture or operand fetch. Capture old packed SR before fetching the complete immediate word. Apply logical status changes to that captured value, ignoring reserved bits. CCR preserves T/S and the live interrupt mask; SR restores them after X/N/Z/V/C.
+
+```text
+mode:u3 := input
+code:u3 := input
+system:u16 := source "packed status" {
+  t:flag := read T
+  s:flag := read S
+  yield bitOr(bitOr(0000:u16, select(t, 8000:u16, 0000:u16)), select(s, 2000:u16, 0000:u16))
+}
+interruptMask:u3 := read INTERRUPTMASK
+condition:u16 := source "packed status" {
+  x:flag := read X
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(0000:u16, select(x, 0010:u16, 0000:u16)), select(n, 0008:u16, 0000:u16)), select(z, 0004:u16, 0000:u16)), select(v, 0002:u16, 0000:u16)), select(c, 0001:u16, 0000:u16))
+}
+status := bitOr(bitOr(system, shiftBitsLeft(zeroExtend16(interruptMask), 8)), condition)
+immediate:u16 := fetch complete native-order word
+result := bitAnd(status, immediate)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(result, 0010:u16)))
+  N := not(isZero(bitAnd(result, 0008:u16)))
+  Z := not(isZero(bitAnd(result, 0004:u16)))
+  V := not(isZero(bitAnd(result, 0002:u16)))
+  C := not(isZero(bitAnd(result, 0001:u16)))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: T, S.
+
+### 68000 ANDI #n,SR
+
+Check SR privilege before any status capture or operand fetch. Capture old packed SR before fetching the complete immediate word. Apply logical status changes to that captured value, ignoring reserved bits. CCR preserves T/S and the live interrupt mask; SR restores them after X/N/Z/V/C.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+system:u16 := source "packed status" {
+  t:flag := read T
+  s:flag := read S
+  yield bitOr(bitOr(0000:u16, select(t, 8000:u16, 0000:u16)), select(s, 2000:u16, 0000:u16))
+}
+interruptMask:u3 := read INTERRUPTMASK
+condition:u16 := source "packed status" {
+  x:flag := read X
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(0000:u16, select(x, 0010:u16, 0000:u16)), select(n, 0008:u16, 0000:u16)), select(z, 0004:u16, 0000:u16)), select(v, 0002:u16, 0000:u16)), select(c, 0001:u16, 0000:u16))
+}
+status := bitOr(bitOr(system, shiftBitsLeft(zeroExtend16(interruptMask), 8)), condition)
+immediate:u16 := fetch complete native-order word
+result := bitAnd(status, immediate)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(result, 0010:u16)))
+  N := not(isZero(bitAnd(result, 0008:u16)))
+  Z := not(isZero(bitAnd(result, 0004:u16)))
+  V := not(isZero(bitAnd(result, 0002:u16)))
+  C := not(isZero(bitAnd(result, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(result, 8000:u16)))
+  S := not(isZero(bitAnd(result, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(result, 8))
+```
+
+Flags preserved throughout: none.
+
+### 68000 EORI #n,CCR
+
+Check SR privilege before any status capture or operand fetch. Capture old packed SR before fetching the complete immediate word. Apply logical status changes to that captured value, ignoring reserved bits. CCR preserves T/S and the live interrupt mask; SR restores them after X/N/Z/V/C.
+
+```text
+mode:u3 := input
+code:u3 := input
+system:u16 := source "packed status" {
+  t:flag := read T
+  s:flag := read S
+  yield bitOr(bitOr(0000:u16, select(t, 8000:u16, 0000:u16)), select(s, 2000:u16, 0000:u16))
+}
+interruptMask:u3 := read INTERRUPTMASK
+condition:u16 := source "packed status" {
+  x:flag := read X
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(0000:u16, select(x, 0010:u16, 0000:u16)), select(n, 0008:u16, 0000:u16)), select(z, 0004:u16, 0000:u16)), select(v, 0002:u16, 0000:u16)), select(c, 0001:u16, 0000:u16))
+}
+status := bitOr(bitOr(system, shiftBitsLeft(zeroExtend16(interruptMask), 8)), condition)
+immediate:u16 := fetch complete native-order word
+result := bitXor(status, immediate)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(result, 0010:u16)))
+  N := not(isZero(bitAnd(result, 0008:u16)))
+  Z := not(isZero(bitAnd(result, 0004:u16)))
+  V := not(isZero(bitAnd(result, 0002:u16)))
+  C := not(isZero(bitAnd(result, 0001:u16)))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: T, S.
+
+### 68000 EORI #n,SR
+
+Check SR privilege before any status capture or operand fetch. Capture old packed SR before fetching the complete immediate word. Apply logical status changes to that captured value, ignoring reserved bits. CCR preserves T/S and the live interrupt mask; SR restores them after X/N/Z/V/C.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+system:u16 := source "packed status" {
+  t:flag := read T
+  s:flag := read S
+  yield bitOr(bitOr(0000:u16, select(t, 8000:u16, 0000:u16)), select(s, 2000:u16, 0000:u16))
+}
+interruptMask:u3 := read INTERRUPTMASK
+condition:u16 := source "packed status" {
+  x:flag := read X
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(0000:u16, select(x, 0010:u16, 0000:u16)), select(n, 0008:u16, 0000:u16)), select(z, 0004:u16, 0000:u16)), select(v, 0002:u16, 0000:u16)), select(c, 0001:u16, 0000:u16))
+}
+status := bitOr(bitOr(system, shiftBitsLeft(zeroExtend16(interruptMask), 8)), condition)
+immediate:u16 := fetch complete native-order word
+result := bitXor(status, immediate)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(result, 0010:u16)))
+  N := not(isZero(bitAnd(result, 0008:u16)))
+  Z := not(isZero(bitAnd(result, 0004:u16)))
+  V := not(isZero(bitAnd(result, 0002:u16)))
+  C := not(isZero(bitAnd(result, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(result, 8000:u16)))
+  S := not(isZero(bitAnd(result, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(result, 8))
+```
+
+Flags preserved throughout: none.
+
+### 68000 MOVE SR,D0
+
+Unprivileged on the original 68000. Resolve and align the destination, committing auto-updates before reading it. Then capture packed SR and write its word, preserving live upper Dn bits and every flag. A failed read retains address updates; a failed write retains completed bytes.
+
+```text
+mode:u3 := input
+code:u3 := input
+destinationRegister:u32 := read D0
+destination := low16(destinationRegister)
+system:u16 := source "packed status" {
+  t:flag := read T
+  s:flag := read S
+  yield bitOr(bitOr(0000:u16, select(t, 8000:u16, 0000:u16)), select(s, 2000:u16, 0000:u16))
+}
+interruptMask:u3 := read INTERRUPTMASK
+condition:u16 := source "packed status" {
+  x:flag := read X
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(0000:u16, select(x, 0010:u16, 0000:u16)), select(n, 0008:u16, 0000:u16)), select(z, 0004:u16, 0000:u16)), select(v, 0002:u16, 0000:u16)), select(c, 0001:u16, 0000:u16))
+}
+status := bitOr(bitOr(system, shiftBitsLeft(zeroExtend16(interruptMask), 8)), condition)
+result := status
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE SR,D1
+
+Unprivileged on the original 68000. Resolve and align the destination, committing auto-updates before reading it. Then capture packed SR and write its word, preserving live upper Dn bits and every flag. A failed read retains address updates; a failed write retains completed bytes.
+
+```text
+mode:u3 := input
+code:u3 := input
+destinationRegister:u32 := read D1
+destination := low16(destinationRegister)
+system:u16 := source "packed status" {
+  t:flag := read T
+  s:flag := read S
+  yield bitOr(bitOr(0000:u16, select(t, 8000:u16, 0000:u16)), select(s, 2000:u16, 0000:u16))
+}
+interruptMask:u3 := read INTERRUPTMASK
+condition:u16 := source "packed status" {
+  x:flag := read X
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(0000:u16, select(x, 0010:u16, 0000:u16)), select(n, 0008:u16, 0000:u16)), select(z, 0004:u16, 0000:u16)), select(v, 0002:u16, 0000:u16)), select(c, 0001:u16, 0000:u16))
+}
+status := bitOr(bitOr(system, shiftBitsLeft(zeroExtend16(interruptMask), 8)), condition)
+result := status
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE SR,D2
+
+Unprivileged on the original 68000. Resolve and align the destination, committing auto-updates before reading it. Then capture packed SR and write its word, preserving live upper Dn bits and every flag. A failed read retains address updates; a failed write retains completed bytes.
+
+```text
+mode:u3 := input
+code:u3 := input
+destinationRegister:u32 := read D2
+destination := low16(destinationRegister)
+system:u16 := source "packed status" {
+  t:flag := read T
+  s:flag := read S
+  yield bitOr(bitOr(0000:u16, select(t, 8000:u16, 0000:u16)), select(s, 2000:u16, 0000:u16))
+}
+interruptMask:u3 := read INTERRUPTMASK
+condition:u16 := source "packed status" {
+  x:flag := read X
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(0000:u16, select(x, 0010:u16, 0000:u16)), select(n, 0008:u16, 0000:u16)), select(z, 0004:u16, 0000:u16)), select(v, 0002:u16, 0000:u16)), select(c, 0001:u16, 0000:u16))
+}
+status := bitOr(bitOr(system, shiftBitsLeft(zeroExtend16(interruptMask), 8)), condition)
+result := status
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE SR,D3
+
+Unprivileged on the original 68000. Resolve and align the destination, committing auto-updates before reading it. Then capture packed SR and write its word, preserving live upper Dn bits and every flag. A failed read retains address updates; a failed write retains completed bytes.
+
+```text
+mode:u3 := input
+code:u3 := input
+destinationRegister:u32 := read D3
+destination := low16(destinationRegister)
+system:u16 := source "packed status" {
+  t:flag := read T
+  s:flag := read S
+  yield bitOr(bitOr(0000:u16, select(t, 8000:u16, 0000:u16)), select(s, 2000:u16, 0000:u16))
+}
+interruptMask:u3 := read INTERRUPTMASK
+condition:u16 := source "packed status" {
+  x:flag := read X
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(0000:u16, select(x, 0010:u16, 0000:u16)), select(n, 0008:u16, 0000:u16)), select(z, 0004:u16, 0000:u16)), select(v, 0002:u16, 0000:u16)), select(c, 0001:u16, 0000:u16))
+}
+status := bitOr(bitOr(system, shiftBitsLeft(zeroExtend16(interruptMask), 8)), condition)
+result := status
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE SR,D4
+
+Unprivileged on the original 68000. Resolve and align the destination, committing auto-updates before reading it. Then capture packed SR and write its word, preserving live upper Dn bits and every flag. A failed read retains address updates; a failed write retains completed bytes.
+
+```text
+mode:u3 := input
+code:u3 := input
+destinationRegister:u32 := read D4
+destination := low16(destinationRegister)
+system:u16 := source "packed status" {
+  t:flag := read T
+  s:flag := read S
+  yield bitOr(bitOr(0000:u16, select(t, 8000:u16, 0000:u16)), select(s, 2000:u16, 0000:u16))
+}
+interruptMask:u3 := read INTERRUPTMASK
+condition:u16 := source "packed status" {
+  x:flag := read X
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(0000:u16, select(x, 0010:u16, 0000:u16)), select(n, 0008:u16, 0000:u16)), select(z, 0004:u16, 0000:u16)), select(v, 0002:u16, 0000:u16)), select(c, 0001:u16, 0000:u16))
+}
+status := bitOr(bitOr(system, shiftBitsLeft(zeroExtend16(interruptMask), 8)), condition)
+result := status
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE SR,D5
+
+Unprivileged on the original 68000. Resolve and align the destination, committing auto-updates before reading it. Then capture packed SR and write its word, preserving live upper Dn bits and every flag. A failed read retains address updates; a failed write retains completed bytes.
+
+```text
+mode:u3 := input
+code:u3 := input
+destinationRegister:u32 := read D5
+destination := low16(destinationRegister)
+system:u16 := source "packed status" {
+  t:flag := read T
+  s:flag := read S
+  yield bitOr(bitOr(0000:u16, select(t, 8000:u16, 0000:u16)), select(s, 2000:u16, 0000:u16))
+}
+interruptMask:u3 := read INTERRUPTMASK
+condition:u16 := source "packed status" {
+  x:flag := read X
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(0000:u16, select(x, 0010:u16, 0000:u16)), select(n, 0008:u16, 0000:u16)), select(z, 0004:u16, 0000:u16)), select(v, 0002:u16, 0000:u16)), select(c, 0001:u16, 0000:u16))
+}
+status := bitOr(bitOr(system, shiftBitsLeft(zeroExtend16(interruptMask), 8)), condition)
+result := status
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE SR,D6
+
+Unprivileged on the original 68000. Resolve and align the destination, committing auto-updates before reading it. Then capture packed SR and write its word, preserving live upper Dn bits and every flag. A failed read retains address updates; a failed write retains completed bytes.
+
+```text
+mode:u3 := input
+code:u3 := input
+destinationRegister:u32 := read D6
+destination := low16(destinationRegister)
+system:u16 := source "packed status" {
+  t:flag := read T
+  s:flag := read S
+  yield bitOr(bitOr(0000:u16, select(t, 8000:u16, 0000:u16)), select(s, 2000:u16, 0000:u16))
+}
+interruptMask:u3 := read INTERRUPTMASK
+condition:u16 := source "packed status" {
+  x:flag := read X
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(0000:u16, select(x, 0010:u16, 0000:u16)), select(n, 0008:u16, 0000:u16)), select(z, 0004:u16, 0000:u16)), select(v, 0002:u16, 0000:u16)), select(c, 0001:u16, 0000:u16))
+}
+status := bitOr(bitOr(system, shiftBitsLeft(zeroExtend16(interruptMask), 8)), condition)
+result := status
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE SR,D7
+
+Unprivileged on the original 68000. Resolve and align the destination, committing auto-updates before reading it. Then capture packed SR and write its word, preserving live upper Dn bits and every flag. A failed read retains address updates; a failed write retains completed bytes.
+
+```text
+mode:u3 := input
+code:u3 := input
+destinationRegister:u32 := read D7
+destination := low16(destinationRegister)
+system:u16 := source "packed status" {
+  t:flag := read T
+  s:flag := read S
+  yield bitOr(bitOr(0000:u16, select(t, 8000:u16, 0000:u16)), select(s, 2000:u16, 0000:u16))
+}
+interruptMask:u3 := read INTERRUPTMASK
+condition:u16 := source "packed status" {
+  x:flag := read X
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(0000:u16, select(x, 0010:u16, 0000:u16)), select(n, 0008:u16, 0000:u16)), select(z, 0004:u16, 0000:u16)), select(v, 0002:u16, 0000:u16)), select(c, 0001:u16, 0000:u16))
+}
+status := bitOr(bitOr(system, shiftBitsLeft(zeroExtend16(interruptMask), 8)), condition)
+result := status
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE SR,MEMORY
+
+Unprivileged on the original 68000. Resolve and align the destination, committing auto-updates before reading it. Then capture packed SR and write its word, preserving live upper Dn bits and every flag. A failed read retains address updates; a failed write retains completed bytes.
+
+```text
+mode:u3 := input
+code:u3 := input
+destinationAddress:u32 := resolve 16-bit memory EA (mode mode, register code); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space read alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destinationByte1:u8 := read memory[addWrap(destinationAddress, 00000001:u32)]
+destination := concatHighLow(destinationByte0, destinationByte1)
+system:u16 := source "packed status" {
+  t:flag := read T
+  s:flag := read S
+  yield bitOr(bitOr(0000:u16, select(t, 8000:u16, 0000:u16)), select(s, 2000:u16, 0000:u16))
+}
+interruptMask:u3 := read INTERRUPTMASK
+condition:u16 := source "packed status" {
+  x:flag := read X
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(0000:u16, select(x, 0010:u16, 0000:u16)), select(n, 0008:u16, 0000:u16)), select(z, 0004:u16, 0000:u16)), select(v, 0002:u16, 0000:u16)), select(c, 0001:u16, 0000:u16))
+}
+status := bitOr(bitOr(system, shiftBitsLeft(zeroExtend16(interruptMask), 8)), condition)
+result := status
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE D0,CCR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+sourceRegister:u32 := read D0
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: T, S.
+
+### 68000 MOVE D1,CCR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+sourceRegister:u32 := read D1
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: T, S.
+
+### 68000 MOVE D2,CCR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+sourceRegister:u32 := read D2
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: T, S.
+
+### 68000 MOVE D3,CCR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+sourceRegister:u32 := read D3
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: T, S.
+
+### 68000 MOVE D4,CCR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+sourceRegister:u32 := read D4
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: T, S.
+
+### 68000 MOVE D5,CCR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+sourceRegister:u32 := read D5
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: T, S.
+
+### 68000 MOVE D6,CCR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+sourceRegister:u32 := read D6
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: T, S.
+
+### 68000 MOVE D7,CCR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+sourceRegister:u32 := read D7
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: T, S.
+
+### 68000 MOVE MEMORY,CCR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode mode, register code); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+statusByte0:u8 := read memory[sourceAddress]
+statusByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+status := concatHighLow(statusByte0, statusByte1)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: T, S.
+
+### 68000 MOVE PROGRAM,CCR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode mode, register code); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+statusByte0:u8 := read program memory[sourceAddress]
+statusByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+status := concatHighLow(statusByte0, statusByte1)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: T, S.
+
+### 68000 MOVE IMMEDIATE,CCR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+statusHigh:u16 := fetch complete native-order word
+status := statusHigh
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: T, S.
+
+### 68000 MOVE D0,SR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+sourceRegister:u32 := read D0
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(status, 8000:u16)))
+  S := not(isZero(bitAnd(status, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(status, 8))
+```
+
+Flags preserved throughout: none.
+
+### 68000 MOVE D1,SR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+sourceRegister:u32 := read D1
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(status, 8000:u16)))
+  S := not(isZero(bitAnd(status, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(status, 8))
+```
+
+Flags preserved throughout: none.
+
+### 68000 MOVE D2,SR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+sourceRegister:u32 := read D2
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(status, 8000:u16)))
+  S := not(isZero(bitAnd(status, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(status, 8))
+```
+
+Flags preserved throughout: none.
+
+### 68000 MOVE D3,SR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+sourceRegister:u32 := read D3
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(status, 8000:u16)))
+  S := not(isZero(bitAnd(status, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(status, 8))
+```
+
+Flags preserved throughout: none.
+
+### 68000 MOVE D4,SR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+sourceRegister:u32 := read D4
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(status, 8000:u16)))
+  S := not(isZero(bitAnd(status, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(status, 8))
+```
+
+Flags preserved throughout: none.
+
+### 68000 MOVE D5,SR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+sourceRegister:u32 := read D5
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(status, 8000:u16)))
+  S := not(isZero(bitAnd(status, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(status, 8))
+```
+
+Flags preserved throughout: none.
+
+### 68000 MOVE D6,SR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+sourceRegister:u32 := read D6
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(status, 8000:u16)))
+  S := not(isZero(bitAnd(status, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(status, 8))
+```
+
+Flags preserved throughout: none.
+
+### 68000 MOVE D7,SR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+sourceRegister:u32 := read D7
+status := low16(sourceRegister)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(status, 8000:u16)))
+  S := not(isZero(bitAnd(status, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(status, 8))
+```
+
+Flags preserved throughout: none.
+
+### 68000 MOVE MEMORY,SR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+sourceAddress:u32 := resolve 16-bit memory EA (mode mode, register code); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+statusByte0:u8 := read memory[sourceAddress]
+statusByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+status := concatHighLow(statusByte0, statusByte1)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(status, 8000:u16)))
+  S := not(isZero(bitAnd(status, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(status, 8))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: none.
+
+### 68000 MOVE PROGRAM,SR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+sourceAddress:u32 := resolve 16-bit memory EA (mode mode, register code); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+statusByte0:u8 := read program memory[sourceAddress]
+statusByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+status := concatHighLow(statusByte0, statusByte1)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(status, 8000:u16)))
+  S := not(isZero(bitAnd(status, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(status, 8))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: none.
+
+### 68000 MOVE IMMEDIATE,SR
+
+Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+statusHigh:u16 := fetch complete native-order word
+status := statusHigh
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(status, 8000:u16)))
+  S := not(isZero(bitAnd(status, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(status, 8))
+```
+
+Flags preserved throughout: none.
+
+### 68000 MOVE A0,USP
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+source:u32 := read A0
+write USP:u32 := source
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE A1,USP
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+source:u32 := read A1
+write USP:u32 := source
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE A2,USP
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+source:u32 := read A2
+write USP:u32 := source
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE A3,USP
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+source:u32 := read A3
+write USP:u32 := source
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE A4,USP
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+source:u32 := read A4
+write USP:u32 := source
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE A5,USP
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+source:u32 := read A5
+write USP:u32 := source
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE A6,USP
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+source:u32 := read A6
+write USP:u32 := source
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE A7,USP
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+addressSupervisor:flag := read S
+when addressSupervisor {
+  source:u32 := read SSP
+  write USP:u32 := source
+}
+when not(addressSupervisor) {
+  source:u32 := read USP
+  write USP:u32 := source
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE USP,A0
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+source:u32 := read USP
+write A0:u32 := source
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE USP,A1
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+source:u32 := read USP
+write A1:u32 := source
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE USP,A2
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+source:u32 := read USP
+write A2:u32 := source
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE USP,A3
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+source:u32 := read USP
+write A3:u32 := source
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE USP,A4
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+source:u32 := read USP
+write A4:u32 := source
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE USP,A5
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+source:u32 := read USP
+write A5:u32 := source
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE USP,A6
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+source:u32 := read USP
+write A6:u32 := source
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE USP,A7
+
+Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+addressSupervisor:flag := read S
+when addressSupervisor {
+  source:u32 := read USP
+  write SSP:u32 := source
+}
+when not(addressSupervisor) {
+  source:u32 := read USP
+  write USP:u32 := source
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 RESET
+
+Check privilege before asserting the device reset connection. Record the reset only after the callback succeeds. Preserve CPU state; callback failure prevents retirement.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+assert connected device reset now; record only after callback success; preserve CPU state
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 NOP
+
+No effects after opcode fetching.
+
+```text
+mode:u3 := input
+code:u3 := input
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 STOP
+
+Check privilege before fetching the complete status word. Restore SR, including S/T and interrupt mask, before halting. A failed fetch changes neither status nor halt state.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+status:u16 := fetch complete native-order word
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(status, 8000:u16)))
+  S := not(isZero(bitAnd(status, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(status, 8))
+write halted:boolean := true
+```
+
+Flags preserved throughout: none.
+
+### 68000 RTE
+
+Check privilege, then capture SSP. Read PC high, SR, then PC low through the original supervisor stack. Reject odd stack addresses before reading. Validate and select the target before advancing the captured stack by six and restoring status. Failed reads or an odd target leave the pointer and status unchanged; switching S never redirects frame reads.
+
+```text
+mode:u3 := input
+code:u3 := input
+supervisor:flag := read S
+when not(supervisor) {
+  return outcome "privilege-violation"; no later effects
+}
+stack:u32 := read SSP
+when lowBit(stack) {
+  return data-space read alignment fault at stack; no later effects
+}
+highAddress := addWrap(stack, 00000002:u32)
+highByte0:u8 := read memory[highAddress]
+highByte1:u8 := read memory[addWrap(highAddress, 00000001:u32)]
+high := concatHighLow(highByte0, highByte1)
+statusByte0:u8 := read memory[stack]
+statusByte1:u8 := read memory[addWrap(stack, 00000001:u32)]
+status := concatHighLow(statusByte0, statusByte1)
+lowAddress := addWrap(stack, 00000004:u32)
+lowByte0:u8 := read memory[lowAddress]
+lowByte1:u8 := read memory[addWrap(lowAddress, 00000001:u32)]
+low := concatHighLow(lowByte0, lowByte1)
+target := concatHighLow(high, low)
+when lowBit(target) {
+  return program-space fetch alignment fault at target; no later effects
+}
+select instruction target target for successful retirement; preserve the sequential fetch cursor
+write SSP:u32 := addWrap(stack, 00000006:u32)
+flags "restore packed status" simultaneously {
+  X := not(isZero(bitAnd(status, 0010:u16)))
+  N := not(isZero(bitAnd(status, 0008:u16)))
+  Z := not(isZero(bitAnd(status, 0004:u16)))
+  V := not(isZero(bitAnd(status, 0002:u16)))
+  C := not(isZero(bitAnd(status, 0001:u16)))
+} // Preserve unlisted flags.
+flags "restore packed status" simultaneously {
+  T := not(isZero(bitAnd(status, 8000:u16)))
+  S := not(isZero(bitAnd(status, 2000:u16)))
+} // Preserve unlisted flags.
+write INTERRUPTMASK:u3 := low3(shiftBitsRight(status, 8))
+```
+
+Flags preserved throughout: none.
+
+### 68000 TRAPV
+
+Request overflow-trap delivery only when V is set; preserve every flag and register.
+
+```text
+mode:u3 := input
+code:u3 := input
+overflow:flag := read V
+when overflow {
+  return outcome "overflow-trap"; no later effects
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 RTR
+
+Capture the active stack bank. Read the condition-code word, then the complete long return address. Reject odd stack addresses before reading. Validate and select the target before advancing the captured stack by six and restoring status. Failed reads or an odd target leave the pointer and status unchanged; switching S never redirects frame reads.
+
+```text
+mode:u3 := input
+code:u3 := input
+stackSupervisor:flag := read S
+when stackSupervisor {
+  stack:u32 := read SSP
+  when lowBit(stack) {
+    return data-space read alignment fault at stack; no later effects
+  }
+  statusByte0:u8 := read memory[stack]
+  statusByte1:u8 := read memory[addWrap(stack, 00000001:u32)]
+  status := concatHighLow(statusByte0, statusByte1)
+  targetAddress := addWrap(stack, 00000002:u32)
+  targetByte0:u8 := read memory[targetAddress]
+  targetByte1:u8 := read memory[addWrap(targetAddress, 00000001:u32)]
+  targetByte2:u8 := read memory[addWrap(targetAddress, 00000002:u32)]
+  targetByte3:u8 := read memory[addWrap(targetAddress, 00000003:u32)]
+  target := concatHighLow(concatHighLow(targetByte0, targetByte1), concatHighLow(targetByte2, targetByte3))
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+  write SSP:u32 := addWrap(stack, 00000006:u32)
+  flags "restore packed status" simultaneously {
+    X := not(isZero(bitAnd(status, 0010:u16)))
+    N := not(isZero(bitAnd(status, 0008:u16)))
+    Z := not(isZero(bitAnd(status, 0004:u16)))
+    V := not(isZero(bitAnd(status, 0002:u16)))
+    C := not(isZero(bitAnd(status, 0001:u16)))
+  } // Preserve unlisted flags.
+}
+when not(stackSupervisor) {
+  stack:u32 := read USP
+  when lowBit(stack) {
+    return data-space read alignment fault at stack; no later effects
+  }
+  statusByte0:u8 := read memory[stack]
+  statusByte1:u8 := read memory[addWrap(stack, 00000001:u32)]
+  status := concatHighLow(statusByte0, statusByte1)
+  targetAddress := addWrap(stack, 00000002:u32)
+  targetByte0:u8 := read memory[targetAddress]
+  targetByte1:u8 := read memory[addWrap(targetAddress, 00000001:u32)]
+  targetByte2:u8 := read memory[addWrap(targetAddress, 00000002:u32)]
+  targetByte3:u8 := read memory[addWrap(targetAddress, 00000003:u32)]
+  target := concatHighLow(concatHighLow(targetByte0, targetByte1), concatHighLow(targetByte2, targetByte3))
+  when lowBit(target) {
+    return program-space fetch alignment fault at target; no later effects
+  }
+  select instruction target target for successful retirement; preserve the sequential fetch cursor
+  write USP:u32 := addWrap(stack, 00000006:u32)
+  flags "restore packed status" simultaneously {
+    X := not(isZero(bitAnd(status, 0010:u16)))
+    N := not(isZero(bitAnd(status, 0008:u16)))
+    Z := not(isZero(bitAnd(status, 0004:u16)))
+    V := not(isZero(bitAnd(status, 0002:u16)))
+    C := not(isZero(bitAnd(status, 0001:u16)))
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: T, S.
+
+### 68000 ILLEGAL
+
+Request synchronous exception delivery without changing state here. The CPU boundary selects the vector and saved PC, and owns frame entry, trace, and nested faults.
+
+```text
+mode:u3 := input
+code:u3 := input
+return outcome "illegal-instruction"; no later effects
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 TRAP #n
+
+Request synchronous exception delivery without changing state here. The CPU boundary selects the vector and saved PC, and owns frame entry, trace, and nested faults.
+
+```text
+mode:u3 := input
+code:u3 := input
+return outcome "trap"; no later effects
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LINE_A
+
+Request synchronous exception delivery without changing state here. The CPU boundary selects the vector and saved PC, and owns frame entry, trace, and nested faults.
+
+```text
+mode:u3 := input
+code:u3 := input
+return outcome "line-a"; no later effects
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 LINE_F
+
+Request synchronous exception delivery without changing state here. The CPU boundary selects the vector and saved PC, and owns frame entry, trace, and nested faults.
+
+```text
+mode:u3 := input
+code:u3 := input
+return outcome "line-f"; no later effects
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
 ### 6502 BRK
 
 Fetch padding before saving PC; stack B set. Push PC high then live PC low, then packed status with old I. Set I only after those writes; preserve NMOS D. Read the complete low-first vector before replacing PC. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.

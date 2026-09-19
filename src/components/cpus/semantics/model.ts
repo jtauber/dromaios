@@ -100,6 +100,7 @@ export type Statement =
   | { readonly kind: "write-element"; readonly array: RegisterArray; readonly index: NumberExpression; readonly value: NumberExpression }
   | { readonly kind: "defer-interrupt"; readonly scope: "irq" | "intr" | "all" }
   | { readonly kind: "notify-reti" }
+  | { readonly kind: "reset-devices" }
   | { readonly kind: "report-interrupt"; readonly vector: NumberExpression }
   | { readonly kind: "read-test"; readonly name: string }
   | ({ readonly kind: "send-escape" } & EscapeRequest)
@@ -240,6 +241,8 @@ export const selectTarget = (address: NumberExpression): Statement => ({ kind: "
 /** Decode a 68000 memory EA now, retaining staged address-register updates for later operands. */
 export const resolveAddress = (name: string, size: 8 | 16 | 32, mode: NumberExpression, code: NumberExpression): Statement => ({ kind: "resolve-address", name, size, mode, code });
 export const commitAddressUpdates = (): Statement => ({ kind: "commit-address-updates" });
+/** Assert the connected 68000 device reset signal now; the boundary records successful completion. */
+export const resetDevices = (): Statement => ({ kind: "reset-devices" });
 /** Return a rejected logical access; test alignment explicitly before this statement. */
 export const alignmentFault = (operation: "read" | "write" | "fetch", address: NumberExpression, space: "data" | "program" = operation === "fetch" ? "program" : "data"): Statement => ({ kind: "alignment-fault", operation, address, space });
 export const readProgramMemory = (name: string, address: NumberExpression): Statement => ({ kind: "read-program-memory", name, address });

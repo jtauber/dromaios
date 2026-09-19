@@ -66,8 +66,9 @@ The platform has instruction-level models with complete documented opcode covera
 for the 8008, 8080, 6502, 6800, 6809, Z80, 8088, and 68000, plus small RAM-based
 examples tested independently of the browser. Timing and other processor features
 remain separately tracked. The [example catalog](docs/README.md#cpu-examples) links to their specifications.
-[CPU implementation coverage](docs/cpus/coverage.md) tracks migration to shared
-instruction definitions, supported features, and remaining gaps; the [roadmap](ROADMAP.md) describes
+All eight documented instruction sets now use shared definitions that generate
+execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)
+tracks that completed migration, source footprint, supported features, and remaining gaps; the [roadmap](ROADMAP.md) describes
 the development stages.
 
 The implementation uses **TypeScript**, compiled to JavaScript ES modules,

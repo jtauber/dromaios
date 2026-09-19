@@ -222,6 +222,13 @@ stages. MOVEM owns one final pointer update for the whole list; do not route it
 through ordinary single-operand auto-updates. Keep mask fetching, empty-list
 handling, register selection, and partial-failure behavior visible in its definition.
 
+The [system inventory](../../src/components/cpus/68000-system.ts) shares packed
+status layouts with the core. Keep privilege checks before operand effects, old
+status capture before immediate fetching, and SR restoration before pending
+address updates. Returns retain their exact frame-read order and commit the
+original stack bank before restoring status. Device RESET is an explicit signal;
+recording, exception delivery, and retirement remain CPU responsibilities.
+
 The complete support inventory belongs in [CPU implementation coverage](coverage.md).
 This guide describes organization and does not replace the model contracts or
 manufacturer references for instruction behavior.

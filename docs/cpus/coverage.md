@@ -1,11 +1,11 @@
 # CPU implementation coverage
 
-This report tracks the current migration from handwritten instruction bodies to
-[shared, inspectable instruction definitions](instruction-semantics.md) that
-generate both executable code and explanations. All eight initial CPU models
-already implement **100% of their documented opcode forms**; the percentages
-below now measure definition migration. The detailed support inventory remains
-below as a reference for implemented behavior and processor limitations.
+All eight initial CPU models now implement **100% of their documented opcode
+forms through [shared, inspectable instruction definitions](instruction-semantics.md)**
+that generate both executable code and explanations. The table records the
+completed instruction-definition migration and current source footprint. The
+detailed support inventory remains below as a reference for implemented behavior
+and processor limitations.
 
 Update this document whenever migration or CPU support changes. The
 [model contracts](../README.md#cpu-models) define state and execution policies;
@@ -24,13 +24,13 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [548](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [775](../../src/components/cpus/68000.ts) | 35,843 / 36,029 | 99.5% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [596](../../src/components/cpus/68000.ts) | 36,029 / 36,029 | 100% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **12,134 generated bodies**, all used by CPU execution,
+contains **12,197 generated bodies**, all used by CPU execution,
 including 6502/6800/8088 entry helpers, a 6809 frame-push helper, and 8088 WAIT
-resumption. They cover **37,942 complete opcode forms**. All six 8-bit CPUs and
-the 8088 now have complete instruction-definition migration. The current
+resumption. They cover **38,128 complete opcode forms**. All eight CPUs now
+have complete instruction-definition migration. The current
 family inventory is:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
@@ -461,7 +461,14 @@ family inventory is:
   list succeeds. Empty lists still resolve the EA but perform no alignment
   check or base update. Word loads sign-extend; PC-relative loads use program
   space. Failed transfers retain earlier complete registers and written bytes.
-  The remaining **186 forms** cover status/system instructions.
+  The final **186 status/system forms** add **63 bodies**, completing the
+  migration. Those bodies also serve all TRAP literals and both software
+  emulator lines. Status logic captures old SR before the immediate fetch;
+  privilege checks precede operand effects. SR loads restore status before
+  committing pending address updates to the original bank. RTE reads PC high,
+  SR, then PC low; both RTE and RTR validate targets before committing pointer
+  or status changes. RESET uses an explicit device signal, with recording and
+  exception delivery retained at the CPU boundary.
 
 The [current review](instruction-semantics.md#decision-and-next-review)
 focuses on complete operation families, explicit carry and writeback stages,
@@ -507,29 +514,31 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 2,824 |
-| CPU-specific instruction definition files | 2,408 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,771 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **9,003** |
+| Eight CPU implementation files | 2,645 |
+| CPU-specific instruction definition files | 2,500 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,831 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,976** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
-| Generated CPU output, counted separately | 309,494 |
+| Generated CPU output, counted separately | 310,832 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The 68000 MOVEP/MOVEM migration adds **294 bodies** for **396 forms**.
-MOVEP reuses the byte-transfer construction with an explicit address stride.
-MOVEM expands its sixteen mask bits into optional transfers with named local
-addresses; the definitions expose register order and final pointer commit
-without adding a runtime register selector or a new semantic primitive.
+The final 68000 instruction migration adds **63 bodies** for **186 documented
+forms**, also binding TRAP literals and software emulator lines. Status packing
+and restoration reuse shared flag construction and CPU-owned layouts. One narrow
+statement asserts the existing device reset connection; the CPU still owns its
+recording and retirement. Native address decoding remains in the core.
 
-The 68000 module falls from **825 to 775 lines** (**50 fewer**), removing
-MOVEP/MOVEM handlers, list-transfer bodies, and the obsolete control-address
-wrapper. Definitions add **54 lines** and the transfer inventory adds **26**.
-Total authored CPU source increases from **8,973 to 9,003 lines** (**30 more**);
-generated output adds **9,905**. The smaller core does not yet mean a reduction
-in total authored source. All **11,840 earlier definitions** remain structurally
-unchanged, and all 25 previously generated modules remain byte-identical.
+The 68000 module falls from **775 to 596 lines** (**179 fewer**), removing the
+remaining handwritten instruction handlers, operand wrappers, and status/return
+helpers. Definitions add **92 lines** and supporting CPU source adds **60**,
+including the system inventory, shared layouts, and device-reset vocabulary.
+Total authored CPU source falls from **9,003 to 8,976 lines** (**27 fewer**);
+generated output adds **1,338**. All **12,134 earlier definitions** remain
+structurally unchanged, and all 26 previously generated modules remain
+byte-identical. Completing migration does not imply that the shared vocabulary
+or source-reduction work is finished.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

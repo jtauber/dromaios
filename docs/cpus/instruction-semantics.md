@@ -23,6 +23,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 68000 MULU/MULS/DIVU/DIVS, CHK, ABCD/SBCD/NBCD | Source updates after word results and before exceptions; separate quotient-overflow capture; signed bounds; explicit digit correction and cumulative decimal flags |
 | 68000 Scc/DBcc, BRA/Bcc/BSR, LEA/PEA/JMP/JSR, LINK/UNLK/RTS | Shared native condition captures; separate sequential cursor and target selection; stack-before-target validation; delayed stack/counter commits and A7 aliases |
 | 68000 MOVEP and MOVEM, both widths and directions | Alternate-byte transfers; explicit mask order, complete-register loads, captured base bank, and final pointer commit; preserve earlier transfers on failure |
+| 68000 CCR/SR, USP, system operations, and RTE/RTR | Privilege before operand effects; captured status before immediate fetching; status before pending updates; explicit return-frame reads and target validation; device reset signal |
 | 8088 immediate MOV and accumulator ALU/TEST, word INC/DEC, AX/register exchanges | Low/high byte views with live preservation of the other half; operand-before-CF capture; low-byte parity for words; explicit flag/write ordering; generated encoding bindings |
 | 8088 ModR/M MOV/XCHG, absolute accumulator MOV, and immediate r/m MOV | Resolved segment/offset inputs; byte-offset wrap before physical projection; complete source capture and low-first partial writes |
 | 8088 ModR/M and immediate ALU/TEST | Reuse resolved operands and accumulator arithmetic; source before destination before CF; sign-extended immediates; flags before partial writes; CMP/TEST without operand writes |
@@ -78,15 +79,15 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 12,134 generated, executable bodies. All serve CPU execution;
-12,129 are bound through opcode or postbyte selection. Five boundary helpers
+There are 12,197 generated, executable bodies. All serve CPU execution;
+12,192 are bound through opcode or postbyte selection. Five boundary helpers
 serve 6502/6800/8088 entry, 6809 frame pushing, and 8088 WAIT resumption.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
-All six 8-bit CPUs and the 8088 have complete instruction-definition migration;
-the 68000 has 35,843 documented forms migrated, including ordinary MOVE/MOVEA,
+All eight CPUs have complete instruction-definition migration.
+The 68000 has all 36,029 documented forms migrated, including ordinary MOVE/MOVEA,
 data logic, arithmetic/comparison, bit operations, shifts/rotates, TAS, word
 products/division, signed bounds, decimal arithmetic, ordinary control flow,
-address calculation, stack frames, MOVEP, and MOVEM. Bodies
+address calculation, stack frames, MOVEP/MOVEM, and status/system instructions. Bodies
 start after opcode selection. Each 6809 memory
 body starts after successful address resolution and serves direct, indexed, and
 extended forms, including all legal indexed postbytes. The 6800 memory
@@ -1124,6 +1125,7 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `write-latch` | Assign a Boolean constant or captured Boolean expression to a declared top-level control latch; performs no implicit read |
 | `defer-interrupt` | Request `irq` inhibition on 8080/Z80 or `intr`/`all` on 8088; the boundary commits it at successful retirement |
 | `notify-reti` | Request Z80 device notification after successful architectural retirement |
+| `reset-devices` | Assert the connected 68000 device reset signal now; the CPU records only successful callbacks and retains retirement/exception handling |
 | `read-test` | Sample and record the 8088 physical TEST pin, capturing a validated Boolean level |
 | `send-escape` | Send an 8088 ESC request from explicit captured operands; memory reads are separate statements; detach the device request and record only after success |
 | `report-interrupt` | Report completed 8088 software delivery with a captured type byte; performs no entry or memory effects |
@@ -1502,7 +1504,7 @@ optimization pass into this review.
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,68000,8008,8080,8088,6809,z80}.ts`,
 `6502-interrupts.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, `68000-bits.ts`, `68000-word-arithmetic.ts`,
-`68000-decimal.ts`, `68000-control.ts`, `68000-transfers.ts`, and the separate 8088 transfer, ALU, unary,
+`68000-decimal.ts`, `68000-control.ts`, `68000-transfers.ts`, `68000-system.ts`, and the separate 8088 transfer, ALU, unary,
 stack, addressing, string, arithmetic, and control modules. The separate 8088
 operand modules contain specialized resolved bodies; its numeric opcode module retains automatic bindings.
 These files are ignored build output and removed by `npm run clean`.
@@ -1736,6 +1738,39 @@ Type checks enforce data/program-space capabilities and the absence of ordinary
 EA resolution in the auto-update bodies. All earlier definitions and generated
 modules remain unchanged.
 
+The [system inventory](../../src/components/cpus/68000-system.ts) completes all
+186 remaining documented forms through 63 bodies, also serving TRAP literals and
+software emulator-line requests. Privilege guards reject before operand fetching
+or address resolution. These outcomes use the existing exception boundary, which
+selects vectors, saved PCs, trace handling, and nested-fault behavior.
+
+Packed SR reuses CPU-owned condition/system flag layouts and shared status
+construction. Its captures retain T/S, interrupt mask, then X/N/Z/V/C order.
+Immediate logic captures the old status before fetching the complete word.
+CCR restoration preserves system fields and the flag object. Full SR restoration
+writes condition codes, system flags, then interrupt mask. Loads commit pending
+address updates afterward, preserving the bank selected before S changed.
+MOVE from SR remains unprivileged, reads its destination before capturing status,
+and retains live upper Dn bits on word writeback.
+
+RTE captures SSP after its privilege check, then reads PC high, SR, and PC low.
+RTR captures the active stack bank and reads CCR before the long target. Both
+check stack alignment before any read and validate/select the target before
+advancing the captured pointer and restoring status. A failed read or odd target
+leaves those final effects unapplied. STOP restores the fetched SR before halting.
+The narrow `reset-devices` statement invokes the existing RESET connection;
+validation restricts it to the 68000, generated types require only that callback,
+and the CPU records reset only after callback success. It does not reset CPU state.
+
+The [system probes](../../tests/components/cpus/semantics/68000-system.test.ts)
+independently scan all 8,393 encodings, check every status word and packed flag/mask
+combination, and compare capture order and each failed effect with live callback
+mutations. Additional CPU tests check status-source faults, destination reads and
+partial writes through A7, and every RTR frame byte in both banks. Existing tests
+retain exhaustive status logic, RTE, trace, exception, and RESET-connection checks.
+The core's superseded operand wrappers, status writers, instruction handlers,
+and return helpers are removed; memory address decoding and exception entry remain.
+
 Program/data byte callbacks retain full logical addresses until the existing
 adapter projects the bus and records access/fault metadata. Alignment outcomes
 carry the rejected logical address and access space; they return through nested
@@ -1956,15 +1991,15 @@ and shared support add 41, leaving one additional authored line overall.
 All 256 earlier definitions remain structurally unchanged. Compound writes
 remain ordinary statements and do not introduce a general register-view system.
 
-Subsequent migrations should identify the handwritten helpers they can retire.
-The 6502's arithmetic, result-writing, and operand-dispatch helpers are now gone;
-its byte-stack helpers still serve BRK/RTI and interrupt entry. Ordinary Intel
-status stacks also use generated bodies; the runtime call stack is private to
-the Z80's interrupt paths. Total source accounting remains in the
-[footprint report](coverage.md#source-footprint).
+All eight documented instruction inventories now use generated definitions.
+The next cleanup should review repeated definition construction and the remaining
+core/helper boundary, identifying obsolete code and checking total authored
+source in the [footprint report](coverage.md#source-footprint). Complete instruction
+migration does not yet provide a full CPU authoring language: lifecycle contracts,
+native decoders, external interfaces, and the literate format remain separate work.
 
 General addressing decoders (such as the full 6809 postbyte decoder), unbounded
-loops, wider register masks, and exception delivery remain outside the
+loops, and CPU-boundary exception delivery remain outside the
 semantic bodies. Pending 68000 address updates now have an explicit commit
 stage while the decoder still owns their calculation. Bounded numeric iteration and named instruction outcomes now
 serve 8088 arithmetic without moving CPU boundaries into the language. Register views and byte-mask stacks now have

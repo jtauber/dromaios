@@ -6,7 +6,7 @@ import { instructions as mos, opcodeEntries } from "../../../../src/components/c
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as motorola } from "../../../../src/components/cpus/generated/6809.js";
 import { instructions as motorola6800 } from "../../../../src/components/cpus/generated/6800.js";
-import { instructions68000, quick68000, moves68000, logic68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, instructions6502, interrupts6502, sources6502, instructions6800, instructions8008, instructions8080, instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088, instructions6809, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions68000, quick68000, moves68000, logic68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000, instructions6502, interrupts6502, sources6502, instructions6800, instructions8008, instructions8080, instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088, instructions6809, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
 import { cpuSymbols, addWrap, capture, highByte, lowByte, literal, readRegister, value, writeLatch, writeRegister, zero } from "../../../../src/components/cpus/semantics/model.js";
@@ -38,6 +38,7 @@ test("all generated modules reproduce from definitions without changing them", (
     assert.equal(JSON.stringify(definitions), before);
   }
   assert.equal(generateInstructions("68000", wordArithmetic68000), readFileSync("src/components/cpus/generated/68000-word-arithmetic.ts", "utf8"));
+  assert.equal(generateInstructions("68000", system68000), readFileSync("src/components/cpus/generated/68000-system.ts", "utf8"));
   assert.equal(generateInstructions("68000", transfers68000), readFileSync("src/components/cpus/generated/68000-transfers.ts", "utf8"));
   assert.equal(generateInstructions("68000", control68000), readFileSync("src/components/cpus/generated/68000-control.ts", "utf8"));
   assert.equal(generateInstructions("68000", decimal68000), readFileSync("src/components/cpus/generated/68000-decimal.ts", "utf8"));

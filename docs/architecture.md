@@ -35,12 +35,13 @@ are one such example: CPU-owned fields and constraints drive constructor
 validation, snapshot copying, machine parsing, and public state types. The
 types are derived from those descriptions; snapshot views remain explicit TypeScript.
 
-A bounded [instruction-semantics experiment](cpus/instruction-semantics.md) now
-represents comparisons and selected ordering cases as typed data, paired with
-prose. It validates those definitions and generates both expanded explanations
-and typed TypeScript bodies for selected 6502, 8080, and 6809 instructions. The
-CPU tables bind those bodies to their existing state and instruction contexts;
-decoding, recording, and lifecycle behavior remain in the current cores.
+The [instruction-semantics experiment](cpus/instruction-semantics.md) now
+represents all eight documented instruction sets as typed definitions paired
+with prose. Validation and generation produce both expanded explanations and
+typed TypeScript bodies. CPU tables bind those bodies to stored state and narrow
+execution contexts. Native decoders, recording, retirement, and exception-entry
+orchestration remain in the cores; the complete literate authoring format is
+still open.
 
 The rule of three applies to these generalizations too. We will use the 8080,
 6502, and 6809 examples to discover useful common descriptions while preserving

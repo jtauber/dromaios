@@ -7,7 +7,7 @@ interface CapturedValue { readonly code: string; readonly type: ValueType }
 type CapturedNumber = CapturedValue & { readonly type: Width };
 type Scope = ReadonlyMap<string, CapturedValue>;
 type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePort" | "deferInterrupt" | "notifyReti" | "reportInterrupt" | "readTest" | "sendEscape"
-  | "fetchWord" | "resolveAddress" | "commitAddressUpdates" | "readProgramByte" | "nextAddress" | "jump";
+  | "fetchWord" | "resolveAddress" | "commitAddressUpdates" | "readProgramByte" | "nextAddress" | "jump" | "resetDevices";
 
 /** Compile the bounded experiment to ordinary typed statements, without executing any effects. */
 export function generateInstructions(cpu: "6502" | "6800" | "68000" | "8008" | "8080" | "8088" | "6809" | "z80", definitions: Readonly<Record<string, InstructionDefinition>>,
@@ -28,6 +28,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "68000" | "8008" | "
     { name: "WordInstructionContext", file: "instruction-context", capabilities: ["fetchWord"] },
     { name: "Cpu68000AddressContext", file: "68000-context", capabilities: ["resolveAddress", "commitAddressUpdates", "readProgramByte"] },
     { name: "Cpu68000ControlContext", file: "68000-context", capabilities: ["nextAddress", "jump"] },
+    { name: "Cpu68000ResetContext", file: "68000-context", capabilities: ["resetDevices"] },
   ];
   const extensions = (capabilities: ReadonlySet<Capability>) => contextExtensions.filter(extension => extension.capabilities.some(name => capabilities.has(name)));
   const contextType = (capabilities: ReadonlySet<Capability>) => "ByteInstructionContext" + extensions(capabilities).map(extension => " & " + (extension.type ?? extension.name)).join("");
@@ -254,6 +255,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "68000" | "8008" | "
             continue;
           }
           case "notify-reti": emit(`${access("notifyReti")}();`); continue;
+          case "reset-devices": emit(`${access("resetDevices")}();`); continue;
           case "write-choice": emit(`state${field(step.choice.field)} = ${JSON.stringify(step.value)};`); continue;
           case "defer-interrupt": emit(`${access("deferInterrupt")}(${JSON.stringify(step.scope)});`); continue;
           case "write-port": emit(`${access("writePort")}(${number(step.port, scope).code}, ${number(step.value, scope).code});`); continue;

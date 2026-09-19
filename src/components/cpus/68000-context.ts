@@ -23,3 +23,8 @@ export interface TargetAlignmentFault {
   readonly operation: "fetch";
   readonly address: number;
 }
+
+/** RESET asserts the connected device reset signal; it does not reset CPU state. */
+export interface Cpu68000ResetContext {
+  readonly resetDevices: () => void;
+}

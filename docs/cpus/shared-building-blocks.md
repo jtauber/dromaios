@@ -1314,6 +1314,12 @@ the language is worth adopting.
 
 ### 5. Execute one slice and produce a useful second output
 
+Instruction-body migration now covers all eight documented opcode inventories.
+The [coverage report](coverage.md) records completion and total authored source;
+the development sequence below records how the executable experiment grew.
+Full-model authoring still needs lifecycle, decoder, interface, and literate-format
+work beyond these instruction bodies.
+
 The [current executable experiment](instruction-semantics.md#executable-generation-and-integration)
 generates and binds comparison bodies across six CPUs, logical bodies across
 the 6502/6800/6809, plus their byte loads/stores and Motorola word loads/stores,
@@ -1384,8 +1390,10 @@ the shared one-bit shift recipe, unsigned 32-bit intermediates, complete
 byte/word products, checked division, and named outcomes. These expose per-bit
 carry updates and failures before writeback without moving exception delivery
 into the generator. Decimal adjustments retain explicit original-chip policies.
-ModR/M resolution and retirement remain outside the bodies. The 68000 probes below remain
-requirements for later vocabulary. Whole-model migration remains a separate decision.
+ModR/M resolution and retirement remain outside the bodies. The 68000's later
+instruction migration represents pending updates, alignment, control flow,
+register masks, and status operations explicitly. Whole-model migration remains
+a separate decision.
 
 The 6502 now authors these migrated instructions as encoding families and
 generates their execution bindings too. All ordinary 6502 bodies now expand their address and operand sources,

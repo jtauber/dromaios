@@ -297,6 +297,9 @@ export function validateInstruction(definition: InstructionDefinition): void {
         case "report-interrupt":
           if (cpu.name !== "8088") fail(where, "software delivery reporting requires the 8088 boundary");
           expect(step.vector, 8); return;
+        case "reset-devices":
+          if (cpu.name !== "68000") fail(where, "device reset requires a 68000 connection");
+          return;
         case "read-test":
           if (cpu.name !== "8088") fail(where, "TEST sampling requires an 8088 connection");
           captured = "flag"; break;

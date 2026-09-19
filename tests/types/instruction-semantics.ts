@@ -1,3 +1,4 @@
+import { instructions as system68000 } from "../../src/components/cpus/generated/68000-system.js";
 import { instructions as transfers68000 } from "../../src/components/cpus/generated/68000-transfers.js";
 import { instructions as control68000 } from "../../src/components/cpus/generated/68000-control.js";
 import { instructions as arithmetic68000 } from "../../src/components/cpus/generated/68000-arithmetic.js";
@@ -1040,4 +1041,28 @@ export function check68000TransferTypes(state: Cpu68000State): void {
   transfers68000.MOVEM_32_store_memory(state, 2, 0, write);
   // @ts-expect-error PC-relative lists read program space, not data space.
   transfers68000.MOVEM_32_load_program(state, 7, 2, { ...read, resolveAddress: () => 0 });
+}
+
+export function check68000SystemTypes(state: Cpu68000State): void {
+  const word = { fetchWord: () => 0 }, memory = { resolveAddress: () => 0, commitAddressUpdates: () => {}, readByte: () => 0 };
+  const ccr: void = system68000.ORI_CCR(state, 0, 0, word);
+  const sr: void | "privilege-violation" = system68000.ORI_SR(state, 0, 0, word);
+  const reset: void | "privilege-violation" = system68000.RESET(state, 0, 0, { resetDevices: () => {} });
+  const line: void | "line-a" = system68000.LINE_A(state, 0, 0);
+  system68000.NOP(state, 0, 0);
+  system68000.MOVE_SR_memory(state, 3, 7, { ...memory, writeByte: () => {} });
+  system68000.MOVE_program_SR(state, 7, 2, { resolveAddress: () => 0, commitAddressUpdates: () => {}, readProgramByte: () => 0 });
+  system68000.RTE(state, 0, 0, { readByte: () => 0, jump: () => {} });
+  // @ts-expect-error Privileged status logic can reject before fetching an operand.
+  const success: void = system68000.ANDI_SR(state, 0, 0, word);
+  // @ts-expect-error RESET requires the explicit device connection.
+  system68000.RESET(state, 0, 0);
+  // @ts-expect-error RESET does not fetch operands or access memory.
+  system68000.RESET(state, 0, 0, { resetDevices: () => {}, readByte: () => 0 });
+  // @ts-expect-error SR destinations are read before being overwritten.
+  system68000.MOVE_SR_memory(state, 3, 7, { resolveAddress: () => 0, commitAddressUpdates: () => {}, writeByte: () => {} });
+  // @ts-expect-error Status sources require committing pending updates after restoration.
+  system68000.MOVE_memory_CCR(state, 3, 7, { resolveAddress: () => 0, readByte: () => 0 });
+  // @ts-expect-error Returns select a target only after complete reads and alignment validation.
+  system68000.RTR(state, 0, 0, { readByte: () => 0 });
 }

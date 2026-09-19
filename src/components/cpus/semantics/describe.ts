@@ -116,6 +116,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
         case "write-element": emit(`write ${step.array.field.toUpperCase()}[${number(step.index)}]:u${step.array.width} := ${number(step.value)}`); break;
         case "defer-interrupt": emit("request " + ({ irq: "IRQ", intr: "INTR", all: "all interrupt" }[step.scope]) + " deferral at successful retirement"); break;
         case "notify-reti": emit("request RETI device notification after successful architectural retirement"); break;
+        case "reset-devices": emit("assert connected device reset now; record only after callback success; preserve CPU state"); break;
         case "report-interrupt": emit(`report completed software interrupt delivery, vector ${number(step.vector)}`); break;
         case "read-test": emit(`${step.name}:flag := sample and record physical TEST level; high waits, low releases`); break;
         case "send-escape": emit(`send and record ESC opcode ${number(step.opcode)}, ModR/M ${number(step.modRM)}`

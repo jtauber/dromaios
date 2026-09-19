@@ -464,6 +464,60 @@ test("68000 host exceptions and invalid memory results never become emulated bus
   assert.throws(() => new Cpu68000(invalid as unknown as MemoryConnection, before).step(), /write must return nothing/);
 });
 
+test("68000 MOVE from SR commits A7 before destination reads and retains each completed status byte on failure", () => {
+  for (const s of [false, true]) for (const mode of [3, 4]) for (const operation of ["read", "write"] as const) for (const stop of [0, 1]) {
+    const before = state(); before.flags.s = s;
+    const opcode = 0x40c0 + mode * 8 + 7, base = s ? before.ssp : before.usp;
+    const address = base - (mode === 4 ? 2 : 0), updated = base + (mode === 3 ? 2 : -2);
+    const { memory, cpu } = fixture(word(opcode), before);
+    memory.load(address, [0xa5, 0x5a]);
+    let failed = false;
+    memory.fail = (kind, at) => {
+      if (failed || kind !== operation || at !== physical(address + stop)) return false;
+      failed = true; return true;
+    };
+    const record = cpu.step(), status = s ? 0xa217 : 0x8217;
+    checkBusFrame(record, memory, { operation, address: address + stop, returnPc: before.pc + 2, ir: opcode,
+      code: s ? 5 : 1, status, stack: (s ? updated : before.ssp) - 14 });
+    const completed = operation === "read" ? accesses("read", address, [0xa5, 0x5a].slice(0, stop))
+      : [...accesses("read", address, [0xa5, 0x5a]), ...accesses("write", address, word(status).slice(0, stop))];
+    assert.deepEqual(record.accesses.slice(2, -18), completed);
+    assert.equal(record.after.usp, s ? before.usp : updated);
+  }
+});
+
+test("68000 failed CCR/SR source reads retain old status and discard A7 updates while preserving program-space faults", () => {
+  for (const full of [false, true]) for (const s of full ? [true] : [false, true]) for (const ea of [0x1f, 0x27, 0x3a]) for (const stop of [0, 1]) {
+    const before = state(); before.flags.s = s;
+    const opcode = (full ? 0x46c0 : 0x44c0) + ea, program = ea === 0x3a;
+    const bytes = [...word(opcode), ...(program ? [0, 0x20] : [])];
+    const base = s ? before.ssp : before.usp, address = program ? before.pc + 0x22 : base - (ea === 0x27 ? 2 : 0);
+    const { memory, cpu } = fixture(bytes, before);
+    memory.load(address, [0, 0]);
+    memory.fail = (kind, at) => kind === "read" && at === physical(address + stop);
+    const record = cpu.step();
+    checkBusFrame(record, memory, { operation: "read", address: address + stop, returnPc: before.pc + bytes.length,
+      ir: opcode, code: s ? program ? 6 : 5 : program ? 2 : 1, status: s ? 0xa217 : 0x8217 });
+    assert.deepEqual(record.accesses.slice(bytes.length, -18), accesses("read", address, [0, 0].slice(0, stop)));
+    assert.equal(record.after.usp, before.usp); assert.equal(record.after.interruptMask, before.interruptMask);
+    assert.deepEqual(record.after.flags, { ...before.flags, t: false, s: true });
+  }
+});
+
+test("68000 RTR bus faults preserve the original pointer and CCR at every frame byte in both banks", () => {
+  for (const s of [false, true]) for (let stop = 0; stop < 6; stop++) {
+    const before = state(); before.flags.s = s;
+    const { memory, cpu } = fixture([0x4e, 0x77], before), address = s ? before.ssp : before.usp;
+    const frame = [0, 0, 0xcd, 0, 0x20, 0]; memory.load(address, frame);
+    memory.fail = (kind, at) => kind === "read" && at === physical(address + stop);
+    const record = cpu.step();
+    checkBusFrame(record, memory, { operation: "read", address: address + stop,
+      returnPc: before.pc + 2, ir: 0x4e77, code: s ? 5 : 1, status: s ? 0xa217 : 0x8217 });
+    assert.deepEqual(record.accesses.slice(2, -18), accesses("read", address, frame.slice(0, stop)));
+    assert.equal(record.after.usp, before.usp); assert.deepEqual(record.after.flags, { ...before.flags, s: true, t: false });
+  }
+});
+
 test("68000 RTE bus faults preserve unconsumed supervisor state and already completed frame reads", () => {
   for (let stop = 0; stop < 6; stop++) {
     const before = state(); before.flags.s = true;

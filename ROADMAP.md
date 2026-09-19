@@ -143,6 +143,12 @@ At each shared-code or language review, choose the next bounded experiment
 alongside accuracy and machine integration work. Current counts and specific
 gaps belong in the coverage tracker.
 
+Instruction-definition migration is now complete for all eight documented
+instruction inventories. The definitions generate execution and explanations;
+the next review should reduce repeated construction and obsolete helpers while
+measuring total authored source. Native decoders, lifecycle contracts, and the
+eventual literate authoring format remain separate work.
+
 ## 3. Make the examples explorable in the browser
 
 This work can begin with the existing examples and shared runner, alongside

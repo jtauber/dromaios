@@ -7,7 +7,7 @@ import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess, RecordedMemory } from "./memory-access.ts";
 import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.ts";
-import { cpu68000StateDescription } from "./state/68000.ts";
+import { cpu68000StateDescription, cpu68000ConditionCode, cpu68000SystemFlags } from "./state/68000.ts";
 import type { Cpu68000State, Cpu68000Flags } from "./state/68000.ts";
 export { cpu68000StateDescription } from "./state/68000.ts";
 export type { Cpu68000State, Cpu68000Flags } from "./state/68000.ts";
@@ -20,6 +20,8 @@ import { instructions as bitBodies } from "./generated/68000-bits.ts";
 import { bitForms68000 } from "./68000-bits.ts";
 import { instructions as wordArithmeticBodies } from "./generated/68000-word-arithmetic.ts";
 import { instructions as controlBodies } from "./generated/68000-control.ts";
+import { instructions as systemBodies } from "./generated/68000-system.ts";
+import { systemForms68000 } from "./68000-system.ts";
 import { instructions as transferBodies } from "./generated/68000-transfers.ts";
 import { transferForms68000 } from "./68000-transfers.ts";
 import { controlForms68000 } from "./68000-control.ts";
@@ -27,10 +29,9 @@ import { instructions as decimalBodies } from "./generated/68000-decimal.ts";
 import { arithmeticForms68000, wordArithmeticForms68000, decimalForms68000 } from "./68000-arithmetic.ts";
 import { logicForms68000 } from "./68000-logic.ts";
 import { operandMoveForms68000 } from "./68000-moves.ts";
-import type { Cpu68000AddressContext, Cpu68000ControlContext } from "./68000-context.ts";
-import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
+import type { Cpu68000AddressContext, Cpu68000ControlContext, Cpu68000ResetContext } from "./68000-context.ts";
+import { opcodeFamily, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { flagRegister } from "./flags.ts";
 
 export type Cpu68000Snapshot = ReadonlyState<Cpu68000State> & {
   /** Active stack pointer: SSP in supervisor mode, USP in user mode. */
@@ -44,9 +45,7 @@ export type Cpu68000MemoryAccess = MemoryAccess;
 export type Cpu68000Access = MemoryAccess | { readonly kind: "reset" };
 
 /** Host-owned devices; RESET invokes this connection without reinitializing the CPU. */
-export interface Cpu68000Connections {
-  readonly resetDevices: () => void;
-}
+export type Cpu68000Connections = Cpu68000ResetContext;
 
 export type Cpu68000InterruptLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type Cpu68000InterruptVector = number | "autovector" | "spurious";
@@ -145,8 +144,7 @@ interface MemoryContext extends ByteMemory {
   readonly readProgramByte: (address: number) => number;
 }
 
-interface InstructionContext extends MemoryContext, Cpu68000ControlContext {
-  readonly resetDevices: () => void;
+interface InstructionContext extends MemoryContext, Cpu68000ControlContext, Cpu68000ResetContext {
   readonly fetchWord: () => number;
   readonly fetchLong: () => number;
 }
@@ -161,18 +159,12 @@ const controlInstructions: Readonly<Record<string, (state: Cpu68000State, mode: 
 const transferInstructions: Readonly<Record<string, (state: Cpu68000State, mode: number, code: number,
   instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = transferBodies;
 
+const systemInstructions: Readonly<Record<string, (state: Cpu68000State, mode: number, code: number,
+  instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = systemBodies;
+
 type OpcodeHandler = (cpu: Cpu68000, instruction: InstructionContext) => InstructionFault | void;
-type DataRegister = `d${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`;
 type AddressRegister = `a${0 | 1 | 2 | 3 | 4 | 5 | 6}` | "usp" | "ssp";
 type OperandSize = 8 | 16 | 32;
-// A result requests writeback; comparisons and tests update flags and return nothing.
-type AluOperation = (cpu: Cpu68000, size: OperandSize, left: number, right: number) => number | void;
-type Operand =
-  | { readonly kind: "data"; readonly register: DataRegister }
-  | { readonly kind: "address"; readonly register: AddressRegister }
-  | { readonly kind: "memory"; readonly address: number; readonly programSpace: boolean }
-  | { readonly kind: "immediate"; readonly value: number };
-
 // Pending auto-updates are visible to the destination but commit only after alignment checks.
 type AddressUpdates = Map<AddressRegister, number>;
 interface ExceptionFrame { readonly stack: number; readonly status: number }
@@ -353,20 +345,9 @@ export class Cpu68000 {
     return code === 7 ? (this.#state.flags.s ? "ssp" : "usp") : Cpu68000.#addressRegisters[code]!;
   }
 
-  static readonly #conditionCode = flagRegister({ x: 4, n: 3, z: 2, v: 1, c: 0 });
-  static readonly #systemFlags = flagRegister({ t: 15, s: 13 });
-
   get #status(): number {
-    return Cpu68000.#systemFlags.encode(this.#state.flags) | (this.#state.interruptMask << 8)
-      | Cpu68000.#conditionCode.encode(this.#state.flags);
-  }
-
-  #setStatus(value: number, full: boolean): void {
-    Object.assign(this.#state.flags, Cpu68000.#conditionCode.decode(value));
-    if (full) {
-      Object.assign(this.#state.flags, Cpu68000.#systemFlags.decode(value));
-      this.#state.interruptMask = (value >>> 8) & 7;
-    }
+    return cpu68000SystemFlags.encode(this.#state.flags) | (this.#state.interruptMask << 8)
+      | cpu68000ConditionCode.encode(this.#state.flags);
   }
 
   // Opcode selectors and construction. Register and mode fields use numeric encoding order.
@@ -385,7 +366,6 @@ export class Cpu68000 {
 
   static readonly #dataRegisters = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
   static readonly #addressRegisters = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
-  static readonly #selectors = [0, 1, 2, 3, 4, 5, 6, 7] as const;
   static readonly #immediateBytes = Array.from({ length: 0x100 }, (_, value) => value);
 
   // Bind encodings once per model; handlers receive the executing CPU and capture no instance state.
@@ -400,69 +380,15 @@ export class Cpu68000 {
       [opcode, (cpu, instruction) => controlInstructions[body]!(cpu.#state, mode, code, displacement, cpu.#addressContext(instruction))]),
     ...transferForms68000.map(({ opcode, body, mode, code }): OpcodeEntry<OpcodeHandler> =>
       [opcode, (cpu, instruction) => transferInstructions[body]!(cpu.#state, mode, code, cpu.#addressContext(instruction))]),
-    // Status immediates reuse EA=111100: f=0 CCR (low five bits), f=1 privileged SR.
-    ...this.#statusImmediateHandlers("0000 0000 0 f 111100", (left, right) => left | right), // ORI #n,CCR/SR
-    ...this.#statusImmediateHandlers("0000 0010 0 f 111100", (left, right) => left & right), // ANDI #n,CCR/SR
-    ...this.#statusImmediateHandlers("0000 1010 0 f 111100", (left, right) => left ^ right), // EORI #n,CCR/SR
-
-    // Status transfers: ss=11 reuses unary slots. Sources are data EAs, word-sized even for CCR.
-    // MOVE from SR is unprivileged on the original 68000; its memory destination is read first.
-    ...this.#fixedAluHandlers("0100 0000 11 mmm rrr", 16, cpu => cpu.#status), // MOVE SR,<ea>
-    ...this.#statusMoveHandlers("0100 0100 11 mmm rrr", false), // MOVE <ea>,CCR
-    ...this.#statusMoveHandlers("0100 0110 11 mmm rrr", true), // MOVE <ea>,SR
-    // TAS's forbidden immediate slot is the explicit ILLEGAL instruction.
-    ...opcodePattern("0100 1010 1111 1100", (): Cpu68000Exception => "illegal-instruction"), // ILLEGAL
-
-    // 0100 1110 0100 vvvv: vvvv is the trap operand, selecting vectors 32..47.
-    ...opcodePattern("0100 1110 0100 xxxx", (): Cpu68000Exception => "trap"), // TRAP #n
-    // USP transfers: 0100 1110 0110 d rrr; d=0 An to USP, d=1 USP to An. Both are privileged.
-    ...opcodeFamily("0100 1110 0110 d rrr", { d: [false, true], r: this.#selectors }, ({ d, r }) => (cpu: Cpu68000) => cpu.#moveUserStack(r, d)), // MOVE An,USP / USP,An
-    // Fixed system words; 0100 is reserved on the original chip.
-    ...opcodePattern("0100 1110 0111 0000", (cpu: Cpu68000, instruction: InstructionContext): Cpu68000Exception | void => {
-      if (!cpu.#state.flags.s) return "privilege-violation";
-      instruction.resetDevices();
-    }), // RESET: assert the device reset connection; CPU registers are preserved.
-    ...opcodePattern("0100 1110 0111 0001", () => {}), // NOP
-    ...opcodePattern("0100 1110 0111 0010", (cpu: Cpu68000, instruction: InstructionContext) => cpu.#stop(instruction)), // STOP #SR
-    ...opcodePattern("0100 1110 0111 0011", (cpu: Cpu68000, instruction: InstructionContext) => cpu.#returnFromException(instruction)), // RTE
-    ...opcodePattern("0100 1110 0111 0110", (cpu: Cpu68000): Cpu68000Exception | void => {
-      if (cpu.#state.flags.v) return "overflow-trap";
-    }), // TRAPV
-    ...opcodePattern("0100 1110 0111 0111", (cpu: Cpu68000, instruction: InstructionContext) => cpu.#returnAndRestoreConditionCode(instruction)), // RTR
+    ...systemForms68000.map(({ opcode, body, mode, code }): OpcodeEntry<OpcodeHandler> =>
+      [opcode, (cpu, instruction) => systemInstructions[body]!(cpu.#state, mode, code, cpu.#addressContext(instruction))]),
     // 0111 rrr 0 iiiiiiii: rrr selects Dn; i is the signed immediate byte, extended to a long.
     // Bit 8 must be zero. Immediate values select handlers but do not add coverage forms.
     ...opcodeFamily("0111 rrr 0 iiiiiiii", { r: this.#dataRegisters, i: this.#immediateBytes }, ({ r: register, i: value }) => (cpu: Cpu68000) => quick[register](cpu.#state, value)), // MOVEQ #n,Dn
 
-    // Emulator lines: bits 15..12 select vector 10 or 11; all low twelve bits belong to software.
-    ...opcodePattern("1010 xxxx xxxx xxxx", (): Cpu68000Exception => "line-a"), // Line-A emulator
-    ...opcodePattern("1111 xxxx xxxx xxxx", (): Cpu68000Exception => "line-f"), // Line-F emulator
   ], 16);
 
-  static #statusImmediateHandlers(pattern: string, apply: (left: number, right: number) => number): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { f: [false, true] }, ({ f: full }) => (cpu: Cpu68000, instruction: InstructionContext) => {
-      if (full && !cpu.#state.flags.s) return "privilege-violation";
-      cpu.#setStatus(apply(cpu.#status, instruction.fetchWord()), full);
-    });
-  }
-
-  static #fixedAluHandlers(pattern: string, size: OperandSize, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { m: this.#selectors, r: this.#selectors }, ({ m, r }) => {
-      if (m === 1 || (m === 7 && r > 1)) return undefined;
-      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#effectiveAddressAlu(size, m, r, 0, apply, instruction);
-    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
-  }
-
-  static #statusMoveHandlers(pattern: string, full: boolean): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { m: this.#selectors, r: this.#selectors }, ({ m, r }) => {
-      if (m === 1 || (m === 7 && r > 4)) return undefined;
-      return (cpu: Cpu68000, instruction: InstructionContext) => {
-        if (full && !cpu.#state.flags.s) return "privilege-violation";
-        return cpu.#readDataWord(m, r, instruction, value => { cpu.#setStatus(value, full); });
-      };
-    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
-  }
-
-  // Exception entry and return. The original 68000 has no stacked frame-format word.
+  // Exception entry. The original 68000 has no stacked frame-format word.
 
   #beginException(bytes: 6 | 14): ExceptionFrame {
     const stack = this.#state.ssp;
@@ -562,30 +488,14 @@ export class Cpu68000 {
     return { source: "bus-error", operation, address };
   }
 
-  #returnFromException(instruction: InstructionContext): InstructionFault | void {
-    if (!this.#state.flags.s) return "privilege-violation";
-    const stack = this.#state.ssp;
-    if (stack % 2 !== 0) return { operation: "read", address: stack };
-    // RTE reads PC high, SR, then PC low, all through the original supervisor stack.
-    const high = this.#readMemory(16, stack + 2, instruction.readByte);
-    const status = this.#readMemory(16, stack, instruction.readByte);
-    const target = high * 0x10000 + this.#readMemory(16, stack + 4, instruction.readByte);
-    const fault = this.#jump(target, instruction);
-    if (fault) return fault;
-    this.#state.ssp = (stack + 6) >>> 0;
-    this.#setStatus(status, true); // Switching back to USP must not redirect any of the frame reads.
-  }
-
   // Effective addresses. Resolve each operand once, source before destination.
 
-  #resolveOperand(size: OperandSize, mode: number, code: number, instruction: InstructionContext, updates: AddressUpdates): Operand {
+  #resolveAddress(size: OperandSize, mode: number, code: number, instruction: InstructionContext, updates: AddressUpdates): number {
     const { fetchWord, fetchLong, nextAddress } = instruction;
     const register = this.#addressRegister(code);
     const base = updates.get(register) ?? this.#state[register];
     let address: number;
     switch (mode) {
-      case 0b000: return { kind: "data", register: Cpu68000.#dataRegisters[code]! }; // Dn
-      case 0b001: return { kind: "address", register }; // An
       case 0b010: address = base; break; // (An)
       case 0b011: // (An)+; A7 steps by two even for bytes.
         address = base;
@@ -604,13 +514,12 @@ export class Cpu68000 {
           // PC-relative bases are the extension word's address, before fetching it.
           case 0b010: address = nextAddress() + (fetchWord() << 16 >> 16); break; // (d16,PC)
           case 0b011: address = nextAddress() + this.#indexOffset(fetchWord(), updates); break; // (d8,PC,Xn)
-          case 0b100: return { kind: "immediate", value: this.#fetchImmediate(size, instruction) }; // #n
           default: throw new Error("Unsupported effective address reached execution.");
         }
         break;
       default: throw new Error("Invalid effective-address mode.");
     }
-    return { kind: "memory", address: address >>> 0, programSpace: mode === 7 && (code === 2 || code === 3) };
+    return address >>> 0;
   }
 
   #indexOffset(extension: number, updates: AddressUpdates): number {
@@ -623,100 +532,12 @@ export class Cpu68000 {
     return (extension & 0x0800 ? index : (index << 16 >> 16)) + signed8(extension & 0xff);
   }
 
-  #readOperand(size: OperandSize, operand: Operand, memory: MemoryContext): number {
-    const value = operand.kind === "memory" ? this.#readMemory(size, operand.address, operand.programSpace ? memory.readProgramByte : memory.readByte)
-      : operand.kind === "immediate" ? operand.value : this.#state[operand.register];
-    return value % 2 ** size;
-  }
-
-  #writeOperand(size: OperandSize, operand: Exclude<Operand, { kind: "immediate" }>, value: number, writeByte: ByteMemory["writeByte"]): void {
-    if (operand.kind === "address") this.#state[operand.register] = (size === 16 ? (value << 16 >> 16) : value) >>> 0;
-    else if (operand.kind === "memory") this.#writeMemory(size, operand.address, value, writeByte);
-    else this.#state[operand.register] = ((this.#state[operand.register] & ~(2 ** size - 1)) | value) >>> 0;
-  }
-
-  #fetchImmediate(size: OperandSize, { fetchWord, fetchLong }: InstructionContext): number {
-    // Byte immediates occupy a word whose high byte is ignored.
-    return size === 32 ? fetchLong() : fetchWord() % 2 ** size;
-  }
-
-  // Loads and stores. Source reads finish before resolving or writing the destination.
-
   #addressContext(instruction: InstructionContext): InstructionContext & Cpu68000AddressContext {
     const updates: AddressUpdates = new Map();
     return { ...instruction,
-      resolveAddress: (size, mode, code) => {
-        const operand = this.#resolveOperand(size, mode, code, instruction, updates);
-        if (operand.kind !== "memory") throw new Error("A memory address was expected by the instruction definition.");
-        return operand.address;
-      },
+      resolveAddress: (size, mode, code) => this.#resolveAddress(size, mode, code, instruction, updates),
       commitAddressUpdates: () => { for (const [register, address] of updates) this.#state[register] = address; },
     };
-  }
-
-  #readDataWord(mode: number, code: number, instruction: InstructionContext,
-    apply: (value: number) => void): AlignmentFault | void {
-    const updates: AddressUpdates = new Map();
-    const operand = this.#resolveOperand(16, mode, code, instruction, updates);
-    if (operand.kind === "memory" && operand.address % 2 !== 0) return { operation: "read", address: operand.address, programSpace: operand.programSpace };
-    apply(this.#readOperand(16, operand, instruction));
-    // Loading SR can change which stack pointer A7 selects before these updates commit.
-    for (const [register, address] of updates) this.#state[register] = address;
-  }
-
-  #moveUserStack(code: number, load: boolean): Cpu68000Exception | void {
-    if (!this.#state.flags.s) return "privilege-violation";
-    const register = this.#addressRegister(code);
-    if (load) this.#state[register] = this.#state.usp;
-    else this.#state.usp = this.#state[register];
-  }
-
-  // Remaining status returns. Validate targets before committing stack or status changes.
-
-  #jump(target: number, instruction: InstructionContext): AlignmentFault | void {
-    if (target % 2 !== 0) return { operation: "fetch", address: target };
-    instruction.jump(target);
-  }
-
-  #returnAndRestoreConditionCode(instruction: InstructionContext): AlignmentFault | void {
-    const stack = this.#addressRegister(7);
-    const address = this.#state[stack];
-    if (address % 2 !== 0) return { operation: "read", address };
-    const conditionCode = this.#readMemory(16, address, instruction.readByte);
-    const target = this.#readMemory(32, address + 2, instruction.readByte);
-    const fault = this.#jump(target, instruction);
-    if (fault) return fault;
-    this.#state[stack] = (address + 6) >>> 0;
-    this.#setStatus(conditionCode, false);
-  }
-
-  #stop(instruction: InstructionContext): Cpu68000Exception | void {
-    if (!this.#state.flags.s) return "privilege-violation";
-    this.#setStatus(instruction.fetchWord(), true);
-    this.#state.halted = true;
-  }
-
-  // Remaining status operations.
-
-  #effectiveAddressAlu(size: OperandSize, mode: number, code: number, value: number, apply: AluOperation,
-    instruction: InstructionContext): AlignmentFault | void {
-    const updates: AddressUpdates = new Map();
-    const destination = this.#resolveOperand(size, mode, code, instruction, updates);
-    if (destination.kind === "address") throw new Error("Invalid data-ALU destination reached execution.");
-    if (destination.kind === "memory" && size !== 8 && destination.address % 2 !== 0) return { operation: "read", address: destination.address };
-    this.#applyAlu(size, destination, value, apply, updates, instruction);
-  }
-
-  #applyAlu(size: OperandSize, destination: Operand, value: number,
-    apply: AluOperation, updates: AddressUpdates, instruction: InstructionContext): void {
-    // All alignment checks have passed. Commit auto-updates before reading the destination.
-    for (const [register, address] of updates) this.#state[register] = address;
-    const result = apply(this, size, this.#readOperand(size, destination, instruction), value);
-    // Comparisons and tests retain address auto-updates without writing a result.
-    if (result !== undefined) {
-      if (destination.kind === "immediate") throw new Error("An immediate operand cannot receive ALU writeback.");
-      this.#writeOperand(size, destination, result, instruction.writeByte);
-    }
   }
 
   // Memory access. Only bus addresses discard the high eight bits.

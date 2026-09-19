@@ -1,10 +1,12 @@
+import { systemForms68000 } from "../../68000-system.ts";
+import type { SystemForm68000 } from "../../68000-system.ts";
 import { transferForms68000 } from "../../68000-transfers.ts";
 import type { TransferForm68000 } from "../../68000-transfers.ts";
 import { controlForms68000, conditionNames68000 as conditionNames } from "../../68000-control.ts";
 import type { ControlForm68000 } from "../../68000-control.ts";
 import { motorolaBranchNames } from "../../motorola.ts";
 import { motorolaCondition } from "../motorola.ts";
-import { cpu68000StateDescription } from "../../state/68000.ts";
+import { cpu68000StateDescription, cpu68000ConditionCode, cpu68000SystemFlags } from "../../state/68000.ts";
 import { opcodeFamily } from "../../opcodes.ts";
 import { operandMoveForms68000 } from "../../68000-moves.ts";
 import { arithmeticForms68000, wordArithmeticForms68000, decimalForms68000 } from "../../68000-arithmetic.ts";
@@ -15,12 +17,12 @@ import { logicForms68000 } from "../../68000-logic.ts";
 import type { LogicOperation68000, LogicOperand68000 } from "../../68000-logic.ts";
 import { dataRegisters68000 as dataRegisters, addressRegisters68000 as addressRegisters, selectors68000 as codes } from "../../68000-operands.ts";
 import type { Operand68000, OperandSize68000 as Size, OperandRegister68000 as RegisterName } from "../../68000-operands.ts";
-import { addOverflow, addWrap, alignmentFault, and, borrow, carry, overflow, select, subtract, bitAnd, bitOr, bitXor, capture, commitAddressUpdates, concat, cpuSymbols, extend, fetchWord, flagLiteral, flagValue, literal, lowBit, negative, readFlag, readMemory, readProgramMemory, readRegister,
+import { readSource, resetDevices, writeLatch, addOverflow, addWrap, alignmentFault, and, borrow, carry, overflow, select, subtract, bitAnd, bitOr, bitXor, capture, commitAddressUpdates, concat, cpuSymbols, extend, fetchWord, flagLiteral, flagValue, literal, lowBit, negative, readFlag, readMemory, readProgramMemory, readRegister,
   readNextAddress, selectTarget, divide, multiply, not, reject, iterate, iterateTogether, or, xor, shiftLeft, resolveAddress, shiftBits, signExtend, truncate, updateFlags, value, when, writeMemory, writeRegister, zero } from "../model.ts";
 import type { FlagExpression, InstructionDefinition, NumberExpression, Register, Statement } from "../model.ts";
 import { arithmetic, instructionSet, shift, transfer } from "../builders.ts";
 import { choose } from "../control-flow.ts";
-import { flagPolicy } from "../status.ts";
+import { flagPolicy, packedStatus, updateStatus } from "../status.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("68000", cpu68000StateDescription);
@@ -142,11 +144,11 @@ function checkAlignment(size: Size, name: string, operation: "read" | "write", p
 }
 
 /** A7 reads introduce a scope; keep stages consuming the captured value inside it. */
-function withSource(size: Size, source: Operand68000, result: string, next: readonly Statement[]): readonly Statement[] {
+function withSource(size: Size, source: Operand68000, result: string, next: readonly Statement[], selectors = { mode: "sourceMode", code: "sourceCode" }): readonly Statement[] {
   return source.kind === "register"
     ? withRegister(source.name, "sourceSupervisor", from => [readRegister("sourceRegister", from), capture(result, narrow(value("sourceRegister"), size)), ...next])
     : source.kind === "immediate" ? [...immediateRead(size, result), ...next]
-    : [resolveAddress("sourceAddress", size, value("sourceMode"), value("sourceCode")),
+    : [resolveAddress("sourceAddress", size, value(selectors.mode), value(selectors.code)),
       ...checkAlignment(size, "sourceAddress", "read", source.name === "program"),
       ...memoryRead(size, "sourceAddress", result, source.name === "program"), ...next];
 }
@@ -562,3 +564,93 @@ function control(form: ControlForm68000): InstructionDefinition {
 const controlBodies = new Map<string, InstructionDefinition>();
 for (const form of controlForms68000) if (!controlBodies.has(form.body)) controlBodies.set(form.body, control(form));
 export const control68000 = Object.freeze(Object.fromEntries(controlBodies));
+
+const privileged = (): readonly Statement[] => [readFlag("supervisor", cpu.flag("s")), when(not(flagValue("supervisor")), [reject("privilege-violation")])];
+
+/** Preserve runtime SR capture order: system flags, interrupt mask, then condition codes. */
+function readStatus(): readonly Statement[] {
+  return [readSource("system", packedStatus(cpu, cpu68000SystemFlags)), readRegister("interruptMask", cpu.register("interruptMask")),
+    readSource("condition", packedStatus(cpu, cpu68000ConditionCode)),
+    capture("status", bitOr(bitOr(value("system"), shiftBits(extend(value("interruptMask"), 16), "left", 8)), value("condition")))];
+}
+
+/** CCR writes preserve the flag object and system fields; full SR writes restore those fields afterward. */
+function writeStatus(contents: NumberExpression, full: boolean): readonly Statement[] {
+  return [updateStatus(cpu, cpu68000ConditionCode, contents), ...(full ? [updateStatus(cpu, cpu68000SystemFlags, contents),
+    writeRegister(cpu.register("interruptMask"), truncate(shiftBits(contents, "right", 8), 3))] : [])];
+}
+
+function statusReturn(full: boolean): readonly Statement[] {
+  const restore = (stack: Register): readonly Statement[] => [readRegister("stack", stack), ...checkAlignment(16, "stack", "read"),
+    ...(full ? [capture("highAddress", byteAddress("stack", 2)), ...memoryRead(16, "highAddress", "high"),
+      ...memoryRead(16, "stack", "status"), capture("lowAddress", byteAddress("stack", 4)), ...memoryRead(16, "lowAddress", "low"),
+      capture("target", concat(value("high"), value("low")))]
+      : [...memoryRead(16, "stack", "status"), capture("targetAddress", byteAddress("stack", 2)), ...memoryRead(32, "targetAddress", "target")]),
+    ...jumpTarget(), writeRegister(stack, byteAddress("stack", 6)), ...writeStatus(value("status"), full)];
+  return full ? [...privileged(), ...restore(cpu.register("ssp"))] : withRegister("a7", "stackSupervisor", restore);
+}
+
+function system(form: SystemForm68000): InstructionDefinition {
+  let name: string, explanation: string, steps: readonly Statement[];
+  switch (form.kind) {
+    case "immediate": {
+      name = `${form.operation} #n,${form.full ? "SR" : "CCR"}`;
+      explanation = "Check SR privilege before any status capture or operand fetch. Capture old packed SR before fetching the complete immediate word. "
+        + "Apply logical status changes to that captured value, ignoring reserved bits. CCR preserves T/S and the live interrupt mask; SR restores them after X/N/Z/V/C.";
+      const apply = { ORI: bitOr, ANDI: bitAnd, EORI: bitXor }[form.operation];
+      steps = [...(form.full ? privileged() : []), ...readStatus(), fetchWord("immediate"),
+        capture("result", apply(value("status"), value("immediate"))), ...writeStatus(value("result"), form.full)];
+      break;
+    }
+    case "from-status":
+      name = `MOVE SR,${form.operand.name.toUpperCase()}`;
+      explanation = "Unprivileged on the original 68000. Resolve and align the destination, committing auto-updates before reading it. "
+        + "Then capture packed SR and write its word, preserving live upper Dn bits and every flag. A failed read retains address updates; a failed write retains completed bytes.";
+      steps = aluDestination(16, form.operand, form.operand.kind === "memory",
+        [...readStatus(), capture("result", value("status"))], true, { mode: "mode", code: "code" });
+      break;
+    case "to-status":
+      name = `MOVE ${form.operand.name.toUpperCase()},${form.full ? "SR" : "CCR"}`;
+      explanation = "Check SR privilege before resolving or reading the source. Read a complete word even for CCR, rejecting odd memory addresses first. "
+        + "Restore status before committing staged address updates, which retain their original stack bank even if S changes. A failed source leaves status and pending updates untouched.";
+      steps = [...(form.full ? privileged() : []), ...withSource(16, form.operand, "status",
+        [...writeStatus(value("status"), form.full), ...(form.operand.kind === "memory" ? [commitAddressUpdates()] : [])], { mode: "mode", code: "code" })];
+      break;
+    case "user-stack":
+      name = `MOVE ${form.load ? `USP,${form.register.toUpperCase()}` : `${form.register.toUpperCase()},USP`}`;
+      explanation = "Check privilege before selecting An's identity. Capture the complete source before writing the destination; A7 selects SSP in supervisor mode. Preserve every flag.";
+      steps = [...privileged(), ...withRegister(form.register, "addressSupervisor", register => [
+        readRegister("source", form.load ? cpu.register("usp") : register), writeRegister(form.load ? register : cpu.register("usp"), value("source"))])];
+      break;
+    case "exception":
+      name = form.body === "TRAP" ? "TRAP #n" : form.body;
+      explanation = "Request synchronous exception delivery without changing state here. The CPU boundary selects the vector and saved PC, and owns frame entry, trace, and nested faults.";
+      steps = [reject(form.reason)];
+      break;
+    case "simple":
+      name = form.operation;
+      switch (form.operation) {
+        case "RESET":
+          explanation = "Check privilege before asserting the device reset connection. Record the reset only after the callback succeeds. Preserve CPU state; callback failure prevents retirement.";
+          steps = [...privileged(), resetDevices()]; break;
+        case "NOP": explanation = "No effects after opcode fetching."; steps = []; break;
+        case "STOP":
+          explanation = "Check privilege before fetching the complete status word. Restore SR, including S/T and interrupt mask, before halting. A failed fetch changes neither status nor halt state.";
+          steps = [...privileged(), fetchWord("status"), ...writeStatus(value("status"), true), writeLatch(cpu.latch("halted"), true)]; break;
+        case "TRAPV": explanation = "Request overflow-trap delivery only when V is set; preserve every flag and register.";
+          steps = [readFlag("overflow", cpu.flag("v")), when(flagValue("overflow"), [reject("overflow-trap")])]; break;
+        case "RTE": case "RTR":
+          explanation = (form.operation === "RTE" ? "Check privilege, then capture SSP. Read PC high, SR, then PC low through the original supervisor stack. "
+            : "Capture the active stack bank. Read the condition-code word, then the complete long return address. ")
+            + "Reject odd stack addresses before reading. Validate and select the target before advancing the captured stack by six and restoring status. "
+            + "Failed reads or an odd target leave the pointer and status unchanged; switching S never redirects frame reads.";
+          steps = statusReturn(form.operation === "RTE"); break;
+      }
+      break;
+  }
+  return defineInstruction({ cpu: cpu.declaration, name, explanation, inputs: { mode: 3, code: 3 }, steps });
+}
+
+const systemBodies = new Map<string, InstructionDefinition>();
+for (const form of systemForms68000) if (!systemBodies.has(form.body)) systemBodies.set(form.body, system(form));
+export const system68000 = Object.freeze(Object.fromEntries(systemBodies));
