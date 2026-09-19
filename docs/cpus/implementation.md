@@ -196,6 +196,14 @@ Use named local iteration values for the result, extend, carry, and accumulated
 overflow, updating them together and publishing architectural flags afterward.
 Keep zero-count flag rules and TAS's original-byte flag calculation explicit.
 
+Word-source MUL/DIV/CHK commit source updates after their result/flag effects,
+including before requesting a synchronous exception. Preserve that stage when
+sharing source readers. Use division's optional overflow capture when quotient
+overflow completes by setting a flag; keep zero-divisor rejection and all flag
+policies explicit. Decimal pairs reuse the ALU destination stages, correct low
+then high digit, and publish C/X before reading cumulative Z. This differs from
+binary extended arithmetic's earlier Z capture.
+
 The complete support inventory belongs in [CPU implementation coverage](coverage.md).
 This guide describes organization and does not replace the model contracts or
 manufacturer references for instruction behavior.

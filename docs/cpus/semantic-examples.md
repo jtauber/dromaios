@@ -196626,6 +196626,19230 @@ write memory[destinationAddress] := result
 
 Flags preserved throughout: X, T, S.
 
+### 68000 MULU.W D0,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplyUnsigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D1,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplyUnsigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D2,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplyUnsigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D3,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplyUnsigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D4,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplyUnsigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D5,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplyUnsigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D6,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplyUnsigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D7,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplyUnsigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W MEMORY,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D0
+result := multiplyUnsigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W PROGRAM,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D0
+result := multiplyUnsigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W IMMEDIATE,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D0
+result := multiplyUnsigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D0,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplyUnsigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D1,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplyUnsigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D2,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplyUnsigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D3,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplyUnsigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D4,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplyUnsigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D5,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplyUnsigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D6,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplyUnsigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D7,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplyUnsigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W MEMORY,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D1
+result := multiplyUnsigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W PROGRAM,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D1
+result := multiplyUnsigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W IMMEDIATE,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D1
+result := multiplyUnsigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D0,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplyUnsigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D1,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplyUnsigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D2,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplyUnsigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D3,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplyUnsigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D4,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplyUnsigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D5,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplyUnsigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D6,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplyUnsigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D7,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplyUnsigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W MEMORY,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D2
+result := multiplyUnsigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W PROGRAM,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D2
+result := multiplyUnsigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W IMMEDIATE,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D2
+result := multiplyUnsigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D0,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplyUnsigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D1,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplyUnsigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D2,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplyUnsigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D3,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplyUnsigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D4,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplyUnsigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D5,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplyUnsigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D6,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplyUnsigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D7,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplyUnsigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W MEMORY,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D3
+result := multiplyUnsigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W PROGRAM,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D3
+result := multiplyUnsigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W IMMEDIATE,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D3
+result := multiplyUnsigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D0,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplyUnsigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D1,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplyUnsigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D2,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplyUnsigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D3,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplyUnsigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D4,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplyUnsigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D5,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplyUnsigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D6,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplyUnsigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D7,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplyUnsigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W MEMORY,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D4
+result := multiplyUnsigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W PROGRAM,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D4
+result := multiplyUnsigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W IMMEDIATE,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D4
+result := multiplyUnsigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D0,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplyUnsigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D1,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplyUnsigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D2,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplyUnsigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D3,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplyUnsigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D4,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplyUnsigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D5,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplyUnsigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D6,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplyUnsigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D7,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplyUnsigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W MEMORY,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D5
+result := multiplyUnsigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W PROGRAM,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D5
+result := multiplyUnsigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W IMMEDIATE,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D5
+result := multiplyUnsigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D0,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplyUnsigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D1,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplyUnsigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D2,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplyUnsigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D3,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplyUnsigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D4,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplyUnsigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D5,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplyUnsigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D6,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplyUnsigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D7,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplyUnsigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W MEMORY,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D6
+result := multiplyUnsigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W PROGRAM,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D6
+result := multiplyUnsigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W IMMEDIATE,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D6
+result := multiplyUnsigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D0,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplyUnsigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D1,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplyUnsigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D2,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplyUnsigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D3,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplyUnsigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D4,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplyUnsigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D5,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplyUnsigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D6,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplyUnsigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W D7,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplyUnsigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W MEMORY,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D7
+result := multiplyUnsigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W PROGRAM,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D7
+result := multiplyUnsigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULU.W IMMEDIATE,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D7
+result := multiplyUnsigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D0,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplySigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D1,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplySigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D2,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplySigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D3,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplySigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D4,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplySigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D5,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplySigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D6,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplySigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D7,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D0
+result := multiplySigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W MEMORY,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D0
+result := multiplySigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W PROGRAM,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D0
+result := multiplySigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W IMMEDIATE,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D0
+result := multiplySigned(low16(original), source)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D0,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplySigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D1,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplySigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D2,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplySigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D3,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplySigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D4,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplySigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D5,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplySigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D6,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplySigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D7,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D1
+result := multiplySigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W MEMORY,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D1
+result := multiplySigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W PROGRAM,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D1
+result := multiplySigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W IMMEDIATE,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D1
+result := multiplySigned(low16(original), source)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D0,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplySigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D1,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplySigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D2,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplySigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D3,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplySigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D4,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplySigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D5,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplySigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D6,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplySigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D7,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D2
+result := multiplySigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W MEMORY,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D2
+result := multiplySigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W PROGRAM,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D2
+result := multiplySigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W IMMEDIATE,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D2
+result := multiplySigned(low16(original), source)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D0,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplySigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D1,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplySigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D2,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplySigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D3,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplySigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D4,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplySigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D5,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplySigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D6,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplySigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D7,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D3
+result := multiplySigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W MEMORY,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D3
+result := multiplySigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W PROGRAM,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D3
+result := multiplySigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W IMMEDIATE,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D3
+result := multiplySigned(low16(original), source)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D0,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplySigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D1,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplySigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D2,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplySigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D3,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplySigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D4,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplySigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D5,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplySigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D6,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplySigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D7,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D4
+result := multiplySigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W MEMORY,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D4
+result := multiplySigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W PROGRAM,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D4
+result := multiplySigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W IMMEDIATE,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D4
+result := multiplySigned(low16(original), source)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D0,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplySigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D1,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplySigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D2,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplySigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D3,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplySigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D4,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplySigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D5,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplySigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D6,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplySigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D7,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D5
+result := multiplySigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W MEMORY,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D5
+result := multiplySigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W PROGRAM,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D5
+result := multiplySigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W IMMEDIATE,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D5
+result := multiplySigned(low16(original), source)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D0,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplySigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D1,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplySigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D2,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplySigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D3,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplySigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D4,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplySigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D5,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplySigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D6,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplySigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D7,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D6
+result := multiplySigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W MEMORY,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D6
+result := multiplySigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W PROGRAM,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D6
+result := multiplySigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W IMMEDIATE,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D6
+result := multiplySigned(low16(original), source)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D0,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplySigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D1,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplySigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D2,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplySigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D3,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplySigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D4,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplySigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D5,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplySigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D6,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplySigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W D7,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D7
+result := multiplySigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W MEMORY,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D7
+result := multiplySigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W PROGRAM,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D7
+result := multiplySigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MULS.W IMMEDIATE,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D7
+result := multiplySigned(low16(original), source)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D0,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D1,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D2,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D3,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D4,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D5,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D6,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D7,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W MEMORY,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W PROGRAM,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W IMMEDIATE,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D0,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D1,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D2,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D3,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D4,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D5,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D6,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D7,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W MEMORY,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W PROGRAM,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W IMMEDIATE,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D0,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D1,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D2,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D3,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D4,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D5,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D6,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D7,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W MEMORY,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W PROGRAM,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W IMMEDIATE,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D0,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D1,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D2,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D3,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D4,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D5,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D6,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D7,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W MEMORY,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W PROGRAM,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W IMMEDIATE,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D0,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D1,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D2,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D3,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D4,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D5,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D6,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D7,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W MEMORY,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W PROGRAM,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W IMMEDIATE,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D0,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D1,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D2,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D3,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D4,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D5,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D6,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D7,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W MEMORY,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W PROGRAM,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W IMMEDIATE,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D0,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D1,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D2,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D3,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D4,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D5,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D6,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D7,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W MEMORY,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W PROGRAM,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W IMMEDIATE,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D0,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D1,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D2,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D3,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D4,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D5,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D6,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W D7,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W MEMORY,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W PROGRAM,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVU.W IMMEDIATE,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideUnsigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the unsigned divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D0,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D1,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D2,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D3,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D4,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D5,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D6,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D7,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W MEMORY,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W PROGRAM,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W IMMEDIATE,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D0
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D0:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D0,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D1,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D2,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D3,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D4,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D5,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D6,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D7,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W MEMORY,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W PROGRAM,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W IMMEDIATE,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D1
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D1:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D0,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D1,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D2,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D3,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D4,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D5,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D6,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D7,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W MEMORY,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W PROGRAM,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W IMMEDIATE,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D2
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D2:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D0,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D1,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D2,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D3,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D4,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D5,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D6,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D7,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W MEMORY,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W PROGRAM,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W IMMEDIATE,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D3
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D3:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D0,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D1,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D2,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D3,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D4,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D5,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D6,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D7,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W MEMORY,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W PROGRAM,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W IMMEDIATE,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D4
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D4:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D0,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D1,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D2,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D3,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D4,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D5,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D6,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D7,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W MEMORY,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W PROGRAM,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W IMMEDIATE,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D5
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D5:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D0,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D1,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D2,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D3,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D4,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D5,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D6,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D7,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W MEMORY,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W PROGRAM,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W IMMEDIATE,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D6
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D6:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D0,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D1,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D2,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D3,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D4,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D5,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D6,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W D7,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W MEMORY,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W PROGRAM,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 DIVS.W IMMEDIATE,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+flags "68000 division carry" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+when isZero(source) {
+  return outcome "divide-by-zero"; no later effects
+}
+dividend:u32 := read D7
+quotient, remainder := divideSigned(dividend, source)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+quotientOverflow:flag := quotient does not fit the signed divisor width
+// Zero divisor returns "divide-by-zero". Overflow continues with truncated results; the caller decides whether to write them.
+when quotientOverflow {
+  flags "68000 division overflow" simultaneously {
+    V := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(quotientOverflow) {
+  write D7:u32 := concatHighLow(remainder, quotient)
+  flags "68000 result" simultaneously {
+    N := topBit(quotient)
+    Z := isZero(quotient)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 CHK.W D0,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D0
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D1,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D0
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D2,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D0
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D3,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D0
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D4,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D0
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D5,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D0
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D6,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D0
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D7,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D0
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W MEMORY,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D0
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W PROGRAM,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D0
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W IMMEDIATE,D0
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D0
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D0,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D1
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D1,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D1
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D2,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D1
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D3,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D1
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D4,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D1
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D5,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D1
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D6,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D1
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D7,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D1
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W MEMORY,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D1
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W PROGRAM,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D1
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W IMMEDIATE,D1
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D1
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D0,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D2
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D1,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D2
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D2,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D2
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D3,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D2
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D4,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D2
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D5,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D2
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D6,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D2
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D7,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D2
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W MEMORY,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D2
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W PROGRAM,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D2
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W IMMEDIATE,D2
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D2
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D0,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D3
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D1,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D3
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D2,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D3
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D3,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D3
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D4,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D3
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D5,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D3
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D6,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D3
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D7,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D3
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W MEMORY,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D3
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W PROGRAM,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D3
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W IMMEDIATE,D3
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D3
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D0,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D4
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D1,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D4
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D2,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D4
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D3,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D4
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D4,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D4
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D5,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D4
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D6,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D4
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D7,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D4
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W MEMORY,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D4
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W PROGRAM,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D4
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W IMMEDIATE,D4
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D4
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D0,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D5
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D1,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D5
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D2,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D5
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D3,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D5
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D4,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D5
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D5,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D5
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D6,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D5
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D7,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D5
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W MEMORY,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D5
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W PROGRAM,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D5
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W IMMEDIATE,D5
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D5
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D0,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D6
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D1,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D6
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D2,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D6
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D3,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D6
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D4,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D6
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D5,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D6
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D6,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D6
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D7,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D6
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W MEMORY,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D6
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W PROGRAM,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D6
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W IMMEDIATE,D6
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D6
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D0,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low16(sourceRegister)
+original:u32 := read D7
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D1,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low16(sourceRegister)
+original:u32 := read D7
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D2,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low16(sourceRegister)
+original:u32 := read D7
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D3,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low16(sourceRegister)
+original:u32 := read D7
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D4,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low16(sourceRegister)
+original:u32 := read D7
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D5,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low16(sourceRegister)
+original:u32 := read D7
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D6,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low16(sourceRegister)
+original:u32 := read D7
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W D7,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low16(sourceRegister)
+original:u32 := read D7
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W MEMORY,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read memory[sourceAddress]
+sourceByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D7
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W PROGRAM,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+sourceByte0:u8 := read program memory[sourceAddress]
+sourceByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+source := concatHighLow(sourceByte0, sourceByte1)
+original:u32 := read D7
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  return outcome "bounds-check"; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 CHK.W IMMEDIATE,D7
+
+Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceHigh:u16 := fetch complete native-order word
+source := sourceHigh
+original:u32 := read D7
+tested := low16(original)
+when or(topBit(tested), or(topBit(source), borrow(source, tested))) {
+  flags "68000 failed bound" simultaneously {
+    N := topBit(tested)
+  } // Preserve unlisted flags.
+  return outcome "bounds-check"; no later effects
+}
+```
+
+Flags preserved throughout: X, Z, V, C, T, S.
+
+### 68000 SBCD D0,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D1,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D2,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D3,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D4,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D5,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D6,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D7,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD MEMORY,MEMORY
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+sourceByte0:u8 := read memory[sourceAddress]
+source := sourceByte0
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D0,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D1,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D2,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D3,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D4,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D5,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D6,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D7,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D0,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D1,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D2,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D3,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D4,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D5,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D6,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D7,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D0,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D1,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D2,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D3,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D4,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D5,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D6,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D7,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D0,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D1,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D2,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D3,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D4,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D5,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D6,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D7,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D0,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D1,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D2,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D3,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D4,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D5,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D6,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D7,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D0,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D1,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D2,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D3,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D4,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D5,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D6,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D7,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D0,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D1,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D2,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D3,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D4,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D5,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D6,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 SBCD D7,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D0,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D1,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D2,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D3,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D4,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D5,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D6,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D7,D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD MEMORY,MEMORY
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+sourceByte0:u8 := read memory[sourceAddress]
+source := sourceByte0
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D0,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D1,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D2,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D3,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D4,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D5,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D6,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D7,D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D0,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D1,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D2,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D3,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D4,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D5,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D6,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D7,D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D0,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D1,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D2,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D3,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D4,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D5,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D6,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D7,D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D0,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D1,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D2,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D3,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D4,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D5,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D6,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D7,D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D0,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D1,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D2,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D3,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D4,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D5,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D6,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D7,D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D0,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D1,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D2,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D3,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D4,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D5,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D6,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D7,D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D0,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D0
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D1,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D1
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D2,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D2
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D3,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D3
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D4,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D4
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D5,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D5
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D6,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D6
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 ABCD D7,D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceRegister:u32 := read D7
+source := low8(sourceRegister)
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := destination
+right := source
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := addWrap(leftLow, rightLow, extend)
+digitLow := bitAnd(select(not(borrow(rawLow, 0A:u8)), addWrap(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := addWrap(leftHigh, rightHigh, not(borrow(rawLow, 0A:u8)))
+digitHigh := bitAnd(select(not(borrow(rawHigh, 0A:u8)), addWrap(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := not(borrow(rawHigh, 0A:u8))
+  X := not(borrow(rawHigh, 0A:u8))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 NBCD D0
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+destinationRegister:u32 := read D0
+destination := low8(destinationRegister)
+extend:flag := read X
+left := 00:u8
+right := destination
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 NBCD D1
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+destinationRegister:u32 := read D1
+destination := low8(destinationRegister)
+extend:flag := read X
+left := 00:u8
+right := destination
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 NBCD D2
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+destinationRegister:u32 := read D2
+destination := low8(destinationRegister)
+extend:flag := read X
+left := 00:u8
+right := destination
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 NBCD D3
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+destinationRegister:u32 := read D3
+destination := low8(destinationRegister)
+extend:flag := read X
+left := 00:u8
+right := destination
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 NBCD D4
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+destinationRegister:u32 := read D4
+destination := low8(destinationRegister)
+extend:flag := read X
+left := 00:u8
+right := destination
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 NBCD D5
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+destinationRegister:u32 := read D5
+destination := low8(destinationRegister)
+extend:flag := read X
+left := 00:u8
+right := destination
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 NBCD D6
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+destinationRegister:u32 := read D6
+destination := low8(destinationRegister)
+extend:flag := read X
+left := 00:u8
+right := destination
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 NBCD D7
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+destinationRegister:u32 := read D7
+destination := low8(destinationRegister)
+extend:flag := read X
+left := 00:u8
+right := destination
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: N, V, T, S.
+
+### 68000 NBCD MEMORY
+
+Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+destinationByte0:u8 := read memory[destinationAddress]
+destination := destinationByte0
+extend:flag := read X
+left := 00:u8
+right := destination
+leftLow := bitAnd(shiftBitsRight(left, 0), 0F:u8)
+rightLow := bitAnd(shiftBitsRight(right, 0), 0F:u8)
+rawLow := subtract(leftLow, rightLow, extend)
+digitLow := bitAnd(select(borrow(leftLow, rightLow, extend), subtract(rawLow, 06:u8), rawLow), 0F:u8)
+leftHigh := bitAnd(shiftBitsRight(left, 4), 0F:u8)
+rightHigh := bitAnd(shiftBitsRight(right, 4), 0F:u8)
+rawHigh := subtract(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+digitHigh := bitAnd(select(borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend)), subtract(rawHigh, 06:u8), rawHigh), 0F:u8)
+result := bitOr(shiftBitsLeft(digitHigh, 4), digitLow)
+flags "68000 decimal carry" simultaneously {
+  C := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+  X := borrow(leftHigh, rightHigh, borrow(leftLow, rightLow, extend))
+} // Preserve unlisted flags.
+previousZero:flag := read Z
+flags "68000 decimal zero" simultaneously {
+  Z := and(previousZero, isZero(result))
+} // Preserve unlisted flags.
+write memory[destinationAddress] := result
+```
+
+Flags preserved throughout: N, V, T, S.
+
 ### 6502 BRK
 
 Fetch padding before saving PC; stack B set. Push PC high then live PC low, then packed status with old I. Set I only after those writes; preserve NMOS D. Read the complete low-first vector before replacing PC. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.

@@ -1,5 +1,7 @@
 import { instructions as arithmetic68000 } from "../../src/components/cpus/generated/68000-arithmetic.js";
 import { instructions as bits68000 } from "../../src/components/cpus/generated/68000-bits.js";
+import { instructions as wordArithmetic68000 } from "../../src/components/cpus/generated/68000-word-arithmetic.js";
+import { instructions as decimal68000 } from "../../src/components/cpus/generated/68000-decimal.js";
 import { instructions as logic68000 } from "../../src/components/cpus/generated/68000-logic.js";
 import { instructions as moves68000 } from "../../src/components/cpus/generated/68000-moves.js";
 import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../src/components/cpus/68000-context.js";
@@ -976,4 +978,22 @@ export function check68000BitTypes(state: Cpu68000State): void {
   bits68000.BTST_8_d0_program(state, 0, 0, 7, 2, { ...addressing, readByte: () => 0 });
   // @ts-expect-error A word shift can reject alignment before reading the operand.
   const success: void = bits68000.ASL_16_one_memory(state, 0, 0, 3, 7, { ...addressing, readByte: () => 0, writeByte: () => {} });
+}
+
+export function check68000WordAndDecimalTypes(state: Cpu68000State): void {
+  const addressing = { resolveAddress: () => 0, commitAddressUpdates: () => {} };
+  wordArithmetic68000.MULS_d0_d1(state, 0, 0, 0, 1);
+  const division: void | "divide-by-zero" = wordArithmetic68000.DIVS_d0_d1(state, 0, 0, 0, 1);
+  const checked: void | OperandAlignmentFault | "bounds-check" = wordArithmetic68000.CHK_program_d0(state, 7, 2, 0, 0,
+    { ...addressing, readProgramByte: () => 0 });
+  decimal68000.ABCD_memory_memory(state, 4, 7, 4, 7, { ...addressing, readByte: () => 0, writeByte: () => {} });
+  decimal68000.NBCD_none_d0(state, 0, 0, 0, 0);
+  // @ts-expect-error Quotient overflow completes; divide-by-zero remains a possible outcome.
+  const success: void = wordArithmetic68000.DIVU_d0_d1(state, 0, 0, 0, 1);
+  // @ts-expect-error Word-source arithmetic never writes data memory.
+  wordArithmetic68000.MULU_memory_d0(state, 3, 7, 0, 0, { ...addressing, readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Immediate sources fetch a complete native word.
+  wordArithmetic68000.CHK_immediate_d0(state, 7, 4, 0, 0, { fetchByte: () => 0 });
+  // @ts-expect-error Decimal paired operands require destination writeback.
+  decimal68000.SBCD_memory_memory(state, 4, 7, 4, 7, { ...addressing, readByte: () => 0 });
 }

@@ -551,3 +551,65 @@ test("68000 paired arithmetic bus faults preserve the correct stage when both op
     }
   }
 });
+
+test("68000 word arithmetic discards failed sources and commits successful A7 reads before normal or exceptional completion", () => {
+  // Base opcode, source word, initial D0, completed D0, XNZVC, exception vector (zero means ordinary completion).
+  const cases = [
+    [0xc0c0, 3, 0xffffffff, 0x2fffd, 0x10, 0], [0xc1c0, 3, 0xffff, 0xfffffffd, 0x18, 0],
+    [0x80c0, 3, 0x10000, 0x15555, 0x10, 0], [0x81c0, 0xffff, 0x80000000, 0x80000000, 0x16, 0],
+    [0x80c0, 0, 0x12345678, 0x12345678, 0x16, 5],
+    [0x4180, 1, 0xffff, 0xffff, 0x1f, 6], [0x4180, 0xffff, 0, 0, 0x17, 6], [0x4180, 3, 2, 2, 0x17, 0],
+  ] as const;
+  for (const [base, source, initial, result, flags, vector] of cases) for (const s of [false, true]) for (const failAt of [-1, 0, 1]) {
+    const before = state({ d0: initial }); before.flags.s = s; before.flags.t = false;
+    const opcode = base + 0x1f, address = s ? before.ssp : before.usp; // (A7)+
+    const { memory, cpu } = fixture(word(opcode), before);
+    memory.load(address, word(source));
+    if (vector) memory.load(vector * 4, long(0xef008000));
+    memory.fail = (kind, a) => failAt >= 0 && kind === "read" && a === physical(address + failAt);
+    const record = cpu.step();
+    if (failAt >= 0) {
+      checkBusFrame(record, memory, { operation: "read", address: address + failAt, returnPc: before.pc + 2,
+        ir: opcode, code: s ? 5 : 1, status: (s ? 0x2200 : 0x0200) + 0x17 });
+      assert.equal(record.after.usp, before.usp); assert.equal(record.after.d0, initial);
+    } else {
+      assert.equal(record.after.d0, result);
+      assert.equal(record.after.usp, before.usp + (s ? 0 : 2));
+      assert.equal(record.after.ssp, before.ssp + (s ? 2 : 0) - (vector ? 6 : 0));
+      assert.deepEqual(record.accesses.slice(2, 4), accesses("read", address, word(source)));
+      if (vector) {
+        assert.deepEqual(record.exception, { source: vector === 5 ? "divide-by-zero" : "bounds-check", vector, returnPc: before.pc + 2 });
+        assert.equal(record.after.pc, 0xef008000);
+        const status = (s ? 0x2200 : 0x0200) + flags;
+        assert.equal(memory.ram.read(physical(record.after.ssp)) * 256 + memory.ram.read(physical(record.after.ssp + 1)), status);
+      } else {
+        assert.equal(record.exception, undefined);
+        assert.equal(record.after.pc, before.pc + 2);
+      }
+      assert.deepEqual(record.after.flags, { x: Boolean(flags & 16), n: Boolean(flags & 8), z: Boolean(flags & 4),
+        v: Boolean(flags & 2), c: Boolean(flags & 1), t: false, s: s || vector !== 0 });
+    }
+  }
+});
+
+test("68000 decimal bus faults preserve paired A7 predecrements, cumulative flags, and unchanged writes", () => {
+  for (const opcode of [0xcf0f, 0x8f0f, 0x4827]) for (const s of [false, true]) {
+    const paired = opcode !== 0x4827, count = paired ? 3 : 2;
+    for (let failAt = 0; failAt < count; failAt++) {
+      const before = state(); before.flags.s = s; before.flags.t = false;
+      const stack = s ? before.ssp : before.usp, destination = stack - (paired ? 4 : 2), committed = !paired || failAt > 0;
+      const { memory, cpu } = fixture(word(opcode), before);
+      memory.load(stack - 2, [0x99]); if (paired) memory.load(destination, [0]);
+      let call = 0;
+      memory.fail = (_kind, address) => (address === physical(stack - 2) || address === physical(destination)) && call++ === failAt;
+      const record = cpu.step(), writing = failAt === count - 1;
+      checkBusFrame(record, memory, { operation: writing ? "write" : "read", address: paired && failAt === 0 ? stack - 2 : destination,
+        returnPc: before.pc + 2, ir: opcode, code: s ? 5 : 1, status: (s ? 0x2200 : 0x0200) + 0x17,
+        stack: before.ssp - (s && committed ? stack - destination : 0) - 14 });
+      assert.equal(record.after.usp, !s && committed ? destination : before.usp);
+      assert.deepEqual(record.accesses.slice(2, -18), paired && failAt > 0
+        ? [...accesses("read", stack - 2, [0x99]), ...(writing ? accesses("read", destination, [0]) : [])]
+        : writing ? accesses("read", destination, [0x99]) : []);
+    }
+  }
+});

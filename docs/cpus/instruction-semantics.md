@@ -20,6 +20,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 68000 AND/OR/EOR, ordinary ANDI/ORI/EORI, CLR/NOT/TST | Shared operand/source construction; destination updates before reads; flags before writes; real CLR reads and no TST writeback |
 | 68000 ADD/SUB/CMP, immediate/quick/address forms, ADDX/SUBX, NEG/NEGX, CMPM | Shared destination stages and arithmetic; X and cumulative Z; signed word sources for 32-bit address arithmetic; repeated An operands and fault commit points |
 | 68000 BTST/BCHG/BCLR/BSET, shifts/rotates, and TAS | Modulo bit numbers; aliased count registers; zero-count flags; named local iteration for result/X/C/overflow; flags before partial writes |
+| 68000 MULU/MULS/DIVU/DIVS, CHK, ABCD/SBCD/NBCD | Source updates after word results and before exceptions; separate quotient-overflow capture; signed bounds; explicit digit correction and cumulative decimal flags |
 | 8088 immediate MOV and accumulator ALU/TEST, word INC/DEC, AX/register exchanges | Low/high byte views with live preservation of the other half; operand-before-CF capture; low-byte parity for words; explicit flag/write ordering; generated encoding bindings |
 | 8088 ModR/M MOV/XCHG, absolute accumulator MOV, and immediate r/m MOV | Resolved segment/offset inputs; byte-offset wrap before physical projection; complete source capture and low-first partial writes |
 | 8088 ModR/M and immediate ALU/TEST | Reuse resolved operands and accumulator arithmetic; source before destination before CF; sign-extended immediates; flags before partial writes; CMP/TEST without operand writes |
@@ -75,13 +76,14 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 10,929 generated, executable bodies. All serve CPU execution;
-10,924 are bound through opcode or postbyte selection. Five boundary helpers
+There are 11,508 generated, executable bodies. All serve CPU execution;
+11,503 are bound through opcode or postbyte selection. Five boundary helpers
 serve 6502/6800/8088 entry, 6809 frame pushing, and 8088 WAIT resumption.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
 All six 8-bit CPUs and the 8088 have complete instruction-definition migration;
-the 68000 has 31,736 documented forms migrated, including ordinary MOVE/MOVEA,
-data logic, arithmetic/comparison, bit operations, shifts/rotates, and TAS. Bodies
+the 68000 has 34,162 documented forms migrated, including ordinary MOVE/MOVEA,
+data logic, arithmetic/comparison, bit operations, shifts/rotates, TAS, word
+products/division, signed bounds, and decimal arithmetic. Bodies
 start after opcode selection. Each 6809 memory
 body starts after successful address resolution and serves direct, indexed, and
 extended forms, including all legal indexed postbytes. The 6800 memory
@@ -1128,7 +1130,7 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `when` | Evaluate a Boolean condition; execute the nested ordered statements only if true, with no body effects otherwise |
 | `iterate` | Capture a byte count and initial numeric value; perform 0–255 ordered iterations with a fresh immutable current value in each iteration, then capture the final value under its name |
 | `iterate-together` | Carry named numeric/Boolean values through a byte-counted loop; initialize from the outer scope, evaluate all next values before updating any, and publish only those names after the loop; zero iterations retain the initials |
-| `divide` | Divide a double-width dividend by a byte/word divisor with explicit signedness; truncate toward zero, retain dividend sign on the remainder, and capture both results at divisor width; zero or overflow returns the named `onError` outcome |
+| `divide` | Divide a double-width dividend by a byte/word divisor with explicit signedness; truncate toward zero, retain dividend sign on the remainder, and capture both results at divisor width; zero returns the named `onError` outcome; overflow also returns it unless an optional `overflow` flag capture is named |
 | `reject` | Return a named outcome immediately from the complete instruction body; preserve completed effects and perform no later statement |
 
 The current cores still own fetch-cursor behavior, PC commitment, access
@@ -1154,8 +1156,12 @@ and Z80 repeated blocks still retire one element per CPU step.
 
 Division accepts signed ranges including the ordinary most-negative value;
 CPU-specific restrictions are explicit later conditions. Its quotient and
-remainder are unsigned bit patterns at the divisor width and enter scope only
-on success. A rejection inside a conditional or iteration returns from the
+remainder are unsigned bit patterns at the divisor width. Without an `overflow`
+capture, zero or quotient overflow rejects before any results enter scope.
+With one, zero still rejects; nonzero division captures the overflow flag and
+both truncated results, leaving the definition to decide whether to write them.
+The 68000 uses this for V-only overflow completion, distinct from the 8088's
+divide-error outcome. A rejection inside a conditional or iteration returns from the
 complete instruction. Sources cannot contain division or rejection: they must
 yield a value. Validation checks every nested path, including zero-count bodies.
 Generated methods and opcode bindings expose their possible named outcomes in
@@ -1490,7 +1496,8 @@ optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,68000,8008,8080,8088,6809,z80}.ts`,
-`6502-interrupts.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, `68000-bits.ts`, and the separate 8088 transfer, ALU, unary,
+`6502-interrupts.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, `68000-bits.ts`, `68000-word-arithmetic.ts`,
+`68000-decimal.ts`, and the separate 8088 transfer, ALU, unary,
 stack, addressing, string, arithmetic, and control modules. The separate 8088
 operand modules contain specialized resolved bodies; its numeric opcode module retains automatic bindings.
 These files are ignored build output and removed by `npm run clean`.
@@ -1615,6 +1622,38 @@ scan every operation word independently, compare every generated body and effect
 failure, and use a bit-array oracle for all six-bit counts and sign boundaries.
 CPU bus tests retain byte failures, A7 updates in both banks, and program-space
 function codes. Earlier definitions and generated modules remain unchanged.
+
+The [arithmetic inventory](../../src/components/cpus/68000-arithmetic.ts) also
+binds 2,120 MULU/MULS/DIVU/DIVS/CHK forms to 440 word-source bodies and 306
+ABCD/SBCD/NBCD forms to 139 decimal bodies. These reuse the source reader and
+ALU destination construction, with distinct commit schedules.
+
+Word operations read the complete source before Dn. Failed reads discard staged
+updates; completed operations commit them after result/flag effects and before
+requesting a synchronous exception. MUL writes its full product before N/Z/V/C.
+DIV first clears C. A zero divisor commits the source and requests its outcome
+without reading Dn; a nonzero divisor uses shared `divide` with an explicit
+quotient-overflow flag. Overflow sets V and preserves Dn/N/Z/X. Success writes
+remainder:quotient before setting N/Z from the quotient and clearing V/C.
+CHK accepts signed Dn.W from zero through the signed bound; failure changes
+only N before committing source updates and requesting bounds-check.
+
+Decimal pairs finish their source before resolving the destination; repeated
+predecrements of one An therefore use successive addresses. Pending updates
+commit before the destination read, including NBCD. After both operands,
+read X and correct low then high digit with a propagated carry/borrow. Adding
+six above nine or subtracting six below zero, then retaining four bits, keeps
+the declared deterministic behavior for invalid packed digits. Set C then X,
+read previous Z, and apply cumulative zero before writing even unchanged bytes.
+N/V remain preserved; partial Dn writes retain their live upper bits.
+
+The [word/decimal probes](../../tests/components/cpus/semantics/68000-word-and-decimal.test.ts)
+independently scan every operation word, compare each binding and every failed
+effect, and check signed limits with BigInt and every packed-byte input with
+separate digit and valid-decimal oracles. Shared division tests cover both
+outcome modes and capture validation. CPU bus tests check A7 source/destination
+faults and retained flags in both stack banks. Earlier definitions and generated
+modules remain unchanged.
 
 Program/data byte callbacks retain full logical addresses until the existing
 adapter projects the bus and records access/fault metadata. Alignment outcomes

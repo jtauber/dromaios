@@ -237,6 +237,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
           if ((divisor !== 8 && divisor !== 16) || dividend !== 2 * divisor) fail(where, "division requires a double-width dividend and a byte or word divisor");
           if (typeof step.signed !== "boolean") fail(where, "division signedness must be Boolean");
           bind(step.quotient, divisor); bind(step.remainder, divisor);
+          if (step.overflow !== undefined) bind(step.overflow, "flag");
           return;
         }
         case "capture": captured = number(step.value); break;

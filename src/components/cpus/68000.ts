@@ -18,13 +18,15 @@ import { instructions as logicBodies } from "./generated/68000-logic.ts";
 import { instructions as arithmeticBodies } from "./generated/68000-arithmetic.ts";
 import { instructions as bitBodies } from "./generated/68000-bits.ts";
 import { bitForms68000 } from "./68000-bits.ts";
-import { arithmeticForms68000 } from "./68000-arithmetic.ts";
+import { instructions as wordArithmeticBodies } from "./generated/68000-word-arithmetic.ts";
+import { instructions as decimalBodies } from "./generated/68000-decimal.ts";
+import { arithmeticForms68000, wordArithmeticForms68000, decimalForms68000 } from "./68000-arithmetic.ts";
 import { logicForms68000 } from "./68000-logic.ts";
 import { operandMoveForms68000 } from "./68000-moves.ts";
 import type { Cpu68000AddressContext } from "./68000-context.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { flagRegister, negativeZero } from "./flags.ts";
+import { flagRegister } from "./flags.ts";
 import { motorolaConditions } from "./motorola.ts";
 
 export type Cpu68000Snapshot = ReadonlyState<Cpu68000State> & {
@@ -150,11 +152,10 @@ interface InstructionContext extends MemoryContext {
 
 // Shared bodies receive decoded selectors and only the context capabilities their stages require.
 const operandBodies: Readonly<Record<string, (state: Cpu68000State, sourceMode: number, sourceCode: number,
-  destinationMode: number, destinationCode: number, instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = { ...moveBodies, ...logicBodies, ...arithmeticBodies, ...bitBodies };
+  destinationMode: number, destinationCode: number, instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = { ...moveBodies, ...logicBodies, ...arithmeticBodies, ...bitBodies, ...wordArithmeticBodies, ...decimalBodies };
 
 type OpcodeHandler = (cpu: Cpu68000, instruction: InstructionContext) => InstructionFault | void;
 type ControlOperation = (cpu: Cpu68000, address: number, instruction: InstructionContext) => AlignmentFault | void;
-type WordOperation = (cpu: Cpu68000, register: DataRegister, value: number) => Cpu68000Exception | void;
 type DataRegister = `d${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`;
 type AddressRegister = `a${0 | 1 | 2 | 3 | 4 | 5 | 6}` | "usp" | "ssp";
 type OperandSize = 8 | 16 | 32;
@@ -389,7 +390,7 @@ export class Cpu68000 {
     // Register transfers, EXT/SWAP, and EXG own their patterns in semantics/definitions/68000.ts.
     ...Object.entries(generated).map(([opcode, execute]): OpcodeEntry<OpcodeHandler> =>
       [Number(opcode), cpu => execute(cpu.#state)]),
-    ...[...operandMoveForms68000, ...logicForms68000, ...arithmeticForms68000, ...bitForms68000].map(({ opcode, body, sourceMode, sourceCode, destinationMode, destinationCode }): OpcodeEntry<OpcodeHandler> =>
+    ...[...operandMoveForms68000, ...logicForms68000, ...arithmeticForms68000, ...bitForms68000, ...wordArithmeticForms68000, ...decimalForms68000].map(({ opcode, body, sourceMode, sourceCode, destinationMode, destinationCode }): OpcodeEntry<OpcodeHandler> =>
       [opcode, (cpu, instruction) => operandBodies[body]!(cpu.#state, sourceMode, sourceCode, destinationMode, destinationCode, cpu.#addressContext(instruction))]),
     // Status immediates reuse EA=111100: f=0 CCR (low five bits), f=1 privileged SR.
     ...this.#statusImmediateHandlers("0000 0000 0 f 111100", (left, right) => left | right), // ORI #n,CCR/SR
@@ -405,12 +406,6 @@ export class Cpu68000 {
     ...this.#fixedAluHandlers("0100 0000 11 mmm rrr", 16, cpu => cpu.#status), // MOVE SR,<ea>
     ...this.#statusMoveHandlers("0100 0100 11 mmm rrr", false), // MOVE <ea>,CCR
     ...this.#statusMoveHandlers("0100 0110 11 mmm rrr", true), // MOVE <ea>,SR
-    // CHK: 0100 ddd 110 mmm rrr; signed Dn.W must lie between zero and a signed EA word.
-    ...this.#wordSourceHandlers("0100 ddd 110 mmm rrr", (cpu, register, bound) => cpu.#checkBounds(register, bound)), // CHK.W <ea>,Dn
-
-    // NBCD negates a packed byte, consuming X and accumulating Z.
-    ...this.#fixedAluHandlers("0100 1000 00 mmm rrr", 8, (cpu, _size, value) => cpu.#decimal(0, value, -1)), // NBCD <ea>
-
     // TAS's forbidden immediate slot is the explicit ILLEGAL instruction.
     ...opcodePattern("0100 1010 1111 1100", (): Cpu68000Exception => "illegal-instruction"), // ILLEGAL
 
@@ -464,18 +459,6 @@ export class Cpu68000 {
     // Bit 8 must be zero. Immediate values select handlers but do not add coverage forms.
     ...opcodeFamily("0111 rrr 0 iiiiiiii", { r: this.#dataRegisters, i: this.#immediateBytes }, ({ r: register, i: value }) => (cpu: Cpu68000) => quick[register](cpu.#state, value)), // MOVEQ #n,Dn
 
-    // Word sources beside data ALU: oooo ddd s11 mmm rrr, s=0 unsigned, 1 signed.
-    // MUL reads Dn.W and writes Dn.L; DIV reads Dn.L and packs remainder:quotient into Dn.
-    ...this.#wordSourceHandlers("1100 ddd 011 mmm rrr", (cpu, register, value) => cpu.#multiply(register, value, false)), // MULU.W <ea>,Dn
-    ...this.#wordSourceHandlers("1100 ddd 111 mmm rrr", (cpu, register, value) => cpu.#multiply(register, value, true)), // MULS.W <ea>,Dn
-    ...this.#wordSourceHandlers("1000 ddd 011 mmm rrr", (cpu, register, value) => cpu.#divide(register, value, false)), // DIVU.W <ea>,Dn
-    ...this.#wordSourceHandlers("1000 ddd 111 mmm rrr", (cpu, register, value) => cpu.#divide(register, value, true)), // DIVS.W <ea>,Dn
-
-    // Decimal: oooo ddd 10000 m rrr; oooo=1000 SBCD / 1100 ABCD, byte only.
-    // ddd is destination, rrr source; m=0 Dn,Dn, m=1 -(An),-(An). Both consume X and accumulate Z.
-    ...this.#decimalHandlers("1000 ddd 10000 m rrr", -1), // SBCD
-    ...this.#decimalHandlers("1100 ddd 10000 m rrr", 1), // ABCD
-
     // Emulator lines: bits 15..12 select vector 10 or 11; all low twelve bits belong to software.
     ...opcodePattern("1010 xxxx xxxx xxxx", (): Cpu68000Exception => "line-a"), // Line-A emulator
     ...opcodePattern("1111 xxxx xxxx xxxx", (): Cpu68000Exception => "line-f"), // Line-F emulator
@@ -502,13 +485,6 @@ export class Cpu68000 {
         if (full && !cpu.#state.flags.s) return "privilege-violation";
         return cpu.#readDataWord(m, r, instruction, value => { cpu.#setStatus(value, full); });
       };
-    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
-  }
-
-  static #wordSourceHandlers(pattern: string, apply: WordOperation): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { d: this.#dataRegisters, m: this.#selectors, r: this.#selectors }, ({ d, m, r }) => {
-      if (m === 1 || (m === 7 && r > 4)) return undefined;
-      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#readDataWord(m, r, instruction, value => apply(cpu, d, value));
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
@@ -556,12 +532,6 @@ export class Cpu68000 {
       if (code === 0b0001) return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#call(cpu.#branchTarget(byte, instruction), instruction);
       return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#branch(byte, test(cpu.#state.flags), instruction);
     });
-  }
-
-  static #decimalHandlers(pattern: string, direction: 1 | -1): readonly OpcodeEntry<OpcodeHandler>[] {
-    const apply: AluOperation = (cpu, _size, left, right) => cpu.#decimal(left, right, direction);
-    return opcodeFamily(pattern, { d: this.#selectors, m: [0, 4] as const, r: this.#selectors }, ({ d, m: mode, r }) =>
-      (cpu: Cpu68000, instruction: InstructionContext) => cpu.#decimalPair(mode, r, d, apply, instruction));
   }
 
   // Exception entry and return. The original 68000 has no stacked frame-format word.
@@ -763,15 +733,13 @@ export class Cpu68000 {
   }
 
   #readDataWord(mode: number, code: number, instruction: InstructionContext,
-    apply: (value: number) => Cpu68000Exception | void): InstructionFault | void {
+    apply: (value: number) => void): AlignmentFault | void {
     const updates: AddressUpdates = new Map();
     const operand = this.#resolveOperand(16, mode, code, instruction, updates);
     if (operand.kind === "memory" && operand.address % 2 !== 0) return { operation: "read", address: operand.address, programSpace: operand.programSpace };
-    const fault = apply(this.#readOperand(16, operand, instruction));
-    // Completed source accesses update their original bank even when DIV/CHK requests an exception.
-    // Loading SR can also change which stack pointer A7 selects before these updates commit.
+    apply(this.#readOperand(16, operand, instruction));
+    // Loading SR can change which stack pointer A7 selects before these updates commit.
     for (const [register, address] of updates) this.#state[register] = address;
-    return fault;
   }
 
   #moveUserStack(code: number, load: boolean): Cpu68000Exception | void {
@@ -905,38 +873,7 @@ export class Cpu68000 {
     this.#state.halted = true;
   }
 
-  // Arithmetic and flags.
-
-  #multiply(register: DataRegister, value: number, signed: boolean): void {
-    const left = this.#state[register] & 0xffff;
-    const result = signed ? (left << 16 >> 16) * (value << 16 >> 16) : left * value;
-    this.#state[register] = result >>> 0;
-    this.#setResultFlags(result >>> 0);
-  }
-
-  #divide(register: DataRegister, value: number, signed: boolean): Cpu68000Exception | void {
-    this.#state.flags.c = false; // C clears even for a zero divisor; N/Z/V are undefined there.
-    if (value === 0) return "divide-by-zero";
-    const dividend = signed ? this.#state[register] | 0 : this.#state[register];
-    const divisor = signed ? value << 16 >> 16 : value;
-    const quotient = Math.trunc(dividend / divisor);
-    if (quotient < (signed ? -0x8000 : 0) || quotient > (signed ? 0x7fff : 0xffff)) {
-      this.#state.flags.v = true;
-      return; // Overflow preserves Dn and undefined N/Z; the source's auto-update still commits.
-    }
-    const remainder = dividend % divisor; // Signed remainder follows the dividend, including negative quotients.
-    this.#state[register] = ((remainder << 16) | (quotient & 0xffff)) >>> 0;
-    this.#setResultFlags(quotient & 0xffff, 16);
-  }
-
-  #checkBounds(register: DataRegister, value: number): Cpu68000Exception | void {
-    const tested = this.#state[register] << 16 >> 16;
-    if (tested < 0 || tested > (value << 16 >> 16)) {
-      this.#state.flags.n = tested < 0;
-      return "bounds-check";
-    }
-    // X is unchanged; this model also preserves the undefined N/Z/V/C on a successful check.
-  }
+  // Remaining status and condition-byte operations.
 
   #effectiveAddressAlu(size: OperandSize, mode: number, code: number, value: number, apply: AluOperation,
     instruction: InstructionContext): AlignmentFault | void {
@@ -945,15 +882,6 @@ export class Cpu68000 {
     if (destination.kind === "address") throw new Error("Invalid data-ALU destination reached execution.");
     if (destination.kind === "memory" && size !== 8 && destination.address % 2 !== 0) return { operation: "read", address: destination.address };
     this.#applyAlu(size, destination, value, apply, updates, instruction);
-  }
-
-  #decimalPair(mode: 0 | 4, sourceCode: number, destinationCode: number, apply: AluOperation, instruction: InstructionContext): void {
-    const updates: AddressUpdates = new Map();
-    const source = this.#resolveOperand(8, mode, sourceCode, instruction, updates);
-    const value = this.#readOperand(8, source, instruction);
-    // Byte operands need no alignment check; repeated -(An) uses successive addresses.
-    const destination = this.#resolveOperand(8, mode, destinationCode, instruction, updates);
-    this.#applyAlu(8, destination, value, apply, updates, instruction);
   }
 
   #applyAlu(size: OperandSize, destination: Operand, value: number,
@@ -966,25 +894,6 @@ export class Cpu68000 {
       if (destination.kind === "immediate") throw new Error("An immediate operand cannot receive ALU writeback.");
       this.#writeOperand(size, destination, result, instruction.writeByte);
     }
-  }
-
-  #decimal(left: number, right: number, direction: 1 | -1): number {
-    let carry = this.#state.flags.x ? 1 : 0;
-    let result = 0;
-    // One decimal correction per nibble; the same deterministic rule covers non-BCD inputs.
-    for (const shift of [0, 4]) {
-      let digit = ((left >>> shift) & 15) + direction * (((right >>> shift) & 15) + carry);
-      carry = (direction === 1 ? digit > 9 : digit < 0) ? 1 : 0;
-      if (carry) digit += direction * 6;
-      result |= (digit & 15) << shift;
-    }
-    this.#state.flags.x = this.#state.flags.c = carry !== 0;
-    this.#state.flags.z = this.#state.flags.z && result === 0;
-    return result; // N/V are undefined in the manual; this model preserves them.
-  }
-
-  #setResultFlags(value: number, size: OperandSize = 32): void {
-    Object.assign(this.#state.flags, negativeZero(size, value), { v: false, c: false });
   }
 
   // Memory access. Only bus addresses discard the high eight bits.

@@ -84,7 +84,11 @@ export function describeInstruction(definition: InstructionDefinition): string {
         case "divide":
           emit(`${step.quotient}, ${step.remainder} := divide${step.signed ? "Signed" : "Unsigned"}(${number(step.dividend)}, ${number(step.divisor)})`);
           emit(`// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.`);
-          emit(`// Zero divisor or quotient overflow returns ${JSON.stringify(step.onError)} before any later effect.`);
+          if (step.overflow === undefined) emit(`// Zero divisor or quotient overflow returns ${JSON.stringify(step.onError)} before any later effect.`);
+          else {
+            emit(`${step.overflow}:flag := quotient does not fit the ${step.signed ? "signed" : "unsigned"} divisor width`);
+            emit(`// Zero divisor returns ${JSON.stringify(step.onError)}. Overflow continues with truncated results; the caller decides whether to write them.`);
+          }
           break;
         case "capture": emit(`${step.name} := ${number(step.value)}`); break;
         case "read-register": emit(`${step.name}:u${step.register.width} := read ${bank(step.register)}${step.register.field.toUpperCase()}`); break;

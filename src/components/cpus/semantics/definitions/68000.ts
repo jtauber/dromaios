@@ -1,8 +1,8 @@
 import { cpu68000StateDescription } from "../../state/68000.ts";
 import { opcodeFamily } from "../../opcodes.ts";
 import { operandMoveForms68000 } from "../../68000-moves.ts";
-import { arithmeticForms68000 } from "../../68000-arithmetic.ts";
-import type { ArithmeticOperation68000, ArithmeticSource68000 } from "../../68000-arithmetic.ts";
+import { arithmeticForms68000, wordArithmeticForms68000, decimalForms68000 } from "../../68000-arithmetic.ts";
+import type { ArithmeticOperation68000, ArithmeticSource68000, WordArithmeticForm68000, DecimalForm68000 } from "../../68000-arithmetic.ts";
 import { bitForms68000 } from "../../68000-bits.ts";
 import type { BitForm68000, ShiftKind68000 } from "../../68000-bits.ts";
 import { logicForms68000 } from "../../68000-logic.ts";
@@ -10,8 +10,8 @@ import type { LogicOperation68000, LogicOperand68000 } from "../../68000-logic.t
 import { dataRegisters68000 as dataRegisters, addressRegisters68000 as addressRegisters, selectors68000 as codes } from "../../68000-operands.ts";
 import type { Operand68000, OperandSize68000 as Size, OperandRegister68000 as RegisterName } from "../../68000-operands.ts";
 import { addOverflow, addWrap, alignmentFault, and, borrow, carry, overflow, select, subtract, bitAnd, bitOr, bitXor, capture, commitAddressUpdates, concat, cpuSymbols, extend, fetchWord, flagLiteral, flagValue, literal, lowBit, negative, readFlag, readMemory, readProgramMemory, readRegister,
-  iterate, iterateTogether, or, xor, shiftLeft, resolveAddress, shiftBits, signExtend, truncate, updateFlags, value, when, writeMemory, writeRegister, zero } from "../model.ts";
-import type { InstructionDefinition, NumberExpression, Register, Statement } from "../model.ts";
+  divide, multiply, not, reject, iterate, iterateTogether, or, xor, shiftLeft, resolveAddress, shiftBits, signExtend, truncate, updateFlags, value, when, writeMemory, writeRegister, zero } from "../model.ts";
+import type { FlagExpression, InstructionDefinition, NumberExpression, Register, Statement } from "../model.ts";
 import { arithmetic, instructionSet, shift, transfer } from "../builders.ts";
 import { choose } from "../control-flow.ts";
 import { flagPolicy } from "../status.ts";
@@ -332,3 +332,81 @@ function operandBits(form: BitForm68000): InstructionDefinition {
 const bitBodies = new Map<string, InstructionDefinition>();
 for (const form of bitForms68000) if (!bitBodies.has(form.body)) bitBodies.set(form.body, operandBits(form));
 export const bits68000 = Object.freeze(Object.fromEntries(bitBodies));
+
+/** Word-source operations commit source updates after their result/flags, including completed exceptions. */
+function wordArithmetic({ operation, source, destination }: WordArithmeticForm68000): InstructionDefinition {
+  const register = cpu.register(destination), commit = source.kind === "memory" ? [commitAddressUpdates()] : [];
+  let apply: readonly Statement[];
+  if (operation === "CHK") {
+    const tested = value("tested"), bound = value("source");
+    apply = [readRegister("original", register), capture("tested", truncate(value("original"), 16)),
+      when(or(negative(tested), or(negative(bound), borrow(bound, tested))), [
+        updateFlags(flagPolicy(cpu, "68000 failed bound", { tested: 16 }, { n: negative(value("tested")) }), { tested }),
+        ...commit, reject("bounds-check"),
+      ]), ...commit];
+  } else if (operation.startsWith("MUL")) {
+    apply = [readRegister("original", register), capture("result", multiply(truncate(value("original"), 16), value("source"), operation === "MULS")),
+      writeRegister(register, value("result")), updateFlags(resultFlags(32), { result: value("result") }), ...commit];
+  } else {
+    apply = [updateFlags(flagPolicy(cpu, "68000 division carry", {}, { c: flagLiteral(false) }), {}),
+      when(zero(value("source")), [...commit, reject("divide-by-zero")]), readRegister("dividend", register),
+      divide({ dividend: value("dividend"), divisor: value("source"), signed: operation === "DIVS", quotient: "quotient", remainder: "remainder",
+        overflow: "quotientOverflow", onError: "divide-by-zero" }),
+      ...choose({ steps: [], test: flagValue("quotientOverflow") },
+        [updateFlags(flagPolicy(cpu, "68000 division overflow", {}, { v: flagLiteral(true) }), {})],
+        [writeRegister(register, concat(value("remainder"), value("quotient"))), updateFlags(resultFlags(16), { result: value("quotient") })]),
+      ...commit];
+  }
+  return defineInstruction({ cpu: cpu.declaration, name: `${operation}.W ${source.name.toUpperCase()},${destination.toUpperCase()}`,
+    inputs: { sourceMode: 3, sourceCode: 3, destinationMode: 3, destinationCode: 3 },
+    explanation: "Read the full word source before the destination; reject odd addresses before reading or committing updates. PC-relative sources use program space. "
+      + "Commit source auto-updates only after result/flag effects, including before requesting a synchronous exception. Failed source reads discard updates. "
+      + (operation === "CHK" ? "Interpret both words as signed. Accept zero through the bound without changing flags. On failure, set N for a negative tested word, otherwise clear it; preserve X/Z/V/C and request bounds-check."
+        : operation.startsWith("MUL") ? "Multiply the source by the low destination word, replacing Dn with the full 32-bit product before setting N/Z and clearing V/C. Preserve X."
+        : "Clear C before testing the divisor. Zero commits the source update and requests divide-by-zero without reading Dn, preserving X/N/Z/V. "
+          + "Otherwise divide Dn.L by the source word, truncating toward zero with a remainder of the dividend's sign. Overflow sets V and preserves Dn/X/N/Z. "
+          + "Success writes remainder:quotient into Dn before setting N/Z from the quotient and clearing V/C; preserve X."),
+    steps: withSource(16, source, "source", apply),
+  });
+}
+
+/** Correct the low digit, then the high digit, carrying one decimal carry/borrow between them. */
+function decimalSteps(operation: DecimalForm68000["operation"]): readonly Statement[] {
+  const adding = operation === "ABCD", calculate = adding ? addWrap : subtract;
+  const steps: Statement[] = [readFlag("extend", cpu.flag("x")),
+    capture("left", operation === "NBCD" ? literal(8, 0) : value("destination")),
+    capture("right", operation === "NBCD" ? value("destination") : value("source"))];
+  let incoming: FlagExpression = flagValue("extend");
+  for (const [digit, offset] of [["Low", 0], ["High", 4]] as const) {
+    const left = value(`left${digit}`), right = value(`right${digit}`), raw = value(`raw${digit}`);
+    steps.push(capture(`left${digit}`, bitAnd(shiftBits(value("left"), "right", offset), literal(8, 15))),
+      capture(`right${digit}`, bitAnd(shiftBits(value("right"), "right", offset), literal(8, 15))), capture(`raw${digit}`, calculate(left, right, incoming)));
+    const correction = adding ? not(borrow(raw, literal(8, 10))) : borrow(left, right, incoming);
+    steps.push(capture(`digit${digit}`, bitAnd(select(correction, calculate(raw, literal(8, 6)), raw), literal(8, 15))));
+    incoming = correction;
+  }
+  return [...steps, capture("result", bitOr(shiftBits(value("digitHigh"), "left", 4), value("digitLow"))),
+    updateFlags(flagPolicy(cpu, "68000 decimal carry", { carry: "flag" }, { c: flagValue("carry"), x: flagValue("carry") }), { carry: incoming }),
+    readFlag("previousZero", cpu.flag("z")), updateFlags(flagPolicy(cpu, "68000 decimal zero", { previous: "flag", result: 8 }, {
+      z: and(flagValue("previous"), zero(value("result"))),
+    }), { previous: flagValue("previousZero"), result: value("result") })];
+}
+
+function decimalArithmetic({ operation, source, destination }: DecimalForm68000): InstructionDefinition {
+  const finish = aluDestination(8, destination, destination.kind === "memory", decimalSteps(operation), true);
+  return defineInstruction({ cpu: cpu.declaration, name: `${operation} ${source ? `${source.name.toUpperCase()},` : ""}${destination.name.toUpperCase()}`,
+    inputs: { sourceMode: 3, sourceCode: 3, destinationMode: 3, destinationCode: 3 },
+    explanation: "Read the source before resolving the destination; paired predecrements of one An use successive addresses and A7 steps by two for each byte. "
+      + "Commit pending updates before reading the destination. Capture X after both operands. Correct low then high nibble, propagating one carry/borrow: "
+      + "add six for an addition digit above nine, or subtract six for a negative subtraction digit, retaining four bits. Apply this deterministic rule to non-BCD inputs too. "
+      + "Set C then X from the final decimal carry/borrow; read previous Z afterward and retain it only for a zero result. Preserve N/V/T/S. "
+      + "Write even unchanged results after flags, preserving live upper Dn bits. Source failures discard pending updates; destination failures retain committed updates, and failed writes also retain flags.",
+    steps: source ? withSource(8, source, "source", finish) : finish,
+  });
+}
+
+const wordBodies = new Map<string, InstructionDefinition>(), decimalBodies = new Map<string, InstructionDefinition>();
+for (const form of wordArithmeticForms68000) if (!wordBodies.has(form.body)) wordBodies.set(form.body, wordArithmetic(form));
+for (const form of decimalForms68000) if (!decimalBodies.has(form.body)) decimalBodies.set(form.body, decimalArithmetic(form));
+export const wordArithmetic68000 = Object.freeze(Object.fromEntries(wordBodies));
+export const decimal68000 = Object.freeze(Object.fromEntries(decimalBodies));

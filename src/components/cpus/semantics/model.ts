@@ -77,7 +77,7 @@ export type Statement =
   | { readonly kind: "iterate"; readonly name: string; readonly count: NumberExpression; readonly initial: NumberExpression; readonly steps: readonly Statement[]; readonly result: NumberExpression }
   | { readonly kind: "iterate-together"; readonly count: NumberExpression; readonly values: Readonly<Record<string, IterationValue>>; readonly steps: readonly Statement[] }
   | { readonly kind: "reject"; readonly reason: string }
-  | { readonly kind: "divide"; readonly quotient: string; readonly remainder: string; readonly dividend: NumberExpression; readonly divisor: NumberExpression; readonly signed: boolean; readonly onError: string }
+  | { readonly kind: "divide"; readonly quotient: string; readonly remainder: string; readonly dividend: NumberExpression; readonly divisor: NumberExpression; readonly signed: boolean; readonly onError: string; readonly overflow?: string }
   | { readonly kind: "capture"; readonly name: string; readonly value: NumberExpression }
   | { readonly kind: "read-register"; readonly name: string; readonly register: Register }
   | { readonly kind: "read-element"; readonly name: string; readonly array: RegisterArray; readonly index: NumberExpression }
@@ -225,7 +225,7 @@ export const iterateTogether = (count: NumberExpression, values: Readonly<Record
   ({ kind: "iterate-together", count, values, steps });
 /** End this body with a named outcome; the CPU boundary decides how to deliver it. */
 export const reject = (reason: string): Statement => ({ kind: "reject", reason });
-/** Divide a double-width dividend by a byte/word; reject zero divisors and quotients outside the divisor width. */
+/** Divide a double-width dividend by a byte/word. Reject zero; optionally capture overflow instead of rejecting it. */
 export const divide = (division: Omit<Extract<Statement, { kind: "divide" }>, "kind">): Statement => ({ kind: "divide", ...division });
 export const capture = (name: string, value: NumberExpression): Statement => ({ kind: "capture", name, value });
 export const fetchByte = (name: string): Statement => ({ kind: "fetch-byte", name });

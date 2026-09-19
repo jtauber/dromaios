@@ -3,13 +3,14 @@ import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
 import type { Cpu8088State } from "../../../../src/components/cpus/state/8088.js";
-import { addWrap, bitAnd, bitOr, bitXor, capture, concat, cpuSymbols, divide, extend, flagLiteral, iterate, literal, multiply,
-  readMemory, readSource, reject, shiftBits, shiftLeft, shiftRight, signExtend, subtract, truncate, value, when, writeRegister, zero } from "../../../../src/components/cpus/semantics/model.js";
+import { addWrap, bitAnd, bitOr, bitXor, capture, concat, cpuSymbols, divide, extend, flagLiteral, flagValue, iterate, literal, multiply,
+  readMemory, readSource, reject, shiftBits, shiftLeft, shiftRight, signExtend, subtract, truncate, updateFlags, value, when, writeRegister, zero } from "../../../../src/components/cpus/semantics/model.js";
 import type { InstructionDefinition, NumberExpression, Statement } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import { initialState } from "../8088/helpers.js";
+import { flagPolicy } from "../../../../src/components/cpus/semantics/status.js";
 
 const cpu = cpuSymbols("8088", cpu8088StateDescription);
 const define = (steps: readonly Statement[], inputs?: InstructionDefinition["inputs"]) =>
@@ -132,4 +133,31 @@ test("iterations keep immutable local scopes, read a count once, stop on failed 
   let reads = 0;
   assert.equal(bodies.run(state, 255, 0, { readByte() { reads++; return 0; } }), "zero");
   assert.equal(reads, 1); assert.deepEqual(state, initialState());
+});
+
+test("division can capture quotient overflow separately while zero still rejects before results", async () => {
+  const division = { dividend: value("dividend"), divisor: value("divisor"), quotient: "quotient", remainder: "remainder",
+    signed: true, onError: "zero", overflow: "tooWide" } as const;
+  for (const overflow of ["", "quotient", "remainder", "dividend"]) assert.throws(() => define([divide({ ...division, overflow })], { dividend: 32, divisor: 16 }));
+  assert.throws(() => define([divide(division), capture("number", value("tooWide"))], { dividend: 32, divisor: 16 }));
+  for (const width of [8, 16] as const) for (const signed of [false, true]) {
+    const definition = define([divide({ ...division, signed }),
+      writeRegister(cpu.register("ax"), width === 8 ? extend(value("quotient"), 16) : value("quotient")),
+      writeRegister(cpu.register("dx"), width === 8 ? extend(value("remainder"), 16) : value("remainder")),
+      updateFlags(flagPolicy(cpu, "division overflow", { overflow: "flag" }, { cf: flagValue("overflow") }), { overflow: flagValue("tooWide") }),
+    ], { dividend: width === 8 ? 16 : 32, divisor: width });
+    const methods = await compile<{ run(state: Cpu8088State, dividend: number, divisor: number): "zero" | void }>({ run: definition });
+    const mask = 2 ** width - 1, half = 2 ** (width - 1), state = initialState();
+    for (const divisor of [0, 1, 2, 3, half - 1, half, mask]) for (const dividend of [0, 1, 2 ** (2 * width - 1), 2 ** (2 * width) - 1,
+      ...[-half - 1, -half, -half + 1, half - 1, half, mask, mask + 1].map(q => Number(BigInt.asUintN(2 * width, BigInt(q) * BigInt(divisor))))]) {
+      const before = structuredClone(state), outcome = methods.run(state, dividend, divisor);
+      if (!divisor) { assert.equal(outcome, "zero"); assert.deepEqual(state, before); continue; }
+      const a = signed ? BigInt.asIntN(2 * width, BigInt(dividend)) : BigInt(dividend), b = signed ? BigInt.asIntN(width, BigInt(divisor)) : BigInt(divisor);
+      const q = a / b, r = a % b, overflow = q < BigInt(signed ? -half : 0) || q > BigInt(signed ? half - 1 : mask);
+      assert.equal(outcome, undefined);
+      assert.deepEqual(state, { ...before, ax: Number(BigInt.asUintN(width, q)), dx: Number(BigInt.asUintN(width, r)), flags: { ...before.flags, cf: overflow } });
+    }
+    assert.match(describeInstruction(definition), /tooWide:flag := quotient does not fit/);
+    assert.match(describeInstruction(definition), /Overflow continues with truncated results/);
+  }
 });

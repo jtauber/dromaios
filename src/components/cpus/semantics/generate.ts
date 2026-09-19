@@ -192,7 +192,13 @@ export function generateInstructions(cpu: "6502" | "6800" | "68000" | "8008" | "
             emit(`const ${left} = ${integer(dividend, step.signed)};`);
             emit(`const ${right}: number = ${integer(divisor, step.signed)};`);
             emit(`const ${quotient} = Math.trunc(${left} / ${right});`);
-            emit(`if (${right} === 0 || ${quotient} < ${step.signed ? -limit : 0} || ${quotient} >= ${limit}) ${reject(step.onError)}`);
+            const overflow = `${quotient} < ${step.signed ? -limit : 0} || ${quotient} >= ${limit}`;
+            emit(`if (${right} === 0${step.overflow === undefined ? ` || ${overflow}` : ""}) ${reject(step.onError)}`);
+            if (step.overflow !== undefined) {
+              const code = local(step.overflow);
+              emit(`const ${code} = ${overflow};`);
+              scope.set(step.overflow, { code, type: "flag" });
+            }
             for (const [name, code] of [[step.quotient, quotient], [step.remainder, `(${left} % ${right})`]] as const) {
               const captured = local(name);
               emit(`const ${captured} = ${code} & ${modulus - 1};`);
