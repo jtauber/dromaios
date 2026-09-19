@@ -1,7 +1,7 @@
 # Architecture sketch
 
-This is a working vocabulary and proposed layout. Interfaces and implementation
-details continue to develop through small examples.
+This describes the current simulation architecture and the planned browser and
+teaching layers. Interfaces continue to develop through concrete examples.
 
 The introductory examples were built for the **8080, 6502, and 6809**, in that
 order. Their differences inform shared interfaces; see
@@ -9,45 +9,37 @@ order. Their differences inform shared interfaces; see
 
 ## Implementation language and future definition languages
 
-The implementation uses **TypeScript**, including the CPU and other component
-models. Domain-specific languages (DSLs) for defining CPUs or other components
-remain a possible later direction.
-
-For example, definitions might describe registers and their relationships,
-instruction encodings and behavior, device registers, or component connections.
-Where useful, the same definitions could support execution, disassembly,
-inspection, and explanations. Expected behavior would still be checked
+The implementation uses **TypeScript** for component models, shared instruction
+definitions, validation, and generation. The `.machine` language describes
+example state, byte images, and component wiring. Definitions already drive
+state validation, execution, and explanations; disassembly and richer inspection
+tools remain possible additional consumers. Expected behavior is checked
 independently against hardware documentation.
 
 A long-term aspiration for the CPU DSL is **literate programming**: a detailed
 description of a CPU would combine explanations with formal definitions from
 which its emulator is generated. The authored description would serve as both
-readable documentation and implementation source. The document format, language
-syntax, and generation tooling remain open. Keep this direction in mind as
-definitions develop; choosing its concrete shape can wait.
-
-The first forms could be typed data or helper functions within TypeScript.
-Custom syntax, interpretation, or code generation can follow when concrete
-examples demonstrate a benefit. Some behavior may remain ordinary TypeScript.
+readable documentation and implementation source. Typed definitions and code
+generation provide a working foundation; the complete CPU authoring language,
+document format, and representation of lifecycle behavior remain open.
 
 The current [stored-state descriptions](cpus/implementation.md#stored-state-descriptions)
 are one such example: CPU-owned fields and constraints drive constructor
 validation, snapshot copying, machine parsing, and public state types. The
 types are derived from those descriptions; snapshot views remain explicit TypeScript.
 
-The [instruction-semantics experiment](cpus/instruction-semantics.md) now
-represents all eight documented instruction sets as typed definitions paired
-with prose. Validation and generation produce both expanded explanations and
+The [instruction definitions](cpus/instruction-semantics.md) cover all eight
+documented instruction sets, pairing formal behavior with prose. Validation
+and generation produce both expanded explanations and
 typed TypeScript bodies. CPU tables bind those bodies to stored state and narrow
 execution contexts. Native decoders, recording, retirement, and exception-entry
 orchestration remain in the cores; the complete literate authoring format is
 still open.
 
-The rule of three applies to these generalizations too. We will use the 8080,
-6502, and 6809 examples to discover useful common descriptions while preserving
-their hardware distinctions. Definitions for other component types should
-likewise develop through concrete examples. No CPU or component DSL syntax or
-processing model is being chosen upfront.
+The rule of three applies to these generalizations too. The 8080, 6502, and
+6809 examples established the first comparisons; all eight CPUs now exercise
+the shared definitions. Further language and component descriptions should
+likewise develop through concrete examples that preserve hardware distinctions.
 
 The [Zed extension](../editors/zed/README.md) uses a separate Tree-sitter grammar
 for editing machine definitions. The application parser and CPU state descriptions
@@ -59,11 +51,11 @@ own validation; editor tooling recognises syntax and is built independently.
 exposes the operations and connections that other components need. A CPU's
 registers, flags, instruction semantics, and timing remain specific to that CPU.
 
-**Machine compositions** select components and connect them. They describe
-memory maps, device connections, clock relationships, and initial state where
-needed. Configuration may include small amounts of machine-specific code.
-Making a machine a configuration does not require expressing all behavior as
-data or inventing a configuration language upfront.
+**Machine compositions** select components and connect them. Current definitions
+describe memory maps, device connections, reset wiring, and initial state.
+Clock relationships and scheduling remain future work. Configuration can use
+machine-specific TypeScript where the definition language does not yet express
+the required wiring.
 
 For example, the Apple II and BBC Micro are intended to share the 6502
 component, with their memory maps and devices defined by their machine
@@ -101,23 +93,27 @@ The [byte-output device](devices/byte-output.md) uses the same memory connection
 It owns a single register and notifies a host callback on each write; the host
 owns the output stream. The [ROM-output composition](cpus/68000/examples/output.md)
 maps the register and connects the CPU's RESET instruction to device reset.
+The [byte-input device](devices/byte-input.md) owns a pending-byte latch with
+readiness and consuming reads. The [8080](cpus/8080/examples/echo.md) and
+[68000](cpus/68000/examples/echo.md) echo examples reuse both devices through
+port and memory-mapped connections. Host code supplies input and retains output
+history; machine reset and CPU-only reset have distinct effects.
 
 **Execution support** coordinates stepping, running, pausing, and eventually
 emulated time. Browser display updates should not define the machine's timing.
 The execution granularity and fidelity of each model need to be explicit.
 The [CPU runner](runtime/runner.md) provides synchronous execution with an
 explicit step budget, caller completion addresses, and CPU-specific records.
-It stops on completion, halt, unsupported attempts, or the step limit.
+It stops on completion, halt, waiting, unsupported attempts, or the step limit.
 
 **Inspection** exposes state and activity for exploration. Common views should
 work across components where meaningful, with specific views for distinctive
 hardware. Reading a device for inspection must not accidentally trigger the
 side effects of a CPU access, such as clearing an interrupt. The CPU models
-expose detached state snapshots and instruction access records. Byte output
-likewise exposes a detached snapshot without reading its bus register or
-emitting output.
+expose detached state snapshots and instruction access records. Both byte devices
+likewise expose detached snapshots without consuming input or emitting output.
 
-**The browser interface** presents controls, displays, inspectors, and
+**The planned browser interface** will present controls, displays, inspectors, and
 explanations. Components should be usable without the DOM or a browser render
 loop. Specialist instruments, such as an Applesoft BASIC inspector, can add
 software knowledge through the inspection interface.
@@ -153,9 +149,9 @@ interfaces and route names remain open to review through the first examples.
 
 ## Proposed repository layout
 
-The implementation has CPU models, memory components, byte output, example setup, and tests. The other
-source paths show where code and content could go as we introduce them; their names can change with experience. No package or framework
-boundaries are implied by this tree. Build and test commands are in the
+The tree combines existing directories with explicitly marked planned paths.
+CPU definitions and generated bodies are separate from the cores that bind them.
+No package or framework boundaries are implied. Build and test commands are in the
 [development instructions](../README.md#development).
 
 ```text
@@ -164,20 +160,26 @@ dromaios/
 ├── README.md
 ├── ROADMAP.md
 ├── docs/                  Design, CPU specifications, examples, and machine guides
+├── editors/zed/           Machine-language editor support and its own toolchain
+├── scripts/               CPU/machine generation, explanations, and test selection
 ├── src/
 │   ├── components/
-│   │   ├── cpus/          CPU models, grouped by architecture
-│   │   ├── memory/        Reusable memory models
-│   │   └── devices/       Peripheral and controller models
-│   ├── machines/          Component selection, configuration, and wiring
-│   ├── runtime/           Execution controls and emulated time
-│   ├── inspection/        Shared observation support and descriptions
-│   └── ui/                Browser shell, controls, and reusable views
-├── lessons/               Teaching scenarios, programs, and explanations
+│   │   ├── cpus/          CPU cores, encoding inventories, and shared helpers
+│   │   │   ├── state/     Stored-state declarations and derived types
+│   │   │   ├── semantics/ Authored definitions, builders, validation, and generation
+│   │   │   └── generated/ Generated instruction bodies (ignored by Git)
+│   │   ├── memory/        RAM, ROM, memory connections, and fixed maps
+│   │   └── devices/       Byte-input and byte-output models
+│   ├── machines/          .machine definitions, parser, setup, and generated factories
+│   ├── runtime/           Bounded CPU runner
+│   ├── inspection/        Planned: shared observation tools and descriptions
+│   └── ui/                Planned: browser shell, controls, and reusable views
+├── lessons/               Planned: teaching scenarios, programs, and explanations
 └── tests/
     ├── components/        CPU, memory, and device behavior
-    ├── machines/          Small integration checks and software targets
-    └── fixtures/          Small programs and expected results
+    ├── machines/          Parser, generation, and example integration checks
+    ├── runtime/           Runner and example execution
+    └── types/             Public TypeScript contracts
 ```
 
 The [documentation index](README.md) provides navigation within `docs/`.
@@ -189,14 +191,15 @@ We will give specialist instruments a home when we introduce the first one.
 
 ## Generalization through three CPUs
 
-Use small programs on the 8080, 6502, and 6809 to exercise the differences that
-a shared interface must represent: register widths and aliases, stack
-conventions, addressing modes, and memory accesses. Interrupts and I/O follow
-the roadmap's [CPU-only checkpoint across eight CPUs](../ROADMAP.md#cpu-only-checkpoint).
+The 8080, 6502, and 6809 examples first exercised the differences that a shared
+interface must represent: register widths and aliases, stack conventions,
+addressing modes, and memory accesses. All eight models subsequently met the
+[CPU-only checkpoint](../ROADMAP.md#cpu-only-checkpoint) and completed their
+documented instruction inventories, including I/O and interrupt controls.
+Their model contracts describe implemented delivery policies and timing limits.
 
-Shared CPU and inspection interfaces remain provisional until these three
-cases provide evidence for them. RAM and straightforward helpers can be shared
-as soon as useful. The rule of three does not require every operation to have
+Continue testing shared execution and inspection conventions against those
+differences. The rule of three does not require every operation to have
 a common implementation or every helper to have three users. Decoding, flags,
 addressing, and timing can retain the structure that explains each CPU best.
 
@@ -208,9 +211,11 @@ for common encodings, register operands, loads, and control flow. They are sibli
 implementations: each supplies its flag rules, packed status word, state contract,
 and lifecycle. The Z80 adds its other instructions and prefix decoding. Paired
 programs expose common encodings alongside their different flag semantics.
-The 6800 and 6809 share accumulator operations and ALU helpers while retaining
-their distinct addressing and stack rules. These boundaries follow specific
-family relationships; other CPUs continue to share smaller helpers.
+The 6800 and 6809 share definition construction for accumulator operations,
+transfers, and control flow while retaining their distinct addressing and stack
+rules. Shared arithmetic, status, memory, and stack construction also serves
+other CPUs where their effect sequences agree. Reuse follows those relationships
+and explicit CPU policies rather than requiring a common inheritance hierarchy.
 
 The [CPU source organization guide](cpus/implementation.md) defines a common
 reading order and encoding-table conventions while preserving each processor's
@@ -218,13 +223,9 @@ distinct decoding and execution rules.
 
 ## Model contracts and example specifications
 
-The introductory [8080](cpus/8080/examples/arithmetic.md), [6502](cpus/6502/examples/arithmetic.md),
-[6809](cpus/6809/examples/arithmetic.md), [Z80](cpus/z80/examples/arithmetic.md),
-[8008](cpus/8008/examples/arithmetic.md), [6800](cpus/6800/examples/arithmetic.md),
-[8088](cpus/8088/examples/arithmetic.md), and [68000](cpus/68000/examples/arithmetic.md)
-examples are complete.
-Each example's document records its program, initial state, instruction behavior, expected execution,
-and acceptance checks. The [CPU model contracts](README.md#cpu-models) define
+The [example catalog](README.md#cpu-examples) links to program specifications
+and acceptance checks. Each records initial state, instruction behavior, and
+expected execution. The [CPU model contracts](README.md#cpu-models) define
 state ownership, record formats, unsupported-instruction policies, and reset.
 The [coverage tracker](cpus/coverage.md) records current CPU implementation support.
 These questions guide review of the focused examples as they develop:
@@ -252,8 +253,9 @@ They copy only declared state
 fields, including flags and any nested banks or address arrays, and expose
 `snapshot()` and `step()`.
 Public snapshots and records have readonly TypeScript types and own detached values. Internal CPU
-state stays mutable. Each model uses a discriminated union for step outcomes
-and retains no execution history. The 8008 derives PC from its selected internal
+state stays mutable. Models use CPU-specific step records and retain no execution
+history. Outcome unions and optional exception metadata reflect each model's
+contract. The 8008 derives PC from its selected internal
 address register. The 8088 derives physical PC from CS:IP and byte-register
 views from word registers; records use physical RAM addresses and retain the
 logical registers in their snapshots. The 68000 preserves its full 32-bit PC,
@@ -268,8 +270,8 @@ Restarting an example creates fresh components.
 
 Reset behavior, step outcomes, and lesson completion remain specific to each
 CPU and example. Their specifications describe the implemented behavior and
-planned additions. These types remain CPU-specific while we gather experience
-for shared execution and inspection interfaces through the focused examples.
+planned additions. Shared record fields and the runner retain CPU-specific
+types; focused examples continue to test execution and inspection conventions.
 
 Checks use small programs with explicit expected behavior.
 Existing emulator implementations can help identify cases to examine; their
@@ -279,6 +281,8 @@ being treated as correctness references.
 ## Decisions to defer
 
 Worker placement, performance optimizations, cycle-level bus simulation,
-save states, reverse execution, a public plugin API, CPU and component DSLs,
-and declarative descriptions of more complex machine wiring can be considered
-when concrete examples justify them.
+complete machine save states, reverse execution, a public plugin API, the
+literate CPU authoring format, and richer device and wiring descriptions remain
+open. CPU snapshots, typed instruction definitions, and the current `.machine`
+language already provide foundations; extend them when concrete examples
+justify the next capability.

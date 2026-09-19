@@ -5,14 +5,41 @@ retaining each processor's encoding and behavior. This follows the source-code
 priorities in [AGENTS.md](../../AGENTS.md#priorities-for-source-code): correctness,
 clarity, elegance, then performance.
 
+## Authored and generated code
+
+All eight documented instruction inventories use typed definitions. Follow
+the behavior across its authored layers rather than looking for every operation
+in the CPU class:
+
+| Location under `src/components/cpus/` | Responsibility |
+| --- | --- |
+| `<cpu>.ts` and CPU-specific support modules | Public execution contract, native decoding, generated-body binding, recording, and lifecycle orchestration |
+| `state/<cpu>.ts` | Stored-state declarations, derived types, and packed-status layouts |
+| `semantics/definitions/<cpu>.ts` | Instruction definitions and their explanations |
+| `semantics/` shared builders | Reusable operand sources, ordered effects, calculations, and CPU policies |
+| Encoding inventories beside the cores | Selector mappings shared by definition construction and execution binding |
+| `semantics/{model,validate,generate,describe}.ts` | Definition representation, validation, executable generation, and explanation generation |
+| `generated/` | Regenerated instruction bodies; never edit these by hand |
+
+The [instruction semantics guide](instruction-semantics.md) defines the language
+contracts. The [development workflow](../../README.md#development) explains
+generation, the separately generated instruction listing, and test selection.
+Keep instruction behavior in definitions and shared construction; retain native
+decoding and boundary orchestration in the cores unless a reviewed abstraction
+represents their complete behavior.
+
 ## Reading order
 
-1. **State descriptions and types.** Stored-field descriptions, the state and
-   flag types derived from them, snapshots, instruction/access records, and outcomes come first.
+Within a CPU core, use this order where the corresponding code exists:
+
+1. **State descriptions and types.** Import and re-export the CPU-owned state
+   declarations and derived types. Define snapshots, instruction/access records,
+   and outcomes near the top.
    Keep CPU-specific instruction-context extensions and small snapshot-view
    helpers nearby; import the shared contexts where they fit.
 2. **Stored fields and public API.** Start the class with its owned state and
-   memory connection, then the constructor, `snapshot()`, `reset()`, and `step()`.
+   memory connection, then the constructor, `snapshot()`, `reset()`, `step()`,
+   and the CPU's external interrupt API.
    A reader should be able to follow the execution contract before decoding details.
 3. **Register and flag views.** Group derived register pairs and packed status
    getters/setters where the implementation needs them. Pure helpers that derive
@@ -20,17 +47,18 @@ clarity, elegance, then performance.
 4. **Opcode selectors and construction.** Keep operand/operation selectors,
    the opcode table, and any family builders together. Order builders by their
    appearance in the table.
-5. **Instruction behavior.** Group addressing, loads/stores/exchanges,
-   control flow and stack operations, and arithmetic/logic/flags. Keep related
-   helpers together even when their opcodes occupy different encoding groups.
-6. **Memory access.** Use the shared recorder for RAM reads and writes. Keep
+5. **Decoding and lifecycle helpers.** Group addressing, prefix/postbyte
+   decoding, retirement, and interrupt/exception orchestration. Binding methods
+   select generated bodies and supply their decoded inputs.
+6. **Memory access.** Use the shared recorder for byte reads and writes. Keep
    CPU-specific bus mapping and multi-byte access helpers together at the end
    of the class when needed.
 
-Use short section comments where they help navigation. Omit sections that have
-no implementation yet. Small cores can use explicit opcode entries throughout;
-they do not need selector arrays or family builders merely to resemble a larger
-core. Keep a CPU in one file while this organization remains easy to follow.
+Use short section comments where they help navigation, and omit empty sections.
+Keep each core compact; it need not grow selectors or wrappers merely to
+resemble a larger core. In authored definitions, group related operand sources
+and instruction families so their shared behavior and exceptions can be read
+together even when their opcodes occupy different encoding groups.
 
 ## Stored-state descriptions
 
@@ -76,7 +104,7 @@ The descriptions have these consumers:
   same descriptions to recognize fields and check values, array lengths, and
   choices. It retains ownership of hexadecimal notation, braces, capitalization,
   flag spelling, duplicate/missing-field checks, and source-location diagnostics.
-- The [instruction-semantics experiment](instruction-semantics.md) uses the
+- The [instruction definitions](instruction-semantics.md) use the
   same schemas for register/flag symbols and generated state types.
 
 The constructor helper reports `RangeError` for invalid numbers or choices,
@@ -86,7 +114,8 @@ field path such as `alternate.flags.c` or `addressStack[3]`. The parser reports
 use the declared count, for example `addressStack requires exactly 8 values`.
 
 Descriptions cover stored state only. Derived register relationships, reset,
-instruction semantics, and RAM requirements remain explicit CPU behavior.
+instruction semantics, and memory requirements remain explicit in instruction
+definitions and the CPU's runtime code.
 The [helper tests](../../tests/components/cpus/state.test.ts) and
 [type checks](../../tests/types/state.ts) exercise the shared contracts; CPU
 and machine tests retain their independently authored hardware expectations.
@@ -99,9 +128,9 @@ remains open.
 Use binary opcode values or explicit bit patterns, grouping meaningful fields
 with underscores or spaces. Explain the bit positions, fixed bits, and selector
 values beside the code. The [opcode definition experiment](opcode-definitions.md)
-uses patterns throughout the 8008, 8080, 6502, 6800, 6809, 8088, and 68000 tables,
-with typed selector mappings for families. Ordinary addresses, memory images, and arithmetic
-constants can remain hexadecimal.
+provides pattern helpers used across the eight CPUs' definitions and binding
+tables, with typed selector mappings for families. Ordinary addresses, memory
+images, and arithmetic constants can remain hexadecimal.
 
 Choose the grouping from the CPU's encoding:
 
@@ -109,7 +138,7 @@ Choose the grouping from the CPU's encoding:
 | --- | --- |
 | [8008](../../src/components/cpus/8008.ts) | Native `xx yyy zzz` groups; A is register selector `000`, M is `111`; preserve documented HLT exceptions |
 | [8080](../../src/components/cpus/8080.ts) | Shared [8080-family table](../../src/components/cpus/8080-family.ts): `xx yyy zzz`; leading `xx` blocks, then `zzz` subgroups where it selects the family; split `yyy` into `pp q` for pair operations |
-| [6502](../../src/components/cpus/6502.ts) | `aaa bbb cc`; `cc=01` groups `aaa` operations with shared `bbb` operand readers; `cc=00/10` retain `bbb` subgroups and their distinct implied/addressing forms |
+| [6502](../../src/components/cpus/6502.ts) | `aaa bbb cc`; `cc=01` groups `aaa` operations with shared `bbb` operand sources; `cc=00/10` retain `bbb` subgroups and their distinct implied/addressing forms |
 | [6800](../../src/components/cpus/6800.ts) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; unary forms use `01 tt oooo`, with `tt` selecting A/B/indexed/extended; short branches use `0010 ttt p`, keeping the unused `21` explicit |
 | [6809](../../src/components/cpus/6809.ts) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, `0110 oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte; pages `10`/`11` share word-family builders, with long conditions on page `10` |
 | [Z80](../../src/components/cpus/z80.ts) | Shared 8080 base families plus explicit Z80 extension slots; shared CB `xx yyy rrr` operations for ordinary/indexed operands; one DD/FD builder selecting IX/IY; ED pair and block families; decode the complete supported encoding before committing state |
@@ -124,9 +153,9 @@ loop should not scatter that group across the table.
 Keep individual opcode entries on one line where practical, with the pattern,
 handler, and mnemonic together so readers can scan the encodings vertically.
 Prefer this regular layout over wrapping a short handler solely to meet a line
-length limit. Move substantial behavior into named methods so table entries
-remain compact. Family definitions can span lines to show their selector
-mappings clearly.
+length limit. Bind instruction definitions through named construction helpers
+and keep substantial decoding in named methods so entries remain compact.
+Family definitions can span lines to show their selector mappings clearly.
 
 Keep instruction mnemonics next to their encodings. Explain exceptions and
 relevant gaps in place, such as HLT occupying the 8080's MOV M,M slot. A bit
@@ -135,21 +164,21 @@ is documented or implemented. Never fill unsupported slots just to complete a
 pattern. Distinguish opcode bytes from prefixes and operand postbytes, and
 explain postbyte fields separately.
 
-For migrated 6502 instructions, keep patterns and selectors beside their bodies
+For 6502 instructions, keep patterns and selectors beside their bodies
 in [the authored definitions](../../src/components/cpus/semantics/definitions/6502.ts).
 Generate execution bindings from those same patterns; the CPU binds the complete
 inventory after initializing state. Preserve the duplicate-opcode check. Avoid maintaining a second list of
-generated method names or repeating migrated patterns in the CPU class.
+generated method names or repeating those patterns in the CPU class.
 Keep address and operand sources there too: all instructions now
 expand them into complete generated bodies. Standalone source generation remains
 a test of the same compiler. Address sources stop before the final data read, allowing stores and memory modifiers to preserve their own access order.
 Keep instruction-specific exceptions, such as indirect JMP's page wrap, explicit.
 
-For migrated 68000 register instructions, patterns likewise live beside their
+For 68000 register instructions, patterns likewise live beside their
 [definitions](../../src/components/cpus/semantics/definitions/68000.ts).
 `instructionSet(entries, 16)` checks the word-sized encoding inventory. The core
 adds generated entries to its shared static table, passing the executing CPU's
-state to each body. The remaining MOVE/MOVEA forms use a shared
+state to each body. Operand MOVE/MOVEA forms use a shared
 [encoding inventory](../../src/components/cpus/68000-moves.ts) to select bodies
 by operand role and supply the exact mode/register selectors.
 MOVEQ retains its embedded-byte selector and supplies the immediate to one
@@ -235,10 +264,12 @@ manufacturer references for instruction behavior.
 
 ## Keep construction separate from execution
 
-Selector arrays map encoded values to operands or operations. Keep substantial
-execution logic, especially arithmetic and flag rules, in named CPU-specific
-methods beside the related operations. Small assignments may remain inline
-when their effect is immediately clear.
+Selector arrays map encoded values to operands or operations. Definition
+builders describe arithmetic, flag policies, and ordered effects; generated
+bodies execute them. Share named construction helpers where the behavior
+agrees, and keep CPU-specific differences explicit in their definitions.
+Core binding methods should expose decoding and context preparation without
+duplicating the generated instruction behavior.
 
 Construct dispatch tables independently of execution. Most cores bind handlers
 once per instance; the 68000 shares a static table whose handlers receive the
@@ -254,8 +285,8 @@ the class explicitly.
 
 Use family builders when they reveal an encoding relationship and remove useful
 duplication. Keep them aligned with encoded subgroup boundaries and retain
-explicit exceptional entries. This convention does not require a common decoder,
-universal CPU base class, or definition language.
+explicit exceptional entries. This convention does not require a common decoder
+or universal CPU base class.
 
 ## Shared 8080/Z80 instruction family
 
@@ -275,7 +306,7 @@ provide flag policies. CMP/CP omit the destination write. The Z80's indexed
 ALU bodies receive the decoder's resolved address and share the same construction.
 INR/DCR and INC/DEC share read–adjust–flags–write construction with separate
 CPU flag policies; their memory bodies receive one resolved HL or indexed address.
-The old accumulator wrapper is gone. These hooks keep differing flag rules explicit, including parity
+These hooks keep differing flag rules explicit, including parity
 versus overflow and the opposite subtraction half-carry conventions. The shared
 code does not select behavior by checking which processor is executing.
 
@@ -307,19 +338,17 @@ ADC/SBC HL then capture incoming C. All write the result before flags, unlike
 byte arithmetic. DAD updates only CY; Z80 ADD preserves S/Z/PV, while ADC/SBC
 replace them with whole-word sign, zero, and overflow. Z80 H comes from carry
 or borrow out of bit 11, expressed by bit 12 of `left XOR right XOR result`.
-The handwritten addition hook, Z80 word-arithmetic helpers, and now-unused
-IX/IY pair-read/write overrides are removed.
 
 The `11 10 m 011` exchange inventory uses the same binder: m=0 selects
 XTHL / EX (SP),HL, and m=1 selects XCHG / EX DE,HL. The stack-exchange
 construction also serves IX/IY. Bodies capture the complete register before SP,
 read low/high, write high/low, then replace the register only after both writes
-succeed. Register-only exchanges swap D/H before E/L. The two handwritten
-exchange helpers are removed; these bodies never write SP or access flags.
+succeed. Register-only exchanges swap D/H before E/L. These bodies never write
+SP or access flags.
 
 The jump inventory uses the same binder for `11 ccc 010`, unconditional JMP/JP,
 and PCHL/JP (HL). Definitions capture complete targets before testing flags;
-only taken paths write PC. The family jump helper is removed. Z80 JR and DJNZ
+only taken paths write PC. Z80 JR and DJNZ
 use the same conditional construction, and JP (IX/IY) uses a stored-word source.
 DJNZ fetches before decrementing B and never accesses flags. Prefix decoding,
 refresh, and supplied-instruction retirement remain in the core.
@@ -375,21 +404,25 @@ optional access type. The 8008, 8080, Z80, and 8088 supply a union of memory and
 port accesses. The 8088 additionally records ESC delivery and TEST samples through its
 [device adapter](../../src/components/cpus/8088-external.ts); the
 68000 includes a device-reset event. Other CPUs retain the memory-only default.
-Each step type selects its supported outcomes. The 68000 selects only the executed
-branch of `InstructionStep`: invalid opwords deliver exceptions instead of opcode
-rejection. It adds its alignment-fault branch, including a possible null instruction
-on an unaligned opcode fetch, optional exception metadata with source/vector/PC,
-and a no-fetch trace-entry branch. The 8088 adds an executed no-fetch trap-entry
-branch, while software interrupts retain their triggering fetched instruction.
+Each step type selects its supported outcomes. The 68000 defines its own
+`StateTransition`-based record with `executed` or `halted` outcomes and optional
+exception/fault metadata. Invalid opwords and memory errors enter native
+exception delivery. An instruction can be null for a failed initial fetch,
+trace entry, or an already stopped CPU. Fault delivery records the fault and
+completed accesses, including on terminal halt.
+The 8088 adds an executed no-fetch trap-entry branch, while software interrupts
+retain their triggering fetched instruction.
 An executed WAIT continuation instead has `instruction: null` and
 `continuation: "wait"`: it samples TEST without fetching another instruction.
 Address conventions are documented beside the aliases, including the 8088's physical instruction
 address and the 68000's full logical instruction address.
 
 The 68000's separate interrupt record contains a level, null instruction,
-acknowledgement and frame/vector accesses, and acceptance, masking, trace-priority,
-or alignment outcomes. Trace retirement and external entry share its native
-frame helpers; `tracePending` survives snapshots independently of T.
+acknowledgement and frame/vector accesses, and accepted, ignored, executed,
+or halted outcomes. Ignored offers identify masking, pending trace, or terminal
+fault state; failed entry reports memory-error delivery. Trace retirement and
+external entry share its native frame helpers; `tracePending` survives snapshots
+independently of T.
 
 The separate interrupt records for the 6502, 6800, and 6809 use `StateTransition` with
 memory accesses,
@@ -417,14 +450,14 @@ The [register-pair helpers](../../src/components/cpus/register-pairs.ts) define
 BC, DE, and HL as high/low byte views shared by the 8080 and Z80. Runtime reads,
 generated split writes, and snapshot views use that one mapping. CPU tables select pair names;
 SP is stored directly. The Z80 applies the same views independently to each bank.
-The last ordinary Z80 migration removes the unused runtime pair writer and its family wrapper.
 
 The [flag-register helper](../../src/components/cpus/flags.ts) takes a map from
 flag names to bit positions, plus any fixed output bits. `encode` reads current
 Booleans; `decode` creates a fresh flag object and ignores unmodeled input bits.
-The 6502's PHP/PLP, 8080's PSW, Z80's AF, 6800's TAP/TPA, and 6809's CC declare
-their own layouts beside their state schemas. The helper owns and freezes both
-the layout and its codec; generated status sources use the same `bits` and
+The 6502's status, 8080's PSW, Z80's AF, 6800/6809's CC, 8088's FLAGS, and
+68000's condition/system flags declare layouts beside their state schemas.
+The helper owns and freezes both the layout and its codec; generated status
+sources use the same `bits` and
 `fixed` declaration as runtime encoding. Fixed output bits describe the model's packing policy;
 they do not add stored flags or assert hardware behavior for omitted bits.
 Layouts are checked for invalid, repeated, and overlapping bit positions.
@@ -457,11 +490,13 @@ and Z80 extend it with `BytePorts`; the 8080/Z80 add interrupt-deferral callback
 and the Z80 also queues RETI notification for retirement.
 The 8088 extends it with `BytePorts`, the instruction start IP, local segment/repeat
 prefixes, `InterruptDeferralContext` for instruction-local recognition delays,
-and a callback for software entry. The 8008
-fetches a full two-byte operand and masks it to a 14-bit address when jumping
-or calling. The 68000 currently
-extends `ByteMemory` with `fetchWord`, `fetchLong`, `nextAddress`, `jump`, and
-a recorded device-reset callback.
+`InterruptReportContext` for software-entry metadata, and ESC/TEST callbacks.
+Generated 8088 bodies perform software entry; the reporting callback records
+its vector. The 8008 fetches a full two-byte operand and masks it to a 14-bit
+address when jumping or calling. The 68000 extends `ByteMemory` with
+instruction/program-space reads, `fetchWord`,
+`fetchLong`, `nextAddress`, `jump`, and a recorded device-reset callback.
+Its operand bindings also supply staged address resolution and update commits.
 Fetching and jumps update a local cursor; a successful instruction commits it
 to PC. A synchronous exception instead stacks its selected return PC and
 loads the handler PC. Its word-based instruction stream, explicit extension-word PC bases,
@@ -474,7 +509,7 @@ execution policy, while data accesses leave the instruction stream alone.
 The shared executor below constructs these callbacks for five CPUs; the others
 construct them in `step()`. Each CPU selects byte order and keeps any special
 address mapping, alignment, and rejection rules. Handler return types also
-remain local, including the 68000's alignment fault.
+remain local, including the 68000's alignment faults and exception requests.
 
 [Type checks](../../tests/types/instruction-context.ts) cover required callbacks
 and readonly inheritance. Existing CPU tests retain their independent execution
@@ -544,8 +579,9 @@ Each CPU selects which operations to guard and supplies its diagnostic message.
 
 The four CPUs with a stored PC pass their state directly. The 8008 uses
 `programCounter(read, write)` to expose its live address-stack slot and mask
-writes to 14 bits without adding stored state. Its circular call stack stays
-in the CPU file. The Z80 retains complete-prefix decoding and R updates; the
+writes to 14 bits without adding stored state. Its circular call stack is
+explicit in its state schema and generated instruction bodies. The Z80 retains
+complete-prefix decoding and R updates; the
 8088 retains segment/repeat prefixes, one-element REP steps, trap boundaries,
 and native interrupt delivery; the 68000 retains word opcodes, alignment faults,
 native exception frames, trace retirement, and interrupt offers. Those contracts
@@ -561,15 +597,16 @@ records. Existing CPU and example tests retain independent hardware expectations
 ## Runtime Z80 interrupt stack
 
 The [call-stack helper](../../src/components/cpus/call-stack.ts) remains in
-use only for Z80 interrupt entry/return and is private to that CPU. Ordinary
-BC/DE/HL/IX/IY and packed PSW/AF pushes/pops, CALL/RET/RST use generated definitions.
+use only for Z80 external interrupt entry and is private to that CPU. Ordinary
+BC/DE/HL/IX/IY and packed PSW/AF pushes/pops, CALL/RET/RST, and Z80 RETN/RETI
+use generated definitions.
 Both paths retain predecrement-before-write and increment-after-read ordering,
 high/low pushes, low/high pops, and 16-bit wrap. The helper does not own flags,
 interrupt acceptance, memory recording, or CPU lifecycle.
 [Tests](../../tests/components/cpus/call-stack.test.ts) retain its independent
 SP, access-order, and failure checks. The
 [stack definitions contract](instruction-semantics.md#stacks-and-subroutines)
-explains shared construction across the five migrated CPUs.
+explains shared construction across the CPU definitions.
 
 ## Shared binary helpers
 
@@ -577,8 +614,8 @@ The [binary helpers](../../src/components/cpus/binary.ts) interpret byte values
 without owning CPU state:
 
 - `signed8(byte)` interprets an unsigned byte as a signed integer in `-128–127`.
-  The 6809 and Z80 still use it for indexed offsets; the 68000 uses it
-  before extending a MOVEQ immediate to its 32-bit register representation.
+  The 6809, Z80, 8088, and 68000 use it for byte displacements in native
+  address decoding. Generated sign extension is expressed in the definitions.
 - `readWordLE(nextByte)` reads two bytes, low first; `readWordBE(nextByte)` reads
   high first. Both return an unsigned 16-bit value. Each calls `nextByte`
   exactly twice on success and propagates a callback failure without further reads.
@@ -604,18 +641,19 @@ CPU tests retain their independently authored execution and access expectations.
 ## Shared memory-access recording
 
 The [memory recorder](../../src/components/cpus/memory-access.ts) supplies
-`recordMemory(ram)`, returning `{ accesses, readByte, writeByte }`. Each step
-or reset that accesses RAM creates a fresh recorder. Its callbacks can be
-passed directly into an instruction context:
+`recordMemory(memory)`, returning `{ accesses, readByte, writeByte }`. It accepts
+byte `read`/`write` operations, from RAM directly or a CPU's memory adapter.
+Each execution operation that accesses memory creates a fresh recorder.
+Its callbacks can be passed directly into an instruction context:
 
 ```ts
 const { accesses, readByte, writeByte } = recordMemory(this.#ram);
 const opcode = readByte(address);
 ```
 
-Creation performs no RAM access. Each callback calls RAM once, then appends
-the completed byte access to its log. Repeated reads and unchanged-value
-writes are recorded separately; failed RAM operations propagate their errors
+Creation performs no memory access. Each callback calls its connection once,
+then appends the completed byte access to its log. Repeated reads and unchanged-value
+writes are recorded separately; failed operations propagate their errors
 without adding an entry. The log captures values at access time and is exposed
 as readonly. Separate recorders own separate logs, so later steps and resets
 do not alter earlier records.
@@ -631,10 +669,12 @@ All eight CPUs use this helper. Their existing `Cpu…MemoryAccess` type names
 alias the common readonly `MemoryAccess` shape. The helper owns recording only:
 instruction fetching and PC advancement belong to the executor or CPU;
 CPU-specific address mapping, alignment checks, and step outcomes remain local.
-The 68000 wraps the recorder's callbacks to map each byte address onto its 24-bit bus before it
-reaches RAM or the log; the 8088 retains its segmented-address calculations.
+The 68000 wraps the recorder's callbacks to map each byte address onto its 24-bit
+bus before it reaches the connection or log. Its adapter converts explicit bus
+errors into the CPU's fault path; host throws still propagate. The 8088 retains
+its segmented-address calculations.
 
-A helper function fits this responsibility because it needs only RAM and a
+A helper function fits this responsibility because it needs only byte access and a
 local log. It requires neither a shared CPU base class nor a mixin with access
 to CPU internals. [Recorder tests](../../tests/components/cpus/memory-access.test.ts)
 check actual RAM calls, current values, log independence, and error propagation;
@@ -667,8 +707,7 @@ of each memory effect. Pop destinations and call targets are written only after
 the complete stack access succeeds. The 6502 JSR's low fetch, high/low pushes,
 and high fetch remain an explicit sequence in its definitions; RTS adds one to
 the popped address. Motorola JSR receives the decoder's resolved target, retaining
-indexed S updates and NMI arming. The Intel condition hooks and superseded
-call/return wrappers are gone. Packed-status bodies add explicit packing and
+indexed S updates and NMI arming. Packed-status bodies add explicit packing and
 complete flag replacement around the shared stack effects.
 
 For masked stacks, supply register views in mask-bit order to `maskedStack`.
@@ -678,9 +717,11 @@ register only after its complete read. The 6809 uses this recipe for S/U
 instructions and supplied-mask frame helpers. Ordinary nonempty S-stack
 instructions arm NMI at successful completion; interrupt frame helpers preserve
 arming. PULU's S write arms before a subsequent PC pull. The CPU retains interrupt
-recognition, frame selection, and vector delivery; its old stack helpers are gone.
-The 8088 likewise shares its generated word push with interrupt entry; other
-CPUs' interrupt paths still use runtime stack helpers.
+recognition, frame selection, and vector delivery. The 6502, 6800, and 8088 use
+generated entry bodies, and the 6809 shares generated frame transfers with
+external entry. Z80 external entry retains its runtime stack helper; the 68000
+retains native frame and fault-delivery helpers. Keep these boundary policies
+explicit when sharing stack mechanics.
 
 `RegisterView` is a construction-time source plus a function producing write
 statements. Keep compound effects explicit: D is A then B, CC replaces flags,
@@ -705,15 +746,15 @@ The 8088 uses `byteRegisterView` for the low/high halves of its stored words.
 The source reads the word once. Its write statements read the word again at
 writeback to preserve the current other half, after any intervening fetches or
 flag effects. These are construction recipes, with no runtime view object in
-new generated bodies. The [encoded register inventory](../../src/components/cpus/8088-registers.ts)
+generated bodies. The [encoded register inventory](../../src/components/cpus/8088-registers.ts)
 is shared by definitions and the remaining runtime operands.
 When two byte-view writes share a statement scope, give their preservation
 captures distinct names. XCHG must preserve each live other half at its own write.
 
-Keep migrated 8088 bit patterns beside their bodies in
+Keep 8088 bit patterns beside their bodies in
 [the definitions](../../src/components/cpus/semantics/definitions/8088.ts), as for
 the 6502. Build the combined table after state initialization, retaining collision
-checks against handwritten entries. The decoder still owns prefixes, segmented
+checks against native decoder bindings. The decoder still owns prefixes, segmented
 fetching, and retirement; generated bodies receive only the callbacks their
 effects require. Preserve operand-before-CF captures and flags-before-writeback.
 
@@ -789,7 +830,8 @@ between bits 3 and 4, even for wider operands.
 
 All eight CPUs use shared addition and subtraction. The 8088 supplies its
 selected byte/word width directly; the 68000 selects byte, word, or long.
-CPU flag policies remain explicit in the core or a matching family helper:
+Generated bodies call these helpers; CPU flag policies remain explicit in
+the definitions and shared construction recipes:
 the 6502 sets C when there is no borrow; the 8080 uses borrow for CY and inverted
 half borrow for AC; the Z80 and 8088 use both borrow facts directly; the 6800
 and 6809 preserve H during subtraction. The 68000 copies addition's carry or
@@ -806,7 +848,7 @@ rotates and shifts derive sign, zero, and parity from the result. The 8088
 selects byte or word width, repeats the operation for its full CL count,
 and distinguishes rotate flags from shift flags. The 68000 applies its six-bit
 register counts, X behavior, and intermediate ASL overflow. These policies
-remain visible in the CPU code; the shared helper only moves one bit.
+remain visible in the definitions; the shared helper only moves one bit.
 
 [Helper tests](../../tests/components/cpus/alu.test.ts) exhaust every byte pair
 and incoming carry/borrow against unsigned and signed range calculations.
@@ -820,18 +862,17 @@ and example tests retain their independently authored expectations.
 
 ## Shared result flags and memory modification
 
-Pure result-flag helpers calculate named updates; the instruction schedules
-when to apply them. Generated unary bodies now express memory modification
+Shared flag construction describes named updates; the instruction schedules
+when to apply them. Generated unary bodies express memory modification
 as ordered statements: the 6502 writes the original byte before transformation,
 while the 6800/6809 ordinarily read, transform, and write once. Keep the
-6502's carry before the result write and N/Z after it. The earlier `modifyByte`
-helper has no remaining CPU callers and has been removed.
+6502's carry before the result write and N/Z after it.
 
-The [first operation-block experiment](shared-operation-blocks.md) defines
-these contracts, comparison and transfer boundaries, and failure checks.
-It also explains why the existing small comparison and transfer bodies remain
-local. Use the narrow shared operations where their complete effect order
-matches; retain the CPU's explicit sequence where it differs.
+The [first operation-block experiment](shared-operation-blocks.md) records the
+earlier runtime-helper approach and its failure checks. The current
+[instruction definitions](instruction-semantics.md) share comparison and
+transfer construction while preserving distinct effect schedules. Reuse a
+recipe where its complete order matches; keep differences explicit where it does not.
 
 ## Shared Motorola behavior
 
@@ -839,22 +880,21 @@ matches; retain the CPU's explicit sequence where it differs.
 family relationships. The 6800, 6809, and 68000 use the T/F, HI/LS, CC/CS,
 NE/EQ, VC/VS, PL/MI, GE/LT, and GT/LE condition encoding. All three share
 generated condition construction with explicit flag captures and native names.
-The obsolete runtime condition table is removed. The 6800/6809 also share
-whole branch construction; the 68000 retains its distinct cursor stages. The opcode tables retain
-the 6800's absent BRN, the 6809's standalone LBRA, and the 68000's BSR exception.
+The 6800/6809 also share whole branch construction; the 68000 retains its
+distinct cursor stages. The opcode tables retain the 6800's absent BRN,
+the 6809's standalone LBRA, and the 68000's BSR exception.
 
 [Shared decimal construction](../../src/components/cpus/semantics/decimal.ts)
 uses the original A/H/C, preserves H and control flags, and clears undefined
-V under the Motorola model policy. The runtime DAA helper has no remaining callers
-and is removed. Binary addition and subtraction now use
+V under the Motorola model policy. Binary addition and subtraction use
 [shared definitions](../../src/components/cpus/semantics/motorola.ts).
 The [shared unary definitions](../../src/components/cpus/semantics/motorola.ts)
 express NEG/COM/shifts/rotates/INC/DEC/TST/CLR once. Each CPU declares whether
 CLR reads its operand, TST clears C, and right shifts set V=N XOR C. The
 `motorolaUnaryOperations` table binds generated register/memory bodies to their
-shared `oooo` operation selectors. Addressing prefixes and JMP remain in each
-CPU. Construction reads no live state; generated bodies receive the executing
-CPU's state explicitly.
+shared `oooo` operation selectors. Address and prefix decoding remain in each
+CPU; generated JMP bodies receive the resolved address. Construction reads no
+live state; generated bodies receive the executing CPU's state explicitly.
 
 Comparison construction is also shared. Each CPU declares its compared registers
 and any special policy, including the original 6800's CPX high-byte N/V rule.
@@ -880,8 +920,7 @@ with explicit high-byte-first accesses and wrapping. A load writes its register
 only after both reads succeed; a store applies flags only after both writes
 succeed. The 6809 definition supplies D's A/B source and split writes, and S's
 register write followed by NMI arming. `lowByte` and schema-checked `writeLatch`
-keep these effects visible in generated code and explanations. The old word
-load/store helpers and shared runtime result-flag helper have no remaining callers.
+keep these effects visible in generated code and explanations.
 
 `motorolaArithmetic` constructs the binary result and explicit flag stage;
 `motorolaArithmeticFamily` schedules operand reads, the accumulator, optional
@@ -889,9 +928,8 @@ incoming C, and register writeback. Byte addition replaces H; subtraction and
 word arithmetic preserve it. Flags precede writeback, including the 6809's
 explicit A-then-B writes for D. ABA/SBA supply A-then-B reads separately.
 All byte arithmetic uses `motorolaByteBindings`; ADDD/SUBD use the existing
-operand bindings. The old accumulator-operation table, byte-operand readers,
-and word-arithmetic helpers have no remaining callers. Address decoders still
-reject undefined indexed postbytes before body entry.
+operand bindings. Address decoders still reject undefined indexed postbytes
+before body entry.
 
 [Tests](../../tests/components/cpus/motorola.test.ts) compare encoded conditions
 with unsigned and signed arithmetic and verify preserved flags.
@@ -908,3 +946,10 @@ existing independent CPU and example checks plus the build/type checks. Tests
 should establish instruction behavior from independent expectations; avoid
 tests that merely repeat a builder's encoding formula or prescribe private
 method placement.
+
+For changes to definition construction, compare the generated bodies and
+explanations as well as execution. Refresh the tracked instruction listing when
+it changes. CPU-filtered runs omit shared semantics tests; follow the
+[development workflow](../../README.md#development) for the full regression
+check. Measure authored definitions and shared machinery together when assessing
+source reduction.

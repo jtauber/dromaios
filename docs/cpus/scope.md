@@ -8,8 +8,8 @@ will be organized for learning, exploration, and reference as support develops.
 
 ## Working decisions
 
-- Use **TypeScript** as the initial implementation language. Future DSLs for
-  CPU and component definitions remain a possible direction; see
+- Use **TypeScript** for the implementation and shared instruction definitions.
+  A complete literate CPU authoring language remains a future direction; see
   [implementation language and future definition languages](../architecture.md#implementation-language-and-future-definition-languages).
   [Editor tooling](../../editors/zed/README.md) currently follows the machine
   definition syntax; CPU DSL editor support will follow its eventual language design.
@@ -18,35 +18,36 @@ will be organized for learning, exploration, and reference as support develops.
 - Apply a **rule of three**: use evidence from three distinct architectures to
   judge generalizations, including examples that expose their differences.
 - Keep changes small and reviewable. The initial examples used minimal
-  instruction subsets; broader support now grows in instruction-family batches.
+  instruction subsets; current work consolidates the completed instruction
+  definitions and addresses remaining accuracy and machine-integration needs.
 - The **eight initial CPU targets** meet the roadmap's
   [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint): Intel 8008,
   Intel 8080, Motorola 6800, MOS 6502, Zilog Z80, Motorola 6809, Intel 8088,
   and Motorola 68000. The [capability audit](completion.md#cpu-only-checkpoint-review)
   records the evidence across their models and combined examples.
-- Complete documented opcode coverage for all eight through the
-  [completion sequence](completion.md#completion-sequence), including the
-  previously deferred interrupt controls and I/O. Introduce delivery and device
-  contracts in reviewable slices. Opcode percentages retain the full documented
-  totals; timing and interrupt delivery are separate measures of progress.
-- The **Z80 is the fourth CPU**, introduced after substantial 8080 opcode
+- All eight have complete documented opcode coverage and instruction-definition
+  migration. The [completion sequence](completion.md#completion-sequence)
+  records the interrupt, exception, and I/O work; the [coverage tracker](coverage.md)
+  owns support details, source footprint, and remaining processor limitations.
+  Timing and complete machine behavior remain separate work.
+- The **Z80 was the fourth CPU**, introduced after substantial 8080 opcode
   coverage. Its initial arithmetic example tests common encodings and distinct
-  flags while using the shared RAM setup and runner. Further instruction families
-  will test sharing between related processors. The
-  [project roadmap](../../ROADMAP.md) sets out the runner and opcode-expansion
-  priorities; browser work can proceed alongside CPU development.
-- The **8008 is the fifth CPU**. Its native encoding, 14-bit addresses,
+  flags while using the shared RAM setup and runner. It now shares encoding
+  bindings and instruction construction with the 8080 while retaining its own
+  flag policies, prefix decoding, and lifecycle. Browser work can proceed
+  alongside CPU consolidation, as described in the [project roadmap](../../ROADMAP.md).
+- The **8008 was the fifth CPU**. Its native encoding, 14-bit addresses,
   and internal address registers extend the comparison; see its
   [model contract](8008/model.md).
-- The **6800 is the sixth CPU**, with its own state, flags, reset contract,
-  and [arithmetic example](6800/examples/arithmetic.md). Further families will
-  test sharing with the related 6809.
-- The **8088 is the seventh CPU**. Its [model contract](8088/model.md) separates
+- The **6800 was the sixth CPU**, with its own state, flags, reset contract,
+  and [arithmetic example](6800/examples/arithmetic.md). It shares instruction
+  construction with the 6809 while retaining native addressing and stack rules.
+- The **8088 was the seventh CPU**. Its [model contract](8088/model.md) separates
   logical segment:offset addresses from physical RAM addresses, and derives
   byte-register views from stored words. Its [arithmetic example](8088/examples/arithmetic.md)
   exercises the shared runner without changes. The [PC reference review](8088/reference-notes.md)
   records comparisons with `dromaios-pc` and hardware-generated instruction tests.
-- The **68000 is the eighth CPU**. Its [model contract](68000/model.md) preserves
+- The **68000 was the eighth CPU**. Its [model contract](68000/model.md) preserves
   32-bit registers on a 24-bit bus and derives the active stack pointer from
   user/supervisor state. Its [arithmetic example](68000/examples/arithmetic.md)
   uses word encodings and big-endian long operands. The
@@ -114,17 +115,17 @@ Hardware references for these distinctions:
 
 ## How we use the three examples
 
-1. Establish RAM, instruction stepping, and execution records with a tiny
-   8080 program. The completed [8080 example](8080/examples/arithmetic.md) loads a number,
-   adds another, stores the result, and halts, with exact expected records.
-2. Implement the equivalent [6502 example](6502/examples/arithmetic.md). Examine which
-   support carries over and where the first model made assumptions.
-3. Repeat with the 6809, revisiting those assumptions with a third architecture.
-4. Add focused examples covering register relationships, stack operations,
-   addressing, and memory access. Three versions of the same arithmetic program
-   alone would leave important differences untested.
-5. Consolidate shared execution, memory, and inspection support where the
-   examples justify it. Record the limits and expected behavior of each model.
+The initial sequence is complete: the [8080 example](8080/examples/arithmetic.md)
+established RAM, stepping, and exact execution records; the equivalent
+[6502](6502/examples/arithmetic.md) and [6809](6809/examples/arithmetic.md)
+programs tested the first assumptions against distinct architectures.
+Focused examples then exercised register relationships, stacks, addressing,
+and memory access across all eight CPUs. Three versions of the same arithmetic
+program alone would have left important differences untested.
+
+Continue using those examples when consolidating execution, memory, and
+inspection support. Record each model's limits and expected behavior, and add
+new cases when a proposed generalization exposes a difference they do not cover.
 
 The rule of three guides when we trust a generalization. It does not require
 every operation to have a common implementation, every helper to have three
@@ -133,9 +134,11 @@ shared earlier. Decoding, flags, addressing, and timing can retain the structure
 that best explains each CPU. Future processors can still challenge an interface
 that worked for the first three.
 
-These early examples test CPU conventions. After the CPU-only checkpoint, a
-further composition using an existing CPU and a simple device will test machine
-wiring and component reuse before we build the first complete machine.
+The early examples test CPU conventions. The subsequent
+[8080](8080/examples/echo.md) and [68000](68000/examples/echo.md) echo compositions
+exercise the same input/output devices through different connections. These
+provide tested machine wiring and component reuse before the first complete
+historical machine.
 
 ## Existing reference coverage
 
@@ -154,14 +157,14 @@ and completeness still require separate checks against hardware documentation.
 | 8008 teaching model | [Tutorial implementation](https://github.com/jtauber/microcomputer-tutorial/blob/main/pantry/js/i8008.js), using 8080 opcode encodings |
 
 The PC's [AT page](https://github.com/jtauber/dromaios-pc/blob/main/index_at.html)
-currently loads the XT CPU and memory components. Its proposed 286 components
-are commented out, so the AT scaffold does not establish 80286 support.
+loaded the XT CPU and memory components at that review. Its proposed 286
+components were commented out, so that scaffold did not establish 80286 support.
 
 The tutorial's [master plan](https://github.com/jtauber/microcomputer-tutorial/blob/main/PLAN.md)
 and [emulator plan](https://github.com/jtauber/microcomputer-tutorial/blob/main/EMULATORS.md)
-provide the broader CPU and machine candidates. Their implementation status
-lists are older than the current code: 8080 and Macintosh implementations now
-exist, and the tutorial has its 8008 and 8080 interactives.
+provided the broader CPU and machine candidates. At that review, their status
+lists lagged behind the source: 8080 and Macintosh implementations existed,
+and the tutorial had its 8008 and 8080 interactives.
 
 The tutorial's 8008 model should be treated as a teaching prototype. Its source
 explicitly uses 8080 opcode encodings. The plan's description of the 8008 as
@@ -172,11 +175,8 @@ programmer-managed stack in RAM. See
 
 ## Current implementation
 
-The introductory [8080](8080/examples/arithmetic.md), [6502](6502/examples/arithmetic.md),
-[6809](6809/examples/arithmetic.md), [Z80](z80/examples/arithmetic.md), [8008](8008/examples/arithmetic.md),
-[6800](6800/examples/arithmetic.md), [8088](8088/examples/arithmetic.md), and
-[68000](68000/examples/arithmetic.md) examples are complete.
-The [coverage tracker](coverage.md) records current instruction and feature support. The
+The [coverage tracker](coverage.md) records instruction-definition coverage,
+source footprint, supported features, and remaining limits. The
 [model contracts](../README.md#cpu-models) define state, execution records,
 and reset; [example specifications](../README.md#cpu-examples) define programs
 and acceptance checks. The [CoCo reference review](6809/reference-notes.md)
@@ -185,4 +185,4 @@ of the models continue to test shared execution and inspection conventions.
 The [specification questions](../architecture.md#model-contracts-and-example-specifications)
 guide review of each implementation change.
 
-The first code includes the [MIT license](../../LICENSE).
+The project uses the [MIT license](../../LICENSE).
