@@ -378,14 +378,17 @@ therefore keep their existing execution contract. Both expose `snapshot`,
 adds no public controls or mutable state access. This shallow hierarchy expresses
 the 8080/Z80 relationship and is not a requirement for other processors.
 
-The 8008 reuses the same `intelByteAlu` and `intelByteTransfer` construction
-without inheriting this execution core. Its definitions keep native
-A/B/C/D/E/H/L/M sources, a `3FFF` mask on memory addresses, and S/Z/P/C policies.
-Its own opcode table binds the generated bodies; transfer definitions and
-bindings consume one native encoding inventory with the `11 ddd sss` matrix
-and an explicit HLT exception. The control-flow inventory also supplies both
-construction and binding opcodes, including all ignored-bit aliases. Generated
-calls and returns operate on the schema's physical address-register array and
+The 8008 uses the same instruction representation without inheriting this
+execution core. Its [literate chapter](../../src/components/cpus/specifications/8008.md)
+defines byte transfers, arithmetic, adjustments, and rotates with native
+A/B/C/D/E/H/L/M operands, a `3FFF` memory-address mask, and explicit S/Z/P/C
+policies. Each arithmetic family shares one ordered body across register,
+memory, and immediate encodings. The chapter's entries and the remaining
+TypeScript control/port definitions form one checked opcode inventory, and
+generation supplies every runtime binding.
+
+The control-flow inventory retains all ignored-bit aliases. Generated calls
+and returns operate on the schema's physical address-register array and
 three-bit selector; they never use the RAM-stack helper. The compiler validates
 array bounds and exact stored widths, with explicit target narrowing to 14 bits.
 Generated execution uses `Cpu8008StoredState`; constructor inputs still accept

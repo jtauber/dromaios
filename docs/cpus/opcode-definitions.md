@@ -4,13 +4,14 @@ The [opcode helpers](../../src/components/cpus/opcodes.ts) are a small experimen
 in describing existing encodings within TypeScript. The goal is to make the
 hardware easier to read while preserving each CPU's execution behavior. The
 8008, 8080, 6502, 6800, 6809, 8088, and 68000 tables use patterns throughout, with
-typed selector mappings for families. The Z80 also uses them for its load and jump families,
+typed selector mappings for families. Literate chapters use the same pattern
+rules; the 8008 chapter now supplies its byte-operation encodings. The Z80 also uses them for its load and jump families,
 retaining a CPU-local builder for register INC/DEC with their omitted memory
 slots. These examples exercise several encoding relationships:
 
 | CPU | Pattern | Meaning |
 | --- | --- | --- |
-| [8008](../../src/components/cpus/8008.ts) | `00 ooo 100`, `10 ooo sss` | Both ALU families share the eight-operation selector; `sss` selects A/B/C/D/E/H/L/M |
+| [8008](../../src/components/cpus/specifications/8008.md#eight-accumulator-operations) | `00 ooo 100`, `10 ooo sss` | Each operation fixes `ooo` and shares one body across immediate and register/memory encodings; `sss` selects A/B/C/D/E/H/L/M |
 | [8080](../../src/components/cpus/8080.ts) | `00 pp q 001` | `pp` selects BC/DE/HL/SP; `q=0` binds LXI and `q=1` binds DAD |
 | [6502](../../src/components/cpus/6502.ts) | `ff v 100 00` | `ff` selects N/V/C/Z; `v` selects the value required to branch |
 | [6800](../../src/components/cpus/6800.ts) | `0010 ttt p` | Seven conditional pairs expand `p`; BRA is explicit because `21` is unused |

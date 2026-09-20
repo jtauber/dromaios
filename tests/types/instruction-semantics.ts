@@ -484,26 +484,26 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generatedZ80.xorM(z80, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Z80 policy fields require Z80 state.
   generatedZ80.subA(intel);
-  generated8008.acA(i8008);
-  generated8008.inh(i8008);
-  generated8008.dcl(i8008);
-  generated8008.ral(i8008);
+  generated8008[0x88](i8008);
+  generated8008[0x28](i8008);
+  generated8008[0x31](i8008);
+  generated8008[0x12](i8008);
   // @ts-expect-error Register adjustments have no fetch or memory context.
-  generated8008.inb(i8008, { fetchByte: () => 0 });
+  generated8008[0x08](i8008, { fetchByte: () => 0 });
   // @ts-expect-error Accumulator rotates have no memory context.
-  generated8008.rrc(i8008, { readByte: () => 0 });
-  generated8008.sbM(i8008, { readByte: () => 0 });
-  generated8008.ndi(i8008, { fetchByte: () => 0 });
+  generated8008[0x0a](i8008, { readByte: () => 0 });
+  generated8008[0x9f](i8008, { readByte: () => 0 });
+  generated8008[0x24](i8008, { fetchByte: () => 0 });
   // @ts-expect-error Register bodies need no fetch or memory capability.
-  generated8008.adB(i8008, { fetchByte: () => 0 });
+  generated8008[0x81](i8008, { fetchByte: () => 0 });
   // @ts-expect-error Memory bodies resolve H:L locally and cannot fetch an address.
-  generated8008.cpM(i8008, { readByte: () => 0, fetchByte: () => 0 });
+  generated8008[0xbf](i8008, { readByte: () => 0, fetchByte: () => 0 });
   // @ts-expect-error ALU memory sources are never destinations.
-  generated8008.xrM(i8008, { readByte: () => 0, writeByte: () => {} });
+  generated8008[0xaf](i8008, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Immediate bodies need byte fetching, not data-memory reads.
-  generated8008.aci(i8008, { readByte: () => 0 });
+  generated8008[0x0c](i8008, { readByte: () => 0 });
   // @ts-expect-error Concrete CPU state retains the 8008's address-register structure.
-  generated8008.adA(intel);
+  generated8008[0x80](intel);
   generated8080.cmpB(intel);
   generated8080.ral(intel);
   generated8080.adcA(intel);

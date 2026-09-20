@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/8008.js";
+import { noPorts } from "../../../helpers/no-ports.js";
+import type { BytePorts } from "../../../../src/components/cpus/port-access.js";
+import type { ByteInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 import type { Cpu8008StoredState } from "../../../../src/components/cpus/state/8008.js";
+
+const bodies: Readonly<Record<number, (state: Cpu8008StoredState, context: ByteInstructionContext & BytePorts) => void>> = instructions;
+const increments = { b: 0x08, c: 0x10, d: 0x18, e: 0x20, h: 0x28, l: 0x30 };
+const rotations = { rlc: 0x02, rrc: 0x0a, ral: 0x12, rar: 0x1a };
+const forbidden = () => { assert.fail("Unary instructions do not fetch operands or access memory"); };
+const noAccess = { ...noPorts, fetchByte: forbidden, readByte: forbidden, writeByte: forbidden };
 
 function initialState(): Cpu8008StoredState {
   return { a: 0x81, b: 0x22, c: 0x33, d: 0x44, e: 0x55, h: 0xe6, l: 0x77,
@@ -26,7 +35,7 @@ test("8008 generated adjustments read only their register, preserve C without re
         },
         set(target, key, value) { assert.equal(key, register); events.push(`write ${register}`); return Reflect.set(target, key, value); },
       });
-      instructions[`${operation}${register}`](observed);
+      bodies[increments[register] + (operation === "dc" ? 1 : 0)]!(observed, noAccess);
       const result = (original + (operation === "in" ? 1 : 255)) % 256;
       assert.deepEqual({ ...state, flags }, { ...before, [register]: result,
         flags: { s: result >= 128, z: result === 0, p: result.toString(2).replaceAll("0", "").length % 2 === 0, c: carry } });
@@ -60,7 +69,7 @@ test("8008 generated rotates capture A before incoming C, then write A before re
           return Reflect.set(target, key, value);
         },
       });
-      instructions[operation](observed);
+      bodies[rotations[operation]]!(observed, noAccess);
       const binary = a.toString(2).padStart(8, "0"), outgoing = binary[left ? 0 : 7]!;
       const incoming = throughCarry ? String(Number(carry)) : outgoing;
       const result = Number.parseInt(left ? binary.slice(1) + incoming : incoming + binary.slice(0, 7), 2);

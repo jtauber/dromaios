@@ -15,7 +15,7 @@ test("native CPU generation bootstraps without generated files and removes obsol
   const output = join(directory, "src/components/cpus/generated");
   rmSync(output, { recursive: true, force: true });
   const chapters = join(directory, "src/components/cpus/semantics/generated");
-  const chapterNames = ["6502-load-store.ts", "68000-word-transfers.ts", "8008-transfers.ts"];
+  const chapterNames = ["6502-load-store.ts", "68000-word-transfers.ts", "8008.ts"];
   rmSync(chapters, { recursive: true, force: true });
   const run = () => {
     const result = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { cwd: tmpdir(), encoding: "utf8" });
@@ -35,7 +35,7 @@ test("native CPU generation bootstraps without generated files and removes obsol
   run();
   for (const [name, before, after] of [
     ["6502-load-store", "A <- result", "A <- missing"],
-    ["8008-transfers", "result = fetch", "result = source missing"],
+    ["8008", "result = fetch", "result = source missing"],
     ["68000-word-transfers", "result = concat(high, low)", "result = concat(high, missing)"],
   ] as const) {
     const source = join(directory, `src/components/cpus/specifications/${name}.md`);

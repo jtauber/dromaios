@@ -10,7 +10,7 @@ import { opcodeEntries } from "../../../../src/components/cpus/generated/8008.js
 import { cpu8008StateDescription } from "../../../../src/components/cpus/state/8008.js";
 import type { Cpu8008StoredState } from "../../../../src/components/cpus/state/8008.js";
 
-const file = "src/components/cpus/specifications/8008-transfers.md";
+const file = "src/components/cpus/specifications/8008.md";
 const markdown = readFileSync(file, "utf8"), cpu = { name: "8008", state: cpu8008StateDescription };
 const compile = (text = markdown) => compileCpuChapter(text, cpu, file);
 function state(): Cpu8008StoredState {
@@ -19,10 +19,10 @@ function state(): Cpu8008StoredState {
 }
 
 test("the 8008 chapter and generated runtime bindings cover exactly 71 independently enumerated transfer slots", () => {
-  const chapter = compile(), definitions = Object.fromEntries(Object.values(chapter.families).flat());
+  const chapter = compile(), definitions = Object.fromEntries([...chapter.families.transfer!, ...chapter.families.immediate!]);
   const expected = [...[0x06, 0x0e, 0x16, 0x1e, 0x26, 0x2e, 0x36, 0x3e], ...Array.from({ length: 63 }, (_, index) => 0xc0 + index)];
   assert.deepEqual(Object.keys(definitions).map(Number), expected);
-  assert.deepEqual(opcodeEntries(state()).map(([opcode]) => opcode), expected);
+  assert.deepEqual(opcodeEntries(state()).map(([opcode]) => opcode).filter(opcode => expected.includes(opcode)), expected);
   const production = new Map(Object.entries(instructions8008));
   for (const opcode of expected) assert.deepEqual(definitions[opcode], production.get(String(opcode)));
   assert.equal(definitions[0xc1]!.name, "LAB");

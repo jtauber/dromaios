@@ -32,7 +32,7 @@ export function generateCpuChapters(): void {
   const root = new URL("../src/components/cpus/", import.meta.url);
   const chapters = [
     { name: "6502-load-store", cpu: "6502", state: cpu6502StateDescription },
-    { name: "8008-transfers", cpu: "8008", state: cpu8008StateDescription },
+    { name: "8008", cpu: "8008", state: cpu8008StateDescription },
     { name: "68000-word-transfers", cpu: "68000", state: cpu68000StateDescription },
   ].map(({ name, cpu, state }) => {
     const source = new URL(`specifications/${name}.md`, root);

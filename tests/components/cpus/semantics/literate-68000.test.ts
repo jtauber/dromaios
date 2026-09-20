@@ -140,7 +140,7 @@ const invalid: readonly [string, string, string, RegExp][] = [
   ["non-data alignment fault", "alignment read(address)", "alignment fetch(address)", /data read or write/],
   ["unknown predicate", "if lowBit(address)", "if odd(address)", /Unknown flag operation/],
   ["misspelled commit", "commit addresses", "commit registers", /Expected "addresses"/],
-  ["spelled-out flag literal", "V = 0", "V = false", /Unknown flag operation/],
+  ["spelled-out flag literal", "V = 0", "V = false", /flag literals as 0 or 1/],
   ["duplicate code", '001 "A1"', '000 "A1"', /consecutive binary/],
   ["missing code", '  111 "A7"\n', "", /every value/],
   ["write to encoded value", "code = operand d", "operand d <- result", /value-only/],

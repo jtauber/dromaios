@@ -47,9 +47,9 @@ test("8008 migration contains all 59 control forms and all 250 documented forms"
   assert.equal(new Set(forms.map(form => form.opcode)).size, 59);
   assert.equal(Object.keys(instructions8008).length, 250);
   const migrated = Object.keys(instructions8008).filter(key => /^\d+$/.test(key)).map(Number);
-  // Numeric keys also cover 71 byte transfers and 32 port transfers. ALU/unary bodies retain named keys.
-  const transfers = [...Array.from({ length: 63 }, (_, index) => 0xc0 + index), 0x06, 0x0e, 0x16, 0x1e, 0x26, 0x2e, 0x36, 0x3e];
-  assert.deepEqual(migrated.sort((a, b) => a - b), [...transfers, ...Array.from({ length: 32 }, (_, p) => 0x41 + p * 2), ...forms.map(form => form.opcode)].sort((a, b) => a - b));
+  // All bodies now use their native opcode; the six undefined encodings stay absent.
+  assert.deepEqual(migrated, Array.from({ length: 256 }, (_, opcode) => opcode)
+    .filter(opcode => ![0x22, 0x2a, 0x32, 0x38, 0x39, 0x3a].includes(opcode)));
 });
 
 test("8008 generated control bodies preserve every physical slot except a taken target, for all selectors and flag patterns", () => {

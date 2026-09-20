@@ -18,7 +18,7 @@ emulators do not count toward implementation here.
 
 | Model | Introduced | Transistors (approx.) | Source lines | Literate / documented forms | Literate authoring |
 | --- | --- | ---: | ---: | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [231](../../src/components/cpus/8008.ts) | 71 / 250 | 28.4% |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [141](../../src/components/cpus/8008.ts) | 159 / 250 | 63.6% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [197](../../src/components/cpus/8080.ts) | 0 / 244 | 0% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [213](../../src/components/cpus/6800.ts) | 0 / 197 | 0% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | 15 / 151 | 9.9% |
@@ -35,11 +35,14 @@ and the N/Z policy. Those definitions feed real 6502 execution. The chapter's
 addresses and policy also serve other families, but only its fully authored
 LDA/STA bodies earn literate coverage credit.
 
-The [8008 transfer chapter](../../src/components/cpus/specifications/8008-transfers.md)
-adds 63 register/memory transfers and eight immediate loads. Its two selector
-fields, read/write operands, name templates, address mask, and HLT exclusion
-generate both behavior and runtime bindings. Memory ALU forms reuse its address
-source, but their TypeScript-authored bodies do not earn literate coverage.
+The [8008 chapter](../../src/components/cpus/specifications/8008.md)
+owns 63 register/memory transfers, eight immediate loads, all 72 accumulator
+ALU forms, twelve register adjustments, and four rotates: **159 forms**.
+Each ALU family shares one body across register, memory, and immediate encodings.
+Typed carry inputs, parity, bit operations, and flag policies retain explicit
+read/write order. All 250 runtime bindings now come from one checked definition
+inventory; the 91 TypeScript-authored control and port forms do not yet earn
+literate coverage.
 
 The [68000 word-transfer chapter](../../src/components/cpus/specifications/68000-word-transfers.md)
 adds 64 data-register copies and 128 loads/stores through `(An)`. It specifies
@@ -50,11 +53,11 @@ only the 192 fully authored forms earn literate coverage.
 
 | Milestone | Evidence / remaining work |
 | --- | --- |
-| Three executable chapters | The 6502, 8008, and 68000 exercise prose, checked declarations, encoding selectors and values, multiple widths, addressing, ordered effects, fault returns, and flag policies through the existing representation. |
-| Production equivalence | The language review leaves all 12,325 instruction bodies formally unchanged and all 28 generated execution modules byte-identical. Only the 71 transfer/immediate-load explanations change. |
+| Three executable chapters | The 6502, 8008, and 68000 exercise prose, checked declarations, encoding selectors and values, multiple widths, addressing, ordered effects, fault returns, typed flag policies, and arithmetic bodies shared across encodings through the existing representation. |
+| Production equivalence | The 8008 arithmetic migration leaves all 27 other generated execution modules byte-identical and the 162 other 8008 bodies formally unchanged. Independent arithmetic/order tests and old/new CPU comparisons cover all 256 slots, flags, address-stack selectors, ordinary/supplied streams, and transfer failures. |
 | Authoring feedback | Syntax, state-schema, width, scope, and encoding errors report Markdown locations. Unknown declarations are identified directly; policy expression errors point to their flag update. Clean builds bootstrap chapter data before instruction generation. |
 | Language review | [Reviewed across the three chapters](literate-specifications.md#review-of-the-three-chapters): consistent operand vocabulary, explicit widths and effect order, distinct family explanations, and visible native boundaries. |
-| One complete literate CPU | The 8008 is the first target, starting with arithmetic and flags. Still ahead: remaining instructions, authoritative state layout, decoding, reset, and lifecycle contracts. |
+| One complete literate CPU | The 8008 has completed transfers, arithmetic, and flags. Still ahead: control flow, port effects, authoritative state layout, decoding, reset, and lifecycle contracts. |
 
 The percentages measure authored opcode forms, not progress toward a complete
 CPU language or the amount of work remaining. See the
@@ -290,24 +293,25 @@ family inventory is:
   IFF1 from IFF2; deferral and RETI notification remain retirement requests.
 - [8008 definitions](../../src/components/cpus/semantics/definitions/8008.ts):
   All 72 byte ALU forms are integrated: AD/AC/SU/SB/ND/XR/OR/CP with each
-  register, memory, and immediate source. The existing Intel ALU construction
-  is reused unchanged, with S/Z/P/C policies and explicit C-before-A reads for
-  AC/SB. Native sources follow A/B/C/D/E/H/L/M; M masks H:L to `3FFF` without
+  register, memory, and immediate source. Literate families share one body per
+  operation, with typed S/Z/P/C policies and explicit C-before-A reads for AC/SB.
+  Native sources follow A/B/C/D/E/H/L/M; M masks H:L to `3FFF` without
   changing H or L. Comparison never writes A. Fetching and interrupt acceptance
   remain in the CPU, including the selected address slot and supplied bytes
   that leave every address register unchanged.
   INr/DCr on B/C/D/E/H/L add twelve forms, applying S/Z/P before register
   writeback and preserving C without reading it. RLC/RRC/RAL/RAR add four
-  forms using the same accumulator-rotate construction as the 8080: capture A,
-  read incoming C only for RAL/RAR, then write A before C. S/Z/P are preserved.
+  literate forms: capture A, read incoming C only for RAL/RAR, then write A
+  before C. S/Z/P are preserved.
   All 63 register/memory transfers and eight immediate loads add 71 bodies using
   the literate chapter, with native A/B/C/D/E/H/L/M selectors,
   `11 ddd sss` matrix encodings, and a `3FFF` address mask. Stores capture the
   source or fetch the immediate before reading H/L; masking never narrows the
   stored register bytes. Transfers do not access flags or control state.
   Definition generation and execution consume the same native opcode inventory;
-  HLT remains explicit. Handwritten arithmetic and operand read/write helpers
-  are removed. All conditional jumps/calls/returns, unconditional aliases,
+  HLT remains explicit. The chapter replaces the maintained transfer, ALU,
+  adjustment, and rotate definitions, and the core uses generated bindings
+  for every instruction. All conditional jumps/calls/returns, unconditional aliases,
   eight restarts, and three halts add 59 bodies and forms. Targets fetch low/high
   and narrow to 14 bits before any condition read. Taken calls advance the
   three-bit selector and write the next physical address slot; returns only
@@ -551,14 +555,14 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 2,630 |
-| CPU-specific instruction definition files | 2,439 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 4,263 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,332** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 436 |
+| Eight CPU implementation files | 2,540 |
+| CPU-specific instruction definition files | 2,365 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 4,327 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,232** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 745 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 67 |
-| Generated executable CPU output, counted separately | 314,243 |
-| Generated chapter data, counted separately | 77,285 |
+| Generated executable CPU output, counted separately | 314,081 |
+| Generated chapter data, counted separately | 96,779 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
 outside this source count. Generated TypeScript is reproducible build output,
@@ -566,12 +570,17 @@ not maintained source. Its size is still reported to keep expansion visible.
 Both `src/components/cpus/generated/` and
 `src/components/cpus/semantics/generated/` are excluded from authored counts.
 
-The language review extends the front end from **376 to 381 lines** for more
-precise declaration and policy diagnostics. Authored CPU TypeScript grows from
-**9,327 to 9,332 lines**, while the chapters shrink from **443 to 436 lines**
-by removing repeated 8008 prose. Generation scripts remain at **67 lines**.
-Total maintained CPU source changes from **9,837 to 9,835 lines**. This is a
-clarity improvement with unchanged instruction coverage and generated execution.
+The 8008 arithmetic migration reduces its core from **231 to 141 lines** and
+its TypeScript instruction definitions from **137 to 63 lines**. The shared
+literate front end grows from **381 to 434 lines**, with expression parsing
+separate from declaration and family compilation. Policy validation adds eleven
+lines to the existing validator. Across all CPUs, authored TypeScript falls
+from **9,332 to 9,232 lines**.
+
+The chapters grow from **436 to 745 lines** as the 8008 explains and defines
+its arithmetic families. Generation scripts remain at **67 lines**. Total
+maintained CPU source therefore grows from **9,835 to 10,044 lines**: less
+TypeScript and more executable documentation, with 88 additional literate forms.
 
 Generated chapter data repeats the validated CPU schema within expanded
 definitions and remains a separate, disposable intermediate representation.

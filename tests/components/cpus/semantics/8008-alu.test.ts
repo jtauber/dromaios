@@ -1,10 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/8008.js";
+import { noPorts } from "../../../helpers/no-ports.js";
+import type { BytePorts } from "../../../../src/components/cpus/port-access.js";
+import type { ByteInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 import type { Cpu8008StoredState } from "../../../../src/components/cpus/state/8008.js";
 
 const families = ["ad", "ac", "su", "sb", "nd", "xr", "or", "cp"] as const;
 const sources = ["A", "B", "C", "D", "E", "H", "L", "M", "immediate"] as const;
+const bodies: Readonly<Record<number, (state: Cpu8008StoredState, context: ByteInstructionContext & BytePorts) => void>> = instructions;
+const bases = { ad: 0x80, ac: 0x88, su: 0x90, sb: 0x98, nd: 0xa0, xr: 0xa8, or: 0xb0, cp: 0xb8 };
+const immediates = { ad: 0x04, ac: 0x0c, su: 0x14, sb: 0x1c, nd: 0x24, xr: 0x2c, or: 0x34, cp: 0x3c };
+const noWrites = { ...noPorts, writeByte() { assert.fail("ALU instructions do not write data memory"); } };
 function initialState(): Cpu8008StoredState {
   return { a: 0x10, b: 0xff, c: 0xff, d: 0xff, e: 0xff, h: 0xff, l: 0xff,
     flags: { s: false, z: true, p: false, c: true },
@@ -49,8 +56,8 @@ test("8008 generated ALU bodies read source, optional C, then A; memory masks H:
         },
         set(target, key, value) { assert.equal(key, "a"); events.push("write a"); return Reflect.set(target, key, value); },
       });
-      const execute = source === "immediate" ? instructions[`${operation}i`] : instructions[`${operation}${source}`];
-      execute(observed, {
+      const execute = bodies[source === "immediate" ? immediates[operation] : bases[operation] + sources.indexOf(source)]!;
+      execute(observed, { ...noWrites,
         fetchByte() { assert.equal(source, "immediate"); events.push("fetch"); return 0xff; },
         readByte(address) { assert.equal(source, "M"); assert.equal(address, 0x3fff); events.push("memory"); return 0xff; },
       });
@@ -81,8 +88,8 @@ test("8008 generated ALU bodies stop at failed operands and use current A and fl
       state.a = 0x80; state.flags = { s: true, z: false, p: true, c: false };
       return 0x81;
     };
-    const execute = memory ? instructions[`${operation}M`] : instructions[`${operation}i`];
-    const run = () => execute(observed, { fetchByte: read, readByte(address) { assert.equal(address, 0x3fff); return read(); } });
+    const execute = bodies[memory ? bases[operation] + 7 : immediates[operation]]!;
+    const run = () => execute(observed, { ...noWrites, fetchByte: read, readByte(address) { assert.equal(address, 0x3fff); return read(); } });
     if (fail) assert.throws(run, error => error === failure);
     else run();
     if (fail) assert.deepEqual(events, ["operand"]);

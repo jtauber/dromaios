@@ -1,12 +1,12 @@
 import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
 import type { OpcodeEntry } from "../../opcodes.ts";
 import { memorySource, registerSource } from "../builders.ts";
-import { addWrap, alignmentFault, bitAnd, bitOr, capture, commitAddressUpdates, concat, extend, fetchByte,
-  flagLiteral, highByte, isWidth, literal, lowBit, lowByte, negative, readMemory, readRegister,
-  readSource, resolveAddress, truncate, updateFlags, value, when, writeMemory, writeRegister, zero } from "../model.ts";
-import type { CpuDeclaration, Flag, FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Register, Statement, ValueSource, Width } from "../model.ts";
-import { defineInstruction, validateInstruction } from "../validate.ts";
+import { alignmentFault, capture, commitAddressUpdates, fetchByte, isWidth, literal,
+  readFlag, readMemory, readRegister, readSource, resolveAddress, updateFlags, value, when, writeMemory, writeRegister } from "../model.ts";
+import type { CpuDeclaration, Expression, Flag, FlagPolicy, InstructionDefinition, Register, Statement, ValueSource, ValueType } from "../model.ts";
+import { defineInstruction, validateFlagPolicy, validateInstruction } from "../validate.ts";
 import { chapterBlocks, ChapterError, ChapterTokens } from "./document.ts";
+import { expression, flagExpression, width } from "./expressions.ts";
 
 export type ChapterOperand = { readonly name: string; readonly read: ValueSource } & (
   | { readonly kind: "memory"; readonly address: ValueSource }
@@ -39,43 +39,14 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
     const column = tokens.column, name = tokens.word();
     return table.get(name) ?? tokens.fail(`Unknown name ${name}; declare it before use.`, column);
   }
-  function declare(tokens: ChapterTokens): string {
+  function declare(tokens: ChapterTokens, kind: string): string {
     const column = tokens.column, name = tokens.word();
-    if (names.has(name)) tokens.fail(`Duplicate declaration ${name}.`, column);
-    names.add(name); return name;
-  }
-  function width(tokens: ChapterTokens): Width {
-    const bits = tokens.number();
-    return isWidth(bits) ? bits : tokens.fail("Expected width 3, 8, 14, 16, or 32.");
-  }
-  function expression(tokens: ChapterTokens): NumberExpression {
-    const name = tokens.word();
-    if (!tokens.take("(")) return value(name);
-    let result: NumberExpression;
-    if (/^u(?:3|8|14|16|32)$/.test(name)) {
-      const bits = Number(name.slice(1));
-      if (!isWidth(bits)) return tokens.fail("Unsupported literal width.");
-      result = literal(bits, tokens.number());
-    } else if (name === "highByte" || name === "lowByte") {
-      result = (name === "highByte" ? highByte : lowByte)(expression(tokens));
-    } else if (name === "extend" || name === "truncate") {
-      const contents = expression(tokens); tokens.expect(",");
-      result = (name === "extend" ? extend : truncate)(contents, width(tokens));
-    } else {
-      const operations = { add: addWrap, and: bitAnd, or: bitOr, concat };
-      if (!Object.hasOwn(operations, name)) tokens.fail(`Unknown numeric operation ${name}.`);
-      const left = expression(tokens); tokens.expect(",");
-      result = operations[name as keyof typeof operations](left, expression(tokens));
+    // Registers and flags have distinct namespaces: the 8008 has both register C and flag C.
+    if (names.has(name) || (kind !== "flag" && registers.has(name)) || (kind !== "register" && flags.has(name))) {
+      tokens.fail(`Duplicate declaration ${name}.`, column);
     }
-    tokens.expect(")"); return result;
-  }
-  function flagExpression(tokens: ChapterTokens): FlagExpression {
-    if (tokens.take("0")) return flagLiteral(false);
-    if (tokens.take("1")) return flagLiteral(true);
-    const name = tokens.word(), operations = { negative, zero, lowBit };
-    if (!Object.hasOwn(operations, name)) tokens.fail(`Unknown flag operation ${name}.`);
-    tokens.expect("("); const result = operations[name as keyof typeof operations](expression(tokens));
-    tokens.expect(")"); return result;
+    if (kind !== "register" && kind !== "flag") names.add(name);
+    return name;
   }
   function steps(lines: readonly ChapterTokens[], bindings: ReadonlyMap<string, ValueSource> = sources,
     operands: ReadonlyMap<string, ChapterOperand> = new Map()): Statement[] {
@@ -99,9 +70,9 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
         tokens.expect("addresses"); result.push(commitAddressUpdates());
       } else if (tokens.take("apply")) {
         const policy = lookup(policies, tokens); tokens.expect("(");
-        const args: Record<string, NumberExpression> = {};
-        for (const [index, name] of Object.keys(policy.parameters).entries()) {
-          if (index) tokens.expect(","); args[name] = expression(tokens);
+        const args: Record<string, Expression> = {};
+        for (const [index, [name, type]] of Object.entries(policy.parameters).entries()) {
+          if (index) tokens.expect(","); args[name] = type === "flag" ? flagExpression(tokens) : expression(tokens);
         }
         tokens.expect(")"); result.push(updateFlags(policy, args));
       } else if (tokens.take("operand")) {
@@ -128,6 +99,7 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
             tokens.expect(","); const mode = expression(tokens); tokens.expect(","); const code = expression(tokens); tokens.expect(")");
             result.push(resolveAddress(name, size, mode, code));
           } else if (tokens.take("fetch")) result.push(fetchByte(name));
+          else if (tokens.take("flag")) result.push(readFlag(name, lookup(flags, tokens)));
           else if (tokens.take("register")) result.push(readRegister(name, lookup(registers, tokens)));
           else if (tokens.take("source")) result.push(readSource(name, lookup(bindings, tokens)));
           else if (tokens.take("operand")) {
@@ -160,7 +132,7 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
       if (!["register", "flag", "source", "policy", "operands", "codes", "family"].includes(kind)) {
         header.fail(`Unknown declaration ${kind}.`, 1);
       }
-      const name = declare(header);
+      const name = declare(header, kind);
       if (kind === "register" || kind === "flag") {
         if (name !== name.toUpperCase()) header.fail("Register and flag names must be uppercase.");
         const field = name.toLowerCase();
@@ -191,12 +163,17 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
         checked(last, () => validateInstruction({ cpu, name, explanation: "", steps: [readSource("result", source)] }));
         sources.set(name, source);
       } else if (kind === "policy") {
-        const description = header.quoted(); header.expect("("); const parameter = header.word(); header.expect(":");
-        const bits = width(header); header.expect(")"); open();
+        const description = header.quoted(); header.expect("(");
+        const parameters: Record<string, ValueType> = {};
+        if (header.next !== ")") do {
+          const parameter = header.word(); header.expect(":");
+          if (Object.hasOwn(parameters, parameter)) header.fail(`Duplicate parameter ${parameter}.`);
+          parameters[parameter] = header.take("flag") ? "flag" : width(header);
+        } while (header.take(","));
+        header.expect(")"); open();
         const updates: FlagPolicy["updates"][number][] = [], seen = new Set<string>();
-        const policy: FlagPolicy = { name: description, parameters: { [parameter]: bits }, unlisted: "preserve", updates };
-        const validate = () => validateInstruction({ cpu, name, explanation: "", inputs: { [parameter]: bits },
-          steps: [updateFlags(policy, { [parameter]: value(parameter) })] });
+        const policy: FlagPolicy = { name: description, parameters, unlisted: "preserve", updates };
+        const validate = () => validateFlagPolicy(cpu, policy);
         checked(header, validate);
         for (const tokens of body) {
           const flag = lookup(flags, tokens); tokens.expect("=");
@@ -236,56 +213,72 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
         if (digits === undefined || entries.length !== 2 ** digits) header.fail("A catalogue must describe every value of its selector.");
         catalogues.set(name, entries);
       } else if (kind === "family") {
-        const pattern = header.quoted(); header.expect("for");
-        const selectors = new Map<string, Selector>();
-        do {
-          const selector = header.word(); header.expect("in"); const choices = lookup(catalogues, header);
-          const requested = header.take(".") ? header.word() : "operand";
-          if (selectors.has(selector)) header.fail(`Duplicate selector ${selector}.`);
-          if (names.has(selector)) header.fail("A family selector must not shadow a source or other declaration.");
-          const view = requested === "read" || requested === "address" || requested === "operand" ? requested
-            : header.fail("Select a catalogue with .read, .address, or no suffix for operands.");
-          selectors.set(selector, { choices, view });
-        } while (header.take(","));
-        const template = header.take("named") ? header.quoted() : undefined;
-        if (template === undefined && selectors.size !== 1) header.fail("A multi-selector family needs an explicit instruction name template.");
-        // Substitution happens once over authored text; braces in operand labels stay literal.
-        const instructionName = (selected: Readonly<Record<string, ChapterOperand>>) => template === undefined
-          ? `${name} ${Object.values(selected)[0]!.name}`
-          : template.replace(/\{([^{}]*)\}|[{}]/g, (placeholder, field: string | undefined) =>
-            field !== undefined && Object.hasOwn(selected, field) ? selected[field]!.name : header.fail(`Unknown name placeholder ${placeholder}.`));
-        const excluded = new Set<number>();
-        if (header.take("except")) do {
-          for (const [opcode] of checked(header, () => opcodePattern(header.quoted(), undefined))) {
-            if (excluded.has(opcode)) header.fail(`Duplicate exclusion $${opcode.toString(16)}.`);
-            excluded.add(opcode);
+        const forms: ChapterTokens[] = [], definitions: OpcodeEntry<InstructionDefinition>[] = [];
+        if (header.next === "{") {
+          open();
+          while (body[0]?.take("encoding")) forms.push(body.shift()!);
+          if (!forms.length) header.fail("A family needs at least one encoding.");
+        } else forms.push(header);
+        for (const form of forms) {
+          const firstDefinition = definitions.length;
+          const pattern = form.quoted();
+          const selectors = new Map<string, Selector>();
+          if (form.take("for")) do {
+            const selector = form.word(); form.expect("in"); const choices = lookup(catalogues, form);
+            const requested = form.take(".") ? form.word() : "operand";
+            if (selectors.has(selector)) form.fail(`Duplicate selector ${selector}.`);
+            if (names.has(selector) || registers.has(selector) || flags.has(selector)) form.fail("A family selector must not shadow a source or other declaration.");
+            const view = requested === "read" || requested === "address" || requested === "operand" ? requested
+              : form.fail("Select a catalogue with .read, .address, or no suffix for operands.");
+            selectors.set(selector, { choices, view });
+          } while (form.take(","));
+          const boundSources = new Map(sources), aliases = new Set<string>();
+          if (form.take("with")) do {
+            const alias = form.word(); form.expect("=");
+            if (names.has(alias) || registers.has(alias) || flags.has(alias) || selectors.has(alias) || aliases.has(alias)) {
+              form.fail(`Source binding ${alias} must not shadow a declaration or another binding.`);
+            }
+            aliases.add(alias); boundSources.set(alias, lookup(sources, form));
+          } while (form.take(","));
+          const template = form.take("named") ? form.quoted() : undefined;
+          if (template === undefined && selectors.size > 1) form.fail("A multi-selector family needs an explicit instruction name template.");
+          // Substitution happens once over authored text; braces in operand labels stay literal.
+          const instructionName = (selected: Readonly<Record<string, ChapterOperand>>) => template === undefined
+            ? [name, ...Object.values(selected).map(operand => operand.name)].join(" ")
+            : template.replace(/\{([^{}]*)\}|[{}]/g, (placeholder, field: string | undefined) =>
+              field !== undefined && Object.hasOwn(selected, field) ? selected[field]!.name : form.fail(`Unknown name placeholder ${placeholder}.`));
+          const excluded = new Set<number>();
+          if (form.take("except")) do {
+            for (const [opcode] of checked(form, () => opcodePattern(form.quoted(), undefined))) {
+              if (excluded.has(opcode)) form.fail(`Duplicate exclusion $${opcode.toString(16)}.`);
+              excluded.add(opcode);
+            }
+          } while (form.take(","));
+          if (form === header) open(); else form.end();
+          if (!block.explanation) form.fail("A family needs an explanatory paragraph before its cpu fence.");
+          const choices = Object.fromEntries([...selectors].map(([selector, { choices }]) => [selector, choices]));
+          const entries = checked(form, () => opcodeFamily(pattern, choices, selected => selected));
+          for (const opcode of excluded) if (!entries.some(([candidate]) => opcode === candidate)) form.fail(`Excluded opcode $${opcode.toString(16)} is outside this family.`);
+          for (const [opcode, selected] of entries) {
+            if (excluded.has(opcode)) continue;
+            const bindings = new Map(boundSources), operands = new Map<string, ChapterOperand>();
+            let available = true;
+            for (const [selector, { view }] of selectors) {
+              const operand = selected[selector]!;
+              if (view === "operand") operands.set(selector, operand);
+              else if (view === "read") bindings.set(selector, operand.read);
+              else if (operand.kind === "memory") bindings.set(selector, operand.address);
+              else available = false; // Only memory operands supply an address view.
+            }
+            if (!available) continue;
+            if (opcodes.has(opcode)) form.fail(`Duplicate opcode $${opcode.toString(16)}.`);
+            opcodes.add(opcode);
+            const bodySteps = steps(body.map(tokens => new ChapterTokens(tokens.source, file)), bindings, operands);
+            definitions.push([opcode, checked(form, () => defineInstruction({ cpu, name: instructionName(selected),
+              explanation: block.explanation, steps: bodySteps }))]);
           }
-        } while (header.take(","));
-        open();
-        if (!block.explanation) header.fail("A family needs an explanatory paragraph before its cpu fence.");
-        const choices = Object.fromEntries([...selectors].map(([selector, { choices }]) => [selector, choices]));
-        const entries = checked(header, () => opcodeFamily(pattern, choices, selected => selected));
-        for (const opcode of excluded) if (!entries.some(([candidate]) => opcode === candidate)) header.fail(`Excluded opcode $${opcode.toString(16)} is outside this family.`);
-        const definitions: OpcodeEntry<InstructionDefinition>[] = [];
-        for (const [opcode, selected] of entries) {
-          if (excluded.has(opcode)) continue;
-          const bindings = new Map(sources), operands = new Map<string, ChapterOperand>();
-          let available = true;
-          for (const [selector, { view }] of selectors) {
-            const operand = selected[selector]!;
-            if (view === "operand") operands.set(selector, operand);
-            else if (view === "read") bindings.set(selector, operand.read);
-            else if (operand.kind === "memory") bindings.set(selector, operand.address);
-            else available = false; // Only memory operands supply an address view.
-          }
-          if (!available) continue;
-          if (opcodes.has(opcode)) header.fail(`Duplicate opcode $${opcode.toString(16)}.`);
-          opcodes.add(opcode);
-          const bodySteps = steps(body.map(tokens => new ChapterTokens(tokens.source, file)), bindings, operands);
-          definitions.push([opcode, checked(header, () => defineInstruction({ cpu, name: instructionName(selected),
-            explanation: block.explanation, steps: bodySteps }))]);
+          if (definitions.length === firstDefinition) form.fail("An encoding must define at least one instruction.");
         }
-        if (!definitions.length) header.fail("A family must define at least one instruction.");
         families.set(name, definitions);
       }
     }

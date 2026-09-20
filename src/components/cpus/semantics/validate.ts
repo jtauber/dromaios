@@ -1,5 +1,5 @@
-import type { AddressExpression, Choice, Expression, Flag, FlagGroup, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueType, Width } from "./model.ts";
-import { isWidth } from "./model.ts";
+import type { AddressExpression, Choice, CpuDeclaration, Expression, Flag, FlagGroup, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueType, Width } from "./model.ts";
+import { flagValue, isWidth, value } from "./model.ts";
 
 /** Own and freeze a validated definition. Captures and source scopes are instruction-local. */
 export function defineInstruction(definition: InstructionDefinition): InstructionDefinition {
@@ -10,8 +10,17 @@ export function defineInstruction(definition: InstructionDefinition): Instructio
 
 /** Check the typed representation's widths, names, capabilities, and lexical value scopes. */
 export function validateInstruction(definition: InstructionDefinition): void {
-  const cpu = definition.cpu;
-  const prefix = `${cpu.name} ${definition.name}`;
+  validation(definition.cpu, `${definition.cpu.name} ${definition.name}`).instruction(definition);
+}
+
+/** Check a policy in its own typed parameter scope, before an instruction applies it. */
+export function validateFlagPolicy(cpu: CpuDeclaration, policy: FlagPolicy): void {
+  const parameters = new Map(Object.entries(policy.parameters));
+  const args = Object.fromEntries([...parameters].map(([name, type]) => [name, type === "flag" ? flagValue(name) : value(name)]));
+  validation(cpu, `${cpu.name} ${policy.name}`).policy(policy, args, parameters, "policy");
+}
+
+function validation(cpu: CpuDeclaration, prefix: string) {
   const fail = (where: string, message: string): never => { throw new Error(`${prefix} / ${where}: ${message}`); };
   const width = (bits: number, where: string): Width => {
     if (!isWidth(bits)) return fail(where, "expected width 3, 8, 14, 16, or 32");
@@ -335,12 +344,14 @@ export function validateInstruction(definition: InstructionDefinition): void {
       bind(step.name, captured);
     });
   }
-  const inputs = new Map<string, ValueType>();
-  for (const [name, bits] of Object.entries(definition.inputs ?? {})) {
-    identifier(name, "inputs");
-    inputs.set(name, width(bits, "inputs"));
-  }
-  steps(definition.steps, inputs, "body");
+  return { policy, instruction(definition: InstructionDefinition) {
+    const inputs = new Map<string, ValueType>();
+    for (const [name, bits] of Object.entries(definition.inputs ?? {})) {
+      identifier(name, "inputs");
+      inputs.set(name, width(bits, "inputs"));
+    }
+    steps(definition.steps, inputs, "body");
+  } };
 }
 
 /** Plain data only: cloning must neither retain mutable caller objects nor hide host functions. */
