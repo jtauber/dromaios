@@ -7,7 +7,7 @@ preserves the four flags.
 
 [Machine definition](../../../../src/machines/8008/transfers-example.machine) ·
 [Tests](../../../../tests/machines/8008/transfers-example.test.ts) ·
-[Model contract](../model.md#loads) ·
+[Model contract](../../../../src/components/cpus/specifications/8008.md#register-and-memory-transfers) ·
 [Coverage](../../coverage.md#8008) ·
 [Nested-call example](stack.md)
 

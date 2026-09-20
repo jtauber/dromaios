@@ -5,7 +5,7 @@ Load 2, call an outer subroutine that adds 3, call an inner subroutine that adds
 unsupported byte before HLT. The two nested calls cross the address-register
 boundary from slot 7 to slot 0 and then slot 1.
 
-[Model contract](../model.md#jumps-calls-and-returns) ·
+[Model contract](../../../../src/components/cpus/specifications/8008.md#eight-address-registers) ·
 [Machine definition](../../../../src/machines/8008/stack-example.machine) ·
 [Example tests](../../../../tests/machines/8008/stack-example.test.ts) ·
 [CPU tests](../../../../tests/components/cpus/8008.test.ts)
@@ -86,7 +86,7 @@ return addresses in slots 0 and 7. Resuming for six steps with
 `endAddress: 0x020a` returns steps 5–10 and `completed`, before fetching HLT.
 One more step halts; that outcome takes precedence over an endpoint at `020B`.
 
-Reset during the nested call follows the [reset contract](../model.md#cpu-reset):
+Reset during the nested call follows the [reset contract](../../../../src/components/cpus/specifications/8008.md#reset):
 clear all data and address registers, choose selector zero, preserve flags and
 RAM, and stay stopped. A fresh factory restores the program and original state
 in independent components. Retained records survive later execution, reset,

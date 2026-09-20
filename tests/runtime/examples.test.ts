@@ -1,4 +1,4 @@
-import type { Cpu8008 } from "../../src/components/cpus/8008.js";
+import type { Cpu8008 } from "../../src/components/cpus/generated/8008-cpu.js";
 import { create8008Example } from "../../src/machines/generated/8008/example.js";
 import { create8008StackExample } from "../../src/machines/generated/8008/stack-example.js";
 import { create8008TransfersExample } from "../../src/machines/generated/8008/transfers-example.js";

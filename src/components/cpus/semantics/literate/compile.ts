@@ -7,6 +7,10 @@ import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Latch, Re
 import { defineInstruction, validateFlagPolicy, validateInstruction } from "../validate.ts";
 import { chapterBlocks, chapterBody, ChapterError, ChapterTokens } from "./document.ts";
 import { expression, flagExpression, width } from "./expressions.ts";
+import { chapterExecution, checkByteExecution } from "./execution.ts";
+import type { ChapterExecution } from "./execution.ts";
+import { chapterInterface } from "./interface.ts";
+import type { ChapterInterface } from "./interface.ts";
 import { chapterState, checkStateSymbol, stateSymbol } from "./state.ts";
 import { chapterStatements } from "./statements.ts";
 import type { ChapterCondition, ChapterOperand, StatementOptions } from "./statements.ts";
@@ -15,8 +19,11 @@ export type { ChapterCondition, ChapterOperand } from "./statements.ts";
 type Selection = ChapterOperand | ChapterCondition;
 interface Selector { readonly choices: readonly Selection[]; readonly view: "read" | "address" | "operand" }
 export interface CpuChapter {
+  readonly cpu: string;
   /** Present only when the chapter owns its complete stored-state schema. */
   readonly state?: StateFields;
+  readonly execution?: ChapterExecution;
+  readonly interface?: ChapterInterface;
   readonly sources: Readonly<Record<string, ValueSource>>;
   readonly views: Readonly<Record<string, ValueSource>>;
   readonly actions: Readonly<Record<string, InstructionDefinition>>;
@@ -27,16 +34,18 @@ export interface CpuChapter {
 }
 
 /** Compile a bounded literate language to the existing IR, without evaluating host-language code. */
-export function compileCpuChapter(markdown: string, target: { readonly name: string; readonly state?: StateFields }, file = "<chapter>"): CpuChapter {
+export function compileCpuChapter(markdown: string, target: { readonly name?: string; readonly state?: StateFields } = {}, file = "<chapter>"): CpuChapter {
   const registers = new Map<string, Register>(), flags = new Map<string, Flag>();
   const arrays = new Map<string, RegisterArray>(), latches = new Map<string, Latch>();
   const sources = new Map<string, ValueSource>(), policies = new Map<string, FlagPolicy>();
   const catalogues = new Map<string, readonly ChapterOperand[]>(), families = new Map<string, readonly OpcodeEntry<InstructionDefinition>[]>();
   const conditions = new Map<string, readonly ChapterCondition[]>();
   const views = new Map<string, ValueSource>(), actions = new Map<string, InstructionDefinition>();
-  const names = new Set<string>(), opcodes = new Set<number>();
+  const names = new Set<string>(), opcodes = new Map<number, ChapterTokens>();
   let declared = false, ownsState = false;
-  let cpu: CpuDeclaration = { name: target.name, state: target.state ?? {} };
+  let execution: ChapterExecution | undefined;
+  let publicInterface: ChapterInterface | undefined;
+  let cpu: CpuDeclaration = { name: target.name ?? "", state: target.state ?? {} };
 
   function declare(tokens: ChapterTokens, kind: string): string {
     const column = tokens.column, name = tokens.word();
@@ -74,11 +83,14 @@ export function compileCpuChapter(markdown: string, target: { readonly name: str
       const header = lines[index]!, kind = header.word();
       if (kind === "cpu") {
         if (declared) header.fail("CPU is already declared.");
-        if (header.quoted() !== cpu.name) header.fail(`Expected CPU ${cpu.name}.`);
+        const name = header.quoted();
+        if (target.name !== undefined && name !== target.name) header.fail(`Expected CPU ${target.name}.`);
+        if (!/^[a-z0-9]+$/.test(name)) header.fail("CPU names must contain lowercase letters or digits.");
+        cpu = { ...cpu, name };
         declared = true; header.end(); continue;
       }
       if (!declared) header.fail("Declare the CPU before its contents.");
-      if (!["state", "register", "flag", "array", "latch", "source", "view", "action", "policy", "operands", "codes", "conditions", "family"].includes(kind)) {
+      if (!["state", "execution", "interface", "register", "flag", "array", "latch", "source", "view", "action", "policy", "operands", "codes", "conditions", "family"].includes(kind)) {
         header.fail(`Unknown declaration ${kind}.`, 1);
       }
       if (kind === "state") {
@@ -91,6 +103,20 @@ export function compileCpuChapter(markdown: string, target: { readonly name: str
         continue;
       }
       if (!ownsState && target.state === undefined) header.fail("Define state before other declarations.");
+      if (kind === "interface") {
+        if (publicInterface) header.fail("Public interface is already declared.");
+        if (!ownsState || !execution) header.fail("A public interface requires chapter-owned state and an earlier execution contract.");
+        const { body, end } = chapterBody(lines, index); index = end;
+        publicInterface = chapterInterface(header, body, cpu.state, views);
+        continue;
+      }
+      if (kind === "execution") {
+        if (execution) header.fail("Execution is already declared.");
+        header.expect("{"); header.end();
+        const { body, end } = chapterBody(lines, index); index = end;
+        execution = chapterExecution(header, body, { views, actions, latches });
+        continue;
+      }
       if (["register", "flag", "array", "latch"].includes(kind)) {
         if (ownsState) header.fail("Declare stored fields inside the state block.");
         declareState(header, kind, true); continue;
@@ -249,7 +275,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name: str
             }
             if (!available) continue;
             if (opcodes.has(opcode)) form.fail(`Duplicate opcode $${opcode.toString(16)}.`);
-            opcodes.add(opcode);
+            opcodes.set(opcode, form);
             const bodySteps = steps(body.map(tokens => new ChapterTokens(tokens.source, file)), { bindings, operands, conditions: selectedConditions });
             definitions.push([opcode, form.checked(() => defineInstruction({ cpu, name: instructionName(selected),
               explanation: block.explanation, steps: bodySteps }))]);
@@ -262,5 +288,10 @@ export function compileCpuChapter(markdown: string, target: { readonly name: str
   }
   if (!declared) throw new ChapterError(file, 1, 1, "Expected a cpu declaration in a cpu fence.");
   if (!ownsState && target.state === undefined) throw new ChapterError(file, 1, 1, "Expected a state block.");
-  return { ...(ownsState ? { state: cpu.state } : {}), sources: Object.fromEntries(sources), views: Object.fromEntries(views), actions: Object.fromEntries(actions), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), conditions: Object.fromEntries(conditions), families: Object.fromEntries(families) };
+  if (execution) for (const entries of families.values()) for (const [opcode, definition] of entries) {
+    const tokens = opcodes.get(opcode)!;
+    if (opcode > 0xff) tokens.fail("Byte execution requires one-byte opcodes.");
+    tokens.checked(() => checkByteExecution(definition.steps));
+  }
+  return { cpu: cpu.name, ...(ownsState ? { state: cpu.state } : {}), ...(execution ? { execution } : {}), ...(publicInterface ? { interface: publicInterface } : {}), sources: Object.fromEntries(sources), views: Object.fromEntries(views), actions: Object.fromEntries(actions), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), conditions: Object.fromEntries(conditions), families: Object.fromEntries(families) };
 }

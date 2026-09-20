@@ -148,7 +148,7 @@ test("6800 generation uses Cpu6800, preserves its state and high-byte-first vect
 test("8008 generation preserves the 16 KiB size and eight address registers for Cpu8008", () => {
   const source = readFileSync("src/machines/8008/example.machine", "utf8");
   const generated = compileMachine(source, "8008/example.machine");
-  assert.ok(generated.includes('import { Cpu8008 } from "../../../components/cpus/8008.js";'));
+  assert.ok(generated.includes('import { Cpu8008 } from "../../../components/cpus/generated/8008-cpu.js";'));
   assert.ok(generated.includes("create: create8008Example, createMemory: create8008ExampleMemory"));
   assert.ok(generated.includes("defineRamExample(Cpu8008,"));
   assert.ok(generated.includes('"ramSize": 16384'));

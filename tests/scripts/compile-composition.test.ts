@@ -19,6 +19,26 @@ async function load(source: string, path: string, t: TestContext) {
   return import(pathToFileURL(filename).href);
 }
 
+test("generated 8008 compositions use the chapter entry point and preserve stepping and reset", async t => {
+  const example = readFileSync("src/machines/8008/example.machine", "utf8");
+  const state = example.slice(example.indexOf("cpu 8008"), example.indexOf("memory "));
+  const { createLiterate } = await load(`${state}
+components { ram=ram 4000 }
+memory = ram
+image ram 0 { 06 42 FF }
+reset { cpu }
+end 0003`, "literate.machine", t);
+  const machine = createLiterate();
+  assert.equal(machine.cpu.step().outcome, "executed");
+  assert.equal(machine.cpu.snapshot().a, 0x42);
+  assert.equal(machine.cpu.step().outcome, "halted");
+  assert.equal(machine.cpu.snapshot().pc, 3);
+  assert.equal(machine.endAddress, 3);
+  machine.reset();
+  assert.equal(machine.cpu.snapshot().pc, 0);
+  assert.equal(machine.cpu.snapshot().halted, true);
+});
+
 test("generated mapped factories support named callbacks, aliases, overlays, independent instances, and selective resets", async t => {
   const cpu = readFileSync("src/machines/68000/echo-example.machine", "utf8").split("cpu 68000")[1]!.split("\nmap ")[0]!;
   const source = `cpu 68000${cpu}

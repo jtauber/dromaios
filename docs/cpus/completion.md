@@ -73,7 +73,7 @@ them. Keep cycle timing and electrical bus behavior explicit limitations.
 
 The 8080's [port and control contract](8080/model.md#interrupt-controls-and-instruction-retirement)
 and [external delivery API](8080/model.md#external-interrupt-delivery) implement
-the first item. The 8008's [port contract](8008/model.md#port-input-and-output)
+the first item. The 8008's [port contract](../../src/components/cpus/specifications/8008.md#port-input-and-output)
 implements the second. The 6502 now implements [entry and return](6502/model.md#interrupt-entry-and-return)
 and [explicit IRQ/NMI offers](6502/model.md#external-interrupt-delivery), with
 its recognition timing limits documented there. The 6800 now completes its
@@ -94,7 +94,7 @@ The 68000 now completes its documented opcode inventory, including
 [synchronous entry/RTE](68000/model.md#synchronous-exception-entry-and-return),
 [interrupt offers and trace](68000/model.md#external-interrupt-delivery), STOP
 wakeup, and the [RESET device connection](68000/model.md#reset-device-connection).
-The 8008 also implements [external interrupt delivery](8008/model.md#external-interrupt-delivery),
+The 8008 also implements [external interrupt delivery](../../src/components/cpus/specifications/8008.md#external-interrupt-delivery),
 including supplied instruction bytes, STOPPED release, startup after reset, and
 native circular-stack calls without advancing the interrupted PC.
 The documented opcode milestone is complete for all eight. Further accuracy

@@ -103,7 +103,7 @@ scripts, and tests, and runs the compiled tests.
 `npm run build` performs the same checks and compilation without running tests.
 `npm run check:src` regenerates both outputs and runs the simulation check
 using [tsconfig.src.json](tsconfig.src.json), without emitting JavaScript.
-`npm run generate:cpus` compiles literate chapters and refreshes generated state schemas and instruction bodies.
+`npm run generate:cpus` compiles literate chapters and refreshes generated state schemas, instruction bodies, execution bindings, and chapter-declared public CPU modules.
 `npm run generate:machines` refreshes just the generated TypeScript factories.
 Run CPU generation first after a clean or a change to chapter-owned state.
 

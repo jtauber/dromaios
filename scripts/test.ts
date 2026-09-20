@@ -1,11 +1,12 @@
 import { spawnSync } from "node:child_process";
 import { globSync } from "node:fs";
+import { cpuModels } from "../src/components/cpus/models.ts";
 
 // npm runs this entry point from the repository root; no CPU selects the whole suite.
 const options = process.argv.slice(2);
 const cpu = options[0] && !options[0].startsWith("-") ? options.shift() : undefined;
-if (cpu !== undefined && !/^(6502|6800|68000|6809|8008|8080|8088|z80)$/.test(cpu)) {
-  console.error("Usage: npm test -- [6502|6800|68000|6809|8008|8080|8088|z80] [Node test options]");
+if (cpu !== undefined && !Object.hasOwn(cpuModels, cpu)) {
+  console.error(`Usage: npm test -- [${Object.keys(cpuModels).sort().join("|")}] [Node test options]`);
   process.exitCode = 1;
 } else {
   // Support both a single CPU test file and topic files in a CPU directory.

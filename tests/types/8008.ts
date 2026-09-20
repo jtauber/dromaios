@@ -1,7 +1,7 @@
 import { instructions as stateActions, sourceReaders } from "../../src/components/cpus/generated/8008-state.js";
-import type { Cpu8008StoredState } from "../../src/components/cpus/state/8008.js";
-import { Cpu8008 } from "../../src/components/cpus/8008.js";
-import type { Cpu8008State, Cpu8008Snapshot, Cpu8008StepRecord, Cpu8008ResetRecord, Cpu8008InterruptRecord } from "../../src/components/cpus/8008.js";
+import type { Cpu8008StoredState } from "../../src/components/cpus/semantics/generated/state/8008.js";
+import { Cpu8008 } from "../../src/components/cpus/generated/8008-cpu.js";
+import type { Cpu8008State, Cpu8008Snapshot, Cpu8008StepRecord, Cpu8008ResetRecord, Cpu8008InterruptRecord } from "../../src/components/cpus/generated/8008-cpu.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import type { BytePorts } from "../../src/components/cpus/port-access.ts";
 import { runCpu } from "../../src/runtime/run-cpu.js";

@@ -19,6 +19,20 @@ test("an unsupported opcode records one read and leaves PC unchanged, including 
   assert.deepEqual(ram.accesses, result.accesses);
 });
 
+test("read-time opcode advancement precedes lookup, including undefined bytes, and reports completed accesses", () => {
+  const ram = new ObservedRam(), state = { pc: 0xffff };
+  ram.write(0xffff, 0x42); ram.accesses.length = 0;
+  const seen: unknown[] = [];
+  const result = executeByteInstruction(state, ram, () => {
+    assert.equal(state.pc, 0); return undefined;
+  }, readWordLE, undefined, { opcodeAdvance: "read", onAccess: access => {
+    assert.equal(state.pc, 0xffff); seen.push(access);
+  } });
+  assert.equal(result.executed, false); assert.equal(state.pc, 0);
+  assert.deepEqual(result.accesses, [{ kind: "read", address: 0xffff, value: 0x42 }]);
+  assert.deepEqual(seen, result.accesses);
+});
+
 test("opcode lookup binds per-step capabilities after one fetch and still rejects unknown encodings", () => {
   const ram = new ObservedRam();
   ram.write(0xffff, 0x42); ram.write(0, 0x34);

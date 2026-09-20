@@ -8,6 +8,9 @@ import { instructions as motorola } from "../../../../src/components/cpus/genera
 import { instructions as motorola6800 } from "../../../../src/components/cpus/generated/6800.js";
 import { instructionModules, instructions6502, instructions6809 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
+import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
+import { generateChapterExecution } from "../../../../src/components/cpus/semantics/literate/execution.js";
+import { generateChapterInterface } from "../../../../src/components/cpus/semantics/literate/interface.js";
 import { instructionBodies, instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
 import { cpuSymbols, addWrap, capture, highByte, lowByte, literal, readRegister, value, writeLatch, writeRegister, zero } from "../../../../src/components/cpus/semantics/model.js";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/state/6502.js";
@@ -44,9 +47,9 @@ test("shared body keys build only their first form and retain encounter order, i
   assert.ok(Object.isFrozen(bodies));
 });
 
-test("the catalogue names exactly the generated modules, each reproducible without changing its inputs", () => {
+test("the catalogue and chapter bindings name exactly the generated modules, each reproducible without changing its inputs", () => {
   const directory = "src/components/cpus/generated";
-  const filenames = instructionModules.map(({ name }) => `${name}.ts`);
+  const filenames = [...instructionModules.map(({ name }) => `${name}.ts`), "8008-execution.ts", "8008-cpu.ts"];
   assert.equal(new Set(filenames).size, filenames.length, "module names must not overwrite one another");
   assert.deepEqual(readdirSync(directory).sort(), filenames.sort());
   for (const module of instructionModules) {
@@ -57,6 +60,15 @@ test("the catalogue names exactly the generated modules, each reproducible witho
     assert.equal(generateInstructions(cpu, definitions, options), source, `${name}: repeat generation`);
     assert.equal(JSON.stringify(module), before, `${name}: unchanged inputs`);
   }
+  const chapter = compileCpuChapter(readFileSync("src/components/cpus/specifications/8008.md", "utf8"), { name: "8008" });
+  const before = JSON.stringify(chapter);
+  const source = generateChapterExecution("8008", "8008", chapter.execution!);
+  assert.equal(source, readFileSync(`${directory}/8008-execution.ts`, "utf8"));
+  assert.equal(generateChapterExecution("8008", "8008", chapter.execution!), source);
+  const publicSource = generateChapterInterface("8008", chapter.state!, chapter.interface!);
+  assert.equal(publicSource, readFileSync(`${directory}/8008-cpu.ts`, "utf8"));
+  assert.equal(generateChapterInterface("8008", chapter.state!, chapter.interface!), publicSource);
+  assert.equal(JSON.stringify(chapter), before);
 });
 
 test("generation rejects definitions from a different CPU", () => {

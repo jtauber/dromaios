@@ -39,7 +39,7 @@ see the [development instructions](../README.md#development).
 
 ## CPU models
 
-- [Intel 8008](cpus/8008/model.md)
+- [Intel 8008: literate specification](../src/components/cpus/specifications/8008.md)
 - [Intel 8080](cpus/8080/model.md)
 - [MOS 6502](cpus/6502/model.md)
 - [Motorola 6800](cpus/6800/model.md)
@@ -49,8 +49,11 @@ see the [development instructions](../README.md#development).
 - [Motorola 68000](cpus/68000/model.md)
 
 Each model contract defines stored state, initialization, snapshots, execution
-records, unsupported-instruction policies, and CPU reset. Coverage stays in
-the combined tracker; concrete instruction behavior belongs with the examples.
+records, unsupported-instruction policies, and CPU reset. Complete literate
+specifications, beginning with the 8008, keep these contracts and hardware
+references alongside their executable definitions; other CPUs retain separate
+model documents. Coverage stays in the combined tracker, while program behavior
+and acceptance criteria belong with the examples.
 
 ## CPU examples
 

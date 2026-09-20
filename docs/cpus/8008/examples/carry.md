@@ -5,7 +5,7 @@ carry of one, producing `8103H` and clearing carry. Two calls to a byte routine
 use RST's fixed vector. Register adjustments preserve carry while advancing
 the pointer across a page boundary and counting the bytes.
 
-[Model contract](../model.md#accumulator-rotations) ·
+[Model contract](../../../../src/components/cpus/specifications/8008.md#accumulator-rotations) ·
 [Coverage](../../coverage.md#8008) ·
 [Machine definition](../../../../src/machines/8008/carry-example.machine) ·
 [Example tests](../../../../tests/machines/8008/carry-example.test.ts) ·

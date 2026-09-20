@@ -4,7 +4,7 @@ import { instructions } from "../../../../src/components/cpus/generated/8008.js"
 import { noPorts } from "../../../helpers/no-ports.js";
 import type { BytePorts } from "../../../../src/components/cpus/port-access.js";
 import type { ByteInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
-import type { Cpu8008StoredState } from "../../../../src/components/cpus/state/8008.js";
+import type { Cpu8008StoredState } from "../../../../src/components/cpus/semantics/generated/state/8008.js";
 
 const bodies: Readonly<Record<number, (state: Cpu8008StoredState, context: ByteInstructionContext & BytePorts) => void>> = instructions;
 const increments = { b: 0x08, c: 0x10, d: 0x18, e: 0x20, h: 0x28, l: 0x30 };

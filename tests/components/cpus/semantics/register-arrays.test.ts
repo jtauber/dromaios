@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
-import { cpu8008StateDescription } from "../../../../src/components/cpus/state/8008.js";
-import type { Cpu8008StoredState } from "../../../../src/components/cpus/state/8008.js";
+import { cpu8008StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8008.js";
+import type { Cpu8008StoredState } from "../../../../src/components/cpus/semantics/generated/state/8008.js";
 import { addWrap, capture, cpuSymbols, extend, fillArray, flagLiteral, highByte, literal, readElement, readRegister, readSource, shiftLeft, shiftRight, signExtend, truncate, value, when, writeElement, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
 import type { InstructionDefinition, NumberExpression, Statement, Width } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";

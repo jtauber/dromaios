@@ -4,7 +4,7 @@ import { instructions } from "../../../../src/components/cpus/generated/8008.js"
 import { noPorts } from "../../../helpers/no-ports.js";
 import type { BytePorts } from "../../../../src/components/cpus/port-access.js";
 import type { ByteInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
-import type { Cpu8008StoredState } from "../../../../src/components/cpus/state/8008.js";
+import type { Cpu8008StoredState } from "../../../../src/components/cpus/semantics/generated/state/8008.js";
 
 const families = ["ad", "ac", "su", "sb", "nd", "xr", "or", "cp"] as const;
 const sources = ["A", "B", "C", "D", "E", "H", "L", "M", "immediate"] as const;

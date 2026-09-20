@@ -5,9 +5,9 @@ import { test } from "node:test";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
-import { instructions8008 } from "../../../../src/components/cpus/semantics/definitions/8008.js";
+import { instructions8008 } from "../../../../src/components/cpus/semantics/generated/catalogue.js";
 import { opcodeEntries } from "../../../../src/components/cpus/generated/8008.js";
-import type { Cpu8008StoredState } from "../../../../src/components/cpus/state/8008.js";
+import type { Cpu8008StoredState } from "../../../../src/components/cpus/semantics/generated/state/8008.js";
 import type { ByteInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 import type { BytePorts } from "../../../../src/components/cpus/port-access.js";
 

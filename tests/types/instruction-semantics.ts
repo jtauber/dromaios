@@ -35,8 +35,8 @@ import { instructions as generated6502, sourceReaders } from "../../src/componen
 import { instructions as generatedZ80 } from "../../src/components/cpus/generated/z80.js";
 import type { CpuZ80State } from "../../src/components/cpus/z80.js";
 import { instructions as generated8008 } from "../../src/components/cpus/generated/8008.js";
-import { cpu8008StateDescription } from "../../src/components/cpus/state/8008.js";
-import type { Cpu8008State, Cpu8008StoredState } from "../../src/components/cpus/state/8008.js";
+import { cpu8008StateDescription } from "../../src/components/cpus/semantics/generated/state/8008.js";
+import type { Cpu8008State, Cpu8008StoredState } from "../../src/components/cpus/semantics/generated/state/8008.js";
 import { instructions as generated8080 } from "../../src/components/cpus/generated/8080.js";
 import { instructions as generated6809 } from "../../src/components/cpus/generated/6809.js";
 import { instructions as generated6800 } from "../../src/components/cpus/generated/6800.js";

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { instructions as actions, sourceReaders } from "../../../../src/components/cpus/generated/8008-state.js";
-import type { Cpu8008StoredState } from "../../../../src/components/cpus/state/8008.js";
+import type { Cpu8008StoredState } from "../../../../src/components/cpus/semantics/generated/state/8008.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
@@ -147,7 +147,7 @@ test("state effect restrictions follow reusable sources and report the invoking 
 
 test("reset explanations expose every address slot and do not earn opcode coverage", () => {
   const chapter = compile();
-  assert.deepEqual(Object.keys(chapter.actions), ["setPC", "reset"]);
+  assert.deepEqual(Object.keys(chapter.actions), ["setPC", "reset", "resume"]);
   assert.deepEqual(Object.keys(chapter.views), ["PC", "HL"]);
   assert.equal(Object.values(chapter.families).flat().length, 250);
   assert.match(describeInstruction(chapter.actions.reset!), /fill all 8 ADDRESSSTACK elements:u14/);

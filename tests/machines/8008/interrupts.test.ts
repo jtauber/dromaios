@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Cpu8008 } from "../../../src/components/cpus/8008.js";
+import { Cpu8008 } from "../../../src/components/cpus/generated/8008-cpu.js";
 import { create8008Example } from "../../../src/machines/generated/8008/example.js";
 import { runCpu } from "../../../src/runtime/run-cpu.js";
 

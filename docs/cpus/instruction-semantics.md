@@ -84,9 +84,9 @@ remain TypeScript-authored.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 12,327 generated, executable bodies. All serve CPU execution;
-12,320 are bound through opcode or postbyte selection. Seven helpers serve
-6502/6800/8088 entry, 6809 frame pushing, 8088 WAIT resumption, and 8008 PC writes/reset.
+There are 12,328 generated, executable bodies. All serve CPU execution;
+12,320 are bound through opcode or postbyte selection. Eight helpers serve
+6502/6800/8088 entry, 6809 frame pushing, 8088 WAIT resumption, and 8008 PC writes/reset/acceptance.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
 All eight CPUs have complete instruction-definition migration.
 The 68000 has all 36,029 documented forms migrated, including ordinary MOVE/MOVEA,
@@ -142,7 +142,8 @@ The 20 remaining 8-bit interrupt/control forms now use complete definitions:
 6502 BRK/RTI; 6800 SWI/WAI/RTI; 8080 DI/EI; Z80 DI/EI, IM 0/1/2, RETN/RETI;
 and 6809 SWI/SWI2/SWI3, SYNC/CWAI/RTI. This completes instruction migration for
 all six 8-bit CPUs. External offer validation and recognition, supplied-byte
-fetching, reset, retirement, and device notification delivery stay in the cores.
+fetching, reset, retirement, and device notification delivery use the cores or
+shared runtime services selected by chapter execution contracts.
 
 `stackFrame` lists register views in pull order and reverses them for pushes.
 It captures each field only at its turn and commits each popped field after
@@ -249,7 +250,7 @@ The authoring layers have separate homes:
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
 | [decimal.ts](../../src/components/cpus/semantics/decimal.ts) | Shared decimal-correction selection with explicit Intel/Motorola flag and result stages |
 | [mos.ts](../../src/components/cpus/semantics/mos.ts) | NMOS ADC/SBC binary facts, decimal digit correction, and distinct flag/write stages |
-| [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8008.ts](../../src/components/cpus/semantics/definitions/8008.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
+| [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Typed module catalogue shared by executable generation, explanation, and reproducibility checks |
 
 Register each generated module once in `instructionModules`, with its filename
@@ -1547,16 +1548,18 @@ The source-only check and ordinary compilation both type-check the generated
 bodies. Reproducibility tests compare every module with fresh output and run the
 native generator in a clean temporary tree from another working directory.
 
-All eight CPUs expose their state schemas through
-[`src/components/cpus/state/`](../../src/components/cpus/state), re-exported
-through their original CPU modules. The 8008 schema and mutable stored-state
-type are generated from its chapter into `semantics/generated/state/`; its
-public state module retains aliases and readonly policies. Other schemas remain
-authored TypeScript. Chapter generation builds the 8008 schema without importing
+Handwritten CPU schemas live under
+[`src/components/cpus/state/`](../../src/components/cpus/state). The 8008 schema,
+mutable stored-state type, public aliases, and readonly caller policies are
+generated from its chapter into `semantics/generated/state/` and re-exported
+by `generated/8008-cpu.ts`. Other schemas remain authored TypeScript. Chapter generation builds the 8008 schema without importing
 existing output, before the instruction registry loads it. The machine parser
 uses these same schemas without importing executable handlers or expanded chapter
 data. After a clean, generate CPUs before running machine generation separately.
-There is one authority for each CPU's stored fields.
+There is one authority for each CPU's stored fields. Complete chapters also
+generate their instruction catalogue entries, including the state-type import
+and authored-source path passed to `generateInstructions`. Shared generation
+uses those options instead of processor-specific state-adapter rules.
 
 Opcode selection remains in the CPU tables. For the 6502 and numeric 8088 families,
 `generateInstructions(..., { bindOpcodes: true })` also generates
@@ -1899,10 +1902,12 @@ writing the new 14-bit target; returns only decrement it. Targets are fetched
 before conditions, and untaken paths never access the selector or array.
 Its explicit INP/OUT effects preserve complete-input-before-writeback and
 captured-output rules. A separate `8008-state.ts` module uses the same generator
-for chapter-authored PC/HL readers and PC-write/reset actions. Those helpers
-have no opcode bindings. The core supplies their stored state, guards reset,
-and assembles snapshots. Fetching, port recording, and interrupt acceptance
-remain handwritten. The machine parser reads its separate state schema without
+for chapter-authored PC/HL readers and PC-write/reset/acceptance actions. Those helpers
+have no opcode bindings. The chapter execution contract generates
+`8008-execution.ts`, binding its counter, stopped latch, and actions to shared
+fetching, recording, and guarding. The public core supplies owned state and
+snapshots; its handwritten step and interrupt algorithms are removed.
+The machine parser reads its separate state schema without
 depending on generated execution code.
 The 6800 and 6809 bind generated A/B and memory bodies through one
 `motorolaUnaryOperations` selector table, including TST and CLR. Each CPU's static

@@ -1,26 +1,46 @@
 # Literate CPU specifications
 
-Executable chapters are maintained instruction sources:
+Executable chapters are maintained CPU sources:
 
 - [MOS 6502: loading and storing the accumulator](../../src/components/cpus/specifications/6502-load-store.md)
   defines LDA/STA and the addressing catalogue and N/Z policy reused by the
   remaining 6502 definitions.
-- [Intel 8008: the complete instruction set](../../src/components/cpus/specifications/8008.md)
+- [Intel 8008: the complete model](../../src/components/cpus/specifications/8008.md)
   defines every documented instruction, including control flow, restarts,
   halts, and port transfers. The chapter owns behavior, encodings, and stored-state
-  declarations, PC/HL views, and reset effects. Fetching, recording, and interrupt
-  delivery remain in the core.
+  declarations, PC/HL views, reset effects, and ordinary/interrupt execution
+  policies, and the public interface. Generated modules connect those policies
+  to shared runtime services; no handwritten 8008 implementation remains. Its
+  API contracts, hardware references, checks, and limitations also live in the
+  chapter; there is no separate model document.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
 
 This is an authoring-language prototype over the existing
 [instruction representation](instruction-semantics.md), with a deliberately
-small vocabulary. It is not yet a language for describing an entire CPU.
+small vocabulary. It now describes a complete instruction-level 8008 model;
+other execution architectures still need language and runtime support.
 Current counts and milestone evidence belong in the
 [coverage report](coverage.md#literate-authoring-milestone).
 
 ## Reading and building a chapter
+
+A complete chapter is the CPU's model contract as well as its implementation
+source. It should also teach the chip: its historical setting, architecture,
+physical interfaces, instruction encodings, and how a program executes. Cite
+historical and hardware sources, and distinguish physical behavior from the
+emulator's chosen level of detail. Use worked explanations to connect the prose
+to formal definitions, linking to example specifications for complete program
+images and acceptance traces.
+
+Keep hardware references, state and execution contracts, failure behavior,
+model choices, and limitations beside the definitions they explain. When a
+chapter takes over a CPU, merge any remaining material from its `model.md`,
+remove that separate document, and update incoming links. Partial chapters
+still rely on their CPU's model document for the wider contract. Example
+programs retain their own behavior and acceptance specifications, and shared
+language and runtime documentation stays in the common guides.
 
 A chapter is ordinary Markdown with executable `cpu` fences. Prose explains
 the hardware and the model's choices. The paragraph immediately before a family
@@ -28,6 +48,14 @@ fence supplies that family's generated explanation; wrap it freely across
 lines, without inserting a paragraph break. Other prose and other fenced code
 are not executable. Opening backtick or tilde fences must be unindented;
 block quotes and indented code, including fences inside lists, are not executed.
+
+The build discovers Markdown files directly under `specifications/` in filename
+order and takes each model's identity from its `cpu` declaration. CPU identifiers
+contain lowercase letters or digits. Complete chapters need no handwritten
+registration entry; partial chapters still have explicit external-schema bindings.
+Chapter filenames use lowercase letters, digits, and single hyphen separators;
+`catalogue`, `interfaces`, and `state` are reserved output names. Duplicate complete
+models are rejected before replacing chapter output.
 
 The build proceeds through:
 
@@ -49,6 +77,17 @@ so runtime consumers need not load the expanded instruction data. Chapter
 generation takes no pre-existing schema for these CPUs and writes their state
 modules before the instruction registry is loaded. All chapters and schemas
 are checked before replacing existing output.
+An `execution` contract also generates `generated/<chapter>-execution.ts`,
+binding named views/actions and the instruction table to the shared byte runtime.
+Complete chapters generate their instruction catalogue entries automatically.
+An `interface` declaration also generates `generated/<chapter>-cpu.ts`, the
+public class and result types, plus public state aliases in the schema module.
+A small generated `interfaces.ts` manifest supplies class names, module paths,
+state schemas and caller types, RAM sizes, and public-PC bounds. The shared
+[model catalogue](../../src/components/cpus/models.ts) combines those entries
+with integration metadata for handwritten cores. Machine parsing, flat and
+composed machine generation, and CPU test selection use that catalogue.
+`catalogue.ts` integrates complete chapters into the instruction registry. Both live under `semantics/generated/`.
 `node scripts/describe-cpu-semantics.ts` also refreshes chapter data before
 generating the tracked explanation listing; add `--check` to check that listing.
 No Markdown parser or filesystem access is required to execute a CPU.
@@ -83,6 +122,9 @@ Quoted descriptions use JSON string escaping.
 | `source zeroPage "zero page": 16 { … }` | Ordered steps ending in a numeric `return`; each use has its own capture scope. |
 | `view PC "selected PC": 14 { … }` | A named read-only state source, ending in a numeric `return`; it cannot access external devices. |
 | `action setPC "set selected PC" (address: 16) { … }` | Ordered state effects with optional numeric inputs; no instruction fetching, memory, port, or boundary effects. |
+| `execution { … }` | Bind the chapter's views, actions, and opcode families to a checked execution contract. |
+| `interface Cpu8008 "description" { … }` | Generate the public class, concrete result types, and state aliases from owned state and an earlier execution contract. |
+| `snapshot pc = PC` | Expose an earlier numeric state view under a public snapshot field, inside `interface`. |
 | `offset = fetch` | Fetch and capture the next instruction byte. |
 | `index = register X`, `carry = flag C` | Read and capture a register or flag at this point; the capture retains its numeric or flag type. |
 | `address = source zeroPage` | Evaluate and capture a previously declared source. |
@@ -113,8 +155,8 @@ register and element widths use the language's supported numeric widths.
 
 The compiler returns the schema along with the instruction families. The build
 generates an immutable state description and a `StoredState` type derived from
-it. Public aliases and caller/snapshot readonly policies can remain in the
-CPU's state module. Initial values, reset effects, derived register views,
+it. A chapter with a public `interface` also generates its public state types;
+other CPUs may retain those types in their state modules. Initial values, reset effects, derived register views,
 fetching, and interrupt delivery are separate contracts, not implied by storage.
 
 Partial chapters instead receive an external schema and use top-level state
@@ -149,13 +191,109 @@ must match the declared element width; old slot contents are never read. It
 lowers to the shared `fill-array` effect. Ordinary indexed writes still use
 `ARRAY[index] <- value` and retain their index-range checks.
 
-The 8008 core binds generated PC/HL readers and calls generated `setPC` and
+The generated 8008 adapter binds PC/HL readers and calls generated `setPC` and
 `reset` actions. PC writes explicitly truncate a sixteen-bit supplied address
 to fourteen bits. Reset explicitly clears registers and slots, selects slot
 zero, and sets STOPPED; its omitted flags retain their values under the declared
-model policy. The core still guards reset and records before/after snapshots.
+model policy. Shared runtime services guard reset and record before/after snapshots.
 These helpers use the existing instruction generator in `generated/8008-state.ts`;
 they have no opcode bindings and earn no instruction-coverage credit.
+
+### Execution contracts
+
+The [8008 execution section](../../src/components/cpus/specifications/8008.md#execution-and-interrupt-acceptance)
+declares how its instruction bodies run. The current contract supports a flat
+byte-memory connection, one-byte opcode dispatch, a stopped latch, and
+unconditionally accepted instructions supplied by an acknowledgement callback.
+It has one `execution` block per chapter; every field below is required and
+references must name earlier declarations.
+
+| Field | Contract |
+| --- | --- |
+| `memory 14` | Exact RAM size is 2 to this power; supported widths are 1–16 bits. Memory is checked before initial-state getters are read. |
+| `counter PC write setPC` | Read the named state view and write through an action with one 16-bit input. The view must fit the memory width. Sequential arithmetic wraps at 16 bits; the writer may impose a narrower wrap. |
+| `stopped STOPPED` | Read this latch before an ordinary step; a set latch returns a halted record without fetching. Read it again after successful execution to select the outcome. |
+| `word little` | Supply a little-endian `fetchWord`; `big` supplies high-byte-first fetching. Explicit byte fetches in instruction bodies retain their own order. |
+| `opcode advance on dispatch` | Advance the captured initial PC by one only if an opcode handler exists. `on read` advances after the successful read, before lookup, including undefined opcodes. |
+| `operand advance after read` | Fetch from live PC, then advance the captured address by one only after the read succeeds. This is the only supported operand-advance policy. |
+| `failure retain` | Propagate thrown failures, retain completed effects, return no record, and release the guard. Rollback is unsupported. |
+| `reset action reset` | Invoke the named state action between reset snapshots under the same guard. |
+| `retire none` | No additional retirement effects. `retire action NAME` invokes an input-free state action after a successful handler, including HLT, before the after-snapshot; undefined or failed attempts skip it. |
+
+The nested `interrupt` block requires:
+
+| Field | Contract |
+| --- | --- |
+| `accept always with resume` | Validate that acknowledgement is callable, capture the before-snapshot, then invoke the input-free state action before requesting any byte. No mask, pending queue, or automatic call is implied. |
+| `bytes acknowledge` | Obtain and validate every instruction byte through acknowledgement, with its own access records and no invented RAM instruction address. Data memory and ports use their usual connections. |
+| `counter preserve` | Supplied bytes leave PC untouched. `advance` instead increments live PC after each successful acknowledgement, including an undefined opcode. |
+| `unknown retain` | An undefined supplied opcode reports unsupported, retaining acceptance and completed fetch effects. It requests no operands and performs no retirement action. |
+
+Both paths select the chapter's same opcode table. Stored-state operations still
+use the instruction representation; the execution declaration generates only
+bindings to [shared runtime code](../../src/components/cpus/byte-execution.ts).
+The runtime supplies chronological memory/port/acknowledgement recording,
+snapshot assembly, and a guard shared by step, reset, and interrupt. Each call
+owns its records; snapshots remain callable inside device callbacks.
+
+Unknown fields, duplicate or missing policies, wrong reference kinds or action
+signatures, and opcodes wider than a byte fail at Markdown locations. Unsupported
+architectures are rejected explicitly: this contract does not yet express masked
+interrupts, prefixes, segmented fetches, vector entry, wait states, or reset-time
+bus reads. Those need evidence from further CPUs before extending the language.
+
+### Public interfaces
+
+A complete chapter can expose its model directly:
+
+```text
+interface Cpu8008 "Instruction-level Intel 8008." {
+  snapshot pc = PC
+  snapshot hl = HL
+}
+```
+
+The declaration requires chapter-owned state and an earlier supported execution
+contract. Its class name starts with `Cpu` followed by an uppercase letter or
+digit, then letters or digits. Each `snapshot` entry names an earlier numeric
+view. Fields must be unique and must not replace stored fields. An empty block
+exposes stored state alone. Descriptions supply generated comments, never code.
+Unknown entries, invalid names, missing views, and repeated interfaces report
+Markdown locations.
+
+Shared interface conventions supply construction, `snapshot()`, `reset()`,
+`step()`, and `interrupt(acknowledge)` for the current byte execution contract.
+Construction validates RAM before initial-state getters, validates and copies
+state, then binds execution. Snapshots copy all stored state and evaluate the
+listed views in declaration order. The generated methods delegate to the same
+execution services selected by the chapter; no CPU-name branch or handwritten
+adapter is needed.
+
+The class name prefixes `State`, `StoredState`, `Snapshot`, and the concrete
+instruction, access, reset, step, and interrupt record types. A lowercased first
+letter names the schema export, such as `cpu8008StateDescription`. Internal
+stored state is mutable. Caller state accepts readonly fixed arrays; snapshots
+and records are recursively readonly. Array/group fields also receive aliases
+formed by capitalizing their first letter (`addressStack` becomes
+`Cpu8008AddressStack`). Alias collisions with other aliases or standard types
+are rejected. These conventions belong to shared generation; the chapter
+supplies the processor's fields, constraints, names, and view selections.
+
+Public modules import only generated execution, small state modules, and shared
+runtime helpers. They never parse Markdown or load expanded chapter data at
+runtime. Import the generated entry point after building; there is no maintained
+compatibility wrapper at the old handwritten path.
+
+For machine integration, RAM size is derived from the execution contract's
+`memory` width. Completion bounds are derived from the width of the view exposed
+as snapshot `pc`, independently of RAM size. A model without that public view
+can still run, but `.machine` rejects an `end` declaration for it. Generated
+caller-state types retain fixed tuples and readonly arrays in parsed machine
+types; generated RAM-size literals remain associated with the model discriminant.
+The manifest imports only small schemas, never executable CPU modules or expanded
+instruction data. [Integration tests](../../tests/scripts/chapter-model-integration.test.ts)
+change chapter declarations and exercise the production parser and generators,
+including automatic addition and removal of another model.
 
 ### Expressions and policies
 
@@ -422,11 +560,12 @@ to their flag update rather than the policy header.
 ## Boundaries and next evidence
 
 The 8008 chapter now generates its authoritative stored-state schema and type,
-derived PC/HL views, and state actions for PC writes and reset.
-Partial chapters still validate their declarations against externally supplied
-schemas. Native opcode fetching, execution records, reset-boundary guarding,
-interrupt recognition, and retirement remain in the existing CPU core. Most
-instruction families are still authored in TypeScript.
+derived PC/HL views, state actions, and bindings for ordinary and interrupt
+execution, plus its public class, snapshot assembly, state aliases, and
+instruction catalogue bindings. No processor-specific TypeScript implementation
+remains; the chapter supplies all of its model and public-interface choices.
+Shared runtime services enforce the declared execution contract. Partial chapters still validate their declarations against externally
+supplied schemas; most other instruction families remain authored in TypeScript.
 
 The three chapters now exercise contrasting widths and ordered effects.
 The 8008 now expresses its address-stack selector, array, and port effects;
@@ -436,14 +575,14 @@ before the broader MOVE catalogue's shared bodies; those shared bodies still
 serve other sizes and addressing modes. Only the chapter-owned forms earn
 literate coverage.
 
-The 8008 is the first whole-CPU target. Its chapter owns the complete instruction
-set, stored-state schema, register views, and reset effects. The next evidence
-is fetching and interrupt-supplied execution, including boundary orchestration
-and recording. Those remain handwritten despite complete instruction coverage. Each further
-slice should replace its corresponding maintained TypeScript and retain
-independent execution tests. The destination is a whole CPU description,
-including state and lifecycle contracts, that needs no CPU-specific compiler
-changes.
+The 8008 supplies the first whole-CPU description at its declared instruction-level
+fidelity. The next evidence is applying the approach to another CPU, beginning
+with the 8080's interrupt recognition and retirement differences. A differently
+named test CPU already exercises different storage, address width, views, and
+actions through the same compiler and runtime. This is evidence for the current
+contract, not proof that it covers the remaining architectures. Each further
+slice should replace its corresponding maintained TypeScript, preserve explicit
+hardware differences, and retain independent execution tests.
 These chapters establish an executable authoring path, not a percentage
 estimate of the work remaining toward that goal.
 
@@ -453,6 +592,7 @@ The [6502 language tests](../../tests/components/cpus/semantics/literate.test.ts
 [8008 arithmetic language tests](../../tests/components/cpus/semantics/literate-8008-arithmetic.test.ts),
 [8008 control/port language tests](../../tests/components/cpus/semantics/literate-8008-control.test.ts),
 [8008 view/reset tests](../../tests/components/cpus/semantics/literate-8008-state.test.ts),
+[execution-language tests](../../tests/components/cpus/semantics/literate-execution.test.ts),
 and [68000 language tests](../../tests/components/cpus/semantics/literate-68000.test.ts)
 check inventories, runtime integration, document diagnostics, malformed selectors
 and exclusions, capture isolation, and formal edits that change execution.

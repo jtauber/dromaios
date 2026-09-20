@@ -79,8 +79,9 @@ describes the working chapter prototype; the
 - Prove an executable literate chapter from prose and formal rules through
   validation, generated execution, and document diagnostics. Replace the
   corresponding handwritten definitions rather than keeping two authorities.
-- Challenge the language with contrasting families from the 8008 and 68000
-  before migrating a complete CPU, including state, decoding, and lifecycle.
+- Challenge the language with contrasting families and whole-CPU migrations,
+  including state, decoding, lifecycle, and generated public interfaces. Apply the 8008 execution contract
+  to the 8080 next, preserving its interrupt recognition and retirement differences.
   Keep the final language shape open to what those examples teach us.
 - Address remaining accuracy and machine-integration needs in reviewable
   changes, with explicit model contracts and documented limits. Keep their

@@ -5,7 +5,7 @@ checks the result, and stores `06` in RAM. It exercises taken and untaken
 conditional jumps, calls, and returns while using the 8008's circular address
 registers. A comparison selects the success path and preserves the result.
 
-[Model contract](../model.md#jumps-calls-and-returns) ·
+[Model contract](../../../../src/components/cpus/specifications/8008.md#eight-address-registers) ·
 [Coverage](../../coverage.md#8008) ·
 [Machine definition](../../../../src/machines/8008/control-flow-example.machine) ·
 [Example tests](../../../../tests/machines/8008/control-flow-example.test.ts) ·

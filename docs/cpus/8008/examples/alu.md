@@ -5,7 +5,7 @@ to recover `01F0`. It propagates carry and borrow between byte operations,
 then masks and combines bits and compares the result without replacing A.
 It stores five output bytes and halts with the comparison flags intact.
 
-[Model contract](../model.md#arithmetic-and-logic) ·
+[Model contract](../../../../src/components/cpus/specifications/8008.md#eight-accumulator-operations) ·
 [Coverage](../../coverage.md#8008) ·
 [Machine definition](../../../../src/machines/8008/alu-example.machine) ·
 [Example tests](../../../../tests/machines/8008/alu-example.test.ts) ·

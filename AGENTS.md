@@ -12,10 +12,14 @@ when project scope, milestones, architecture, or development workflow changes;
 do not update them just to add an opcode to a progress list. Track current CPU
 support, instruction-definition coverage, and source footprint in
 docs/cpus/coverage.md, updating the affected figures and descriptions in the
-same change. Keep CPU state, execution-record, and reset contracts in
-docs/cpus/<cpu>/model.md; keep program behavior and
-acceptance criteria in the relevant example specifications. Avoid duplicate
-status lists.
+same change. For CPUs with complete literate specifications, keep state,
+execution-record, and reset contracts, hardware references, and model limitations
+in the executable chapter alongside the formal definitions. Chapters should
+teach the chip, including its history, architecture, and physical operation;
+distinguish hardware background from behavior modeled by the emulator. Other
+CPUs retain these in docs/cpus/<cpu>/model.md until their chapters take ownership.
+Keep program behavior and acceptance criteria in the relevant example specifications.
+Avoid duplicate contracts and status lists.
 
 ## Priorities for source code
 
@@ -46,8 +50,11 @@ CPU definitions and shared builders, and in executable Markdown chapters under
 `src/components/cpus/specifications/`. Follow the
 [literate specification guide](docs/cpus/literate-specifications.md) for chapters and the
 [instruction semantics guide](docs/cpus/instruction-semantics.md) when changing
-these definitions; decoding and execution-boundary logic also remain in the
-CPU cores. For generated machine factories, edit the `.machine` sources under
+these definitions. Decoding and execution boundaries live in CPU cores or in
+shared runtimes selected by chapter execution contracts. Complete chapters also
+generate public CPU modules; edit their `interface` declarations instead of
+adding handwritten wrappers. For generated machine
+factories, edit the `.machine` sources under
 `src/machines/`, following the [machine definition guide](docs/machines/definitions.md).
 Do not hand-edit or commit `src/components/cpus/generated/`,
 `src/components/cpus/semantics/generated/`, `src/machines/generated/`, or `dist/`;

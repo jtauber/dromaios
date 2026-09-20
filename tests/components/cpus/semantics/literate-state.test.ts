@@ -4,7 +4,7 @@ import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { array, boolean, defineState, flag, group, readState, unsigned } from "../../../../src/components/cpus/state.js";
 import type { StateFields } from "../../../../src/components/cpus/state.js";
-import { cpu8008StateDescription } from "../../../../src/components/cpus/state/8008.js";
+import { cpu8008StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8008.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
 import { generateChapterState } from "../../../../src/components/cpus/semantics/literate/state.js";

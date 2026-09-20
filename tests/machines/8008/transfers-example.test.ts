@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Cpu8008 } from "../../../src/components/cpus/8008.js";
-import type { Cpu8008MemoryAccess, Cpu8008Snapshot, Cpu8008StepRecord } from "../../../src/components/cpus/8008.js";
+import { Cpu8008 } from "../../../src/components/cpus/generated/8008-cpu.js";
+import type { Cpu8008MemoryAccess, Cpu8008Snapshot, Cpu8008StepRecord } from "../../../src/components/cpus/generated/8008-cpu.js";
 import type { Ram } from "../../../src/components/memory/ram.js";
 import { create8008TransfersExample, create8008TransfersExampleMemory } from "../../../src/machines/generated/8008/transfers-example.js";
 import { runCpu } from "../../../src/runtime/run-cpu.js";

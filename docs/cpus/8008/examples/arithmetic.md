@@ -4,7 +4,7 @@ Load 2, add 3, store 5 at RAM address `0080`, and halt. The 8008 builds the
 store address in H and L, using its own instruction encodings. This complements
 the [8080 arithmetic example](../../8080/examples/arithmetic.md).
 
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/8008.md) ·
 [Machine definition](../../../../src/machines/8008/example.machine) ·
 [Example tests](../../../../tests/machines/8008/example.test.ts) ·
 [CPU tests](../../../../tests/components/cpus/8008.test.ts)
@@ -66,12 +66,12 @@ A three-step budget pauses at `0006` with A = `02`. Another two steps with
 one step executes HLT. Together the three runs match uninterrupted execution;
 HALT takes precedence over reaching an endpoint at `000A`.
 
-Reset follows the [8008 reset contract](../model.md#cpu-reset): data and address
+Reset follows the [8008 reset contract](../../../../src/components/cpus/specifications/8008.md#reset): data and address
 registers clear, selector zero is chosen, and the CPU stays stopped. Flags
 retain their values, including P = 1. RAM retains the stored five and any host
-edits to code. With interrupt delivery deferred, reset does not restart this
-example. A new factory restores the original RAM image and runnable initial
-state in independent components.
+edits to code. Reset alone does not restart this example; an externally supplied
+instruction can resume execution. A new factory restores the original RAM image
+and runnable initial state in independent components.
 
 ## Acceptance checks
 

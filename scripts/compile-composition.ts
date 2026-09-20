@@ -1,4 +1,5 @@
 import { posix } from "node:path";
+import { cpuModels } from "../src/components/cpus/models.ts";
 import type { ComposedMachineDefinition } from "../src/machines/machine-language.ts";
 
 const componentTypes = {
@@ -10,8 +11,8 @@ const componentTypes = {
 
 /** Emit concrete construction and wiring; generated machines need no runtime interpreter. */
 export function compileComposition(machine: ComposedMachineDefinition, name: string, from: string): string {
-  const cpuClass = `Cpu${machine.cpu.charAt(0).toUpperCase()}${machine.cpu.slice(1)}`;
-  const imports = [`import { ${cpuClass} } from "${path(`cpus/${machine.cpu}`)}";`];
+  const { name: cpuClass, module: cpuModule } = cpuModels[machine.cpu];
+  const imports = [`import { ${cpuClass} } from "${path(`cpus/${cpuModule}`)}";`];
   for (const kind of new Set(machine.components.map(component => component.kind))) {
     const [type, module] = componentTypes[kind];
     imports.push(`import { ${type} } from "${path(module)}";`);

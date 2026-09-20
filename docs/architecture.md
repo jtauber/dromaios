@@ -23,7 +23,10 @@ readable documentation and implementation source. Typed definitions and code
 generation provide a working foundation. The first
 [literate chapter](cpus/literate-specifications.md) now compiles Markdown `cpu`
 fences into that representation, with diagnostics tied to the document.
-Complete CPU descriptions and lifecycle behavior remain ahead.
+The 8008 now supplies a complete description at its declared instruction-level
+fidelity, including state, lifecycle policies, and its generated public API.
+Its chapter is the sole processor-specific implementation source. Generalizing whole-CPU
+authoring across the other architectures remains active work.
 
 The current [stored-state descriptions](cpus/implementation.md#stored-state-descriptions)
 are one such example: CPU-owned fields and constraints drive constructor
@@ -37,8 +40,10 @@ The [instruction definitions](cpus/instruction-semantics.md) cover all eight
 documented instruction sets, pairing formal behavior with prose. Validation
 and generation produce both expanded explanations and
 typed TypeScript bodies. CPU tables bind those bodies to stored state and narrow
-execution contexts. Native decoders, recording, retirement, and exception-entry
-orchestration remain in the cores. Complete chapter state blocks generate stored-state
+execution contexts. Native decoders and exception-entry orchestration remain in
+the cores unless a chapter execution contract covers them. The 8008's contract
+generates bindings to shared byte execution, recording, and boundary guards;
+the runtime has no processor-name branches. Complete chapter state blocks generate stored-state
 schemas and types; partial chapters validate references to externally supplied schemas.
 Schema generation precedes instruction generation and machine parsing, while
 runtime consumers load small schema modules separately from expanded instruction data.

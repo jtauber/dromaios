@@ -16,12 +16,12 @@ in the CPU class:
 | `<cpu>.ts` and CPU-specific support modules | Public execution contract, native decoding, generated-body binding, recording, and lifecycle orchestration |
 | `state/<cpu>.ts` | Stored-state declarations or generated-schema re-exports, public types, and packed-status layouts |
 | `semantics/definitions/<cpu>.ts` | TypeScript-authored instruction definitions, explanations, and chapter integration |
-| `specifications/*.md` | Executable literate chapters that own instruction families, encodings, and optionally complete stored-state declarations |
+| `specifications/*.md` | Executable literate chapters that own instruction families, encodings, and optionally stored state, views, actions, execution contracts, and public interfaces |
 | `semantics/` shared builders | Reusable operand sources, ordered effects, calculations, and CPU policies |
 | Encoding inventories beside the cores | Selector mappings shared by definition construction and execution binding |
 | `semantics/{model,validate,generate,describe}.ts` | Definition representation, validation, executable generation, and explanation generation |
-| `generated/` | Regenerated instruction bodies; never edit these by hand |
-| `semantics/generated/` | Regenerated chapter data and small `state/` schema modules; never edit these by hand |
+| `generated/` | Regenerated instruction bodies, public classes, and chapter execution bindings; never edit these by hand |
+| `semantics/generated/` | Regenerated chapter data, catalogues, interface metadata, and small `state/` schema modules; never edit these by hand |
 
 The [instruction semantics guide](instruction-semantics.md) defines the language
 contracts. The [development workflow](../../README.md#development) explains
@@ -32,27 +32,35 @@ represents their complete behavior.
 
 ### Following the 8008 files
 
-The repeated `8008.ts` filename identifies the processor at each layer. The
-directory identifies that file's role; instruction behavior is authored in
-the chapter and passes through two generated representations before execution.
+The [8008 chapter](../../src/components/cpus/specifications/8008.md) is its
+sole maintained implementation source and model contract, including hardware
+references, public API behavior, and limitations. There is no separate model
+document or handwritten core, state adapter, or definition adapter. Generated
+files retain the processor name; the directory and suffix identify each file's
+role.
 
 | Location under `src/components/cpus/` | Role in the 8008 implementation |
 | --- | --- |
-| [`specifications/8008.md`](../../src/components/cpus/specifications/8008.md) | Authored stored state, PC/HL views, reset effects, prose, encodings, and behavior for every documented instruction |
-| `semantics/generated/state/8008.ts` | Generated immutable stored-state schema and derived mutable type, importing only shared state helpers |
-| `semantics/generated/8008.ts` | Generated, validated chapter data, expanded into instruction definitions |
-| [`semantics/definitions/8008.ts`](../../src/components/cpus/semantics/definitions/8008.ts) | Handwritten integration adapter assembling the chapter's families into a checked opcode inventory |
-| `generated/8008.ts` | Generated executable instruction handlers and opcode bindings consumed by the core |
-| `generated/8008-state.ts` | Generated read-only PC/HL views and state actions for PC writes and reset |
-| [`8008.ts`](../../src/components/cpus/8008.ts) | Handwritten public API, fetching, dispatch, recording, snapshot assembly, reset guarding, and interrupt entry |
-| [`state/8008.ts`](../../src/components/cpus/state/8008.ts) | Re-exports the generated schema and type; retains public aliases and the readonly caller-supplied address-stack type |
+| [`specifications/8008.md`](../../src/components/cpus/specifications/8008.md) | Authored state, views, state actions, execution policies, public interface, encodings, explanations, and instruction behavior |
+| `semantics/generated/state/8008.ts` | Immutable schema, mutable storage type, caller state types, and array/group aliases |
+| `semantics/generated/8008.ts` | Validated chapter data and checked instruction catalogue bindings |
+| `semantics/generated/catalogue.ts` | Shared integration of complete chapters into the instruction registry |
+| `semantics/generated/interfaces.ts` | Discovered models, public entry points, schemas and caller types, RAM sizes, and public-PC bounds |
+| [`models.ts`](../../src/components/cpus/models.ts) | Shared catalogue consumed by machine parsing, both factory generators, and test selection |
+| `generated/8008.ts` | Executable instruction handlers and opcode bindings |
+| `generated/8008-state.ts` | Read-only PC/HL views and state actions for PC writes, reset, and interrupt acceptance |
+| `generated/8008-execution.ts` | Memory validation and bindings from chapter references to shared byte execution |
+| `generated/8008-cpu.ts` | Public `Cpu8008` class, snapshots, and concrete execution record types |
+| [`byte-execution.ts`](../../src/components/cpus/byte-execution.ts) | Shared recording, guards, and execution of bound policies, without processor-name branches |
 
-All four generated files are disposable build output and excluded from Git;
-edit the chapter to change stored fields, views, reset effects, or instruction behavior. The separate
-schema module lets the core and machine parser load state descriptions without
-expanded instruction data. Generation builds this schema from the chapter before
-loading the instruction registry. Runtime boundaries decide when to invoke the
-generated operations and assemble public records.
+All generated files are disposable build output and excluded from Git. Edit the
+chapter to change the 8008. The small schema module lets runtime consumers and
+the machine parser load state descriptions without expanded instruction data.
+Model identity, RAM requirements, and completion bounds also come from the
+chapter; the machine parser contains no 8008 registration or special case.
+Generation builds chapter schemas and catalogue bindings before loading the
+instruction registry. Consumers import `Cpu8008` and its public types from
+`generated/8008-cpu.ts`; the old handwritten module paths have been removed.
 
 [`tests/types/8008.ts`](../../tests/types/8008.ts) checks the public TypeScript
 API. Corresponding `.js` files under `dist/` are compiled build output.
@@ -93,9 +101,10 @@ together even when their opcodes occupy different encoding groups.
 
 Each CPU module exports a `cpu…StateDescription` beside its public state
 type. For all eight CPUs, the schema and public types are exposed through
-CPU-owned modules under [`state/`](../../src/components/cpus/state) and are
-re-exported by the original CPU module. The 8008 schema and mutable stored-state
-type are generated from its chapter; other schemas remain authored TypeScript.
+CPU-owned modules under [`state/`](../../src/components/cpus/state), or generated
+schema modules for complete chapters, and are re-exported by the public CPU
+module. The 8008 schema and public types are generated from its chapter; other
+schemas remain authored TypeScript.
 This lets instruction generation load schemas without loading execution. The description
 owns stored field names, types, and constraints. The
 [shared state helpers](../../src/components/cpus/state.ts) provide:
@@ -130,8 +139,8 @@ The descriptions have these consumers:
 - Snapshots use `copyState(description, storedState)` to detach known-valid
   state without repeating numeric and Boolean validation. Each CPU's `snapshot()`
   adds its derived views; the 8008 obtains them from generated chapter readers.
-- The [machine parser](../../src/machines/machine-language.ts) imports those
-  same descriptions to recognize fields and check values, array lengths, and
+- The [machine parser](../../src/machines/machine-language.ts) uses the model catalogue
+  to obtain those same descriptions to recognize fields and check values, array lengths, and
   choices. It retains ownership of hexadecimal notation, braces, capitalization,
   flag spelling, duplicate/missing-field checks, and source-location diagnostics.
 - The [instruction definitions](instruction-semantics.md) use the
@@ -153,8 +162,8 @@ and machine tests retain their independently authored hardware expectations.
 The [literate chapter language](literate-specifications.md#state-ownership)
 generates complete schemas from `state` blocks, or checks partial chapter
 declarations against external schemas. Both forms support explicit mappings
-to stored field names. Public readonly policies remain outside the storage
-declarations.
+to stored field names. Readonly policies follow the shared public-interface conventions for complete
+chapters, or the handwritten interfaces for other CPUs.
 
 ## Make the encoding visible
 
@@ -169,7 +178,7 @@ Choose the grouping from the CPU's encoding:
 
 | Model | Organization in the current source |
 | --- | --- |
-| [8008](../../src/components/cpus/8008.ts) | Native `xx yyy zzz` groups; A is register selector `000`, M is `111`; preserve documented HLT exceptions |
+| [8008](../../src/components/cpus/specifications/8008.md) | Native `xx yyy zzz` groups; A is register selector `000`, M is `111`; preserve documented HLT exceptions |
 | [8080](../../src/components/cpus/8080.ts) | Shared [8080-family table](../../src/components/cpus/8080-family.ts): `xx yyy zzz`; leading `xx` blocks, then `zzz` subgroups where it selects the family; split `yyy` into `pp q` for pair operations |
 | [6502](../../src/components/cpus/6502.ts) | `aaa bbb cc`; `cc=01` groups `aaa` operations with shared `bbb` operand sources; `cc=00/10` retain `bbb` subgroups and their distinct implied/addressing forms |
 | [6800](../../src/components/cpus/6800.ts) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; unary forms use `01 tt oooo`, with `tt` selecting A/B/indexed/extended; short branches use `0010 ttt p`, keeping the unused `21` explicit |
@@ -423,7 +432,10 @@ three-bit selector; they never use the RAM-stack helper. The compiler validates
 array bounds and exact stored widths, with explicit target narrowing to 14 bits.
 Generated execution uses `Cpu8008StoredState`; constructor inputs still accept
 readonly slots. Fetching retains the selected address-register PC and interrupt
-supplied-byte rules.
+supplied-byte rules through its chapter execution contract. The generated
+`8008-execution.ts` binds the named view, counter writer, stopped latch, reset,
+acceptance, and retirement policies to the shared byte runtime. The public class
+contains no separate fetch or interrupt algorithm.
 
 ## Shared execution records
 
@@ -571,8 +583,10 @@ It attempts one byte opcode with a wrapping 16-bit PC and byte memory.
 The CPU supplies its stored state, opcode table, and word reader (`readWordLE`
 or `readWordBE`). A PC view may impose a narrower wrap; an optional
 `mapFetchAddress` callback translates instruction addresses before recording
-their reads. Data addresses come directly from handlers. An absent handler
-records the opcode read and preserves PC.
+their reads. Data addresses come directly from handlers. By default an absent
+handler records the opcode read and preserves PC. The optional `opcodeAdvance`
+policy can instead select `"read"`, advancing after any successful opcode read
+and before lookup. A completed-access callback can feed a combined bus log.
 A supported opcode advances PC before invoking its handler. Operand fetches
 read the current PC and RAM, advance only after a successful read, and append
 only fetched instruction bytes. Handlers can interleave fetches with data
@@ -580,7 +594,7 @@ accesses or change PC, including the 6502's JSR operand/stack ordering.
 
 The result contains the fetched instruction, ordered accesses, and whether a
 handler executed. Each CPU's `step()` owns its before/after snapshots and
-outcome; the 8008 and 8080 check HALT before calling the helper. A handler can return
+outcome; the 8008's shared runtime and the 8080's core check HALT before calling the helper. A handler can return
 `"unsupported"` after fetching an operand selector, as the 6809 does for an
 undefined indexed postbyte. It must reject before changing other state or RAM;
 the executor restores PC and retains the actual fetches. This is not general
@@ -588,12 +602,13 @@ rollback. RAM and handler errors
 propagate without rolling back completed effects. Each call owns its records.
 
 The executor also accepts an opcode lookup callback in place of a table. It
-calls the lookup after fetching the opcode, before advancing PC. The 8008 and
+calls the lookup after fetching the opcode, before advancing PC under the default
+dispatch policy. The 8008 and
 8080 use this to bind fresh port recording callbacks; the 8080 also binds an
 EI deferral callback. Their prebuilt handler tables still expose the opcode
-patterns; the bound callbacks and logs belong to one execution. Both append
-their port logs after the memory log because their input/output instructions
-transfer once, after all memory fetches.
+patterns; the bound callbacks and logs belong to one execution. The 8008 runtime
+records accesses into a combined log as they complete. The 8080 appends its port
+log after memory because its I/O instructions transfer once, after all fetches.
 The Z80 binds the same port callbacks in its own prefix-aware step loop and
 records actual memory/port interleaving, including block I/O.
 

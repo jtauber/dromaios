@@ -9,7 +9,7 @@ will be organized for learning, exploration, and reference as support develops.
 ## Working decisions
 
 - Use **TypeScript** for the implementation and shared instruction definitions.
-  A complete literate CPU authoring language remains a future direction; see
+  Develop literate CPU authoring through executable chapters and shared runtimes; see
   [implementation language and future definition languages](../architecture.md#implementation-language-and-future-definition-languages).
   [Editor tooling](../../editors/zed/README.md) currently follows the machine
   definition syntax; CPU DSL editor support will follow its eventual language design.
@@ -38,7 +38,7 @@ will be organized for learning, exploration, and reference as support develops.
   alongside CPU consolidation, as described in the [project roadmap](../../ROADMAP.md).
 - The **8008 was the fifth CPU**. Its native encoding, 14-bit addresses,
   and internal address registers extend the comparison; see its
-  [model contract](8008/model.md).
+  [model contract](../../src/components/cpus/specifications/8008.md).
 - The **6800 was the sixth CPU**, with its own state, flags, reset contract,
   and [arithmetic example](6800/examples/arithmetic.md). It shares instruction
   construction with the 6809 while retaining native addressing and stack rules.

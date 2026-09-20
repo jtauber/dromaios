@@ -1,14 +1,15 @@
 import { instructions68000, quick68000, moves68000, wordMoves68000, logic68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000 } from "./definitions/68000.ts";
 import { instructions6502, interrupts6502, sources6502 } from "./definitions/6502.ts";
 import { instructions6800 } from "./definitions/6800.ts";
-import { instructions8008, state8008, views8008 } from "./definitions/8008.ts";
+import { chapterInstructionModules } from "./generated/catalogue.ts";
 import { instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088 } from "./definitions/8088.ts";
 import { instructions8080 } from "./definitions/8080.ts";
 import { instructions6809 } from "./definitions/6809.ts";
 import { instructionsZ80 } from "./definitions/z80.ts";
 import type { generateInstructions } from "./generate.ts";
 
-export { instructions68000, quick68000, moves68000, wordMoves68000, logic68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000, instructions6502, interrupts6502, sources6502, instructions6800, instructions8008, instructions8080, instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088, instructions6809, instructionsZ80 };
+export * from "./generated/catalogue.ts";
+export { instructions68000, quick68000, moves68000, wordMoves68000, logic68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000, instructions6502, interrupts6502, sources6502, instructions6800, instructions8080, instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088, instructions6809, instructionsZ80 };
 
 type GenerationParameters = Parameters<typeof generateInstructions>;
 interface InstructionModule {
@@ -36,8 +37,7 @@ export const instructionModules: readonly InstructionModule[] = Object.freeze([
   { name: "6502", cpu: "6502", definitions: instructions6502, options: { bindOpcodes: true, sources: sources6502 } },
   { name: "6502-interrupts", cpu: "6502", definitions: interrupts6502 },
   { name: "6800", cpu: "6800", definitions: instructions6800 },
-  { name: "8008", cpu: "8008", definitions: instructions8008, options: { bindOpcodes: true } },
-  { name: "8008-state", cpu: "8008", definitions: state8008, options: { sources: views8008 } },
+  ...chapterInstructionModules,
   { name: "8080", cpu: "8080", definitions: instructions8080 },
   { name: "8088", cpu: "8088", definitions: instructions8088, options: { bindOpcodes: true } },
   { name: "8088-transfers", cpu: "8088", definitions: transfers8088 },

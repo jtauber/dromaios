@@ -251461,7 +251461,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 settled power-on reset
 
-Reset models settled power-on state. Clear the seven byte registers and all eight address registers, select slot zero, and enter STOPPED. The startup reference does not specify flag values; this model preserves them by omitting flag reads and writes. `ADDRESS[]` writes the same value to every physical slot without reading its previous contents. Repeating reset produces the same state. RAM and ports are untouched. The core still guards the execution boundary and records detached before/after snapshots around this action.
+Reset models settled power-on state. Clear the seven byte registers and all eight address registers, select slot zero, and enter STOPPED. The startup reference does not specify flag values; this model preserves them by omitting flag reads and writes. `ADDRESS[]` writes the same value to every physical slot without reading its previous contents. Repeating reset produces the same state. RAM and ports are untouched. The shared runtime guards the execution boundary and records detached before/after snapshots around this action.
 
 ```text
 write A:u8 := 00:u8
@@ -251474,6 +251474,16 @@ write L:u8 := 00:u8
 fill all 8 ADDRESSSTACK elements:u14 := 0000:u14
 write STACKINDEX:u3 := 0:u3
 write halted:boolean := true
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 accept an external instruction
+
+An interrupt is an unconditional offer of an instruction. After validating the host's acknowledgement callback, release STOPPED before requesting its first byte. No flags or address registers change during acceptance. A later invalid byte, undefined opcode, or device failure retains this release.
+
+```text
+write halted:boolean := false
 ```
 
 Flags preserved throughout: S, Z, P, C.
