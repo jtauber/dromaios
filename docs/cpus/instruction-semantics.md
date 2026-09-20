@@ -113,8 +113,9 @@ recording still use the cores' existing `recordPorts` callbacks.
 [Port-transfer construction](../../src/components/cpus/semantics/ports.ts)
 captures the complete address before reading an output operand or starting
 input. Outputs capture the whole operand before the first write; inputs commit
-the register/view only after every read succeeds. This serves all 8008 and 8080
-ports, Z80 immediate I/O and register output, and all 8088 byte/word I/O.
+the register/view only after every read succeeds. This serves Z80 immediate
+I/O and register output, and all 8088 byte/word I/O. The 8008 and 8080 chapters
+express those ordered effects directly in their formal port families.
 Address sources expose the difference between an encoded 8008 selector, an
 8080 immediate port, Z80 old-A-high/immediate-low, BC, and 8088 immediate/DX.
 The 8088 byte view preserves live AH after a device callback.

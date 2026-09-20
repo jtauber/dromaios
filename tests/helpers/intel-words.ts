@@ -18,7 +18,7 @@ export interface WordForm {
 }
 
 // Literal native encodings, independent of the production transfer inventories.
-function base(instructions: Readonly<Record<number, Execute>>): WordForm[] {
+function base(instructions: Readonly<Record<0x01 | 0x11 | 0x21 | 0x31 | 0x22 | 0x2a | 0xf9, Execute>>): WordForm[] {
   return [
     ...([[0x01, ["b", "c"]], [0x11, ["d", "e"]], [0x21, ["h", "l"]], [0x31, ["sp"]]] as const)
       .map(([opcode, fields]) => ({ bytes: [opcode], fields, operation: "immediate" as const, execute: instructions[opcode]! })),

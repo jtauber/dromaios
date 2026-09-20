@@ -2,10 +2,11 @@
   "cpu" "state" "register" "flag" "array" "latch" "source" "view" "action"
   "policy" "operands" "codes" "conditions" "family" "encoding" "for" "in"
   "with" "named" "except" "fetch" "operand" "apply" "when" "test" "return"
-  "fault" "alignment" "read" "write" "if" "commit" "addresses"
+  "fault" "alignment" "read" "write" "if" "commit" "addresses" "defer" "irq" "into"
   "execution" "memory" "port" "counter" "stopped" "word" "opcode" "advance"
   "on" "dispatch" "after" "failure" "retain" "reset" "retire" "interrupt"
-  "accept" "always" "bytes" "acknowledge" "preserve" "interface" "snapshot" "unknown"
+  "accept" "always" "unless" "bytes" "acknowledge" "preserve" "interface" "snapshot" "unknown"
+  "callback" "validate" "offer"
 ] @keyword
 ["little" "big" "none"] @constant
 

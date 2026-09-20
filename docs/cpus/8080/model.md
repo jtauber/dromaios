@@ -1,6 +1,10 @@
 # Intel 8080 model
 
-This document defines the model's state, execution records, and reset contract.
+This document retains the full public API and contracts while the model moves
+into its [executable chapter](../../../src/components/cpus/specifications/8080.md).
+The chapter now owns stored state, register views, reset, execution boundaries,
+interrupt recognition, and byte transfers/arithmetic/rotates/I/O. The remaining
+families and API are still maintained in TypeScript.
 Current instruction support is tracked in [8080 implementation coverage](../coverage.md#8080).
 The [examples](../../README.md#cpu-examples) specify concrete programs,
 instruction behavior, and expected execution.

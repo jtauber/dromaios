@@ -291,7 +291,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
   if (execution) for (const entries of families.values()) for (const [opcode, definition] of entries) {
     const tokens = opcodes.get(opcode)!;
     if (opcode > 0xff) tokens.fail("Byte execution requires one-byte opcodes.");
-    tokens.checked(() => checkByteExecution(definition.steps));
+    tokens.checked(() => checkByteExecution(definition.steps, execution.retireDeferral !== undefined));
   }
   return { cpu: cpu.name, ...(ownsState ? { state: cpu.state } : {}), ...(execution ? { execution } : {}), ...(publicInterface ? { interface: publicInterface } : {}), sources: Object.fromEntries(sources), views: Object.fromEntries(views), actions: Object.fromEntries(actions), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), conditions: Object.fromEntries(conditions), families: Object.fromEntries(families) };
 }

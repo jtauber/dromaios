@@ -441,12 +441,12 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated8080[0x36](intel, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Indexed register stores do not fetch a displacement inside the body.
   generatedZ80.storeLMemory(z80, 0xffff, { writeByte: () => {}, fetchByte: () => 0 });
-  generated8080.inrH(intel);
-  generated8080.dcrMemory(intel, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  generated8080[0x24](intel);
+  generated8080[0x35](intel, { readByte: () => 0, writeByte: () => {} });
   generatedZ80.incH(z80);
   generatedZ80.decMemory(z80, 0xffff, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Memory adjustments require writeback.
-  generated8080.inrMemory(intel, 0xffff, { readByte: () => 0 });
+  generated8080[0x34](intel, { readByte: () => 0 });
   // @ts-expect-error Resolved indexed adjustments do not fetch a displacement.
   generatedZ80.incMemory(z80, 0xffff, { readByte: () => 0, writeByte: () => {}, fetchByte: () => 0 });
   // @ts-expect-error Register adjustments need no memory context.
@@ -504,21 +504,21 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated8008[0x0c](i8008, { readByte: () => 0 });
   // @ts-expect-error Concrete CPU state retains the 8008's address-register structure.
   generated8008[0x80](intel);
-  generated8080.cmpB(intel);
-  generated8080.ral(intel);
-  generated8080.adcA(intel);
-  generated8080.sbbM(intel, { readByte: () => 0 });
-  generated8080.ani(intel, { fetchByte: () => 0 });
+  generated8080[0xb8](intel);
+  generated8080[0x17](intel);
+  generated8080[0x8f](intel);
+  generated8080[0x9e](intel, { readByte: () => 0 });
+  generated8080[0xe6](intel, { fetchByte: () => 0 });
   // @ts-expect-error ALU register bodies do not need or accept an instruction context.
-  generated8080.addB(intel, { fetchByte: () => 0 });
+  generated8080[0x80](intel, { fetchByte: () => 0 });
   // @ts-expect-error M supplies HL locally; memory ALU bodies cannot fetch another address.
-  generated8080.anaM(intel, { readByte: () => 0, fetchByte: () => 0 });
+  generated8080[0xa6](intel, { readByte: () => 0, fetchByte: () => 0 });
   // @ts-expect-error Immediate ALU bodies have no data-memory read capability.
-  generated8080.sbi(intel, { fetchByte: () => 0, readByte: () => 0 });
+  generated8080[0xde](intel, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error An ALU memory source is never a memory destination.
-  generated8080.oraM(intel, { readByte: () => 0, writeByte: () => {} });
+  generated8080[0xb6](intel, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error ALU bodies retain their concrete CPU state.
-  generated8080.adi(motorola, { fetchByte: () => 0 });
+  generated8080[0xc6](motorola, { fetchByte: () => 0 });
   generated6809.rolB(motorola);
   generated6809.rolMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
   generated6809.tstMemory(motorola, 0xffff, { readByte: () => 0 });
@@ -647,13 +647,13 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   // @ts-expect-error Register shifts need no fetching or memory capability.
   generated6809.rolB(motorola, { fetchByte: () => 0 });
   // @ts-expect-error Rotates require their CPU's concrete state.
-  generated8080.rlc(motorola);
+  generated8080[0x07](motorola);
   // @ts-expect-error Generated handlers use the concrete CPU's stored-state type.
   generated6502[0xc9](intel, { fetchByte: () => 0 });
   // @ts-expect-error ASL needs both memory callbacks as well as instruction fetching.
   generated6502[0x06](mos, { fetchByte: () => 0 });
   // @ts-expect-error Register comparison neither needs nor accepts a fetching capability.
-  generated8080.cmpB(intel, { fetchByte: () => 0 });
+  generated8080[0xb8](intel, { fetchByte: () => 0 });
   // @ts-expect-error An indexed load also requires a data-memory read capability.
   generated6502[0xb6](mos, { fetchByte: () => 0 });
 }
@@ -875,7 +875,7 @@ export function check8088ArithmeticTypes(state: Cpu8088State, intel: Cpu8080Stat
 
 export function checkPortTypes(small: Cpu8008StoredState, intel: Cpu8080State, z80: CpuZ80State, x86: Cpu8088State): void {
   generated8008[0x41]!(small, { readPort: () => 0 });
-  generated8080.input(intel, { fetchByte: () => 0, readPort: () => 0 });
+  generated8080[0xdb](intel, { fetchByte: () => 0, readPort: () => 0 });
   generatedZ80.inputA!(z80, { readPort: () => 0 });
   generatedZ80.inir(z80, { readPort: () => 0, writeByte: () => {} });
   generatedZ80.otir(z80, { readByte: () => 0, writePort: () => {} });
@@ -892,13 +892,13 @@ export function checkPortTypes(small: Cpu8008StoredState, intel: Cpu8080State, z
   // @ts-expect-error DX input never fetches an immediate or writes a port.
   generated8088[0xec](x86, { readPort: () => 0, fetchByte: () => 0, writePort: () => {} });
   // @ts-expect-error Immediate output requires a fetch capability.
-  generated8080.output(intel, { writePort: () => {} });
+  generated8080[0xd3](intel, { writePort: () => {} });
   // @ts-expect-error One repeated input iteration writes memory and does not output a port.
   generatedZ80.inir(z80, { readPort: () => 0, writePort: () => {} });
   // @ts-expect-error Register port input cannot write memory.
   generatedZ80.inputA!(z80, { readPort: () => 0, writeByte: () => {} });
   // @ts-expect-error Output retains its concrete CPU state.
-  generated8080.output(x86, { fetchByte: () => 0, writePort: () => {} });
+  generated8080[0xd3](x86, { fetchByte: () => 0, writePort: () => {} });
 }
 
 export function check8088ControlTypes(state: Cpu8088State, other: Cpu8080State): void {

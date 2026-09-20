@@ -1,17 +1,9 @@
 import { flagRegister } from "../flags.ts";
-import { defineState, unsigned, flag, boolean, group } from "../state.ts";
-import type { StateValues } from "../state.ts";
+export { state as cpu8080StateDescription } from "../semantics/generated/state/8080.ts";
+export type { StoredState as Cpu8080State } from "../semantics/generated/state/8080.ts";
+import type { StoredState } from "../semantics/generated/state/8080.ts";
 
-/** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
-export const cpu8080StateDescription = defineState({
-  a: unsigned(8), b: unsigned(8), c: unsigned(8), d: unsigned(8), e: unsigned(8), h: unsigned(8), l: unsigned(8),
-  pc: unsigned(16), sp: unsigned(16),
-  flags: group({ s: flag, z: flag, ac: flag, p: flag, cy: flag }),
-  interruptEnabled: boolean, interruptDeferred: boolean, halted: boolean,
-});
+export type Cpu8080Flags = StoredState["flags"];
 
-export type Cpu8080State = StateValues<typeof cpu8080StateDescription>;
-export type Cpu8080Flags = Cpu8080State["flags"];
-
-// PSW low byte: S Z 0 AC 0 P 1 CY.
+// PSW low byte: S Z 0 AC 0 P 1 CY. This layout migrates with the status families.
 export const cpu8080Status = flagRegister({ s: 7, z: 6, ac: 4, p: 2, cy: 0 }, 0x02);

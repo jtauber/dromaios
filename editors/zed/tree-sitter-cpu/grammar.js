@@ -58,7 +58,7 @@ module.exports = grammar({
     body: $ => seq('{', repeat($._statement), '}'),
     _statement: $ => choice(
       $.capture, $.write, $.apply_statement, $.when_statement,
-      $.return_statement, $.fault_statement, $.commit_statement,
+      $.return_statement, $.fault_statement, $.commit_statement, $.defer_statement,
     ),
     capture: $ => seq(field('name', $.identifier), '=', choice($._read, $._expression)),
     _read: $ => choice(
@@ -78,13 +78,14 @@ module.exports = grammar({
     fault_statement: $ => seq('fault', 'alignment', choice('read', 'write'),
       '(', $._expression, ')', 'if', $._expression),
     commit_statement: _ => seq('commit', 'addresses'),
+    defer_statement: _ => seq('defer', 'irq'),
     _expression: $ => choice($.identifier, $.number, $.call),
     call: $ => seq(field('function', $.identifier), $.arguments),
     arguments: $ => seq('(', optional(commaSeparated($._expression)), ')'),
 
     execution_declaration: $ => seq('execution', '{', repeat(choice(
       $.memory_policy, $.counter_policy, $.stopped_policy, $.word_policy,
-      $.opcode_policy, $.operand_policy, $.failure_policy, $.action_policy, $.interrupt_policy,
+      $.opcode_policy, $.operand_policy, $.failure_policy, $.action_policy, $.retirement_policy, $.interrupt_policy,
     )), '}'),
     memory_policy: $ => seq('memory', $.number),
     counter_policy: $ => seq('counter', $._state_name, 'write', $.identifier),
@@ -94,10 +95,13 @@ module.exports = grammar({
     operand_policy: _ => seq('operand', 'advance', 'after', 'read'),
     failure_policy: _ => seq('failure', 'retain'),
     action_policy: $ => seq(choice('reset', 'retire'), choice('none', seq('action', $.identifier))),
+    retirement_policy: $ => seq('retire', 'irq', 'into', $._state_name),
     interrupt_policy: $ => seq('interrupt', '{', repeat(choice(
-      $.accept_policy, $.bytes_policy, $.interrupt_counter_policy, $.unknown_policy,
+      $.accept_policy, $.bytes_policy, $.callback_policy, $.interrupt_counter_policy, $.unknown_policy,
     )), '}'),
-    accept_policy: $ => seq('accept', 'always', 'with', $.identifier),
+    accept_policy: $ => seq('accept', choice('always',
+      seq('when', $._state_name, optional(seq('unless', $._state_name)))), 'with', $.identifier),
+    callback_policy: _ => seq('callback', 'validate', 'on', choice('offer', 'read')),
     bytes_policy: _ => seq('bytes', 'acknowledge'),
     interrupt_counter_policy: _ => seq('counter', choice('preserve', 'advance')),
     unknown_policy: _ => seq('unknown', 'retain'),

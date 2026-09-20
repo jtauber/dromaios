@@ -1,4 +1,4 @@
-import { alignmentFault, capture, commitAddressUpdates, fetchByte, fillArray, flagValue, not, readElement,
+import { alignmentFault, capture, commitAddressUpdates, deferInterrupt, fetchByte, fillArray, flagValue, not, readElement,
   readFlag, readLatch, readMemory, readPort, readRegister, readSource, resolveAddress, updateFlags,
   value, when, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
 import type { CpuDeclaration, Expression, Flag, FlagExpression, FlagPolicy, Latch, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
@@ -86,6 +86,8 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         if (operation !== "read" && operation !== "write") return tokens.fail("Expected a data read or write alignment fault.");
         tokens.expect("("); const address = expression(tokens); tokens.expect(")"); tokens.expect("if");
         result.push(when(flagExpression(tokens), [alignmentFault(operation, address)]));
+      } else if (tokens.take("defer")) {
+        tokens.expect("irq"); result.push(deferInterrupt("irq"));
       } else if (tokens.take("commit")) {
         tokens.expect("addresses"); result.push(commitAddressUpdates());
       } else if (tokens.take("apply")) {

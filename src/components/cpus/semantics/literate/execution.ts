@@ -12,18 +12,25 @@ export interface ChapterExecution {
   readonly opcodeAdvance: "dispatch" | "read";
   readonly reset: string;
   readonly retire?: string;
+  readonly retireDeferral?: string;
   readonly acceptInterrupt: string;
+  readonly interruptEnable?: string;
+  readonly interruptDefer?: string;
+  readonly callbackValidation: "offer" | "read";
   readonly interruptCounter: "preserve" | "advance";
 }
 
 /** Reject native decoder/fault effects that cannot run in the byte dispatch context. */
-export function checkByteExecution(steps: readonly Statement[]): void {
+export function checkByteExecution(steps: readonly Statement[], deferral = false): void {
   for (const step of steps) switch (step.kind) {
     case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch":
     case "write-register": case "write-element": case "fill-array": case "write-latch": case "update-flags":
     case "fetch-byte": case "fetch-word": case "read-memory": case "write-memory": case "read-port": case "write-port": break;
-    case "when": checkByteExecution(step.steps); break;
-    case "read-source": checkByteExecution(step.source.steps); break;
+    case "defer-interrupt":
+      if (!deferral || step.scope !== "irq") throw new Error("IRQ deferral needs a declared retirement destination.");
+      break;
+    case "when": checkByteExecution(step.steps, deferral); break;
+    case "read-source": checkByteExecution(step.source.steps, deferral); break;
     default: throw new Error(`Byte execution does not support ${step.kind}.`);
   }
 }
@@ -79,23 +86,43 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
   const failure = required("failure"); failure.expect("retain"); failure.end();
   const resetAt = required("reset"); resetAt.expect("action"); const reset = action(resetAt); resetAt.end();
   const retireAt = required("retire");
-  let retire: string | undefined;
-  if (!retireAt.take("none")) { retireAt.expect("action"); retire = action(retireAt); }
+  let retire: string | undefined, retireDeferral: string | undefined;
+  if (retireAt.take("irq")) {
+    retireAt.expect("into"); retireDeferral = retireAt.lookup(symbols.latches).field;
+  } else if (!retireAt.take("none")) { retireAt.expect("action"); retire = action(retireAt); }
   retireAt.end();
   required("interrupt");
-  const accept = required("interrupt.accept"); accept.expect("always"); accept.expect("with");
+  const accept = required("interrupt.accept");
+  let interruptEnable: string | undefined, interruptDefer: string | undefined;
+  if (accept.take("when")) {
+    interruptEnable = accept.lookup(symbols.latches).field;
+    if (accept.take("unless")) interruptDefer = accept.lookup(symbols.latches).field;
+  } else accept.expect("always");
+  accept.expect("with");
   const acceptInterrupt = action(accept); accept.end();
   const bytes = required("interrupt.bytes"); bytes.expect("acknowledge"); bytes.end();
+  let callbackValidation: "offer" | "read" = "offer";
+  if (fields.has("interrupt.callback")) {
+    const callback = required("interrupt.callback"); callback.expect("validate"); callback.expect("on");
+    callbackValidation = choice(callback, ["offer", "read"]); callback.end();
+  }
   const advance = required("interrupt.counter"), interruptCounter = choice(advance, ["preserve", "advance"]); advance.end();
   const unknown = required("interrupt.unknown"); unknown.expect("retain"); unknown.end();
   for (const [name, tokens] of fields) tokens.fail(`Unknown execution field ${name}.`);
   return { memoryBits, counter, writeCounter, stopped, word, opcodeAdvance, reset,
-    ...(retire === undefined ? {} : { retire }), acceptInterrupt, interruptCounter };
+    ...(retire === undefined ? {} : { retire }), ...(retireDeferral === undefined ? {} : { retireDeferral }),
+    ...(interruptEnable === undefined ? {} : { interruptEnable }), ...(interruptDefer === undefined ? {} : { interruptDefer }),
+    acceptInterrupt, interruptCounter, callbackValidation };
 }
 
 /** Bind validated references to generated functions; no processor-specific execution algorithm is emitted. */
 export function generateChapterExecution(cpu: string, module: string, policy: ChapterExecution): string {
   const quoted = JSON.stringify, action = (name: string) => `actions[${quoted(name)}](state)`;
+  let retirement = "() => {}";
+  if (policy.retire !== undefined) retirement = `() => ${action(policy.retire)}`;
+  if (policy.retireDeferral !== undefined) retirement = `deferred => { state[${quoted(policy.retireDeferral)}] = deferred; }`;
+  const rejection = policy.interruptEnable === undefined ? "" :
+    `    rejectInterrupt: () => !state[${quoted(policy.interruptEnable)}] ? "disabled"${policy.interruptDefer === undefined ? "" : ` : state[${quoted(policy.interruptDefer)}] ? "deferred"`} : undefined,\n`;
   return `// Generated from the chapter's execution contract. Do not edit.
 import { byteExecution, checkByteMemory } from "../byte-execution.ts";
 import { programCounter } from "../execute-byte-instruction.ts";
@@ -114,8 +141,9 @@ export function createExecution<Snapshot>(state: Parameters<typeof opcodeEntries
     counter: programCounter(views[${quoted(policy.counter)}], value => actions[${quoted(policy.writeCounter)}](state, value)),
     stopped: () => state[${quoted(policy.stopped)}],
     reset: () => ${action(policy.reset)},
-    retire: () => {${policy.retire === undefined ? "" : ` ${action(policy.retire)}; `}},
+    retire: ${retirement},
     acceptInterrupt: () => ${action(policy.acceptInterrupt)},
+${rejection}    callbackValidation: ${quoted(policy.callbackValidation)},
     word: ${quoted(policy.word)}, opcodeAdvance: ${quoted(policy.opcodeAdvance)}, interruptCounter: ${quoted(policy.interruptCounter)},
     handlers: opcodeTable(opcodeEntries(state)),
   });

@@ -304,7 +304,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 12328);
+  assert.equal(instructionDefinitions.length, 12331);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {
@@ -450,16 +450,22 @@ test("8008 transfer explanations retain native mnemonics and explicit 14-bit mem
 test("Intel byte-adjustment explanations expose different half-carry rules, preserved carry, and flag-before-write order", () => {
   for (const [cpu, increment, decrement, carry] of [["8080", "INR", "DCR", "CY"], ["z80", "INC", "DEC", "C"]] as const) {
     for (const name of [increment, decrement]) for (const operand of ["H", "memory"]) {
-      const text = description(cpu, `${name} ${operand}`);
+      const text = description(cpu, `${name} ${cpu === "8080" && operand === "memory" ? "M" : operand}`);
       const read = text.indexOf(operand === "memory" ? "original:u8 := read memory[address]" : "original:u8 := read H");
       const flags = text.indexOf("S := topBit(result)"), write = text.indexOf(operand === "memory" ? "write memory[address] := result" : "write H:u8 := result");
       assert.ok(read >= 0 && read < flags && flags < write);
       assert.ok(text.includes(`Flags preserved throughout: ${carry}.`));
       assert.doesNotMatch(text, /:= read (CY|C|S|Z|P|AC|PV|N)\b|fetch byte/);
       if (operand === "memory") {
-        assert.match(text, /address:u16 := input/);
+        if (cpu === "8080") {
+          assert.match(text, /address:u16 := source/);
+          assert.ok(text.indexOf("high:u8 := read H") < text.indexOf("low:u8 := read L"));
+          assert.ok(text.indexOf("low:u8 := read L") < read);
+        } else {
+          assert.match(text, /address:u16 := input/);
+          assert.doesNotMatch(text, /:= read (H|L|IX|IY)\b/);
+        }
         assert.equal(text.match(/:= read memory/g)?.length, 1); assert.equal(text.match(/write memory/g)?.length, 1);
-        assert.doesNotMatch(text, /:= read (H|L|IX|IY)\b/);
       }
       if (cpu === "8080") {
         assert.match(text, /P := evenParity8\(result\)/);

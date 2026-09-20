@@ -37,8 +37,10 @@ export const instructionModules: readonly InstructionModule[] = Object.freeze([
   { name: "6502", cpu: "6502", definitions: instructions6502, options: { bindOpcodes: true, sources: sources6502 } },
   { name: "6502-interrupts", cpu: "6502", definitions: interrupts6502 },
   { name: "6800", cpu: "6800", definitions: instructions6800 },
-  ...chapterInstructionModules,
-  { name: "8080", cpu: "8080", definitions: instructions8080 },
+  // The 8080 chapter owns execution; its remaining TS families still join the
+  // same instruction module until the chapter owns the complete inventory.
+  ...chapterInstructionModules.map(module => module.name === "8080"
+    ? { ...module, definitions: instructions8080, options: { ...module.options, origin: "semantics/definitions/8080.ts" } } : module),
   { name: "8088", cpu: "8088", definitions: instructions8088, options: { bindOpcodes: true } },
   { name: "8088-transfers", cpu: "8088", definitions: transfers8088 },
   { name: "8088-alu", cpu: "8088", definitions: alu8088 },

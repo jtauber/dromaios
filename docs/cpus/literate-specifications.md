@@ -13,6 +13,10 @@ Executable chapters are maintained CPU sources:
   to shared runtime services; no handwritten 8008 implementation remains. Its
   API contracts, hardware references, checks, and limitations also live in the
   chapter; there is no separate model document.
+- [Intel 8080: state, execution, and byte families](../../src/components/cpus/specifications/8080.md)
+  owns stored fields, register-pair views, reset, normal execution, interrupt
+  recognition and EI retirement, and byte transfers/arithmetic/rotates/I/O.
+  Remaining instructions and the public interface still have TypeScript adapters.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -55,7 +59,8 @@ fences alongside the surrounding Markdown, and also supports `.cpu` snippets.
 The build discovers Markdown files directly under `specifications/` in filename
 order and takes each model's identity from its `cpu` declaration. CPU identifiers
 contain lowercase letters or digits. Complete chapters need no handwritten
-registration entry; partial chapters still have explicit external-schema bindings.
+registration entry; chapters without their own state still have explicit
+external-schema bindings.
 Chapter filenames use lowercase letters, digits, and single hyphen separators;
 `catalogue`, `interfaces`, and `state` are reserved output names. Duplicate complete
 models are rejected before replacing chapter output.
@@ -82,7 +87,9 @@ modules before the instruction registry is loaded. All chapters and schemas
 are checked before replacing existing output.
 An `execution` contract also generates `generated/<chapter>-execution.ts`,
 binding named views/actions and the instruction table to the shared byte runtime.
-Complete chapters generate their instruction catalogue entries automatically.
+Chapters with owned state and execution generate instruction catalogue entries
+automatically. During a partial migration, the registry may combine a chapter's
+forms with its remaining TypeScript definitions, as for the 8080.
 An `interface` declaration also generates `generated/<chapter>-cpu.ts`, the
 public class and result types, plus public state aliases in the schema module.
 A small generated `interfaces.ts` manifest supplies class names, module paths,
@@ -138,6 +145,7 @@ Quoted descriptions use JSON string escaping.
 | `ADDRESS[slot] <- target`, `STOPPED <- 1` | Write an indexed stored register or a Boolean control latch; latch writes also accept captured flag expressions. |
 | `ADDRESS[] <- u14($0000)` | Fill every physical array slot with the same width-checked value, without reading previous elements. |
 | `result = operand s`, `operand d <- result` | Read or write a selected register/memory operand at this point. |
+| `defer irq` | Request one-boundary IRQ deferral on successful retirement; requires `retire irq into LATCH`. This does not immediately write stored state. |
 | `apply NZ(result)`, `apply ALU(result, carry(left, right))` | Apply a declared flag policy to typed numeric and flag expressions. |
 | `address = resolve(16, mode, code)` | Ask the existing address decoder to resolve an operand of the stated width; mode and code are captured three-bit values. |
 | `fault alignment read(address) if lowBit(address)` | Return an alignment fault when the captured predicate is true, before subsequent effects. `write` identifies a failed destination access. |
@@ -207,9 +215,11 @@ they have no opcode bindings and earn no instruction-coverage credit.
 The [8008 execution section](../../src/components/cpus/specifications/8008.md#execution-and-interrupt-acceptance)
 declares how its instruction bodies run. The current contract supports a flat
 byte-memory connection, one-byte opcode dispatch, a stopped latch, and
-unconditionally accepted instructions supplied by an acknowledgement callback.
-It has one `execution` block per chapter; every field below is required and
-references must name earlier declarations.
+instructions supplied by an acknowledgement callback. The
+[8080 section](../../src/components/cpus/specifications/8080.md#instruction-boundaries-and-interrupt-acceptance)
+adds enable/deferral recognition and an instruction-local retirement request.
+It has one `execution` block per chapter. Fields below are required except the
+callback-validation policy; references must name earlier declarations.
 
 | Field | Contract |
 | --- | --- |
@@ -221,13 +231,14 @@ references must name earlier declarations.
 | `operand advance after read` | Fetch from live PC, then advance the captured address by one only after the read succeeds. This is the only supported operand-advance policy. |
 | `failure retain` | Propagate thrown failures, retain completed effects, return no record, and release the guard. Rollback is unsupported. |
 | `reset action reset` | Invoke the named state action between reset snapshots under the same guard. |
-| `retire none` | No additional retirement effects. `retire action NAME` invokes an input-free state action after a successful handler, including HLT, before the after-snapshot; undefined or failed attempts skip it. |
+| `retire none` | No additional retirement effects. `retire action NAME` invokes an input-free state action after a successful handler, including HLT, before the after-snapshot. `retire irq into LATCH` instead writes whether that instruction requested `defer irq`, consuming an old delay or renewing it. Halted, undefined, or failed attempts skip retirement. |
 
-The nested `interrupt` block requires:
+The nested `interrupt` block supports these policies:
 
 | Field | Contract |
 | --- | --- |
-| `accept always with resume` | Validate that acknowledgement is callable, capture the before-snapshot, then invoke the input-free state action before requesting any byte. No mask, pending queue, or automatic call is implied. |
+| `accept always with resume` | Capture the before-snapshot, then invoke the input-free state action before requesting any byte. No pending queue or automatic call is implied. `accept when ENABLED unless DEFERRED with accept` instead checks named latches first: clear enable returns `ignored`/`disabled`; set deferral returns `ignored`/`deferred`. The `unless` clause is optional. Ignored offers have no effects or acknowledgements. |
+| `callback validate on offer` | Optional, and the default: reject a non-callable acknowledgement before the before-snapshot. `on read` defers failure until an accepted offer invokes it, retaining acceptance effects. This preserves the distinct existing 8008 and 8080 host-argument contracts. |
 | `bytes acknowledge` | Obtain and validate every instruction byte through acknowledgement, with its own access records and no invented RAM instruction address. Data memory and ports use their usual connections. |
 | `counter preserve` | Supplied bytes leave PC untouched. `advance` instead increments live PC after each successful acknowledgement, including an undefined opcode. |
 | `unknown retain` | An undefined supplied opcode reports unsupported, retaining acceptance and completed fetch effects. It requests no operands and performs no retirement action. |
@@ -241,7 +252,7 @@ owns its records; snapshots remain callable inside device callbacks.
 
 Unknown fields, duplicate or missing policies, wrong reference kinds or action
 signatures, and opcodes wider than a byte fail at Markdown locations. Unsupported
-architectures are rejected explicitly: this contract does not yet express masked
+architectures are rejected explicitly: this contract does not yet express priority
 interrupts, prefixes, segmented fetches, vector entry, wait states, or reset-time
 bus reads. Those need evidence from further CPUs before extending the language.
 
@@ -273,8 +284,10 @@ execution services selected by the chapter; no CPU-name branch or handwritten
 adapter is needed.
 
 The class name prefixes `State`, `StoredState`, `Snapshot`, and the concrete
-instruction, access, reset, step, and interrupt record types. A lowercased first
-letter names the schema export, such as `cpu8008StateDescription`. Internal
+instruction, access, reset, step, and interrupt record types. Interrupt records
+include ignored outcomes only when the execution contract declares recognition
+conditions. A lowercased first letter names the schema export, such as
+`cpu8008StateDescription`. Internal
 stored state is mutable. Caller state accepts readonly fixed arrays; snapshots
 and records are recursively readonly. Array/group fields also receive aliases
 formed by capitalizing their first letter (`addressStack` becomes
@@ -337,6 +350,7 @@ Flag expressions are captured flags or policy parameters, literal `0`/`1`, or:
 | `negative(value)`, `zero(value)`, `lowBit(value)` | Test the top bit at the value's width, zero, or bit zero. |
 | `evenParity(byte)` | Test even parity of a byte, including zero. |
 | `carry(left, right[, incoming])`, `borrow(left, right[, incoming])` | Test unsigned carry or borrow at the operands' equal width, with an optional incoming flag. |
+| `halfCarry(left, right[, incoming])`, `halfBorrow(left, right[, incoming])` | Test carry or borrow from the low nibble of equally sized operands, including an optional incoming flag. The 8080 chapter explicitly negates half-borrow for its subtraction AC rule. |
 
 Flag constants use `0` and `1`, not spelled-out booleans. Updates take effect
 together, and unlisted flags are preserved. Duplicate parameters and duplicate
@@ -532,7 +546,7 @@ undoing completed effects. Value sources cannot contain instruction rejection.
 
 ## Review of the three chapters
 
-The three examples support a common vocabulary without hiding their different
+The initial three examples support a common vocabulary without hiding their different
 access rules. `operands` replaces the prototype's `modes` keyword: it describes
 6502 addressing choices, 8008 byte registers and memory, and 68000 data registers
 equally well. `codes` remains distinct because selecting an encoded register
@@ -567,10 +581,12 @@ derived PC/HL views, state actions, and bindings for ordinary and interrupt
 execution, plus its public class, snapshot assembly, state aliases, and
 instruction catalogue bindings. No processor-specific TypeScript implementation
 remains; the chapter supplies all of its model and public-interface choices.
-Shared runtime services enforce the declared execution contract. Partial chapters still validate their declarations against externally
-supplied schemas; most other instruction families remain authored in TypeScript.
+Shared runtime services enforce the declared execution contract. Chapters
+without owned state validate declarations against an external schema; most
+other instruction families remain authored in TypeScript.
 
-The three chapters now exercise contrasting widths and ordered effects.
+The four chapters now exercise contrasting widths, ordered effects, and
+interrupt-recognition policies.
 The 8008 now expresses its address-stack selector, array, and port effects;
 the 68000 still uses its native effective-address decoder, including A7 banking
 and pending auto-updates. Its 192 chapter encodings select generated bodies
@@ -579,9 +595,11 @@ serve other sizes and addressing modes. Only the chapter-owned forms earn
 literate coverage.
 
 The 8008 supplies the first whole-CPU description at its declared instruction-level
-fidelity. The next evidence is applying the approach to another CPU, beginning
-with the 8080's interrupt recognition and retirement differences. A differently
-named test CPU already exercises different storage, address width, views, and
+fidelity. The 8080 now reuses its execution services with chapter-defined
+interrupt enable, delayed recognition, and retirement. Its remaining word,
+stack/control, status, and public-interface definitions are the next migration
+work; its model document remains until the chapter owns the full contract.
+A differently named test CPU already exercises different storage, address width, views, and
 actions through the same compiler and runtime. This is evidence for the current
 contract, not proof that it covers the remaining architectures. Each further
 slice should replace its corresponding maintained TypeScript, preserve explicit

@@ -78,10 +78,7 @@ export type ${name}StepRecord = InstructionStep<${name}Snapshot, ${name}Access> 
 export type ${name}ResetRecord = StateTransition<${name}Snapshot>;
 export type ${name}InterruptAccess = ${name}Access | InterruptAcknowledge;
 export type ${name}InterruptInstruction = InterruptInstruction;
-export type ${name}InterruptRecord = StateTransition<${name}Snapshot, ${name}InterruptAccess> & (
-  | { readonly outcome: "executed" | "halted"; readonly instruction: ${name}InterruptInstruction }
-  | { readonly outcome: "unsupported"; readonly reason: "opcode"; readonly instruction: ${name}InterruptInstruction }
-);
+export type ${name}InterruptRecord = ReturnType<ReturnType<typeof createExecution<${name}Snapshot>>["interrupt"]>;
 
 ${comment(api.description)}
 export class ${name} {

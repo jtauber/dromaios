@@ -1,14 +1,19 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
+import type { Cpu8080State } from "../../../../src/components/cpus/state/8080.js";
+import type { ByteMemory } from "../../../../src/components/cpus/memory-access.js";
 import { instructions as zilog } from "../../../../src/components/cpus/generated/z80.js";
 import { initialState, flagPattern } from "../z80/helpers.js";
 
 const registers = [["B", "b"], ["C", "c"], ["D", "d"], ["E", "e"], ["H", "h"], ["L", "l"], ["A", "a"]] as const;
 const cpus = [
-  { name: "8080", updates: ["s", "z", "p", "ac"], forms: (["inr", "dcr"] as const).map(name => ({
-    registers: registers.map(([suffix]) => intel[`${name}${suffix}`]), memory: intel[`${name}Memory`],
-  })) },
+  { name: "8080", updates: ["s", "z", "p", "ac"], forms: [
+    { registers: [intel[0x04], intel[0x0c], intel[0x14], intel[0x1c], intel[0x24], intel[0x2c], intel[0x3c]],
+      memory: (state: Cpu8080State, _address: number, context: ByteMemory) => intel[0x34](state, context) },
+    { registers: [intel[0x05], intel[0x0d], intel[0x15], intel[0x1d], intel[0x25], intel[0x2d], intel[0x3d]],
+      memory: (state: Cpu8080State, _address: number, context: ByteMemory) => intel[0x35](state, context) },
+  ] },
   { name: "Z80", updates: ["s", "z", "h", "pv", "n"], forms: (["inc", "dec"] as const).map(name => ({
     registers: registers.map(([suffix]) => zilog[`${name}${suffix}`]), memory: zilog[`${name}Memory`],
   })) },
@@ -56,11 +61,16 @@ for (const { name, forms, updates } of cpus) {
   test(`${name} generated memory adjustments retain captured addresses, current flags, and exact failed read/write effects`, () => {
     for (const [index, form] of forms.entries()) for (const address of [0, 0xffff]) {
       for (const original of [0, 0x0f, 0x10, 0x7f, 0x80, 0xff]) for (const set of [false, true]) for (const failAt of ["none", "read", "write"]) {
-        const state = stateWithFlags(set), before = structuredClone(state), oldFlags = state.flags;
+        const state = { ...stateWithFlags(set), h: Math.floor(address / 256), l: address % 256 };
+        const before = structuredClone(state), oldFlags = state.flags;
         const flags = stateWithFlags(!set).flags, result = expected(name, original, index === 0 ? 1 : -1, flags);
         const events: string[] = [], failure = new Error("adjustment access failure");
         const observed = new Proxy(state, {
-          get(target, key, receiver) { assert.equal(key, "flags"); return Reflect.get(target, key, receiver); },
+          get(target, key, receiver) {
+            if (name === "8080" && (key === "h" || key === "l")) events.push(`read ${key}`);
+            else assert.equal(key, "flags");
+            return Reflect.get(target, key, receiver);
+          },
           set() { assert.fail("Resolved memory bodies do not change registers or replace flag storage"); },
         });
         const run = () => form.memory(observed, address, {
@@ -80,7 +90,8 @@ for (const { name, forms, updates } of cpus) {
           },
         });
         if (failAt === "none") run(); else assert.throws(run, error => error === failure);
-        assert.deepEqual(events, failAt === "read" ? ["read"] : ["read", ...updates.map(flag => `flag ${flag}`), "write"]);
+        assert.deepEqual(events, [...(name === "8080" ? ["read h", "read l"] : []), "read",
+          ...(failAt === "read" ? [] : [...updates.map(flag => `flag ${flag}`), "write"])]);
         assert.deepEqual({ ...state, flags: failAt === "read" ? oldFlags : flags }, failAt === "read" ? before
           : { ...before, h: 0x55, l: 0x55, ix: 0x5555, iy: 0x5555, flags: result.flags });
         assert.deepEqual(oldFlags, before.flags);

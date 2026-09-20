@@ -218,11 +218,13 @@ addressing, and timing can retain the structure that explains each CPU best.
 Three examples are a review point, not a claim of universality. Later CPU
 models, variants, and machine compositions can still require revisions.
 
-The 8080 and Z80 share an internal [8080-family core](../src/components/cpus/8080-family.ts)
-for common encodings, register operands, loads, and control flow. They are sibling
-implementations: each supplies its flag rules, packed status word, state contract,
-and lifecycle. The Z80 adds its other instructions and prefix decoding. Paired
-programs expose common encodings alongside their different flag semantics.
+The 8008 and 8080 bind chapter-defined state and execution policies to shared
+[byte execution](../src/components/cpus/byte-execution.ts). The 8080 chapter
+selects interrupt recognition and EI retirement; its remaining TypeScript
+instruction families still share construction with the Z80. The Z80 retains
+its [8080-family base](../src/components/cpus/8080-family.ts), additional
+instructions, and prefix decoding. Paired programs expose common encodings
+alongside their different flag semantics.
 The 6800 and 6809 share definition construction for accumulator operations,
 transfers, and control flow while retaining their distinct addressing and stack
 rules. Shared arithmetic, status, memory, and stack construction also serves

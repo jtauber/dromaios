@@ -29,6 +29,8 @@ for (const query of ['highlights.scm', 'brackets.scm']) {
 const html = treeSitter('cpu', ['highlight', ...configArgs, '--html', '--style', 'minimal', '--layout', 'fragment', fixture], { capture: true }).stdout;
 for (const [text, category] of [
   ['cpu', 'keyword'], ['state', 'keyword'], ['family', 'keyword'], ['encoding', 'keyword'],
+  ['defer', 'keyword'], ['irq', 'keyword'], ['into', 'keyword'], ['unless', 'keyword'],
+  ['callback', 'keyword'], ['validate', 'keyword'], ['DEFERRED', 'property'], ['ENABLED', 'property'],
   ['A', 'property'], ['C', 'property'], ['ADDRESS', 'property'], ['STOPPED', 'property'],
   ['addressStack', 'variable'], ['slot', 'variable'], ['source', 'variable'], ['carry', 'variable'],
   ['transfer', 'function'], ['add', 'function'], ['carry', 'function'], ['u14', 'function'],

@@ -4,10 +4,17 @@ import { instructions } from "../../../../src/components/cpus/generated/8080.js"
 import type { Cpu8080State } from "../../../../src/components/cpus/state/8080.js";
 
 const families = [
-  ["add", "adi"], ["adc", "aci"], ["sub", "sui"], ["sbb", "sbi"],
-  ["ana", "ani"], ["xra", "xri"], ["ora", "ori"], ["cmp", "cpi"],
+  ["add", 0x80, 0xc6], ["adc", 0x88, 0xce], ["sub", 0x90, 0xd6], ["sbb", 0x98, 0xde],
+  ["ana", 0xa0, 0xe6], ["xra", 0xa8, 0xee], ["ora", 0xb0, 0xf6], ["cmp", 0xb8, 0xfe],
 ] as const;
 const sources = ["B", "C", "D", "E", "H", "L", "M", "A", "immediate"] as const;
+// The independently specified ALU ranges all need at most these two reads.
+const alu = Object.fromEntries(Object.entries(instructions).filter(([key]) => {
+  const opcode = Number(key);
+  return opcode >= 0x80 && opcode <= 0xbf || families.some(([, , immediate]) => opcode === immediate);
+})) as Readonly<Record<number, (state: Cpu8080State, context: {
+  fetchByte(): number; readByte(address: number): number;
+}) => void>>;
 function initialState(): Cpu8080State {
   return { a: 0x10, b: 0xff, c: 0xff, d: 0xff, e: 0xff, h: 0xff, l: 0xff, pc: 0xffff, sp: 0,
     flags: { s: false, z: false, p: false, ac: false, cy: true },
@@ -29,7 +36,7 @@ function expected(operation: typeof families[number][0], left: number, right: nu
 }
 
 test("8080 generated ALU bodies capture source, optional CY, then A; flags precede writeback and CMP never writes", () => {
-  for (const [operation, immediate] of families) for (const source of sources) for (const incoming of [false, true]) {
+  for (const [operation, base, immediate] of families) for (const source of sources) for (const incoming of [false, true]) {
     const state = initialState(), events: string[] = [];
     const carries = operation === "adc" || operation === "sbb", memory = source === "M", fetched = source === "immediate";
     const operands: number[] = [];
@@ -60,7 +67,7 @@ test("8080 generated ALU bodies capture source, optional CY, then A; flags prece
       fetchByte() { assert.ok(fetched); events.push("fetch"); return 0xff; },
       readByte(address: number) { assert.ok(memory); assert.equal(address, 0xffff); events.push("memory"); return 0xff; },
     };
-    const execute = source === "immediate" ? instructions[immediate] : instructions[`${operation}${source}`];
+    const execute = source === "immediate" ? alu[immediate]! : alu[base + sources.indexOf(source)]!;
     execute(observed, context);
     const result = expected(operation, 0x10, 0xff, incoming);
     assert.deepEqual({ ...state, flags }, { ...initialState(), ...result }, `${operation} ${source}, CY=${incoming}`);
@@ -74,7 +81,7 @@ test("8080 generated ALU bodies capture source, optional CY, then A; flags prece
 });
 
 test("8080 generated memory and immediate ALU bodies stop on failed reads and use state changed by successful reads", () => {
-  for (const [operation, immediate] of families) for (const memory of [false, true]) for (const fail of [false, true]) {
+  for (const [operation, base, immediate] of families) for (const memory of [false, true]) for (const fail of [false, true]) {
     const state = initialState(), before = structuredClone(state), oldFlags = state.flags;
     const events: string[] = [], failure = new Error("operand failure");
     const observed = new Proxy(state, {
@@ -90,7 +97,7 @@ test("8080 generated memory and immediate ALU bodies stop on failed reads and us
       state.a = 0x80; state.flags = { s: true, z: true, p: true, ac: true, cy: false };
       return 0x81;
     };
-    const execute = memory ? instructions[`${operation}M`] : instructions[immediate];
+    const execute = memory ? alu[base + 6]! : alu[immediate]!;
     const run = () => execute(observed, { fetchByte: read, readByte(address) { assert.equal(address, 0xffff); return read(); } });
     if (fail) assert.throws(run, error => error === failure);
     else run();

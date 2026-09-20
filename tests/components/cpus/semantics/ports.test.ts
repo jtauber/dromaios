@@ -39,8 +39,8 @@ const small: Case<Cpu8008StoredState>[] = Array.from({ length: 32 }, (_, port) =
   reference(state, context) { if (port < 8) state.a = context.readPort(port); else context.writePort(port, state.a); },
 }));
 const intel: Case<Cpu8080State>[] = [
-  { key: "input", execute: i8080.input, reference(s, c) { s.a = c.readPort(c.fetchByte()); } },
-  { key: "output", execute: i8080.output, reference(s, c) { c.writePort(c.fetchByte(), s.a); } },
+  { key: String(0xdb), execute: i8080[0xdb], reference(s, c) { s.a = c.readPort(c.fetchByte()); } },
+  { key: String(0xd3), execute: i8080[0xd3], reference(s, c) { c.writePort(c.fetchByte(), s.a); } },
 ];
 const x86: Case<Cpu8088State>[] = ([
   [0xe4, false, false, false], [0xe5, false, false, true], [0xe6, true, false, false], [0xe7, true, false, true],

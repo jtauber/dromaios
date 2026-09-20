@@ -93,8 +93,8 @@ const m6809Cases: Case<Cpu6809State>[] = [
   } },
 ];
 const intelCases: Case<Cpu8080State>[] = [
-  { name: "DI", actual: intel.di, reference(s) { s.interruptEnabled = false; } },
-  { name: "EI", actual: intel.ei, reference(s, c) { s.interruptEnabled = true; c.deferInterrupt("irq"); } },
+  { name: "DI", actual: intel[0xf3], reference(s) { s.interruptEnabled = false; } },
+  { name: "EI", actual: intel[0xfb], reference(s, c) { s.interruptEnabled = true; c.deferInterrupt("irq"); } },
 ];
 const z80Cases: Case<CpuZ80State>[] = [
   { name: "DI", actual: z80.di, reference(s) { s.iff1 = s.iff2 = false; } },
@@ -113,7 +113,7 @@ test("twenty documented interrupt/control forms and two external entry helpers a
   const inventories: readonly [Readonly<Record<string, InstructionDefinition | undefined>>, readonly string[], readonly string[]][] = [
     [instructions6800, ["swi", "wai", "rti"], ["SWI", "WAI", "RTI"]],
     [instructions6809, ["swi", "swi2", "swi3", "sync", "cwai", "rti"], ["SWI", "SWI2", "SWI3", "SYNC", "CWAI", "RTI"]],
-    [instructions8080, ["di", "ei"], ["DI", "EI"]],
+    [instructions8080, [String(0xf3), String(0xfb)], ["DI", "EI"]],
     [instructionsZ80, ["di", "ei", "im0", "im1", "im2", "retn", "reti"], ["DI", "EI", "IM 0", "IM 1", "IM 2", "RETN", "RETI"]],
   ];
   for (const [definitions, keys, names] of inventories) assert.deepEqual(keys.map(k => definitions[k]!.name), names);

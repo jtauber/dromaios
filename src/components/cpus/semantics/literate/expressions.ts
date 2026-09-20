@@ -1,5 +1,5 @@
 import { addWrap, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
-  flagValue, highByte, isWidth, literal, lowBit, lowByte, negative, not, shiftLeft, shiftRight,
+  flagValue, halfBorrow, halfCarry, highByte, isWidth, literal, lowBit, lowByte, negative, not, shiftLeft, shiftRight,
   subtract, truncate, value, zero } from "../model.ts";
 import type { FlagExpression, NumberExpression, Width } from "../model.ts";
 import type { ChapterTokens } from "./document.ts";
@@ -48,10 +48,11 @@ export function flagExpression(tokens: ChapterTokens): FlagExpression {
   if (!tokens.take("(")) return flagValue(name);
   let result: FlagExpression;
   if (name === "not") result = not(flagExpression(tokens));
-  else if (name === "carry" || name === "borrow") {
+  else if (["carry", "borrow", "halfCarry", "halfBorrow"].includes(name)) {
     const left = expression(tokens); tokens.expect(","); const right = expression(tokens);
     const incoming = tokens.take(",") ? flagExpression(tokens) : undefined;
-    result = (name === "carry" ? carry : borrow)(left, right, incoming);
+    const operation = { carry, borrow, halfCarry, halfBorrow }[name as "carry" | "borrow" | "halfCarry" | "halfBorrow"];
+    result = operation(left, right, incoming);
   } else {
     const operations = { negative, zero, lowBit, evenParity };
     if (!Object.hasOwn(operations, name)) tokens.fail(`Unknown flag operation ${name}.`);

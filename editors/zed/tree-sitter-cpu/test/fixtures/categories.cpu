@@ -78,3 +78,16 @@ execution {
 interface Cpu8008 "Public interface" {
   snapshot pc = PC
 }
+
+// Recognition and retirement syntax used by the 8080 chapter.
+action enable "request deferral" {
+  ENABLED <- 1
+  defer irq
+}
+execution {
+  retire irq into DEFERRED
+  interrupt {
+    accept when ENABLED unless DEFERRED with resume
+    callback validate on read
+  }
+}

@@ -158,12 +158,12 @@ test("6800 unary bodies retain their flag order, clear TST carry, and never read
 });
 
 test("8080 rotates write A before CY and read incoming CY only for through-carry forms", () => {
-  for (const [name, result, incoming] of [["rlc", 3, false], ["rrc", 0xc0, false], ["ral", 2, true], ["rar", 0x40, true]] as const) {
+  for (const [opcode, result, incoming] of [[0x07, 3, false], [0x0f, 0xc0, false], [0x17, 2, true], [0x1f, 0x40, true]] as const) {
     const events: string[] = [];
     const state: Cpu8080State = { a: 0x81, b: 0, c: 0, d: 0, e: 0, h: 0, l: 0, sp: 0, pc: 0,
       halted: false, interruptEnabled: false, interruptDeferred: false,
       flags: observe({ s: true, z: true, ac: true, p: true, cy: false }, events, "flags.") };
-    intel[name](observe(state, events));
+    intel[opcode](observe(state, events));
     assert.deepEqual(events, ["read a", ...(incoming ? ["read flags.cy"] : []), `a=${result}`, "flags.cy=1"]);
     assert.equal(state.a, result);
     assert.deepEqual(state.flags, { s: true, z: true, ac: true, p: true, cy: true });

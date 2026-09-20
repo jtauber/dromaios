@@ -80,8 +80,9 @@ describes the working chapter prototype; the
   validation, generated execution, and document diagnostics. Replace the
   corresponding handwritten definitions rather than keeping two authorities.
 - Challenge the language with contrasting families and whole-CPU migrations,
-  including state, decoding, lifecycle, and generated public interfaces. Apply the 8008 execution contract
-  to the 8080 next, preserving its interrupt recognition and retirement differences.
+  including state, decoding, lifecycle, and generated public interfaces. Complete
+  the 8080 chapter after its shared execution migration, then challenge the
+  language with another execution architecture.
   Keep the final language shape open to what those examples teach us.
 - Address remaining accuracy and machine-integration needs in reviewable
   changes, with explicit model contracts and documented limits. Keep their

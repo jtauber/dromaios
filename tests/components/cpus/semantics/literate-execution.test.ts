@@ -221,3 +221,89 @@ family LOAD "01000010" {
   cpu.interrupt(() => [0x42, 0x5a][index++]!);
   assert.deepEqual(state, { cursor: 0, value: 0x5a, asleep: false });
 });
+
+const intelFile = "src/components/cpus/specifications/8080.md", intel = readFileSync(intelFile, "utf8");
+const intelState = () => ({ a: 0x42, b: 0, c: 0, d: 0, e: 0, h: 0, l: 0, pc: 0, sp: 0xffff,
+  flags: { s: false, z: true, p: false, ac: true, cy: true }, interruptEnabled: false, interruptDeferred: false, halted: false });
+
+test("8080 chapter recognition skips acknowledgement and acceptance for both disabled and deferred offers", async () => {
+  const model = await generated(intel, "8080"), ram = new Ram(0x10000);
+  for (const enabled of [false, true]) for (const deferred of [false, true]) for (const halted of [false, true]) {
+    const state = { ...intelState(), interruptEnabled: enabled, interruptDeferred: deferred, halted };
+    const before = structuredClone(state), cpu = model.createExecution(state, ram, () => structuredClone(state));
+    let acknowledged = false;
+    const result = cpu.interrupt(() => {
+      acknowledged = true;
+      assert.deepEqual(state, { ...before, interruptEnabled: false, interruptDeferred: false, halted: false });
+      return 0x40; // MOV B,B
+    });
+    assert.equal(acknowledged, enabled && !deferred);
+    if (!acknowledged) assert.deepEqual(result, { before, after: before, instruction: null, accesses: [],
+      outcome: "ignored", reason: enabled ? "deferred" : "disabled" });
+    else assert.deepEqual(result, { before, after: state, instruction: { source: "interrupt", bytes: [0x40] },
+      accesses: [{ kind: "acknowledge", value: 0x40 }], outcome: "executed" });
+  }
+});
+
+test("8080 chapter retirement consumes old delays, renews EI, and skips failures, unsupported bytes, and idle HALT", async () => {
+  const model = await generated(intel, "8080"), state = intelState(), ram = new Ram(0x10000);
+  const error = Error("device failed"), cpu = model.createExecution(state, ram, () => structuredClone(state), {
+    readPort() { throw error; }, writePort() { throw error; },
+  });
+  [0xfb, 0xfb, 0xdb, 0x07, 0x08, 0x40, 0xf3].forEach((byte, address) => ram.write(address, byte));
+  cpu.step(); assert.equal(state.interruptDeferred, true);
+  cpu.step(); assert.equal(state.interruptDeferred, true);
+  assert.throws(() => cpu.step(), thrown => thrown === error);
+  assert.equal(state.pc, 4); assert.equal(state.interruptDeferred, true);
+  assert.equal(cpu.step().outcome, "unsupported"); assert.equal(state.interruptDeferred, true);
+  state.halted = true;
+  assert.equal(cpu.step().outcome, "halted"); assert.equal(state.interruptDeferred, true);
+  state.pc = 5; state.halted = false;
+  cpu.step(); assert.equal(state.interruptDeferred, false);
+  // An externally supplied EI renews the delay after acceptance clears it.
+  cpu.interrupt(() => 0xfb);
+  assert.equal(state.interruptEnabled, true); assert.equal(state.interruptDeferred, true); assert.equal(state.pc, 6);
+  cpu.step(); assert.equal(state.interruptEnabled, false); assert.equal(state.interruptDeferred, false);
+});
+
+test("formal edits control interrupt masking, deferral destinations, and callback validation", async () => {
+  const changed = intel.replace("accept when ENABLED unless DEFERRED with accept", "accept when ENABLED with accept")
+    .replace("retire irq into DEFERRED", "retire irq into ENABLED");
+  const model = await generated(changed, "8080"), state = { ...intelState(), interruptEnabled: true, interruptDeferred: true };
+  const cpu = model.createExecution(state, new Ram(0x10000), () => structuredClone(state));
+  // Removing the blocker makes this offer acceptable despite the old delay.
+  assert.equal(cpu.interrupt(() => 0x40).outcome, "executed");
+  assert.equal(state.interruptEnabled, false);
+  // EI writes ENABLED immediately; retirement targets it instead of DEFERRED.
+  state.pc = 0; const ram = new Ram(0x10000); ram.write(0, 0xfb);
+  const ordinary = model.createExecution(state, ram, () => structuredClone(state));
+  ordinary.step(); assert.equal(state.interruptEnabled, true); assert.equal(state.interruptDeferred, false);
+  const eager = await generated(intel.replace("callback validate on read", "callback validate on offer"), "8080");
+  const before = { ...intelState(), halted: true }, offered = eager.createExecution(before, ram, () => structuredClone(before));
+  assert.throws(() => Reflect.apply(offered.interrupt, offered, [null]), /acknowledgement callback/);
+  assert.deepEqual(before, { ...intelState(), halted: true });
+  const lazy = await generated(intel, "8080"), accepted = lazy.createExecution(before, ram, () => structuredClone(before));
+  assert.equal(Reflect.apply(accepted.interrupt, accepted, [null]).outcome, "ignored");
+  before.interruptEnabled = true;
+  assert.throws(() => Reflect.apply(accepted.interrupt, accepted, [null]), TypeError);
+  assert.equal(before.halted, false); assert.equal(before.interruptEnabled, false);
+  // Failure releases the boundary guard and leaves the model usable.
+  accepted.reset(); assert.equal(before.pc, 0);
+});
+
+for (const [before, after, message] of [
+  ["retire irq into DEFERRED", "retire irq into A", /Unknown name A/],
+  ["retire irq into DEFERRED", "retire none", /deferral needs a declared retirement destination/],
+  ["accept when ENABLED", "accept when A", /Unknown name A/],
+  ["unless DEFERRED", "unless CY", /Unknown name CY/],
+  ["callback validate on read", "callback validate on dispatch", /offer or read/],
+  ["  defer irq\n", "  defer nmi\n", /Expected "irq"/],
+] as const) test(`8080 execution rejects ${after} at its Markdown location`, () => {
+  assert.throws(() => compileCpuChapter(intel.replace(before, after), { name: "8080" }, intelFile), error =>
+    error instanceof ChapterError && error.file === intelFile && error.line > 0 && message.test(error.message));
+});
+
+test("IRQ retirement validation descends into untaken branches", () => {
+  const text = intel.replace("retire irq into DEFERRED", "retire none").replace("  defer irq", "  when 0 {\n    defer irq\n  }");
+  assert.throws(() => compileCpuChapter(text, { name: "8080" }, intelFile), /deferral needs a declared retirement destination/);
+});

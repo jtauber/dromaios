@@ -12,7 +12,7 @@ export type AluInstruction = (operand: ByteOperand | "immediate") => OpcodeHandl
 type Registers = Record<"a" | "b" | "c" | "d" | "e" | "h" | "l" | "pc" | "sp", number> & { halted: boolean };
 const instructionPattern = opcodePattern<OpcodeHandler>;
 
-/** Common 8080/Z80 encodings and operand mechanics; flags and CPU lifecycle belong to each CPU. */
+/** Z80 base encodings inherited from the 8080; the 8080 itself now uses chapter-generated dispatch. */
 export abstract class Cpu8080Family<State extends Registers> {
   protected readonly state: State;
 

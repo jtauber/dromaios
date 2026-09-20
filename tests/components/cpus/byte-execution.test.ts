@@ -35,3 +35,25 @@ for (const word of ["little", "big"] as const) for (const supplied of [false, tr
     assert.deepEqual(result, saved);
   });
 }
+
+for (const supplied of [false, true]) test(`shared retirement commits deferral only after a successful ${supplied ? "supplied" : "ordinary"} handler`, () => {
+  const ram = new Ram(256), counter = { pc: 0 }, failure = Error("after request");
+  let delay = false, fail = true;
+  const cpu = byteExecution("fixture", ram, undefined, () => ({ delay, pc: counter.pc }), {
+    counter, stopped: () => false, reset: () => {}, acceptInterrupt: () => {},
+    retire: deferred => { delay = deferred; }, word: "little", opcodeAdvance: "dispatch", interruptCounter: "preserve",
+    handlers: { 0x42: ({ deferInterrupt }) => { deferInterrupt("irq"); if (fail) throw failure; }, 0x43: () => {} },
+  });
+  const run = (opcode: number) => {
+    ram.write(counter.pc, opcode);
+    return supplied ? cpu.interrupt(() => opcode) : cpu.step();
+  };
+  for (const old of [false, true]) {
+    delay = old; assert.throws(() => run(0x42), error => error === failure); assert.equal(delay, old);
+    run(0); assert.equal(delay, old);
+  }
+  fail = false;
+  run(0x42); assert.equal(delay, true);
+  run(0x42); assert.equal(delay, true);
+  run(0x43); assert.equal(delay, false);
+});

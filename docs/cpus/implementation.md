@@ -179,7 +179,7 @@ Choose the grouping from the CPU's encoding:
 | Model | Organization in the current source |
 | --- | --- |
 | [8008](../../src/components/cpus/specifications/8008.md) | Native `xx yyy zzz` groups; A is register selector `000`, M is `111`; preserve documented HLT exceptions |
-| [8080](../../src/components/cpus/8080.ts) | Shared [8080-family table](../../src/components/cpus/8080-family.ts): `xx yyy zzz`; leading `xx` blocks, then `zzz` subgroups where it selects the family; split `yyy` into `pp q` for pair operations |
+| [8080](../../src/components/cpus/specifications/8080.md) | Chapter byte families use `01 ddd sss`, `10 ooo sss`, `00 rrr 10d`, and `00 ooo 111`; remaining word/control/status builders join them in one generated opcode table |
 | [6502](../../src/components/cpus/6502.ts) | `aaa bbb cc`; `cc=01` groups `aaa` operations with shared `bbb` operand sources; `cc=00/10` retain `bbb` subgroups and their distinct implied/addressing forms |
 | [6800](../../src/components/cpus/6800.ts) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; unary forms use `01 tt oooo`, with `tt` selecting A/B/indexed/extended; short branches use `0010 ttt p`, keeping the unused `21` explicit |
 | [6809](../../src/components/cpus/6809.ts) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, `0110 oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte; pages `10`/`11` share word-family builders, with long conditions on page `10` |
@@ -340,42 +340,36 @@ or universal CPU base class.
 
 ## Shared 8080/Z80 instruction family
 
-[`Cpu8080Family`](../../src/components/cpus/8080-family.ts) is an internal abstract
-base for the sibling `Cpu8080` and `CpuZ80` classes. It owns the common register
-operands, pair views, data-word accesses, and 240 supported
-8080 encodings. Its bit-pattern table gives both CPUs' mnemonics. The Z80 adds
-the remaining unprefixed forms and its own CB, ED, DD, and FD pages.
+The [8080 chapter](../../src/components/cpus/specifications/8080.md) now owns
+byte transfers, byte ALU/adjustments, rotates, ports, and interrupt controls.
+Its stored state, pair views, reset, recognition, and retirement policies bind
+to shared byte execution. `Cpu8080` is a small public adapter, with no inherited
+decoder. Its remaining TypeScript word/control/status families join the chapter's
+forms in one generated table; numeric opcode keys bind every complete body.
 
-The concrete CPUs supply protected hooks for ALU operations, accumulator/carry
-operations, generated bodies keyed by opcode, and byte increment/decrement.
-PSW/AF packing and all ordinary stack operations belong to generated bodies. Both CPUs' byte ALU and byte-adjustment selectors bind complete generated bodies with
-explicit source reads, flags, and writeback. Shared
-[Intel construction](../../src/components/cpus/semantics/intel.ts) supplies
-register/(HL)/immediate sources and carry-before-A ordering; CPU definitions
-provide flag policies. CMP/CP omit the destination write. The Z80's indexed
-ALU bodies receive the decoder's resolved address and share the same construction.
-INR/DCR and INC/DEC share read–adjust–flags–write construction with separate
-CPU flag policies; their memory bodies receive one resolved HL or indexed address.
-These hooks keep differing flag rules explicit, including parity
-versus overflow and the opposite subtraction half-carry conventions. The shared
-code does not select behavior by checking which processor is executing.
+[`Cpu8080Family`](../../src/components/cpus/8080-family.ts) remains the Z80's
+internal base. It describes the 240 common 8080 encodings, register operands,
+pair views, and data-word accesses. The Z80 supplies its operation hooks and
+adds the other unprefixed forms plus CB, ED, DD, and FD pages. Retain that
+structure until the Z80 chapter can own the complete prefix and retirement
+contracts. There is no requirement to make the 8080 inherit it merely because
+the chips share encodings.
 
-The shared [encoding inventory](../../src/components/cpus/intel-encodings.ts)
-owns the `00 ddd 110` immediate and `01 ddd sss` matrix encodings. Definition
-construction and execution binding consume that same inventory; the generated
-method keys are the numeric opcodes. HALT remains explicit in the family table.
-Ordinary bodies own source reads, H/L reads at the access point, and writeback.
-Indexed Z80 bodies share construction and receive a resolved address instead.
-Both CPUs use one binder, with no separate handwritten byte-operand read/write
-helpers or per-CPU transfer dispatch tables. The same binder serves the common
-word-arithmetic encodings `00 pp 1 001` and `00 pp q 011`.
-The accumulator memory slots in `00 pp q 010` share that inventory and binder:
-BC/DE addresses read high byte first; absolute addresses fetch low byte first.
-These stores capture the address before A. Loads write A only after a successful
-memory read. Both directions avoid flag access; the family no longer needs a
-separate register-pair selector for them.
+The chapter and [Intel builders](../../src/components/cpus/semantics/intel.ts)
+preserve the same explicit effect order: capture byte sources before A or
+destination addresses; apply arithmetic flags before writeback; resolve a
+memory adjustment's address once. The flag rules remain CPU-specific, including
+parity versus overflow and opposite subtraction half-carry conventions. The
+Z80's indexed bodies receive resolved addresses from its decoder.
 
-Word transfers use that same binder with their own immediate, memory, and SP-copy
+The [encoding inventory](../../src/components/cpus/intel-encodings.ts) still
+serves Z80 construction and binding, and the remaining 8080 TypeScript families.
+Z80 byte transfers use `00 ddd 110` and `01 ddd sss`; the 8080 now declares those
+patterns directly in its chapter. Remaining word, accumulator-memory, exchange,
+stack, and control families share construction, while the two cores bind their
+generated bodies through their respective execution paths.
+
+Word transfers share construction and their immediate, memory, and SP-copy
 inventory. Bodies fetch complete addresses, read or write memory low byte first,
 and express split-register writes explicitly. Their pair descriptions reuse the
 runtime's register-pair byte mapping. Z80 ED HL forms share their unprefixed
@@ -540,9 +534,10 @@ describe the callbacks available to an opcode handler:
 callbacks without exposing that log, and all callback properties are readonly.
 
 The 6502, 6800, 6809, and shared 8080-family core import
-`WordInstructionContext` as their local `InstructionContext`. The 8008, 8080,
-and Z80 extend it with `BytePorts`; the 8080/Z80 add interrupt-deferral callbacks,
-and the Z80 also queues RETI notification for retirement.
+`WordInstructionContext` as their local `InstructionContext`. Shared byte
+execution for the 8008 and 8080 adds `BytePorts` and IRQ-deferral
+callbacks; chapter validation permits deferral only with a declared retirement
+destination. The Z80 adds ports and deferral, plus RETI notification at retirement.
 The 8088 extends it with `BytePorts`, the instruction start IP, local segment/repeat
 prefixes, `InterruptDeferralContext` for instruction-local recognition delays,
 `InterruptReportContext` for software-entry metadata, and ESC/TEST callbacks.
@@ -594,7 +589,8 @@ accesses or change PC, including the 6502's JSR operand/stack ordering.
 
 The result contains the fetched instruction, ordered accesses, and whether a
 handler executed. Each CPU's `step()` owns its before/after snapshots and
-outcome; the 8008's shared runtime and the 8080's core check HALT before calling the helper. A handler can return
+outcome; shared byte execution checks HALT for the 8008 and 8080 before calling
+the helper. A handler can return
 `"unsupported"` after fetching an operand selector, as the 6809 does for an
 undefined indexed postbyte. It must reject before changing other state or RAM;
 the executor restores PC and retains the actual fetches. This is not general

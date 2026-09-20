@@ -161,7 +161,7 @@ The implementation already has much of the foundation:
 | [ALU](../../src/components/cpus/alu.ts) and [binary helpers](../../src/components/cpus/binary.ts) | Arithmetic facts, shifts, parity, signed bytes, and word assembly | Reuse instruction behavior above these primitives |
 | [Memory recording](../../src/components/cpus/memory-access.ts) | Actual, ordered, completed byte accesses | Compose logical addressing and multi-byte access policies |
 | [Byte execution](../../src/components/cpus/execute-byte-instruction.ts) | Fetching, dispatch, and limited opcode rejection | Share more lifecycle mechanics while selecting execution strategies |
-| [8080 family](../../src/components/cpus/8080-family.ts) | Common 8080/Z80 encodings, operand handling, transfers, and control flow | Reuse its existing boundary and compare any proposed replacement against it |
+| [8080 family](../../src/components/cpus/8080-family.ts) | Z80 base encodings and operand handling; the 8080 now binds its table through chapter-driven byte execution | Compare later Z80 migration against the established behavior and explicit prefix boundaries |
 | [Motorola helpers](../../src/components/cpus/motorola.ts) | Common conditions, byte ALU behavior, and accumulator operations | Separate reusable operation semantics from their encoding selectors |
 | [Call stack](../../src/components/cpus/call-stack.ts) | 8080/Z80 stack accesses, calls, and returns | Separate stack mechanics from call and return recipes |
 
