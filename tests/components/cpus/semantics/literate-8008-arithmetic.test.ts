@@ -7,11 +7,10 @@ import { ChapterError } from "../../../../src/components/cpus/semantics/literate
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { instructions8008 } from "../../../../src/components/cpus/semantics/definitions/8008.js";
 import { opcodeEntries } from "../../../../src/components/cpus/generated/8008.js";
-import { cpu8008StateDescription } from "../../../../src/components/cpus/state/8008.js";
 import type { Cpu8008StoredState } from "../../../../src/components/cpus/state/8008.js";
 
 const file = "src/components/cpus/specifications/8008.md", markdown = readFileSync(file, "utf8");
-const cpu = { name: "8008", state: cpu8008StateDescription };
+const cpu = { name: "8008" };
 const compile = (text = markdown) => compileCpuChapter(text, cpu, file);
 function state(): Cpu8008StoredState {
   return { a: 0x10, b: 3, c: 3, d: 4, e: 5, h: 0xff, l: 0xff, flags: { s: true, z: true, p: true, c: true },
@@ -47,7 +46,7 @@ test("the 8008 specification includes all 88 independent arithmetic/unary encodi
 
 const invalid: readonly [string, string, string, RegExp][] = [
   ["duplicate register", "register D: 8", "register C: 8", /Duplicate declaration C/],
-  ["duplicate flag", "flag C", "flag P", /Duplicate declaration P/],
+  ["duplicate flag", "  flag C\n", "  flag P\n", /Duplicate declaration P/],
   ["unknown flag read", "carry = flag C", "carry = flag A", /Unknown name A/],
   ["missing carry capture", "add(left, right, carry)", "add(left, right, missing)", /flag missing has not been captured/],
   ["byte used as carry", "add(left, right, carry)", "add(left, right, left)", /flag left has not been captured/],

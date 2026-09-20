@@ -1543,13 +1543,16 @@ The source-only check and ordinary compilation both type-check the generated
 bodies. Reproducibility tests compare every module with fresh output and run the
 native generator in a clean temporary tree from another working directory.
 
-All eight CPU-owned state declarations now live under
+All eight CPUs expose their state schemas through
 [`src/components/cpus/state/`](../../src/components/cpus/state), re-exported
-through their original CPU modules. This lets definitions and generation load
-schemas without importing execution or requiring generated files to exist.
-The machine parser imports those schemas directly too, so machine generation
-works independently of generated CPU output. There is still one authority for
-each CPU's stored fields.
+through their original CPU modules. The 8008 schema and mutable stored-state
+type are generated from its chapter into `semantics/generated/state/`; its
+public state module retains aliases and readonly policies. Other schemas remain
+authored TypeScript. Chapter generation builds the 8008 schema without importing
+existing output, before the instruction registry loads it. The machine parser
+uses these same schemas without importing executable handlers or expanded chapter
+data. After a clean, generate CPUs before running machine generation separately.
+There is one authority for each CPU's stored fields.
 
 Opcode selection remains in the CPU tables. For the 6502 and numeric 8088 families,
 `generateInstructions(..., { bindOpcodes: true })` also generates

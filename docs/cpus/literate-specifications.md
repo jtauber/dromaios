@@ -7,8 +7,8 @@ Executable chapters are maintained instruction sources:
   remaining 6502 definitions.
 - [Intel 8008: the complete instruction set](../../src/components/cpus/specifications/8008.md)
   defines every documented instruction, including control flow, restarts,
-  halts, and port transfers. The chapter owns both behavior and encodings;
-  fetching, state storage, reset, and interrupt delivery remain in the core.
+  halts, and port transfers. The chapter owns behavior, encodings, and stored-state
+  declarations; fetching, reset, and interrupt delivery remain in the core.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -42,6 +42,12 @@ Markdown chapter
 `npm test` include them. Chapter data is generated under
 `src/components/cpus/semantics/generated/`; executable bodies remain under
 `src/components/cpus/generated/`. Both directories are ignored and disposable.
+Chapters with a `state` block also generate small schema/type modules under
+`semantics/generated/state/`. These modules import only the shared state helpers,
+so runtime consumers need not load the expanded instruction data. Chapter
+generation takes no pre-existing schema for these CPUs and writes their state
+modules before the instruction registry is loaded. All chapters and schemas
+are checked before replacing existing output.
 `node scripts/describe-cpu-semantics.ts` also refreshes chapter data before
 generating the tracked explanation listing; add `--check` to check that listing.
 No Markdown parser or filesystem access is required to execute a CPU.
@@ -68,9 +74,10 @@ Quoted descriptions use JSON string escaping.
 
 | Construct | Meaning |
 | --- | --- |
-| `cpu "6502"` | Select the CPU schema supplied to the compiler. |
-| `register A: 8`, `flag N` | Declare the state used here, checked against the schema. Uppercase names map to lowercase stored fields unless an explicit `= field` mapping follows. |
-| `register SELECTOR: 3 = stackIndex`, `array ADDRESS: 14[8] = addressStack` | Name stored fields explicitly; array element widths and lengths must match the schema. |
+| `cpu "6502"` | Identify the CPU whose chapter is being compiled. |
+| `state { … }` | Define the complete stored-state schema before instruction declarations; requires no external schema. |
+| `register A: 8`, `flag N` | Declare stored fields inside `state`, or reference an external schema in a partial chapter. Uppercase names map to lowercase stored fields unless an explicit `= field` mapping follows. |
+| `register SELECTOR: 3 = stackIndex`, `array ADDRESS: 14[8] = addressStack` | Name stored fields explicitly; widths and array lengths define storage inside `state` and must match the external schema otherwise. |
 | `latch STOPPED = halted` | Declare a Boolean control latch, distinct from an architectural flag. |
 | `source zeroPage "zero page": 16 { … }` | Ordered steps ending in a numeric `return`; each use has its own capture scope. |
 | `offset = fetch` | Fetch and capture the next instruction byte. |
@@ -88,6 +95,30 @@ Quoted descriptions use JSON string escaping.
 | `commit addresses` | Commit register updates staged by the existing address decoder. |
 | `when not(carry) { … }` | Execute a nested block only when its captured flag expression is true. |
 | `when test c { … }` | Read the flag selected by a condition catalogue at this point, compare it with the required value, and conditionally execute the block. |
+
+### State ownership
+
+A complete state block contains only `register`, `flag`, `array`, and `latch`
+declarations. It must be nonempty, appear once after `cpu` and before other
+declarations, and contain every stored field. Instruction bodies use those
+declared names directly; do not redeclare them outside the block. Flags occupy
+a `flags` group; the other declarations describe top-level fields. Two symbols
+cannot declare the same stored field, and a field named `flags` cannot collide
+with the architectural flag group. Arrays have positive safe-integer lengths;
+register and element widths use the language's supported numeric widths.
+
+The compiler returns the schema along with the instruction families. The build
+generates an immutable state description and a `StoredState` type derived from
+it. Public aliases and caller/snapshot readonly policies can remain in the
+CPU's state module. Initial values, reset values, derived register views,
+fetching, and interrupt delivery are separate contracts, not implied by storage.
+
+Partial chapters instead receive an external schema and use top-level state
+declarations to name the fields they need. They cannot also define a `state`
+block. The compiler validates their field kinds, widths, and array lengths
+against that schema; it does not emit a replacement schema for them.
+
+### Expressions and policies
 
 Numeric expressions are capture names, explicitly sized literals such as
 `u8($01)` or `u16($FFFF)`, and these operations:
@@ -294,12 +325,13 @@ inaccessible to authored statements. Nested errors retain the offending
 statement's Markdown location.
 
 Register, array, latch, and flag names remain uppercase; `= field` maps them to
-existing schema fields with exact spelling. Flags refer to the schema's flags
+stored fields with exact spelling. Flags refer to the schema's flags
 group; the other declarations name top-level stored fields. Array indices must
 be provably in range: constants name a valid slot, while every value representable
 by a dynamic index's width must fit the array. A three-bit SELECTOR can index
 an eight-element array; an unrestricted byte cannot. Reads and writes retain the
-element width. These declarations validate storage rather than generating it.
+element width. The [state ownership rules](#state-ownership) determine whether
+these declarations define storage or validate references to an external schema.
 
 Port reads/writes lower to the existing byte-transfer effects. Inputs capture
 the returned byte before a later register write; outputs consume a previously
@@ -350,9 +382,9 @@ to their flag update rather than the policy header.
 
 ## Boundaries and next evidence
 
-The CPU state schema remains authoritative for storage and public TypeScript
-types. Chapter declarations describe and validate the subset used here; they do
-not yet generate that schema. Native opcode fetching, execution records, reset,
+The 8008 chapter now generates its authoritative stored-state schema and type.
+Partial chapters still validate their declarations against externally supplied
+schemas. Native opcode fetching, execution records, reset,
 interrupt recognition, and retirement remain in the existing CPU core. Most
 instruction families are still authored in TypeScript.
 
@@ -365,9 +397,10 @@ serve other sizes and addressing modes. Only the chapter-owned forms earn
 literate coverage.
 
 The 8008 is the first whole-CPU target, and its complete instruction set is now
-chapter-authored. The next evidence is authoritative state layout and lifecycle
-definitions: fetching, reset, and interrupt-supplied execution. Those remain
-handwritten boundaries despite complete instruction coverage. Each further
+chapter-authored, and its state block replaces the handwritten storage schema.
+The next evidence is register views and lifecycle definitions: fetching, reset,
+and interrupt-supplied execution. Those remain handwritten boundaries despite
+complete instruction coverage. Each further
 slice should replace its corresponding maintained TypeScript and retain
 independent execution tests. The destination is a whole CPU description,
 including state and lifecycle contracts, that needs no CPU-specific compiler
@@ -376,6 +409,7 @@ These chapters establish an executable authoring path, not a percentage
 estimate of the work remaining toward that goal.
 
 The [6502 language tests](../../tests/components/cpus/semantics/literate.test.ts),
+[state-authoring tests](../../tests/components/cpus/semantics/literate-state.test.ts),
 [8008 transfer tests](../../tests/components/cpus/semantics/literate-8008.test.ts),
 [8008 arithmetic language tests](../../tests/components/cpus/semantics/literate-8008-arithmetic.test.ts),
 [8008 control/port language tests](../../tests/components/cpus/semantics/literate-8008-control.test.ts),

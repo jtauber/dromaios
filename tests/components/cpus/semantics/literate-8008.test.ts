@@ -7,11 +7,10 @@ import { ChapterError } from "../../../../src/components/cpus/semantics/literate
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { instructions8008 } from "../../../../src/components/cpus/semantics/definitions/8008.js";
 import { opcodeEntries } from "../../../../src/components/cpus/generated/8008.js";
-import { cpu8008StateDescription } from "../../../../src/components/cpus/state/8008.js";
 import type { Cpu8008StoredState } from "../../../../src/components/cpus/state/8008.js";
 
 const file = "src/components/cpus/specifications/8008.md";
-const markdown = readFileSync(file, "utf8"), cpu = { name: "8008", state: cpu8008StateDescription };
+const markdown = readFileSync(file, "utf8"), cpu = { name: "8008" };
 const compile = (text = markdown) => compileCpuChapter(text, cpu, file);
 function state(): Cpu8008StoredState {
   return { a: 0x80, b: 2, c: 3, d: 4, e: 5, h: 0xff, l: 0xff, flags: { s: true, z: false, p: true, c: true },

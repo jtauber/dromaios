@@ -29,8 +29,9 @@ emulators do not count toward implementation here.
 
 **Literate instruction coverage** measures documented opcode forms authored in
 executable chapters. The 8008's 100% means its entire instruction set is
-chapter-authored; state layout, fetching, reset, and interrupt delivery still
-have handwritten implementations. It does not mean the entire CPU is generated
+chapter-authored. Its stored-state schema is also chapter-authored, but derived
+register views, fetching, reset, and interrupt delivery still have handwritten
+implementations. It does not mean the entire CPU is generated
 from a literate specification.
 
 **CPU core lines** count the entire linked `<cpu>.ts` file, including comments
@@ -56,7 +57,9 @@ twelve register adjustments, four rotates, 59 control forms, and 32 port forms.
 Conditions, address-register arrays, selector wrapping, the halted latch, and
 port transfers are explicit. Every instruction body and encoding comes from
 the chapter; no separate TypeScript instruction or encoding inventory remains.
-State storage, fetching, reset, and interrupt delivery are still CPU-owned.
+Its `state` block also generates the immutable stored-state schema and mutable
+TypeScript type used by the core and machine parser. Public readonly policies,
+derived register views, fetching, reset, and interrupt delivery remain in TypeScript.
 
 The [68000 word-transfer chapter](../../src/components/cpus/specifications/68000-word-transfers.md)
 adds 64 data-register copies and 128 loads/stores through `(An)`. It specifies
@@ -68,11 +71,12 @@ only the 192 fully authored forms earn literate coverage.
 | Milestone | Evidence / remaining work |
 | --- | --- |
 | Three executable chapters | The 6502, 8008, and 68000 exercise prose, checked declarations, encoding selectors and values, multiple widths, addressing, ordered effects, fault returns, typed flag policies, arithmetic bodies shared across encodings, nested conditions, stored arrays/latches, and port effects through the existing representation. |
-| Production equivalence | The 8008 control/port migration leaves all 27 other generated execution modules byte-identical and the 159 previously literate 8008 bodies formally unchanged. Independent control/port tests and old/new CPU comparisons cover all 256 slots, flags, address-stack selectors, ordinary/supplied streams, and transfer failures. |
+| Production equivalence | The state migration leaves all 28 generated execution modules and all three existing chapter-data modules byte-identical. The generated 8008 schema matches the previous contract; independent CPU, machine, and type tests retain construction, snapshots, and execution checks. |
 | Authoring feedback | Syntax, state-schema, width, scope, and encoding errors report Markdown locations. Unknown declarations are identified directly; nested scope, array-bound, and policy errors identify the offending statement. Clean builds bootstrap chapter data before instruction generation. |
 | Language review | [Reviewed across the three chapters](literate-specifications.md#review-of-the-three-chapters): consistent operand vocabulary, explicit widths and effect order, distinct family explanations, and visible native boundaries. |
 | One complete literate instruction set | All 250 8008 forms are chapter-authored, including every documented control alias and port selector. |
-| One complete literate CPU | Still ahead for the 8008: authoritative state layout, opcode fetching, reset, and interrupt/lifecycle contracts. Complete instruction coverage does not yet meet this milestone. |
+| Chapter-owned stored state | The 8008 state block generates the schema and stored-state type. Tests cover declaration diagnostics, formal edits that change validation, and clean generation without pre-existing schema output. |
+| One complete literate CPU | Still ahead for the 8008: derived register views, opcode fetching, reset, and interrupt/lifecycle contracts. Complete instruction coverage does not yet meet this milestone. |
 
 The percentages measure authored opcode forms, not progress toward a complete
 CPU language or the amount of work remaining. See the
@@ -565,12 +569,13 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Eight CPU core files | 2,540 |
 | CPU-specific instruction definition files | 2,308 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 4,426 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,274** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 1,022 |
-| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 67 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 4,517 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,365** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 1,033 |
+| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 73 |
 | Generated executable CPU output, counted separately | 314,041 |
 | Generated chapter data, counted separately | 110,323 |
+| Generated state schemas/types, counted separately | 18 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
 outside this source count. Generated TypeScript is reproducible build output,
@@ -578,22 +583,25 @@ not maintained source. Its size is still reported to keep expansion visible.
 Both `src/components/cpus/generated/` and
 `src/components/cpus/semantics/generated/` are excluded from authored counts.
 
-The 8008 control/port migration reduces its TypeScript definition file from
-**62 to 5 lines** and removes **15 lines** of separate native encodings. Its
-core remains at **141 lines**. The shared literate front end grows from
-**434 to 548 lines**, adding nested statements, conditions, state mappings,
-arrays/latches, and ports. Statement compilation is now separate from catalogue
-and family compilation; the existing instruction representation and execution
-generator need no new primitives.
+The 8008 state migration replaces its handwritten storage declarations with
+chapter-owned state. Its public state module shrinks from **18 to 11 lines**,
+retaining re-exports, aliases, and caller readonly policy. Its core remains at
+**141 lines** and its instruction integration adapter at **5 lines**. The shared
+literate front end grows from **548 to 646 lines**, adding state ownership,
+validation, and schema/type generation while sharing declaration parsing with
+partial chapters. The generated schema/type module is **18 lines**.
 
-Across all CPUs, authored TypeScript grows from **9,232 to 9,274 lines** and
-chapters from **745 to 1,022 lines**. Generation scripts remain at **67 lines**.
-Total maintained CPU source grows from **10,044 to 10,363 lines**, while the
-last 91 8008 forms move into the chapter. This completes literate instruction
-coverage, not the state and lifecycle work needed for a whole CPU specification.
+Across all CPUs, authored TypeScript grows from **9,274 to 9,365 lines** and
+chapters from **1,022 to 1,033 lines**. Generation scripts grow from **67 to 73
+lines**. Total maintained CPU source grows from **10,363 to 10,471 lines**.
+This slice removes duplicate 8008 storage declarations and adds reusable state
+authoring; it does not yet reduce total maintained source. Derived views and
+lifecycle remain ahead.
 
 Generated chapter data repeats the validated CPU schema within expanded
 definitions and remains a separate, disposable intermediate representation.
+The small generated state modules serve runtime consumers without importing
+that expanded data.
 
 The 16 standalone address/operand readers remain generator probes; CPU execution
 expands those sources into complete bodies. They do not earn separate coverage

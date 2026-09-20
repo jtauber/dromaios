@@ -28,6 +28,12 @@ the hardware encoding described by Intel.
 
 ## Stored state and register views
 
+The [executable chapter](../../../src/components/cpus/specifications/8008.md#stored-state)
+defines stored fields and generates the schema used by construction, snapshots,
+instruction validation, and `.machine` parsing. The public TypeScript state
+types derive from that schema; caller and snapshot readonly policies remain
+in the TypeScript interface.
+
 `Cpu8008State` requires all of the following:
 
 | Field | Range | Meaning |

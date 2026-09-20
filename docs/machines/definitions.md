@@ -134,6 +134,10 @@ renamed definitions, including obsolete subdirectories. Both
 `src/machines/generated/` and compiled `dist/` output are ignored by Git and
 removed by `npm run clean`.
 
+After a clean or a change to chapter-owned CPU state, run `npm run generate:cpus`
+first so the parser has current generated schemas. The full build and checks
+already run these stages in order.
+
 The generator runs directly as TypeScript under Node.js 24. Its runtime import
 path includes the parser, CPU descriptions, and shared helpers; importing these
 modules performs no CPU construction or execution. The parser and CPU modules

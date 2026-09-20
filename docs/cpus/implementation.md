@@ -14,14 +14,14 @@ in the CPU class:
 | Location under `src/components/cpus/` | Responsibility |
 | --- | --- |
 | `<cpu>.ts` and CPU-specific support modules | Public execution contract, native decoding, generated-body binding, recording, and lifecycle orchestration |
-| `state/<cpu>.ts` | Stored-state declarations, derived types, and packed-status layouts |
+| `state/<cpu>.ts` | Stored-state declarations or generated-schema re-exports, public types, and packed-status layouts |
 | `semantics/definitions/<cpu>.ts` | TypeScript-authored instruction definitions, explanations, and chapter integration |
-| `specifications/*.md` | Executable literate chapters that own selected instruction families and their encodings |
+| `specifications/*.md` | Executable literate chapters that own instruction families, encodings, and optionally complete stored-state declarations |
 | `semantics/` shared builders | Reusable operand sources, ordered effects, calculations, and CPU policies |
 | Encoding inventories beside the cores | Selector mappings shared by definition construction and execution binding |
 | `semantics/{model,validate,generate,describe}.ts` | Definition representation, validation, executable generation, and explanation generation |
 | `generated/` | Regenerated instruction bodies; never edit these by hand |
-| `semantics/generated/` | Regenerated chapter data consumed by TypeScript definitions; never edit these by hand |
+| `semantics/generated/` | Regenerated chapter data and small `state/` schema modules; never edit these by hand |
 
 The [instruction semantics guide](instruction-semantics.md) defines the language
 contracts. The [development workflow](../../README.md#development) explains
@@ -38,18 +38,20 @@ the chapter and passes through two generated representations before execution.
 
 | Location under `src/components/cpus/` | Role in the 8008 implementation |
 | --- | --- |
-| [`specifications/8008.md`](../../src/components/cpus/specifications/8008.md) | Authored prose, encodings, and behavior for every documented instruction |
+| [`specifications/8008.md`](../../src/components/cpus/specifications/8008.md) | Authored stored state, prose, encodings, and behavior for every documented instruction |
+| `semantics/generated/state/8008.ts` | Generated immutable stored-state schema and derived mutable type, importing only shared state helpers |
 | `semantics/generated/8008.ts` | Generated, validated chapter data, expanded into instruction definitions |
 | [`semantics/definitions/8008.ts`](../../src/components/cpus/semantics/definitions/8008.ts) | Handwritten integration adapter assembling the chapter's families into a checked opcode inventory |
 | `generated/8008.ts` | Generated executable instruction handlers and opcode bindings consumed by the core |
 | [`8008.ts`](../../src/components/cpus/8008.ts) | Handwritten public API, fetching, dispatch, recording, snapshots, reset, and interrupt entry |
-| [`state/8008.ts`](../../src/components/cpus/state/8008.ts) | Handwritten authoritative stored-state schema and derived types, shared by the chapter compiler, core, and machine parser |
+| [`state/8008.ts`](../../src/components/cpus/state/8008.ts) | Re-exports the generated schema and type; retains public aliases and the readonly caller-supplied address-stack type |
 
-Both generated files are disposable build output and excluded from Git; edit
-the chapter to change instruction behavior. The separate state module lets
-generation load the schema without importing the core and its generated handlers.
-Complete literate instruction coverage still leaves the schema and runtime
-contracts outside the chapter.
+All three generated files are disposable build output and excluded from Git;
+edit the chapter to change stored fields or instruction behavior. The separate
+schema module lets the core and machine parser load state descriptions without
+expanded instruction data. Generation builds this schema from the chapter before
+loading the instruction registry. Derived register views and lifecycle contracts
+remain in the runtime.
 
 [`tests/types/8008.ts`](../../tests/types/8008.ts) checks the public TypeScript
 API. Corresponding `.js` files under `dist/` are compiled build output.
@@ -89,10 +91,11 @@ together even when their opcodes occupy different encoding groups.
 ## Stored-state descriptions
 
 Each CPU module exports a `cpu…StateDescription` beside its public state
-type. For all eight CPUs, the declaration and derived types live in
+type. For all eight CPUs, the schema and public types are exposed through
 CPU-owned modules under [`state/`](../../src/components/cpus/state) and are
-re-exported by the original CPU module. This lets instruction generation load
-schemas without loading execution or its generated imports. The description
+re-exported by the original CPU module. The 8008 schema and mutable stored-state
+type are generated from its chapter; other schemas remain authored TypeScript.
+This lets instruction generation load schemas without loading execution. The description
 owns stored field names, types, and constraints. The
 [shared state helpers](../../src/components/cpus/state.ts) provide:
 
@@ -145,10 +148,11 @@ definitions and the CPU's runtime code.
 The [helper tests](../../tests/components/cpus/state.test.ts) and
 [type checks](../../tests/types/state.ts) exercise the shared contracts; CPU
 and machine tests retain their independently authored hardware expectations.
-The [literate chapter prototype](literate-specifications.md) now checks scoped
-register, flag, array, and latch declarations against these schemas, including
-explicit mappings to stored field names. Generating the complete
-stored-state description from a chapter remains future work.
+The [literate chapter language](literate-specifications.md#state-ownership)
+generates complete schemas from `state` blocks, or checks partial chapter
+declarations against external schemas. Both forms support explicit mappings
+to stored field names. Public readonly policies remain outside the storage
+declarations.
 
 ## Make the encoding visible
 

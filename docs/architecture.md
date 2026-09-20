@@ -35,8 +35,10 @@ documented instruction sets, pairing formal behavior with prose. Validation
 and generation produce both expanded explanations and
 typed TypeScript bodies. CPU tables bind those bodies to stored state and narrow
 execution contexts. Native decoders, recording, retirement, and exception-entry
-orchestration remain in the cores. Chapter declarations currently validate
-references to stored state; they do not yet generate its schema.
+orchestration remain in the cores. Complete chapter state blocks generate stored-state
+schemas and types; partial chapters validate references to externally supplied schemas.
+Schema generation precedes instruction generation and machine parsing, while
+runtime consumers load small schema modules separately from expanded instruction data.
 
 The rule of three applies to these generalizations too. The 8080, 6502, and
 6809 examples established the first comparisons; all eight CPUs now exercise

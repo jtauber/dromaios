@@ -1,3 +1,4 @@
+import type { StateFields } from "../../state.ts";
 import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
 import type { OpcodeEntry } from "../../opcodes.ts";
 import { memorySource, registerSource } from "../builders.ts";
@@ -6,6 +7,7 @@ import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Latch, Re
 import { defineInstruction, validateFlagPolicy, validateInstruction } from "../validate.ts";
 import { chapterBlocks, chapterBody, ChapterError, ChapterTokens } from "./document.ts";
 import { expression, flagExpression, width } from "./expressions.ts";
+import { chapterState, checkStateSymbol, stateSymbol } from "./state.ts";
 import { chapterStatements } from "./statements.ts";
 import type { ChapterCondition, ChapterOperand } from "./statements.ts";
 export type { ChapterCondition, ChapterOperand } from "./statements.ts";
@@ -13,6 +15,8 @@ export type { ChapterCondition, ChapterOperand } from "./statements.ts";
 type Selection = ChapterOperand | ChapterCondition;
 interface Selector { readonly choices: readonly Selection[]; readonly view: "read" | "address" | "operand" }
 export interface CpuChapter {
+  /** Present only when the chapter owns its complete stored-state schema. */
+  readonly state?: StateFields;
   readonly sources: Readonly<Record<string, ValueSource>>;
   readonly policies: Readonly<Record<string, FlagPolicy>>;
   readonly operands: Readonly<Record<string, readonly ChapterOperand[]>>;
@@ -21,14 +25,15 @@ export interface CpuChapter {
 }
 
 /** Compile a bounded literate language to the existing IR, without evaluating host-language code. */
-export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = "<chapter>"): CpuChapter {
+export function compileCpuChapter(markdown: string, target: { readonly name: string; readonly state?: StateFields }, file = "<chapter>"): CpuChapter {
   const registers = new Map<string, Register>(), flags = new Map<string, Flag>();
   const arrays = new Map<string, RegisterArray>(), latches = new Map<string, Latch>();
   const sources = new Map<string, ValueSource>(), policies = new Map<string, FlagPolicy>();
   const catalogues = new Map<string, readonly ChapterOperand[]>(), families = new Map<string, readonly OpcodeEntry<InstructionDefinition>[]>();
   const conditions = new Map<string, readonly ChapterCondition[]>();
   const names = new Set<string>(), opcodes = new Set<number>();
-  let declared = false;
+  let declared = false, ownsState = false;
+  let cpu: CpuDeclaration = { name: target.name, state: target.state ?? {} };
 
   function declare(tokens: ChapterTokens, kind: string): string {
     const column = tokens.column, name = tokens.word();
@@ -38,6 +43,17 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
     }
     if (kind !== "register" && kind !== "flag") names.add(name);
     return name;
+  }
+  function declareState(tokens: ChapterTokens, kind: string, check = false) {
+    const name = declare(tokens, kind), symbol = stateSymbol(tokens, kind, name, cpu.name);
+    if (check) checkStateSymbol(tokens, name, symbol, cpu);
+    switch (symbol.kind) {
+      case "register": registers.set(name, symbol); break;
+      case "flag": flags.set(name, symbol); break;
+      case "register-array": arrays.set(name, symbol); break;
+      case "latch": latches.set(name, symbol); break;
+    }
+    return symbol;
   }
   function steps(lines: readonly ChapterTokens[], bindings: ReadonlyMap<string, ValueSource> = sources,
     operands: ReadonlyMap<string, ChapterOperand> = new Map(), selectedConditions: ReadonlyMap<string, ChapterCondition> = new Map()) {
@@ -55,37 +71,24 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
         declared = true; header.end(); continue;
       }
       if (!declared) header.fail("Declare the CPU before its contents.");
-      if (!["register", "flag", "array", "latch", "source", "policy", "operands", "codes", "conditions", "family"].includes(kind)) {
+      if (!["state", "register", "flag", "array", "latch", "source", "policy", "operands", "codes", "conditions", "family"].includes(kind)) {
         header.fail(`Unknown declaration ${kind}.`, 1);
       }
-      const name = declare(header, kind);
-      if (kind === "register" || kind === "flag" || kind === "array" || kind === "latch") {
-        if (name !== name.toUpperCase()) header.fail("Register, flag, array, and latch names must be uppercase.");
-        if (kind === "register" || kind === "array") {
-          header.expect(":"); const bits = width(header);
-          let length = 0;
-          if (kind === "array") { header.expect("["); length = header.number(); header.expect("]"); }
-          const field = header.take("=") ? header.word() : name.toLowerCase(), stored = cpu.state[field];
-          if (kind === "register") {
-            if (stored?.kind !== "unsigned" || stored.bits !== bits) header.fail(`Register ${name} does not match the CPU state schema.`);
-            registers.set(name, { kind: "register", cpu: cpu.name, field, width: bits });
-          } else {
-            if (stored?.kind !== "array" || stored.element.bits !== bits || stored.length !== length) header.fail(`Array ${name} does not match the CPU state schema.`);
-            arrays.set(name, { kind: "register-array", cpu: cpu.name, field, width: bits, length });
-          }
-        } else {
-          const field = header.take("=") ? header.word() : name.toLowerCase();
-          if (kind === "flag") {
-            const stored = cpu.state.flags;
-            if (stored?.kind !== "group" || stored.fields[field]?.kind !== "flag") header.fail(`Unknown CPU flag ${name}.`);
-            flags.set(name, { kind: "flag", cpu: cpu.name, field });
-          } else {
-            if (cpu.state[field]?.kind !== "boolean") header.fail(`Latch ${name} does not match the CPU state schema.`);
-            latches.set(name, { kind: "latch", cpu: cpu.name, field });
-          }
-        }
-        header.end(); continue;
+      if (kind === "state") {
+        if (target.state !== undefined || ownsState) header.fail("CPU state is already defined.");
+        header.expect("{"); header.end();
+        const { body, end } = chapterBody(lines, index); index = end;
+        if (body.length === 0) header.fail("State must declare at least one stored field.");
+        const declarations = body.map(tokens => ({ symbol: declareState(tokens, tokens.word()), tokens }));
+        cpu = { name: cpu.name, state: chapterState(declarations) }; ownsState = true;
+        continue;
       }
+      if (!ownsState && target.state === undefined) header.fail("Define state before other declarations.");
+      if (["register", "flag", "array", "latch"].includes(kind)) {
+        if (ownsState) header.fail("Declare stored fields inside the state block.");
+        declareState(header, kind, true); continue;
+      }
+      const name = declare(header, kind);
       // Keep original lines: each family selection reparses its body, including nested blocks.
       const { body, end } = chapterBody(lines, index); index = end;
       const open = () => { header.expect("{"); header.end(); };
@@ -234,5 +237,6 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
     }
   }
   if (!declared) throw new ChapterError(file, 1, 1, "Expected a cpu declaration in a cpu fence.");
-  return { sources: Object.fromEntries(sources), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), conditions: Object.fromEntries(conditions), families: Object.fromEntries(families) };
+  if (!ownsState && target.state === undefined) throw new ChapterError(file, 1, 1, "Expected a state block.");
+  return { ...(ownsState ? { state: cpu.state } : {}), sources: Object.fromEntries(sources), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), conditions: Object.fromEntries(conditions), families: Object.fromEntries(families) };
 }

@@ -7,13 +7,12 @@ import { ChapterError } from "../../../../src/components/cpus/semantics/literate
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { instructions8008 } from "../../../../src/components/cpus/semantics/definitions/8008.js";
 import { opcodeEntries } from "../../../../src/components/cpus/generated/8008.js";
-import { cpu8008StateDescription } from "../../../../src/components/cpus/state/8008.js";
 import type { Cpu8008StoredState } from "../../../../src/components/cpus/state/8008.js";
 import type { ByteInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 import type { BytePorts } from "../../../../src/components/cpus/port-access.js";
 
 const file = "src/components/cpus/specifications/8008.md", markdown = readFileSync(file, "utf8");
-const cpu = { name: "8008", state: cpu8008StateDescription };
+const cpu = { name: "8008" };
 const compile = (text = markdown) => compileCpuChapter(text, cpu, file);
 function state(): Cpu8008StoredState {
   return { a: 0x81, b: 2, c: 3, d: 4, e: 5, h: 6, l: 7,
@@ -49,12 +48,10 @@ test("the complete 8008 chapter owns exactly 250 encodings, including 59 control
 });
 
 const invalid: readonly [string, string, string, RegExp][] = [
-  ["unknown stored register", "= stackIndex", "= missing", /Register SELECTOR.*schema/],
-  ["wrong selector width", "register SELECTOR: 3", "register SELECTOR: 8", /Register SELECTOR.*schema/],
-  ["wrong array width", "ADDRESS: 14[8]", "ADDRESS: 16[8]", /Array ADDRESS.*schema/],
-  ["wrong array length", "ADDRESS: 14[8]", "ADDRESS: 14[7]", /Array ADDRESS.*schema/],
-  ["unknown array storage", "= addressStack", "= missing", /Array ADDRESS.*schema/],
-  ["wrong latch kind", "latch STOPPED = halted", "latch STOPPED = a", /Latch STOPPED.*schema/],
+  ["wrong selector width", "register SELECTOR: 3", "register SELECTOR: 8", /index may exceed|expected 3-bit/],
+  ["wrong array width", "ADDRESS: 14[8]", "ADDRESS: 16[8]", /expected 16-bit/],
+  ["wrong array length", "ADDRESS: 14[8]", "ADDRESS: 14[7]", /index may exceed/],
+  ["wrong latch kind", "latch STOPPED = halted", "latch STOPPED = a", /Duplicate stored field a/],
   ["duplicate state name", "latch STOPPED = halted", "latch SELECTOR = halted", /Duplicate declaration SELECTOR/],
   ["lowercase array", "array ADDRESS:", "array address:", /must be uppercase/],
   ["unknown condition flag", '000 "FC" = flag C', '000 "FC" = flag Q', /Unknown name Q/],
