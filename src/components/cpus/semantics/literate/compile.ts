@@ -3,13 +3,13 @@ import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
 import type { OpcodeEntry } from "../../opcodes.ts";
 import { memorySource, registerSource } from "../builders.ts";
 import { isWidth, literal, readSource } from "../model.ts";
-import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Latch, Register, RegisterArray, ValueSource, ValueType } from "../model.ts";
+import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Latch, Register, RegisterArray, ValueSource, ValueType, Width } from "../model.ts";
 import { defineInstruction, validateFlagPolicy, validateInstruction } from "../validate.ts";
 import { chapterBlocks, chapterBody, ChapterError, ChapterTokens } from "./document.ts";
 import { expression, flagExpression, width } from "./expressions.ts";
 import { chapterState, checkStateSymbol, stateSymbol } from "./state.ts";
 import { chapterStatements } from "./statements.ts";
-import type { ChapterCondition, ChapterOperand } from "./statements.ts";
+import type { ChapterCondition, ChapterOperand, StatementOptions } from "./statements.ts";
 export type { ChapterCondition, ChapterOperand } from "./statements.ts";
 
 type Selection = ChapterOperand | ChapterCondition;
@@ -18,6 +18,8 @@ export interface CpuChapter {
   /** Present only when the chapter owns its complete stored-state schema. */
   readonly state?: StateFields;
   readonly sources: Readonly<Record<string, ValueSource>>;
+  readonly views: Readonly<Record<string, ValueSource>>;
+  readonly actions: Readonly<Record<string, InstructionDefinition>>;
   readonly policies: Readonly<Record<string, FlagPolicy>>;
   readonly operands: Readonly<Record<string, readonly ChapterOperand[]>>;
   readonly conditions: Readonly<Record<string, readonly ChapterCondition[]>>;
@@ -31,6 +33,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name: str
   const sources = new Map<string, ValueSource>(), policies = new Map<string, FlagPolicy>();
   const catalogues = new Map<string, readonly ChapterOperand[]>(), families = new Map<string, readonly OpcodeEntry<InstructionDefinition>[]>();
   const conditions = new Map<string, readonly ChapterCondition[]>();
+  const views = new Map<string, ValueSource>(), actions = new Map<string, InstructionDefinition>();
   const names = new Set<string>(), opcodes = new Set<number>();
   let declared = false, ownsState = false;
   let cpu: CpuDeclaration = { name: target.name, state: target.state ?? {} };
@@ -55,9 +58,13 @@ export function compileCpuChapter(markdown: string, target: { readonly name: str
     }
     return symbol;
   }
-  function steps(lines: readonly ChapterTokens[], bindings: ReadonlyMap<string, ValueSource> = sources,
-    operands: ReadonlyMap<string, ChapterOperand> = new Map(), selectedConditions: ReadonlyMap<string, ChapterCondition> = new Map()) {
-    return chapterStatements(lines, { cpu, registers, arrays, latches, flags, policies, sources: bindings, operands, conditions: selectedConditions });
+  function steps(lines: readonly ChapterTokens[], options: StatementOptions & {
+    readonly bindings?: ReadonlyMap<string, ValueSource>;
+    readonly operands?: ReadonlyMap<string, ChapterOperand>;
+    readonly conditions?: ReadonlyMap<string, ChapterCondition>;
+  } = {}) {
+    return chapterStatements(lines, { cpu, registers, arrays, latches, flags, policies,
+      sources: options.bindings ?? sources, operands: options.operands ?? new Map(), conditions: options.conditions ?? new Map() }, options);
   }
 
   const blocks = chapterBlocks(markdown, file);
@@ -71,7 +78,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name: str
         declared = true; header.end(); continue;
       }
       if (!declared) header.fail("Declare the CPU before its contents.");
-      if (!["state", "register", "flag", "array", "latch", "source", "policy", "operands", "codes", "conditions", "family"].includes(kind)) {
+      if (!["state", "register", "flag", "array", "latch", "source", "view", "action", "policy", "operands", "codes", "conditions", "family"].includes(kind)) {
         header.fail(`Unknown declaration ${kind}.`, 1);
       }
       if (kind === "state") {
@@ -92,15 +99,32 @@ export function compileCpuChapter(markdown: string, target: { readonly name: str
       // Keep original lines: each family selection reparses its body, including nested blocks.
       const { body, end } = chapterBody(lines, index); index = end;
       const open = () => { header.expect("{"); header.end(); };
-      if (kind === "source") {
+      if (kind === "source" || kind === "view") {
+        if (kind === "view" && name !== name.toUpperCase()) header.fail("View names must be uppercase.");
         const description = header.quoted(); header.expect(":"); const bits = width(header); open();
         const last = body.at(-1) ?? header.fail("A source must end with return.");
         if (last.next !== "return") header.fail("A source must end with return.");
-        const bodySteps = steps(body.slice(0, -1));
+        const bodySteps = steps(body.slice(0, -1), { effects: kind === "view" ? "view" : undefined });
         last.expect("return"); const result = expression(last); last.end();
         const source = { name: description, width: bits, steps: bodySteps, result };
         last.checked(() => validateInstruction({ cpu, name, explanation: "", steps: [readSource("result", source)] }));
         sources.set(name, source);
+        if (kind === "view") views.set(name, source);
+      } else if (kind === "action") {
+        const description = header.quoted(), inputs: Record<string, Width> = {};
+        if (header.take("(")) {
+          if (header.next !== ")") do {
+            const parameter = header.word(); header.expect(":");
+            if (Object.hasOwn(inputs, parameter)) header.fail(`Duplicate parameter ${parameter}.`);
+            inputs[parameter] = width(header);
+          } while (header.take(","));
+          header.expect(")");
+        }
+        open();
+        const definition = { cpu, name: description, explanation: block.explanation, inputs, steps: [] };
+        header.checked(() => validateInstruction(definition));
+        const bodySteps = steps(body, { inputs, effects: "state" });
+        actions.set(name, header.checked(() => defineInstruction({ ...definition, steps: bodySteps })));
       } else if (kind === "policy") {
         const description = header.quoted(); header.expect("(");
         const parameters: Record<string, ValueType> = {};
@@ -226,7 +250,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name: str
             if (!available) continue;
             if (opcodes.has(opcode)) form.fail(`Duplicate opcode $${opcode.toString(16)}.`);
             opcodes.add(opcode);
-            const bodySteps = steps(body.map(tokens => new ChapterTokens(tokens.source, file)), bindings, operands, selectedConditions);
+            const bodySteps = steps(body.map(tokens => new ChapterTokens(tokens.source, file)), { bindings, operands, conditions: selectedConditions });
             definitions.push([opcode, form.checked(() => defineInstruction({ cpu, name: instructionName(selected),
               explanation: block.explanation, steps: bodySteps }))]);
           }
@@ -238,5 +262,5 @@ export function compileCpuChapter(markdown: string, target: { readonly name: str
   }
   if (!declared) throw new ChapterError(file, 1, 1, "Expected a cpu declaration in a cpu fence.");
   if (!ownsState && target.state === undefined) throw new ChapterError(file, 1, 1, "Expected a state block.");
-  return { ...(ownsState ? { state: cpu.state } : {}), sources: Object.fromEntries(sources), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), conditions: Object.fromEntries(conditions), families: Object.fromEntries(families) };
+  return { ...(ownsState ? { state: cpu.state } : {}), sources: Object.fromEntries(sources), views: Object.fromEntries(views), actions: Object.fromEntries(actions), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), conditions: Object.fromEntries(conditions), families: Object.fromEntries(families) };
 }

@@ -49,7 +49,7 @@ test("the complete 8008 chapter owns exactly 250 encodings, including 59 control
 
 const invalid: readonly [string, string, string, RegExp][] = [
   ["wrong selector width", "register SELECTOR: 3", "register SELECTOR: 8", /index may exceed|expected 3-bit/],
-  ["wrong array width", "ADDRESS: 14[8]", "ADDRESS: 16[8]", /expected 16-bit/],
+  ["wrong array width", "ADDRESS: 14[8]", "ADDRESS: 16[8]", /source result width/],
   ["wrong array length", "ADDRESS: 14[8]", "ADDRESS: 14[7]", /index may exceed/],
   ["wrong latch kind", "latch STOPPED = halted", "latch STOPPED = a", /Duplicate stored field a/],
   ["duplicate state name", "latch STOPPED = halted", "latch SELECTOR = halted", /Duplicate declaration SELECTOR/],
@@ -127,7 +127,7 @@ test("editing one condition changes jump, call, and return execution at their ex
 
 test("formal vector, port, and latch edits change execution without hidden fetches or reads", async () => {
   const edited = markdown.replace('001 "08" = $08', '001 "08" = $3FFF')
-    .replace('00000 "0"', '00000 "0" = $1234').replace("STOPPED <- 1", "STOPPED <- 0");
+    .replace('00000 "0"', '00000 "0" = $1234').replace('encoding "11 111 111"\n  STOPPED <- 1', 'encoding "11 111 111"\n  STOPPED <- 0');
   const execute = await probes(edited, [0x0d, 0x41, 0x00, 0x01, 0xff]);
   const current = state();
   execute[0x0d]!(current, noAccess); assert.equal(current.stackIndex, 0); assert.equal(current.addressStack[0], 0x3fff);

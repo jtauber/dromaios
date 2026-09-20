@@ -250,6 +250,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "68000" | "8008" | "
           }
           case "write-register": emit(`${bank(step.register)}${field(step.register.field)} = ${number(step.value, scope).code};`); continue;
           case "write-element": emit(`state${field(step.array.field)}[${number(step.index, scope).code}] = ${number(step.value, scope).code};`); continue;
+          case "fill-array": emit(`state${field(step.array.field)}.fill(${number(step.value, scope).code});`); continue;
           case "write-latch": emit(`state${field(step.latch.field)} = ${typeof step.value === "boolean" ? step.value : flag(step.value, scope)};`); continue;
           case "read-test": captured = { code: `${access("readTest")}()`, type: "flag" }; break;
           case "report-interrupt": emit(`${access("reportInterrupt")}(${number(step.vector, scope).code});`); continue;

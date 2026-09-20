@@ -251446,6 +251446,38 @@ write halted:boolean := true
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 set the selected program counter
+
+The ordinary fetcher supplies a sixteen-bit next address. Truncate it to fourteen bits, read the current selector, and replace only the selected address register. This includes wrapping from $3FFF to $0000; the other seven slots stay intact. Instruction bodies retain their explicit target and selector writes, while interrupt-supplied bytes do not call this action.
+
+```text
+address:u16 := input
+target := low14(address)
+slot:u3 := read STACKINDEX
+write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 settled power-on reset
+
+Reset models settled power-on state. Clear the seven byte registers and all eight address registers, select slot zero, and enter STOPPED. The startup reference does not specify flag values; this model preserves them by omitting flag reads and writes. `ADDRESS[]` writes the same value to every physical slot without reading its previous contents. Repeating reset produces the same state. RAM and ports are untouched. The core still guards the execution boundary and records detached before/after snapshots around this action.
+
+```text
+write A:u8 := 00:u8
+write B:u8 := 00:u8
+write C:u8 := 00:u8
+write D:u8 := 00:u8
+write E:u8 := 00:u8
+write H:u8 := 00:u8
+write L:u8 := 00:u8
+fill all 8 ADDRESSSTACK elements:u14 := 0000:u14
+write STACKINDEX:u3 := 0:u3
+write halted:boolean := true
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8080 NOP
 
 No effects after opcode fetching.

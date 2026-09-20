@@ -1,7 +1,7 @@
-import { alignmentFault, capture, commitAddressUpdates, fetchByte, flagValue, not, readElement,
+import { alignmentFault, capture, commitAddressUpdates, fetchByte, fillArray, flagValue, not, readElement,
   readFlag, readLatch, readMemory, readPort, readRegister, readSource, resolveAddress, updateFlags,
   value, when, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
-import type { CpuDeclaration, Expression, Flag, FlagExpression, FlagPolicy, Latch, Register, RegisterArray, Statement, ValueSource } from "../model.ts";
+import type { CpuDeclaration, Expression, Flag, FlagExpression, FlagPolicy, Latch, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
 import { validateInstruction } from "../validate.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
@@ -30,12 +30,32 @@ interface Symbols {
   readonly conditions: ReadonlyMap<string, ChapterCondition>;
 }
 
+export interface StatementOptions {
+  readonly inputs?: Readonly<Record<string, Width>>;
+  readonly effects?: "view" | "state";
+}
+
+/** State views are read-only; state actions can also write, but neither can touch external devices. */
+function checkStateEffects(steps: readonly Statement[], effects: "view" | "state"): void {
+  for (const step of steps) {
+    switch (step.kind) {
+      case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": break;
+      case "when": checkStateEffects(step.steps, effects); break;
+      case "read-source": checkStateEffects(step.source.steps, effects); break;
+      case "write-register": case "write-element": case "fill-array": case "write-latch": case "update-flags":
+        if (effects === "state") break;
+        throw new Error("Views may only read stored state.");
+      default: throw new Error("Views and state actions cannot fetch instructions or access memory, ports, or CPU boundaries.");
+    }
+  }
+}
+
 /** Lower ordered effects, checking each prefix in its enclosing lexical scopes. */
-export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symbols): Statement[] {
+export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symbols, options: StatementOptions = {}): Statement[] {
   const { cpu, registers, arrays, latches, flags, policies, sources, operands, conditions } = symbols;
   // Compiler captures cannot collide with, or be referenced by, any authored name,
   // including later statements and nested blocks.
-  const usedNames = new Set(lines.flatMap(tokens => tokens.source.text.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? []));
+  const usedNames = new Set([...Object.keys(options.inputs ?? {}), ...lines.flatMap(tokens => tokens.source.text.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? [])]);
   let nextTemporary = 0;
   const temporary = (prefix: string) => {
     let name: string;
@@ -91,8 +111,12 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         const name = tokens.word();
         if (tokens.take("[")) {
           const array = arrays.get(name) ?? tokens.fail(`Unknown array ${name}.`);
-          const slot = expression(tokens); tokens.expect("]"); tokens.expect("<-");
-          result.push(writeElement(array, slot, expression(tokens)));
+          if (tokens.take("]")) {
+            tokens.expect("<-"); result.push(fillArray(array, expression(tokens)));
+          } else {
+            const slot = expression(tokens); tokens.expect("]"); tokens.expect("<-");
+            result.push(writeElement(array, slot, expression(tokens)));
+          }
         } else if (tokens.take("<-")) {
           const latch = latches.get(name);
           if (latch) {
@@ -131,5 +155,9 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
     }
     return result;
   }
-  return parse(lines, steps => validateInstruction({ cpu, name: "chapter", explanation: "", steps }));
+  const validate = (steps: readonly Statement[]) => {
+    validateInstruction({ cpu, name: "chapter", explanation: "", inputs: options.inputs, steps });
+    if (options.effects) checkStateEffects(steps, options.effects);
+  };
+  return parse(lines, validate);
 }

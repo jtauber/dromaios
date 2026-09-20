@@ -8,7 +8,7 @@ import type { CpuChapter } from "../src/components/cpus/semantics/literate/compi
 
 /** Keep exported names precise, while exposing ordinary IR types to the remaining TS definitions. */
 function chapterModule(chapter: CpuChapter): string {
-  const types = { sources: "ValueSource", policies: "FlagPolicy", operands: "readonly ChapterOperand[]", conditions: "readonly ChapterCondition[]", families: "readonly OpcodeEntry<InstructionDefinition>[]" };
+  const types = { sources: "ValueSource", views: "ValueSource", actions: "InstructionDefinition", policies: "FlagPolicy", operands: "readonly ChapterOperand[]", conditions: "readonly ChapterCondition[]", families: "readonly OpcodeEntry<InstructionDefinition>[]" };
   return [
     "// Generated from a literate CPU chapter. Do not edit.",
     'import type { ValueSource, FlagPolicy, InstructionDefinition } from "../model.ts";',

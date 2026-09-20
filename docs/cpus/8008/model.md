@@ -49,6 +49,8 @@ uppercase register and flag names and the descriptive names `addressStack`,
 `stackIndex`, and `halted`.
 
 Snapshots derive `pc = addressStack[stackIndex]` and the raw 16-bit `hl` pair.
+These views and the selected-PC write are generated from the chapter's
+[register-view definitions](../../../src/components/cpus/specifications/8008.md#register-views).
 Neither is separately stored or initialized. H remains an eight-bit register;
 a memory access uses only its low six bits together with L. Thus H:L = `E677`
 addresses RAM at `2677`, while the snapshot still shows HL = `E677`.
@@ -343,7 +345,9 @@ throw before changing state. The guard clears even after a failure.
 
 The 8008 has no dedicated reset input. Its documented power-on sequence clears
 its internal memories and leaves it stopped; an interrupt starts execution.
-`reset()` models the settled clearing-and-stop result at an instruction boundary:
+`reset()` models the settled clearing-and-stop result at an instruction boundary.
+Its state changes come from the chapter's [reset action](../../../src/components/cpus/specifications/8008.md#reset),
+with guarding and record assembly retained in the core:
 it clears A/B/C/D/E/H/L and all eight address registers, selects slot zero,
 and sets `halted = true`. It preserves RAM. Choosing selector zero and preserving
 flags, whose values the startup description does not specify, are deterministic

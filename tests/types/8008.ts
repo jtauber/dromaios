@@ -1,3 +1,5 @@
+import { instructions as stateActions, sourceReaders } from "../../src/components/cpus/generated/8008-state.js";
+import type { Cpu8008StoredState } from "../../src/components/cpus/state/8008.js";
 import { Cpu8008 } from "../../src/components/cpus/8008.js";
 import type { Cpu8008State, Cpu8008Snapshot, Cpu8008StepRecord, Cpu8008ResetRecord, Cpu8008InterruptRecord } from "../../src/components/cpus/8008.js";
 import type { Ram } from "../../src/components/memory/ram.js";
@@ -143,4 +145,17 @@ export function check8008Interrupt(cpu: Cpu8008, record: Cpu8008InterruptRecord)
       access.value = 0;
     }
   }
+}
+
+export function check8008StateOperations(state: Cpu8008StoredState): void {
+  const { PC, HL } = sourceReaders(state).views;
+  const pc: number = PC(), hl: number = HL();
+  stateActions.setPC(state, 0x4000);
+  stateActions.reset(state);
+  // @ts-expect-error PC writes require a numeric address.
+  stateActions.setPC(state);
+  // @ts-expect-error Views have no memory or instruction context.
+  PC({ readByte: () => 0 });
+  // @ts-expect-error Reset has no port or memory context.
+  stateActions.reset(state, { readPort: () => 0 });
 }

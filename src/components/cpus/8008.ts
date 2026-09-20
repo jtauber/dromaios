@@ -1,4 +1,5 @@
 import { opcodeEntries } from "./generated/8008.ts";
+import { instructions as stateActions, sourceReaders } from "./generated/8008-state.ts";
 import { cpu8008StateDescription } from "./state/8008.ts";
 import type { Cpu8008State, Cpu8008StoredState } from "./state/8008.ts";
 import type { Ram } from "../memory/ram.js";
@@ -51,32 +52,30 @@ export class Cpu8008 {
   readonly #ram: Ram;
   readonly #ports: BytePorts | undefined;
   readonly #state: Cpu8008StoredState;
+  readonly #views: ReturnType<typeof sourceReaders>["views"];
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>>;
   readonly #atBoundary = executionBoundary("8008 step, reset, and interrupt calls must not be reentrant.");
-  readonly #counter = programCounter(() => this.#pc, value => { this.#pc = value & 0x3fff; });
+  readonly #counter = programCounter(() => this.#views.PC(), value => stateActions.setPC(this.#state, value));
 
   constructor(ram: Ram, initialState: Cpu8008State, ports?: BytePorts) {
     if (ram.size !== 0x4000) throw new RangeError("The 8008 model requires exactly 16 KiB of RAM.");
     this.#ram = ram;
     this.#ports = ports;
     this.#state = readState(cpu8008StateDescription, initialState);
+    this.#views = sourceReaders(this.#state).views;
     this.#opcodeHandlers = opcodeTable(opcodeEntries(this.#state));
   }
 
   /** Inspect detached state, the selected PC, and the raw H:L pair without RAM accesses. */
   snapshot(): Cpu8008Snapshot {
-    return { ...copyState(cpu8008StateDescription, this.#state), pc: this.#pc, hl: this.#hl };
+    return { ...copyState(cpu8008StateDescription, this.#state), pc: this.#views.PC(), hl: this.#views.HL() };
   }
 
   /** Model settled power-on clearing and STOPPED, not an interrupt or a lesson restart. */
   reset(): Cpu8008ResetRecord {
     return this.#atBoundary(() => {
       const before = this.snapshot();
-      for (const name of ["a", "b", "c", "d", "e", "h", "l"] as const) this.#state[name] = 0;
-      this.#state.addressStack.fill(0);
-      this.#state.stackIndex = 0;
-      this.#state.halted = true;
-      // The startup description does not specify flag values; preserve them as model policy.
+      stateActions.reset(this.#state);
       return { before, after: this.snapshot(), accesses: [] };
     });
   }
@@ -124,18 +123,4 @@ export class Cpu8008 {
     });
   }
 
-  // Register views. PC is a selected address register, not duplicate stored state.
-
-  get #pc(): number {
-    // Construction validates the selector and all eight slots.
-    return this.#state.addressStack[this.#state.stackIndex]!;
-  }
-
-  set #pc(value: number) {
-    this.#state.addressStack[this.#state.stackIndex] = value;
-  }
-
-  get #hl(): number {
-    return (this.#state.h << 8) | this.#state.l;
-  }
 }

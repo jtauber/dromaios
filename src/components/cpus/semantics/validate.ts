@@ -67,16 +67,20 @@ function validation(cpu: CpuDeclaration, prefix: string) {
     }
     return Object.keys(flags.fields).sort();
   }
-  function element(ref: RegisterArray, index: NumberExpression, scope: ReadonlyMap<string, ValueType>, where: string): Width {
+  function registerArray(ref: RegisterArray, where: string): Width {
     const field = cpu.state[ref.field];
     if (ref.cpu !== cpu.name || field?.kind !== "array" || field.element.bits !== ref.width || field.length !== ref.length) {
       return fail(where, `register array ${ref.cpu}.${ref.field} does not match the CPU schema`);
     }
+    return width(ref.width, where);
+  }
+  function element(ref: RegisterArray, index: NumberExpression, scope: ReadonlyMap<string, ValueType>, where: string): Width {
+    const elementWidth = registerArray(ref, where);
     const bits = expression(index, scope, where);
     // A dynamic selector's entire unsigned range must fit; constants can name any valid slot.
     const maximum = index.kind === "literal" ? index.value : 2 ** bits - 1;
     if (maximum >= ref.length) fail(where, `index may exceed the ${ref.length}-element register array`);
-    return width(ref.width, where);
+    return elementWidth;
   }
   function expression(expr: Expression, scope: ReadonlyMap<string, ValueType>, where: string): Width {
     switch (expr.kind) {
@@ -295,6 +299,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         }
         case "write-register": expect(step.value, register(step.register, where)); return;
         case "write-element": expect(step.value, element(step.array, step.index, scope, where)); return;
+        case "fill-array": expect(step.value, registerArray(step.array, where)); return;
         case "defer-interrupt":
           if (cpu.name === "8088") {
             if (step.scope !== "intr" && step.scope !== "all") fail(where, "8088 interrupt deferral scope must be intr or all");

@@ -98,6 +98,7 @@ export type Statement =
   | { readonly kind: "read-source"; readonly name: string; readonly source: ValueSource }
   | { readonly kind: "write-register"; readonly register: Register; readonly value: NumberExpression }
   | { readonly kind: "write-element"; readonly array: RegisterArray; readonly index: NumberExpression; readonly value: NumberExpression }
+  | { readonly kind: "fill-array"; readonly array: RegisterArray; readonly value: NumberExpression }
   | { readonly kind: "defer-interrupt"; readonly scope: "irq" | "intr" | "all" }
   | { readonly kind: "notify-reti" }
   | { readonly kind: "reset-devices" }
@@ -255,6 +256,7 @@ export const readMemory = (name: string, address: AddressExpression): Statement 
 export const readSource = (name: string, source: ValueSource): Statement => ({ kind: "read-source", name, source });
 export const writeRegister = (register: Register, value: NumberExpression): Statement => ({ kind: "write-register", register, value });
 export const writeElement = (array: RegisterArray, index: NumberExpression, value: NumberExpression): Statement => ({ kind: "write-element", array, index, value });
+export const fillArray = (array: RegisterArray, value: NumberExpression): Statement => ({ kind: "fill-array", array, value });
 export const writeLatch = (latch: Latch, value: boolean | FlagExpression): Statement => ({ kind: "write-latch", latch, value });
 export const writeMemory = (address: AddressExpression, value: NumberExpression): Statement => ({ kind: "write-memory", address, value });
 export const updateFlags = (policy: FlagPolicy, args: Readonly<Record<string, Expression>>): Statement => ({ kind: "update-flags", policy, arguments: args });

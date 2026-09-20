@@ -114,6 +114,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
         case "read-memory": emit(`${step.name}:u8 := read memory[${address(step.address)}]`); break;
         case "write-register": emit(`write ${bank(step.register)}${step.register.field.toUpperCase()}:u${step.register.width} := ${number(step.value)}`); break;
         case "write-element": emit(`write ${step.array.field.toUpperCase()}[${number(step.index)}]:u${step.array.width} := ${number(step.value)}`); break;
+        case "fill-array": emit(`fill all ${step.array.length} ${step.array.field.toUpperCase()} elements:u${step.array.width} := ${number(step.value)}`); break;
         case "defer-interrupt": emit("request " + ({ irq: "IRQ", intr: "INTR", all: "all interrupt" }[step.scope]) + " deferral at successful retirement"); break;
         case "notify-reti": emit("request RETI device notification after successful architectural retirement"); break;
         case "reset-devices": emit("assert connected device reset now; record only after callback success; preserve CPU state"); break;

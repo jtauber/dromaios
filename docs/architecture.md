@@ -28,7 +28,10 @@ Complete CPU descriptions and lifecycle behavior remain ahead.
 The current [stored-state descriptions](cpus/implementation.md#stored-state-descriptions)
 are one such example: CPU-owned fields and constraints drive constructor
 validation, snapshot copying, machine parsing, and public state types. The
-types are derived from those descriptions; snapshot views remain explicit TypeScript.
+types are derived from those descriptions. Chapters can also define read-only
+snapshot views and actions on stored state, using the same ordered representation
+and generator as instructions. Runtime boundaries invoke those operations and
+assemble public snapshots and records.
 
 The [instruction definitions](cpus/instruction-semantics.md) cover all eight
 documented instruction sets, pairing formal behavior with prose. Validation

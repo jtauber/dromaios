@@ -38,20 +38,21 @@ the chapter and passes through two generated representations before execution.
 
 | Location under `src/components/cpus/` | Role in the 8008 implementation |
 | --- | --- |
-| [`specifications/8008.md`](../../src/components/cpus/specifications/8008.md) | Authored stored state, prose, encodings, and behavior for every documented instruction |
+| [`specifications/8008.md`](../../src/components/cpus/specifications/8008.md) | Authored stored state, PC/HL views, reset effects, prose, encodings, and behavior for every documented instruction |
 | `semantics/generated/state/8008.ts` | Generated immutable stored-state schema and derived mutable type, importing only shared state helpers |
 | `semantics/generated/8008.ts` | Generated, validated chapter data, expanded into instruction definitions |
 | [`semantics/definitions/8008.ts`](../../src/components/cpus/semantics/definitions/8008.ts) | Handwritten integration adapter assembling the chapter's families into a checked opcode inventory |
 | `generated/8008.ts` | Generated executable instruction handlers and opcode bindings consumed by the core |
-| [`8008.ts`](../../src/components/cpus/8008.ts) | Handwritten public API, fetching, dispatch, recording, snapshots, reset, and interrupt entry |
+| `generated/8008-state.ts` | Generated read-only PC/HL views and state actions for PC writes and reset |
+| [`8008.ts`](../../src/components/cpus/8008.ts) | Handwritten public API, fetching, dispatch, recording, snapshot assembly, reset guarding, and interrupt entry |
 | [`state/8008.ts`](../../src/components/cpus/state/8008.ts) | Re-exports the generated schema and type; retains public aliases and the readonly caller-supplied address-stack type |
 
-All three generated files are disposable build output and excluded from Git;
-edit the chapter to change stored fields or instruction behavior. The separate
+All four generated files are disposable build output and excluded from Git;
+edit the chapter to change stored fields, views, reset effects, or instruction behavior. The separate
 schema module lets the core and machine parser load state descriptions without
 expanded instruction data. Generation builds this schema from the chapter before
-loading the instruction registry. Derived register views and lifecycle contracts
-remain in the runtime.
+loading the instruction registry. Runtime boundaries decide when to invoke the
+generated operations and assemble public records.
 
 [`tests/types/8008.ts`](../../tests/types/8008.ts) checks the public TypeScript
 API. Corresponding `.js` files under `dist/` are compiled build output.
@@ -127,8 +128,8 @@ The descriptions have these consumers:
   and non-enumerable properties. Nested groups and arrays get separate storage;
   sparse arrays fail validation. Extra metadata and derived views are ignored.
 - Snapshots use `copyState(description, storedState)` to detach known-valid
-  state without repeating numeric and Boolean validation. Derived views remain
-  explicit in each CPU's `snapshot()` method.
+  state without repeating numeric and Boolean validation. Each CPU's `snapshot()`
+  adds its derived views; the 8008 obtains them from generated chapter readers.
 - The [machine parser](../../src/machines/machine-language.ts) imports those
   same descriptions to recognize fields and check values, array lengths, and
   choices. It retains ownership of hexadecimal notation, braces, capitalization,
@@ -143,8 +144,9 @@ field path such as `alternate.flags.c` or `addressStack[3]`. The parser reports
 use the declared count, for example `addressStack requires exactly 8 values`.
 
 Descriptions cover stored state only. Derived register relationships, reset,
-instruction semantics, and memory requirements remain explicit in instruction
-definitions and the CPU's runtime code.
+instruction semantics, and memory requirements need separate definitions in the
+chapter, TypeScript definitions, or CPU runtime. The 8008 chapter supplies its
+PC/HL readers and PC-write/reset actions through the existing generator.
 The [helper tests](../../tests/components/cpus/state.test.ts) and
 [type checks](../../tests/types/state.ts) exercise the shared contracts; CPU
 and machine tests retain their independently authored hardware expectations.

@@ -3,7 +3,7 @@ import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { cpu8008StateDescription } from "../../../../src/components/cpus/state/8008.js";
 import type { Cpu8008StoredState } from "../../../../src/components/cpus/state/8008.js";
-import { addWrap, capture, cpuSymbols, extend, flagLiteral, highByte, literal, readElement, readRegister, readSource, shiftLeft, shiftRight, signExtend, truncate, value, when, writeElement, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
+import { addWrap, capture, cpuSymbols, extend, fillArray, flagLiteral, highByte, literal, readElement, readRegister, readSource, shiftLeft, shiftRight, signExtend, truncate, value, when, writeElement, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
 import type { InstructionDefinition, NumberExpression, Statement, Width } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
@@ -30,6 +30,7 @@ test("register arrays are schema-owned and every index must provably fit before 
     { ...slots, width: 16 as const }, { ...slots, length: 16 }]) {
     assert.throws(() => define([readElement("pc", ref, literal(3, 0))]), /does not match the CPU schema/);
     assert.throws(() => define([writeElement(ref, literal(3, 0), literal(14, 0))]), /does not match the CPU schema/);
+    assert.throws(() => define([fillArray(ref, literal(14, 0))]), /does not match the CPU schema/);
   }
   for (const index of [literal(8, 8), literal(16, 65535), value("wide"), extend(literal(3, 0), 8)]) {
     for (const effect of [readElement("pc", slots, index), writeElement(slots, index, literal(14, 0))]) {
@@ -40,6 +41,8 @@ test("register arrays are schema-owned and every index must provably fit before 
   assert.throws(() => define([readElement("pc", slots, flagLiteral(false) as unknown as NumberExpression)]), /numeric expression/);
   assert.throws(() => define([writeElement(slots, literal(3, 0), literal(16, 0))]), /expected 14-bit/);
   assert.throws(() => define([writeRegister(selector, literal(8, 0))]), /expected 3-bit/);
+  assert.throws(() => define([fillArray(slots, literal(16, 0))]), /expected 14-bit/);
+  assert.throws(() => define([fillArray(slots, literal(14, 0x4000))]), /literal/);
   assert.throws(() => cpu.array("a" as "addressStack"), /expected a stored register array/);
   assert.throws(() => cpu.register("addressStack" as "stackIndex"), /expected a stored register/);
   const owned = define([readElement("pc", slots, literal(3, 7))]);

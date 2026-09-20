@@ -84,9 +84,9 @@ remain TypeScript-authored.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 12,325 generated, executable bodies. All serve CPU execution;
-12,320 are bound through opcode or postbyte selection. Five boundary helpers
-serve 6502/6800/8088 entry, 6809 frame pushing, and 8088 WAIT resumption.
+There are 12,327 generated, executable bodies. All serve CPU execution;
+12,320 are bound through opcode or postbyte selection. Seven helpers serve
+6502/6800/8088 entry, 6809 frame pushing, 8088 WAIT resumption, and 8008 PC writes/reset.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
 All eight CPUs have complete instruction-definition migration.
 The 68000 has all 36,029 documented forms migrated, including ordinary MOVE/MOVEA,
@@ -300,6 +300,10 @@ widths from that schema. There is no second register-layout declaration.
 Current symbols cover stored unsigned registers at supported widths, fixed
 arrays of those registers, the `flags` group, and top-level Boolean control
 latches, plus declared numeric or named choices. Array symbols derive both length and element width from the schema.
+`fillArray(array, value)` fills the existing array in ascending physical-slot
+order, without reading old elements. It checks the symbol against the schema
+and requires the value's width to match each element. The literate spelling is
+`ARRAY[] <- value`; the 8008 reset action uses it to clear its eight address slots.
 `cpu.bank("alternate")` exposes the stored unsigned registers and complete
 flag object in that named top-level bank, using the same CPU declaration.
 Register references carry an optional bank name; they never flatten or copy
@@ -1894,7 +1898,10 @@ separate TypeScript opcode lists. Calls advance the selector modulo eight before
 writing the new 14-bit target; returns only decrement it. Targets are fetched
 before conditions, and untaken paths never access the selector or array.
 Its explicit INP/OUT effects preserve complete-input-before-writeback and
-captured-output rules. Fetching, reset, port recording, and interrupt acceptance
+captured-output rules. A separate `8008-state.ts` module uses the same generator
+for chapter-authored PC/HL readers and PC-write/reset actions. Those helpers
+have no opcode bindings. The core supplies their stored state, guards reset,
+and assembles snapshots. Fetching, port recording, and interrupt acceptance
 remain handwritten. The machine parser reads its separate state schema without
 depending on generated execution code.
 The 6800 and 6809 bind generated A/B and memory bodies through one

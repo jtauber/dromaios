@@ -8,7 +8,8 @@ Executable chapters are maintained instruction sources:
 - [Intel 8008: the complete instruction set](../../src/components/cpus/specifications/8008.md)
   defines every documented instruction, including control flow, restarts,
   halts, and port transfers. The chapter owns behavior, encodings, and stored-state
-  declarations; fetching, reset, and interrupt delivery remain in the core.
+  declarations, PC/HL views, and reset effects. Fetching, recording, and interrupt
+  delivery remain in the core.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -80,6 +81,8 @@ Quoted descriptions use JSON string escaping.
 | `register SELECTOR: 3 = stackIndex`, `array ADDRESS: 14[8] = addressStack` | Name stored fields explicitly; widths and array lengths define storage inside `state` and must match the external schema otherwise. |
 | `latch STOPPED = halted` | Declare a Boolean control latch, distinct from an architectural flag. |
 | `source zeroPage "zero page": 16 { … }` | Ordered steps ending in a numeric `return`; each use has its own capture scope. |
+| `view PC "selected PC": 14 { … }` | A named read-only state source, ending in a numeric `return`; it cannot access external devices. |
+| `action setPC "set selected PC" (address: 16) { … }` | Ordered state effects with optional numeric inputs; no instruction fetching, memory, port, or boundary effects. |
 | `offset = fetch` | Fetch and capture the next instruction byte. |
 | `index = register X`, `carry = flag C` | Read and capture a register or flag at this point; the capture retains its numeric or flag type. |
 | `address = source zeroPage` | Evaluate and capture a previously declared source. |
@@ -88,6 +91,7 @@ Quoted descriptions use JSON string escaping.
 | `pointer = add(offset, index)` | Capture a pure numeric expression. Addition wraps at the operands' equal width. |
 | `A <- result`, `memory(address) <- byte`, `port(selector) <- byte` | Write to a register, byte memory location, or port. |
 | `ADDRESS[slot] <- target`, `STOPPED <- 1` | Write an indexed stored register or a Boolean control latch; latch writes also accept captured flag expressions. |
+| `ADDRESS[] <- u14($0000)` | Fill every physical array slot with the same width-checked value, without reading previous elements. |
 | `result = operand s`, `operand d <- result` | Read or write a selected register/memory operand at this point. |
 | `apply NZ(result)`, `apply ALU(result, carry(left, right))` | Apply a declared flag policy to typed numeric and flag expressions. |
 | `address = resolve(16, mode, code)` | Ask the existing address decoder to resolve an operand of the stated width; mode and code are captured three-bit values. |
@@ -110,13 +114,48 @@ register and element widths use the language's supported numeric widths.
 The compiler returns the schema along with the instruction families. The build
 generates an immutable state description and a `StoredState` type derived from
 it. Public aliases and caller/snapshot readonly policies can remain in the
-CPU's state module. Initial values, reset values, derived register views,
+CPU's state module. Initial values, reset effects, derived register views,
 fetching, and interrupt delivery are separate contracts, not implied by storage.
 
 Partial chapters instead receive an external schema and use top-level state
 declarations to name the fields they need. They cannot also define a `state`
 block. The compiler validates their field kinds, widths, and array lengths
 against that schema; it does not emit a replacement schema for them.
+
+### Views and state actions
+
+`view` uses the same ordered captures and final `return` as `source`, with an
+uppercase name and explicit result width. Its body can read registers, array
+elements, flags, and latches, and perform pure calculations. It cannot write
+state or touch external devices. A view is also available as `source NAME` to
+later bodies; each use reads current state with its own capture scope.
+
+`action` defines a named operation on stored state. Optional inputs are numeric
+values with lowercase names and explicit widths, available throughout that
+action but absent from sources' independent scopes. An action can read and
+write stored state, apply flag policies, and use nested conditions. Fields it
+does not write are preserved. The core supplies valid inputs and decides when
+to invoke the action; input widths are compile-time contracts, as for other
+generated helpers, rather than new runtime argument validation.
+
+Both forms reject instruction fetching, memory, ports, address decoding, and
+CPU-boundary effects. Restrictions follow reusable sources and nested branches,
+including constant-false branches, and diagnostics identify the calling statement.
+Views additionally reject every write. These checks prevent snapshot inspection
+and reset from acquiring hidden external effects.
+
+`ARRAY[] <- value` fills the existing array in ascending slot order. The value
+must match the declared element width; old slot contents are never read. It
+lowers to the shared `fill-array` effect. Ordinary indexed writes still use
+`ARRAY[index] <- value` and retain their index-range checks.
+
+The 8008 core binds generated PC/HL readers and calls generated `setPC` and
+`reset` actions. PC writes explicitly truncate a sixteen-bit supplied address
+to fourteen bits. Reset explicitly clears registers and slots, selects slot
+zero, and sets STOPPED; its omitted flags retain their values under the declared
+model policy. The core still guards reset and records before/after snapshots.
+These helpers use the existing instruction generator in `generated/8008-state.ts`;
+they have no opcode bindings and earn no instruction-coverage credit.
 
 ### Expressions and policies
 
@@ -382,9 +421,10 @@ to their flag update rather than the policy header.
 
 ## Boundaries and next evidence
 
-The 8008 chapter now generates its authoritative stored-state schema and type.
+The 8008 chapter now generates its authoritative stored-state schema and type,
+derived PC/HL views, and state actions for PC writes and reset.
 Partial chapters still validate their declarations against externally supplied
-schemas. Native opcode fetching, execution records, reset,
+schemas. Native opcode fetching, execution records, reset-boundary guarding,
 interrupt recognition, and retirement remain in the existing CPU core. Most
 instruction families are still authored in TypeScript.
 
@@ -396,11 +436,10 @@ before the broader MOVE catalogue's shared bodies; those shared bodies still
 serve other sizes and addressing modes. Only the chapter-owned forms earn
 literate coverage.
 
-The 8008 is the first whole-CPU target, and its complete instruction set is now
-chapter-authored, and its state block replaces the handwritten storage schema.
-The next evidence is register views and lifecycle definitions: fetching, reset,
-and interrupt-supplied execution. Those remain handwritten boundaries despite
-complete instruction coverage. Each further
+The 8008 is the first whole-CPU target. Its chapter owns the complete instruction
+set, stored-state schema, register views, and reset effects. The next evidence
+is fetching and interrupt-supplied execution, including boundary orchestration
+and recording. Those remain handwritten despite complete instruction coverage. Each further
 slice should replace its corresponding maintained TypeScript and retain
 independent execution tests. The destination is a whole CPU description,
 including state and lifecycle contracts, that needs no CPU-specific compiler
@@ -413,6 +452,7 @@ The [6502 language tests](../../tests/components/cpus/semantics/literate.test.ts
 [8008 transfer tests](../../tests/components/cpus/semantics/literate-8008.test.ts),
 [8008 arithmetic language tests](../../tests/components/cpus/semantics/literate-8008-arithmetic.test.ts),
 [8008 control/port language tests](../../tests/components/cpus/semantics/literate-8008-control.test.ts),
+[8008 view/reset tests](../../tests/components/cpus/semantics/literate-8008-state.test.ts),
 and [68000 language tests](../../tests/components/cpus/semantics/literate-68000.test.ts)
 check inventories, runtime integration, document diagnostics, malformed selectors
 and exclusions, capture isolation, and formal edits that change execution.

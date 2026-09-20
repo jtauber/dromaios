@@ -18,7 +18,7 @@ emulators do not count toward implementation here.
 
 | Model | Introduced | Transistors (approx.) | CPU core lines | Literate / documented forms | Literate instruction coverage |
 | --- | --- | ---: | ---: | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [141](../../src/components/cpus/8008.ts) | 250 / 250 | 100% |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [126](../../src/components/cpus/8008.ts) | 250 / 250 | 100% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [197](../../src/components/cpus/8080.ts) | 0 / 244 | 0% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [213](../../src/components/cpus/6800.ts) | 0 / 197 | 0% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | 15 / 151 | 9.9% |
@@ -29,16 +29,17 @@ emulators do not count toward implementation here.
 
 **Literate instruction coverage** measures documented opcode forms authored in
 executable chapters. The 8008's 100% means its entire instruction set is
-chapter-authored. Its stored-state schema is also chapter-authored, but derived
-register views, fetching, reset, and interrupt delivery still have handwritten
-implementations. It does not mean the entire CPU is generated
-from a literate specification.
+chapter-authored. Its stored-state schema, PC/HL views, PC write, and reset
+effects are also chapter-authored. Fetching, boundary guarding and records,
+and interrupt delivery still have handwritten implementations. It does not
+mean the entire CPU is generated from a literate specification.
 
 **CPU core lines** count the entire linked `<cpu>.ts` file, including comments
 and blank lines, using `wc -l`. State schemas, instruction definitions, chapters,
 shared helpers, generated code, tests, and machine definitions are excluded.
-The 8008's 141 lines provide its public API, construction, snapshots, reset,
-instruction fetching and dispatch, interrupt entry, and execution records.
+The 8008's 126 lines provide its public API, construction, snapshot assembly,
+instruction fetching and dispatch, reset guarding, interrupt entry, and
+execution records.
 See [source footprint](#source-footprint) for the wider maintained-source count
 and [the 8008 file map](implementation.md#following-the-8008-files) for the roles
 of its separate source files.
@@ -58,8 +59,10 @@ Conditions, address-register arrays, selector wrapping, the halted latch, and
 port transfers are explicit. Every instruction body and encoding comes from
 the chapter; no separate TypeScript instruction or encoding inventory remains.
 Its `state` block also generates the immutable stored-state schema and mutable
-TypeScript type used by the core and machine parser. Public readonly policies,
-derived register views, fetching, reset, and interrupt delivery remain in TypeScript.
+TypeScript type used by the core and machine parser. Its views and state actions
+generate PC/HL readers, selected-PC writes, and reset effects. Public readonly
+policies, fetching, boundary guarding and records, and interrupt delivery
+remain in TypeScript.
 
 The [68000 word-transfer chapter](../../src/components/cpus/specifications/68000-word-transfers.md)
 adds 64 data-register copies and 128 loads/stores through `(An)`. It specifies
@@ -70,13 +73,14 @@ only the 192 fully authored forms earn literate coverage.
 
 | Milestone | Evidence / remaining work |
 | --- | --- |
-| Three executable chapters | The 6502, 8008, and 68000 exercise prose, checked declarations, encoding selectors and values, multiple widths, addressing, ordered effects, fault returns, typed flag policies, arithmetic bodies shared across encodings, nested conditions, stored arrays/latches, and port effects through the existing representation. |
-| Production equivalence | The state migration leaves all 28 generated execution modules and all three existing chapter-data modules byte-identical. The generated 8008 schema matches the previous contract; independent CPU, machine, and type tests retain construction, snapshots, and execution checks. |
+| Three executable chapters | The 6502, 8008, and 68000 exercise prose, checked declarations, encoding selectors and values, multiple widths, addressing, ordered effects, fault returns, typed flag policies, arithmetic bodies shared across encodings, nested conditions, stored arrays/latches, views, state actions, and port effects through the existing representation. |
+| Production equivalence | All 28 existing execution modules remain byte-identical; a new module supplies the 8008 views and state actions. Independent checks cover all PC-write words and selectors, all raw H:L values, reset order and flag preservation, plus existing CPU, machine, and type contracts. |
 | Authoring feedback | Syntax, state-schema, width, scope, and encoding errors report Markdown locations. Unknown declarations are identified directly; nested scope, array-bound, and policy errors identify the offending statement. Clean builds bootstrap chapter data before instruction generation. |
 | Language review | [Reviewed across the three chapters](literate-specifications.md#review-of-the-three-chapters): consistent operand vocabulary, explicit widths and effect order, distinct family explanations, and visible native boundaries. |
 | One complete literate instruction set | All 250 8008 forms are chapter-authored, including every documented control alias and port selector. |
 | Chapter-owned stored state | The 8008 state block generates the schema and stored-state type. Tests cover declaration diagnostics, formal edits that change validation, and clean generation without pre-existing schema output. |
-| One complete literate CPU | Still ahead for the 8008: derived register views, opcode fetching, reset, and interrupt/lifecycle contracts. Complete instruction coverage does not yet meet this milestone. |
+| Chapter-owned views and reset | The 8008 chapter generates PC/HL readers, PC writes, and reset effects through the existing representation and generator. Tests check state-only effect restrictions, formal edits that change behavior, and reuse with a different schema. |
+| One complete literate CPU | Still ahead for the 8008: opcode fetching, boundary guarding and records, and interrupt/lifecycle orchestration. Complete instruction coverage does not yet meet this milestone. |
 
 The percentages measure authored opcode forms, not progress toward a complete
 CPU language or the amount of work remaining. See the
@@ -85,9 +89,10 @@ CPU language or the amount of work remaining. See the
 ## Completed instruction-definition migration
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **12,325 generated bodies**, all used by CPU execution,
-including 6502/6800/8088 entry helpers, a 6809 frame-push helper, and 8088 WAIT
-resumption. They cover **38,128 complete opcode forms**. All eight CPUs now
+contains **12,327 generated bodies**, all used by CPU execution,
+including 6502/6800/8088 entry helpers, a 6809 frame-push helper, 8088 WAIT
+resumption, and 8008 PC-write/reset helpers. They cover **38,128 complete opcode
+forms**; helpers do not add opcode credit. All eight CPUs now
 have complete instruction-definition migration. The current
 family inventory is:
 
@@ -339,8 +344,9 @@ family inventory is:
   and supplied-byte behavior with the core. INP/OUT add all 32 port forms,
   using encoded input selectors 0..7 and output selectors 8..31 without flag
   access. All 250 documented forms are literate, including conditions, array
-  writes, latch changes, and port effects. Fetching, reset, and external
-  interrupt acceptance remain CPU-owned.
+  writes, latch changes, and port effects. The chapter also owns stored state,
+  PC/HL views, selected-PC writes, and reset effects. Fetching, boundary guarding
+  and records, and external interrupt acceptance remain CPU-owned.
 
 - [8088 definitions](../../src/components/cpus/semantics/definitions/8088.ts):
   Sixteen immediate MOV forms, sixteen accumulator ADD/OR/ADC/SBB/AND/SUB/XOR/CMP
@@ -567,14 +573,14 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU core files | 2,540 |
-| CPU-specific instruction definition files | 2,308 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 4,517 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,365** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 1,033 |
+| Eight CPU core files | 2,525 |
+| CPU-specific instruction definition files | 2,312 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 4,579 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,416** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 1,092 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 73 |
-| Generated executable CPU output, counted separately | 314,041 |
-| Generated chapter data, counted separately | 110,323 |
+| Generated executable CPU output, counted separately | 314,091 |
+| Generated chapter data, counted separately | 110,837 |
 | Generated state schemas/types, counted separately | 18 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
@@ -583,20 +589,20 @@ not maintained source. Its size is still reported to keep expansion visible.
 Both `src/components/cpus/generated/` and
 `src/components/cpus/semantics/generated/` are excluded from authored counts.
 
-The 8008 state migration replaces its handwritten storage declarations with
-chapter-owned state. Its public state module shrinks from **18 to 11 lines**,
-retaining re-exports, aliases, and caller readonly policy. Its core remains at
-**141 lines** and its instruction integration adapter at **5 lines**. The shared
-literate front end grows from **548 to 646 lines**, adding state ownership,
-validation, and schema/type generation while sharing declaration parsing with
-partial chapters. The generated schema/type module is **18 lines**.
+The 8008 views/reset migration reduces its core from **141 to 126 lines**.
+Its public state module stays at **11 lines**, and its definition adapter grows
+from **5 to 9 lines** to connect chapter actions and views to generation.
+The shared literate front end grows from **646 to 698 lines**, adding reusable
+views, parameterized state actions, and checked array fills. These use the
+existing execution generator; the new generated state-operation module is
+**50 lines** and the schema/type module remains **18 lines**.
 
-Across all CPUs, authored TypeScript grows from **9,274 to 9,365 lines** and
-chapters from **1,022 to 1,033 lines**. Generation scripts grow from **67 to 73
-lines**. Total maintained CPU source grows from **10,363 to 10,471 lines**.
-This slice removes duplicate 8008 storage declarations and adds reusable state
-authoring; it does not yet reduce total maintained source. Derived views and
-lifecycle remain ahead.
+Across all CPUs, authored TypeScript grows from **9,365 to 9,416 lines** and
+chapters from **1,033 to 1,092 lines**. Generation scripts remain at **73 lines**.
+Total maintained CPU source grows from **10,471 to 10,581 lines**. This slice
+removes handwritten 8008 view/reset behavior and adds reusable authoring support;
+it does not yet reduce total maintained source. Fetching and interrupt/lifecycle
+orchestration remain ahead.
 
 Generated chapter data repeats the validated CPU schema within expanded
 definitions and remains a separate, disposable intermediate representation.
@@ -604,8 +610,9 @@ The small generated state modules serve runtime consumers without importing
 that expanded data.
 
 The 16 standalone address/operand readers remain generator probes; CPU execution
-expands those sources into complete bodies. They do not earn separate coverage
-credit.
+expands those sources into complete bodies. Two additional standalone readers
+now provide the 8008's PC and HL views in production. Neither group earns
+separate opcode coverage credit.
 
 ## How the percentages are counted
 
