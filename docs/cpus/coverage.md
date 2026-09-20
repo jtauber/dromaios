@@ -2,11 +2,11 @@
 
 All eight initial CPU models now implement **100% of their documented opcode
 forms through [shared, inspectable instruction definitions](instruction-semantics.md)**
-that generate both executable code and explanations. The table now follows
-authoring those forms in literate CPU chapters. This is a new migration: a zero
-here means the definitions are still authored in TypeScript, not missing CPU
-support. The detailed support inventory remains below as a reference for implemented behavior
-and processor limitations.
+that generate both executable code and explanations. The table follows
+authoring those forms and the wider CPU model in literate chapters. These are
+authoring measures: a zero means no forms or whole model areas have migrated,
+not missing CPU support. The detailed support inventory remains below as a
+reference for implemented behavior and processor limitations.
 
 Update this document whenever literate authoring, CPU support, or source footprint changes.
 The [model contracts](../README.md#cpu-models) define state and execution policies;
@@ -16,23 +16,26 @@ emulators do not count toward implementation here.
 
 ## At a glance
 
-| Model | Introduced | Transistors (approx.) | CPU core lines | Literate / documented forms | Literate instruction coverage |
-| --- | --- | ---: | ---: | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [126](../../src/components/cpus/8008.ts) | 250 / 250 | 100% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [197](../../src/components/cpus/8080.ts) | 0 / 244 | 0% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [213](../../src/components/cpus/6800.ts) | 0 / 197 | 0% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | 15 / 151 | 9.9% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 0 / 698 | 0% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 0 / 268 | 0% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [522](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [604](../../src/components/cpus/68000.ts) | 192 / 36,029 | 0.5% |
+| Model | Introduced | Transistors (approx.) | CPU core lines | Literate / documented forms | Literate instruction coverage | [Literate model milestones](#literate-model-milestones) |
+| --- | --- | ---: | ---: | --- | --- | --- |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [126](../../src/components/cpus/8008.ts) | 250 / 250 | 100% | 4 / 6 |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [197](../../src/components/cpus/8080.ts) | 0 / 244 | 0% | 0 / 6 |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [213](../../src/components/cpus/6800.ts) | 0 / 197 | 0% | 0 / 6 |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | 15 / 151 | 9.9% | 0 / 6 |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 0 / 698 | 0% | 0 / 6 |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 0 / 268 | 0% | 0 / 6 |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [522](../../src/components/cpus/8088.ts) | 0 / 291 | 0% | 0 / 6 |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [604](../../src/components/cpus/68000.ts) | 192 / 36,029 | 0.5% | 0 / 6 |
 
 **Literate instruction coverage** measures documented opcode forms authored in
 executable chapters. The 8008's 100% means its entire instruction set is
-chapter-authored. Its stored-state schema, PC/HL views, PC write, and reset
-effects are also chapter-authored. Fetching, boundary guarding and records,
-and interrupt delivery still have handwritten implementations. It does not
-mean the entire CPU is generated from a literate specification.
+chapter-authored; it does not mean the entire CPU is generated from a literate
+specification.
+
+**Literate model milestones** count whole model areas owned by chapters, using
+the six criteria below. The 8008 is at **4 / 6**: instructions, stored state,
+register views, and reset effects. Its views/reset migration advanced this
+count from **2 / 6 to 4 / 6**, while instruction coverage stayed at 100%.
 
 **CPU core lines** count the entire linked `<cpu>.ts` file, including comments
 and blank lines, using `wc -l`. State schemas, instruction definitions, chapters,
@@ -43,6 +46,35 @@ execution records.
 See [source footprint](#source-footprint) for the wider maintained-source count
 and [the 8008 file map](implementation.md#following-the-8008-files) for the roles
 of its separate source files.
+
+## Literate model milestones
+
+A milestone counts only when executable chapters determine the complete
+behavior for that area, production execution uses the generated definitions,
+independent checks establish the model contract, and the equivalent handwritten
+CPU policy has been removed. Shared runtime machinery for validation, guarding,
+access recording, and snapshot assembly may remain TypeScript; processor-specific
+choices must come from the chapter.
+
+| Milestone | What the chapter must own | 8008 |
+| --- | --- | --- |
+| Complete instruction definitions and encodings | Every documented opcode form and its behavior at the model's declared fidelity | [Complete](../../src/components/cpus/specifications/8008.md) |
+| Stored-state schema | All stored fields, types, widths, and array lengths | [Complete](../../src/components/cpus/specifications/8008.md#stored-state) |
+| Derived register views and writes | Computed registers, aliases, and their write rules | [Complete](../../src/components/cpus/specifications/8008.md#register-views) |
+| Reset effects | State changes, preservation rules, and any reset-time device or memory effects | [Complete](../../src/components/cpus/specifications/8008.md#reset) |
+| Normal execution | Fetching, decoding/dispatch, stopping, retirement, and failure policies | Pending |
+| External events | Interrupt/exception acceptance, entry, and externally supplied execution, as applicable | Pending |
+
+All other CPUs currently have **0 / 6** complete areas. The 6502 and 68000 have
+partial instruction chapters; their progress appears in instruction coverage,
+but neither has completed an entire model milestone. State declarations checked
+against an external TypeScript schema do not earn stored-state credit.
+
+These are milestones, not equally sized units of work, so the count is not
+converted into a percentage. They cover each CPU's existing instruction-level
+model; completing them does not add cycle timing or machine devices to its scope.
+The [language guide](literate-specifications.md) describes supported syntax and
+the remaining authoring boundaries.
 
 ## Literate authoring milestone
 
@@ -77,10 +109,6 @@ only the 192 fully authored forms earn literate coverage.
 | Production equivalence | All 28 existing execution modules remain byte-identical; a new module supplies the 8008 views and state actions. Independent checks cover all PC-write words and selectors, all raw H:L values, reset order and flag preservation, plus existing CPU, machine, and type contracts. |
 | Authoring feedback | Syntax, state-schema, width, scope, and encoding errors report Markdown locations. Unknown declarations are identified directly; nested scope, array-bound, and policy errors identify the offending statement. Clean builds bootstrap chapter data before instruction generation. |
 | Language review | [Reviewed across the three chapters](literate-specifications.md#review-of-the-three-chapters): consistent operand vocabulary, explicit widths and effect order, distinct family explanations, and visible native boundaries. |
-| One complete literate instruction set | All 250 8008 forms are chapter-authored, including every documented control alias and port selector. |
-| Chapter-owned stored state | The 8008 state block generates the schema and stored-state type. Tests cover declaration diagnostics, formal edits that change validation, and clean generation without pre-existing schema output. |
-| Chapter-owned views and reset | The 8008 chapter generates PC/HL readers, PC writes, and reset effects through the existing representation and generator. Tests check state-only effect restrictions, formal edits that change behavior, and reuse with a different schema. |
-| One complete literate CPU | Still ahead for the 8008: opcode fetching, boundary guarding and records, and interrupt/lifecycle orchestration. Complete instruction coverage does not yet meet this milestone. |
 
 The percentages measure authored opcode forms, not progress toward a complete
 CPU language or the amount of work remaining. See the
@@ -2804,6 +2832,9 @@ its counting rules when implementation starts.
 
 When support changes, update the relevant opcode rows, complete and partial
 counts, percentages, restrictions, and feature status in the same change.
+When chapter ownership changes, update the literate instruction counts and
+[model milestones](#literate-model-milestones), linking to the definitions and
+checks that establish completion. Partial areas do not earn milestone credit.
 Refresh source-line counts whenever a CPU implementation file changes:
 
 ```sh
