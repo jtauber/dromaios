@@ -42,7 +42,7 @@ see the [development instructions](../README.md#development).
 - [Intel 8008: literate specification](../src/components/cpus/specifications/8008.md)
 - [Intel 8080](../src/components/cpus/specifications/8080.md) — complete executable chapter
 - [MOS 6502](../src/components/cpus/specifications/6502.md)
-- [Motorola 6800](cpus/6800/model.md) — [partial executable chapter](../src/components/cpus/specifications/6800.md)
+- [Motorola 6800](../src/components/cpus/specifications/6800.md) — complete executable chapter
 - [Motorola 6809](cpus/6809/model.md)
 - [Zilog Z80](cpus/z80/model.md)
 - [Intel 8088](cpus/8088/model.md)

@@ -60,7 +60,7 @@ export function createExecution<Snapshot>(state: Parameters<typeof opcodeEntries
   return vectorExecution(${q(cpu)}, ram, snapshot, {
     counter: programCounter(views[${q(policy.counter)}], value => actions[${q(policy.writeCounter)}](state, value)),
     word: ${q(policy.word)}, opcodeAdvance: ${q(policy.opcodeAdvance)},
-    reset: memory => ${invoke(policy.reset, [], policy.resetMemory)},
+${policy.waiting === undefined ? "" : `    waiting: () => state[${q(policy.waiting)}],\n`}    reset: memory => ${invoke(policy.reset, [], policy.resetMemory)},
     handlers: opcodeTable(opcodeEntries(state)),
     entries: {
 ${policy.entries.map(entry => `      ${q(entry.source)}: memory => ${invoke(entry.action, entry.arguments, entry.memory)},`).join("\n")}

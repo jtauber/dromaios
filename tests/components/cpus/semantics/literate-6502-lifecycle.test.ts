@@ -1,36 +1,18 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { Ram } from "../../../../src/components/memory/ram.js";
 import type { Cpu6502, Cpu6502State } from "../../../../src/components/cpus/generated/6502-cpu.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
-import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
-import { generateChapterState } from "../../../../src/components/cpus/semantics/literate/state.js";
-import { generateChapterExecution } from "../../../../src/components/cpus/semantics/literate/execution.js";
-import { generateChapterInterface, generatePublicState } from "../../../../src/components/cpus/semantics/literate/interface.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
+import { generateChapterModule } from "../../../helpers/literate-model.js";
 
 const file = "src/components/cpus/specifications/6502.md", markdown = readFileSync(file, "utf8");
 const initial = (): Cpu6502State => ({ a: 0x12, x: 0x34, y: 0x56, sp: 0xff, pc: 0x200,
   flags: { n: true, v: false, d: true, i: false, z: true, c: false } });
 
-/** Load all generated layers: every mutation must change the public CPU, not just compiler data. */
 async function generated(text = markdown, name = "6502", publicName = "Cpu6502") {
-  const chapter = compileCpuChapter(text, { name }, file), state = chapter.state!, api = chapter.interface!;
-  const base = new URL("../../../../src/components/cpus/generated/", import.meta.url);
-  const url = (source: string, bindings: Readonly<Record<string, string>> = {}, relative = base) => {
-    const code = stripTypeScriptTypes(source).replace(/from "([^"]+)"/g, (_, path: string) =>
-      `from ${JSON.stringify(bindings[path] ?? new URL(path.replace(/\.ts$/, ".js"), relative).href)}`);
-    return `data:text/javascript,${encodeURIComponent(code)}`;
-  };
-  const schema = url(generateChapterState(state) + generatePublicState(state, api), {}, new URL("../semantics/generated/state/", base));
-  const opcodes = url(generateInstructions(name, Object.fromEntries(Object.values(chapter.families).flat()), { bindOpcodes: true }));
-  const actions = url(generateInstructions(name, chapter.actions, { sources: { cpu: { name, state }, groups: { views: chapter.views } } }));
-  const execution = url(generateChapterExecution(name, name, chapter.execution!), { [`./${name}.ts`]: opcodes, [`./${name}-state.ts`]: actions });
-  const exports = await import(url(generateChapterInterface(name, state, api, chapter.execution!), {
-    [`../semantics/generated/state/${name}.ts`]: schema, [`./${name}-state.ts`]: actions, [`./${name}-execution.ts`]: execution,
-  }));
+  const exports = await generateChapterModule(text, name, file);
   return exports[publicName] as new (ram: Ram, state: Cpu6502State) => Cpu6502;
 }
 

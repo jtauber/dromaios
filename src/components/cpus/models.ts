@@ -1,7 +1,6 @@
 import { chapterInterfaces } from "./semantics/generated/interfaces.ts";
 import type { ChapterStates } from "./semantics/generated/interfaces.ts";
 import { cpu8088StateDescription } from "./state/8088.ts";
-import { cpu6800StateDescription } from "./state/6800.ts";
 import { cpu6809StateDescription } from "./state/6809.ts";
 import { cpu68000StateDescription } from "./state/68000.ts";
 import { cpuZ80StateDescription } from "./state/z80.ts";
@@ -17,7 +16,6 @@ function handwritten<const Fields extends StateFields, const Size extends number
 /** Small schemas and entry points only: importing this catalogue never loads CPU execution. */
 export const cpuModels = {
   "8088": handwritten("8088", cpu8088StateDescription, 0x100000),
-  "6800": handwritten("6800", cpu6800StateDescription, 0x10000),
   "6809": handwritten("6809", cpu6809StateDescription, 0x10000),
   "68000": handwritten("68000", cpu68000StateDescription, 0x1000000, 0xffffffff),
   "z80": handwritten("z80", cpuZ80StateDescription, 0x10000),

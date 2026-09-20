@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { boolean, defineState, flag, group, unsigned } from "../../../../src/components/cpus/state.js";
-import { cpu6800StateDescription } from "../../../../src/components/cpus/state/6800.js";
-import type { Cpu6800State } from "../../../../src/components/cpus/state/6800.js";
-import { chapter6800 } from "../../../../src/components/cpus/semantics/definitions/6800.js";
+import { cpu6800StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
+import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
+import { instructions6800 as chapter6800 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
@@ -56,7 +56,8 @@ test("the 6800 chapter owns the complete stored schema and all 197 manufacturer 
   assert.equal(opcodes.length, 197);
   assert.deepEqual(Object.keys(chapter6800).map(Number).sort((a, b) => a - b), opcodes);
   assert.deepEqual(Object.fromEntries(Object.values(chapter.families).flat()), chapter6800);
-  assert.equal(chapter.execution, undefined, "execution boundaries and WAI recognition remain owned by the core");
+  assert.equal(chapter.execution?.interrupt, "vectors");
+  assert.equal(chapter.interface?.name, "Cpu6800");
 });
 
 test("unsigned indexing and high-first words are chapter rules, with complete addressing before register reads", async () => {

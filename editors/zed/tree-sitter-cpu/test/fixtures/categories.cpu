@@ -103,7 +103,7 @@ action vectorReset "reset from memory" using memory {
   PC <- extend(low, 16)
 }
 execution {
-  stopped none
+  stopped WAITING as waiting
   interrupt vectors {
     source irq unless flag I with enter($FFFE)
     source nmi always with enter($FFFA)

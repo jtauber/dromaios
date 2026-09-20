@@ -18,7 +18,7 @@ import { cpu6502StateDescription } from "../../../../src/components/cpus/semanti
 import type { Cpu6502State } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import type { Cpu8080State } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
-import type { Cpu6800State } from "../../../../src/components/cpus/state/6800.js";
+import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
 
 function mosState(): Cpu6502State {
   return { a: 0, x: 0, y: 0, sp: 0xff, pc: 0x1000, flags: { n: false, z: false, c: true, v: true, d: true, i: true } };
@@ -50,7 +50,9 @@ test("shared body keys build only their first form and retain encounter order, i
 
 test("the catalogue and chapter bindings name exactly the generated modules, each reproducible without changing its inputs", () => {
   const directory = "src/components/cpus/generated";
-  const filenames = [...instructionModules.map(({ name }) => `${name}.ts`), "6502-execution.ts", "6502-cpu.ts", "8008-execution.ts", "8008-cpu.ts", "8080-execution.ts", "8080-cpu.ts"];
+  const completeChapters = ["6502", "6800", "8008", "8080"] as const;
+  const filenames = [...instructionModules.map(({ name }) => `${name}.ts`),
+    ...completeChapters.flatMap(cpu => [`${cpu}-execution.ts`, `${cpu}-cpu.ts`])];
   assert.equal(new Set(filenames).size, filenames.length, "module names must not overwrite one another");
   assert.deepEqual(readdirSync(directory).sort(), filenames.sort());
   for (const module of instructionModules) {
@@ -61,7 +63,7 @@ test("the catalogue and chapter bindings name exactly the generated modules, eac
     assert.equal(generateInstructions(cpu, definitions, options), source, `${name}: repeat generation`);
     assert.equal(JSON.stringify(module), before, `${name}: unchanged inputs`);
   }
-  for (const cpu of ["6502", "8008", "8080"] as const) {
+  for (const cpu of completeChapters) {
     const chapter = compileCpuChapter(readFileSync(`src/components/cpus/specifications/${cpu}.md`, "utf8"), { name: cpu });
     const before = JSON.stringify(chapter);
     const source = generateChapterExecution(cpu, cpu, chapter.execution!);

@@ -4,7 +4,7 @@ This program saves A and B, calls a subroutine that calls another subroutine,
 stores the computed result, and restores A/B/SP. Saved accumulators and return
 addresses occupy the same RAM stack, crossing the `0100` page boundary.
 
-[Model contract](../model.md#stack-and-subroutines) ·
+[Model contract](../../../../src/components/cpus/specifications/6800.md#the-descending-stack) ·
 [Example definition](../../../../src/machines/6800/stack-example.machine) ·
 [Example tests](../../../../tests/machines/6800/stack-example.test.ts) ·
 [CPU coverage](../../coverage.md#6800)

@@ -131,7 +131,7 @@ test("the native TypeScript build entry point works outside the repo and prints 
 test("6800 generation uses Cpu6800, preserves its state and high-byte-first vector, and exports a completion address", () => {
   const source = readFileSync("src/machines/6800/example.machine", "utf8");
   const generated = compileMachine(source, "6800/example.machine");
-  assert.ok(generated.includes('import { Cpu6800 } from "../../../components/cpus/6800.js";'));
+  assert.ok(generated.includes('import { Cpu6800 } from "../../../components/cpus/generated/6800-cpu.js";'));
   assert.ok(generated.includes("create: create6800Example, createMemory: create6800ExampleMemory"));
   assert.ok(generated.includes("defineRamExample(Cpu6800,"));
   assert.ok(generated.includes('"sp": 32767'));

@@ -4,7 +4,7 @@ Load 2, add 3, and store 5 at RAM address `0080`. This first 6800 example uses
 the shared runner and a caller completion address. Its expected result and
 access records can be compared with the [6809 example](../../6809/examples/arithmetic.md).
 
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/6800.md) ·
 [Machine definition](../../../../src/machines/6800/example.machine) ·
 [Example tests](../../../../tests/machines/6800/example.test.ts) ·
 [CPU tests](../../../../tests/components/cpus/6800.test.ts)
@@ -74,7 +74,7 @@ edits to code and data also survive reset.
 
 A new factory restores the original image and explicit state in independent
 CPU and RAM instances. This is the lesson restart described in the
-[reset contract](../model.md#cpu-reset).
+[reset contract](../../../../src/components/cpus/specifications/6800.md#cpu-reset).
 
 ## Acceptance checks
 

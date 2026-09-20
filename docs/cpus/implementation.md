@@ -72,7 +72,10 @@ consumers import `Cpu8080` and its public types from `generated/8080-cpu.ts`.
 There are no handwritten state, definition, or public-class adapters. The
 [6502 chapter](../../src/components/cpus/specifications/6502.md) follows the same
 generated file structure, using `vector-execution.ts` for its memory-only
-reset and named IRQ/NMI entries. Both runtimes use the shared byte dispatcher.
+reset and named IRQ/NMI entries. The [6800 chapter](../../src/components/cpus/specifications/6800.md)
+uses that same structure and vector runtime, adding a declared waiting latch.
+Its actions define WAI frame reuse and release; no handwritten 6800 core or
+adapters remain. Both runtimes use the shared byte dispatcher.
 
 ## Reading order
 
@@ -112,9 +115,9 @@ Each CPU module exports a `cpu…StateDescription` beside its public state
 type. For all eight CPUs, the schema and public types are exposed through
 CPU-owned modules under [`state/`](../../src/components/cpus/state), or generated
 schema modules for complete chapters, and are re-exported by the public CPU
-module. The 8008, 8080, and 6502 schemas and public types are generated from their
+module. The 8008, 8080, 6502, and 6800 schemas and public types are generated from their
 chapters, without handwritten state adapters.
-The other five schemas remain authored TypeScript.
+The other four schemas remain authored TypeScript.
 This lets instruction generation load schemas without loading execution. The description
 owns stored field names, types, and constraints. The
 [shared state helpers](../../src/components/cpus/state.ts) provide:
@@ -191,7 +194,7 @@ Choose the grouping from the CPU's encoding:
 | [8008](../../src/components/cpus/specifications/8008.md) | Native `xx yyy zzz` groups; A is register selector `000`, M is `111`; preserve documented HLT exceptions |
 | [8080](../../src/components/cpus/specifications/8080.md) | Complete chapter uses byte fields `01 ddd sss` / `10 ooo sss`, word selector `pp`, and condition `ccc`; one generated opcode table binds all forms |
 | [6502](../../src/components/cpus/specifications/6502.md) | `aaa bbb cc`; `cc=01` groups `aaa` operations with shared `bbb` operand sources; `cc=00/10` retain `bbb` subgroups and their distinct implied/addressing forms |
-| [6800](../../src/components/cpus/6800.ts) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; unary forms use `01 tt oooo`, with `tt` selecting A/B/indexed/extended; short branches use `0010 ttt p`, keeping the unused `21` explicit |
+| [6800](../../src/components/cpus/specifications/6800.md) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; unary forms use `01 tt oooo`, with `tt` selecting A/B/indexed/extended; short branches use `0010 ttt p`, keeping the unused `21` explicit |
 | [6809](../../src/components/cpus/6809.ts) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, `0110 oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte; pages `10`/`11` share word-family builders, with long conditions on page `10` |
 | [Z80](../../src/components/cpus/z80.ts) | Shared 8080 base families plus explicit Z80 extension slots; shared CB `xx yyy rrr` operations for ordinary/indexed operands; one DD/FD builder selecting IX/IY; ED pair and block families; decode the complete supported encoding before committing state |
 | [8088](../../src/components/cpus/8088.ts) | Family-specific fields: `00 ooo 0 d w` / `00 ooo 10 w` for ALU families, `mm ggg rrr` for ModR/M operands or operation extensions, `0101 p rrr` for register stacks, `0111 ttt p` for conditional jumps, and `1010 00 d w` / `1011 w rrr` for transfers; wrap byte offsets within the selected segment before mapping to the physical bus |
@@ -541,8 +544,8 @@ describe the callbacks available to an opcode handler:
 `RecordedMemory` extends it with an access log. Instruction contexts expose the
 callbacks without exposing that log, and all callback properties are readonly.
 
-The 6502, 6800, 6809, and shared 8080-family core import
-`WordInstructionContext` as their local `InstructionContext`. Shared byte
+The vector runtime supplies `WordInstructionContext` to 6502 and 6800 handlers.
+The 6809 and shared 8080-family core import it as their local `InstructionContext`. Shared byte
 execution for the 8008 and 8080 adds `BytePorts` and IRQ-deferral
 callbacks; chapter validation permits deferral only with a declared retirement
 destination. The Z80 adds ports and deferral, plus RETI notification at retirement.
@@ -639,9 +642,10 @@ changing CPU state. The guard clears even when an operation throws; it neither
 rolls back completed effects nor represents an architectural interrupt mask.
 Each CPU selects which operations to guard and supplies its diagnostic message.
 
-The four CPUs with a stored PC pass their state directly. The 8008 uses
-`programCounter(read, write)` to expose its live address-stack slot and mask
-writes to 14 bits without adding stored state. Its circular call stack is
+Generated chapter bindings use `programCounter(read, write)` with chapter-owned
+views and actions. The 8008 exposes its live address-stack slot and masks writes
+to 14 bits without adding stored state; the 8080, 6502, and 6800 bind stored PC.
+The remaining 6809 core passes its state directly to the byte dispatcher. Its circular call stack is
 explicit in its state schema and generated instruction bodies. The Z80 retains
 complete-prefix decoding and R updates; the
 8088 retains segment/repeat prefixes, one-element REP steps, trap boundaries,

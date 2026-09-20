@@ -77,7 +77,7 @@ the first item. The 8008's [port contract](../../src/components/cpus/specificati
 implements the second. The 6502 now implements [entry and return](../../src/components/cpus/specifications/6502.md#software-interrupt-and-interrupt-return)
 and [explicit IRQ/NMI offers](../../src/components/cpus/specifications/6502.md#external-interrupt-delivery), with
 its recognition timing limits documented there. The 6800 now completes its
-[interrupt and wait behavior](6800/model.md#waiting-and-external-interrupt-delivery),
+[interrupt and wait behavior](../../src/components/cpus/specifications/6800.md#waiting-and-external-interrupt-delivery),
 including native frames, return, and snapshot-preserved WAI. The 6809 completes
 [its interrupt and wait behavior](6809/model.md#waiting-and-external-interrupt-delivery)
 with SYNC/CWAI, full/short frames, RTI, software vectors, and NMI arming.

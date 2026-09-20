@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions as m6800 } from "../../../../src/components/cpus/generated/6800.js";
 import { instructions as m6809 } from "../../../../src/components/cpus/generated/6809.js";
-import type { Cpu6800State } from "../../../../src/components/cpus/state/6800.js";
+import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
 
 type ByteTransfers<State> = Record<`ld${"a" | "b"}Immediate`, (state: State, instruction: { fetchByte(): number }) => void>

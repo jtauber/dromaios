@@ -17,12 +17,14 @@ an external authoring path into this representation. The language guide records
 the executable chapters and their shared addressing rules; other definitions
 remain TypeScript-authored.
 
-The complete 8008, 8080, and 6502 models are now authored in their
+The complete 8008, 8080, 6502, and 6800 models are now authored in their
 [executable chapters](literate-specifications.md). The shared construction
 patterns described below still explain the representation; for current 8080
 behavior and encoding ownership, read its [chapter](../../src/components/cpus/specifications/8080.md).
 The 6800 chapter owns stored state, packed condition codes, and every instruction
-family, including addressing, encodings, and reusable stack/frame actions.
+family, including addressing, encodings, and reusable stack/frame actions. Its
+reset, waiting, execution, IRQ/NMI recognition, and public interface also come
+from the chapter, with memory-only vector execution shared with the 6502.
 The construction history below describes the earlier shared-builder migration;
 the Z80, 6809, 8088, and other partial migrations retain TypeScript builders.
 
@@ -93,9 +95,11 @@ the Z80, 6809, 8088, and other partial migrations retain TypeScript builders.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 12,328 generated, executable bodies. All serve CPU execution;
-12,320 are bound through opcode or postbyte selection. Eight helpers serve
-6502/6800/8088 entry, 6809 frame pushing, 8088 WAIT resumption, and 8008 PC writes/reset/acceptance.
+The [coverage report](coverage.md#completed-instruction-definition-migration)
+tracks the current generated-body count. Most bodies bind through opcode or
+postbyte selection; chapter actions and other helpers supply stacks, entry,
+reset, counter writes, and resumption. Composed chapter actions are inlined at
+their call sites and also exposed as standalone generated functions.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
 All eight CPUs have complete instruction-definition migration.
 The 68000 has all 36,029 documented forms migrated, including ordinary MOVE/MOVEA,
@@ -260,8 +264,8 @@ The authoring layers have separate homes:
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
 | [decimal.ts](../../src/components/cpus/semantics/decimal.ts) | Shared decimal-correction selection with explicit Intel/Motorola flag and result stages |
 | [6502 chapter](../../src/components/cpus/specifications/6502.md) | Complete state, instruction inventory, NMOS arithmetic, status, reset, execution, and named external-entry policies |
-| [6800 chapter](../../src/components/cpus/specifications/6800.md) | Complete stored state, packed condition codes, and transfer/logic/comparison families with addressing and encodings |
-| [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
+| [6800 chapter](../../src/components/cpus/specifications/6800.md) | Complete stored state, packed condition codes, instructions, reset, WAI suspension, IRQ/NMI entry, and public interface |
+| [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Typed module catalogue shared by executable generation, explanation, and reproducibility checks |
 
 Register each generated module once in `instructionModules`, with its filename

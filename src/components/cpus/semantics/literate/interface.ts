@@ -51,6 +51,7 @@ ${stateAliases(state).map(alias => `export type ${name}${alias.name} = StoredSta
 /** Emit the conventional public adapter, with every processor-specific choice supplied by the chapter. */
 export function generateChapterInterface(module: string, state: StateFields, api: ChapterInterface, execution: ChapterExecution): string {
   const vectors = execution.interrupt === "vectors";
+  const stoppedStep = vectors ? execution.waiting === undefined ? undefined : "WaitingStep" : "HaltedStep";
   const name = api.name, schema = `${name[0]!.toLowerCase() + name.slice(1)}StateDescription`, quoted = JSON.stringify;
   const comment = (text: string) => `/** ${text.replace(/\*\//g, "* /").replace(/[\r\n\u2028\u2029]/g, " ")} */`;
   const aliases = stateAliases(state).map(alias => `${name}${alias.name}`);
@@ -64,7 +65,7 @@ import { checkMemory, createExecution } from "./${module}-execution.ts";
 import { ${schema} } from "../semantics/generated/state/${module}.ts";
 import type { ${name}State, ${name}StoredState } from "../semantics/generated/state/${module}.ts";
 import type { Ram } from "../../memory/ram.ts";
-import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "../execution-records.ts";
+import type { FetchedInstruction, StateTransition, InstructionStep${stoppedStep ? `, ${stoppedStep}` : ""} } from "../execution-records.ts";
 ${vectors ? "" : 'import type { InterruptInstruction, InterruptAcknowledge } from "../interrupt-instruction.ts";'}
 import type { MemoryAccess } from "../memory-access.ts";
 ${vectors ? "" : 'import type { BytePorts, PortAccess } from "../port-access.ts";'}
@@ -80,7 +81,7 @@ ${api.snapshots.map(({ field, description }) => `  ${comment(description)}\n  re
 export type ${name}MemoryAccess = MemoryAccess;
 export type ${name}Access = MemoryAccess${vectors ? "" : " | PortAccess"};
 export type ${name}Instruction = FetchedInstruction;
-export type ${name}StepRecord = InstructionStep<${name}Snapshot, ${name}Access>${vectors ? "" : ` | HaltedStep<${name}Snapshot, ${name}Access>`};
+export type ${name}StepRecord = InstructionStep<${name}Snapshot, ${name}Access>${stoppedStep ? ` | ${stoppedStep}<${name}Snapshot, ${name}Access>` : ""};
 export type ${name}ResetRecord = StateTransition<${name}Snapshot>;
 ${interruptTypes}
 export type ${name}InterruptRecord = ReturnType<ReturnType<typeof createExecution<${name}Snapshot>>["interrupt"]>;

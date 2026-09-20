@@ -4,7 +4,7 @@ This program uses all eight immediate logic forms inside a subroutine, branches
 on bit-test flags, adds to the result, and stores an answer. The subroutine
 saves the caller's B on the same RAM stack as the return address.
 
-[Model contract](../model.md#accumulator-logic) ·
+[Model contract](../../../../src/components/cpus/specifications/6800.md#logic) ·
 [Example definition](../../../../src/machines/6800/logic-example.machine) ·
 [Example tests](../../../../tests/machines/6800/logic-example.test.ts) ·
 [CPU coverage](../../coverage.md#6800)
@@ -55,7 +55,7 @@ The completion byte at `020D` and three stack bytes start at zero.
 These are explicit example choices. The logic operations and flags follow
 Motorola's [M6800 Programming Reference Manual, Appendix A: AND, BIT, EOR, ORA](https://manualzz.com/doc/1063126/motorola-m6800-microprocessor-programming-reference-manual)
 and [MC6800 data sheet, table 3](https://vtda.org/docs/computing/Motorola/M6800SystemsReferenceDataSheets_May75.pdf).
-Stack and return behavior follows the [model contract](../model.md#stack-and-subroutines).
+Stack and return behavior follows the [model contract](../../../../src/components/cpus/specifications/6800.md#the-descending-stack).
 
 `create6800LogicExample()` returns fresh `{ cpu, ram, endAddress }`, with
 `endAddress = 020D`. `create6800LogicExampleMemory()` creates the same memory

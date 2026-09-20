@@ -20,18 +20,20 @@ Executable chapters are maintained CPU sources:
   recognition and EI retirement, every instruction, and its generated public
   interface. Its API contracts and hardware guide live in the same chapter; no
   handwritten 8080 implementation remains.
-- [Motorola 6800: state and the complete instruction set](../../src/components/cpus/specifications/6800.md)
+- [Motorola 6800: the complete model](../../src/components/cpus/specifications/6800.md)
   owns the complete stored schema, packed condition codes, and all 197 instruction
   forms with their addressing and encodings. Composed actions share stack and
-  interrupt-frame effects with external entry. The core still owns execution,
-  reset, IRQ/NMI recognition, and WAI boundaries.
+  interrupt-frame effects with external entry. Reset, IRQ/NMI recognition,
+  WAI suspension and wake-up, and the public interface are chapter-owned too.
+  Its model contracts and hardware guide live beside the formal definitions;
+  no handwritten 6800 implementation remains.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
 
 This is an authoring-language prototype over the existing
 [instruction representation](instruction-semantics.md), with a deliberately
-small vocabulary. It now describes complete instruction-level 8008, 8080, and 6502 models;
+small vocabulary. It now describes complete instruction-level 8008, 8080, 6502, and 6800 models;
 other execution architectures still need language and runtime support.
 Current counts and milestone evidence belong in the
 [coverage report](coverage.md#literate-authoring-milestone).
@@ -268,14 +270,16 @@ instructions supplied by an acknowledgement callback. The
 adds enable/deferral recognition and an instruction-local retirement request.
 The [6502](../../src/components/cpus/specifications/6502.md#reset-and-instruction-boundaries)
 adds memory-only execution with no halt state, reset bus reads, and named external
-entries. Each chapter has one `execution` block per chapter. Fields below are required except the
+entries. The [6800](../../src/components/cpus/specifications/6800.md#reset-and-instruction-boundaries)
+reuses vector execution with a waiting latch and chapter-defined frame reuse
+on wake-up. Each chapter has one `execution` block. Fields below are required except the
 callback-validation policy; references must name earlier declarations.
 
 | Field | Contract |
 | --- | --- |
 | `memory 14` | Exact RAM size is 2 to this power; supported widths are 1–16 bits. Memory is checked before initial-state getters are read. |
 | `counter PC write setPC` | Read the named state view and write through an action with one 16-bit input. The view must fit the memory width. Sequential arithmetic wraps at 16 bits; the writer may impose a narrower wrap. |
-| `stopped STOPPED` | Read this latch before an ordinary step; a set latch returns a halted record without fetching. Read it again after successful execution to select the outcome. `stopped none` instead declares no halted outcome for vector execution. |
+| `stopped STOPPED` | Read this latch before an ordinary step; a set latch returns a halted record without fetching. Read it again after successful execution to select the outcome. `stopped none` instead declares no stopped outcome for vector execution; `stopped WAITING as waiting` selects waiting records for that runtime. |
 | `word little` | Supply a little-endian `fetchWord`; `big` supplies high-byte-first fetching. Explicit byte fetches in instruction bodies retain their own order. |
 | `opcode advance on dispatch` | Advance the captured initial PC by one only if an opcode handler exists. `on read` advances after the successful read, before lookup, including undefined opcodes. |
 | `operand advance after read` | Fetch from live PC, then advance the captured address by one only after the read succeeds. This is the only supported operand-advance policy. |
@@ -325,14 +329,23 @@ memory access. Source names must be unique; an empty catalogue is rejected.
 
 The [vector runtime](../../src/components/cpus/vector-execution.ts) reuses the
 same byte fetch/dispatch engine, recorder, and reentrancy guard as other models.
-Its current contract requires `stopped none`, `retire none`, and memory-only
-instruction bodies. These limits are checked even inside hidden sources and
+Its current contract requires `stopped none` or `stopped LATCH as waiting`,
+`retire none`, and memory-only instruction bodies. These limits are checked even inside hidden sources and
 untaken branches. Reset/entry actions cannot fetch or use ports. No processor
 name, vector, stack convention, or mask bit is built into the runtime.
 
+A waiting policy checks its latch before fetching and after successful execution.
+An already waiting step has `instruction: null` and no accesses; an instruction
+that sets the latch retains its fetched instruction and accesses in the waiting
+record. The runtime does not clear the latch when accepting an interrupt. Wake-up
+effects and saved-frame reuse belong to the entry action; masked offers preserve
+waiting. Without this policy, the generated step type has no waiting outcome.
+`as waiting` requires a declared latch and vector delivery; it cannot be combined
+with `stopped none` or the supplied-instruction contract.
+
 Unknown fields, duplicate or missing policies, wrong references or action
 signatures, and opcodes wider than a byte fail at Markdown locations. Priority
-arbitration, prefixes, segmented fetches, and wait states remain outside these
+arbitration, prefixes, segmented fetches, and bus wait cycles remain outside these
 execution contracts. Further CPUs should supply evidence before extending them.
 
 ### Public interfaces
@@ -674,7 +687,7 @@ Shared runtime services enforce the declared execution contract. Chapters
 without owned state validate declarations against an external schema; most
 other instruction families remain authored in TypeScript.
 
-The four chapters now exercise contrasting widths, ordered effects, and
+The five chapters now exercise contrasting widths, ordered effects, and
 interrupt-recognition policies. The 6502 now owns its complete state, status
 view/restoration, and all 151 documented instruction forms. Existing selector/source
 bindings express its irregular index-load/store encodings and cross-indexing.
@@ -697,6 +710,9 @@ stack/control, and status instructions, its generated public interface, and
 the full model contract. Both CPUs have zero handwritten implementation.
 The 6502 now supplies that different execution architecture: reset and interrupt
 vector reads, masked named entry, no acknowledgement stream, and no halted state.
+The 6800 reuses that boundary with explicit WAI waiting and wake-up rules. Its
+reset, stack frame, and vector actions remain visible in the chapter; its public
+class and records are generated without a handwritten adapter.
 A differently named test CPU already exercises different storage, address width, views, and
 actions through the same compiler and runtime. This is evidence for the current
 contract, not proof that it covers the remaining architectures. Each further
@@ -708,6 +724,7 @@ estimate of the work remaining toward that goal.
 The [6502 language tests](../../tests/components/cpus/semantics/literate.test.ts),
 [6502 control/stack chapter tests](../../tests/components/cpus/semantics/literate-6502-control.test.ts),
 [6502 lifecycle chapter tests](../../tests/components/cpus/semantics/literate-6502-lifecycle.test.ts),
+[6800 lifecycle chapter tests](../../tests/components/cpus/semantics/literate-6800-lifecycle.test.ts),
 [state-authoring tests](../../tests/components/cpus/semantics/literate-state.test.ts),
 [8008 transfer tests](../../tests/components/cpus/semantics/literate-8008.test.ts),
 [8008 arithmetic language tests](../../tests/components/cpus/semantics/literate-8008-arithmetic.test.ts),

@@ -1,4 +1,4 @@
-import type { Cpu6800State } from "../../src/components/cpus/state/6800.js";
+import type { Cpu6800State } from "../../src/components/cpus/semantics/generated/state/6800.js";
 import type { ByteInstructionContext } from "../../src/components/cpus/instruction-context.js";
 import type { ByteMemory } from "../../src/components/cpus/memory-access.js";
 

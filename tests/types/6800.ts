@@ -1,5 +1,5 @@
-import { Cpu6800 } from "../../src/components/cpus/6800.js";
-import type { Cpu6800State, Cpu6800Snapshot, Cpu6800StepRecord, Cpu6800ResetRecord, Cpu6800InterruptRecord } from "../../src/components/cpus/6800.js";
+import { Cpu6800 } from "../../src/components/cpus/generated/6800-cpu.js";
+import type { Cpu6800State, Cpu6800Snapshot, Cpu6800StepRecord, Cpu6800ResetRecord, Cpu6800InterruptRecord } from "../../src/components/cpus/generated/6800-cpu.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { create6800Example } from "../../src/machines/generated/6800/example.js";
 import { create6800StackExample } from "../../src/machines/generated/6800/stack-example.js";

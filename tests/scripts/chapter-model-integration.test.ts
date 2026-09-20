@@ -22,7 +22,7 @@ test("6800 chapter state and condition-code edits reach the public core, machine
   const machine = readFileSync("src/machines/6800/example.machine", "utf8");
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
-    import { Cpu6800, cpu6800StateDescription } from ${url("src/components/cpus/6800.ts")};
+    import { Cpu6800, cpu6800StateDescription } from ${url("src/components/cpus/generated/6800-cpu.ts")};
     import { parseMachine } from ${url("src/machines/machine-language.ts")};
     const text = ${JSON.stringify(machine)};
     assert.equal(cpu6800StateDescription.scratch.bits, 8);

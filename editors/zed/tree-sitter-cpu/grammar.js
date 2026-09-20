@@ -90,7 +90,7 @@ module.exports = grammar({
     )), '}'),
     memory_policy: $ => seq('memory', $.number),
     counter_policy: $ => seq('counter', $._state_name, 'write', $.identifier),
-    stopped_policy: $ => seq('stopped', choice('none', $._state_name)),
+    stopped_policy: $ => seq('stopped', choice('none', seq($._state_name, optional(seq('as', 'waiting'))))),
     word_policy: _ => seq('word', choice('little', 'big')),
     opcode_policy: _ => seq('opcode', 'advance', 'on', choice('dispatch', 'read')),
     operand_policy: _ => seq('operand', 'advance', 'after', 'read'),

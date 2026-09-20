@@ -23,7 +23,7 @@ readable documentation and implementation source. Typed definitions and code
 generation provide a working foundation. The first
 [literate chapter](cpus/literate-specifications.md) now compiles Markdown `cpu`
 fences into that representation, with diagnostics tied to the document.
-The 8008, 8080, and 6502 now have complete descriptions at their declared instruction-level
+The 8008, 8080, 6502, and 6800 now have complete descriptions at their declared instruction-level
 fidelity, including state, lifecycle policies, and generated public APIs.
 Their chapters are the sole processor-specific implementation sources. Generalizing whole-CPU
 authoring across the other architectures remains active work.
@@ -221,16 +221,17 @@ models, variants, and machine compositions can still require revisions.
 The 8008 and 8080 bind chapter-defined state and execution policies to shared
 [byte execution](../src/components/cpus/byte-execution.ts). The 8080 chapter
 selects interrupt recognition and EI retirement and defines its complete
-instruction inventory. The 6502 selects [named vector entry](../src/components/cpus/vector-execution.ts),
-with reset bus reads, mask decisions, and stacking defined in its chapter. Both
+instruction inventory. The 6502 and 6800 select [named vector entry](../src/components/cpus/vector-execution.ts),
+with reset bus reads, mask decisions, and stacking defined in their chapters.
+The 6800 also declares WAI suspension and frame reuse on wake-up. Both
 execution paths reuse byte fetch/dispatch and recording, with distinct interrupt
 APIs and record types. The Z80 retains
 its [8080-family base](../src/components/cpus/8080-family.ts), additional
 instructions, and prefix decoding. Paired programs expose common encodings
 alongside their different flag semantics.
-The 6800 and 6809 share definition construction for accumulator operations,
-transfers, and control flow while retaining their distinct addressing and stack
-rules. Shared arithmetic, status, memory, and stack construction also serves
+The 6800 chapter and 6809 TypeScript definitions express accumulator operations,
+transfers, and control flow through the same instruction representation, retaining
+their distinct addressing and stack rules. Shared arithmetic, status, memory, and stack construction also serves
 other CPUs where their effect sequences agree. Reuse follows those relationships
 and explicit CPU policies rather than requiring a common inheritance hierarchy.
 

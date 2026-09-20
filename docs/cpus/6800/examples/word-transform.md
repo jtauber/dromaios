@@ -4,7 +4,7 @@ Arithmetic-shift a signed 16-bit word right once, then negate it. The initial
 word `FF81` (−127) becomes `FFC0` (−64), then `0040` (+64). This demonstrates
 word operations composed from byte shifts, rotates, complements, and increments.
 
-[Model contract](../model.md#unary-operations) ·
+[Model contract](../../../../src/components/cpus/specifications/6800.md#unary-byte-operations) ·
 [Example definition](../../../../src/machines/6800/word-transform-example.machine) ·
 [Example tests](../../../../tests/machines/6800/word-transform-example.test.ts) ·
 [CPU coverage](../../coverage.md#6800)

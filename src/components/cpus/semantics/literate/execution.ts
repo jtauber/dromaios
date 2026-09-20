@@ -10,7 +10,6 @@ export interface ExecutionBase {
   readonly memoryBits: number;
   readonly counter: string;
   readonly writeCounter: string;
-  readonly stopped?: string;
   readonly word: "little" | "big";
   readonly opcodeAdvance: "dispatch" | "read";
   readonly reset: string;
@@ -30,6 +29,7 @@ export interface SuppliedExecution extends ExecutionBase {
 
 export interface VectorExecution extends ExecutionBase {
   readonly interrupt: "vectors";
+  readonly waiting?: string;
   readonly entries: readonly VectorEntry[];
 }
 export type ChapterExecution = SuppliedExecution | VectorExecution;
@@ -100,7 +100,13 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
   const view = symbols.views.get(counter) ?? pc.fail(`Unknown state view ${counter}.`);
   if (view.width > memoryBits) pc.fail("The counter view must fit the memory address width.");
   pc.expect("write"); const writeCounter = action(pc, 16); pc.end();
-  const stop = required("stopped"), stopped = stop.take("none") ? undefined : stop.lookup(symbols.latches).field; stop.end();
+  const stop = required("stopped"), stopped = stop.take("none") ? undefined : stop.lookup(symbols.latches).field;
+  const waiting = stop.take("as");
+  if (waiting) {
+    stop.expect("waiting");
+    if (stopped === undefined) stop.fail("A waiting outcome requires a stopped latch.");
+  }
+  stop.end();
   const order = required("word"), word = choice(order, ["little", "big"]); order.end();
   const opcode = required("opcode"); opcode.expect("advance"); opcode.expect("on");
   const opcodeAdvance = choice(opcode, ["dispatch", "read"]); opcode.end();
@@ -115,15 +121,16 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
   } else if (!retireAt.take("none")) { retireAt.expect("action"); retire = action(retireAt); }
   retireAt.end();
   required("interrupt");
-  const common = { memoryBits, counter, writeCounter, stopped, word, opcodeAdvance, reset, resetMemory,
+  const common = { memoryBits, counter, writeCounter, word, opcodeAdvance, reset, resetMemory,
     ...(retire === undefined ? {} : { retire }), ...(retireDeferral === undefined ? {} : { retireDeferral }) };
   if (vectorLines !== undefined) {
-    if (stopped !== undefined) stop.fail("Vector execution currently requires stopped none.");
+    if (stopped !== undefined && !waiting) stop.fail("Vector execution requires stopped none or a latch declared as waiting.");
     if (retire !== undefined || retireDeferral !== undefined) retireAt.fail("Vector execution currently requires retire none.");
     const entries = chapterVectorEntries(header, vectorLines, symbols);
     for (const [name, tokens] of fields) tokens.fail(`Unknown execution field ${name}.`);
-    return { ...common, interrupt: "vectors", entries };
+    return { ...common, interrupt: "vectors", entries, ...(waiting ? { waiting: stopped } : {}) };
   }
+  if (waiting) stop.fail("A waiting outcome requires vector interrupts.");
   const stoppedLatch = stopped ?? stop.fail("Supplied-instruction execution requires a stopped latch.");
   const accept = required("interrupt.accept");
   let interruptEnable: string | undefined, interruptDefer: string | undefined;

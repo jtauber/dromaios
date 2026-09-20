@@ -6,7 +6,7 @@ JSR, records the saved return-address location with TSX/STX, and captures
 the decimal flags with TPA. The caller verifies the pointer with CPX before
 jumping to its completion address.
 
-[Model contract](../model.md#decimal-adjustment) ·
+[Model contract](../../../../src/components/cpus/specifications/6800.md#decimal-adjustment) ·
 [Coverage](../../coverage.md#6800) ·
 [Machine definition](../../../../src/machines/6800/decimal-example.machine) ·
 [Example tests](../../../../tests/machines/6800/decimal-example.test.ts) ·

@@ -5,7 +5,7 @@ RAM. It uses the same instruction bytes as the
 [6809 counted loop](../../6809/examples/counted-loop.md), with the 6800's own
 register state and reset contract.
 
-[Model contract](../model.md#accumulator-operations-and-short-branches) ·
+[Model contract](../../../../src/components/cpus/specifications/6800.md#branches-and-jumps) ·
 [Example definition](../../../../src/machines/6800/counted-loop-example.machine) ·
 [Example tests](../../../../tests/machines/6800/counted-loop-example.test.ts) ·
 [CPU coverage](../../coverage.md#6800)
@@ -36,7 +36,7 @@ The destination `0080` and completion address `020C` start at zero.
 | H, I, N, Z, V, C | `1`, `0`, `1`, `1`, `1`, `1` |
 
 These are explicit example choices. Register and branch behavior follows the
-[model contract](../model.md#accumulator-operations-and-short-branches) and
+[model contract](../../../../src/components/cpus/specifications/6800.md#branches-and-jumps) and
 Motorola's [M6800 Programming Reference Manual, Appendix A](https://manualzz.com/doc/1063126/motorola-m6800-microprocessor-programming-reference-manual).
 
 `create6800CountedLoopExample()` returns fresh `{ cpu, ram, endAddress }`, with
@@ -82,7 +82,7 @@ A four-step budget pauses at `0207`, immediately before the first BNE, with
 A = `05` and B = `02`. A further eight steps complete the program; the
 concatenated records match an uninterrupted run.
 
-Reset follows the [6800 reset contract](../model.md#cpu-reset): read the current
+Reset follows the [6800 reset contract](../../../../src/components/cpus/specifications/6800.md#cpu-reset): read the current
 vector, set PC to `0200`, and set I. A/B/X/SP, other flags, and RAM retain their
 final values. The setup instructions execute again when resumed. Restarting
 through the factory creates fresh components with the original explicit state

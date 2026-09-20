@@ -5,7 +5,7 @@ import { instructions } from "../../../../src/components/cpus/generated/6502.js"
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as motorola } from "../../../../src/components/cpus/generated/6809.js";
 import { instructions as motorola6800 } from "../../../../src/components/cpus/generated/6800.js";
-import type { Cpu6800State } from "../../../../src/components/cpus/state/6800.js";
+import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6502State } from "../../../../src/components/cpus/semantics/generated/state/6502.js";

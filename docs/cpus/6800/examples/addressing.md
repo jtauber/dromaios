@@ -6,7 +6,7 @@ It combines immediate, direct, indexed, and extended operands, then tests and
 masks the results. X remains `FF80`, so unsigned indexed offsets `FF` and `FE`
 wrap to `007F` and `007E`.
 
-[Model contract](../model.md#addressing) ·
+[Model contract](../../../../src/components/cpus/specifications/6800.md#addressing-and-operand-selection) ·
 [Example definition](../../../../src/machines/6800/addressing-example.machine) ·
 [Example tests](../../../../tests/machines/6800/addressing-example.test.ts) ·
 [CPU coverage](../../coverage.md#6800)
@@ -107,5 +107,5 @@ so the fallback at `0225` executes and the run takes 20 steps. Final A/B are
 `007F=00`, `0301=13`, `0303=00`, and `007E=FF`.
 
 Instruction semantics follow the Motorola references in the
-[model contract](../model.md); the values and complete trace above are
+[model contract](../../../../src/components/cpus/specifications/6800.md); the values and complete trace above are
 independent acceptance expectations for this example.

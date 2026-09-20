@@ -2,13 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions as mos } from "../../../../src/components/cpus/generated/6502.js";
 import { instructions as mosEntry } from "../../../../src/components/cpus/generated/6502-state.js";
+import { instructions as actions6800 } from "../../../../src/components/cpus/generated/6800-state.js";
 import { instructions as m6800 } from "../../../../src/components/cpus/generated/6800.js";
 import { instructions as m6809 } from "../../../../src/components/cpus/generated/6809.js";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as z80 } from "../../../../src/components/cpus/generated/z80.js";
 import { instructions6502, instructions6800, instructions6809, instructions8080, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
 import type { Cpu6502State } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
-import type { Cpu6800State } from "../../../../src/components/cpus/state/6800.js";
+import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu8080State } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
 import type { CpuZ80State } from "../../../../src/components/cpus/state/z80.js";
@@ -66,7 +67,7 @@ const m6800Cases: Case<Cpu6800State>[] = [
     s.flags = unpack(pop(), m6800Bits); s.b = pop(); s.a = pop(); s.x = popWord(); s.pc = popWord();
   } },
   ...[0xfff8, 0xfffc].map(vector => ({ name: "external " + vector,
-    actual: (s: Cpu6800State, c: Context) => m6800.enterInterrupt(s, vector, c), reference: (s: Cpu6800State, c: Context) => enter6800(s, c, vector) })),
+    actual: (s: Cpu6800State, c: Context) => actions6800.enterInterrupt(s, vector, c), reference: (s: Cpu6800State, c: Context) => enter6800(s, c, vector) })),
 ];
 function save6809(s: Cpu6809State, c: Context) {
   s.flags.e = true;
