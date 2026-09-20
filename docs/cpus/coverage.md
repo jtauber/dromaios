@@ -16,16 +16,16 @@ emulators do not count toward implementation here.
 
 ## At a glance
 
-| Model | Introduced | Transistors (approx.) | Handwritten CPU core lines | Literate / documented forms | Literate instruction coverage | [Literate model milestones](#literate-model-milestones) |
-| --- | --- | ---: | ---: | --- | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [0](../../src/components/cpus/specifications/8008.md) | 250 / 250 | 100% | 6 / 6 |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [197](../../src/components/cpus/8080.ts) | 0 / 244 | 0% | 0 / 6 |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [213](../../src/components/cpus/6800.ts) | 0 / 197 | 0% | 0 / 6 |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | 15 / 151 | 9.9% | 0 / 6 |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 0 / 698 | 0% | 0 / 6 |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 0 / 268 | 0% | 0 / 6 |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [522](../../src/components/cpus/8088.ts) | 0 / 291 | 0% | 0 / 6 |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [604](../../src/components/cpus/68000.ts) | 192 / 36,029 | 0.5% | 0 / 6 |
+| Model | Introduced | Transistors (approx.) | Handwritten CPU core lines | Literate spec lines | `cpu` fence lines | Literate / documented forms | Literate instruction coverage | [Literate model milestones](#literate-model-milestones) |
+| --- | --- | ---: | ---: | ---: | ---: | --- | --- | --- |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [0](../../src/components/cpus/specifications/8008.md) | [1,422](../../src/components/cpus/specifications/8008.md) | 341 | 250 / 250 | 100% | 6 / 6 |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [197](../../src/components/cpus/8080.ts) | 0 | 0 | 0 / 244 | 0% | 0 / 6 |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [213](../../src/components/cpus/6800.ts) | 0 | 0 | 0 / 197 | 0% | 0 / 6 |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | [184](../../src/components/cpus/specifications/6502-load-store.md) | 83 | 15 / 151 | 9.9% | 0 / 6 |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 0 | 0 | 0 / 698 | 0% | 0 / 6 |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 0 | 0 | 0 / 268 | 0% | 0 / 6 |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [522](../../src/components/cpus/8088.ts) | 0 | 0 | 0 / 291 | 0% | 0 / 6 |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [604](../../src/components/cpus/68000.ts) | [154](../../src/components/cpus/specifications/68000-word-transfers.md) | 70 | 192 / 36,029 | 0.5% | 0 / 6 |
 
 **Literate instruction coverage** measures documented opcode forms authored in
 executable chapters. This percentage alone does not measure the wider CPU
@@ -37,6 +37,14 @@ the six criteria below. The 8008 is at **6 / 6**: instructions, stored state,
 register views, reset effects, normal execution, and external events. Its
 execution migration advanced this count from **4 / 6 to 6 / 6**, while
 instruction coverage stayed at 100%.
+
+**Literate spec lines** count whole Markdown chapters under
+`src/components/cpus/specifications/`, including prose, diagrams, formal blocks,
+and fence markers, using `wc -l`. **`cpu` fence lines** count just the bodies of
+executable `cpu` fences, excluding their opening and closing markers. Both counts
+include comments and blank lines and are summed across a CPU's chapters. CPUs
+without a chapter have zero in both columns; partial chapters contribute their
+current lines.
 
 **Handwritten CPU core lines** count the entire maintained `<cpu>.ts` file,
 including comments and blank lines, using `wc -l`. State schemas, instruction

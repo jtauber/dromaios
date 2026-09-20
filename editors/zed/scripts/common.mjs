@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const extension = fileURLToPath(new URL('../', import.meta.url));
-export const grammar = resolve(extension, 'tree-sitter-machine');
+export const languages = ['machine', 'cpu'];
 export const build = resolve(extension, '.build');
 export const repository = resolve(extension, '../..');
 const executable = resolve(extension, 'node_modules/tree-sitter-cli',
@@ -19,14 +19,15 @@ writeFileSync(config, JSON.stringify({
   // we test so HTML output reflects all captures supported by Zed themes.
   theme: Object.fromEntries([
     'keyword', 'type', 'property', 'variable', 'number', 'boolean', 'constant',
-    'comment', 'operator', 'punctuation.bracket',
+    'comment', 'operator', 'punctuation.bracket', 'punctuation.delimiter',
+    'string', 'string.escape', 'function',
   ].map(name => [name, 7])),
 }));
 export const configArgs = ['--config-path', config];
 
-export function treeSitter(args, { capture = false } = {}) {
+export function treeSitter(language, args, { capture = false } = {}) {
   const result = spawnSync(executable, args, {
-    cwd: grammar,
+    cwd: resolve(extension, `tree-sitter-${language}`),
     env: { ...process.env, XDG_CACHE_HOME: process.env.XDG_CACHE_HOME ?? resolve(build, 'cache') },
     encoding: 'utf8',
     stdio: capture ? 'pipe' : 'inherit',

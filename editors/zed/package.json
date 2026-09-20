@@ -2,11 +2,11 @@
   "name": "dromaios-zed",
   "version": "0.1.0",
   "private": true,
-  "description": "Machine language grammar and local Zed extension for Dromaios",
+  "description": "Machine and literate CPU language grammars for the local Dromaios Zed extension",
   "license": "MIT",
   "engines": { "node": "24.x" },
   "scripts": {
-    "generate": "cd tree-sitter-machine && tree-sitter generate --abi 14",
+    "generate": "node scripts/generate.mjs",
     "test": "npm run generate && node scripts/test.mjs",
     "build": "npm run generate && node scripts/build.mjs",
     "install:local": "node scripts/install.mjs"

@@ -1,0 +1,80 @@
+cpu "8008"
+state {
+  register A: 8
+  flag C
+  array ADDRESS: 14[8] = addressStack
+  latch STOPPED = halted
+}
+view PC "PC and \"quoted\" // text": 14 {
+  slot = register SELECTOR
+  address = array ADDRESS[slot]
+  return address
+}
+action reset "reset" {
+  ADDRESS[] <- u14($0000)
+  STOPPED <- 1
+}
+policy ALU "carry" (result: 8, carry: flag) {
+  C = carry
+}
+operands bytes {
+  000 "A" = register A
+  001 "M" = memory throughHL
+}
+codes vectors: 14 {
+  000 "00" = $00
+}
+conditions branches {
+  000 "FC" = flag C = 0
+}
+family transfer "11 ddd sss" for d in bytes, s in bytes named "L{d}{s}" except "11 111 111" {
+  source = operand s
+  operand d <- source // This remains a comment: $FF "text"
+}
+family AD {
+  encoding "10 000 sss" for s in bytes.read named "AD{s}"
+  encoding "00 000 100" with s = immediateByte named "ADI byte"
+  right = source s
+  carry = flag C
+  left = register A
+  result = add(left, right, carry)
+  apply ALU(result, carry(left, right, carry))
+  A <- result
+}
+family conditional "01 ccc 000" for c in branches {
+  when test c {
+    when not(zero(address)) {
+      ADDRESS[slot] <- truncate(address, 14)
+    }
+  }
+}
+family load "0011 ddd 000 010 rrr" for d in dataRegisters, r in addressRegisters {
+  code = operand r
+  address = resolve(16, u3(2), code)
+  fault alignment read(address) if lowBit(address)
+  high = memory(address)
+  low = port(u16($08))
+  commit addresses
+  memory(address) <- high
+  port(address) <- low
+}
+execution {
+  memory 14
+  counter PC write setPC
+  stopped STOPPED
+  word little
+  opcode advance on dispatch
+  operand advance after read
+  failure retain
+  reset action reset
+  retire none
+  interrupt {
+    accept always with resume
+    bytes acknowledge
+    counter preserve
+    unknown retain
+  }
+}
+interface Cpu8008 "Public interface" {
+  snapshot pc = PC
+}

@@ -1,7 +1,7 @@
 import { existsSync, lstatSync, mkdirSync, realpathSync, symlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
-import { build } from './common.mjs';
+import { build, languages } from './common.mjs';
 
 // An explicit data directory also allows testing with zed --user-data-dir.
 const args = process.argv.slice(2);
@@ -16,7 +16,7 @@ const defaultDataDirectory = process.platform === 'darwin'
 const dataDirectory = args[1] ?? defaultDataDirectory;
 if (!dataDirectory) throw new Error('Supply Zed\'s data directory with --data-dir PATH on this platform.');
 const source = resolve(build, 'extension');
-if (!existsSync(resolve(source, 'grammars/dromaios_machine.wasm'))) {
+if (!languages.every(language => existsSync(resolve(source, `grammars/dromaios_${language}.wasm`)))) {
   throw new Error('Build the extension first with npm run build.');
 }
 const installed = resolve(dataDirectory, 'extensions/installed');

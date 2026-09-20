@@ -1,0 +1,20 @@
+{
+  "grammars": [
+    {
+      "name": "dromaios_cpu",
+      "camelcase": "DromaiosCpu",
+      "scope": "source.dromaios-cpu",
+      "path": ".",
+      "file-types": ["cpu"],
+      "injection-regex": "^cpu$",
+      "highlights": "../languages/cpu/highlights.scm"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "Dromaios executable CPU specifications",
+    "authors": [{ "name": "James Tauber" }],
+    "links": { "repository": "https://github.com/jtauber/dromaios" }
+  }
+}

@@ -1,0 +1,171 @@
+==================
+State declarations and mapped arrays
+==================
+cpu "8008"
+state {
+  register A: 8
+  flag C
+  latch STOPPED = halted
+  array ADDRESS: 14[8] = addressStack
+}
+---
+(source_file
+  (cpu_declaration (string (string_content)))
+  (state_declaration
+    (register_declaration (state_identifier) (number))
+    (flag_declaration (state_identifier))
+    (flag_declaration (state_identifier) (field_mapping (identifier)))
+    (array_declaration (state_identifier) (number) (number) (field_mapping (identifier)))))
+
+==================
+Independent fence with nested expressions and keyword-like captures
+==================
+source next "capture // is not a comment" : 16 {
+  source = fetch
+  carry = flag C
+  return extend(add(source, u8($FF), carry), 16)
+}
+---
+(source_file
+  (source_declaration
+    (identifier) (string (string_content)) (number)
+    (body
+      (capture (identifier))
+      (capture (identifier) (state_read (state_identifier)))
+      (return_statement
+        (call (identifier)
+          (arguments
+            (call (identifier)
+              (arguments (identifier) (call (identifier) (arguments (number))) (identifier)))
+            (number)))))))
+
+==================
+Aliases, selectors, exclusions, and ordered memory effects
+==================
+family store "0011 ddd 010 000 rrr" for d in modes.address, r in bytes named "MOVE {r},{d}" except "0011 111 010 000 111" {
+  source = operand r
+  address = resolve(16, u3(2), source)
+  fault alignment write(address) if lowBit(address)
+  commit addresses
+  memory(address) <- highByte(source)
+}
+---
+(source_file
+  (family_declaration
+    (identifier) (string (string_content))
+    (selector (identifier) (identifier) (identifier))
+    (selector (identifier) (identifier))
+    (string (string_content)) (string (string_content))
+    (body
+      (capture (identifier) (operand_read (identifier)))
+      (capture (identifier) (call (identifier) (arguments (number) (call (identifier) (arguments (number))) (identifier))))
+      (fault_statement (identifier) (call (identifier) (arguments (identifier))))
+      (commit_statement)
+      (write (memory_target (identifier)) (call (identifier) (arguments (identifier)))))))
+
+==================
+Multiple encodings and nested conditional effects
+==================
+family AD {
+  encoding "10 000 sss" for s in bytes.read
+  encoding "00 000 100" with s = immediateByte named "ADI"
+  result = source s
+  when test c {
+    when not(zero(result)) {
+      A <- result
+      ADDRESS[] <- u14($0)
+      ADDRESS[slot] <- result
+    }
+  }
+}
+---
+(source_file
+  (family_declaration
+    (identifier)
+    (encoding_declaration (string (string_content)) (selector (identifier) (identifier) (identifier)))
+    (encoding_declaration (string (string_content)) (source_binding (identifier) (identifier)) (string (string_content)))
+    (capture (identifier) (source_read (identifier)))
+    (when_statement (identifier)
+      (body
+        (when_statement
+          (call (identifier) (arguments (call (identifier) (arguments (identifier)))))
+          (body
+            (write (state_identifier) (identifier))
+            (write (array_target (state_identifier)) (call (identifier) (arguments (number))))
+            (write (array_target (state_identifier) (identifier)) (identifier))))))))
+
+==================
+Execution policies and public interface
+==================
+execution {
+  memory 14
+  counter PC write setPC
+  stopped STOPPED
+  word big
+  opcode advance on read
+  operand advance after read
+  failure retain
+  reset action reset
+  retire action tick
+  interrupt {
+    accept always with resume
+    bytes acknowledge
+    counter advance
+    unknown retain
+  }
+}
+interface CpuTest "\"quoted\" \u0041" {
+  snapshot pc = PC
+}
+---
+(source_file
+  (execution_declaration
+    (memory_policy (number))
+    (counter_policy (state_identifier) (identifier))
+    (stopped_policy (state_identifier))
+    (word_policy) (opcode_policy) (operand_policy) (failure_policy)
+    (action_policy (identifier)) (action_policy (identifier))
+    (interrupt_policy
+      (accept_policy (identifier)) (bytes_policy) (interrupt_counter_policy) (unknown_policy)))
+  (interface_declaration
+    (identifier)
+    (string (escape_sequence) (string_content) (escape_sequence) (string_content) (escape_sequence))
+    (snapshot_declaration (identifier) (state_identifier))))
+
+==================
+Descriptions keep comment markers after escapes inside the string
+==================
+view PC "PC and \"quoted\" // text": 14 {
+  slot = register SELECTOR
+  address = array ADDRESS[slot]
+  return address
+}
+action reset "reset" {
+  ADDRESS[] <- u14($0000)
+}
+---
+(source_file
+  (source_declaration
+    (identifier)
+    (string (string_content) (escape_sequence) (string_content) (escape_sequence) (string_content))
+    (number)
+    (body
+      (capture (identifier) (state_read (state_identifier)))
+      (capture (identifier) (array_read (state_identifier) (identifier)))
+      (return_statement (identifier))))
+  (action_declaration
+    (identifier) (string (string_content))
+    (body
+      (write (array_target (state_identifier)) (call (identifier) (arguments (number)))))))
+
+==================
+Incomplete declaration still retains structure
+==================
+state {
+  register A: 8 // still editing
+---
+(source_file
+  (state_declaration
+    (register_declaration (state_identifier) (number))
+    (comment)
+    (MISSING "}")))

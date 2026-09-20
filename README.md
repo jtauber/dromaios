@@ -114,8 +114,9 @@ Add `--check` to check freshness without writing; the full test suite also
 checks this listing, but the build does not refresh it.
 
 Optional [Zed language support](editors/zed/README.md) adds syntax highlighting
-and bracket matching for `.machine` files. Its build and tests use a separate,
-locked editor toolchain; the simulation workflow above stays independent.
+and bracket matching for `.machine` files and literate `cpu` fences (or `.cpu`
+snippets). Its build and tests use a separate, locked editor toolchain; the
+simulation workflow above stays independent.
 
 For focused checks, select a CPU and optionally filter test names:
 

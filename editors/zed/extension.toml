@@ -3,9 +3,9 @@ name = "Dromaios"
 version = "0.1.0"
 schema_version = 1
 authors = ["James Tauber"]
-description = "Syntax highlighting for Dromaios machine definitions"
+description = "Syntax highlighting for Dromaios machine definitions and literate CPU specifications"
 repository = "https://github.com/jtauber/dromaios"
-languages = ["languages/machine"]
+languages = ["languages/machine", "languages/cpu"]
 
 # Local installation uses the prebuilt grammar from npm run build. Publishing
 # through Zed's registry would additionally need committed parser sources and
@@ -15,3 +15,8 @@ languages = ["languages/machine"]
 repository = "https://github.com/jtauber/dromaios"
 rev = "main"
 path = "editors/zed/tree-sitter-machine"
+
+[grammars.dromaios_cpu]
+repository = "https://github.com/jtauber/dromaios"
+rev = "main"
+path = "editors/zed/tree-sitter-cpu"

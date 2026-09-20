@@ -112,7 +112,7 @@ test("formal edits change PC selection, HL order, PC writes, and reset without c
 
 const invalid: readonly [string, string, string, RegExp][] = [
   ["wrong result width", 'counter": 14', 'counter": 16', /source result width/],
-  ["missing return", "return address", "address = u14(0)", /end with return/],
+  ["missing return", "\n  return address\n", "\n  address = u14(0)\n", /end with return/],
   ["lowercase view", "view PC", "view pc", /View names must be uppercase/],
   ["stored name collision", "view PC", "view A", /Duplicate declaration A/],
   ["view write", "  return address", "  SELECTOR <- u3(0)\n  return address", /Views may only read/],

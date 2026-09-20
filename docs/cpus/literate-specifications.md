@@ -49,6 +49,9 @@ lines, without inserting a paragraph break. Other prose and other fenced code
 are not executable. Opening backtick or tilde fences must be unindented;
 block quotes and indented code, including fences inside lists, are not executed.
 
+The optional [Zed extension](../../editors/zed/README.md) highlights the `cpu`
+fences alongside the surrounding Markdown, and also supports `.cpu` snippets.
+
 The build discovers Markdown files directly under `specifications/` in filename
 order and takes each model's identity from its `cpu` declaration. CPU identifiers
 contain lowercase letters or digits. Complete chapters need no handwritten

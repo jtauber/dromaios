@@ -1,8 +1,8 @@
-tree-sitter-machine/src/
-tree-sitter-machine/*.dylib
-tree-sitter-machine/*.so
-tree-sitter-machine/*.dll
-tree-sitter-machine/*.wasm
-tree-sitter-machine/.cache/
+tree-sitter-*/src/
+tree-sitter-*/*.dylib
+tree-sitter-*/*.so
+tree-sitter-*/*.dll
+tree-sitter-*/*.wasm
+tree-sitter-*/.cache/
 grammars/
 .build/
