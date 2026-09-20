@@ -41,6 +41,39 @@ test("a partial 6502 chapter's state edits reach construction, snapshots, and ma
   assert.equal(result.status, 0, result.stderr);
 });
 
+test("the 6502 chapter's status view and mask policy drive both software and external entry", t => {
+  const directory = mkdtempSync(join(tmpdir(), "dromaios-6502-status-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  mkdirSync(join(directory, "scripts"));
+  for (const name of ["generate-cpu-chapters", "generate-cpu-semantics"]) {
+    cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
+  }
+  cpSync("src/components", join(directory, "src/components"), { recursive: true });
+  const chapter = join(directory, "src/components/cpus/specifications/6502.md");
+  const original = readFileSync(chapter, "utf8");
+  assert.ok(original.includes("return or(u8($20),")); assert.ok(original.includes("I = value"));
+  writeFileSync(chapter, original.replace("return or(u8($20),", "return or(u8($00),").replace("I = value", "I = not(value)"));
+  const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
+  assert.equal(generated.status, 0, generated.stderr);
+  const url = JSON.stringify(pathToFileURL(join(directory, "src/components/cpus/6502.ts")).href);
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { Cpu6502 } from ${url};
+    for (const source of ["PHP", "BRK", "irq", "nmi"]) {
+      const image = new Uint8Array(65536); image[0x200] = source === "PHP" ? 0x08 : 0;
+      const ram = { size: image.length, read: address => image[address], write: (address, byte) => { image[address] = byte; } };
+      const initial = { a: 0, x: 0, y: 0, pc: 0x200, sp: 0xff,
+        flags: { n: false, v: false, d: true, i: false, z: false, c: false } };
+      const cpu = new Cpu6502(ram, initial);
+      if (source === "PHP" || source === "BRK") cpu.step(); else cpu.interrupt(source);
+      assert.equal(image[source === "PHP" ? 0x1ff : 0x1fd], source === "PHP" || source === "BRK" ? 0x18 : 0x08);
+      assert.equal(cpu.snapshot().flags.i, false);
+      assert.equal(cpu.snapshot().flags.d, true);
+    }
+  `], { cwd: tmpdir(), encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+});
+
 test("chapter edits drive machine schemas, RAM bounds, entry points, and automatic model registration", t => {
   const directory = mkdtempSync(join(tmpdir(), "dromaios-chapter-model-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));

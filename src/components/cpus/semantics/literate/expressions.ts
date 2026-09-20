@@ -1,6 +1,6 @@
 import { addOverflow, addWrap, and, or, xor, select, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
   flagValue, halfBorrow, halfCarry, highByte, isWidth, literal, lowBit, lowByte, negative, not, shiftLeft, shiftRight,
-  overflow, subtract, truncate, value, zero } from "../model.ts";
+  overflow, signExtend, subtract, truncate, value, zero } from "../model.ts";
 import type { FlagExpression, NumberExpression, Width } from "../model.ts";
 import type { ChapterTokens } from "./document.ts";
 
@@ -24,9 +24,10 @@ export function expression(tokens: ChapterTokens): NumberExpression {
     result = select(condition, yes, expression(tokens));
   } else if (name === "highByte" || name === "lowByte") {
     result = (name === "highByte" ? highByte : lowByte)(expression(tokens));
-  } else if (name === "extend" || name === "truncate") {
+  } else if (["extend", "signExtend", "truncate"].includes(name)) {
     const contents = expression(tokens); tokens.expect(",");
-    result = (name === "extend" ? extend : truncate)(contents, width(tokens));
+    const operations = { extend, signExtend, truncate };
+    result = operations[name as keyof typeof operations](contents, width(tokens));
   } else if (name === "shiftLeft" || name === "shiftRight") {
     const contents = expression(tokens); tokens.expect(",");
     result = (name === "shiftLeft" ? shiftLeft : shiftRight)(contents, flagExpression(tokens));

@@ -27,6 +27,8 @@ devices, and browser controls are unmodeled. External entry uses the explicit
 
 The [chapter's stored-state declaration](../../../src/components/cpus/specifications/6502.md#stored-state)
 generates the schema used by construction, snapshots, and machine parsing.
+The chapter also owns all instruction bodies and [status packing/restoration](../../../src/components/cpus/specifications/6502.md#status-as-a-byte).
+Reset, normal execution, and external interrupt orchestration remain TypeScript.
 `Cpu6502State` contains `a`, `x`, `y`, `sp`, `pc`, and `flags`.
 `Cpu6502Flags` contains booleans `n`, `v`, `d`, `i`, `z`, and `c`.
 I masks explicit IRQ offers, with the opposite sense to the 8080's
@@ -319,7 +321,8 @@ PC low, then PC high from the page-one stack, without adding one to PC.
 CLI (`58`) clears I; SEI (`78`) sets I. Both preserve all other state except
 the normal opcode-fetch PC increment.
 
-Entry shares one path with three explicit sources:
+Software and external entry follow the same frame convention, sharing the
+chapter's status view and I-update policy. They have three explicit sources:
 
 | Source | Saved PC | Stacked status | Vector low/high |
 | --- | --- | --- | --- |

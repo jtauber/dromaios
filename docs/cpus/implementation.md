@@ -110,8 +110,8 @@ type. For all eight CPUs, the schema and public types are exposed through
 CPU-owned modules under [`state/`](../../src/components/cpus/state), or generated
 schema modules for complete chapters, and are re-exported by the public CPU
 module. The 8008 and 8080 schemas and public types are generated from their chapters.
-The 6502's partial chapter also generates its complete schema; its state adapter
-re-exports that schema and retains the public type names and packed-status layout.
+The 6502 chapter also generates its complete schema and owns packed status; its
+state adapter only re-exports that schema and retains the public type names.
 The other five schemas remain authored TypeScript.
 This lets instruction generation load schemas without loading execution. The description
 owns stored field names, types, and constraints. The
@@ -215,7 +215,7 @@ pattern. Distinguish opcode bytes from prefixes and operand postbytes, and
 explain postbyte fields separately.
 
 For 6502 instructions, keep patterns and selectors beside their bodies
-in [the authored definitions](../../src/components/cpus/semantics/definitions/6502.ts).
+in [the executable chapter](../../src/components/cpus/specifications/6502.md).
 Generate execution bindings from those same patterns; the CPU binds the complete
 inventory after initializing state. Preserve the duplicate-opcode check. Avoid maintaining a second list of
 generated method names or repeating those patterns in the CPU class.
@@ -508,8 +508,9 @@ SP is stored directly. The Z80 applies the same views independently to each bank
 The [flag-register helper](../../src/components/cpus/flags.ts) takes a map from
 flag names to bit positions, plus any fixed output bits. `encode` reads current
 Booleans; `decode` creates a fresh flag object and ignores unmodeled input bits.
-The 6502's status, 8080's PSW, Z80's AF, 6800/6809's CC, 8088's FLAGS, and
-68000's condition/system flags declare layouts beside their state schemas.
+Z80's AF, 6800/6809's CC, 8088's FLAGS, and 68000's condition/system flags
+declare layouts beside their state schemas. The 6502 and 8080 instead express
+packing and complete flag replacement in their executable chapters.
 The helper owns and freezes both the layout and its codec; generated status
 sources use the same `bits` and
 `fixed` declaration as runtime encoding. Fixed output bits describe the model's packing policy;
@@ -744,7 +745,8 @@ records and memory behavior.
 ## Shared control flow
 
 [Control-flow definitions](../../src/components/cpus/semantics/control-flow.ts)
-construct jumps and relative branches for the 6502, 6800, 6809, 8080, and Z80.
+construct jumps and relative branches for the 6800, 6809, and Z80. The 6502,
+8008, and 8080 chapters express these effects directly in the same representation.
 Fetch the complete operand before reading condition flags. A taken relative
 branch reads the current PC and adds a signed displacement with word wrapping;
 an untaken path does not read or write PC. CPU-owned fetch callbacks retain their
@@ -758,13 +760,14 @@ scope and failure behavior. Keep processor-specific target sources explicit:
 receives an address after the existing decoder completes. These bodies never
 read memory at the jump destination.
 
-Calls, returns, restarts, and ordinary register pushes/pops use the
-[shared stack construction](../../src/components/cpus/semantics/stack.ts).
+TypeScript-authored calls, returns, restarts, and ordinary register pushes/pops
+use the [shared stack construction](../../src/components/cpus/semantics/stack.ts).
+Chapters express equivalent ordered register and memory effects directly.
 Declare whether the pointer names an occupied or free byte, its fixed page when
 needed, and the word byte order. Keep pointer reads/updates on the correct side
 of each memory effect. Pop destinations and call targets are written only after
 the complete stack access succeeds. The 6502 JSR's low fetch, high/low pushes,
-and high fetch remain an explicit sequence in its definitions; RTS adds one to
+and high fetch remain an explicit sequence in its chapter; RTS adds one to
 the popped address. Motorola JSR receives the decoder's resolved target, retaining
 indexed S updates and NMI arming. Packed-status bodies add explicit packing and
 complete flag replacement around the shared stack effects.

@@ -44,6 +44,7 @@ family AD {
   apply ALU(result, carry(left, right, carry))
   replace ALU(select(carry, u8(1), u8(0)), or(carry, 0))
   A <- result
+  PC <- signExtend(result, 16)
 }
 family conditional "01 ccc 000" for c in branches {
   when test c {

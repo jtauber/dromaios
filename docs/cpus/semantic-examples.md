@@ -240960,7 +240960,7 @@ Flags preserved throughout: X, N, Z, V, C, T, S.
 
 ### 6502 BRK
 
-Fetch padding before saving PC; stack B set. Push PC high then live PC low, then packed status with old I. Set I only after those writes; preserve NMOS D. Read the complete low-first vector before replacing PC. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+Fetch padding, push PC high, then live PC low, then status with B set. Decrement live SP after each successful write. Set I only after the frame is complete, then read the low/high vector before replacing PC. Preserve A/X/Y and N/V/D/Z/C. Failed accesses prevent later effects and retain completed ones.
 
 ```text
 padding:u8 := fetch byte
@@ -240974,24 +240974,28 @@ lowAddress:u8 := read SP
 write memory[bitOr(0100:u16, zeroExtend16(lowAddress))] := lowByte(lowPC)
 lowPointer:u8 := read SP
 write SP:u8 := subtract(lowPointer, 01:u8)
-status:u8 := source "packed status" {
+packed:u8 := source "packed processor status, B clear" {
   n:flag := read N
   v:flag := read V
   d:flag := read D
   i:flag := read I
   z:flag := read Z
   c:flag := read C
-  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(30:u8, select(n, 80:u8, 00:u8)), select(v, 40:u8, 00:u8)), select(d, 08:u8, 00:u8)), select(i, 04:u8, 00:u8)), select(z, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+  high := bitOr(select(n, 80:u8, 00:u8), select(v, 40:u8, 00:u8))
+  control := bitOr(select(d, 08:u8, 00:u8), select(i, 04:u8, 00:u8))
+  arithmetic := bitOr(select(z, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+  yield bitOr(20:u8, bitOr(high, bitOr(control, arithmetic)))
 }
+status := bitOr(packed, 10:u8)
 statusAddress:u8 := read SP
 write memory[bitOr(0100:u16, zeroExtend16(statusAddress))] := status
 statusPointer:u8 := read SP
 write SP:u8 := subtract(statusPointer, 01:u8)
-flags "mask IRQ after stacking old I" simultaneously {
+flags "write interrupt mask" simultaneously {
   I := 1:flag
 } // Preserve unlisted flags.
 vectorLow:u8 := read memory[FFFE:u16]
-vectorHigh:u8 := read memory[addWrap(FFFE:u16, 0001:u16)]
+vectorHigh:u8 := read memory[FFFF:u16]
 write PC:u16 := concatHighLow(vectorHigh, vectorLow)
 ```
 
@@ -241076,22 +241080,26 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 PHP
 
-Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+Capture status before any stack access and set its stacked B marker. Write that byte at page one, then decrement live SP after the successful write. Preserve registers other than SP and every flag; do not store B as CPU state.
 
 ```text
-original:u8 := source "packed status" {
+status:u8 := source "packed processor status, B clear" {
   n:flag := read N
   v:flag := read V
   d:flag := read D
   i:flag := read I
   z:flag := read Z
   c:flag := read C
-  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(30:u8, select(n, 80:u8, 00:u8)), select(v, 40:u8, 00:u8)), select(d, 08:u8, 00:u8)), select(i, 04:u8, 00:u8)), select(z, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+  high := bitOr(select(n, 80:u8, 00:u8), select(v, 40:u8, 00:u8))
+  control := bitOr(select(d, 08:u8, 00:u8), select(i, 04:u8, 00:u8))
+  arithmetic := bitOr(select(z, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+  yield bitOr(20:u8, bitOr(high, bitOr(control, arithmetic)))
 }
-byteAddress:u8 := read SP
-write memory[bitOr(0100:u16, zeroExtend16(byteAddress))] := original
-bytePointer:u8 := read SP
-write SP:u8 := subtract(bytePointer, 01:u8)
+original := bitOr(status, 10:u8)
+address:u8 := read SP
+write memory[bitOr(0100:u16, zeroExtend16(address))] := original
+pointer:u8 := read SP
+write SP:u8 := subtract(pointer, 01:u8)
 ```
 
 Flags preserved throughout: N, V, D, I, Z, C.
@@ -241187,15 +241195,15 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 BPL
 
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
 }
-condition:flag := read N
-when not(condition) {
+condition0:flag := read N
+when not(condition0) {
   pc:u16 := read PC
   write PC:u16 := addWrap(pc, signExtend16(offset))
 }
@@ -241284,10 +241292,10 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 CLC
 
-Clear C; preserve every other flag and register.
+Clear C; preserve every other flag and register. No data-memory access occurs.
 
 ```text
-flags "CLC" simultaneously {
+flags "write carry" simultaneously {
   C := 0:flag
 } // Preserve unlisted flags.
 ```
@@ -241374,7 +241382,7 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 JSR
 
-Fetch the target low byte, then push the current PC high byte and current PC low byte. Only then fetch the target high byte and write PC. A stack write may replace that final operand. Preserve flags and other registers. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+Fetch target low, then push current PC high and live PC low, decrementing live SP after each successful write. Fetch target high only after both pushes and then replace PC. Preserve flags and A/X/Y. Failed accesses retain completed pushes and pointer changes; no destination-memory read occurs.
 
 ```text
 targetLow:u8 := fetch byte
@@ -241497,7 +241505,7 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 PLP
 
-Pull status, then replace all six flags, ignoring reserved bits. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+Increment SP before the stack read. Only after it succeeds, restore all six flags from that byte, ignoring bits 5/4. Preserve other registers; a failed read retains the pointer increment and the old flag object.
 
 ```text
 status:u8 := source "pop byte through SP" {
@@ -241636,15 +241644,15 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 BMI
 
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
 }
-condition:flag := read N
-when condition {
+condition0:flag := read N
+when condition0 {
   pc:u16 := read PC
   write PC:u16 := addWrap(pc, signExtend16(offset))
 }
@@ -241734,10 +241742,10 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 SEC
 
-Set C; preserve every other flag and register.
+Set C; preserve every other flag and register. No data-memory access occurs.
 
 ```text
-flags "SEC" simultaneously {
+flags "write carry" simultaneously {
   C := 1:flag
 } // Preserve unlisted flags.
 ```
@@ -241825,7 +241833,7 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 RTI
 
-Restore the complete flag object first, then pull PC low/high without RTS's increment. A failed PC read retains restored flags. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+Pull and replace the complete flags first. Then pull PC low/high and replace PC only after both reads succeed, without adding one. Increment SP before each read. Preserve A/X/Y; failed reads retain completed pulls and any flag restoration, and do not erase stack memory or read destination memory.
 
 ```text
 status:u8 := source "pop byte through SP" {
@@ -241843,7 +241851,7 @@ replace flags "restore packed status" simultaneously {
   Z := not(isZero(bitAnd(status, 02:u8)))
   C := not(isZero(bitAnd(status, 01:u8)))
 } // Replace the complete flag object.
-target:u16 := source "pop little-endian word" {
+target:u16 := source "pop low byte then high byte" {
   low:u8 := source "pop byte through SP" {
     pointer:u8 := read SP
     write SP:u8 := addWrap(pointer, 01:u8)
@@ -241944,17 +241952,14 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 PHA
 
-Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+Capture A, read SP, and write the captured byte to page one. Only after a successful write, read live SP again and decrement it with byte wrapping. Preserve every flag and A/X/Y/PC; a failed write prevents the decrement.
 
 ```text
-original:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-byteAddress:u8 := read SP
-write memory[bitOr(0100:u16, zeroExtend16(byteAddress))] := original
-bytePointer:u8 := read SP
-write SP:u8 := subtract(bytePointer, 01:u8)
+original:u8 := read A
+address:u8 := read SP
+write memory[bitOr(0100:u16, zeroExtend16(address))] := original
+pointer:u8 := read SP
+write SP:u8 := subtract(pointer, 01:u8)
 ```
 
 Flags preserved throughout: N, V, D, I, Z, C.
@@ -242000,7 +242005,7 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 JMP absolute
 
-Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+Fetch both target bytes before replacing PC. Preserve every flag and other register; a failed fetch prevents the PC write. Do not read destination memory.
 
 ```text
 target:u16 := source "absolute address, low byte first" {
@@ -242065,15 +242070,15 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 BVC
 
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
 }
-condition:flag := read V
-when not(condition) {
+condition0:flag := read V
+when not(condition0) {
   pc:u16 := read PC
   write PC:u16 := addWrap(pc, signExtend16(offset))
 }
@@ -242162,10 +242167,10 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 CLI
 
-Clear I; preserve every other flag and register.
+Clear I; preserve every other flag and register. No data-memory access occurs.
 
 ```text
-flags "CLI" simultaneously {
+flags "write interrupt mask" simultaneously {
   I := 0:flag
 } // Preserve unlisted flags.
 ```
@@ -242252,10 +242257,10 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 RTS
 
-If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC after adding 1 with word wrapping. Preserve flags, other registers, and control state. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+Pull the complete saved PC low byte then high byte, incrementing SP before each read. After both succeed, add one with word wrapping and replace PC. Preserve every flag and A/X/Y. A failed read retains earlier pointer changes and reads without replacing PC; neither return byte is erased.
 
 ```text
-returnPC:u16 := source "pop little-endian word" {
+returnPC:u16 := source "pop low byte then high byte" {
   low:u8 := source "pop byte through SP" {
     pointer:u8 := read SP
     write SP:u8 := addWrap(pointer, 01:u8)
@@ -242403,7 +242408,7 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 PLA
 
-Pop the complete value before writing the destination. Then apply 6502 result N/Z, preserving unlisted flags. Preserve other registers and control state. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+Increment SP before reading the stack byte. After a successful read, replace A and then set N/Z. Preserve V/D/I/C and X/Y/PC. A failed read retains the SP increment but leaves A and flags unchanged.
 
 ```text
 result:u8 := source "pop byte through SP" {
@@ -242487,7 +242492,7 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 JMP indirect
 
-Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+Fetch the pointer, then read its low/high target bytes using the NMOS page wrap. Only after both reads succeed, replace PC. Preserve flags and other registers; a failed read retains earlier accesses without installing a partial target.
 
 ```text
 target:u16 := source "NMOS page-wrapped pointer" {
@@ -242497,7 +242502,8 @@ target:u16 := source "NMOS page-wrapped pointer" {
     yield concatHighLow(high, low)
   }
   low:u8 := read memory[pointer]
-  high:u8 := read memory[bitOr(bitAnd(pointer, FF00:u16), zeroExtend16(addWrap(lowByte(pointer), 01:u8)))]
+  next := bitOr(bitAnd(pointer, FF00:u16), zeroExtend16(addWrap(lowByte(pointer), 01:u8)))
+  high:u8 := read memory[next]
   yield concatHighLow(high, low)
 }
 write PC:u16 := target
@@ -242581,15 +242587,15 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 BVS
 
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
 }
-condition:flag := read V
-when condition {
+condition0:flag := read V
+when condition0 {
   pc:u16 := read PC
   write PC:u16 := addWrap(pc, signExtend16(offset))
 }
@@ -242725,10 +242731,10 @@ Flags preserved throughout: V, D, I.
 
 ### 6502 SEI
 
-Set I; preserve every other flag and register.
+Set I; preserve every other flag and register. No data-memory access occurs.
 
 ```text
-flags "SEI" simultaneously {
+flags "write interrupt mask" simultaneously {
   I := 1:flag
 } // Preserve unlisted flags.
 ```
@@ -243006,15 +243012,15 @@ Flags preserved throughout: N, V, D, I, Z, C.
 
 ### 6502 BCC
 
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
 }
-condition:flag := read C
-when not(condition) {
+condition0:flag := read C
+when not(condition0) {
   pc:u16 := read PC
   write PC:u16 := addWrap(pc, signExtend16(offset))
 }
@@ -243398,15 +243404,15 @@ Flags preserved throughout: V, D, I, C.
 
 ### 6502 BCS
 
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
 }
-condition:flag := read C
-when condition {
+condition0:flag := read C
+when condition0 {
   pc:u16 := read PC
   write PC:u16 := addWrap(pc, signExtend16(offset))
 }
@@ -243512,10 +243518,10 @@ Flags preserved throughout: V, D, I, C.
 
 ### 6502 CLV
 
-Clear V; preserve every other flag and register.
+Clear V; preserve every other flag and register. No data-memory access occurs.
 
 ```text
-flags "CLV" simultaneously {
+flags "clear overflow" simultaneously {
   V := 0:flag
 } // Preserve unlisted flags.
 ```
@@ -243877,15 +243883,15 @@ Flags preserved throughout: V, D, I, C.
 
 ### 6502 BNE
 
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
 }
-condition:flag := read Z
-when not(condition) {
+condition0:flag := read Z
+when not(condition0) {
   pc:u16 := read PC
   write PC:u16 := addWrap(pc, signExtend16(offset))
 }
@@ -243971,10 +243977,10 @@ Flags preserved throughout: V, D, I, C.
 
 ### 6502 CLD
 
-Clear D; preserve every other flag and register.
+Clear D; preserve every other flag and register. No data-memory access occurs.
 
 ```text
-flags "CLD" simultaneously {
+flags "write decimal mode" simultaneously {
   D := 0:flag
 } // Preserve unlisted flags.
 ```
@@ -244257,7 +244263,7 @@ Flags preserved throughout: D, I.
 
 ### 6502 NOP
 
-No effects after opcode fetching.
+Preserve all state after opcode fetching; perform no operand or data accesses.
 
 ```text
 
@@ -244354,15 +244360,15 @@ Flags preserved throughout: V, D, I, C.
 
 ### 6502 BEQ
 
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
 }
-condition:flag := read Z
-when condition {
+condition0:flag := read Z
+when condition0 {
   pc:u16 := read PC
   write PC:u16 := addWrap(pc, signExtend16(offset))
 }
@@ -244478,10 +244484,10 @@ Flags preserved throughout: V, D, I, C.
 
 ### 6502 SED
 
-Set D; preserve every other flag and register.
+Set D; preserve every other flag and register. No data-memory access occurs.
 
 ```text
-flags "SED" simultaneously {
+flags "write decimal mode" simultaneously {
   D := 1:flag
 } // Preserve unlisted flags.
 ```
@@ -244595,7 +244601,7 @@ Flags preserved throughout: V, D, I, C.
 
 ### 6502 external interrupt entry
 
-After CPU-owned recognition, stack B clear. Push PC high then live PC low, then packed status with old I. Set I only after those writes; preserve NMOS D. Read the complete low-first vector before replacing PC. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+After CPU-owned recognition, push PC high then live PC low, then packed status with B clear and old I. Set I only after those writes; preserve NMOS D. Read the complete low-first vector before replacing PC. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
 
 ```text
 vector:u16 := input
@@ -244609,20 +244615,23 @@ lowAddress:u8 := read SP
 write memory[bitOr(0100:u16, zeroExtend16(lowAddress))] := lowByte(lowPC)
 lowPointer:u8 := read SP
 write SP:u8 := subtract(lowPointer, 01:u8)
-status:u8 := source "packed status" {
+status:u8 := source "packed processor status, B clear" {
   n:flag := read N
   v:flag := read V
   d:flag := read D
   i:flag := read I
   z:flag := read Z
   c:flag := read C
-  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(20:u8, select(n, 80:u8, 00:u8)), select(v, 40:u8, 00:u8)), select(d, 08:u8, 00:u8)), select(i, 04:u8, 00:u8)), select(z, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+  high := bitOr(select(n, 80:u8, 00:u8), select(v, 40:u8, 00:u8))
+  control := bitOr(select(d, 08:u8, 00:u8), select(i, 04:u8, 00:u8))
+  arithmetic := bitOr(select(z, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+  yield bitOr(20:u8, bitOr(high, bitOr(control, arithmetic)))
 }
 statusAddress:u8 := read SP
 write memory[bitOr(0100:u16, zeroExtend16(statusAddress))] := status
 statusPointer:u8 := read SP
 write SP:u8 := subtract(statusPointer, 01:u8)
-flags "mask IRQ after stacking old I" simultaneously {
+flags "write interrupt mask" simultaneously {
   I := 1:flag
 } // Preserve unlisted flags.
 vectorLow:u8 := read memory[vector]

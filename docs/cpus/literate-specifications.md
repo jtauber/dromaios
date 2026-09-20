@@ -2,12 +2,11 @@
 
 Executable chapters are maintained CPU sources:
 
-- [MOS 6502: state, addressing, and data operations](../../src/components/cpus/specifications/6502.md)
-  owns the complete stored-state schema, all loads/stores and register transfers,
-  ORA/AND/EOR, CMP/CPX/CPY, BIT, ADC/SBC, shifts/rotates, and byte adjustments.
-  Its addressing catalogue and N/Z policy
-  also serve the remaining TypeScript definitions. Reset and execution boundaries
-  still belong to the core and its model document.
+- [MOS 6502: state, status, and the complete instruction set](../../src/components/cpus/specifications/6502.md)
+  owns the complete stored-state schema, packed status, and all 151 documented
+  instruction forms. External entry uses the same status view and I-update policy.
+  Reset, normal execution, and IRQ/NMI orchestration still belong to TypeScript;
+  their contracts remain in the model document.
 - [Intel 8008: the complete model](../../src/components/cpus/specifications/8008.md)
   defines every documented instruction, including control flow, restarts,
   halts, and port transfers. The chapter owns behavior, encodings, and stored-state
@@ -335,7 +334,7 @@ Numeric expressions are capture names, explicitly sized literals such as
 | `shiftLeft(value, bit)`, `shiftRight(value, bit)` | Shift one place, inserting the flag expression at the vacated end. |
 | `select(condition, yes, no)` | Choose between two equal-width numeric expressions using a flag expression. |
 | `concat(high, low)` | Join two equal-width values, with high first. |
-| `extend(value, width)`, `truncate(value, width)` | Widen or narrow explicitly. |
+| `extend(value, width)`, `signExtend(value, width)`, `truncate(value, width)` | Widen unsigned, widen signed, or narrow explicitly. |
 | `highByte(word)`, `lowByte(word)` | Extract a byte from a sixteen-bit word. |
 
 Calls can nest. Numbers are decimal unless prefixed with `$`; widths are decimal.
@@ -605,13 +604,15 @@ without owned state validate declarations against an external schema; most
 other instruction families remain authored in TypeScript.
 
 The four chapters now exercise contrasting widths, ordered effects, and
-interrupt-recognition policies. The 6502 also owns its complete state, transfers,
-logical operations, comparisons, BIT, arithmetic, and byte updates. Existing selector/source bindings
-express its irregular index-load/store encodings and cross-indexing without new
-language syntax. ADC/SBC use explicit digit correction with generic signed-overflow
-predicates; memory updates retain two writes and separate carry/N/Z stages.
-Its thin state adapter re-exports the generated schema while
-retaining the packed-status layout until those instructions migrate.
+interrupt-recognition policies. The 6502 now owns its complete state, status
+view/restoration, and all 151 documented instruction forms. Existing selector/source
+bindings express its irregular index-load/store encodings and cross-indexing.
+ADC/SBC retain explicit digit correction; memory updates retain two writes and
+separate carry/N/Z stages. Branches use signed widening, JSR interleaves its final
+operand fetch with pushes, and RTI restores flags before PC. External entry uses
+the chapter's status view and mask policy, but its orchestration, reset, and normal
+execution remain TypeScript. The thin state adapter retains only public aliases
+and a generated-schema re-export.
 The 8008 now expresses its address-stack selector, array, and port effects;
 the 68000 still uses its native effective-address decoder, including A7 banking
 and pending auto-updates. Its 192 chapter encodings select generated bodies
@@ -634,6 +635,7 @@ These chapters establish an executable authoring path, not a percentage
 estimate of the work remaining toward that goal.
 
 The [6502 language tests](../../tests/components/cpus/semantics/literate.test.ts),
+[6502 control/stack chapter tests](../../tests/components/cpus/semantics/literate-6502-control.test.ts),
 [state-authoring tests](../../tests/components/cpus/semantics/literate-state.test.ts),
 [8008 transfer tests](../../tests/components/cpus/semantics/literate-8008.test.ts),
 [8008 arithmetic language tests](../../tests/components/cpus/semantics/literate-8008-arithmetic.test.ts),

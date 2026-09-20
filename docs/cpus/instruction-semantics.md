@@ -257,7 +257,8 @@ The authoring layers have separate homes:
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
 | [decimal.ts](../../src/components/cpus/semantics/decimal.ts) | Shared decimal-correction selection with explicit Intel/Motorola flag and result stages |
 | [6502 chapter](../../src/components/cpus/specifications/6502.md#arithmetic-in-binary-and-decimal) | NMOS ADC/SBC binary facts, decimal digit correction, and distinct flag/write stages |
-| [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
+| [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts) | External interrupt entry and integration with chapter-owned sources, status, and instructions |
+| [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Typed module catalogue shared by executable generation, explanation, and reproducibility checks |
 
 Register each generated module once in `instructionModules`, with its filename
@@ -291,9 +292,10 @@ and `writeMemory(address, byte)` return the corresponding data nodes. They do
 not execute effects or reorder statements. Their arguments retain the explicit
 capture names, registers, addresses, and values used by validation and reporting.
 
-The 6502 uses the existing `opcodeFamily` and `opcodePattern` helpers to construct
-definitions in place of runtime callbacks. `instructionSet` rejects duplicate or
-out-of-range opcodes before constructing the inventory. ORA/AND/EOR, LDA, and CMP
+The 6502 chapter's encoding families compile through `opcodePattern` into
+definitions, without runtime callbacks or a second handwritten opcode inventory.
+`instructionSet` rejects duplicate or out-of-range opcodes before constructing
+the inventory. ORA/AND/EOR, LDA, and CMP
 share one `bbb` operand selector, derived from the same address inventory used by STA.
 The immediate slot has no address, so STA omits that encoding. CPX/CPY and
 LDX/LDY/STX/STY share Y/X register selectors; indexed loads and stores explicitly
@@ -456,10 +458,9 @@ have no fetch, memory, port, or address-stack operations.
 the destination, and optionally applies a policy with that result parameter.
 The destination is a stored register or an explicit statement list using
 `result`; those statements are expanded directly, without an opaque setter.
-All 18 6502 load forms and six register transfers use this recipe.
-The 6502 selects its N/Z policy except for TXS,
-which supplies no policy and preserves every flag. A source that fails never
-reaches the destination write or flag update. Motorola byte/word loads and
+The 6502 chapter spells out the same stages for its 18 load forms and six
+register transfers. It applies N/Z except for TXS, which preserves every flag.
+A source that fails never reaches the destination write or flag update. Motorola byte/word loads and
 TAB/TBA use the same recipe with a width-dependent N/Z policy and V cleared.
 
 `intelByteTransfer` builds explicit source-capture and destination-write
@@ -975,7 +976,8 @@ explicitly; a 16-bit displacement already has the required modulo-word form.
 Untaken branches and jumps never write PC. Conditions are data with an explicit
 capture stage: Motorola compound conditions preserve flag-read order; Z80 DJNZ
 uses that stage to decrement B, then reads B again without touching flags.
-The 6502's page-wrapped indirect pointer stays in its own source. Motorola JMP
+The 6502 chapter expresses branches with an explicit flag test and signed
+widening; its page-wrapped indirect pointer stays in its own source. Motorola JMP
 receives an address only after the CPU decoder completes, retaining indexed
 side effects and rejection. Register-indirect Intel jumps read the register or
 pair directly and never read memory at the destination. Instruction retirement
@@ -1022,7 +1024,7 @@ PC through instruction fetching. The
 shared Intel native inventory supplies definition keys and runtime bindings;
 condition callbacks and the old stack-pair dispatch are removed.
 
-The 6502's JSR stays an explicit sequence: fetch low target, read/push current PC
+The 6502 chapter's JSR stays an explicit sequence: fetch low target, read/push current PC
 high, read/push current PC low, fetch high target, then write PC. A stack write
 can replace the final operand. RTS adds one to the popped word. Motorola calls
 use big-endian stacks and the existing address decoder. Indexed 6809 JSR retains
@@ -1033,13 +1035,15 @@ transfers with this construction; external recognition stays in the CPU.
 
 ## Packed status and decimal arithmetic
 
-Each migrated CPU owns one immutable packed layout beside its state schema.
-The runtime `flagRegister` exposes that layout as `bits` and `fixed`; generated
-sources consume the same declaration. Packing reads each flag once, inserts its
-bit, and adds fixed bits. Restoring ignores unmodeled bits and explicitly
+For TypeScript-authored status, each CPU owns one immutable packed layout beside
+its state schema. The runtime `flagRegister` exposes it as `bits` and `fixed`;
+generated sources consume that declaration. The 6502 and 8080 instead describe
+packing and restoration directly in their executable chapters. Packing reads
+each flag once, inserts its bit, and adds fixed bits. Restoring ignores unmodeled bits and explicitly
 replaces the complete flag object. A replacement must supply every stored flag;
 partial updates continue to preserve unlisted fields on the existing object.
-The 6502 adds the stacked B marker only when pushing PHP. PSW/AF pushes capture
+The 6502 adds the stacked B marker for PHP and BRK, leaving it clear for
+external IRQ/NMI entry. PSW/AF pushes capture
 A before flags and both before stack effects; pops wait for both bytes before
 writing A and replacing flags. The 6809's ORCC/ANDCC capture status before mask
 fetching, preserving that ordering even if a callback changes live flags.

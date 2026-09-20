@@ -15,7 +15,7 @@ const markdown = readFileSync(file, "utf8"), cpu = { name: "6502" };
 const compile = (text = markdown) => compileCpuChapter(text, cpu, file);
 const compileExternal = (text: string) => compileCpuChapter(text, { ...cpu, state: cpu6502StateDescription }, file);
 
-test("the chapter owns all 125 data-operation forms and the production address sources", () => {
+test("the chapter owns all 151 documented instruction forms and the production address sources", () => {
   const chapter = compile();
   assert.deepEqual(chapter.families.LDA!.map(([opcode]) => opcode), [0xa1, 0xa5, 0xa9, 0xad, 0xb1, 0xb5, 0xb9, 0xbd]);
   assert.deepEqual(chapter.families.STA!.map(([opcode]) => opcode), [0x81, 0x85, 0x8d, 0x91, 0x95, 0x99, 0x9d]);
@@ -34,15 +34,18 @@ test("the chapter owns all 125 data-operation forms and the production address s
     0x06, 0x0a, 0x0e, 0x16, 0x1e, 0x26, 0x2a, 0x2e, 0x36, 0x3e,
     0x46, 0x4a, 0x4e, 0x56, 0x5e, 0x66, 0x6a, 0x6e, 0x76, 0x7e,
     0xc6, 0xce, 0xd6, 0xde, 0xe6, 0xee, 0xf6, 0xfe, 0x88, 0xca, 0xc8, 0xe8,
+    // Control flow, stack/status, software entry/return, and NOP.
+    0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38, 0x40, 0x48, 0x4c, 0x50, 0x58,
+    0x60, 0x68, 0x6c, 0x70, 0x78, 0x90, 0xb0, 0xb8, 0xd0, 0xd8, 0xea, 0xf0, 0xf8,
   ].sort((a, b) => a - b);
-  assert.equal(expected.length, 125);
+  assert.equal(expected.length, 151);
   assert.deepEqual(Object.values(chapter.families).flat().map(([opcode]) => opcode).sort((a, b) => a - b), expected);
   for (const entries of Object.values(chapter.families)) for (const [opcode, definition] of entries) {
     assert.deepEqual(definition, instructions6502[opcode]);
     assert.ok(Object.isFrozen(instructions6502[opcode]));
   }
-  const { immediateByte: _immediate, ...addresses } = chapter.sources;
-  assert.deepEqual(addresses, sources6502.groups.addresses);
+  for (const [name, source] of Object.entries(sources6502.groups.addresses)) assert.deepEqual(chapter.sources[name], source);
+  assert.equal(Object.keys(sources6502.groups.addresses).length, 8);
   assert.equal(chapter.operands.accumulator![2]!.kind, "value");
 });
 
