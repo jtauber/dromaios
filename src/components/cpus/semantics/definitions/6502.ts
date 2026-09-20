@@ -1,19 +1,17 @@
 import { cpu6502StateDescription, cpu6502Status } from "../../state/6502.ts";
 import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
-import { addWrap, bitAnd, bitOr, capture, concat, cpuSymbols, extend, fetchByte, flagLiteral, highByte, literal, lowByte,
-  readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister } from "../model.ts";
-import type { InstructionDefinition, NumberExpression, Register, SourceDefinitions, Statement, ValueSource } from "../model.ts";
-import { instructionSet, registerSource, shift } from "../builders.ts";
+import { addWrap, bitAnd, bitOr, concat, cpuSymbols, extend, fetchByte, flagLiteral, highByte, literal, lowByte,
+  readMemory, readRegister, readSource, updateFlags, value, writeRegister } from "../model.ts";
+import type { NumberExpression, SourceDefinitions, Statement, ValueSource } from "../model.ts";
+import { instructionSet, registerSource } from "../builders.ts";
 import { defineInstruction } from "../validate.ts";
 import { flagCondition, loadVector, jump, relativeBranch, subroutineReturn } from "../control-flow.ts";
 import { byteStack, stackPop, stackPush, wordStack } from "../stack.ts";
 import { flagInstruction, flagPolicy, packedStatus, restoreStatus } from "../status.ts";
-import { mosArithmetic } from "../mos.ts";
 import { sources, policies, operands, families } from "../generated/6502.ts";
 
 const cpu = cpuSymbols("6502", cpu6502StateDescription);
 const stack = byteStack(cpu.register("sp"), "free", 0x0100);
-type Operand = readonly [name: string, source: ValueSource];
 
 // The literate chapter owns these sources; all 6502 families consume the same definitions.
 const { immediateByte, ...addresses } = sources;
@@ -26,63 +24,11 @@ const indirectJump: ValueSource = { name: "NMOS page-wrapped pointer", width: 16
 };
 
 const resultNZ = policies.NZ;
-function arithmetic(name: "ADC" | "SBC", [operand, source]: Operand): InstructionDefinition {
-  return defineInstruction({ cpu: cpu.declaration, name: `${name} ${operand}`,
-    explanation: "Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. "
-      + (name === "ADC" ? "In decimal mode, Z follows binary addition, N/V follow low-digit correction, and C follows the decimal threshold; flags precede A. "
-        : "SBC writes the binary result and N/Z/C/V first; decimal mode then corrects A only. ")
-      + "Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.",
-    steps: [readSource("right", source), ...mosArithmetic(cpu, name)],
-  });
-}
-// A byte operation consumes "original" and captures "result"; its flag stages stay in place.
-function shiftOperation(name: string, direction: "left" | "right", rotate = false) {
-  const operation = shift(direction, rotate ? cpu.flag("c") : "zero");
-  return { name, steps: [
-    ...operation.steps,
-    updateFlags({ name: `6502 ${name} carry`, parameters: { original: 8 }, unlisted: "preserve",
-      updates: [{ flag: cpu.flag("c"), value: operation.carry }],
-    }, { original: value("original") }),
-  ] };
-}
-function updateByte(name: string, target: Register | ValueSource, operation: readonly Statement[]): InstructionDefinition {
-  const register = "kind" in target;
-  return defineInstruction({
-    cpu: cpu.declaration, name,
-    explanation: (register ? `Read ${target.field.toUpperCase()} before the operation. `
-      : "Resolve the address once, read the original byte, and write it back unchanged before the operation. ")
-      + "Perform the calculation and its flag updates, then write the result and apply N/Z. "
-      + "Rotates read incoming C at the calculation stage. A failed access prevents all later effects; "
-      + "a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.",
-    steps: [
-      ...(register ? [readRegister("original", target)] : [
-        readSource("address", target), readMemory("original", value("address")), writeMemory(value("address"), value("original")),
-      ]),
-      ...operation,
-      register ? writeRegister(target, value("result")) : writeMemory(value("address"), value("result")),
-      updateFlags(resultNZ, { result: value("result") }),
-    ],
-  });
-}
 
-// The chapter's bbb catalogue also serves the other aaa bbb 01 accumulator families.
-const accumulatorOperands: readonly Operand[] = operands.accumulator.map(operand => [operand.name, operand.read]);
 // Standalone source generation retains focused probes of this shared addressing inventory.
 export const sources6502 = { cpu: cpu.declaration, groups: {
-  addresses, operands: Object.fromEntries(accumulatorOperands.map(([, source], code) => [code, source])),
+  addresses, operands: Object.fromEntries(operands.accumulator.map((operand, code) => [code, operand.read])),
 } } satisfies SourceDefinitions;
-const indexRegisters = ["y", "x"] as const;
-// 0ss bbb 10: ss selects ASL/ROL/LSR/ROR. 11i bbb 10: i selects DEC/INC.
-const shifts = [shiftOperation("ASL", "left"), shiftOperation("ROL", "left", true), shiftOperation("LSR", "right"), shiftOperation("ROR", "right", true)];
-const adjustments = [
-  { name: "DEC", steps: [capture("result", subtract(value("original"), literal(8, 1)))] },
-  { name: "INC", steps: [capture("result", addWrap(value("original"), literal(8, 1)))] },
-];
-// bbb=mm1: mm (bits 4..3) selects zp/absolute/zp,X/absolute,X in numeric order.
-const modifyOperands: readonly Operand[] = [
-  ["zero page", addresses.zeroPage], ["absolute", addresses.absolute],
-  ["zero page,X", addresses.zeroPageX], ["absolute,X", addresses.absoluteX],
-];
 
 function interruptEntry(vector: NumberExpression, software: boolean): readonly Statement[] {
   return [readRegister("highPC", cpu.register("pc")), ...stack.push(highByte(value("highPC")), "high"),
@@ -133,16 +79,6 @@ export const instructions6502 = instructionSet([
       immediateByte, flagCondition(cpu.flag(f), v))),
   ...opcodePattern("010 011 00", jump(cpu, "JMP absolute", addresses.absolute)),
   ...opcodePattern("011 011 00", jump(cpu, "JMP indirect", indirectJump)),
-  // The chapter owns loads/stores, register transfers, logic, comparisons, and BIT.
+  // The chapter owns data operations; these definitions retain stack, status, and control.
   ...Object.values(families).flat(),
-  ...opcodeFamily("011 bbb 01", { b: accumulatorOperands }, ({ b }) => arithmetic("ADC", b)),
-  ...opcodeFamily("111 bbb 01", { b: accumulatorOperands }, ({ b }) => arithmetic("SBC", b)),
-  // The same operations serve A and memory; only memory performs the original-value write.
-  ...opcodeFamily("0ss 010 10", { s: shifts }, ({ s }) => updateByte(`${s.name} A`, cpu.register("a"), s.steps)),
-  ...opcodeFamily("0ss mm1 10", { s: shifts, m: modifyOperands }, ({ s, m: [operand, address] }) => updateByte(`${s.name} ${operand}`, address, s.steps)),
-  ...opcodeFamily("11i mm1 10", { i: adjustments, m: modifyOperands }, ({ i, m: [operand, address] }) => updateByte(`${i.name} ${operand}`, address, i.steps)),
-  // 1ir 010 00: i=1 increments Y/X; i=0 has DEY only. DEX instead occupies 110 010 10.
-  ...opcodePattern("100 010 00", updateByte("DEY", cpu.register("y"), adjustments[0]!.steps)),
-  ...opcodeFamily("11r 010 00", { r: indexRegisters }, ({ r }) => updateByte(`IN${r.toUpperCase()}`, cpu.register(r), adjustments[1]!.steps)),
-  ...opcodePattern("110 010 10", updateByte("DEX", cpu.register("x"), adjustments[0]!.steps)),
 ]);

@@ -256,7 +256,7 @@ The authoring layers have separate homes:
 | [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
 | [decimal.ts](../../src/components/cpus/semantics/decimal.ts) | Shared decimal-correction selection with explicit Intel/Motorola flag and result stages |
-| [mos.ts](../../src/components/cpus/semantics/mos.ts) | NMOS ADC/SBC binary facts, decimal digit correction, and distinct flag/write stages |
+| [6502 chapter](../../src/components/cpus/specifications/6502.md#arithmetic-in-binary-and-decimal) | NMOS ADC/SBC binary facts, decimal digit correction, and distinct flag/write stages |
 | [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Typed module catalogue shared by executable generation, explanation, and reproducibility checks |
 
@@ -557,15 +557,14 @@ within one invocation are simultaneous: evaluate every expression first, then
 apply the updates. Distinct invocations remain at their declared positions in
 the instruction body.
 
-The 6502's `updateByte` construction recipe captures `original`, expands an
-operation that captures `result`, writes the result, and applies N/Z. Memory
-targets first resolve one address and include the original-value write;
-register targets read and write the selected register. The four shift/rotate
-operations declare their carry stage before writeback. INC/DEC declare only
-the wrapped arithmetic, preserving C. These are CPU-specific construction
-recipes: the original-value write and flag schedule are not imposed on other
-processors. Opcode fields select the operation and address source from one
-inventory for the complete families.
+The [6502 chapter](../../src/components/cpus/specifications/6502.md#shifts-rotates-and-byte-adjustments)
+now authors these byte updates directly. Memory families resolve one address,
+read the original byte, and write it back before calculating the result.
+Register families read and write their selected register. Shifts/rotates update
+C before result writeback; all families apply N/Z only after writeback succeeds.
+INC/DEC preserve C. The chapter's catalogue supplies all four memory addressing
+modes; its explicit statements replace the former `updateByte` construction
+recipe without imposing that schedule on other processors.
 
 The shared `shift(direction, incoming)` recipe consumes the caller's `original`
 capture and produces `result`, plus an outgoing-carry expression. Its incoming
@@ -573,8 +572,8 @@ bit can be zero (logical shift), the original sign (arithmetic right shift),
 the outgoing bit (circular rotation), or a CPU flag symbol (through-carry
 rotation). Only the flag-symbol case emits a `readFlag("carry", ...)` statement.
 The caller places these steps at the required point and schedules flags and
-writeback separately. Extracting this recipe leaves the existing 6502 bodies
-structurally unchanged.
+writeback separately. Literate families use the same primitive shift expressions
+and declare their incoming-bit reads and flag stages explicitly.
 
 The 8080 writes A before replacing CY and preserves S/Z/AC/P. The 6809 instead
 updates N/Z/C before writing A, B, or memory; left shifts also replace V with N XOR C,
@@ -1055,7 +1054,9 @@ always adds. Both replace their flags before A; Z80 then restores incoming N.
 Motorola DAA preserves the flag object, H, and control bits, updating N/Z/V/C
 before A and retaining the model's deterministic clear for undefined V.
 
-NMOS ADC/SBC remain distinct sequences. Binary arithmetic writes A then N/Z/C/V.
+The [6502 chapter](../../src/components/cpus/specifications/6502.md#arithmetic-in-binary-and-decimal)
+authors NMOS ADC/SBC as distinct sequences; its former TypeScript arithmetic
+helper has been removed. Binary arithmetic writes A then N/Z/C/V.
 Decimal ADC sets Z from binary addition, N/V from the low-digit-corrected
 intermediate, and C from the decimal threshold before writing A. SBC first
 writes the binary result and flags, then optionally corrects A alone. Word-width

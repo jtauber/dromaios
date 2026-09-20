@@ -16,6 +16,8 @@ action reset "reset" {
 }
 policy ALU "carry" (result: 8, carry: flag) {
   C = carry
+  V = addOverflow(result, result, carry)
+  N = overflow(result, result)
 }
 operands bytes {
   000 "A" = register A

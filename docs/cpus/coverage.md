@@ -21,7 +21,7 @@ emulators do not count toward implementation here.
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [0](../../src/components/cpus/specifications/8008.md) | [1,422](../../src/components/cpus/specifications/8008.md) | 341 | 250 / 250 | 100% | 6 / 6 |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [0](../../src/components/cpus/specifications/8080.md) | [1,590](../../src/components/cpus/specifications/8080.md) | 511 | 244 / 244 | 100% | 6 / 6 |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [213](../../src/components/cpus/6800.ts) | 0 | 0 | 0 / 197 | 0% | 0 / 6 |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | [588](../../src/components/cpus/specifications/6502.md) | 211 | 77 / 151 | 51.0% | 1 / 6 |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | [969](../../src/components/cpus/specifications/6502.md) | 377 | 125 / 151 | 82.8% | 1 / 6 |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 0 | 0 | 0 / 698 | 0% | 0 / 6 |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 0 | 0 | 0 / 268 | 0% | 0 / 6 |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [522](../../src/components/cpus/8088.ts) | 0 | 0 | 0 / 291 | 0% | 0 / 6 |
@@ -36,7 +36,7 @@ interfaces; each chapter is its CPU's sole processor-specific implementation sou
 the six criteria below. The 8008 and 8080 are at **6 / 6**: instructions, stored
 state, register views, reset effects, normal execution, and external events.
 The 6502 now owns its complete stored-state schema, earning **1 / 6**; its
-chapter also supplies **77 of 151 instruction forms**.
+chapter also supplies **125 of 151 instruction forms**.
 
 **Literate spec lines** count whole Markdown chapters under
 `src/components/cpus/specifications/`, including prose, diagrams, formal blocks,
@@ -93,13 +93,15 @@ the remaining authoring boundaries.
 ## Literate authoring milestone
 
 The [6502 chapter](../../src/components/cpus/specifications/6502.md) owns all
-**77 load/store, register-transfer, logical, comparison, and BIT forms**, plus
-the complete stored-state schema. Its shared addressing sources and N/Z policy
-also serve the remaining TypeScript definitions; those uses earn no extra
-literate instruction credit. Existing language features express the cross-indexed
-loads/stores, omitted modes, no-borrow comparison carry, and BIT flag sources.
+**125 data-operation forms**, plus the complete stored-state schema. These
+include loads/stores, transfers, logic, comparisons, BIT, ADC/SBC, shifts/rotates,
+and byte adjustments. Shared addressing sources and N/Z also serve remaining
+TypeScript control/stack definitions; those uses earn no extra literate credit.
+Decimal digit correction, invalid BCD inputs, and the two memory-update writes
+are explicit. Signed-overflow predicates reuse the existing semantic model.
 [Chapter tests](../../tests/components/cpus/semantics/literate.test.ts) check the
-exact inventory and formal edits; [integration tests](../../tests/scripts/chapter-model-integration.test.ts)
+exact inventory and formal edits; [arithmetic chapter tests](../../tests/components/cpus/semantics/literate-6502-arithmetic.test.ts)
+check decimal corrections, overflow widths, and write ordering. [Integration tests](../../tests/scripts/chapter-model-integration.test.ts)
 verify that an added state field reaches construction, snapshots, and machine parsing.
 
 The [8008 chapter](../../src/components/cpus/specifications/8008.md)
@@ -161,16 +163,18 @@ family inventory is:
   [remaining definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   The chapter owns all 14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms,
   13 STA/STX/STY forms, six register transfers, 24 ORA/AND/EOR forms, and both
-  BIT forms. The TypeScript definitions retain
-  all 20 ASL/ROL/LSR/ROR forms, eight memory INC/DEC forms, INX/INY/DEX/DEY,
-  eight conditional branches, and absolute/indirect JMP. Branches fetch before testing flags and read/write
+  BIT forms. It also owns all sixteen ADC/SBC forms, 20 ASL/ROL/LSR/ROR forms,
+  eight memory INC/DEC forms, and INX/INY/DEX/DEY. NMOS decimal correction retains
+  distinct flag/write stages and invalid-digit behavior. Memory updates capture
+  one address and write the original byte before the result; carry precedes
+  result writeback while N/Z follow it. The TypeScript definitions retain the
+  eight conditional branches and absolute/indirect JMP. Branches fetch before testing flags and read/write
   PC only when taken. Indirect JMP retains the NMOS pointer-page wrap.
   PHA/PLA and JSR/RTS add four bodies. PLA applies N/Z only after a successful
   pull; JSR fetches target low, pushes current PC high/low, then fetches target
   high, retaining code/stack overlap. RTS adds one after the complete pop.
-  ADC/SBC in all sixteen addressing forms, PHP/PLP, the seven flag changes,
-  and NOP add 26 bodies. NMOS decimal correction retains distinct flag/write
-  stages and invalid-digit behavior. Status packing uses the CPU-owned layout;
+  PHP/PLP, the seven flag changes, and NOP add ten TypeScript bodies.
+  Status packing uses the CPU-owned layout;
   PLP replaces flags only after a successful pull. BRK/RTI complete all 151 forms;
   BRK consumes padding, pushes live PC bytes and status, then sets I and loads
   the vector. RTI restores flags before PC. A generated external-entry helper
@@ -637,13 +641,13 @@ judging source reduction; all counts include comments and blank lines.
 | Scope | Lines |
 | --- | ---: |
 | Six remaining handwritten CPU core files | 2,202 |
-| CPU-specific instruction definition files | 2,088 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,012 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,302** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 3,754 |
+| CPU-specific instruction definition files | 2,024 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 4,969 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,195** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 4,135 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 128 |
-| Generated executable CPU output, counted separately | 314,327 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 173,590 |
+| Generated executable CPU output, counted separately | 314,391 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 190,140 |
 | Generated state schemas/types, counted separately | 62 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
@@ -701,11 +705,22 @@ from **241 to 148 lines** and its state adapter from **15 to 9 lines**. No new
 language or runtime code is needed. Authored CPU TypeScript falls by **99 lines**
 to **9,302**, and bootstrap scripts shrink by **2 lines**. The chapter grows
 from **184 to 588 lines**, with **211 formal lines**, adding history, programming
-explanations, and worked examples. Total maintained CPU source is now
-**13,184 lines**. Generated executable output falls by 12 lines; expanded chapter
+explanations, and worked examples. At that point, total maintained CPU source
+reached **13,184 lines**. Generated executable output falls by 12 lines; expanded chapter
 data grows as it takes ownership of more definitions, and the new state module
 adds 13 generated lines. The core remains at 101 handwritten lines until execution
 and lifecycle contracts migrate.
+
+The next 6502 slice adds **48 arithmetic and byte-update forms**, reaching
+**125 / 151 (82.8%)**. It reduces the remaining definition file from **148 to
+84 lines**, removes the **44-line MOS arithmetic helper**, and adds one net
+line to the literate expression parser for generic signed-overflow predicates.
+Authored CPU TypeScript falls by **107 lines** to **9,195**, without new runtime
+code. The chapter reaches **969 lines**, including **377 formal lines**. Total
+maintained CPU source is **13,458 lines**, including prose. The generated
+executable output grows by 64 lines because decimal intermediates are named
+explicitly. The core and model-milestone count remain unchanged pending
+stack/control instructions and lifecycle migration.
 
 Generated chapter data repeats the validated CPU schema within expanded
 definitions and remains a separate, disposable intermediate representation.

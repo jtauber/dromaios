@@ -33,7 +33,7 @@ for (const [text, category] of [
   ['callback', 'keyword'], ['validate', 'keyword'], ['DEFERRED', 'property'], ['ENABLED', 'property'],
   ['A', 'property'], ['C', 'property'], ['ADDRESS', 'property'], ['STOPPED', 'property'],
   ['addressStack', 'variable'], ['slot', 'variable'], ['source', 'variable'], ['carry', 'variable'],
-  ['transfer', 'function'], ['add', 'function'], ['carry', 'function'], ['u14', 'function'],
+  ['addOverflow', 'function'], ['overflow', 'function'], ['transfer', 'function'], ['add', 'function'], ['carry', 'function'], ['u14', 'function'],
   ['Cpu8008', 'type'], ['8', 'number'], ['$0000', 'number'], ['000', 'number'],
   ['pair', 'keyword'], ['replace', 'keyword'], ['little', 'constant'], ['none', 'constant'], ['&lt;-', 'operator'],
 ]) {

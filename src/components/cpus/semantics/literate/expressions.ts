@@ -1,6 +1,6 @@
-import { addWrap, and, or, xor, select, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
+import { addOverflow, addWrap, and, or, xor, select, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
   flagValue, halfBorrow, halfCarry, highByte, isWidth, literal, lowBit, lowByte, negative, not, shiftLeft, shiftRight,
-  subtract, truncate, value, zero } from "../model.ts";
+  overflow, subtract, truncate, value, zero } from "../model.ts";
 import type { FlagExpression, NumberExpression, Width } from "../model.ts";
 import type { ChapterTokens } from "./document.ts";
 
@@ -55,10 +55,11 @@ export function flagExpression(tokens: ChapterTokens): FlagExpression {
   else if (name === "and" || name === "or" || name === "xor") {
     const left = flagExpression(tokens); tokens.expect(",");
     result = { and, or, xor }[name](left, flagExpression(tokens));
-  } else if (["carry", "borrow", "halfCarry", "halfBorrow"].includes(name)) {
+  } else if (["carry", "borrow", "halfCarry", "halfBorrow", "addOverflow", "overflow"].includes(name)) {
     const left = expression(tokens); tokens.expect(","); const right = expression(tokens);
     const incoming = tokens.take(",") ? flagExpression(tokens) : undefined;
-    const operation = { carry, borrow, halfCarry, halfBorrow }[name as "carry" | "borrow" | "halfCarry" | "halfBorrow"];
+    const operations = { carry, borrow, halfCarry, halfBorrow, addOverflow, overflow };
+    const operation = operations[name as keyof typeof operations];
     result = operation(left, right, incoming);
   } else {
     const operations = { negative, zero, lowBit, evenParity };

@@ -2,9 +2,10 @@
 
 Executable chapters are maintained CPU sources:
 
-- [MOS 6502: state, addressing, transfers, logic, and comparisons](../../src/components/cpus/specifications/6502.md)
+- [MOS 6502: state, addressing, and data operations](../../src/components/cpus/specifications/6502.md)
   owns the complete stored-state schema, all loads/stores and register transfers,
-  ORA/AND/EOR, CMP/CPX/CPY, and BIT. Its addressing catalogue and N/Z policy
+  ORA/AND/EOR, CMP/CPX/CPY, BIT, ADC/SBC, shifts/rotates, and byte adjustments.
+  Its addressing catalogue and N/Z policy
   also serve the remaining TypeScript definitions. Reset and execution boundaries
   still belong to the core and its model document.
 - [Intel 8008: the complete model](../../src/components/cpus/specifications/8008.md)
@@ -363,6 +364,7 @@ Flag expressions are captured flags or policy parameters, literal `0`/`1`, or:
 | `negative(value)`, `zero(value)`, `lowBit(value)` | Test the top bit at the value's width, zero, or bit zero. |
 | `evenParity(byte)` | Test even parity of a byte, including zero. |
 | `carry(left, right[, incoming])`, `borrow(left, right[, incoming])` | Test unsigned carry or borrow at the operands' equal width, with an optional incoming flag. |
+| `addOverflow(left, right[, incoming])`, `overflow(left, right[, incoming])` | Test signed addition or subtraction overflow at the operands' equal width; the optional incoming carry/borrow is a flag expression and defaults to zero. |
 | `halfCarry(left, right[, incoming])`, `halfBorrow(left, right[, incoming])` | Test carry or borrow from the low nibble of equally sized operands, including an optional incoming flag. The 8080 chapter explicitly negates half-borrow for its subtraction AC rule. |
 
 Flag constants use `0` and `1`, not spelled-out booleans. Updates take effect
@@ -604,9 +606,11 @@ other instruction families remain authored in TypeScript.
 
 The four chapters now exercise contrasting widths, ordered effects, and
 interrupt-recognition policies. The 6502 also owns its complete state, transfers,
-logical operations, comparisons, and BIT. Existing selector/source bindings
+logical operations, comparisons, BIT, arithmetic, and byte updates. Existing selector/source bindings
 express its irregular index-load/store encodings and cross-indexing without new
-language syntax. Its thin state adapter re-exports the generated schema while
+language syntax. ADC/SBC use explicit digit correction with generic signed-overflow
+predicates; memory updates retain two writes and separate carry/N/Z stages.
+Its thin state adapter re-exports the generated schema while
 retaining the packed-status layout until those instructions migrate.
 The 8008 now expresses its address-stack selector, array, and port effects;
 the 68000 still uses its native effective-address decoder, including A7 banking
