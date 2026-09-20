@@ -1,14 +1,13 @@
 import { views as chapterViews, actions as chapterActions, policies, families } from "../generated/6809.ts";
 import { cpu6809StateDescription } from "../../state/6809.ts";
-import { addWrap, bitAnd, bitOr, capture, extend, fetchByte, flagLiteral, flagValue, literal, cpuSymbols, highByte, lowByte, multiply, negative, not, perform, replaceFlags, readRegister, readSource, signExtend, testChoice, updateFlags, value, when, writeChoice, writeLatch, writeRegister, zero } from "../model.ts";
+import { bitAnd, bitOr, fetchByte, flagLiteral, flagValue, literal, cpuSymbols, not, perform, replaceFlags, readSource, testChoice, updateFlags, value, when, writeChoice, writeLatch, writeRegister, zero } from "../model.ts";
 import type { InstructionDefinition, NumberExpression, Statement } from "../model.ts";
 import { instructionSet, registerSource, registerView } from "../builders.ts";
-import { motorolaBranches, motorolaByteArithmetic, motorolaArithmeticFamily, motorolaTransfers, motorolaComparison, motorolaLogic, motorolaSubroutines, motorolaUnary } from "../motorola.ts";
-import { choose, flagCondition, loadVector, resolvedJump } from "../control-flow.ts";
-import { motorolaBranchNames, motorola6809TransferForms } from "../../motorola.ts";
+import { motorolaLongBranches, motorolaByteArithmetic, motorolaArithmeticFamily, motorolaTransfers, motorolaComparison, motorolaLogic, motorolaMemoryUnary } from "../motorola.ts";
+import { choose, flagCondition, loadVector } from "../control-flow.ts";
+import { motorola6809TransferForms } from "../../motorola.ts";
 import { flagPolicy } from "../status.ts";
 import { byteStack, maskedStack, stackFrame } from "../stack.ts";
-import { decimalAdjust } from "../decimal.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("6809", cpu6809StateDescription);
@@ -91,23 +90,6 @@ export const instructions6809: Readonly<Record<string, InstructionDefinition>> =
     explanation: "Pull and replace CC first. Restored E selects the remaining full frame or PC alone; only complete each field after all its reads. Arm NMI after all transfers succeed. " + interruptStack.explanation,
     steps: [...stackFrame([views.cc], interruptStack, "big-endian", true), ...choose(flagCondition(cpu.flag("e"), true),
       stackFrame(interruptFrame.slice(1), interruptStack, "big-endian", true, "rest"), stackFrame([views.pc], interruptStack, "big-endian", true, "rest")), armNmi] }),
-  nop: defineInstruction({ cpu: cpu.declaration, name: "NOP", explanation: "No effects after opcode fetching.", steps: [] }),
-  sex: defineInstruction({ cpu: cpu.declaration, name: "SEX",
-    explanation: "Sign-extend B into A, leaving B unchanged. Then set N/Z from B and preserve every other flag, including V.",
-    steps: [readRegister("byte", cpu.register("b")), writeRegister(cpu.register("a"), highByte(signExtend(value("byte"), 16))),
-      updateFlags(flagPolicy(cpu, "SEX N/Z", { byte: 8 }, { n: negative(value("byte")), z: zero(value("byte")) }), { byte: value("byte") })],
-  }),
-  abx: defineInstruction({ cpu: cpu.declaration, name: "ABX",
-    explanation: "Read X then unsigned B; add with word wrapping and write X. Preserve all flags without reading them.",
-    steps: [readRegister("index", cpu.register("x")), readRegister("byte", cpu.register("b")),
-      writeRegister(cpu.register("x"), addWrap(value("index"), extend(value("byte"), 16)))],
-  }),
-  mul: defineInstruction({ cpu: cpu.declaration, name: "MUL",
-    explanation: "Multiply unsigned A by unsigned B. Write the complete product into D as A then B, then update Z and C. C is product bit 7 for rounding, not overflow; preserve all other flags.",
-    steps: [readRegister("left", cpu.register("a")), readRegister("right", cpu.register("b")),
-      capture("product", multiply(value("left"), value("right"))), ...writeD(value("product")),
-      updateFlags(flagPolicy(cpu, "MUL Z/C", { product: 16 }, { z: zero(value("product")), c: negative(lowByte(value("product"))) }), { product: value("product") })],
-  }),
   ...Object.fromEntries((["x", "y", "s", "u"] as const).map(register => [`lea${register}`, defineInstruction({ cpu: cpu.declaration,
     name: `LEA${register.toUpperCase()}`, inputs: { address: 16 },
     explanation: "Entry follows successful indexed address resolution, including auto-updates and indirect reads. Write the captured effective address over any earlier update of the destination. "
@@ -120,17 +102,8 @@ export const instructions6809: Readonly<Record<string, InstructionDefinition>> =
   pshu: registerStack("u", false), pulu: registerStack("u", true),
   // Reuse mask construction in external interrupt entry without ordinary PSHS arming.
   pushFrame: registerStack("s", false, true),
-  daa: decimalAdjust(cpu, "motorola"),
-  ...Object.fromEntries((["or", "and"] as const).map(operation => [`${operation}cc`, defineInstruction({ cpu: cpu.declaration, name: `${operation.toUpperCase()}CC`,
-    explanation: "Capture packed CC before fetching the mask, then combine and replace all flags. A failed fetch leaves flags unchanged.",
-    steps: [readSource("status", chapterViews.CC), fetchByte("mask"),
-      restoreCC((operation === "or" ? bitOr : bitAnd)(value("status"), value("mask")))],
-  })])),
-  ...motorolaSubroutines(cpu, cpu.register("s"), "occupied", true),
-  ...motorolaBranches(cpu, motorolaBranchNames),
-  ...motorolaBranches(cpu, motorolaBranchNames, true),
-  jump: resolvedJump(cpu),
-  ...motorolaUnary(cpu, { clearReadsOperand: true, testClearsCarry: false, rightShiftSetsOverflow: false }),
+  ...motorolaLongBranches(cpu),
+  ...motorolaMemoryUnary(cpu),
   ...motorolaLogic(cpu, ["Memory"]),
   ...motorolaByteArithmetic(cpu, ["Memory"]),
   ...motorolaArithmeticFamily(cpu, "SUBD", writableD, "subtract", false, ["Memory"]),

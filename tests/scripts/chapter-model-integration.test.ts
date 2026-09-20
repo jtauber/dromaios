@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 
-test("6809 chapter state and D/CC edits reach native instructions, indexed decoding, and interrupt frames", t => {
+test("6809 chapter state, view, and call edits reach native instructions, indexed decoding, and interrupt frames", t => {
   const directory = mkdtempSync(join(tmpdir(), "dromaios-6809-chapter-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
@@ -18,6 +18,7 @@ test("6809 chapter state and D/CC edits reach native instructions, indexed decod
     .replace("return concat(high, low)", "return concat(low, high)")
     .replace("A <- highByte(word)\n  B <- lowByte(word)", "A <- lowByte(word)\n  B <- highByte(word)")
     .replace("select(c, u8($01)", "select(c, u8($02)")
+    .replace("S <- subtract(pointer, u16($0001))", "S <- subtract(pointer, u16($0002))")
     .replace("I = not(zero(and(status, u8($10))))", "I = zero(and(status, u8($10)))"));
   const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
   assert.equal(generated.status, 0, generated.stderr);
@@ -32,10 +33,13 @@ test("6809 chapter state and D/CC edits reach native instructions, indexed decod
     assert.throws(() => parseMachine(text), /Missing fields.*SCRATCH/);
     const definition = parseMachine(text.replace("cpu 6809 {", "cpu 6809 { SCRATCH = A5"));
     assert.equal(definition.initialState.scratch, 0xa5);
-    for (const operation of ["TFR X,D", "TFR CC,A", "TFR A,CC", "LDA D,X", "RTI", "SWI", "irq", "firq", "nmi"]) {
+    for (const operation of ["TFR X,D", "TFR CC,A", "TFR A,CC", "LDA D,X", "RTI", "SWI", "irq", "firq", "nmi",
+      "JSR direct", "JSR extended", "JSR indexed", "BSR", "LBSR"]) {
       const bytes = new Uint8Array(65536);
       bytes.set({ "TFR X,D": [0x1f, 0x10], "TFR CC,A": [0x1f, 0xa8], "TFR A,CC": [0x1f, 0x8a],
-        "LDA D,X": [0xa6, 0x8b], RTI: [0x3b], SWI: [0x3f] }[operation] ?? [0x12], 0x200);
+        "LDA D,X": [0xa6, 0x8b], RTI: [0x3b], SWI: [0x3f], "JSR direct": [0x9d, 0x80],
+        "JSR extended": [0xbd, 0x80, 0], "JSR indexed": [0xad, 0x84], BSR: [0x8d, 0], LBSR: [0x17, 0, 0],
+      }[operation] ?? [0x12], 0x200);
       bytes[0x1434] = 0x7a;
       const ram = { size: bytes.length, read: address => bytes[address], write: (address, byte) => { bytes[address] = byte; } };
       const initial = { a: 0, b: 2, dp: 0, x: 0x1234, y: 0, s: 0xff, u: 0, pc: 0x200,
@@ -54,6 +58,13 @@ test("6809 chapter state and D/CC edits reach native instructions, indexed decod
       else if (operation === "TFR CC,A") assert.equal(after.a, 2);
       else if (operation === "LDA D,X") assert.equal(after.a, 0x7a);
       else if (operation === "TFR A,CC" || operation === "RTI") assert.equal(after.flags.i, true);
+      else if (operation.startsWith("JSR") || operation === "BSR" || operation === "LBSR") {
+        const targets = { "JSR direct": 0x80, "JSR extended": 0x8000, "JSR indexed": 0x1234, BSR: 0x202, LBSR: 0x203 };
+        assert.equal(after.pc, targets[operation]); assert.equal(after.s, 0xfb);
+        assert.equal(bytes[0xfd], operation === "JSR extended" || operation === "LBSR" ? 3 : 2);
+        assert.equal(bytes[0xfb], 2);
+        assert.deepEqual(after.flags, initial.flags); assert.equal(after.nmiArmed, true);
+      }
       else {
         assert.equal(bytes[operation === "firq" ? 0xfc : 0xf3], operation === "firq" ? 2 : 0x82);
         assert.equal(after.flags.i, false, "entry must restore through the edited CC policy");

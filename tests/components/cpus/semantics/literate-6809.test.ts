@@ -10,6 +10,7 @@ import { instructions } from "../../../../src/components/cpus/generated/6809-bas
 import { instructions as actions, sourceReaders } from "../../../../src/components/cpus/generated/6809-state.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
+import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
 
 const file = "src/components/cpus/specifications/6809.md", markdown = readFileSync(file, "utf8");
 const chapter = compileCpuChapter(markdown, { name: "6809" }, file);
@@ -21,7 +22,7 @@ type Body = (state: Cpu6809State, context: Context) => void;
 const unexpected = (): never => { throw new Error("Unexpected access"); };
 
 // Literal base-page inventory, independent of chapter selectors and Motorola builders.
-const opcodes = [
+const operandOpcodes = [
   0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8e,
   0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9e, 0x9f,
   0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbe, 0xbf,
@@ -29,6 +30,18 @@ const opcodes = [
   0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
   0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
 ];
+
+const controlOpcodes = [
+  0x00, 0x03, 0x04, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0c, 0x0d, 0x0e, 0x0f,
+  0x12, 0x16, 0x17, 0x19, 0x1a, 0x1c, 0x1d,
+  0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+  0x39, 0x3a, 0x3d,
+  0x40, 0x43, 0x44, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4c, 0x4d, 0x4f,
+  0x50, 0x53, 0x54, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5c, 0x5d, 0x5f,
+  0x70, 0x73, 0x74, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x7c, 0x7d, 0x7e, 0x7f,
+  0x8d, 0x9d, 0xbd,
+];
+const opcodes = [...operandOpcodes, ...controlOpcodes].sort((a, b) => a - b);
 
 async function bodies(text: string): Promise<Readonly<Record<number, Body>>> {
   const compiled = compileCpuChapter(text, { name: "6809" }, file);
@@ -38,13 +51,14 @@ async function bodies(text: string): Promise<Readonly<Record<number, Body>>> {
   return (await import(`data:text/javascript,${encodeURIComponent(javascript)}`)).instructions;
 }
 
-test("the 6809 chapter owns its full schema and exactly 88 immediate/direct/extended forms", () => {
+test("the 6809 chapter owns its full schema and exactly 163 base-page forms", () => {
   const expected = defineState({ a: unsigned(8), b: unsigned(8), dp: unsigned(8), x: unsigned(16), y: unsigned(16),
     s: unsigned(16), u: unsigned(16), pc: unsigned(16), waitMode: namedChoices("none", "sync", "cwai"), nmiArmed: boolean,
     flags: group({ e: flag, f: flag, h: flag, i: flag, n: flag, z: flag, v: flag, c: flag }) });
   assert.deepEqual(chapter.state, expected); assert.deepEqual(cpu6809StateDescription, expected);
   assert.deepEqual(Object.keys(cpu6809StateDescription), Object.keys(expected));
-  assert.equal(opcodes.length, 88);
+  assert.equal(operandOpcodes.length, 88); assert.equal(controlOpcodes.length, 75);
+  assert.equal(opcodes.length, 163);
   assert.deepEqual(Object.keys(chapter6809).map(Number).sort((a, b) => a - b), opcodes);
   assert.deepEqual(Object.fromEntries(Object.values(chapter.families).flat()), chapter6809);
   assert.equal(chapter.execution, undefined); assert.equal(chapter.interface, undefined);
@@ -113,8 +127,8 @@ test("chapter edits change direct addressing and the D view consumed by instruct
   assert.deepEqual(writes, [[0x56ff, 0xaa], [0x5700, 0x55]]);
 });
 
-test("all migrated forms retain old state on a failed operand access, including partial stores", () => {
-  for (const opcode of opcodes) {
+test("operand families retain old state on a failed operand access, including partial stores", () => {
+  for (const opcode of operandOpcodes) {
     const execute: Body = instructions[opcode as keyof typeof instructions];
     const baselineAccesses: [string, number?][] = [];
     execute(state(), { fetchByte() { baselineAccesses.push(["fetch"]); return 0xff; },
@@ -137,4 +151,106 @@ test("all migrated forms retain old state on a failed operand access, including 
       assert.equal(writes.length, baselineAccesses.slice(0, failAt).filter(([kind]) => kind === "write").length);
     }
   }
+});
+
+test("chapter unary policies expose preserved V/C and CLR's read before flags and writeback", async () => {
+  const changed = await bodies(markdown
+    .replace('policy RIGHTFLAGS "6809 right shift" (result: 8, outgoing: flag) {',
+      'policy RIGHTFLAGS "6809 right shift" (result: 8, outgoing: flag) {\n  V = 0')
+    .replace('policy TESTFLAGS "6809 TST" (result: 8) {', 'policy TESTFLAGS "6809 TST" (result: 8) {\n  C = 0'));
+  const normal = state(), edited = state();
+  instructions[0x44](normal); changed[0x44]!(edited, { fetchByte: unexpected, readByte: unexpected, writeByte: unexpected });
+  assert.equal(normal.flags.v, true); assert.equal(edited.flags.v, false);
+  instructions[0x4d](normal); changed[0x4d]!(edited, { fetchByte: unexpected, readByte: unexpected, writeByte: unexpected });
+  assert.equal(normal.flags.c, true); assert.equal(edited.flags.c, false);
+  for (const failAt of ["read", "write"]) {
+    const current = state(), failure = new Error(failAt), accesses: string[] = [];
+    assert.throws(() => instructions[0x0f](current, {
+      fetchByte: () => 0xff,
+      readByte(address) {
+        assert.equal(address, 0xffff); accesses.push("read");
+        if (failAt === "read") throw failure;
+        current.dp = 0; return 0x81;
+      },
+      writeByte(address, value) {
+        assert.equal(address, 0xffff); assert.equal(value, 0); accesses.push("write");
+        assert.deepEqual(current.flags, { ...state().flags, n: false, z: true, c: false, v: false });
+        throw failure;
+      },
+    }), error => error === failure);
+    assert.deepEqual(accesses, failAt === "read" ? ["read"] : ["read", "write"]);
+    if (failAt === "read") assert.deepEqual(current, state());
+  }
+});
+
+test("formal edits determine decimal correction and signed branch displacement", async () => {
+  const changed = await bodies(markdown.replace(', u8($06), u8($00))', ', u8($05), u8($00))')
+    .replace('PC <- add(pc, signExtend(offset, 16))', 'PC <- add(pc, extend(offset, 16))'));
+  const normal = state(), edited = state();
+  for (const current of [normal, edited]) { current.a = 0x9a; current.flags.h = false; current.flags.c = false; }
+  instructions[0x19](normal); changed[0x19]!(edited, { fetchByte: unexpected, readByte: unexpected, writeByte: unexpected });
+  assert.equal(normal.a, 0); assert.equal(normal.flags.c, true);
+  assert.equal(edited.a, 0xff); assert.equal(edited.flags.c, false);
+  normal.pc = 1; edited.pc = 1;
+  instructions[0x20](normal, { fetchByte: () => 0xff });
+  changed[0x20]!(edited, { fetchByte: () => 0xff, readByte: unexpected, writeByte: unexpected });
+  assert.equal(normal.pc, 0); assert.equal(edited.pc, 0x100);
+});
+
+test("chapter calls retain completed S decrements and returns increment live S only after successful reads", () => {
+  const failure = new Error("stack failed");
+  for (const failAt of [0, 1, -1]) {
+    const current = state(), writes: [number, number][] = [];
+    current.s = 0; current.pc = 0x1234; current.nmiArmed = false;
+    const call = () => actions.call(current, 0x5678, { writeByte(address, value) {
+      const index = writes.length;
+      assert.equal(address, index === 0 ? 0xffff : 0xff);
+      if (index === failAt) throw failure;
+      writes.push([address, value]); current.s = 0x100; current.pc = 0x9999;
+    } });
+    if (failAt < 0) call(); else assert.throws(call, error => error === failure);
+    assert.deepEqual(writes, [[0xffff, 0x34], [0xff, 0x12]].slice(0, failAt < 0 ? 2 : failAt));
+    assert.equal(current.s, failAt === 0 ? 0xffff : failAt === 1 ? 0xff : 0x100);
+    assert.equal(current.pc, failAt === 0 ? 0x1234 : failAt === 1 ? 0x9999 : 0x5678);
+    assert.equal(current.nmiArmed, false); assert.deepEqual(current.flags, state().flags);
+
+    current.s = 0xffff; current.pc = 0x200;
+    let reads = 0;
+    const pop = () => instructions[0x39](current, { readByte(address) {
+      const index = reads++;
+      assert.equal(address, index === 0 ? 0xffff : 0x101);
+      if (index === failAt) throw failure;
+      current.s = 0x100; return index === 0 ? 0x56 : 0x78;
+    } });
+    if (failAt < 0) pop(); else assert.throws(pop, error => error === failure);
+    assert.equal(current.pc, failAt < 0 ? 0x5678 : 0x200);
+    assert.equal(current.s, failAt === 0 ? 0xffff : 0x101);
+    assert.equal(current.nmiArmed, false); assert.deepEqual(current.flags, state().flags);
+  }
+});
+
+test("MUL's literate expression yields an unsigned full-width result and retains Markdown diagnostics", async () => {
+  const changed = await bodies(markdown.replace('multiply(left, right)', 'multiply(right, right)'));
+  const current = state(); current.a = 3; current.b = 5;
+  changed[0x3d]!(current, { fetchByte: unexpected, readByte: unexpected, writeByte: unexpected });
+  assert.equal(current.a, 0); assert.equal(current.b, 25);
+  for (const expression of ['multiply(left, extend(right, 16))', 'multiply(extend(left, 32), extend(right, 32))']) {
+    const edited = markdown.replace('multiply(left, right)', expression);
+    const line = edited.split("\n").findIndex(line => line.includes(`product = ${expression}`)) + 1;
+    assert.throws(() => compileCpuChapter(edited, { name: "6809" }, file), (error: unknown) =>
+      error instanceof ChapterError && error.file === file && error.line === line && /equal widths|multiplication requires/.test(error.message));
+  }
+  const edited = markdown.replace('product = multiply(left, right)', 'product = multiply(extend(left, 16), extend(right, 16))');
+  assert.throws(() => compileCpuChapter(edited, { name: "6809" }, file), /expected 16-bit/);
+
+  // The same expression supports a different CPU's word-by-word multiplication.
+  const probe = compileCpuChapter('Multiply two unsigned words into a double-width destination.\n\n```cpu\ncpu "probe"\nstate {\n register X: 16\n register Y: 16\n register D: 32\n}\n' +
+    'family product "0000 0000" {\n left = register X\n right = register Y\n D <- multiply(left, right)\n}\n```');
+  const source = generateInstructions("probe", Object.fromEntries(Object.values(probe.families).flat()));
+  const alu = new URL("../../../../src/components/cpus/alu.js", import.meta.url).href;
+  const javascript = stripTypeScriptTypes(source).replace('"../alu.ts"', JSON.stringify(alu));
+  const compiled: { instructions: Record<number, (state: { x: number; y: number; d: number }) => void> } =
+    await import(`data:text/javascript,${encodeURIComponent(javascript)}`);
+  const words = { x: 0xffff, y: 0xffff, d: 0 };
+  compiled.instructions[0]!(words); assert.equal(words.d, 0xfffe0001);
 });

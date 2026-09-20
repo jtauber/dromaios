@@ -15,7 +15,7 @@ import type { Cpu6809State } from "./state/6809.ts";
 import type { ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteMemoryBindings, motorolaBranchNames, motorola6809TransferForms } from "./motorola.ts";
+import { motorolaUnaryMemoryOperations, motorolaOperandBindings, motorolaByteMemoryBindings, motorolaBranchNames, motorola6809TransferForms } from "./motorola.ts";
 
 export { cpu6809StateDescription } from "./state/6809.ts";
 export type { Cpu6809State, Cpu6809Flags } from "./state/6809.ts";
@@ -136,11 +136,9 @@ export class Cpu6809 {
 
   // Opcode selectors and construction.
 
-  // Unary encodings: 0000 oooo = direct, 010r oooo = A/B,
-  // 0110 oooo = indexed, 0111 oooo = extended. r=0 selects A, r=1 selects B.
-  // Generated register bodies are in A/B selector order; memory bodies receive one resolved address.
-  // TST (1101) never writes. JMP (1110) changes PC and stays outside this inventory.
-  static readonly #unaryOperations = motorolaUnaryOperations(semantics);
+  // Remaining unary encodings use 0110 oooo and native indexed postbytes.
+  // TST (1101) never writes; JMP (1110) uses only the address.
+  static readonly #unaryOperations = motorolaUnaryMemoryOperations(semantics);
 
   // mm in 1 r mm oooo: 00 is immediate; the other modes resolve a data address.
   readonly #directOperandAddress: OperandReader = ({ fetchByte }) => this.#directAddress(fetchByte());
@@ -164,7 +162,7 @@ export class Cpu6809 {
   // Transfers append 0=load/1=store; immediate stores are undefined.
   readonly #page2Handlers = opcodeTable<OpcodeHandler>([
     ...instructionPattern("0011 1111", instruction => semantics.swi2(this.#state, instruction)), // SWI2
-    ...this.#branchHandlers(true).filter(([opcode]) => opcode !== 0x20), // LBRN and LBcc; LBRA has base opcode 16
+    ...this.#longBranchHandlers(), // LBRN and LBcc; LBRA has base opcode 16
     ...this.#operandHandlers("10 mm 0011", semantics.cmpdImmediate, semantics.cmpdMemory), // CMPD
     ...this.#operandHandlers("10 mm 1100", semantics.cmpyImmediate, semantics.cmpyMemory), // CMPY
     ...this.#operandHandlers("10 mm 1110", semantics.ldyImmediate, semantics.ldyMemory), // LDY
@@ -183,26 +181,13 @@ export class Cpu6809 {
   #createOpcodeHandlers() {
     return opcodeTable<OpcodeHandler>([
       ...chapterOpcodes(this.#state),
-      // 0000 oooo: direct unary operations; 1110 is JMP instead of a byte operation.
-      ...this.#memoryUnaryHandlers("0000", this.#directOperandAddress),
-
       ...instructionPattern("0001 0000", instruction => this.#executeFollowingByte(this.#page2Handlers, instruction)),
       ...instructionPattern("0001 0001", instruction => this.#executeFollowingByte(this.#page3Handlers, instruction)),
-      ...instructionPattern("0001 0010", () => semantics.nop(this.#state)), // NOP
       ...instructionPattern("0001 0011", () => semantics.sync(this.#state)), // SYNC
-      ...instructionPattern("0001 0110", instruction => semantics.lbra(this.#state, instruction)), // LBRA rel16
-      ...instructionPattern("0001 0111", instruction => semantics.lbsr(this.#state, instruction)), // LBSR rel16
 
-      ...instructionPattern("0001 1001", () => semantics.daa(this.#state)), // DAA
-      ...instructionPattern("0001 1010", instruction => semantics.orcc(this.#state, instruction)), // ORCC
-      ...instructionPattern("0001 1100", instruction => semantics.andcc(this.#state, instruction)), // ANDCC
-      ...instructionPattern("0001 1101", () => semantics.sex(this.#state)), // SEX
       // 0001111 t: t=0 exchanges, t=1 transfers; the postbyte selects same-width registers.
       ...instructionPattern("0001111 0", instruction => this.#executeFollowingByte(this.#exchangeHandlers, instruction)), // EXG
       ...instructionPattern("0001111 1", instruction => this.#executeFollowingByte(this.#transferHandlers, instruction)), // TFR
-
-      // 0010 cccc, cccc=tttp: ttt selects T/HI/CC/NE/VC/PL/GE/GT; bit 0 inverts it.
-      ...this.#branchHandlers(), // BRA / BRN / Bcc
 
       // 001100 rr: rr=00/01/10/11 selects X/Y/S/U; only X/Y replace Z.
       ...this.#addressedHandlers(this.#indexedOperandAddress, opcodeFamily("001100 rr", { r: [semantics.leax, semantics.leay, semantics.leas, semantics.leau] },
@@ -212,30 +197,21 @@ export class Cpu6809 {
       // Mask bits 7..0: PC, other stack pointer, Y, X, DP, B, A, CC (E F H I N Z V C).
       ...opcodeFamily("001101 s p", { s: [[semantics.pshs, semantics.puls], [semantics.pshu, semantics.pulu]], p: [0, 1] },
         ({ s: operations, p: direction }) => (instruction: InstructionContext) => operations[direction]!(this.#state, instruction)), // PSHS / PULS / PSHU / PULU
-      ...instructionPattern("0011 1001", instruction => semantics.rts(this.#state, instruction)), // RTS
-      ...instructionPattern("0011 1010", () => semantics.abx(this.#state)), // ABX, unsigned B; preserve flags
       ...instructionPattern("0011 1011", instruction => semantics.rti(this.#state, instruction)), // RTI
       ...instructionPattern("0011 1100", instruction => semantics.cwai(this.#state, instruction)), // CWAI #mask
-      ...instructionPattern("0011 1101", () => semantics.mul(this.#state)), // MUL
       ...instructionPattern("0011 1111", instruction => semantics.swi(this.#state, instruction)), // SWI
 
-      // 010 r oooo: A/B unary operations. TST updates flags without writing a result.
-      ...Cpu6809.#unaryOperations.flatMap(({ bits, registers }) => opcodeFamily(`010 r ${bits}`,
-        { r: registers }, ({ r: execute }) => () => execute(this.#state))),
-
-      // 0110 oooo is indexed; 0111 oooo uses an extended address (including JMP).
-      ...this.#memoryUnaryHandlers("0110", this.#indexedOperandAddress),
-      ...this.#memoryUnaryHandlers("0111", this.#extendedOperandAddress),
+      // 0110 oooo: indexed unary bodies (including JMP); other modes come from the chapter.
+      ...this.#memoryUnaryHandlers(),
 
       // Remaining 1 r 10 oooo forms use indexed postbytes; other modes come from the chapter.
       // CMP/BIT preserve A/B; arithmetic sets flags before writeback; loads/logic write before flags.
       // Stores apply flags after a successful write.
       ...motorolaByteMemoryBindings(semantics, this.#indexedOperands), // SUB/CMP/SBC/AND/BIT/LD/ST/EOR/ADC/OR/ADD
 
-      // 10 mm 1101: mm=00 is BSR; the other modes are JSR.
-      ...instructionPattern("10 00 1101", instruction => semantics.bsr(this.#state, instruction)), // BSR rel8
-      ...this.#memoryModes.flatMap(({ bits, address }) => this.#addressedHandlers(address,
-        addressPattern(`10 ${bits} 1101`, (address, instruction) => semantics.jsr(this.#state, address, instruction)))), // JSR
+      // 10 10 1101: indexed JSR resolves its target before the shared chapter call action.
+      ...this.#addressedHandlers(this.#indexedOperandAddress,
+        addressPattern("10 10 1101", (address, instruction) => stateActions.call(this.#state, address, instruction))),
 
       // 10 mm 1100: CMPX uses immediate/direct/indexed/extended sources for mm=00/01/10/11.
       ...this.#indexedOperands("10 mm 1100", undefined, semantics.cmpxMemory), // CMPX
@@ -265,17 +241,19 @@ export class Cpu6809 {
     return handler ? handler(instruction) : "unsupported";
   }
 
-  #branchHandlers(long = false): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily("0010 cccc", { c: motorolaBranchNames }, ({ c: name }) =>
-      (instruction: InstructionContext) => semantics[`${long ? "l" : ""}${name}`](this.#state, instruction));
+  // Page 10 has no BRA at 0010 0000; 0010 cccc otherwise retains the native condition codes.
+  #longBranchHandlers(): readonly OpcodeEntry<OpcodeHandler>[] {
+    return motorolaBranchNames.flatMap((name, condition) => name === "bra" ? [] :
+      instructionPattern(`0010 ${condition.toString(2).padStart(4, "0")}`,
+        instruction => semantics[`l${name}`](this.#state, instruction)));
   }
 
-  // CLR also reads its operand here; the 6800 binds CLR to a write-only instruction.
-  #memoryUnaryHandlers(prefix: "0000" | "0110" | "0111", address: AddressReader): readonly OpcodeEntry<OpcodeHandler>[] {
-    return this.#addressedHandlers(address, [
-      ...Cpu6809.#unaryOperations.flatMap(({ bits, memory }) => addressPattern(`${prefix} ${bits}`,
+  // CLR reads its operand; TST omits writeback. Address decoding still owns indexed effects.
+  #memoryUnaryHandlers(): readonly OpcodeEntry<OpcodeHandler>[] {
+    return this.#addressedHandlers(this.#indexedOperandAddress, [
+      ...Cpu6809.#unaryOperations.flatMap(({ bits, memory }) => addressPattern(`0110 ${bits}`,
         (address, instruction) => memory(this.#state, address, instruction))),
-      ...addressPattern(`${prefix} 1110`, address => semantics.jump(this.#state, address)), // JMP
+      ...addressPattern("0110 1110", address => stateActions.jump(this.#state, address)), // JMP
     ]);
   }
 

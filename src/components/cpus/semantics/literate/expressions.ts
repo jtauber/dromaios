@@ -1,5 +1,5 @@
 import { addOverflow, addWrap, and, or, xor, select, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
-  flagValue, halfBorrow, halfCarry, highByte, isWidth, literal, lowBit, lowByte, negative, not, shiftLeft, shiftRight,
+  flagValue, halfBorrow, halfCarry, highByte, isWidth, literal, lowBit, lowByte, multiply, negative, not, shiftLeft, shiftRight,
   overflow, signExtend, subtract, truncate, value, zero } from "../model.ts";
 import type { FlagExpression, NumberExpression, Width } from "../model.ts";
 import type { ChapterTokens } from "./document.ts";
@@ -36,7 +36,7 @@ export function expression(tokens: ChapterTokens): NumberExpression {
     const incoming = tokens.take(",") ? flagExpression(tokens) : undefined;
     result = (name === "add" ? addWrap : subtract)(left, right, incoming);
   } else {
-    const operations = { and: bitAnd, or: bitOr, xor: bitXor, concat };
+    const operations = { and: bitAnd, or: bitOr, xor: bitXor, concat, multiply };
     if (!Object.hasOwn(operations, name)) tokens.fail(`Unknown numeric operation ${name}.`);
     const left = expression(tokens); tokens.expect(",");
     result = operations[name as keyof typeof operations](left, expression(tokens));

@@ -106,12 +106,10 @@ The 68000 has all 36,029 documented forms migrated, including ordinary MOVE/MOVE
 data logic, arithmetic/comparison, bit operations, shifts/rotates, TAS, word
 products/division, signed bounds, decimal arithmetic, ordinary control flow,
 address calculation, stack frames, MOVEP/MOVEM, and status/system instructions. Bodies
-start after opcode selection. Each 6809 memory
-body starts after successful address resolution and serves direct, indexed, and
-extended forms, including all legal indexed postbytes. The 6800 memory
-comparisons, logic, arithmetic, and byte/word transfers likewise serve direct/indexed/extended
-forms, while its unary operations have indexed/extended forms. Both decoders
-remain handwritten. The existing
+start after opcode selection. Remaining 6809 memory bodies start after successful
+address resolution; indexed forms retain the handwritten postbyte decoder, and
+prefixed bodies also serve direct/extended modes. Chapter-owned base-page forms
+include their addressing, as do all 6800 forms. The existing
 [boundary probes](boundary-probes.md#existing-models-executable-evidence) and
 independent CPU tests are the behavioral baseline.
 
@@ -258,7 +256,7 @@ The authoring layers have separate homes:
 | [control-flow.ts](../../src/components/cpus/semantics/control-flow.ts) | Conditional effects, jumps, branches, calls, returns, and vector loads with explicit operand/condition/stack order |
 | [ports.ts](../../src/components/cpus/semantics/ports.ts) | Shared byte/word port transfers: capture addresses before operands, transfer low byte first, and commit input only after complete reads |
 | [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, ordered frames, and complete push/pop instruction construction |
-| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, arithmetic, branch, and subroutine construction; remaining 6809 comparison, logic, and transfer builders |
+| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Remaining 6809 indexed unary, arithmetic, comparison, logic, and transfer construction; page-10 long branches and shared Motorola conditions |
 | [intel.ts](../../src/components/cpus/semantics/intel.ts) | Z80 builders for byte ALU, byte and word transfers, arithmetic, exchanges, jumps, stacks, and subroutines, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
 | [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
@@ -602,22 +600,22 @@ while right shifts preserve V. That XOR uses the captured original and result,
 so the policy does not depend on assignments to live N or C. The 6502 retains
 its separate carry-before-writeback and N/Z-after-writeback stages, including
 the original-value memory write before a rotate reads incoming C.
-The shared `motorolaUnary` construction covers all eleven byte unary operations
-for the 6800 and 6809. It captures the original register or memory byte when
-required, calculates a result using a pure expression or ordered steps, applies
-N/Z and the operation's additional flag updates, and optionally writes the result.
-INC/DEC preserve C; TST clears V and omits writeback. Each CPU's definition
-declares three differences:
+The 6800 chapter owns every unary form. The 6809 chapter owns register, direct,
+and extended forms; `motorolaMemoryUnary` constructs only its remaining indexed
+bodies. Each path captures the original byte when required, calculates the
+result, applies N/Z and the operation's additional flags, and optionally writes
+the result. INC/DEC preserve C; TST clears V and omits writeback. The chapters
+state these differences explicitly:
 
 | Rule | 6800 | 6809 |
 | --- | --- | --- |
-| `clearReadsOperand` | No: CLR only writes | Yes: CLR reads before applying flags and writing |
-| `testClearsCarry` | Yes | No: preserve C |
-| `rightShiftSetsOverflow` | Yes: V = N XOR C | No: preserve V |
+| Read the CLR operand | No: CLR only writes | Yes: CLR reads before applying flags and writing |
+| Clear C on TST | Yes | No: preserve C |
+| Set V on right shifts | Yes: V = N XOR C | No: preserve V |
 
-These choices affect construction only; generated bodies contain no CPU-model
-branch. Both CPUs use the existing primitive vocabulary. Sharing unary
-construction left the existing 6502, 8080, and 6809 generated code byte-for-byte unchanged.
+Both CPUs use the same primitive vocabulary without a runtime CPU-model
+branch. The remaining indexed builder now has only 6809 rules; its former
+6800 options and register-body expansion have been removed.
 
 Every 6809 memory unary operation reads its operand once. Rotates capture
 incoming C after that read; all operations except TST write once, including
@@ -644,9 +642,9 @@ enter a body. LEA uses the same writes after indexed decoding has finished,
 retaining auto-updates, indirect reads, and failures before entry. X/Y update
 only Z; S arms NMI; U preserves all flags.
 
-SEX and ABX use existing widening and addition expressions. MUL introduces only
+The chapter expresses SEX and ABX with widening and addition. MUL uses
 unsigned byte multiplication: capture A/B, calculate a word, write A then B,
-then replace Z/C. The C expression explicitly selects product bit 7.
+then update Z/C. The C expression explicitly selects product bit 7.
 [Register probes](../../tests/components/cpus/semantics/6809-registers.test.ts)
 check every legal transfer pair, flag replacement and arming, read/write order,
 failed register effects, all byte products, and rejected multiplication widths.
@@ -997,8 +995,9 @@ Untaken branches and jumps never write PC. Conditions are data with an explicit
 capture stage: Motorola compound conditions preserve flag-read order; Z80 DJNZ
 uses that stage to decrement B, then reads B again without touching flags.
 The 6502 chapter expresses branches with an explicit flag test and signed
-widening; its page-wrapped indirect pointer stays in its own source. Motorola JMP
-receives an address only after the CPU decoder completes, retaining indexed
+widening; its page-wrapped indirect pointer stays in its own source. The Motorola
+chapters likewise own non-indexed JMP address fetching. Indexed 6809 JMP invokes
+the chapter action only after the CPU decoder completes, retaining indexed
 side effects and rejection. Register-indirect Intel jumps read the register or
 pair directly and never read memory at the destination. Instruction retirement
 stays in the cores.
@@ -1047,10 +1046,10 @@ condition callbacks and the old stack-pair dispatch are removed.
 The 6502 chapter's JSR stays an explicit sequence: fetch low target, read/push current PC
 high, read/push current PC low, fetch high target, then write PC. A stack write
 can replace the final operand. RTS adds one to the popped word. Motorola calls
-use big-endian stacks and the existing address decoder. Indexed 6809 JSR retains
-S auto-updates and NMI arming before body entry; subroutine stack effects do not
-arm NMI. Packed-status stacks use the same construction with explicit packing
-and replacement stages. The 6809 shares its mask-driven and fixed-frame
+use high-first word layout through chapter actions. Indexed 6809 JSR retains
+S auto-updates and NMI arming before invoking the same chapter call action;
+subroutine stack effects do not arm NMI. Packed-status stacks use native
+construction with explicit packing and replacement stages. The 6809 shares its mask-driven and fixed-frame
 transfers with this construction; external recognition stays in the CPU.
 
 ## Packed status and decimal arithmetic
@@ -1946,11 +1945,12 @@ The 6800 chapter owns its complete model, including addressing, branches, stacks
 interrupt-frame effects, reset, and execution/event recognition. Its generated
 public class uses the shared vector runtime, with chapter-defined IRQ/NMI entry
 and waiting policies. No handwritten 6800 implementation remains.
-The 6809 binds generated A/B and memory bodies through the
-`motorolaUnaryOperations` selector table, including TST and CLR. Its static
-inventory contains function references only; each invocation supplies current
-CPU state. CPU-owned wrappers resolve one address and reject undefined postbytes
-before body entry. JMP remains a separate address operation.
+The 6809 binds its remaining indexed unary bodies through the
+`motorolaUnaryMemoryOperations` selector table, including TST and CLR. Its
+static inventory contains function references only; each invocation supplies
+current CPU state. CPU-owned wrappers resolve one address and reject undefined
+postbytes before body entry. JMP invokes the chapter's jump action separately
+from byte modification.
 The [6809 chapter](../../src/components/cpus/specifications/6809.md) owns the
 base-page immediate/direct/extended comparisons, arithmetic, logic, and byte/word
 transfers, including addressing. Their indexed forms retain resolved-memory
@@ -1960,6 +1960,10 @@ execution and resolves each memory address once before entering its body.
 The builders can now emit only the remaining memory bodies, removing migrated
 immediate definitions. The chapter also supplies the full stored schema and
 D/CC read/write rules to both generated and remaining TypeScript definitions.
+It also owns unary register/direct/extended forms, DAA, register/flag operations,
+short branches, LBRA, and non-indexed calls/jumps/returns. Its call action also
+serves indexed JSR after native decoding; the former subroutine builder and
+Motorola specialization of the decimal builder have been removed.
 
 `motorolaByteMemoryBindings` selects the remaining SUB/CMP/SBC/AND/BIT/LD/ST/EOR/ADC/OR/ADD
 indexed bodies and A/B from `1 r 10 oooo`. No immediate body or alternate indexed

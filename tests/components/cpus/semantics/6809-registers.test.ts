@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { instructions } from "../../../../src/components/cpus/generated/6809.js";
+import { bodies6809 as instructions } from "../../../helpers/6809-bodies.js";
 import { instructions6809 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { chapter6809 } from "../../../../src/components/cpus/semantics/definitions/6809.js";
 import { motorola6809TransferForms } from "../../../../src/components/cpus/motorola.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6809State, Cpu6809Flags } from "../../../../src/components/cpus/state/6809.js";
@@ -113,7 +114,7 @@ test("unsigned multiplication is a pure byte-by-byte operation with a full word 
     assert.equal(actual.a, Math.floor(product / 256)); assert.equal(actual.b, product % 256);
     assert.deepEqual(actual.flags, { ...flags(0xab), z: product === 0, c: Math.floor(product / 128) % 2 === 1 });
   }
-  assert.match(describeInstruction(instructions6809.mul!), /product := multiplyUnsigned\(left, right\)/);
+  assert.match(describeInstruction(chapter6809[0x3d]!), /product := multiplyUnsigned\(left, right\)/);
 });
 
 test("6809 inherent and resolved-address bodies expose their read, write, and flag stages", () => {

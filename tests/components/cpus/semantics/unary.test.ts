@@ -3,7 +3,7 @@ import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/6502.js";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
-import { instructions as motorola } from "../../../../src/components/cpus/generated/6809.js";
+import { bodies6809 as motorola } from "../../../helpers/6809-bodies.js";
 import { instructions as motorola6800 } from "../../../../src/components/cpus/generated/6800.js";
 import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";

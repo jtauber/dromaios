@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { instructions as m6800 } from "../../../../src/components/cpus/generated/6800.js";
-import { operandBodies6809 as m6809 } from "../../../helpers/6809-operands.js";
+import { bodies6809 as m6809 } from "../../../helpers/6809-bodies.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";

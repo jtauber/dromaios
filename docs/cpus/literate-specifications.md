@@ -27,10 +27,12 @@ Executable chapters are maintained CPU sources:
   WAI suspension and wake-up, and the public interface are chapter-owned too.
   Its model contracts and hardware guide live beside the formal definitions;
   no handwritten 6800 implementation remains.
-- [Motorola 6809: state and base-page operands](../../src/components/cpus/specifications/6809.md)
+- [Motorola 6809: state and base-page instructions](../../src/components/cpus/specifications/6809.md)
   owns all stored fields, D/CC views and writes, and immediate/direct/extended
-  loads, stores, arithmetic, logic, and comparisons. Native indexed decoding,
-  prefix pages, remaining instructions, and lifecycle policies stay in TypeScript.
+  loads, stores, arithmetic, logic, comparisons, unary and register/flag operations,
+  branches, and non-indexed calls/jumps/returns. Chapter actions also serve indexed
+  JSR/JMP. Indexed decoding, prefix pages, register transfers, masked stacks,
+  remaining instructions, and lifecycle policies stay in TypeScript.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -423,6 +425,7 @@ Numeric expressions are capture names, explicitly sized literals such as
 | Operation | Meaning |
 | --- | --- |
 | `add(left, right[, carry])`, `subtract(left, right[, borrow])` | Wrap at the operands' equal width; the optional third argument is a flag expression. |
+| `multiply(left, right)` | Unsigned multiplication of equal byte or word operands; returns the complete double-width product (16 or 32 bits). |
 | `and(left, right)`, `or(left, right)`, `xor(left, right)` | Bitwise operations on equal-width values. |
 | `shiftLeft(value, bit)`, `shiftRight(value, bit)` | Shift one place, inserting the flag expression at the vacated end. |
 | `select(condition, yes, no)` | Choose between two equal-width numeric expressions using a flag expression. |
@@ -724,10 +727,13 @@ reset, stack frame, and vector actions remain visible in the chapter; its public
 class and records are generated without a handwritten adapter.
 The 6809 adds named-choice storage for its three wait modes. Its chapter supplies
 the complete stored schema, D/CC views and writes, and base-page immediate,
-direct, and extended operand families. Remaining TypeScript instructions and
-external entry consume those same views and writes; native indexed decoding
-and prefix-page bindings remain. Its model document still owns the wider
-execution contract.
+direct, and extended operand families, unary operations, register/flag operations,
+short branches, LBRA, and non-indexed calls/jumps/returns. Reusable chapter actions
+serve indexed JSR/JMP after native decoding. Unsigned `multiply` exposes the
+existing full-width multiplication expression. Remaining TypeScript instructions
+and external entry consume the same views and writes; indexed decoding, prefix
+pages, register transfers, masked stacks, and lifecycle policies remain native.
+Its model document still owns the wider execution contract.
 A differently named test CPU already exercises different storage, address width, views, and
 actions through the same compiler and runtime. This is evidence for the current
 contract, not proof that it covers the remaining architectures. Each further

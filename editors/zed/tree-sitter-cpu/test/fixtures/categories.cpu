@@ -41,6 +41,7 @@ family AD {
   right = source s
   carry = flag C
   left = register A
+  product = multiply(left, right)
   result = add(left, right, carry)
   apply ALU(result, carry(left, right, carry))
   replace ALU(select(carry, u8(1), u8(0)), or(carry, 0))

@@ -2,9 +2,8 @@ import { addOverflow, addWrap, and, carry, halfCarry, flagValue, bitAnd, bitOr, 
 import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
 import { arithmetic, compare, immediateByte, logical, negativeZeroPolicy, readWord, shift, transfer, writeWord } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
-import { relativeBranch, relativeTarget, resolvedCall, subroutineCall, subroutineReturn } from "./control-flow.ts";
+import { relativeBranch } from "./control-flow.ts";
 import type { FlowCpu, Condition } from "./control-flow.ts";
-import { byteStack, wordStack } from "./stack.ts";
 import { motorolaBranchNames } from "../motorola.ts";
 
 interface MotorolaCpu {
@@ -12,43 +11,32 @@ interface MotorolaCpu {
   register(field: "a" | "b"): Register;
   flag(field: "n" | "z" | "v" | "c" | "h"): Flag;
 }
-interface UnaryPolicy {
-  readonly clearReadsOperand: boolean;
-  readonly testClearsCarry: boolean;
-  readonly rightShiftSetsOverflow: boolean;
-}
 
-/** Shared Motorola unary meanings; each CPU declares its read, carry, and overflow differences. */
-export function motorolaUnary(cpu: MotorolaCpu, rules: UnaryPolicy) {
+/** Remaining 6809 indexed unary bodies receive an already resolved address. */
+export function motorolaMemoryUnary(cpu: MotorolaCpu) {
   function unary(name: string, calculation: NumberExpression | readonly Statement[], updates: FlagPolicy["updates"], explanation: string, writeBack = true) {
-    const read = name !== "CLR" || rules.clearReadsOperand;
     const nz = negativeZeroPolicy(`${cpu.declaration.name} ${name}`, cpu.flag("n"), cpu.flag("z"), 8);
-    const policy: FlagPolicy = { ...nz, parameters: { ...(read ? { original: 8 as const } : {}), result: 8 }, updates: [...nz.updates, ...updates] };
-    return Object.fromEntries((["a", "b", "memory"] as const).map(target => {
-      const memory = target === "memory", suffix = memory ? "Memory" : target.toUpperCase();
-      return [`${name.toLowerCase()}${suffix}`, defineInstruction({
-        cpu: cpu.declaration, name: memory ? `${name} memory` : `${name}${suffix}`,
-        ...(memory ? { inputs: { address: 16 as const } } : {}),
-        explanation: [
-          memory && "Entry is after successful address resolution.",
-          read ? (memory ? "Read the byte at that captured address." : `Capture ${suffix}.`) : "Do not read the destination.",
-          explanation, "Apply the declared flags, preserving unlisted flags.",
-          writeBack ? "Then write the result once, even if unchanged." : "Do not write a result.",
-          memory && read && "A failed read preserves flags and completed addressing effects.",
-          memory && writeBack && "A failed write retains their updates and completed addressing effects.",
-          !memory && "No data-memory access occurs.",
-        ].filter(Boolean).join(" "),
-        steps: [
-          ...(read ? [memory ? readMemory("original", value("address")) : readRegister("original", cpu.register(target))] : []),
-          ...("kind" in calculation ? [capture("result", calculation)] : calculation),
-          updateFlags(policy, { ...(read ? { original: value("original") } : {}), result: value("result") }),
-          ...(writeBack ? [memory ? writeMemory(value("address"), value("result")) : writeRegister(cpu.register(target), value("result"))] : []),
-        ],
-      })];
-    }));
+    const policy: FlagPolicy = { ...nz, parameters: { original: 8, result: 8 }, updates: [...nz.updates, ...updates] };
+    return { [`${name.toLowerCase()}Memory`]: defineInstruction({
+      cpu: cpu.declaration, name: `${name} memory`,
+      inputs: { address: 16 },
+      explanation: [
+        "Entry is after successful address resolution. Read the byte at that captured address.",
+        explanation, "Apply the declared flags, preserving unlisted flags.",
+        writeBack ? "Then write the result once, even if unchanged." : "Do not write a result.",
+        "A failed read preserves flags and completed addressing effects.",
+        writeBack && "A failed write retains their updates and completed addressing effects.",
+      ].filter(Boolean).join(" "),
+      steps: [
+        readMemory("original", value("address")),
+        ...("kind" in calculation ? [capture("result", calculation)] : calculation),
+        updateFlags(policy, { original: value("original"), result: value("result") }),
+        ...(writeBack ? [writeMemory(value("address"), value("result"))] : []),
+      ],
+    }) };
   }
   function shifts(name: string, direction: "left" | "right", incoming: "zero" | "sign" | Flag = "zero") {
-    const operation = shift(direction, incoming), setsOverflow = direction === "left" || rules.rightShiftSetsOverflow;
+    const operation = shift(direction, incoming), setsOverflow = direction === "left";
     return unary(name, operation.steps, [
       { flag: cpu.flag("c"), value: operation.carry },
       ...(setsOverflow ? [{ flag: cpu.flag("v"), value: xor(negative(value("result")), operation.carry) }] : []),
@@ -75,8 +63,7 @@ export function motorolaUnary(cpu: MotorolaCpu, rules: UnaryPolicy) {
     ], "Increment modulo 256. V marks original 7F; preserve C."),
     ...unary("TST", value("original"), [
       { flag: cpu.flag("v"), value: flagLiteral(false) },
-      ...(rules.testClearsCarry ? [{ flag: cpu.flag("c"), value: flagLiteral(false) }] : []),
-    ], "Test the original byte, clearing V. " + (rules.testClearsCarry ? "Clear C." : "Preserve C."), false),
+    ], "Test the original byte, clearing V and preserving C.", false),
     ...unary("CLR", literal(8, 0), [
       { flag: cpu.flag("c"), value: flagLiteral(false) }, { flag: cpu.flag("v"), value: flagLiteral(false) },
     ], "Clear the byte. Set Z; clear N/C/V."),
@@ -94,16 +81,6 @@ export function motorolaComparisonFlags(cpu: MotorolaCpu, width: Width): FlagPol
 
 const immediateWord: ValueSource = { name: "immediate word, high byte first", width: 16,
   steps: [fetchByte("high"), fetchByte("low")], result: concat(value("high"), value("low")) };
-
-/** Motorola call stacks store words high-byte-first in memory; each CPU declares what its pointer names. */
-export function motorolaSubroutines(cpu: FlowCpu, pointer: Register, position: "free" | "occupied", long = false) {
-  const stack = wordStack(byteStack(pointer, position), "big-endian");
-  return {
-    bsr: subroutineCall(cpu, "BSR", relativeTarget(cpu, immediateByte), stack),
-    ...(long ? { lbsr: subroutineCall(cpu, "LBSR", relativeTarget(cpu, immediateWord), stack) } : {}),
-    jsr: resolvedCall(cpu, stack), rts: subroutineReturn(cpu, "RTS", stack),
-  };
-}
 
 /** Motorola cccc=tttp: capture a pair's flags in native order, then optionally invert its test. */
 export function motorolaCondition(cpu: { flag(field: "n" | "z" | "v" | "c"): Flag }, code: number): Condition {
@@ -123,14 +100,11 @@ export function motorolaCondition(cpu: { flag(field: "n" | "z" | "v" | "c"): Fla
   return { steps: condition.steps, test: code & 1 ? not(condition.test) : condition.test };
 }
 
-/** Native condition pairs share explicit flag-read order; 6800 omits BRN and 6809 also supplies long forms. */
-export function motorolaBranches(cpu: MotorolaCpu & FlowCpu, names: readonly (typeof motorolaBranchNames)[number][], long = false) {
-  return Object.fromEntries(motorolaBranchNames.flatMap((name, code) => {
-    if (!names.includes(name)) return [];
-    const key = `${long ? "l" : ""}${name}`;
-    return [[key, relativeBranch(cpu, key.toUpperCase(), long ? immediateWord : immediateByte,
-      code === 0 ? undefined : motorolaCondition(cpu, code))]];
-  }));
+/** Page 10 retains LBRN/LBcc; base-page LBRA and short branches come from the chapter. */
+export function motorolaLongBranches(cpu: MotorolaCpu & FlowCpu) {
+  return Object.fromEntries(motorolaBranchNames.flatMap((name, code) => code === 0 ? [] : [
+    [`l${name}`, relativeBranch(cpu, `L${name.toUpperCase()}`, immediateWord, motorolaCondition(cpu, code))],
+  ]));
 }
 
 type OperandModes = readonly ("Immediate" | "Memory")[];

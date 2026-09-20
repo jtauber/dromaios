@@ -24,11 +24,10 @@ export function motorolaArithmeticFlags(width: ArithmeticWidth, facts: AdditionR
 }
 
 type UnaryName = "neg" | "com" | "lsr" | "ror" | "asr" | "asl" | "rol" | "dec" | "inc" | "tst" | "clr";
-type UnaryBodies<State> = Readonly<Record<`${UnaryName}${"A" | "B"}`, (state: State) => void>
-  & Record<`${UnaryName}Memory`, (state: State, address: number, instruction: ByteMemory) => void>>;
+type UnaryBodies<State> = Readonly<Record<`${UnaryName}Memory`, (state: State, address: number, instruction: ByteMemory) => void>>;
 
-/** Bind generated unary bodies to the shared oooo selector; CPUs supply the addressing prefixes. */
-export function motorolaUnaryOperations<State>(bodies: UnaryBodies<State>) {
+/** Bind remaining unary memory bodies to their oooo operation selector. */
+export function motorolaUnaryMemoryOperations<State>(bodies: UnaryBodies<State>) {
   return ([
     ["0000", "neg"], // NEG
     ["0011", "com"], // COM
@@ -41,7 +40,7 @@ export function motorolaUnaryOperations<State>(bodies: UnaryBodies<State>) {
     ["1100", "inc"], // INC
     ["1101", "tst"], // TST: no write
     ["1111", "clr"], // CLR: only the 6809 reads the operand
-  ] as const).map(([bits, name]) => ({ bits, registers: [bodies[`${name}A`], bodies[`${name}B`]], memory: bodies[`${name}Memory`] }));
+  ] as const).map(([bits, name]) => ({ bits, memory: bodies[`${name}Memory`] }));
 }
 
 /** Bind mm=00 immediate (when supplied) and mm=01/10/11 resolved memory; construction reads no state. */

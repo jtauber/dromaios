@@ -68,7 +68,7 @@ export function z80StatusInstructions(cpu: IntelWordCpu & { flag(field: string):
     [0xf1, defineInstruction({ cpu: cpu.declaration, name: "POP AF",
       explanation: "Pop the complete word before writing A and replacing flags. Ignore reserved status bits. " + stack.explanation,
       steps: [readSource("result", stack.pop), writeRegister(cpu.register("a"), highByte(value("result"))), restoreStatus(cpu, layout, lowByte(value("result")))] })],
-    [0x27, decimalAdjust(cpu, "z80")],
+    [0x27, decimalAdjust(cpu)],
     [0x2f, defineInstruction({ cpu: cpu.declaration, name: "CPL",
       explanation: "Complement A; then set N/H and preserve the other flags.",
       steps: [readRegister("original", cpu.register("a")), writeRegister(cpu.register("a"), bitXor(value("original"), literal(8, 0xff))),

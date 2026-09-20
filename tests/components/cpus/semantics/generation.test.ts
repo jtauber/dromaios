@@ -5,7 +5,7 @@ import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { instructions as mos, opcodeEntries } from "../../../../src/components/cpus/generated/6502.js";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
-import { operandBodies6809 as motorola } from "../../../helpers/6809-operands.js";
+import { bodies6809 as motorola } from "../../../helpers/6809-bodies.js";
 import { instructions as motorola6800 } from "../../../../src/components/cpus/generated/6800.js";
 import { instructionModules, instructions6502, instructions6809 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";

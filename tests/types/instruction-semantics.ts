@@ -1,3 +1,4 @@
+import { instructions as actions6809 } from "../../src/components/cpus/generated/6809-state.js";
 import { instructions as base6809 } from "../../src/components/cpus/generated/6809-base.js";
 import { instructions as system68000 } from "../../src/components/cpus/generated/68000-system.js";
 import { instructions as transfers68000 } from "../../src/components/cpus/generated/68000-transfers.js";
@@ -280,7 +281,7 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6502[0x48](mos, { writeByte: () => {} });
   generated6502[0x60](mos, { readByte: () => 0 });
   generated6800[0x8d](m6800, { fetchByte: () => 0, writeByte: () => {} });
-  generated6809.jsr(motorola, 0xffff, { writeByte: () => {} });
+  actions6809.call(motorola, 0xffff, { writeByte: () => {} });
   generated8080[0xc5](intel, { writeByte: () => {} });
   generated8080[0xc1](intel, { readByte: () => 0 });
   generatedZ80.pushIX(z80, { writeByte: () => {} });
@@ -293,14 +294,14 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   // @ts-expect-error RST has no target operand to fetch.
   generatedZ80[0xc7](z80, { fetchByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Resolved JSR cannot fetch or resolve its target again.
-  generated6809.jsr(motorola, 0xffff, { fetchByte: () => 0, writeByte: () => {} });
+  actions6809.call(motorola, 0xffff, { fetchByte: () => 0, writeByte: () => {} });
   // @ts-expect-error PHA cannot read its destination.
   generated6502[0x48](mos, { readByte: () => 0, writeByte: () => {} });
   generated6502[0x10](mos, { fetchByte: () => 0 });
   generated6502[0x6c](mos, { fetchByte: () => 0, readByte: () => 0 });
   generated6800[0x20](m6800, { fetchByte: () => 0 });
   generated6809.lbrn(motorola, { fetchByte: () => 0 });
-  generated6809.jump(motorola, 0xffff);
+  actions6809.jump(motorola, 0xffff);
   generated8080[0xc2](intel, { fetchByte: () => 0 });
   generated8080[0xe9](intel);
   generatedZ80.jumpIX(z80);
@@ -427,7 +428,7 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6502[0x69](mos, { fetchByte: () => 0 });
   generated6502[0x28](mos, { readByte: () => 0 });
   generated6800[0x19](m6800);
-  generated6809.orcc(motorola, { fetchByte: () => 0 });
+  base6809[0x1a](motorola, { fetchByte: () => 0 });
   generatedZ80[0xf5](z80, { writeByte: () => {} });
   // @ts-expect-error Decimal adjustment needs no memory capability.
   generatedZ80[0x27](z80, { readByte: () => 0 });
@@ -521,14 +522,14 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated8080[0xb6](intel, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error ALU bodies retain their concrete CPU state.
   generated8080[0xc6](motorola, { fetchByte: () => 0 });
-  generated6809.rolB(motorola);
+  base6809[0x59](motorola);
   generated6809.rolMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
   generated6809.tstMemory(motorola, 0xffff, { readByte: () => 0 });
   generated6809.clrMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
-  generated6809.negA(motorola);
+  base6809[0x40](motorola);
   generated6809.cmpaMemory(motorola, 0xffff, { readByte: () => 0 });
   generated6809.exg_d_s(motorola);
-  generated6809.mul(motorola);
+  base6809[0x3d](motorola);
   generated6809.leax(motorola, 0xffff);
   generated6809.pshs(motorola, { fetchByte: () => 0xff, writeByte: () => {} });
   generated6809.pulu(motorola, { fetchByte: () => 0xff, readByte: () => 0 });
@@ -647,7 +648,7 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   // @ts-expect-error Addressing is already complete; the body cannot fetch more instruction bytes.
   generated6809.rolMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {}, fetchByte: () => 0 });
   // @ts-expect-error Register shifts need no fetching or memory capability.
-  generated6809.rolB(motorola, { fetchByte: () => 0 });
+  base6809[0x59](motorola, { fetchByte: () => 0 });
   // @ts-expect-error Rotates require their CPU's concrete state.
   generated8080[0x07](motorola);
   // @ts-expect-error Generated handlers use the concrete CPU's stored-state type.

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions as mos } from "../../../../src/components/cpus/generated/6502.js";
 import { instructions as m6800 } from "../../../../src/components/cpus/generated/6800.js";
-import { instructions as m6809 } from "../../../../src/components/cpus/generated/6809.js";
+import { bodies6809 as m6809 } from "../../../helpers/6809-bodies.js";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as zilog } from "../../../../src/components/cpus/generated/z80.js";
 import type { ByteInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
