@@ -48,7 +48,7 @@ export class ChapterTokens {
   readonly file: string;
   constructor(source: ChapterLine, file: string) {
     this.source = source; this.file = file;
-    const pattern = /\s+|\/\/.*|"(?:[^"\\]|\\.)*"|[A-Za-z][A-Za-z0-9_]*|\$[\da-fA-F]+|\d+|<-|[{}():=.,]/y;
+    const pattern = /\s+|\/\/.*|"(?:[^"\\]|\\.)*"|[A-Za-z][A-Za-z0-9_]*|\$[\da-fA-F]+|\d+|<-|[{}\[\]():=.,]/y;
     let offset = 0;
     while (offset < source.text.length) {
       pattern.lastIndex = offset;
@@ -60,6 +60,8 @@ export class ChapterTokens {
     }
   }
   get next(): string | undefined { return this.#tokens[this.#index]?.text; }
+  peek(offset: number): string | undefined { return this.#tokens[this.#index + offset]?.text; }
+  get opensBlock(): boolean { return this.#tokens.at(-1)?.text === "{"; }
   get column(): number { return this.#tokens[this.#index]?.column ?? this.source.text.length + 1; }
   fail(message: string, column = this.column): never { throw new ChapterError(this.file, this.source.line, column, message); }
   take(text: string): boolean { if (this.next !== text) return false; this.#index++; return true; }
@@ -83,4 +85,30 @@ export class ChapterTokens {
   }
   number(): number { const text = this.digits(); return text.startsWith("$") ? parseInt(text.slice(1), 16) : Number(text); }
   end(): void { if (this.next !== undefined) this.fail("Unexpected trailing input."); }
+
+  lookup<T>(table: ReadonlyMap<string, T>): T {
+    const column = this.column, name = this.word();
+    return table.get(name) ?? this.fail(`Unknown name ${name}; declare it before use.`, column);
+  }
+
+  checked<T>(operation: () => T): T {
+    try { return operation(); } catch (error) {
+      if (error instanceof ChapterError) throw error;
+      return this.fail(error instanceof Error ? error.message : String(error), 1);
+    }
+  }
+}
+
+/** Keep nested blocks intact; braces inside quoted text and comments are ordinary tokens. */
+export function chapterBody(lines: readonly ChapterTokens[], start: number): { body: ChapterTokens[]; end: number } {
+  let depth = 1;
+  for (let end = start + 1; end < lines.length; end++) {
+    const tokens = lines[end]!;
+    if (tokens.next === "}" && --depth === 0) {
+      tokens.expect("}"); tokens.end();
+      return { body: lines.slice(start + 1, end), end };
+    }
+    if (tokens.opensBlock) depth++;
+  }
+  return lines[start]!.fail("Expected a closing } in this cpu fence.");
 }

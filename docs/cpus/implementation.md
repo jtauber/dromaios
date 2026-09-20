@@ -30,6 +30,30 @@ Keep instruction behavior in definitions and shared construction; retain native
 decoding and boundary orchestration in the cores unless a reviewed abstraction
 represents their complete behavior.
 
+### Following the 8008 files
+
+The repeated `8008.ts` filename identifies the processor at each layer. The
+directory identifies that file's role; instruction behavior is authored in
+the chapter and passes through two generated representations before execution.
+
+| Location under `src/components/cpus/` | Role in the 8008 implementation |
+| --- | --- |
+| [`specifications/8008.md`](../../src/components/cpus/specifications/8008.md) | Authored prose, encodings, and behavior for every documented instruction |
+| `semantics/generated/8008.ts` | Generated, validated chapter data, expanded into instruction definitions |
+| [`semantics/definitions/8008.ts`](../../src/components/cpus/semantics/definitions/8008.ts) | Handwritten integration adapter assembling the chapter's families into a checked opcode inventory |
+| `generated/8008.ts` | Generated executable instruction handlers and opcode bindings consumed by the core |
+| [`8008.ts`](../../src/components/cpus/8008.ts) | Handwritten public API, fetching, dispatch, recording, snapshots, reset, and interrupt entry |
+| [`state/8008.ts`](../../src/components/cpus/state/8008.ts) | Handwritten authoritative stored-state schema and derived types, shared by the chapter compiler, core, and machine parser |
+
+Both generated files are disposable build output and excluded from Git; edit
+the chapter to change instruction behavior. The separate state module lets
+generation load the schema without importing the core and its generated handlers.
+Complete literate instruction coverage still leaves the schema and runtime
+contracts outside the chapter.
+
+[`tests/types/8008.ts`](../../tests/types/8008.ts) checks the public TypeScript
+API. Corresponding `.js` files under `dist/` are compiled build output.
+
 ## Reading order
 
 Within a CPU core, use this order where the corresponding code exists:
@@ -122,7 +146,8 @@ The [helper tests](../../tests/components/cpus/state.test.ts) and
 [type checks](../../tests/types/state.ts) exercise the shared contracts; CPU
 and machine tests retain their independently authored hardware expectations.
 The [literate chapter prototype](literate-specifications.md) now checks scoped
-register and flag declarations against these schemas. Generating the complete
+register, flag, array, and latch declarations against these schemas, including
+explicit mappings to stored field names. Generating the complete
 stored-state description from a chapter remains future work.
 
 ## Make the encoding visible
@@ -380,14 +405,13 @@ the 8080/Z80 relationship and is not a requirement for other processors.
 
 The 8008 uses the same instruction representation without inheriting this
 execution core. Its [literate chapter](../../src/components/cpus/specifications/8008.md)
-defines byte transfers, arithmetic, adjustments, and rotates with native
-A/B/C/D/E/H/L/M operands, a `3FFF` memory-address mask, and explicit S/Z/P/C
-policies. Each arithmetic family shares one ordered body across register,
-memory, and immediate encodings. The chapter's entries and the remaining
-TypeScript control/port definitions form one checked opcode inventory, and
-generation supplies every runtime binding.
+defines every instruction with native A/B/C/D/E/H/L/M operands, a `3FFF`
+memory-address mask, and explicit S/Z/P/C policies. Each arithmetic family shares one ordered body across register,
+memory, and immediate encodings. The chapter also owns condition selectors,
+address-register writes, halts, and ports. Its entries form the complete checked
+opcode inventory, and generation supplies every runtime binding.
 
-The control-flow inventory retains all ignored-bit aliases. Generated calls
+The chapter retains all ignored-bit control aliases. Generated calls
 and returns operate on the schema's physical address-register array and
 three-bit selector; they never use the RAM-stack helper. The compiler validates
 array bounds and exact stored widths, with explicit target narrowing to 14 bits.

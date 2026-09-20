@@ -245,7 +245,7 @@ The authoring layers have separate homes:
 | [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, ordered frames, and complete push/pop instruction construction |
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, byte/word-transfer, branch, and subroutine construction, with explicit access and flag policies |
 | [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8080/Z80 byte ALU, byte and word transfers, arithmetic, exchanges, jumps, stacks, and subroutines, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
-| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 control/port and 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted, with 8008 HALT defined separately |
+| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
 | [decimal.ts](../../src/components/cpus/semantics/decimal.ts) | Shared decimal-correction selection with explicit Intel/Motorola flag and result stages |
 | [mos.ts](../../src/components/cpus/semantics/mos.ts) | NMOS ADC/SBC binary facts, decimal digit correction, and distinct flag/write stages |
@@ -1559,8 +1559,8 @@ exclusively; the 8088 combines them with handwritten entries. In every case
 `opcodeTable` rejects collisions. A numeric list such as
 `{ bindOpcodes: [0xC0, 0xC1] }` binds only those definition keys, allowing other
 bodies in the same module to retain explicit bindings or decoded inputs. The
-8008 uses `bindOpcodes: true`: its chapter forms and TypeScript-authored control
-and port forms share one numeric definition set, checked for collisions.
+8008 uses `bindOpcodes: true`: every chapter-authored form contributes to
+one numeric definition set, checked for collisions.
 Each instance binds its own state; no register or memory read occurs during
 binding. Generated methods retain their precise callback types, while the
 bound handlers accept the shared byte instruction context, with deferral when
@@ -1885,14 +1885,15 @@ four accumulator rotates, and 71 byte transfers. It supplies both definition
 keys and binding opcodes, with explicit HLT exclusions. Generated bindings now
 cover all 250 definitions, removing the remaining handwritten family binding
 helpers from the CPU core.
-Another 59 generated bodies cover its jumps, calls, returns, restarts, and all
-three halt encodings. The control-flow inventory serves construction and binding
-without separate opcode lists. Calls advance the selector modulo eight before
+The chapter also owns the 59 jumps, calls, returns, restarts, and halt forms
+and all 32 port forms. Its patterns supply construction and binding without
+separate TypeScript opcode lists. Calls advance the selector modulo eight before
 writing the new 14-bit target; returns only decrement it. Targets are fetched
 before conditions, and untaken paths never access the selector or array.
-Its 32 INP/OUT bodies complete migration of all documented forms. Fetching,
-reset, port recording, and interrupt acceptance remain handwritten. The machine parser reads its separate state schema,
-without depending on generated execution code.
+Its explicit INP/OUT effects preserve complete-input-before-writeback and
+captured-output rules. Fetching, reset, port recording, and interrupt acceptance
+remain handwritten. The machine parser reads its separate state schema without
+depending on generated execution code.
 The 6800 and 6809 bind generated A/B and memory bodies through one
 `motorolaUnaryOperations` selector table, including TST and CLR. Each CPU's static
 inventory contains function references only; each invocation supplies the current

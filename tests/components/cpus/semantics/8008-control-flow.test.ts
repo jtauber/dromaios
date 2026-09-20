@@ -155,7 +155,7 @@ test("8008 control explanations expose physical slots, narrow conversion, preser
   assert.match(call, /next := low3\(addWrap\(zeroExtend8\(slot\), 01:u8\)\)/);
   assert.match(call, /write STACKINDEX:u3 := next\nwrite ADDRESSSTACK\[next\]:u14 := target/);
   const ret = describeInstruction(definitions[0x03]!);
-  assert.match(ret, /when not\(condition\) \{/);
+  assert.match(ret, /when not\(condition\d+\) \{/);
   assert.doesNotMatch(ret, /:= read ADDRESSSTACK|write ADDRESSSTACK|fetch byte|read memory|write memory/);
   assert.match(ret, /externally supplied bytes leave it unchanged/);
   assert.match(call, /Flags preserved throughout: S, Z, P, C/);

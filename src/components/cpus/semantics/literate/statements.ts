@@ -1,0 +1,135 @@
+import { alignmentFault, capture, commitAddressUpdates, fetchByte, flagValue, not, readElement,
+  readFlag, readLatch, readMemory, readPort, readRegister, readSource, resolveAddress, updateFlags,
+  value, when, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
+import type { CpuDeclaration, Expression, Flag, FlagExpression, FlagPolicy, Latch, Register, RegisterArray, Statement, ValueSource } from "../model.ts";
+import { validateInstruction } from "../validate.ts";
+import { chapterBody } from "./document.ts";
+import type { ChapterTokens } from "./document.ts";
+import { expression, flagExpression } from "./expressions.ts";
+
+export type ChapterOperand = { readonly name: string; readonly read: ValueSource } & (
+  | { readonly kind: "memory"; readonly address: ValueSource }
+  | { readonly kind: "register"; readonly register: Register }
+  | { readonly kind: "value" }
+);
+export interface ChapterCondition {
+  readonly kind: "condition";
+  readonly name: string;
+  readonly flag: Flag;
+  readonly set: boolean;
+}
+interface Symbols {
+  readonly cpu: CpuDeclaration;
+  readonly registers: ReadonlyMap<string, Register>;
+  readonly arrays: ReadonlyMap<string, RegisterArray>;
+  readonly latches: ReadonlyMap<string, Latch>;
+  readonly flags: ReadonlyMap<string, Flag>;
+  readonly policies: ReadonlyMap<string, FlagPolicy>;
+  readonly sources: ReadonlyMap<string, ValueSource>;
+  readonly operands: ReadonlyMap<string, ChapterOperand>;
+  readonly conditions: ReadonlyMap<string, ChapterCondition>;
+}
+
+/** Lower ordered effects, checking each prefix in its enclosing lexical scopes. */
+export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symbols): Statement[] {
+  const { cpu, registers, arrays, latches, flags, policies, sources, operands, conditions } = symbols;
+  // Compiler captures cannot collide with, or be referenced by, any authored name,
+  // including later statements and nested blocks.
+  const usedNames = new Set(lines.flatMap(tokens => tokens.source.text.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? []));
+  let nextTemporary = 0;
+  const temporary = (prefix: string) => {
+    let name: string;
+    do { name = `${prefix}${nextTemporary++}`; } while (usedNames.has(name));
+    return name;
+  };
+  function parse(lines: readonly ChapterTokens[], validate: (steps: readonly Statement[]) => void): Statement[] {
+    const result: Statement[] = [];
+    for (let index = 0; index < lines.length; index++) {
+      const tokens = lines[index]!;
+      if (tokens.take("when")) {
+        const captures: Statement[] = [];
+        let predicate: FlagExpression;
+        if (tokens.take("test")) {
+          const selected = tokens.lookup(conditions), name = temporary("condition");
+          captures.push(readFlag(name, selected.flag));
+          predicate = selected.set ? flagValue(name) : not(flagValue(name));
+        } else predicate = flagExpression(tokens);
+        tokens.expect("{"); tokens.end();
+        const { body, end } = chapterBody(lines, index); index = end;
+        const prefix = [...result, ...captures];
+        const check = (body: readonly Statement[]) => validate([...prefix, when(predicate, body)]);
+        tokens.checked(() => check([]));
+        const nested = parse(body, check);
+        result.push(...captures, when(predicate, nested));
+      } else if (tokens.take("fault")) {
+        tokens.expect("alignment"); const operation = tokens.word();
+        if (operation !== "read" && operation !== "write") return tokens.fail("Expected a data read or write alignment fault.");
+        tokens.expect("("); const address = expression(tokens); tokens.expect(")"); tokens.expect("if");
+        result.push(when(flagExpression(tokens), [alignmentFault(operation, address)]));
+      } else if (tokens.take("commit")) {
+        tokens.expect("addresses"); result.push(commitAddressUpdates());
+      } else if (tokens.take("apply")) {
+        const policy = tokens.lookup(policies); tokens.expect("(");
+        const args: Record<string, Expression> = {};
+        for (const [index, [name, type]] of Object.entries(policy.parameters).entries()) {
+          if (index) tokens.expect(","); args[name] = type === "flag" ? flagExpression(tokens) : expression(tokens);
+        }
+        tokens.expect(")"); result.push(updateFlags(policy, args));
+      } else if (tokens.take("operand")) {
+        const operand = tokens.lookup(operands); tokens.expect("<-"); const contents = expression(tokens);
+        if (operand.kind === "value") tokens.fail("A value-only operand cannot be written.");
+        if (operand.kind === "register") result.push(writeRegister(operand.register, contents));
+        if (operand.kind === "memory") {
+          const address = temporary("destinationAddress");
+          result.push(readSource(address, operand.address), writeMemory(value(address), contents));
+        }
+      } else if ((tokens.next === "memory" || tokens.next === "port") && tokens.peek(1) === "(") {
+        const effect = tokens.word() === "memory" ? writeMemory : writePort;
+        tokens.expect("("); const address = expression(tokens); tokens.expect(")"); tokens.expect("<-");
+        result.push(effect(address, expression(tokens)));
+      } else {
+        const name = tokens.word();
+        if (tokens.take("[")) {
+          const array = arrays.get(name) ?? tokens.fail(`Unknown array ${name}.`);
+          const slot = expression(tokens); tokens.expect("]"); tokens.expect("<-");
+          result.push(writeElement(array, slot, expression(tokens)));
+        } else if (tokens.take("<-")) {
+          const latch = latches.get(name);
+          if (latch) {
+            const contents = flagExpression(tokens);
+            result.push(writeLatch(latch, contents.kind === "flag-literal" ? contents.value : contents));
+          } else {
+            const register = registers.get(name) ?? tokens.fail(`Unknown register or latch ${name}.`);
+            result.push(writeRegister(register, expression(tokens)));
+          }
+        } else {
+          tokens.expect("=");
+          if (tokens.take("resolve")) {
+            tokens.expect("("); const size = tokens.number();
+            if (size !== 8 && size !== 16 && size !== 32) return tokens.fail("Operand size must be 8, 16, or 32.");
+            tokens.expect(","); const mode = expression(tokens); tokens.expect(","); const code = expression(tokens); tokens.expect(")");
+            result.push(resolveAddress(name, size, mode, code));
+          } else if (tokens.take("fetch")) result.push(fetchByte(name));
+          else if (tokens.take("flag")) result.push(readFlag(name, tokens.lookup(flags)));
+          else if (tokens.take("latch")) result.push(readLatch(name, tokens.lookup(latches)));
+          else if (tokens.take("register")) result.push(readRegister(name, tokens.lookup(registers)));
+          else if (tokens.take("array")) {
+            const array = tokens.lookup(arrays); tokens.expect("[");
+            result.push(readElement(name, array, expression(tokens))); tokens.expect("]");
+          } else if (tokens.take("source")) result.push(readSource(name, tokens.lookup(sources)));
+          else if (tokens.take("operand")) {
+            const operand = tokens.lookup(operands);
+            result.push(operand.kind === "register" ? readRegister(name, operand.register) : readSource(name, operand.read));
+          } else if ((tokens.next === "memory" || tokens.next === "port") && tokens.peek(1) === "(") {
+            const effect = tokens.word() === "memory" ? readMemory : readPort;
+            tokens.expect("("); result.push(effect(name, expression(tokens))); tokens.expect(")");
+          } else result.push(capture(name, expression(tokens)));
+        }
+      }
+      tokens.end();
+      tokens.checked(() => validate(result));
+    }
+    return result;
+  }
+  return parse(lines, steps => validateInstruction({ cpu, name: "chapter", explanation: "", steps }));
+}

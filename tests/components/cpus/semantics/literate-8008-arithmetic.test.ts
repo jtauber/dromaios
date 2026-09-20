@@ -18,9 +18,9 @@ function state(): Cpu8008StoredState {
     addressStack: [0, 1, 2, 3, 4, 5, 6, 7], stackIndex: 3, halted: false };
 }
 
-test("the 8008 specification owns 159 forms, including all 88 independent arithmetic/unary encodings", () => {
+test("the 8008 specification includes all 88 independent arithmetic/unary encodings", () => {
   const chapter = compile(), definitions = Object.fromEntries(Object.values(chapter.families).flat());
-  assert.equal(Object.keys(definitions).length, 159);
+  assert.equal(Object.keys(definitions).length, 250);
   const names = ["A", "B", "C", "D", "E", "H", "L", "M"];
   let arithmetic = 0;
   for (const [name, base, immediate] of [

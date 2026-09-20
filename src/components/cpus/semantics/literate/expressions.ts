@@ -1,5 +1,5 @@
 import { addWrap, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
-  flagValue, highByte, isWidth, literal, lowBit, lowByte, negative, shiftLeft, shiftRight,
+  flagValue, highByte, isWidth, literal, lowBit, lowByte, negative, not, shiftLeft, shiftRight,
   subtract, truncate, value, zero } from "../model.ts";
 import type { FlagExpression, NumberExpression, Width } from "../model.ts";
 import type { ChapterTokens } from "./document.ts";
@@ -47,7 +47,8 @@ export function flagExpression(tokens: ChapterTokens): FlagExpression {
   if (name === "true" || name === "false") tokens.fail("Write flag literals as 0 or 1.");
   if (!tokens.take("(")) return flagValue(name);
   let result: FlagExpression;
-  if (name === "carry" || name === "borrow") {
+  if (name === "not") result = not(flagExpression(tokens));
+  else if (name === "carry" || name === "borrow") {
     const left = expression(tokens); tokens.expect(","); const right = expression(tokens);
     const incoming = tokens.take(",") ? flagExpression(tokens) : undefined;
     result = (name === "carry" ? carry : borrow)(left, right, incoming);

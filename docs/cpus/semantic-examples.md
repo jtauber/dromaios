@@ -247258,7 +247258,7 @@ Flags preserved throughout: H, I.
 
 ### 8008 HLT
 
-Set STOPPED without reading flags, registers, or memory. Opcode fetching belongs to the caller and alone determines whether PC advances.
+HLT occupies `00 000 00x` and `11 111 111`: three documented encodings. Set STOPPED without reading registers, flags, or the old latch. Opcode fetching alone determines whether the selected address register has advanced. A stopped CPU waits for the existing external interrupt boundary to supply an instruction.
 
 ```text
 write halted:boolean := true
@@ -247268,7 +247268,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 HLT
 
-Set STOPPED without reading flags, registers, or memory. Opcode fetching belongs to the caller and alone determines whether PC advances.
+HLT occupies `00 000 00x` and `11 111 111`: three documented encodings. Set STOPPED without reading registers, flags, or the old latch. Opcode fetching alone determines whether the selected address register has advanced. A stopped CPU waits for the existing external interrupt boundary to supply an instruction.
 
 ```text
 write halted:boolean := true
@@ -247293,11 +247293,11 @@ Flags preserved throughout: S, Z, P.
 
 ### 8008 RFC
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional returns use `00 ccc 011`. Test the selected flag before reading SELECTOR. Only a taken return decrements it modulo eight. Keep every physical address register unchanged; do not read a return address, fetch an operand, or access data memory. Preserve flags and STOPPED. Ordinary opcode fetching advances the current slot; externally supplied bytes leave it unchanged.
 
 ```text
-condition:flag := read C
-when not(condition) {
+condition0:flag := read C
+when not(condition0) {
   slot:u3 := read STACKINDEX
   next := low3(subtract(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -247330,10 +247330,12 @@ Flags preserved throughout: none.
 
 ### 8008 RST 00
 
-Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Capture the encoded restart target without fetching an operand. Read SELECTOR, advance it modulo eight, then write the target into the new slot, just as for CAL. Preserve all other slots, flags, and STOPPED. Ordinary opcode fetching has already advanced the caller's slot; supplied opcodes have left it unchanged.
 
 ```text
-target := 0000:u14
+target:u14 := source "00" {
+  yield 0000:u14
+}
 slot:u3 := read STACKINDEX
 next := low3(addWrap(zeroExtend8(slot), 01:u8))
 write STACKINDEX:u3 := next
@@ -247355,7 +247357,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 RET
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Read SELECTOR and decrement it modulo eight. RET leaves all eight physical address registers, flags, and STOPPED unchanged. It neither reads a return address nor fetches an operand, and performs no data-memory access.
 
 ```text
 slot:u3 := read STACKINDEX
@@ -247416,11 +247418,11 @@ Flags preserved throughout: S, Z, P.
 
 ### 8008 RFZ
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional returns use `00 ccc 011`. Test the selected flag before reading SELECTOR. Only a taken return decrements it modulo eight. Keep every physical address register unchanged; do not read a return address, fetch an operand, or access data memory. Preserve flags and STOPPED. Ordinary opcode fetching advances the current slot; externally supplied bytes leave it unchanged.
 
 ```text
-condition:flag := read Z
-when not(condition) {
+condition0:flag := read Z
+when not(condition0) {
   slot:u3 := read STACKINDEX
   next := low3(subtract(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -247454,10 +247456,12 @@ Flags preserved throughout: none.
 
 ### 8008 RST 08
 
-Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Capture the encoded restart target without fetching an operand. Read SELECTOR, advance it modulo eight, then write the target into the new slot, just as for CAL. Preserve all other slots, flags, and STOPPED. Ordinary opcode fetching has already advanced the caller's slot; supplied opcodes have left it unchanged.
 
 ```text
-target := 0008:u14
+target:u14 := source "08" {
+  yield 0008:u14
+}
 slot:u3 := read STACKINDEX
 next := low3(addWrap(zeroExtend8(slot), 01:u8))
 write STACKINDEX:u3 := next
@@ -247479,7 +247483,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 RET
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Read SELECTOR and decrement it modulo eight. RET leaves all eight physical address registers, flags, and STOPPED unchanged. It neither reads a return address nor fetches an operand, and performs no data-memory access.
 
 ```text
 slot:u3 := read STACKINDEX
@@ -247541,11 +247545,11 @@ Flags preserved throughout: S, Z, P.
 
 ### 8008 RFS
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional returns use `00 ccc 011`. Test the selected flag before reading SELECTOR. Only a taken return decrements it modulo eight. Keep every physical address register unchanged; do not read a return address, fetch an operand, or access data memory. Preserve flags and STOPPED. Ordinary opcode fetching advances the current slot; externally supplied bytes leave it unchanged.
 
 ```text
-condition:flag := read S
-when not(condition) {
+condition0:flag := read S
+when not(condition0) {
   slot:u3 := read STACKINDEX
   next := low3(subtract(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -247578,10 +247582,12 @@ Flags preserved throughout: none.
 
 ### 8008 RST 10
 
-Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Capture the encoded restart target without fetching an operand. Read SELECTOR, advance it modulo eight, then write the target into the new slot, just as for CAL. Preserve all other slots, flags, and STOPPED. Ordinary opcode fetching has already advanced the caller's slot; supplied opcodes have left it unchanged.
 
 ```text
-target := 0010:u14
+target:u14 := source "10" {
+  yield 0010:u14
+}
 slot:u3 := read STACKINDEX
 next := low3(addWrap(zeroExtend8(slot), 01:u8))
 write STACKINDEX:u3 := next
@@ -247603,7 +247609,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 RET
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Read SELECTOR and decrement it modulo eight. RET leaves all eight physical address registers, flags, and STOPPED unchanged. It neither reads a return address nor fetches an operand, and performs no data-memory access.
 
 ```text
 slot:u3 := read STACKINDEX
@@ -247665,11 +247671,11 @@ Flags preserved throughout: S, Z, P.
 
 ### 8008 RFP
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional returns use `00 ccc 011`. Test the selected flag before reading SELECTOR. Only a taken return decrements it modulo eight. Keep every physical address register unchanged; do not read a return address, fetch an operand, or access data memory. Preserve flags and STOPPED. Ordinary opcode fetching advances the current slot; externally supplied bytes leave it unchanged.
 
 ```text
-condition:flag := read P
-when not(condition) {
+condition0:flag := read P
+when not(condition0) {
   slot:u3 := read STACKINDEX
   next := low3(subtract(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -247703,10 +247709,12 @@ Flags preserved throughout: none.
 
 ### 8008 RST 18
 
-Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Capture the encoded restart target without fetching an operand. Read SELECTOR, advance it modulo eight, then write the target into the new slot, just as for CAL. Preserve all other slots, flags, and STOPPED. Ordinary opcode fetching has already advanced the caller's slot; supplied opcodes have left it unchanged.
 
 ```text
-target := 0018:u14
+target:u14 := source "18" {
+  yield 0018:u14
+}
 slot:u3 := read STACKINDEX
 next := low3(addWrap(zeroExtend8(slot), 01:u8))
 write STACKINDEX:u3 := next
@@ -247728,7 +247736,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 RET
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Read SELECTOR and decrement it modulo eight. RET leaves all eight physical address registers, flags, and STOPPED unchanged. It neither reads a return address nor fetches an operand, and performs no data-memory access.
 
 ```text
 slot:u3 := read STACKINDEX
@@ -247774,11 +247782,11 @@ Flags preserved throughout: C.
 
 ### 8008 RTC
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional returns use `00 ccc 011`. Test the selected flag before reading SELECTOR. Only a taken return decrements it modulo eight. Keep every physical address register unchanged; do not read a return address, fetch an operand, or access data memory. Preserve flags and STOPPED. Ordinary opcode fetching advances the current slot; externally supplied bytes leave it unchanged.
 
 ```text
-condition:flag := read C
-when condition {
+condition0:flag := read C
+when condition0 {
   slot:u3 := read STACKINDEX
   next := low3(subtract(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -247811,10 +247819,12 @@ Flags preserved throughout: none.
 
 ### 8008 RST 20
 
-Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Capture the encoded restart target without fetching an operand. Read SELECTOR, advance it modulo eight, then write the target into the new slot, just as for CAL. Preserve all other slots, flags, and STOPPED. Ordinary opcode fetching has already advanced the caller's slot; supplied opcodes have left it unchanged.
 
 ```text
-target := 0020:u14
+target:u14 := source "20" {
+  yield 0020:u14
+}
 slot:u3 := read STACKINDEX
 next := low3(addWrap(zeroExtend8(slot), 01:u8))
 write STACKINDEX:u3 := next
@@ -247836,7 +247846,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 RET
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Read SELECTOR and decrement it modulo eight. RET leaves all eight physical address registers, flags, and STOPPED unchanged. It neither reads a return address nor fetches an operand, and performs no data-memory access.
 
 ```text
 slot:u3 := read STACKINDEX
@@ -247882,11 +247892,11 @@ Flags preserved throughout: C.
 
 ### 8008 RTZ
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional returns use `00 ccc 011`. Test the selected flag before reading SELECTOR. Only a taken return decrements it modulo eight. Keep every physical address register unchanged; do not read a return address, fetch an operand, or access data memory. Preserve flags and STOPPED. Ordinary opcode fetching advances the current slot; externally supplied bytes leave it unchanged.
 
 ```text
-condition:flag := read Z
-when condition {
+condition0:flag := read Z
+when condition0 {
   slot:u3 := read STACKINDEX
   next := low3(subtract(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -247919,10 +247929,12 @@ Flags preserved throughout: none.
 
 ### 8008 RST 28
 
-Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Capture the encoded restart target without fetching an operand. Read SELECTOR, advance it modulo eight, then write the target into the new slot, just as for CAL. Preserve all other slots, flags, and STOPPED. Ordinary opcode fetching has already advanced the caller's slot; supplied opcodes have left it unchanged.
 
 ```text
-target := 0028:u14
+target:u14 := source "28" {
+  yield 0028:u14
+}
 slot:u3 := read STACKINDEX
 next := low3(addWrap(zeroExtend8(slot), 01:u8))
 write STACKINDEX:u3 := next
@@ -247944,7 +247956,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 RET
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Read SELECTOR and decrement it modulo eight. RET leaves all eight physical address registers, flags, and STOPPED unchanged. It neither reads a return address nor fetches an operand, and performs no data-memory access.
 
 ```text
 slot:u3 := read STACKINDEX
@@ -247990,11 +248002,11 @@ Flags preserved throughout: C.
 
 ### 8008 RTS
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional returns use `00 ccc 011`. Test the selected flag before reading SELECTOR. Only a taken return decrements it modulo eight. Keep every physical address register unchanged; do not read a return address, fetch an operand, or access data memory. Preserve flags and STOPPED. Ordinary opcode fetching advances the current slot; externally supplied bytes leave it unchanged.
 
 ```text
-condition:flag := read S
-when condition {
+condition0:flag := read S
+when condition0 {
   slot:u3 := read STACKINDEX
   next := low3(subtract(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -248027,10 +248039,12 @@ Flags preserved throughout: none.
 
 ### 8008 RST 30
 
-Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Capture the encoded restart target without fetching an operand. Read SELECTOR, advance it modulo eight, then write the target into the new slot, just as for CAL. Preserve all other slots, flags, and STOPPED. Ordinary opcode fetching has already advanced the caller's slot; supplied opcodes have left it unchanged.
 
 ```text
-target := 0030:u14
+target:u14 := source "30" {
+  yield 0030:u14
+}
 slot:u3 := read STACKINDEX
 next := low3(addWrap(zeroExtend8(slot), 01:u8))
 write STACKINDEX:u3 := next
@@ -248052,7 +248066,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 RET
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Read SELECTOR and decrement it modulo eight. RET leaves all eight physical address registers, flags, and STOPPED unchanged. It neither reads a return address nor fetches an operand, and performs no data-memory access.
 
 ```text
 slot:u3 := read STACKINDEX
@@ -248064,11 +248078,11 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 RTP
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional returns use `00 ccc 011`. Test the selected flag before reading SELECTOR. Only a taken return decrements it modulo eight. Keep every physical address register unchanged; do not read a return address, fetch an operand, or access data memory. Preserve flags and STOPPED. Ordinary opcode fetching advances the current slot; externally supplied bytes leave it unchanged.
 
 ```text
-condition:flag := read P
-when condition {
+condition0:flag := read P
+when condition0 {
   slot:u3 := read STACKINDEX
   next := low3(subtract(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -248100,10 +248114,12 @@ Flags preserved throughout: none.
 
 ### 8008 RST 38
 
-Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Capture the encoded restart target without fetching an operand. Read SELECTOR, advance it modulo eight, then write the target into the new slot, just as for CAL. Preserve all other slots, flags, and STOPPED. Ordinary opcode fetching has already advanced the caller's slot; supplied opcodes have left it unchanged.
 
 ```text
-target := 0038:u14
+target:u14 := source "38" {
+  yield 0038:u14
+}
 slot:u3 := read STACKINDEX
 next := low3(addWrap(zeroExtend8(slot), 01:u8))
 write STACKINDEX:u3 := next
@@ -248130,7 +248146,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 RET
 
-Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Read SELECTOR and decrement it modulo eight. RET leaves all eight physical address registers, flags, and STOPPED unchanged. It neither reads a return address nor fetches an operand, and performs no data-memory access.
 
 ```text
 slot:u3 := read STACKINDEX
@@ -248142,7 +248158,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JFC
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional jumps use `01 ccc 000`. Fetch and narrow the complete target before testing the selected flag. Only a taken jump reads SELECTOR and writes the selected address register. Do not read target memory or change flags, SELECTOR, or STOPPED; an untaken jump has only its instruction-fetch effects.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248150,8 +248166,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read C
-when not(condition) {
+condition0:flag := read C
+when not(condition0) {
   slot:u3 := read STACKINDEX
   write ADDRESSSTACK[slot]:u14 := target
 }
@@ -248161,21 +248177,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 INP 0
 
-Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded input selector, read one byte from that port, and replace A only after the read succeeds. Never read old A or any flag. Preserve all other registers and control state; fetch no operand and access no data memory.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "0" {
   yield 0000:u16
 }
-low:u8 := read port[port]
-write A:u8 := low
+result:u8 := read port[selector]
+write A:u8 := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CFC
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional calls use `01 ccc 010`. Fetch and narrow the complete target before testing the selected flag. Only a taken call reads SELECTOR, advances it modulo eight, and writes the target into that new physical slot. Preserve all other slots, flags, and STOPPED. An untaken call never accesses the selector or array.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248183,8 +248199,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read C
-when not(condition) {
+condition0:flag := read C
+when not(condition0) {
   slot:u3 := read STACKINDEX
   next := low3(addWrap(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -248196,21 +248212,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 INP 1
 
-Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded input selector, read one byte from that port, and replace A only after the read succeeds. Never read old A or any flag. Preserve all other registers and control state; fetch no operand and access no data memory.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "1" {
   yield 0001:u16
 }
-low:u8 := read port[port]
-write A:u8 := low
+result:u8 := read port[selector]
+write A:u8 := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JMP
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch both target bytes, low first, and narrow to fourteen bits. Then read SELECTOR and replace only its selected address register. JMP leaves all other slots, the selector, flags, and STOPPED unchanged, without reading target memory.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248226,21 +248242,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 INP 2
 
-Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded input selector, read one byte from that port, and replace A only after the read succeeds. Never read old A or any flag. Preserve all other registers and control state; fetch no operand and access no data memory.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "2" {
   yield 0002:u16
 }
-low:u8 := read port[port]
-write A:u8 := low
+result:u8 := read port[selector]
+write A:u8 := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CAL
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch and narrow the complete target, then advance SELECTOR modulo eight before writing that target into the new slot. CAL leaves the caller's slot holding its post-fetch address, or its unchanged address for supplied bytes. Preserve other slots, flags, and STOPPED; perform no data-memory access.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248258,21 +248274,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 INP 3
 
-Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded input selector, read one byte from that port, and replace A only after the read succeeds. Never read old A or any flag. Preserve all other registers and control state; fetch no operand and access no data memory.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "3" {
   yield 0003:u16
 }
-low:u8 := read port[port]
-write A:u8 := low
+result:u8 := read port[selector]
+write A:u8 := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JFZ
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional jumps use `01 ccc 000`. Fetch and narrow the complete target before testing the selected flag. Only a taken jump reads SELECTOR and writes the selected address register. Do not read target memory or change flags, SELECTOR, or STOPPED; an untaken jump has only its instruction-fetch effects.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248280,8 +248296,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read Z
-when not(condition) {
+condition0:flag := read Z
+when not(condition0) {
   slot:u3 := read STACKINDEX
   write ADDRESSSTACK[slot]:u14 := target
 }
@@ -248291,21 +248307,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 INP 4
 
-Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded input selector, read one byte from that port, and replace A only after the read succeeds. Never read old A or any flag. Preserve all other registers and control state; fetch no operand and access no data memory.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "4" {
   yield 0004:u16
 }
-low:u8 := read port[port]
-write A:u8 := low
+result:u8 := read port[selector]
+write A:u8 := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CFZ
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional calls use `01 ccc 010`. Fetch and narrow the complete target before testing the selected flag. Only a taken call reads SELECTOR, advances it modulo eight, and writes the target into that new physical slot. Preserve all other slots, flags, and STOPPED. An untaken call never accesses the selector or array.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248313,8 +248329,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read Z
-when not(condition) {
+condition0:flag := read Z
+when not(condition0) {
   slot:u3 := read STACKINDEX
   next := low3(addWrap(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -248326,21 +248342,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 INP 5
 
-Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded input selector, read one byte from that port, and replace A only after the read succeeds. Never read old A or any flag. Preserve all other registers and control state; fetch no operand and access no data memory.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "5" {
   yield 0005:u16
 }
-low:u8 := read port[port]
-write A:u8 := low
+result:u8 := read port[selector]
+write A:u8 := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JMP
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch both target bytes, low first, and narrow to fourteen bits. Then read SELECTOR and replace only its selected address register. JMP leaves all other slots, the selector, flags, and STOPPED unchanged, without reading target memory.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248356,21 +248372,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 INP 6
 
-Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded input selector, read one byte from that port, and replace A only after the read succeeds. Never read old A or any flag. Preserve all other registers and control state; fetch no operand and access no data memory.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "6" {
   yield 0006:u16
 }
-low:u8 := read port[port]
-write A:u8 := low
+result:u8 := read port[selector]
+write A:u8 := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CAL
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch and narrow the complete target, then advance SELECTOR modulo eight before writing that target into the new slot. CAL leaves the caller's slot holding its post-fetch address, or its unchanged address for supplied bytes. Preserve other slots, flags, and STOPPED; perform no data-memory access.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248388,21 +248404,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 INP 7
 
-Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded input selector, read one byte from that port, and replace A only after the read succeeds. Never read old A or any flag. Preserve all other registers and control state; fetch no operand and access no data memory.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "7" {
   yield 0007:u16
 }
-low:u8 := read port[port]
-write A:u8 := low
+result:u8 := read port[selector]
+write A:u8 := result
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JFS
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional jumps use `01 ccc 000`. Fetch and narrow the complete target before testing the selected flag. Only a taken jump reads SELECTOR and writes the selected address register. Do not read target memory or change flags, SELECTOR, or STOPPED; an untaken jump has only its instruction-fetch effects.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248410,8 +248426,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read S
-when not(condition) {
+condition0:flag := read S
+when not(condition0) {
   slot:u3 := read STACKINDEX
   write ADDRESSSTACK[slot]:u14 := target
 }
@@ -248421,24 +248437,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 8
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "8" {
   yield 0008:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CFS
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional calls use `01 ccc 010`. Fetch and narrow the complete target before testing the selected flag. Only a taken call reads SELECTOR, advances it modulo eight, and writes the target into that new physical slot. Preserve all other slots, flags, and STOPPED. An untaken call never accesses the selector or array.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248446,8 +248459,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read S
-when not(condition) {
+condition0:flag := read S
+when not(condition0) {
   slot:u3 := read STACKINDEX
   next := low3(addWrap(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -248459,24 +248472,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 9
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "9" {
   yield 0009:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JMP
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch both target bytes, low first, and narrow to fourteen bits. Then read SELECTOR and replace only its selected address register. JMP leaves all other slots, the selector, flags, and STOPPED unchanged, without reading target memory.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248492,24 +248502,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 10
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "10" {
   yield 000A:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CAL
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch and narrow the complete target, then advance SELECTOR modulo eight before writing that target into the new slot. CAL leaves the caller's slot holding its post-fetch address, or its unchanged address for supplied bytes. Preserve other slots, flags, and STOPPED; perform no data-memory access.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248527,24 +248534,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 11
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "11" {
   yield 000B:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JFP
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional jumps use `01 ccc 000`. Fetch and narrow the complete target before testing the selected flag. Only a taken jump reads SELECTOR and writes the selected address register. Do not read target memory or change flags, SELECTOR, or STOPPED; an untaken jump has only its instruction-fetch effects.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248552,8 +248556,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read P
-when not(condition) {
+condition0:flag := read P
+when not(condition0) {
   slot:u3 := read STACKINDEX
   write ADDRESSSTACK[slot]:u14 := target
 }
@@ -248563,24 +248567,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 12
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "12" {
   yield 000C:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CFP
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional calls use `01 ccc 010`. Fetch and narrow the complete target before testing the selected flag. Only a taken call reads SELECTOR, advances it modulo eight, and writes the target into that new physical slot. Preserve all other slots, flags, and STOPPED. An untaken call never accesses the selector or array.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248588,8 +248589,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read P
-when not(condition) {
+condition0:flag := read P
+when not(condition0) {
   slot:u3 := read STACKINDEX
   next := low3(addWrap(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -248601,24 +248602,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 13
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "13" {
   yield 000D:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JMP
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch both target bytes, low first, and narrow to fourteen bits. Then read SELECTOR and replace only its selected address register. JMP leaves all other slots, the selector, flags, and STOPPED unchanged, without reading target memory.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248634,24 +248632,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 14
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "14" {
   yield 000E:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CAL
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch and narrow the complete target, then advance SELECTOR modulo eight before writing that target into the new slot. CAL leaves the caller's slot holding its post-fetch address, or its unchanged address for supplied bytes. Preserve other slots, flags, and STOPPED; perform no data-memory access.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248669,24 +248664,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 15
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "15" {
   yield 000F:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JTC
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional jumps use `01 ccc 000`. Fetch and narrow the complete target before testing the selected flag. Only a taken jump reads SELECTOR and writes the selected address register. Do not read target memory or change flags, SELECTOR, or STOPPED; an untaken jump has only its instruction-fetch effects.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248694,8 +248686,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read C
-when condition {
+condition0:flag := read C
+when condition0 {
   slot:u3 := read STACKINDEX
   write ADDRESSSTACK[slot]:u14 := target
 }
@@ -248705,24 +248697,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 16
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "16" {
   yield 0010:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CTC
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional calls use `01 ccc 010`. Fetch and narrow the complete target before testing the selected flag. Only a taken call reads SELECTOR, advances it modulo eight, and writes the target into that new physical slot. Preserve all other slots, flags, and STOPPED. An untaken call never accesses the selector or array.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248730,8 +248719,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read C
-when condition {
+condition0:flag := read C
+when condition0 {
   slot:u3 := read STACKINDEX
   next := low3(addWrap(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -248743,24 +248732,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 17
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "17" {
   yield 0011:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JMP
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch both target bytes, low first, and narrow to fourteen bits. Then read SELECTOR and replace only its selected address register. JMP leaves all other slots, the selector, flags, and STOPPED unchanged, without reading target memory.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248776,24 +248762,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 18
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "18" {
   yield 0012:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CAL
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch and narrow the complete target, then advance SELECTOR modulo eight before writing that target into the new slot. CAL leaves the caller's slot holding its post-fetch address, or its unchanged address for supplied bytes. Preserve other slots, flags, and STOPPED; perform no data-memory access.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248811,24 +248794,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 19
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "19" {
   yield 0013:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JTZ
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional jumps use `01 ccc 000`. Fetch and narrow the complete target before testing the selected flag. Only a taken jump reads SELECTOR and writes the selected address register. Do not read target memory or change flags, SELECTOR, or STOPPED; an untaken jump has only its instruction-fetch effects.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248836,8 +248816,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read Z
-when condition {
+condition0:flag := read Z
+when condition0 {
   slot:u3 := read STACKINDEX
   write ADDRESSSTACK[slot]:u14 := target
 }
@@ -248847,24 +248827,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 20
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "20" {
   yield 0014:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CTZ
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional calls use `01 ccc 010`. Fetch and narrow the complete target before testing the selected flag. Only a taken call reads SELECTOR, advances it modulo eight, and writes the target into that new physical slot. Preserve all other slots, flags, and STOPPED. An untaken call never accesses the selector or array.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248872,8 +248849,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read Z
-when condition {
+condition0:flag := read Z
+when condition0 {
   slot:u3 := read STACKINDEX
   next := low3(addWrap(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -248885,24 +248862,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 21
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "21" {
   yield 0015:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JMP
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch both target bytes, low first, and narrow to fourteen bits. Then read SELECTOR and replace only its selected address register. JMP leaves all other slots, the selector, flags, and STOPPED unchanged, without reading target memory.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248918,24 +248892,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 22
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "22" {
   yield 0016:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CAL
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch and narrow the complete target, then advance SELECTOR modulo eight before writing that target into the new slot. CAL leaves the caller's slot holding its post-fetch address, or its unchanged address for supplied bytes. Preserve other slots, flags, and STOPPED; perform no data-memory access.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248953,24 +248924,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 23
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "23" {
   yield 0017:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JTS
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional jumps use `01 ccc 000`. Fetch and narrow the complete target before testing the selected flag. Only a taken jump reads SELECTOR and writes the selected address register. Do not read target memory or change flags, SELECTOR, or STOPPED; an untaken jump has only its instruction-fetch effects.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -248978,8 +248946,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read S
-when condition {
+condition0:flag := read S
+when condition0 {
   slot:u3 := read STACKINDEX
   write ADDRESSSTACK[slot]:u14 := target
 }
@@ -248989,24 +248957,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 24
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "24" {
   yield 0018:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CTS
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional calls use `01 ccc 010`. Fetch and narrow the complete target before testing the selected flag. Only a taken call reads SELECTOR, advances it modulo eight, and writes the target into that new physical slot. Preserve all other slots, flags, and STOPPED. An untaken call never accesses the selector or array.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -249014,8 +248979,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read S
-when condition {
+condition0:flag := read S
+when condition0 {
   slot:u3 := read STACKINDEX
   next := low3(addWrap(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -249027,24 +248992,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 25
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "25" {
   yield 0019:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JMP
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch both target bytes, low first, and narrow to fourteen bits. Then read SELECTOR and replace only its selected address register. JMP leaves all other slots, the selector, flags, and STOPPED unchanged, without reading target memory.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -249060,24 +249022,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 26
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "26" {
   yield 001A:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CAL
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch and narrow the complete target, then advance SELECTOR modulo eight before writing that target into the new slot. CAL leaves the caller's slot holding its post-fetch address, or its unchanged address for supplied bytes. Preserve other slots, flags, and STOPPED; perform no data-memory access.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -249095,24 +249054,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 27
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "27" {
   yield 001B:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JTP
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional jumps use `01 ccc 000`. Fetch and narrow the complete target before testing the selected flag. Only a taken jump reads SELECTOR and writes the selected address register. Do not read target memory or change flags, SELECTOR, or STOPPED; an untaken jump has only its instruction-fetch effects.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -249120,8 +249076,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read P
-when condition {
+condition0:flag := read P
+when condition0 {
   slot:u3 := read STACKINDEX
   write ADDRESSSTACK[slot]:u14 := target
 }
@@ -249131,24 +249087,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 28
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "28" {
   yield 001C:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CTP
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Conditional calls use `01 ccc 010`. Fetch and narrow the complete target before testing the selected flag. Only a taken call reads SELECTOR, advances it modulo eight, and writes the target into that new physical slot. Preserve all other slots, flags, and STOPPED. An untaken call never accesses the selector or array.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -249156,8 +249109,8 @@ target:u14 := source "14-bit target, low byte first" {
   high:u8 := fetch byte
   yield low14(concatHighLow(high, low))
 }
-condition:flag := read P
-when condition {
+condition0:flag := read P
+when condition0 {
   slot:u3 := read STACKINDEX
   next := low3(addWrap(zeroExtend8(slot), 01:u8))
   write STACKINDEX:u3 := next
@@ -249169,24 +249122,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 29
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "29" {
   yield 001D:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 JMP
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch both target bytes, low first, and narrow to fourteen bits. Then read SELECTOR and replace only its selected address register. JMP leaves all other slots, the selector, flags, and STOPPED unchanged, without reading target memory.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -249202,24 +249152,21 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 30
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "30" {
   yield 001E:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
 
 ### 8008 CAL
 
-Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+Fetch and narrow the complete target, then advance SELECTOR modulo eight before writing that target into the new slot. CAL leaves the caller's slot holding its post-fetch address, or its unchanged address for supplied bytes. Preserve other slots, flags, and STOPPED; perform no data-memory access.
 
 ```text
 target:u14 := source "14-bit target, low byte first" {
@@ -249237,17 +249184,14 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 OUT 31
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+Capture the encoded output selector, then A, and write that byte once to the port. Do not reread A during the callback or change registers, flags, or control state. Fetch no operand and access no data memory. A failed callback retains any effects the device has already performed.
 
 ```text
-port:u16 := source "encoded port selector" {
+selector:u16 := source "31" {
   yield 001F:u16
 }
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
+contents:u8 := read A
+write port[selector] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -251494,7 +251438,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 HLT
 
-Set STOPPED without reading flags, registers, or memory. Opcode fetching belongs to the caller and alone determines whether PC advances.
+HLT occupies `00 000 00x` and `11 111 111`: three documented encodings. Set STOPPED without reading registers, flags, or the old latch. Opcode fetching alone determines whether the selected address register has advanced. A stopped CPU waits for the existing external interrupt boundary to supply an instruction.
 
 ```text
 write halted:boolean := true
