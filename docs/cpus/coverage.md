@@ -19,7 +19,7 @@ emulators do not count toward implementation here.
 | Model | Introduced | Transistors (approx.) | Handwritten CPU core lines | Literate spec lines | `cpu` fence lines | Literate / documented forms | Literate instruction coverage | [Literate model milestones](#literate-model-milestones) |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [0](../../src/components/cpus/specifications/8008.md) | [1,422](../../src/components/cpus/specifications/8008.md) | 341 | 250 / 250 | 100% | 6 / 6 |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [0](../../src/components/cpus/specifications/8080.md) | [1,294](../../src/components/cpus/specifications/8080.md) | 511 | 244 / 244 | 100% | 6 / 6 |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [0](../../src/components/cpus/specifications/8080.md) | [1,590](../../src/components/cpus/specifications/8080.md) | 511 | 244 / 244 | 100% | 6 / 6 |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [213](../../src/components/cpus/6800.ts) | 0 | 0 | 0 / 197 | 0% | 0 / 6 |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | [184](../../src/components/cpus/specifications/6502-load-store.md) | 83 | 15 / 151 | 9.9% | 0 / 6 |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 0 | 0 | 0 / 698 | 0% | 0 / 6 |
@@ -633,7 +633,7 @@ judging source reduction; all counts include comments and blank lines.
 | CPU-specific instruction definition files | 2,181 |
 | Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,018 |
 | **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,401** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 3,054 |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 3,350 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 130 |
 | Generated executable CPU output, counted separately | 314,339 |
 | Generated chapter data, catalogues, and entry-point metadata, counted separately | 161,226 |
@@ -681,11 +681,12 @@ all authored CPU TypeScript falls from **9,506 to 9,401 lines**, a net reduction
 of **105 lines**. This follows the earlier 165-line reduction from the 8080's
 state, execution, and byte-family migration.
 
-Its chapter now has **1,294 lines**, including **511 formal lines**, and replaces
+Its chapter now has **1,590 lines**, including **511 formal lines**, and replaces
 the separate **501-line model document**, which was outside this source count.
-The new prose explains word/control/status families and consolidates the API and
-hardware guide. Total maintained CPU source (TypeScript, chapters, and the two
-generation scripts) is **12,585 lines**; chapter prose counts toward that total.
+The expanded historical background, hardware and programming guide, and worked
+examples add **296 chapter lines** without changing any formal block or generated
+behavior. Total maintained CPU source (TypeScript, chapters, and the two
+generation scripts) is **12,881 lines**; chapter prose counts toward that total.
 Both the 8008 and 8080 now have a single authored implementation source.
 
 Generated chapter data repeats the validated CPU schema within expanded
