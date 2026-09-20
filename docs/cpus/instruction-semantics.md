@@ -1942,30 +1942,28 @@ fetching, recording, and guarding. The public core supplies owned state and
 snapshots; its handwritten step and interrupt algorithms are removed.
 The machine parser reads its separate state schema without
 depending on generated execution code.
-The 6800 chapter owns every instruction body and encoding, including addressing,
-branches, stacks, and interrupt-frame effects. Its core binds the generated opcode
-table directly and calls the chapter's external-entry action for accepted IRQ/NMI.
-No handwritten opcode selectors, operand wrappers, or instruction builders remain
-for this CPU; reset and execution/event recognition remain in the core.
+The 6800 chapter owns its complete model, including addressing, branches, stacks,
+interrupt-frame effects, reset, and execution/event recognition. Its generated
+public class uses the shared vector runtime, with chapter-defined IRQ/NMI entry
+and waiting policies. No handwritten 6800 implementation remains.
 The 6809 binds generated A/B and memory bodies through the
 `motorolaUnaryOperations` selector table, including TST and CLR. Its static
 inventory contains function references only; each invocation supplies current
 CPU state. CPU-owned wrappers resolve one address and reject undefined postbytes
 before body entry. JMP remains a separate address operation.
-The 6809 comparisons, arithmetic, logic, and byte/word transfers use
-`motorolaOperandBindings`, including comparisons across three opcode pages.
-Each register has an immediate body that fetches its operand and a memory body
-that receives the decoder's resolved address. This covers CMPA/B/D/X/Y/U/S in
-all four addressing modes, with no special indexed postbyte path. ADDD/SUBD use
-the same bindings. Binding captures a state
-getter without reading it until execution, and resolves each memory address once
-before entering its body. Address decoding remains outside those resolved-memory
-definitions; migrated 6800 chapter forms include it in their complete bodies.
+The [6809 chapter](../../src/components/cpus/specifications/6809.md) owns the
+base-page immediate/direct/extended comparisons, arithmetic, logic, and byte/word
+transfers, including addressing. Their indexed forms retain resolved-memory
+bodies bound through `motorolaOperandBindings`; prefixed pages retain all four
+addressing modes. Binding captures a state getter without reading it until
+execution and resolves each memory address once before entering its body.
+The builders can now emit only the remaining memory bodies, removing migrated
+immediate definitions. The chapter also supplies the full stored schema and
+D/CC read/write rules to both generated and remaining TypeScript definitions.
 
-The 6809
-`motorolaByteBindings` selects SUB/CMP/SBC/AND/BIT/LD/ST/EOR/ADC/OR/ADD and A/B from the native
-`1 r mm oooo` encoding. Stores omit the immediate binding. Each resolved-memory
-body serves direct, indexed, and extended forms, with no new addressing path.
+`motorolaByteMemoryBindings` selects the remaining SUB/CMP/SBC/AND/BIT/LD/ST/EOR/ADC/OR/ADD
+indexed bodies and A/B from `1 r 10 oooo`. No immediate body or alternate indexed
+addressing path is retained for those base-page families.
 
 The earlier load and TAB/TBA migration used `transfer`: capture a source or an
 already read value, write the destination, then apply the Motorola result policy.

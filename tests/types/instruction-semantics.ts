@@ -1,3 +1,4 @@
+import { instructions as base6809 } from "../../src/components/cpus/generated/6809-base.js";
 import { instructions as system68000 } from "../../src/components/cpus/generated/68000-system.js";
 import { instructions as transfers68000 } from "../../src/components/cpus/generated/68000-transfers.js";
 import { instructions as control68000 } from "../../src/components/cpus/generated/68000-control.js";
@@ -582,7 +583,7 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6809.sbcbMemory(motorola, 0xffff, { readByte: () => 0 });
   generated6809.adddMemory(motorola, 0xffff, { readByte: () => 0 });
   // @ts-expect-error Word arithmetic fetches explicit high/low bytes, not an opaque word source.
-  generated6809.subdImmediate(motorola, { fetchWord: () => 0 });
+  base6809[0x83](motorola, { fetchWord: () => 0 });
   // @ts-expect-error Extended arithmetic requires address fetching as well as data reads.
   generated6800[0xb0](m6800, { readByte: () => 0 });
   // @ts-expect-error Arithmetic bodies never write data memory.
@@ -594,7 +595,7 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6800[0x16](m6800);
   generated6800[0x17](m6800);
   generated6800[0x86](m6800, { fetchByte: () => 0 });
-  generated6809.ldbImmediate(motorola, { fetchByte: () => 0 });
+  base6809[0xc6](motorola, { fetchByte: () => 0 });
   generated6800[0xf6](m6800, { fetchByte: () => 0xff, readByte: () => 0 });
   generated6809.ldaMemory(motorola, 0xffff, { readByte: () => 0 });
   generated6800[0xb7](m6800, { fetchByte: () => 0xff, writeByte: () => {} });
@@ -615,7 +616,7 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6800[0x86](motorola, { fetchByte: () => 0 });
   generated6800[0x84](m6800, { fetchByte: () => 0 });
   generated6800[0xfa](m6800, { fetchByte: () => 0xff, readByte: () => 0 });
-  generated6809.bitbImmediate(motorola, { fetchByte: () => 0 });
+  base6809[0xc5](motorola, { fetchByte: () => 0 });
   generated6809.eoraMemory(motorola, 0xffff, { readByte: () => 0 });
   // @ts-expect-error A resolved logical memory body cannot fetch another address.
   generated6809.andaMemory(motorola, 0xffff, { readByte: () => 0, fetchByte: () => 0 });

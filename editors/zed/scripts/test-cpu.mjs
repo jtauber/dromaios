@@ -31,7 +31,7 @@ for (const [text, category] of [
   ['as', 'keyword'], ['waiting', 'constant'], ['cpu', 'keyword'], ['state', 'keyword'], ['family', 'keyword'], ['encoding', 'keyword'],
   ['perform', 'keyword'], ['prepare', 'function'], ['enter', 'function'], ['defer', 'keyword'], ['irq', 'keyword'], ['into', 'keyword'], ['unless', 'keyword'],
   ['callback', 'keyword'], ['validate', 'keyword'], ['using', 'keyword'], ['vectors', 'keyword'], ['DEFERRED', 'property'], ['ENABLED', 'property'],
-  ['A', 'property'], ['C', 'property'], ['ADDRESS', 'property'], ['STOPPED', 'property'],
+  ['A', 'property'], ['C', 'property'], ['ADDRESS', 'property'], ['STOPPED', 'property'], ['WAIT', 'property'], ['choice', 'keyword'],
   ['addressStack', 'variable'], ['slot', 'variable'], ['source', 'variable'], ['carry', 'variable'],
   ['signExtend', 'function'], ['addOverflow', 'function'], ['overflow', 'function'], ['transfer', 'function'], ['add', 'function'], ['carry', 'function'], ['u14', 'function'],
   ['Cpu8008', 'type'], ['8', 'number'], ['$0000', 'number'], ['000', 'number'],

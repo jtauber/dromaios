@@ -59,17 +59,16 @@ export function motorolaOperandBindings<State>(readState: () => State,
 }
 
 type ByteReadName = "sub" | "sbc" | "adc" | "add" | "cmp" | "and" | "bit" | "ld" | "eor" | "or";
-type ByteBodies<State> = Readonly<Record<`${ByteReadName}${"a" | "b"}Immediate`, (state: State, instruction: WordInstructionContext) => void>
-  & Record<`${ByteReadName | "st"}${"a" | "b"}Memory`, (state: State, address: number, instruction: ByteMemory) => void>>;
+type ByteBodies<State> = Readonly<Record<`${ByteReadName | "st"}${"a" | "b"}Memory`, (state: State, address: number, instruction: ByteMemory) => void>>;
 
-/** 1 r mm oooo: r selects A/B; these generated bodies share an immediate/resolved-memory boundary. */
-export function motorolaByteBindings<State>(bodies: ByteBodies<State>, bind: ReturnType<typeof motorolaOperandBindings<State>>) {
+/** 1 r mm oooo: r selects A/B; resolved-memory bodies serve the CPU's remaining address modes. */
+export function motorolaByteMemoryBindings<State>(bodies: ByteBodies<State>, bind: ReturnType<typeof motorolaOperandBindings<State>>) {
   return (["a", "b"] as const).flatMap((register, r) => [
     ...([
       ["0000", "sub"], ["0001", "cmp"], ["0010", "sbc"],
       ["0100", "and"], ["0101", "bit"], ["0110", "ld"],
       ["1000", "eor"], ["1001", "adc"], ["1010", "or"], ["1011", "add"],
-    ] as const).flatMap(([bits, name]) => bind(`1 ${r} mm ${bits}`, bodies[`${name}${register}Immediate`], bodies[`${name}${register}Memory`])),
+    ] as const).flatMap(([bits, name]) => bind(`1 ${r} mm ${bits}`, undefined, bodies[`${name}${register}Memory`])),
     ...bind(`1 ${r} mm 0111`, undefined, bodies[`st${register}Memory`]), // Stores have no immediate form.
   ]);
 }

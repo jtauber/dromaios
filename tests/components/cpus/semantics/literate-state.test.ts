@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
-import { array, boolean, defineState, flag, group, readState, unsigned } from "../../../../src/components/cpus/state.js";
+import { array, boolean, defineState, flag, group, namedChoices, readState, unsigned } from "../../../../src/components/cpus/state.js";
 import type { StateFields } from "../../../../src/components/cpus/state.js";
 import { cpu8008StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8008.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
@@ -65,6 +65,21 @@ test("stored field mappings feed instruction references without an external sche
   assert.deepEqual(instruction.steps, [{ kind: "write-register", register: { kind: "register", cpu: "probe", field: "accumulator", width: 8 }, value: { kind: "literal", width: 8, value: 0xff } }]);
 });
 
+test("named choices generate immutable storage and validate exact public values", async () => {
+  const text = 'state {\n  choice WAIT: "none", "sync", "cwai" = waitMode\n}';
+  const schema = await generatedState(compile(text).state!);
+  assert.deepEqual(schema, { waitMode: namedChoices("none", "sync", "cwai") });
+  assert.ok(Object.isFrozen(schema.waitMode));
+  if (schema.waitMode?.kind === "named-choice") assert.ok(Object.isFrozen(schema.waitMode.values));
+  for (const waitMode of ["none", "sync", "cwai"]) assert.deepEqual(readState(schema, { waitMode }), { waitMode });
+  for (const waitMode of ["SYNC", "halted", true, 0]) assert.throws(() => readState(schema, { waitMode }), /waitMode/);
+  assert.throws(() => readState(schema, {}), /waitMode/);
+  const changed = await generatedState(compile(text.replace('"cwai"', '"paused"')).state!);
+  assert.throws(() => readState(changed, { waitMode: "cwai" }), /waitMode/);
+  assert.doesNotThrow(() => readState(changed, { waitMode: "paused" }));
+  assert.deepEqual(compile('state {\n choice MODE: "running"\n}').state, { mode: namedChoices("running") });
+});
+
 const invalid: readonly [string, string, RegExp][] = [
   ["empty state", "state {\n}", /at least one stored field/],
   ["missing state", "", /Expected a state block/],
@@ -84,6 +99,11 @@ const invalid: readonly [string, string, RegExp][] = [
   ["unsafe array length", "state {\n array ADDRESS: 14[9007199254740992]\n}", /positive safe integers/],
   ["non-state declaration", "state {\n source BYTE\n}", /contain only/],
   ["trailing tokens", "state {\n flag C extra\n}", /trailing input/],
+  ["empty choice list", 'state {\n choice WAIT:\n}', /quoted/],
+  ["duplicate choice value", 'state {\n choice WAIT: "none", "none"\n}', /distinct/],
+  ["empty choice value", 'state {\n choice WAIT: ""\n}', /nonempty/],
+  ["choice trailing comma", 'state {\n choice WAIT: "none",\n}', /quoted/],
+  ["choice storage collision", 'state {\n latch WAIT\n choice MODE: "none" = wait\n}', /Duplicate stored field wait/],
 ];
 for (const [name, text, message] of invalid) test(`state authoring rejects ${name} with a Markdown diagnostic`, () => {
   assert.throws(() => compile(text), (error: unknown) => {
@@ -100,11 +120,17 @@ test("storage collisions report the second declaration's source location", () =>
 });
 
 test("partial chapters still check declarations against an external schema and cannot redefine it", () => {
-  const state = defineState({ a: unsigned(8), flags: group({ c: flag }), slots: array(8, unsigned(14)), stopped: boolean });
+  const state = defineState({ a: unsigned(8), flags: group({ c: flag }), slots: array(8, unsigned(14)), stopped: boolean,
+    waitMode: namedChoices("none", "sync", "cwai") });
   assert.equal(compile("register A: 8\nflag C\narray SLOTS: 14[8]\nlatch STOPPED", state).state, undefined);
   assert.throws(() => compile("register A: 16", state), /Register A.*schema/);
   assert.throws(() => compile("flag Z", state), /Unknown CPU flag Z/);
   assert.throws(() => compile("array SLOTS: 14[7]", state), /Array SLOTS.*schema/);
   assert.throws(() => compile("latch STOPPED = a", state), /Latch STOPPED.*schema/);
   assert.throws(() => compile("state {\n register A: 8\n}", state), /already defined/);
+  assert.equal(compile('choice WAIT: "none", "sync", "cwai" = waitMode', state).state, undefined);
+  for (const values of ['"none"', '"none", "sync", "stop"', '"cwai", "sync", "none"']) {
+    assert.throws(() => compile(`choice WAIT: ${values} = waitMode`, state), /Choice WAIT.*schema/);
+  }
+  assert.throws(() => compile('choice WAIT: "none" = stopped', state), /Choice WAIT.*schema/);
 });

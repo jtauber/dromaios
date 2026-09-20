@@ -1,27 +1,25 @@
-import { cpu6809StateDescription, cpu6809Status } from "../../state/6809.ts";
-import { addWrap, bitAnd, bitOr, capture, concat, extend, fetchByte, flagLiteral, flagValue, literal, cpuSymbols, highByte, lowByte, multiply, negative, not, readRegister, readSource, signExtend, testChoice, updateFlags, value, when, writeChoice, writeLatch, writeRegister, zero } from "../model.ts";
-import type { InstructionDefinition, NumberExpression, Statement, ValueSource } from "../model.ts";
-import { registerSource, registerView } from "../builders.ts";
+import { views as chapterViews, actions as chapterActions, policies, families } from "../generated/6809.ts";
+import { cpu6809StateDescription } from "../../state/6809.ts";
+import { addWrap, bitAnd, bitOr, capture, extend, fetchByte, flagLiteral, flagValue, literal, cpuSymbols, highByte, lowByte, multiply, negative, not, perform, replaceFlags, readRegister, readSource, signExtend, testChoice, updateFlags, value, when, writeChoice, writeLatch, writeRegister, zero } from "../model.ts";
+import type { InstructionDefinition, NumberExpression, Statement } from "../model.ts";
+import { instructionSet, registerSource, registerView } from "../builders.ts";
 import { motorolaBranches, motorolaByteArithmetic, motorolaArithmeticFamily, motorolaTransfers, motorolaComparison, motorolaLogic, motorolaSubroutines, motorolaUnary } from "../motorola.ts";
 import { choose, flagCondition, loadVector, resolvedJump } from "../control-flow.ts";
 import { motorolaBranchNames, motorola6809TransferForms } from "../../motorola.ts";
-import { flagPolicy, packedStatus, restoreStatus } from "../status.ts";
+import { flagPolicy } from "../status.ts";
 import { byteStack, maskedStack, stackFrame } from "../stack.ts";
 import { decimalAdjust } from "../decimal.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("6809", cpu6809StateDescription);
 
-// D is a view, not an extra stored register. Read A then B only when the instruction reaches its register source.
-const d: ValueSource = {
-  name: "D from A:B", width: 16,
-  steps: [readRegister("high", cpu.register("a")), readRegister("low", cpu.register("b"))],
-  result: concat(value("high"), value("low")),
-};
+// Remaining indexed/prefixed bodies share the chapter's views and complete write rules.
+const d = chapterViews.D;
+const writeD = (word: NumberExpression) => [perform(chapterActions.writeD, { word })];
+const restoreCC = (status: NumberExpression) => replaceFlags(policies.CCFLAGS, { status });
+export const chapter6809 = instructionSet(Object.values(families).flat());
+export { chapterActions as actions6809, chapterViews as views6809 };
 
-const writeD = (contents: NumberExpression) => [
-  writeRegister(cpu.register("a"), highByte(contents)), writeRegister(cpu.register("b"), lowByte(contents)),
-];
 const writableD = { source: d, write: writeD(value("result")), explanation: "Write D as A then B" };
 const armNmi = writeLatch(cpu.latch("nmiArmed"), true);
 const views = {
@@ -29,7 +27,7 @@ const views = {
   x: registerView(cpu.register("x")), y: registerView(cpu.register("y")), u: registerView(cpu.register("u")),
   s: registerView(cpu.register("s"), [armNmi]), pc: registerView(cpu.register("pc")),
   a: registerView(cpu.register("a")), b: registerView(cpu.register("b")), dp: registerView(cpu.register("dp")),
-  cc: { source: packedStatus(cpu, cpu6809Status), write: (contents: NumberExpression) => [restoreStatus(cpu, cpu6809Status, contents)] },
+  cc: { source: chapterViews.CC, write: (contents: NumberExpression) => [restoreCC(contents)] },
 };
 
 function registerTransfers(exchange: boolean) {
@@ -75,7 +73,7 @@ function softwareInterrupt(name: string, vector: number, masks: number) {
     explanation: "Unless CWAI already saved a frame, set E and push the full frame in PC/U/Y/X/DP/B/A/CC order. "
       + "Then repack and replace CC with the instruction's interrupt masks, leave waiting, and fetch the complete high-first vector. " + interruptStack.explanation,
     steps: [testChoice("waiting", cpu.choice("waitMode"), "cwai"), when(not(flagValue("waiting")), saveInterruptFrame()),
-      readSource("status", packedStatus(cpu, cpu6809Status)), restoreStatus(cpu, cpu6809Status, bitOr(value("status"), literal(8, masks))),
+      readSource("status", chapterViews.CC), restoreCC(bitOr(value("status"), literal(8, masks))),
       writeChoice(cpu.choice("waitMode"), "none"), ...loadVector(cpu.register("pc"), literal(16, vector), "big-endian")],
   });
 }
@@ -87,7 +85,7 @@ export const instructions6809: Readonly<Record<string, InstructionDefinition>> =
     steps: [writeChoice(cpu.choice("waitMode"), "sync")] }),
   cwai: defineInstruction({ cpu: cpu.declaration, name: "CWAI",
     explanation: "Capture CC before fetching the mask, replace flags with their masked values, set E, and save the complete frame. Enter CWAI only after every push succeeds. " + interruptStack.explanation,
-    steps: [readSource("status", packedStatus(cpu, cpu6809Status)), fetchByte("mask"), restoreStatus(cpu, cpu6809Status, bitAnd(value("status"), value("mask"))),
+    steps: [readSource("status", chapterViews.CC), fetchByte("mask"), restoreCC(bitAnd(value("status"), value("mask"))),
       ...saveInterruptFrame(), writeChoice(cpu.choice("waitMode"), "cwai")] }),
   rti: defineInstruction({ cpu: cpu.declaration, name: "RTI",
     explanation: "Pull and replace CC first. Restored E selects the remaining full frame or PC alone; only complete each field after all its reads. Arm NMI after all transfers succeed. " + interruptStack.explanation,
@@ -125,26 +123,27 @@ export const instructions6809: Readonly<Record<string, InstructionDefinition>> =
   daa: decimalAdjust(cpu, "motorola"),
   ...Object.fromEntries((["or", "and"] as const).map(operation => [`${operation}cc`, defineInstruction({ cpu: cpu.declaration, name: `${operation.toUpperCase()}CC`,
     explanation: "Capture packed CC before fetching the mask, then combine and replace all flags. A failed fetch leaves flags unchanged.",
-    steps: [readSource("status", packedStatus(cpu, cpu6809Status)), fetchByte("mask"),
-      restoreStatus(cpu, cpu6809Status, (operation === "or" ? bitOr : bitAnd)(value("status"), value("mask")))],
+    steps: [readSource("status", chapterViews.CC), fetchByte("mask"),
+      restoreCC((operation === "or" ? bitOr : bitAnd)(value("status"), value("mask")))],
   })])),
   ...motorolaSubroutines(cpu, cpu.register("s"), "occupied", true),
   ...motorolaBranches(cpu, motorolaBranchNames),
   ...motorolaBranches(cpu, motorolaBranchNames, true),
   jump: resolvedJump(cpu),
   ...motorolaUnary(cpu, { clearReadsOperand: true, testClearsCarry: false, rightShiftSetsOverflow: false }),
-  ...motorolaLogic(cpu),
-  ...motorolaByteArithmetic(cpu),
-  ...motorolaArithmeticFamily(cpu, "SUBD", writableD, "subtract"),
-  ...motorolaArithmeticFamily(cpu, "ADDD", writableD, "add"),
+  ...motorolaLogic(cpu, ["Memory"]),
+  ...motorolaByteArithmetic(cpu, ["Memory"]),
+  ...motorolaArithmeticFamily(cpu, "SUBD", writableD, "subtract", false, ["Memory"]),
+  ...motorolaArithmeticFamily(cpu, "ADDD", writableD, "add", false, ["Memory"]),
   ...Object.fromEntries((["a", "b", "x", "y", "u"] as const).flatMap(register =>
-    Object.entries(motorolaTransfers(cpu, register.toUpperCase(), cpu.register(register))))),
-  ...motorolaTransfers(cpu, "D", writableD),
+    Object.entries(motorolaTransfers(cpu, register.toUpperCase(), cpu.register(register), register === "y" ? undefined : ["Memory"])))),
+  ...motorolaTransfers(cpu, "D", writableD, ["Memory"]),
   ...motorolaTransfers(cpu, "S", { source: registerSource(cpu.register("s")),
     write: [writeRegister(cpu.register("s"), value("result")), writeLatch(cpu.latch("nmiArmed"), true)],
     explanation: "Write S and arm NMI",
   }),
-  // Each memory body serves all three address modes; opcode pages and patterns remain in the CPU.
+  // Base-page immediate/direct/extended forms come from the chapter; these bodies retain indexed and prefixed forms.
   ...Object.fromEntries((["a", "b", "d", "x", "y", "u", "s"] as const).flatMap(register =>
-    Object.entries(motorolaComparison(cpu, `CMP${register.toUpperCase()}`, register === "d" ? d : cpu.register(register))))),
+    Object.entries(motorolaComparison(cpu, `CMP${register.toUpperCase()}`, register === "d" ? d : cpu.register(register),
+      register === "a" || register === "b" || register === "x" ? ["Memory"] : undefined)))),
 };

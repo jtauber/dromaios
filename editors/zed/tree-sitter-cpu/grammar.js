@@ -17,10 +17,11 @@ module.exports = grammar({
 
     cpu_declaration: $ => seq('cpu', field('model', $.string)),
     state_declaration: $ => seq('state', '{', repeat($._state_field), '}'),
-    _state_field: $ => choice($.register_declaration, $.array_declaration, $.flag_declaration),
+    _state_field: $ => choice($.register_declaration, $.array_declaration, $.flag_declaration, $.choice_declaration),
     register_declaration: $ => seq('register', $._state_name, ':', $.number, optional($.field_mapping)),
     array_declaration: $ => seq('array', $._state_name, ':', $.number, '[', $.number, ']', optional($.field_mapping)),
     flag_declaration: $ => seq(choice('flag', 'latch'), $._state_name, optional($.field_mapping)),
+    choice_declaration: $ => seq('choice', $._state_name, ':', commaSeparated($.string), optional($.field_mapping)),
     field_mapping: $ => seq('=', $.identifier),
 
     source_declaration: $ => seq(choice('source', 'view'), field('name', $.identifier), $.string, ':', $.number, $.body),

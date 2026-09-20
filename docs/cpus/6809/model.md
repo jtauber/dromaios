@@ -9,6 +9,11 @@ instruction behavior, and expected execution.
 [CPU tests](../../../tests/components/cpus/6809.test.ts) ·
 [Public type checks](../../../tests/types/6809.ts)
 
+The [executable chapter](../../../src/components/cpus/specifications/6809.md)
+owns the stored-state declaration and D/CC read/write rules, consumed by both
+chapter-authored operand families and the remaining TypeScript model. This
+document retains the wider API, lifecycle, and hardware contract during migration.
+
 ## Model boundary
 
 `Cpu6809` models the original Motorola MC6809 instruction set, also used by

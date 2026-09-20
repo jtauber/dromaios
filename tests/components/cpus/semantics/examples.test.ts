@@ -208,7 +208,7 @@ test("Motorola logical explanations share result flags and distinguish BIT from 
     for (const [name, operation] of [["ANDA", "bitAnd"], ["EORB", "bitXor"], [cpu === "6800" ? "ORAA" : "ORA", "bitOr"]]) {
       const text = description(cpu, `${name} #byte`), register = name!.slice(-1);
       const operand = text.indexOf("fetch byte"), read = text.indexOf(`:= read ${register}`);
-      const result = text.indexOf(`result := ${operation}(accumulator, ${cpu === "6800" ? "right" : "operand"})`);
+      const result = text.indexOf(`result := ${operation}(${cpu === "6800" ? "accumulator" : "left"}, right)`);
       const write = text.indexOf(`write ${register}:u8 := result`), flags = text.indexOf("N := topBit(result)");
       assert.ok(operand >= 0 && operand < read && read < result && result < write && write < flags);
       assert.match(text, /V := 0:flag/);
@@ -269,8 +269,9 @@ test("Motorola word-transfer explanations expose byte order, captured stores, D 
         assert.ok(write < latch && latch < text.indexOf("N := topBit(result)"));
       }
       if (register === "D") {
-        assert.match(text, /write A:u8 := highByte\(result\)/);
-        assert.match(text, /write B:u8 := lowByte\(result\)/);
+        assert.match(text, /perform "write D as A then B" \{\n  word:u16 := result/);
+        assert.match(text, /write A:u8 := highByte\(word\)/);
+        assert.match(text, /write B:u8 := lowByte\(word\)/);
         assert.ok(write < text.indexOf("write B:u8") && text.indexOf("write B:u8") < text.indexOf("N := topBit(result)"));
       }
     }
@@ -309,7 +310,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 12406);
+  assert.equal(instructionDefinitions.length, 12470);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {

@@ -1,5 +1,5 @@
 [
-  "cpu" "state" "register" "flag" "array" "latch" "source" "view" "action" "perform"
+  "cpu" "state" "register" "flag" "array" "latch" "choice" "source" "view" "action" "perform"
   "policy" "operands" "pair" "codes" "conditions" "family" "encoding" "for" "in"
   "with" "named" "except" "fetch" "operand" "apply" "replace" "when" "test" "return"
   "fault" "alignment" "read" "write" "if" "commit" "addresses" "defer" "irq" "into"

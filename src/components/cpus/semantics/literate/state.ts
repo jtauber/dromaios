@@ -1,14 +1,14 @@
-import { array, boolean, defineState, flag, group, unsigned } from "../../state.ts";
+import { array, boolean, defineState, flag, group, namedChoices, unsigned } from "../../state.ts";
 import type { StateField, StateFields } from "../../state.ts";
-import type { CpuDeclaration, Flag, Latch, Register, RegisterArray } from "../model.ts";
+import type { Choice, CpuDeclaration, Flag, Latch, Register, RegisterArray } from "../model.ts";
 import type { ChapterTokens } from "./document.ts";
 import { width } from "./expressions.ts";
 
-export type StateSymbol = Register | RegisterArray | Flag | Latch;
+export type StateSymbol = Register | RegisterArray | Flag | Latch | Choice<string>;
 
 /** The same declaration syntax names stored fields in complete and partial chapters. */
 export function stateSymbol(tokens: ChapterTokens, kind: string, name: string, cpu: string): StateSymbol {
-  if (name !== name.toUpperCase()) tokens.fail("Register, flag, array, and latch names must be uppercase.");
+  if (name !== name.toUpperCase()) tokens.fail("Stored-state names must be uppercase.");
   let symbol: StateSymbol;
   if (kind === "register" || kind === "array") {
     tokens.expect(":"); const bits = width(tokens);
@@ -20,8 +20,13 @@ export function stateSymbol(tokens: ChapterTokens, kind: string, name: string, c
     const field = tokens.take("=") ? tokens.word() : name.toLowerCase();
     symbol = kind === "register" ? { kind, cpu, field, width: bits }
       : { kind: "register-array", cpu, field, width: bits, length };
+  } else if (kind === "choice") {
+    tokens.expect(":"); const values: string[] = [];
+    do { values.push(tokens.quoted()); } while (tokens.take(","));
+    tokens.checked(() => namedChoices(values[0]!, ...values.slice(1)));
+    symbol = { kind, cpu, values, field: tokens.take("=") ? tokens.word() : name.toLowerCase() };
   } else {
-    if (kind !== "flag" && kind !== "latch") tokens.fail("State blocks contain only registers, flags, arrays, and latches.");
+    if (kind !== "flag" && kind !== "latch") tokens.fail("State blocks contain only registers, flags, arrays, latches, and choices.");
     symbol = { kind, cpu, field: tokens.take("=") ? tokens.word() : name.toLowerCase() };
   }
   tokens.end();
@@ -43,6 +48,10 @@ export function checkStateSymbol(tokens: ChapterTokens, name: string, symbol: St
       break;
     case "latch":
       if (stored?.kind !== "boolean") tokens.fail(`Latch ${name} does not match the CPU state schema.`);
+      break;
+    case "choice":
+      if (stored?.kind !== "named-choice" || stored.values.length !== symbol.values.length
+        || stored.values.some((value, index) => value !== symbol.values[index])) tokens.fail(`Choice ${name} does not match the CPU state schema.`);
   }
 }
 
@@ -58,7 +67,8 @@ export function chapterState(declarations: readonly { symbol: StateSymbol; token
     } else {
       if (fields.has(field)) tokens.fail(`Duplicate stored field ${field}.`);
       fields.set(field, kind === "register" ? unsigned(symbol.width)
-        : kind === "register-array" ? array(symbol.length, unsigned(symbol.width)) : boolean);
+        : kind === "register-array" ? array(symbol.length, unsigned(symbol.width))
+        : kind === "choice" ? namedChoices(symbol.values[0]!, ...symbol.values.slice(1)) : boolean);
     }
   }
   return defineState(Object.fromEntries(fields));

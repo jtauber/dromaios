@@ -27,6 +27,10 @@ Executable chapters are maintained CPU sources:
   WAI suspension and wake-up, and the public interface are chapter-owned too.
   Its model contracts and hardware guide live beside the formal definitions;
   no handwritten 6800 implementation remains.
+- [Motorola 6809: state and base-page operands](../../src/components/cpus/specifications/6809.md)
+  owns all stored fields, D/CC views and writes, and immediate/direct/extended
+  loads, stores, arithmetic, logic, and comparisons. Native indexed decoding,
+  prefix pages, remaining instructions, and lifecycle policies stay in TypeScript.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -141,6 +145,7 @@ Quoted descriptions use JSON string escaping.
 | `register A: 8`, `flag N` | Declare stored fields inside `state`, or reference an external schema in a partial chapter. Uppercase names map to lowercase stored fields unless an explicit `= field` mapping follows. |
 | `register SELECTOR: 3 = stackIndex`, `array ADDRESS: 14[8] = addressStack` | Name stored fields explicitly; widths and array lengths define storage inside `state` and must match the external schema otherwise. |
 | `latch STOPPED = halted` | Declare a Boolean control latch, distinct from an architectural flag. |
+| `choice WAIT: "none", "sync", "cwai" = waitMode` | Declare a stored field with an exact set of named alternatives. |
 | `source zeroPage "zero page": 16 { … }` | Ordered steps ending in a numeric `return`; each use has its own capture scope. |
 | `view PC "selected PC": 14 { … }` | A named read-only state source, ending in a numeric `return`; it cannot access external devices. |
 | `action setPC "set selected PC" (address: 16) { … }` | Ordered state effects with optional numeric inputs; no instruction fetching, memory, port, or boundary effects. |
@@ -168,7 +173,7 @@ Quoted descriptions use JSON string escaping.
 
 ### State ownership
 
-A complete state block contains only `register`, `flag`, `array`, and `latch`
+A complete state block contains only `register`, `flag`, `array`, `latch`, and `choice`
 declarations. It must be nonempty, appear once after `cpu` and before other
 declarations, and contain every stored field. Instruction bodies use those
 declared names directly; do not redeclare them outside the block. Flags occupy
@@ -176,6 +181,10 @@ a `flags` group; the other declarations describe top-level fields. Two symbols
 cannot declare the same stored field, and a field named `flags` cannot collide
 with the architectural flag group. Arrays have positive safe-integer lengths;
 register and element widths use the language's supported numeric widths.
+Named choices require one or more distinct, nonempty quoted strings; spelling
+and case are significant. They generate a literal union type and runtime
+validation. This syntax currently declares storage only: choice reads, writes,
+and lifecycle policies still use the TypeScript instruction representation.
 
 The compiler returns the schema along with the instruction families. The build
 generates an immutable state description and a `StoredState` type derived from
@@ -687,7 +696,7 @@ Shared runtime services enforce the declared execution contract. Chapters
 without owned state validate declarations against an external schema; most
 other instruction families remain authored in TypeScript.
 
-The five chapters now exercise contrasting widths, ordered effects, and
+The six chapters now exercise contrasting widths, ordered effects, and
 interrupt-recognition policies. The 6502 now owns its complete state, status
 view/restoration, and all 151 documented instruction forms. Existing selector/source
 bindings express its irregular index-load/store encodings and cross-indexing.
@@ -713,6 +722,12 @@ vector reads, masked named entry, no acknowledgement stream, and no halted state
 The 6800 reuses that boundary with explicit WAI waiting and wake-up rules. Its
 reset, stack frame, and vector actions remain visible in the chapter; its public
 class and records are generated without a handwritten adapter.
+The 6809 adds named-choice storage for its three wait modes. Its chapter supplies
+the complete stored schema, D/CC views and writes, and base-page immediate,
+direct, and extended operand families. Remaining TypeScript instructions and
+external entry consume those same views and writes; native indexed decoding
+and prefix-page bindings remain. Its model document still owns the wider
+execution contract.
 A differently named test CPU already exercises different storage, address width, views, and
 actions through the same compiler and runtime. This is evidence for the current
 contract, not proof that it covers the remaining architectures. Each further
@@ -725,6 +740,7 @@ The [6502 language tests](../../tests/components/cpus/semantics/literate.test.ts
 [6502 control/stack chapter tests](../../tests/components/cpus/semantics/literate-6502-control.test.ts),
 [6502 lifecycle chapter tests](../../tests/components/cpus/semantics/literate-6502-lifecycle.test.ts),
 [6800 lifecycle chapter tests](../../tests/components/cpus/semantics/literate-6800-lifecycle.test.ts),
+[6809 chapter tests](../../tests/components/cpus/semantics/literate-6809.test.ts),
 [state-authoring tests](../../tests/components/cpus/semantics/literate-state.test.ts),
 [8008 transfer tests](../../tests/components/cpus/semantics/literate-8008.test.ts),
 [8008 arithmetic language tests](../../tests/components/cpus/semantics/literate-8008-arithmetic.test.ts),

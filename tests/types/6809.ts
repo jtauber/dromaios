@@ -62,6 +62,8 @@ export function checkInitialization(ram: Ram, state: Cpu6809State, snapshot: Cpu
   state.d;
   // @ts-expect-error D is not a separate initialization input.
   new Cpu6809(ram, { ...state, d: 0x1234 });
+  // @ts-expect-error Chapter choices retain their literal string union.
+  new Cpu6809(ram, { ...state, waitMode: "halted" });
   return [new Cpu6809(ram, state), new Cpu6809(ram, snapshot)];
 }
 

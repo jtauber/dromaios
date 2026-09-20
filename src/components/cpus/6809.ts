@@ -1,3 +1,5 @@
+import { opcodeEntries as chapterOpcodes } from "./generated/6809-base.ts";
+import { instructions as stateActions, sourceReaders } from "./generated/6809-state.ts";
 import { instructions as semantics } from "./generated/6809.ts";
 import type { Ram } from "../memory/ram.js";
 import type { FetchedInstruction, StateTransition, InstructionStep, WaitingStep } from "./execution-records.ts";
@@ -8,12 +10,12 @@ import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { copyState, readState } from "./state.ts";
-import { cpu6809StateDescription, cpu6809Status as packedFlags } from "./state/6809.ts";
+import { cpu6809StateDescription } from "./state/6809.ts";
 import type { Cpu6809State } from "./state/6809.ts";
 import type { ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaBranchNames, motorola6809TransferForms } from "./motorola.ts";
+import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteMemoryBindings, motorolaBranchNames, motorola6809TransferForms } from "./motorola.ts";
 
 export { cpu6809StateDescription } from "./state/6809.ts";
 export type { Cpu6809State, Cpu6809Flags } from "./state/6809.ts";
@@ -57,6 +59,7 @@ const interruptEntries = {
 /** Instruction-level Motorola 6809 with explicit boundary IRQ/FIRQ/NMI delivery. */
 export class Cpu6809 {
   readonly #ram: Ram;
+  readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>>;
   readonly #state: Cpu6809State;
   readonly #atBoundary = executionBoundary("6809 step, reset, and interrupt calls must not be reentrant.");
 
@@ -66,12 +69,13 @@ export class Cpu6809 {
     }
     this.#ram = ram;
     this.#state = readState(cpu6809StateDescription, initialState);
+    this.#opcodeHandlers = this.#createOpcodeHandlers();
   }
 
   /** Inspect a detached copy, including D derived from A/B, without accessing RAM. */
   snapshot(): Cpu6809Snapshot {
     const state = copyState(cpu6809StateDescription, this.#state);
-    return { ...state, d: (state.a << 8) | state.b };
+    return { ...state, d: sourceReaders(state).views.D() };
   }
 
   /** Read the reset vector, set DP/F/I, release waits, and disarm NMI. */
@@ -128,7 +132,7 @@ export class Cpu6809 {
 
   // Register and flag views.
 
-  get #d(): number { return (this.#state.a << 8) | this.#state.b; }
+  get #d(): number { return sourceReaders(this.#state).views.D(); }
 
   // Opcode selectors and construction.
 
@@ -154,6 +158,7 @@ export class Cpu6809 {
   readonly #transferHandlers = this.#registerTransferHandlers("tfr");
 
   readonly #operandHandlers = motorolaOperandBindings(() => this.#state, this.#memoryModes);
+  readonly #indexedOperands = motorolaOperandBindings(() => this.#state, [this.#memoryModes[1]]);
 
   // Prefix 10 selects page 2. Word encodings retain mm=00/01/10/11 addressing.
   // Transfers append 0=load/1=store; immediate stores are undefined.
@@ -175,76 +180,79 @@ export class Cpu6809 {
   ]);
 
   // Base opcode page; 10/11 dispatch exactly one following opcode in their own page.
-  readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
-    // 0000 oooo: direct unary operations; 1110 is JMP instead of a byte operation.
-    ...this.#memoryUnaryHandlers("0000", this.#directOperandAddress),
+  #createOpcodeHandlers() {
+    return opcodeTable<OpcodeHandler>([
+      ...chapterOpcodes(this.#state),
+      // 0000 oooo: direct unary operations; 1110 is JMP instead of a byte operation.
+      ...this.#memoryUnaryHandlers("0000", this.#directOperandAddress),
 
-    ...instructionPattern("0001 0000", instruction => this.#executeFollowingByte(this.#page2Handlers, instruction)),
-    ...instructionPattern("0001 0001", instruction => this.#executeFollowingByte(this.#page3Handlers, instruction)),
-    ...instructionPattern("0001 0010", () => semantics.nop(this.#state)), // NOP
-    ...instructionPattern("0001 0011", () => semantics.sync(this.#state)), // SYNC
-    ...instructionPattern("0001 0110", instruction => semantics.lbra(this.#state, instruction)), // LBRA rel16
-    ...instructionPattern("0001 0111", instruction => semantics.lbsr(this.#state, instruction)), // LBSR rel16
+      ...instructionPattern("0001 0000", instruction => this.#executeFollowingByte(this.#page2Handlers, instruction)),
+      ...instructionPattern("0001 0001", instruction => this.#executeFollowingByte(this.#page3Handlers, instruction)),
+      ...instructionPattern("0001 0010", () => semantics.nop(this.#state)), // NOP
+      ...instructionPattern("0001 0011", () => semantics.sync(this.#state)), // SYNC
+      ...instructionPattern("0001 0110", instruction => semantics.lbra(this.#state, instruction)), // LBRA rel16
+      ...instructionPattern("0001 0111", instruction => semantics.lbsr(this.#state, instruction)), // LBSR rel16
 
-    ...instructionPattern("0001 1001", () => semantics.daa(this.#state)), // DAA
-    ...instructionPattern("0001 1010", instruction => semantics.orcc(this.#state, instruction)), // ORCC
-    ...instructionPattern("0001 1100", instruction => semantics.andcc(this.#state, instruction)), // ANDCC
-    ...instructionPattern("0001 1101", () => semantics.sex(this.#state)), // SEX
-    // 0001111 t: t=0 exchanges, t=1 transfers; the postbyte selects same-width registers.
-    ...instructionPattern("0001111 0", instruction => this.#executeFollowingByte(this.#exchangeHandlers, instruction)), // EXG
-    ...instructionPattern("0001111 1", instruction => this.#executeFollowingByte(this.#transferHandlers, instruction)), // TFR
+      ...instructionPattern("0001 1001", () => semantics.daa(this.#state)), // DAA
+      ...instructionPattern("0001 1010", instruction => semantics.orcc(this.#state, instruction)), // ORCC
+      ...instructionPattern("0001 1100", instruction => semantics.andcc(this.#state, instruction)), // ANDCC
+      ...instructionPattern("0001 1101", () => semantics.sex(this.#state)), // SEX
+      // 0001111 t: t=0 exchanges, t=1 transfers; the postbyte selects same-width registers.
+      ...instructionPattern("0001111 0", instruction => this.#executeFollowingByte(this.#exchangeHandlers, instruction)), // EXG
+      ...instructionPattern("0001111 1", instruction => this.#executeFollowingByte(this.#transferHandlers, instruction)), // TFR
 
-    // 0010 cccc, cccc=tttp: ttt selects T/HI/CC/NE/VC/PL/GE/GT; bit 0 inverts it.
-    ...this.#branchHandlers(), // BRA / BRN / Bcc
+      // 0010 cccc, cccc=tttp: ttt selects T/HI/CC/NE/VC/PL/GE/GT; bit 0 inverts it.
+      ...this.#branchHandlers(), // BRA / BRN / Bcc
 
-    // 001100 rr: rr=00/01/10/11 selects X/Y/S/U; only X/Y replace Z.
-    ...this.#addressedHandlers(this.#indexedOperandAddress, opcodeFamily("001100 rr", { r: [semantics.leax, semantics.leay, semantics.leas, semantics.leau] },
-      ({ r: execute }) => (address: number) => execute(this.#state, address))), // LEAX / LEAY / LEAS / LEAU
+      // 001100 rr: rr=00/01/10/11 selects X/Y/S/U; only X/Y replace Z.
+      ...this.#addressedHandlers(this.#indexedOperandAddress, opcodeFamily("001100 rr", { r: [semantics.leax, semantics.leay, semantics.leas, semantics.leau] },
+        ({ r: execute }) => (address: number) => execute(this.#state, address))), // LEAX / LEAY / LEAS / LEAU
 
-    // 001101 s p: s=0 selects S, s=1 selects U; p=0 pushes, p=1 pulls.
-    // Mask bits 7..0: PC, other stack pointer, Y, X, DP, B, A, CC (E F H I N Z V C).
-    ...opcodeFamily("001101 s p", { s: [[semantics.pshs, semantics.puls], [semantics.pshu, semantics.pulu]], p: [0, 1] },
-      ({ s: operations, p: direction }) => (instruction: InstructionContext) => operations[direction]!(this.#state, instruction)), // PSHS / PULS / PSHU / PULU
-    ...instructionPattern("0011 1001", instruction => semantics.rts(this.#state, instruction)), // RTS
-    ...instructionPattern("0011 1010", () => semantics.abx(this.#state)), // ABX, unsigned B; preserve flags
-    ...instructionPattern("0011 1011", instruction => semantics.rti(this.#state, instruction)), // RTI
-    ...instructionPattern("0011 1100", instruction => semantics.cwai(this.#state, instruction)), // CWAI #mask
-    ...instructionPattern("0011 1101", () => semantics.mul(this.#state)), // MUL
-    ...instructionPattern("0011 1111", instruction => semantics.swi(this.#state, instruction)), // SWI
+      // 001101 s p: s=0 selects S, s=1 selects U; p=0 pushes, p=1 pulls.
+      // Mask bits 7..0: PC, other stack pointer, Y, X, DP, B, A, CC (E F H I N Z V C).
+      ...opcodeFamily("001101 s p", { s: [[semantics.pshs, semantics.puls], [semantics.pshu, semantics.pulu]], p: [0, 1] },
+        ({ s: operations, p: direction }) => (instruction: InstructionContext) => operations[direction]!(this.#state, instruction)), // PSHS / PULS / PSHU / PULU
+      ...instructionPattern("0011 1001", instruction => semantics.rts(this.#state, instruction)), // RTS
+      ...instructionPattern("0011 1010", () => semantics.abx(this.#state)), // ABX, unsigned B; preserve flags
+      ...instructionPattern("0011 1011", instruction => semantics.rti(this.#state, instruction)), // RTI
+      ...instructionPattern("0011 1100", instruction => semantics.cwai(this.#state, instruction)), // CWAI #mask
+      ...instructionPattern("0011 1101", () => semantics.mul(this.#state)), // MUL
+      ...instructionPattern("0011 1111", instruction => semantics.swi(this.#state, instruction)), // SWI
 
-    // 010 r oooo: A/B unary operations. TST updates flags without writing a result.
-    ...Cpu6809.#unaryOperations.flatMap(({ bits, registers }) => opcodeFamily(`010 r ${bits}`,
-      { r: registers }, ({ r: execute }) => () => execute(this.#state))),
+      // 010 r oooo: A/B unary operations. TST updates flags without writing a result.
+      ...Cpu6809.#unaryOperations.flatMap(({ bits, registers }) => opcodeFamily(`010 r ${bits}`,
+        { r: registers }, ({ r: execute }) => () => execute(this.#state))),
 
-    // 0110 oooo is indexed; 0111 oooo uses an extended address (including JMP).
-    ...this.#memoryUnaryHandlers("0110", this.#indexedOperandAddress),
-    ...this.#memoryUnaryHandlers("0111", this.#extendedOperandAddress),
+      // 0110 oooo is indexed; 0111 oooo uses an extended address (including JMP).
+      ...this.#memoryUnaryHandlers("0110", this.#indexedOperandAddress),
+      ...this.#memoryUnaryHandlers("0111", this.#extendedOperandAddress),
 
-    // 1 r mm oooo: r selects A/B; mm selects immediate/direct/indexed/extended.
-    // CMP/BIT preserve A/B; arithmetic sets flags before writeback; loads/logic write before flags.
-    // Stores apply flags after a successful write.
-    ...motorolaByteBindings(semantics, this.#operandHandlers), // SUB/CMP/SBC/AND/BIT/LD/ST/EOR/ADC/OR/ADD
+      // Remaining 1 r 10 oooo forms use indexed postbytes; other modes come from the chapter.
+      // CMP/BIT preserve A/B; arithmetic sets flags before writeback; loads/logic write before flags.
+      // Stores apply flags after a successful write.
+      ...motorolaByteMemoryBindings(semantics, this.#indexedOperands), // SUB/CMP/SBC/AND/BIT/LD/ST/EOR/ADC/OR/ADD
 
-    // 10 mm 1101: mm=00 is BSR; the other modes are JSR.
-    ...instructionPattern("10 00 1101", instruction => semantics.bsr(this.#state, instruction)), // BSR rel8
-    ...this.#memoryModes.flatMap(({ bits, address }) => this.#addressedHandlers(address,
-      addressPattern(`10 ${bits} 1101`, (address, instruction) => semantics.jsr(this.#state, address, instruction)))), // JSR
+      // 10 mm 1101: mm=00 is BSR; the other modes are JSR.
+      ...instructionPattern("10 00 1101", instruction => semantics.bsr(this.#state, instruction)), // BSR rel8
+      ...this.#memoryModes.flatMap(({ bits, address }) => this.#addressedHandlers(address,
+        addressPattern(`10 ${bits} 1101`, (address, instruction) => semantics.jsr(this.#state, address, instruction)))), // JSR
 
-    // 10 mm 1100: CMPX uses immediate/direct/indexed/extended sources for mm=00/01/10/11.
-    ...this.#operandHandlers("10 mm 1100", semantics.cmpxImmediate, semantics.cmpxMemory), // CMPX
+      // 10 mm 1100: CMPX uses immediate/direct/indexed/extended sources for mm=00/01/10/11.
+      ...this.#indexedOperands("10 mm 1100", undefined, semantics.cmpxMemory), // CMPX
 
-    // 1 r mm 0011: r=0 subtracts from D, r=1 adds to D.
-    ...this.#operandHandlers("10 mm 0011", semantics.subdImmediate, semantics.subdMemory), // SUBD
-    ...this.#operandHandlers("11 mm 0011", semantics.adddImmediate, semantics.adddMemory), // ADDD
+      // 1 r mm 0011: r=0 subtracts from D, r=1 adds to D.
+      ...this.#indexedOperands("10 mm 0011", undefined, semantics.subdMemory), // SUBD
+      ...this.#indexedOperands("11 mm 0011", undefined, semantics.adddMemory), // ADDD
 
-    // 1 r mm 11tt: tt=00/01 select D load/store for r=1; tt=10/11 select X (r=0) or U (r=1).
-    ...this.#operandHandlers("11 mm 1100", semantics.lddImmediate, semantics.lddMemory), // LDD
-    ...this.#operandHandlers("11 mm 1101", undefined, semantics.stdMemory), // STD
-    ...this.#operandHandlers("10 mm 1110", semantics.ldxImmediate, semantics.ldxMemory), // LDX
-    ...this.#operandHandlers("10 mm 1111", undefined, semantics.stxMemory), // STX
-    ...this.#operandHandlers("11 mm 1110", semantics.lduImmediate, semantics.lduMemory), // LDU
-    ...this.#operandHandlers("11 mm 1111", undefined, semantics.stuMemory), // STU
-  ]);
+      // 1 r mm 11tt: tt=00/01 select D load/store for r=1; tt=10/11 select X (r=0) or U (r=1).
+      ...this.#indexedOperands("11 mm 1100", undefined, semantics.lddMemory), // LDD
+      ...this.#indexedOperands("11 mm 1101", undefined, semantics.stdMemory), // STD
+      ...this.#indexedOperands("10 mm 1110", undefined, semantics.ldxMemory), // LDX
+      ...this.#indexedOperands("10 mm 1111", undefined, semantics.stxMemory), // STX
+      ...this.#indexedOperands("11 mm 1110", undefined, semantics.lduMemory), // LDU
+      ...this.#indexedOperands("11 mm 1111", undefined, semantics.stuMemory), // STU
+    ]);
+  }
 
   #registerTransferHandlers(operation: "tfr" | "exg") {
     const bodies: Readonly<Record<`${"tfr" | "exg"}_${string}_${string}`, (state: Cpu6809State) => void>> = semantics;
@@ -353,7 +361,7 @@ export class Cpu6809 {
     const { vector, entire, masks } = interruptEntries[source];
     // CWAI already saved a full frame, even when FIRQ is the request that wakes it.
     if (this.#state.waitMode !== "cwai") this.#saveInterruptFrame(entire, writeByte);
-    this.#state.flags = packedFlags.decode(packedFlags.encode(this.#state.flags) | masks);
+    stateActions.maskCC(this.#state, masks);
     this.#state.waitMode = "none";
     this.#state.pc = this.#readWord(vector, readByte);
   }

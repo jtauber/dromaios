@@ -77,6 +77,13 @@ uses that same structure and vector runtime, adding a declared waiting latch.
 Its actions define WAI frame reuse and release; no handwritten 6800 core or
 adapters remain. Both runtimes use the shared byte dispatcher.
 
+The [6809 chapter](../../src/components/cpus/specifications/6809.md) is partially
+migrated. Its state adapter re-exports the generated schema. `generated/6809-base.ts`
+contains complete chapter-owned opcode bodies, and `generated/6809-state.ts`
+supplies D/CC views and write actions. The handwritten core combines those bindings
+with remaining indexed and prefixed bodies from `generated/6809.ts`; their
+definitions also consume the chapter's D/CC rules.
+
 ## Reading order
 
 Within a CPU core, use this order where the corresponding code exists:
@@ -948,67 +955,48 @@ recipe where its complete order matches; keep differences explicit where it does
 
 ## Shared Motorola behavior
 
-[Motorola helpers](../../src/components/cpus/motorola.ts) capture specific
-family relationships. The 6800, 6809, and 68000 use the T/F, HI/LS, CC/CS,
-NE/EQ, VC/VS, PL/MI, GE/LT, and GT/LE condition encoding. All three share
-generated condition construction with explicit flag captures and native names.
-The 6800/6809 also share whole branch construction; the 68000 retains its
-distinct cursor stages. The opcode tables retain the 6800's absent BRN,
-the 6809's standalone LBRA, and the 68000's BSR exception.
+The 6800, 6809, and 68000 share the T/F, HI/LS, CC/CS, NE/EQ, VC/VS, PL/MI,
+GE/LT, and GT/LE condition encoding. [Motorola helpers](../../src/components/cpus/motorola.ts)
+retain selectors for the remaining TypeScript definitions; the 6800 chapter
+spells out its conditions and branches. Keep each chip's differences explicit:
+the 6800 lacks BRN, the 6809 has standalone LBRA, and the 68000 has a distinct
+BSR encoding and displacement cursor.
 
-[Shared decimal construction](../../src/components/cpus/semantics/decimal.ts)
-uses the original A/H/C, preserves H and control flags, and clears undefined
-V under the Motorola model policy. Binary addition and subtraction use
-[shared definitions](../../src/components/cpus/semantics/motorola.ts).
-The [shared unary definitions](../../src/components/cpus/semantics/motorola.ts)
-express NEG/COM/shifts/rotates/INC/DEC/TST/CLR once. Each CPU declares whether
-CLR reads its operand, TST clears C, and right shifts set V=N XOR C. The
-`motorolaUnaryOperations` table binds generated register/memory bodies to their
-shared `oooo` operation selectors. Address and prefix decoding remain in each
-CPU; generated JMP bodies receive the resolved address. Construction reads no
-live state; generated bodies receive the executing CPU's state explicitly.
+The [6809 chapter](../../src/components/cpus/specifications/6809.md) now owns
+base-page immediate/direct/extended loads, stores, logic, comparisons, and
+arithmetic. Its D/CC views and writes also serve the remaining TypeScript
+instructions. The original 6800's CPX high-byte N/V rule belongs in its chapter;
+6809 comparisons use full-width subtraction flags.
 
-Comparison construction is also shared. Each CPU declares its compared registers
-and any special policy, including the original 6800's CPX high-byte N/V rule.
-`motorolaOperandBindings` binds immediate and resolved-memory bodies to the
-`mm` addressing field. It reads no state during construction and rejects an
-undefined address before body entry; the decoders remain CPU-specific.
+For remaining 6809 forms, `motorolaOperandBindings` binds immediate and
+resolved-memory bodies to the `mm` field. It reads no state during construction,
+resolves each address once, and rejects undefined indexed postbytes before body
+entry. `motorolaByteMemoryBindings` selects A/B comparison, arithmetic, logical,
+load, and store bodies for indexed operands. Prefixed word families retain
+immediate/direct/indexed/extended bindings. Chapter-owned forms need no native
+operand wrapper.
 
-Logical construction shares the operand-first recipe with the 6502, selecting
-the Motorola N/Z policy with V cleared. BIT uses the same masked result for N/Z
-and omits writeback. `motorolaByteBindings` owns the generated comparison,
-arithmetic, logical, load, and store selectors in `1 r mm oooo`, sharing operand bindings
-across both CPUs. Stores omit the immediate binding.
-The 6800's ORAA/ORAB and the 6809's ORA/ORB retain their native display names.
+The [remaining Motorola definitions](../../src/components/cpus/semantics/motorola.ts)
+share operand-first schedules where they agree. Logic writes before flags;
+BIT omits writeback. Loads replace their destination before N/Z/V; stores capture
+the source after addressing, write without reading the destination, and apply
+flags only after every write succeeds. Word accesses are high-first with
+sixteen-bit wrap. Arithmetic applies flags before writeback: byte addition
+replaces H, while subtraction and word arithmetic preserve it. D uses the
+chapter's A-then-B writes; S writes can also arm NMI.
 
-Byte loads and the 6800's TAB/TBA reuse the transfer recipe, writing the
-register before N/Z/V. Byte stores resolve the address, capture A/B, and write
-once without a destination read; only a successful write applies N/Z/V.
-They share the same result-flag policy as logic. The original 6800 retains
-its native LDAA/LDAB and STAA/STAB names in explanations.
+`motorolaUnaryOperations` selects remaining 6809 register and memory unary
+bodies. CPU policies distinguish whether CLR reads its operand, TST clears C,
+and right shifts set V=N XOR C; the completed 6800 chapter states its own rules.
+JMP remains separate from byte modification. The 6809 still uses the
+[decimal builder](../../src/components/cpus/semantics/decimal.ts) for DAA's
+original A/H/C capture, preserved H/control flags, and modeled V clearing.
 
-Word loads/stores use the same `motorolaTransfers` construction at width 16,
-with explicit high-byte-first accesses and wrapping. A load writes its register
-only after both reads succeed; a store applies flags only after both writes
-succeed. The 6809 definition supplies D's A/B source and split writes, and S's
-register write followed by NMI arming. `lowByte` and schema-checked `writeLatch`
-keep these effects visible in generated code and explanations.
-
-`motorolaArithmetic` constructs the binary result and explicit flag stage;
-`motorolaArithmeticFamily` schedules operand reads, the accumulator, optional
-incoming C, and register writeback. Byte addition replaces H; subtraction and
-word arithmetic preserve it. Flags precede writeback, including the 6809's
-explicit A-then-B writes for D. ABA/SBA supply A-then-B reads separately.
-All byte arithmetic uses `motorolaByteBindings`; ADDD/SUBD use the existing
-operand bindings. Address decoders still reject undefined indexed postbytes
-before body entry.
-
-[Tests](../../tests/components/cpus/motorola.test.ts) compare encoded conditions
-with unsigned and signed arithmetic and verify preserved flags.
-[Generated-body tests](../../tests/components/cpus/semantics/arithmetic.test.ts)
-verify captured carry, replaced flag objects, and flags before writeback. The
-existing exhaustive CPU tests independently check arithmetic and all addressing forms. Sharing these behaviors does not imply that all
-Motorola instructions or flag rules agree.
+[Condition tests](../../tests/components/cpus/motorola.test.ts) compare encoded
+conditions with unsigned and signed arithmetic. [Generated-body tests](../../tests/components/cpus/semantics/arithmetic.test.ts)
+verify captured carry, replaced flag objects, and flags before writeback.
+Independent CPU tests check arithmetic and addressing forms. Sharing these
+behaviors does not imply that all Motorola instructions or flag rules agree.
 
 ## Verify a reorganization
 

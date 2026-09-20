@@ -133,6 +133,8 @@ export function motorolaBranches(cpu: MotorolaCpu & FlowCpu, names: readonly (ty
   }));
 }
 
+type OperandModes = readonly ("Immediate" | "Memory")[];
+
 interface OperandForm {
   readonly memory: boolean;
   readonly word: boolean;
@@ -140,12 +142,12 @@ interface OperandForm {
   readonly source: ValueSource | NumberExpression;
 }
 
-/** Construct both modes; callers place the memory reads explicitly before using the source. */
+/** Construct requested modes; callers place memory reads explicitly before using the source. */
 function operandFamily(cpu: MotorolaCpu, mnemonic: string, width: Width,
-  body: (operand: OperandForm) => Pick<InstructionDefinition, "explanation" | "steps">, key = mnemonic.toLowerCase()) {
+  body: (operand: OperandForm) => Pick<InstructionDefinition, "explanation" | "steps">, key = mnemonic.toLowerCase(), modes: OperandModes = ["Immediate", "Memory"]) {
   const word = width === 16;
   const memoryWord = readWord("high-first", value("address"), addWrap(value("address"), literal(16, 1)));
-  return Object.fromEntries((["Immediate", "Memory"] as const).map(mode => {
+  return Object.fromEntries(modes.map(mode => {
     const memory = mode === "Memory";
     const reads = !memory ? [] : word ? memoryWord.steps : [readMemory("byte", value("address"))];
     const source = memory ? (word ? memoryWord.result : value("byte")) : (word ? immediateWord : immediateByte);
@@ -155,8 +157,8 @@ function operandFamily(cpu: MotorolaCpu, mnemonic: string, width: Width,
   }));
 }
 
-/** Two bodies per comparison: immediate fetching, or data reads after CPU-owned address resolution. */
-export function motorolaComparison(cpu: MotorolaCpu, mnemonic: string, left: Register | ValueSource) {
+/** Comparison bodies use immediate fetching or data reads after CPU-owned address resolution. */
+export function motorolaComparison(cpu: MotorolaCpu, mnemonic: string, left: Register | ValueSource, modes?: OperandModes) {
   const flags = motorolaComparisonFlags(cpu, left.width);
   return operandFamily(cpu, mnemonic, left.width, ({ memory, word, reads, source }) => ({
     explanation: (memory ? "Entry is after successful address resolution. Read the operand at that captured address. " : "Fetch the immediate operand. ")
@@ -165,7 +167,7 @@ export function motorolaComparison(cpu: MotorolaCpu, mnemonic: string, left: Reg
       + "Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. "
       + "A failed read leaves flags unchanged; completed fetches and addressing effects remain.",
     steps: [...reads, ...compare(left, source, flags)],
-  }));
+  }), undefined, modes);
 }
 
 /** Loads, stores, transfers, and logic describe the result in N/Z, clear V, and preserve other flags. */
@@ -175,7 +177,7 @@ export function motorolaResultFlags(cpu: MotorolaCpu, operation: string, width: 
 }
 
 /** Shared A/B logical families: N/Z describe the result, V clears, and BIT omits register writeback. */
-export function motorolaLogic(cpu: MotorolaCpu) {
+export function motorolaLogic(cpu: MotorolaCpu, modes?: OperandModes) {
   const flags = motorolaResultFlags(cpu, "logic");
   return Object.fromEntries(([
     ["and", "AND", bitAnd, true], ["bit", "BIT", bitAnd, false],
@@ -188,14 +190,14 @@ export function motorolaLogic(cpu: MotorolaCpu) {
         + "Set N/Z from the result and clear V, preserving C, H, and control flags. "
         + "A failed read prevents register and flag updates; completed fetches and addressing effects remain.",
       steps: [...reads, ...logical(cpu.register(register), source, operation, flags, writeBack)],
-    }), `${key}${register}`)))));
+    }), `${key}${register}`, modes)))));
 }
 
 // A compound destination supplies explicit writes consuming "result", rather than a hidden runtime setter.
 type WritableRegister = Register | { readonly source: ValueSource; readonly write: readonly Statement[]; readonly explanation: string };
 
 /** Byte/word loads and stores share ordering; CPU-owned declarations expose compound register writes. */
-export function motorolaTransfers(cpu: MotorolaCpu, suffix: string, register: WritableRegister) {
+export function motorolaTransfers(cpu: MotorolaCpu, suffix: string, register: WritableRegister, modes?: OperandModes) {
   const stored = "kind" in register, width = stored ? register.width : register.source.width, word = width === 16;
   const flags = motorolaResultFlags(cpu, "transfer", width), unit = word ? "word" : "byte";
   const write = stored ? `Write ${register.field.toUpperCase()}` : register.explanation;
@@ -206,7 +208,7 @@ export function motorolaTransfers(cpu: MotorolaCpu, suffix: string, register: Wr
         + `${write}, then set N/Z from the captured ${unit} and clear V, preserving other flags. `
         + "A failed read prevents register and flag updates; completed fetches and addressing effects remain.",
       steps: [...reads, ...transfer(stored ? register : register.write, source, flags)],
-    }), `ld${suffix.toLowerCase()}`),
+    }), `ld${suffix.toLowerCase()}`, modes),
     [`st${suffix.toLowerCase()}Memory`]: defineInstruction({
       cpu: cpu.declaration, name: `ST${suffix} memory`, inputs: { address: 16 },
       explanation: `Entry is after successful address resolution. Only then capture ${stored ? register.field.toUpperCase() : suffix}. `
@@ -241,7 +243,7 @@ export function motorolaArithmetic(cpu: MotorolaCpu, operation: "add" | "subtrac
 
 /** Immediate and resolved-memory arithmetic share operand-first reads, flags, then explicit register writeback. */
 export function motorolaArithmeticFamily(cpu: MotorolaCpu, mnemonic: string, register: WritableRegister,
-  operation: "add" | "subtract", withCarry = false) {
+  operation: "add" | "subtract", withCarry = false, modes?: OperandModes) {
   const stored = "kind" in register, width = stored ? register.width : register.source.width;
   return operandFamily(cpu, mnemonic, width, ({ memory, word, reads, source }) => ({
     explanation: (memory ? "Entry is after successful address resolution. Read the operand at that address. " : "Fetch the immediate operand. ")
@@ -256,13 +258,13 @@ export function motorolaArithmeticFamily(cpu: MotorolaCpu, mnemonic: string, reg
       stored ? readRegister("left", register) : readSource("left", register.source),
       ...motorolaArithmetic(cpu, operation, width, withCarry),
       ...(stored ? [writeRegister(register, value("result"))] : register.write)],
-  }));
+  }), undefined, modes);
 }
 
 /** A/B share SUB, SBC, ADC, and ADD; CPU opcode bindings supply their addressing modes. */
-export function motorolaByteArithmetic(cpu: MotorolaCpu) {
+export function motorolaByteArithmetic(cpu: MotorolaCpu, modes?: OperandModes) {
   return Object.fromEntries((["a", "b"] as const).flatMap(register => ([
     ["SUB", "subtract", false], ["SBC", "subtract", true], ["ADC", "add", true], ["ADD", "add", false],
   ] as const).flatMap(([mnemonic, operation, withCarry]) =>
-    Object.entries(motorolaArithmeticFamily(cpu, `${mnemonic}${register.toUpperCase()}`, cpu.register(register), operation, withCarry)))));
+    Object.entries(motorolaArithmeticFamily(cpu, `${mnemonic}${register.toUpperCase()}`, cpu.register(register), operation, withCarry, modes)))));
 }

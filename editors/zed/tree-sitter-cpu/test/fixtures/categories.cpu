@@ -4,6 +4,7 @@ state {
   flag C
   array ADDRESS: 14[8] = addressStack
   latch STOPPED = halted
+  choice WAIT: "none", "sync", "cwai" = waitMode
 }
 view PC "PC and \"quoted\" // text": 14 {
   slot = register SELECTOR

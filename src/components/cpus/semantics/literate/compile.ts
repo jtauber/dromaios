@@ -90,7 +90,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         declared = true; header.end(); continue;
       }
       if (!declared) header.fail("Declare the CPU before its contents.");
-      if (!["state", "execution", "interface", "register", "flag", "array", "latch", "source", "view", "action", "policy", "operands", "codes", "conditions", "family"].includes(kind)) {
+      if (!["state", "execution", "interface", "register", "flag", "array", "latch", "choice", "source", "view", "action", "policy", "operands", "codes", "conditions", "family"].includes(kind)) {
         header.fail(`Unknown declaration ${kind}.`, 1);
       }
       if (kind === "state") {
@@ -118,7 +118,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         if (execution.retireDeferral !== undefined) cpu = { ...cpu, irqDeferral: true };
         continue;
       }
-      if (["register", "flag", "array", "latch"].includes(kind)) {
+      if (["register", "flag", "array", "latch", "choice"].includes(kind)) {
         if (ownsState) header.fail("Declare stored fields inside the state block.");
         declareState(header, kind, true); continue;
       }
