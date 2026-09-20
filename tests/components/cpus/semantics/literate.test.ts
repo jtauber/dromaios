@@ -23,7 +23,7 @@ test("the chapter owns exactly the documented LDA/STA opcodes and the production
   }
   const { immediateByte: _immediate, ...addresses } = chapter.sources;
   assert.deepEqual(addresses, sources6502.groups.addresses);
-  assert.equal(chapter.modes.accumulator![2]!.kind, "value");
+  assert.equal(chapter.operands.accumulator![2]!.kind, "value");
 });
 
 test("family prose is authored in Markdown and statements carry Markdown line positions", () => {
@@ -56,7 +56,7 @@ const invalid: readonly [string, string, string, RegExp][] = [
   ["duplicate selector code", '001 "zero page"', '000 "zero page"', /consecutive binary/],
   ["selector cardinality", '"101 bbb 01"', '"101 bbbb 1"', /requires 16 values/],
   ["opcode collision", '"100 bbb 01"', '"101 bbb 01"', /Duplicate opcode/],
-  ["invalid selection", "in accumulator.read", "in accumulator.unknown", /Select modes/],
+  ["invalid selection", "in accumulator.read", "in accumulator.unknown", /Select a catalogue/],
   ["shadowed source", '"101 bbb 01" for b', '"101 bbb 01" for absolute', /must not shadow/],
   ["duplicate flag", "  Z = zero(result)", "  N = zero(result)", /Duplicate update/],
   ["duplicate declaration", "flag Z", "flag N", /Duplicate declaration/],
@@ -78,6 +78,42 @@ test("a semantic error points to the offending statement, including preceding pr
   const text = markdown.replace("A <- result", "A <- missing");
   const expected = text.split("\n").findIndex(line => line.includes("A <- missing")) + 1;
   assert.throws(() => compile(text), (error: unknown) => error instanceof ChapterError && error.line === expected);
+});
+
+test("unknown declarations are reported before looking for a name or closing brace", () => {
+  for (const declaration of ["flga", "flga N", 'soruce byte "byte": 8 {\n}', "flga N\nflag Z"]) {
+    const text = `# State\n\nDeclarations precede their uses.\n\n\`\`\`cpu\ncpu "6502"\n${declaration}\n\`\`\``;
+    assert.throws(() => compile(text), (error: unknown) => {
+      assert.ok(error instanceof ChapterError); assert.equal(error.file, file);
+      assert.equal(error.line, 7); assert.equal(error.column, 1);
+      assert.match(error.message, /Unknown declaration/); return true;
+    });
+  }
+});
+
+test("policy scope and width errors point to the offending flag update", () => {
+  for (const [update, message] of [
+    ["Z = zero(missing)", /value missing has not been captured/],
+    ["Z = zero(zeroPage)", /value zeroPage has not been captured/],
+    ["Z = zero(highByte(result))", /high byte requires a word/],
+  ] as const) {
+    const text = markdown.replace("Z = zero(result)", update);
+    const expected = text.split("\n").findIndex(line => line.trim() === update) + 1;
+    assert.throws(() => compile(text), (error: unknown) => {
+      assert.ok(error instanceof ChapterError); assert.equal(error.file, file);
+      assert.equal(error.line, expected); assert.match(error.message, message); return true;
+    });
+  }
+});
+
+test("policy parameters are validated at the declaration, including empty policies", () => {
+  for (const body of ["", "\n  Z = zero(Result)"]) {
+    const text = `\`\`\`cpu\ncpu "6502"\nflag Z\npolicy NZ "N/Z" (Result: 8) {${body}\n}\n\`\`\``;
+    assert.throws(() => compile(text), (error: unknown) => {
+      assert.ok(error instanceof ChapterError); assert.equal(error.file, file);
+      assert.equal(error.line, 4); assert.match(error.message, /invalid value name "Result"/); return true;
+    });
+  }
 });
 
 test("incomplete fences, sources, and empty chapters are rejected", () => {

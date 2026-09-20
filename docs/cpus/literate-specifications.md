@@ -58,8 +58,9 @@ is removed. There is no host-language evaluation or TypeScript escape hatch.
 Each declaration or statement occupies one line. Braced bodies close on their
 own line, within the same fence. Blank lines and `//` comments are allowed.
 Declarations precede their uses; forward references and recursion are absent.
-Names start with a letter and contain letters, digits, or underscores. Names
-are unique within a chapter. Captures are local to each source or instruction.
+Names start with a letter and contain letters, digits, or underscores.
+Declaration names are unique within a chapter. Captures and policy parameters start with a
+lowercase letter; captures are local to each source or instruction.
 Quoted descriptions use JSON string escaping.
 
 | Construct | Meaning |
@@ -103,12 +104,15 @@ policy NZ "6502 result N/Z" (result: 8) {
 `lowBit` tests bit zero. Literal `0` clears a flag and `1` sets it. Updates take
 effect together, and unlisted flags are preserved. Duplicate flag updates are
 rejected. These predicates and constants also supply alignment-fault conditions.
+Policy expressions use only their parameters and literals; they cannot refer
+to source names or capture names in an instruction that applies the policy.
 
-A `modes` declaration lists every binary selector value in numeric order, each
-with a quoted operand label and `register A`, `memory sourceName`, or
-`value sourceName`. For this slice, memory sources return sixteen-bit addresses
-and memory accesses transfer one byte. Every mode supplies `.read`; only a memory
-mode supplies `.address`. A family can select a source view from a catalogue:
+A declaration such as `operands bytes { … }` lists every binary selector value
+in numeric order, each with a quoted operand label and `register A`,
+`memory sourceName`, or `value sourceName`. For this slice, memory sources return
+sixteen-bit addresses and memory accesses transfer one byte. Every operand
+supplies `.read`; only a memory operand supplies `.address`. A family can select
+a source view from a catalogue:
 
 ```text
 family LDA "101 bbb 01" for b in accumulator.read {
@@ -120,7 +124,7 @@ family LDA "101 bbb 01" for b in accumulator.read {
 
 The existing [opcode-pattern rules](opcode-definitions.md) expand the bits.
 Each selector must match its encoding field's cardinality. `.address` excludes
-non-memory modes, which explains the missing immediate STA form. Duplicate
+non-memory operands, which explains the missing immediate STA form. Duplicate
 opcodes are rejected, including collisions between families. With one selector,
 the default instruction name is the family name followed by its operand label.
 
@@ -152,7 +156,7 @@ HLT remains implemented separately.
 These expanded opcode entries also supply the 8008's selected runtime bindings.
 The build does not maintain a second transfer-encoding table in the CPU core.
 
-An encoded value catalogue uses `codes` rather than `modes`:
+An encoded value catalogue uses `codes` rather than `operands`:
 
 ```text
 codes addressRegisters {
@@ -185,6 +189,36 @@ Word transfers explicitly combine or split those bytes. A false fault condition
 continues normally; a true one returns the fault to the CPU boundary without
 undoing completed effects. Value sources cannot contain instruction rejection.
 
+## Review of the three chapters
+
+The three examples support a common vocabulary without hiding their different
+access rules. `operands` replaces the prototype's `modes` keyword: it describes
+6502 addressing choices, 8008 byte registers and memory, and 68000 data registers
+equally well. `codes` remains distinct because selecting an encoded register
+number does not read the register. All three chapters use the new spelling;
+there is no compatibility alias for the prototype keyword.
+
+Keep effects and captures explicit. The 6502 resolves a store's address before
+reading A; the 8008 captures the source before resolving a memory destination.
+The 68000 reads the destination's preserved upper bits only at writeback.
+A shorter assignment notation that conceals these reads would make those
+differences harder to see. Sized literals and explicit width conversions also
+make wrapping and byte order visible.
+
+The 68000's upper-word merge expression repeats twice. Leave it expanded for
+now: a register-view or writeback abstraction could conceal the timing of the
+preserved-bit read. If later arithmetic chapters justify reusable pure
+expressions, their arguments should be captured values, with state reads still
+visible at the call site. Keep the native address resolver, pending-update
+commit, and fault return visible until a chapter owns their definitions.
+
+Family explanations should describe their particular operation and stand on
+their own in the expanded listing. The 8008 transfer and immediate-load families
+now have separate explanations, without repeating the same general paragraph.
+Author feedback follows the same principle of locality: unknown declarations
+are rejected before searching for a body, and policy expression errors point
+to their flag update rather than the policy header.
+
 ## Boundaries and next evidence
 
 The CPU state schema remains authoritative for storage and public TypeScript
@@ -199,8 +233,13 @@ the 68000 still uses its native effective-address decoder, including A7 banking
 and pending auto-updates. Its 192 chapter encodings select generated bodies
 before the broader MOVE catalogue's shared bodies; those shared bodies still
 serve other sizes and addressing modes. Only the chapter-owned forms earn
-literate coverage. The next review should judge the three chapters' vocabulary
-and boundaries before choosing a complete CPU migration. The later milestone
+literate coverage.
+
+The 8008 is the first whole-CPU target: its small instruction set provides a
+bounded way to develop the remaining language. Start with arithmetic and flags,
+then use its address stack and control flow to test state and lifecycle
+definitions. Each chapter should replace its corresponding maintained
+TypeScript definitions and retain independent execution tests. The destination
 is a whole CPU description, including its state and lifecycle contracts, that
 needs no CPU-specific compiler changes.
 These chapters establish an executable authoring path, not a percentage

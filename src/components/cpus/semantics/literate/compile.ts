@@ -8,16 +8,16 @@ import type { CpuDeclaration, Flag, FlagExpression, FlagPolicy, InstructionDefin
 import { defineInstruction, validateInstruction } from "../validate.ts";
 import { chapterBlocks, ChapterError, ChapterTokens } from "./document.ts";
 
-export type ChapterMode = { readonly name: string; readonly read: ValueSource } & (
+export type ChapterOperand = { readonly name: string; readonly read: ValueSource } & (
   | { readonly kind: "memory"; readonly address: ValueSource }
   | { readonly kind: "register"; readonly register: Register }
   | { readonly kind: "value" }
 );
-interface Selector { readonly choices: readonly ChapterMode[]; readonly view: "read" | "address" | "operand" }
+interface Selector { readonly choices: readonly ChapterOperand[]; readonly view: "read" | "address" | "operand" }
 export interface CpuChapter {
   readonly sources: Readonly<Record<string, ValueSource>>;
   readonly policies: Readonly<Record<string, FlagPolicy>>;
-  readonly modes: Readonly<Record<string, readonly ChapterMode[]>>;
+  readonly operands: Readonly<Record<string, readonly ChapterOperand[]>>;
   readonly families: Readonly<Record<string, readonly OpcodeEntry<InstructionDefinition>[]>>;
 }
 
@@ -25,7 +25,7 @@ export interface CpuChapter {
 export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = "<chapter>"): CpuChapter {
   const registers = new Map<string, Register>(), flags = new Map<string, Flag>();
   const sources = new Map<string, ValueSource>(), policies = new Map<string, FlagPolicy>();
-  const modes = new Map<string, readonly ChapterMode[]>(), families = new Map<string, readonly OpcodeEntry<InstructionDefinition>[]>();
+  const catalogues = new Map<string, readonly ChapterOperand[]>(), families = new Map<string, readonly OpcodeEntry<InstructionDefinition>[]>();
   const names = new Set<string>(), opcodes = new Set<number>();
   let declared = false;
 
@@ -78,7 +78,7 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
     tokens.expect(")"); return result;
   }
   function steps(lines: readonly ChapterTokens[], bindings: ReadonlyMap<string, ValueSource> = sources,
-    operands: ReadonlyMap<string, ChapterMode> = new Map()): Statement[] {
+    operands: ReadonlyMap<string, ChapterOperand> = new Map()): Statement[] {
     const result: Statement[] = [];
     // Lowering a memory destination needs a capture. Keep it distinct from every authored
     // name, including later references, so it cannot collide with or become visible to the author.
@@ -157,6 +157,9 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
         declared = true; header.end(); continue;
       }
       if (!declared) header.fail("Declare the CPU before its contents.");
+      if (!["register", "flag", "source", "policy", "operands", "codes", "family"].includes(kind)) {
+        header.fail(`Unknown declaration ${kind}.`, 1);
+      }
       const name = declare(header);
       if (kind === "register" || kind === "flag") {
         if (name !== name.toUpperCase()) header.fail("Register and flag names must be uppercase.");
@@ -172,7 +175,7 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
         }
         header.end(); continue;
       }
-      // Keep the original lines: family templates are parsed afresh for each selected mode.
+      // Keep the original lines: family templates are parsed afresh for each selected operand.
       const body: ChapterTokens[] = [];
       while (++index < lines.length && lines[index]!.next !== "}") body.push(lines[index]!);
       if (index === lines.length) header.fail("Expected a closing } in this cpu fence.");
@@ -191,22 +194,24 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
         const description = header.quoted(); header.expect("("); const parameter = header.word(); header.expect(":");
         const bits = width(header); header.expect(")"); open();
         const updates: FlagPolicy["updates"][number][] = [], seen = new Set<string>();
+        const policy: FlagPolicy = { name: description, parameters: { [parameter]: bits }, unlisted: "preserve", updates };
+        const validate = () => validateInstruction({ cpu, name, explanation: "", inputs: { [parameter]: bits },
+          steps: [updateFlags(policy, { [parameter]: value(parameter) })] });
+        checked(header, validate);
         for (const tokens of body) {
           const flag = lookup(flags, tokens); tokens.expect("=");
           if (seen.has(flag.field)) tokens.fail(`Duplicate update of ${flag.field}.`);
           seen.add(flag.field);
           updates.push({ flag, value: flagExpression(tokens) }); tokens.end();
+          checked(tokens, validate);
         }
-        const policy: FlagPolicy = { name: description, parameters: { [parameter]: bits }, unlisted: "preserve", updates };
-        checked(header, () => validateInstruction({ cpu, name, explanation: "", inputs: { [parameter]: bits },
-          steps: [updateFlags(policy, { [parameter]: value(parameter) })] }));
         policies.set(name, policy);
-      } else if (kind === "modes" || kind === "codes") {
-        open(); const entries: ChapterMode[] = []; let digits: number | undefined;
+      } else if (kind === "operands" || kind === "codes") {
+        open(); const entries: ChapterOperand[] = []; let digits: number | undefined;
         for (const tokens of body) {
           const code = tokens.digits(); digits ??= code.length;
           if (!/^[01]+$/.test(code) || code.length !== digits || parseInt(code, 2) !== entries.length) {
-            tokens.fail("Mode codes must be consecutive binary values of equal width, starting at zero.");
+            tokens.fail("Selector codes must be consecutive binary values of equal width, starting at zero.");
           }
           const description = tokens.quoted();
           if (kind === "codes") {
@@ -215,37 +220,37 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
               read: { name: description, width: digits, steps: [], result: literal(digits, entries.length) } });
             tokens.end(); continue;
           }
-          tokens.expect("="); const modeKind = tokens.word();
-          if (modeKind === "register") {
+          tokens.expect("="); const operandKind = tokens.word();
+          if (operandKind === "register") {
             const register = lookup(registers, tokens);
             entries.push({ kind: "register", name: description, register, read: registerSource(register) });
           } else {
-            if (modeKind !== "memory" && modeKind !== "value") tokens.fail("Expected register, memory, or value mode.");
+            if (operandKind !== "memory" && operandKind !== "value") tokens.fail("Expected register, memory, or value operand.");
             const source = lookup(sources, tokens);
-            if (modeKind === "memory" && source.width !== 16) tokens.fail("Memory modes require a 16-bit address source.");
-            entries.push(modeKind === "memory" ? { kind: "memory", name: description, address: source, read: memorySource(source) }
+            if (operandKind === "memory" && source.width !== 16) tokens.fail("Memory operands require a 16-bit address source.");
+            entries.push(operandKind === "memory" ? { kind: "memory", name: description, address: source, read: memorySource(source) }
               : { kind: "value", name: description, read: source });
           }
           tokens.end();
         }
-        if (digits === undefined || entries.length !== 2 ** digits) header.fail("Modes must describe every value of their selector.");
-        modes.set(name, entries);
+        if (digits === undefined || entries.length !== 2 ** digits) header.fail("A catalogue must describe every value of its selector.");
+        catalogues.set(name, entries);
       } else if (kind === "family") {
         const pattern = header.quoted(); header.expect("for");
         const selectors = new Map<string, Selector>();
         do {
-          const selector = header.word(); header.expect("in"); const choices = lookup(modes, header);
+          const selector = header.word(); header.expect("in"); const choices = lookup(catalogues, header);
           const requested = header.take(".") ? header.word() : "operand";
           if (selectors.has(selector)) header.fail(`Duplicate selector ${selector}.`);
           if (names.has(selector)) header.fail("A family selector must not shadow a source or other declaration.");
           const view = requested === "read" || requested === "address" || requested === "operand" ? requested
-            : header.fail("Select modes.read or modes.address, or an operand catalogue.");
+            : header.fail("Select a catalogue with .read, .address, or no suffix for operands.");
           selectors.set(selector, { choices, view });
         } while (header.take(","));
         const template = header.take("named") ? header.quoted() : undefined;
         if (template === undefined && selectors.size !== 1) header.fail("A multi-selector family needs an explicit instruction name template.");
         // Substitution happens once over authored text; braces in operand labels stay literal.
-        const instructionName = (selected: Readonly<Record<string, ChapterMode>>) => template === undefined
+        const instructionName = (selected: Readonly<Record<string, ChapterOperand>>) => template === undefined
           ? `${name} ${Object.values(selected)[0]!.name}`
           : template.replace(/\{([^{}]*)\}|[{}]/g, (placeholder, field: string | undefined) =>
             field !== undefined && Object.hasOwn(selected, field) ? selected[field]!.name : header.fail(`Unknown name placeholder ${placeholder}.`));
@@ -264,14 +269,14 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
         const definitions: OpcodeEntry<InstructionDefinition>[] = [];
         for (const [opcode, selected] of entries) {
           if (excluded.has(opcode)) continue;
-          const bindings = new Map(sources), operands = new Map<string, ChapterMode>();
+          const bindings = new Map(sources), operands = new Map<string, ChapterOperand>();
           let available = true;
           for (const [selector, { view }] of selectors) {
-            const mode = selected[selector]!;
-            if (view === "operand") operands.set(selector, mode);
-            else if (view === "read") bindings.set(selector, mode.read);
-            else if (mode.kind === "memory") bindings.set(selector, mode.address);
-            else available = false; // Only memory modes supply an address view.
+            const operand = selected[selector]!;
+            if (view === "operand") operands.set(selector, operand);
+            else if (view === "read") bindings.set(selector, operand.read);
+            else if (operand.kind === "memory") bindings.set(selector, operand.address);
+            else available = false; // Only memory operands supply an address view.
           }
           if (!available) continue;
           if (opcodes.has(opcode)) header.fail(`Duplicate opcode $${opcode.toString(16)}.`);
@@ -282,9 +287,9 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
         }
         if (!definitions.length) header.fail("A family must define at least one instruction.");
         families.set(name, definitions);
-      } else header.fail(`Unknown declaration ${kind}.`);
+      }
     }
   }
   if (!declared) throw new ChapterError(file, 1, 1, "Expected a cpu declaration in a cpu fence.");
-  return { sources: Object.fromEntries(sources), policies: Object.fromEntries(policies), modes: Object.fromEntries(modes), families: Object.fromEntries(families) };
+  return { sources: Object.fromEntries(sources), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), families: Object.fromEntries(families) };
 }

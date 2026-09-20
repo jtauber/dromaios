@@ -70,7 +70,7 @@ for (const [name, before, after, message] of invalid) test(`8008 chapter rejects
 });
 
 test("value-only destinations are rejected and a register has no address view", () => {
-  const text = markdown.replace("modes bytes {", 'source immediateByte "immediate": 8 {\n  byte = fetch\n  return byte\n}\nmodes bytes {')
+  const text = markdown.replace("operands bytes {", 'source immediateByte "immediate": 8 {\n  byte = fetch\n  return byte\n}\noperands bytes {')
     .replace('000 "A" = register A', '000 "A" = value immediateByte');
   assert.throws(() => compile(text), /value-only operand cannot be written/);
   const addressOnly = markdown.replace("for d in bytes, s in bytes", "for d in bytes.address, s in bytes")

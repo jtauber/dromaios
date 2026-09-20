@@ -435,14 +435,14 @@ test("8008 transfer explanations retain native mnemonics and explicit 14-bit mem
     assert.ok(stored.indexOf(`result:u8 := read ${register}`) < stored.indexOf("high:u8 := read H"));
     for (const text of [loaded, stored, description("8008", "LMI n")]) {
       assert.match(text, /bitAnd\(concatHighLow\(high, low\), 3FFF:u16\)/);
-      assert.match(text, /preserving the full H and L registers/);
+      assert.match(text, /mask only the address to \$3FFF/);
       assert.match(text, /Flags preserved throughout: /);
       assert.doesNotMatch(text, /apply flags|address:u16 := input/);
     }
     assert.doesNotMatch(stored, /:= read memory/);
   }
   const immediate = description("8008", "LMI n");
-  assert.ok(immediate.indexOf("fetch byte") < immediate.indexOf("read H"));
+  assert.match(immediate, /result:u8 := fetch byte[\s\S]*high:u8 := read H/);
   assert.doesNotMatch(immediate, /:= read memory/);
   assert.doesNotMatch(description("8008", "LAA"), /:= read memory|write memory|fetch byte/);
 });

@@ -51,10 +51,10 @@ only the 192 fully authored forms earn literate coverage.
 | Milestone | Evidence / remaining work |
 | --- | --- |
 | Three executable chapters | The 6502, 8008, and 68000 exercise prose, checked declarations, encoding selectors and values, multiple widths, addressing, ordered effects, fault returns, and flag policies through the existing representation. |
-| Production equivalence | The 68000 migration leaves all 27 existing generated modules byte-identical. The existing 12,197 instruction bodies retain their formal structure; 64 register-copy explanations now come from the chapter. A new module supplies 128 specialized word loads/stores. Old/new CPU execution agrees across 38,720 cases. |
-| Authoring feedback | Syntax, state-schema, width, scope, and encoding errors report Markdown locations; clean builds bootstrap chapter data before instruction generation. |
-| Language review | Next: assess the three chapters' vocabulary and remaining native boundaries before selecting a complete CPU migration. |
-| One complete literate CPU | Still ahead: remaining instructions, authoritative state layout, decoding, reset, and lifecycle contracts. |
+| Production equivalence | The language review leaves all 12,325 instruction bodies formally unchanged and all 28 generated execution modules byte-identical. Only the 71 transfer/immediate-load explanations change. |
+| Authoring feedback | Syntax, state-schema, width, scope, and encoding errors report Markdown locations. Unknown declarations are identified directly; policy expression errors point to their flag update. Clean builds bootstrap chapter data before instruction generation. |
+| Language review | [Reviewed across the three chapters](literate-specifications.md#review-of-the-three-chapters): consistent operand vocabulary, explicit widths and effect order, distinct family explanations, and visible native boundaries. |
+| One complete literate CPU | The 8008 is the first target, starting with arithmetic and flags. Still ahead: remaining instructions, authoritative state layout, decoding, reset, and lifecycle contracts. |
 
 The percentages measure authored opcode forms, not progress toward a complete
 CPU language or the amount of work remaining. See the
@@ -553,9 +553,9 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Eight CPU implementation files | 2,630 |
 | CPU-specific instruction definition files | 2,439 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 4,258 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,327** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 443 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 4,263 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,332** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 436 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 67 |
 | Generated executable CPU output, counted separately | 314,243 |
 | Generated chapter data, counted separately | 77,285 |
@@ -566,22 +566,15 @@ not maintained source. Its size is still reported to keep expansion visible.
 Both `src/components/cpus/generated/` and
 `src/components/cpus/semantics/generated/` are excluded from authored counts.
 
-The third chapter extends the front end from **345 to 376 lines**, adding
-width conversion and byte extraction, encoded value catalogues, flag constants,
-and existing address/fault effects. The compiler adds no CPU-specific decoder.
-The chapter's register-copy definitions replace their TypeScript construction;
-its word policy is shared by the remaining word definitions. Memory encodings
-select the chapter's specialized bodies; the broader MOVE catalogue still
-serves other sizes and addressing modes through its existing shared bodies.
+The language review extends the front end from **376 to 381 lines** for more
+precise declaration and policy diagnostics. Authored CPU TypeScript grows from
+**9,327 to 9,332 lines**, while the chapters shrink from **443 to 436 lines**
+by removing repeated 8008 prose. Generation scripts remain at **67 lines**.
+Total maintained CPU source changes from **9,837 to 9,835 lines**. This is a
+clarity improvement with unchanged instruction coverage and generated execution.
 
-Authored CPU TypeScript grows from **9,280 to 9,327 lines**. Including all three
-chapters (**289 → 443 lines**) and generation scripts (**65 → 67 lines**), total
-maintained CPU source grows from **9,634 to 9,837 lines** (**203 more**). This
-slice establishes the third language example and does not reduce source overall.
-Generated execution adds **3,272 lines** for the 128 specialized memory bodies;
-all 27 existing modules are unchanged. Generated chapter data repeats the
-validated CPU schema within expanded definitions and remains a separate,
-disposable intermediate representation.
+Generated chapter data repeats the validated CPU schema within expanded
+definitions and remains a separate, disposable intermediate representation.
 
 The 16 standalone address/operand readers remain generator probes; CPU execution
 expands those sources into complete bodies. They do not earn separate coverage

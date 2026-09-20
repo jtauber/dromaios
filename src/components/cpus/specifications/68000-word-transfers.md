@@ -29,7 +29,7 @@ flag Z
 flag V
 flag C
 
-modes dataRegisters {
+operands dataRegisters {
   000 "D0" = register D0
   001 "D1" = register D1
   010 "D2" = register D2

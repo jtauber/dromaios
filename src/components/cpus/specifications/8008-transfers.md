@@ -42,7 +42,7 @@ read or written directly. A memory entry resolves its address at the time of
 the operand read or write; selecting M does not eagerly read H or L.
 
 ```cpu
-modes bytes {
+operands bytes {
   000 "A" = register A
   001 "B" = register B
   010 "C" = register C
@@ -61,16 +61,13 @@ Intel names a transfer `Lds`, placing the destination before the source: LBA
 loads B from A, LAM loads A from memory, and LMA stores A to memory. The name
 template below uses those selected operand labels.
 
-The `11 111 111` slot belongs to HLT, so it is explicitly excluded. Transfers
-between a register and itself remain real operations: read once, then write
-once. A store resolves H:L after capturing its source. In particular, storing
-H or L captures that source byte before rereading H and L for the address.
+The `11 111 111` slot belongs to HLT, so it is explicitly excluded.
 
-Use the selected byte registers; memory uses H then L at the access point.
-Mask the memory address to 3FFF, preserving the full H and L registers.
-Capture the source before writing the destination, including self-transfers and unchanged writes.
-Stores never read the destination. Do not access flags or control state.
-A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including
+self-transfers and unchanged writes. For M, read H then L at the access point
+and mask only the address to $3FFF. Stores resolve it after capturing the source,
+even when storing H or L, and never read the destination. Do not access flags
+or control state. A failed source read prevents writeback.
 
 ```cpu
 family transfer "11 ddd sss" for d in bytes, s in bytes named "L{d}{s}" except "11 111 111" {
@@ -82,17 +79,13 @@ family transfer "11 ddd sss" for d in bytes, s in bytes named "L{d}{s}" except "
 ## Immediate loads
 
 The encoding `00 ddd 110` selects the destination in the same way, followed by
-one immediate byte. All eight destinations exist, including M. Fetching happens
-before any destination effect; LMI resolves H:L after that fetch. Fetch failure
-prevents destination reads and writes. Fetching advances the selected address
-register in ordinary execution, while interrupt-supplied bytes follow the
-CPU's existing supplied-stream contract.
+one immediate byte. All eight destinations exist, including M. Fetching advances
+the selected address register in ordinary execution, while interrupt-supplied
+bytes follow the CPU's existing supplied-stream contract.
 
-Use the selected byte registers; memory uses H then L at the access point.
-Mask the memory address to 3FFF, preserving the full H and L registers.
-Capture the source before writing the destination, including self-transfers and unchanged writes.
-Stores never read the destination. Do not access flags or control state.
-A failed source read or fetch prevents writeback.
+Fetch the immediate byte before touching the destination. For M, then read H
+and L and mask only the address to $3FFF. Never read destination memory; write
+once, even if unchanged. Preserve flags. A failed fetch prevents destination effects.
 
 ```cpu
 family immediate "00 ddd 110" for d in bytes named "L{d}I n" {

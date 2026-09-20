@@ -128,7 +128,7 @@ order. A `memory` entry provides both its address and the byte read there; a
 immediate encoding, rather than inventing an immediate STA instruction.
 
 ```cpu
-modes accumulator {
+operands accumulator {
   000 "(zero page,X)" = memory indexedIndirect
   001 "zero page" = memory zeroPage
   010 "#byte" = value immediateByte

@@ -247307,7 +247307,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LAI n
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Fetch the immediate byte before touching the destination. For M, then read H and L and mask only the address to $3FFF. Never read destination memory; write once, even if unchanged. Preserve flags. A failed fetch prevents destination effects.
 
 ```text
 result:u8 := fetch byte
@@ -247359,7 +247359,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LBI n
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Fetch the immediate byte before touching the destination. For M, then read H and L and mask only the address to $3FFF. Never read destination memory; write once, even if unchanged. Preserve flags. A failed fetch prevents destination effects.
 
 ```text
 result:u8 := fetch byte
@@ -247411,7 +247411,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LCI n
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Fetch the immediate byte before touching the destination. For M, then read H and L and mask only the address to $3FFF. Never read destination memory; write once, even if unchanged. Preserve flags. A failed fetch prevents destination effects.
 
 ```text
 result:u8 := fetch byte
@@ -247463,7 +247463,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LDI n
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Fetch the immediate byte before touching the destination. For M, then read H and L and mask only the address to $3FFF. Never read destination memory; write once, even if unchanged. Preserve flags. A failed fetch prevents destination effects.
 
 ```text
 result:u8 := fetch byte
@@ -247515,7 +247515,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LEI n
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Fetch the immediate byte before touching the destination. For M, then read H and L and mask only the address to $3FFF. Never read destination memory; write once, even if unchanged. Preserve flags. A failed fetch prevents destination effects.
 
 ```text
 result:u8 := fetch byte
@@ -247567,7 +247567,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LHI n
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Fetch the immediate byte before touching the destination. For M, then read H and L and mask only the address to $3FFF. Never read destination memory; write once, even if unchanged. Preserve flags. A failed fetch prevents destination effects.
 
 ```text
 result:u8 := fetch byte
@@ -247619,7 +247619,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LLI n
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Fetch the immediate byte before touching the destination. For M, then read H and L and mask only the address to $3FFF. Never read destination memory; write once, even if unchanged. Preserve flags. A failed fetch prevents destination effects.
 
 ```text
 result:u8 := fetch byte
@@ -247671,7 +247671,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LMI n
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Fetch the immediate byte before touching the destination. For M, then read H and L and mask only the address to $3FFF. Never read destination memory; write once, even if unchanged. Preserve flags. A failed fetch prevents destination effects.
 
 ```text
 result:u8 := fetch byte
@@ -248811,7 +248811,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LAA
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read A
@@ -248822,7 +248822,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LAB
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read B
@@ -248833,7 +248833,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LAC
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read C
@@ -248844,7 +248844,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LAD
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read D
@@ -248855,7 +248855,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LAE
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read E
@@ -248866,7 +248866,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LAH
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read H
@@ -248877,7 +248877,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LAL
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read L
@@ -248888,7 +248888,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LAM
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := source "byte at memory address through low 14 bits of HL" {
@@ -248907,7 +248907,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LBA
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read A
@@ -248918,7 +248918,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LBB
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read B
@@ -248929,7 +248929,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LBC
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read C
@@ -248940,7 +248940,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LBD
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read D
@@ -248951,7 +248951,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LBE
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read E
@@ -248962,7 +248962,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LBH
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read H
@@ -248973,7 +248973,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LBL
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read L
@@ -248984,7 +248984,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LBM
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := source "byte at memory address through low 14 bits of HL" {
@@ -249003,7 +249003,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LCA
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read A
@@ -249014,7 +249014,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LCB
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read B
@@ -249025,7 +249025,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LCC
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read C
@@ -249036,7 +249036,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LCD
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read D
@@ -249047,7 +249047,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LCE
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read E
@@ -249058,7 +249058,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LCH
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read H
@@ -249069,7 +249069,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LCL
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read L
@@ -249080,7 +249080,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LCM
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := source "byte at memory address through low 14 bits of HL" {
@@ -249099,7 +249099,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LDA
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read A
@@ -249110,7 +249110,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LDB
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read B
@@ -249121,7 +249121,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LDC
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read C
@@ -249132,7 +249132,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LDD
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read D
@@ -249143,7 +249143,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LDE
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read E
@@ -249154,7 +249154,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LDH
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read H
@@ -249165,7 +249165,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LDL
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read L
@@ -249176,7 +249176,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LDM
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := source "byte at memory address through low 14 bits of HL" {
@@ -249195,7 +249195,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LEA
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read A
@@ -249206,7 +249206,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LEB
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read B
@@ -249217,7 +249217,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LEC
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read C
@@ -249228,7 +249228,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LED
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read D
@@ -249239,7 +249239,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LEE
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read E
@@ -249250,7 +249250,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LEH
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read H
@@ -249261,7 +249261,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LEL
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read L
@@ -249272,7 +249272,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LEM
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := source "byte at memory address through low 14 bits of HL" {
@@ -249291,7 +249291,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LHA
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read A
@@ -249302,7 +249302,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LHB
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read B
@@ -249313,7 +249313,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LHC
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read C
@@ -249324,7 +249324,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LHD
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read D
@@ -249335,7 +249335,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LHE
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read E
@@ -249346,7 +249346,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LHH
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read H
@@ -249357,7 +249357,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LHL
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read L
@@ -249368,7 +249368,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LHM
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := source "byte at memory address through low 14 bits of HL" {
@@ -249387,7 +249387,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LLA
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read A
@@ -249398,7 +249398,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LLB
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read B
@@ -249409,7 +249409,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LLC
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read C
@@ -249420,7 +249420,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LLD
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read D
@@ -249431,7 +249431,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LLE
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read E
@@ -249442,7 +249442,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LLH
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read H
@@ -249453,7 +249453,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LLL
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read L
@@ -249464,7 +249464,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LLM
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := source "byte at memory address through low 14 bits of HL" {
@@ -249483,7 +249483,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LMA
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read A
@@ -249499,7 +249499,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LMB
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read B
@@ -249515,7 +249515,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LMC
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read C
@@ -249531,7 +249531,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LMD
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read D
@@ -249547,7 +249547,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LME
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read E
@@ -249563,7 +249563,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LMH
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read H
@@ -249579,7 +249579,7 @@ Flags preserved throughout: S, Z, P, C.
 
 ### 8008 LML
 
-Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+Capture the selected source byte before writing the destination, including self-transfers and unchanged writes. For M, read H then L at the access point and mask only the address to $3FFF. Stores resolve it after capturing the source, even when storing H or L, and never read the destination. Do not access flags or control state. A failed source read prevents writeback.
 
 ```text
 result:u8 := read L

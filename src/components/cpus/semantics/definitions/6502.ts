@@ -9,7 +9,7 @@ import { flagCondition, loadVector, jump, relativeBranch, subroutineReturn } fro
 import { byteStack, stackPop, stackPush, wordStack } from "../stack.ts";
 import { flagInstruction, flagPolicy, packedStatus, restoreStatus } from "../status.ts";
 import { mosArithmetic } from "../mos.ts";
-import { sources, policies, modes, families } from "../generated/6502-load-store.ts";
+import { sources, policies, operands, families } from "../generated/6502-load-store.ts";
 
 const cpu = cpuSymbols("6502", cpu6502StateDescription);
 const stack = byteStack(cpu.register("sp"), "free", 0x0100);
@@ -131,7 +131,7 @@ function updateByte(name: string, target: Register | ValueSource, operation: rea
 }
 
 // The chapter's bbb catalogue also serves the other aaa bbb 01 accumulator families.
-const accumulatorOperands: readonly Operand[] = modes.accumulator.map(mode => [mode.name, mode.read]);
+const accumulatorOperands: readonly Operand[] = operands.accumulator.map(operand => [operand.name, operand.read]);
 // Standalone source generation retains focused probes of this shared addressing inventory.
 export const sources6502 = { cpu: cpu.declaration, groups: {
   addresses, operands: Object.fromEntries(accumulatorOperands.map(([, source], code) => [code, source])),
