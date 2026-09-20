@@ -5,7 +5,7 @@ Shift a two-byte word left twice, passing carry between its halves, then
 shift it right once. Count loop iterations directly in memory and exercise
 all four accumulator shift/rotate operations. D stays set throughout.
 
-[Model contract](../model.md#shifts-and-memory-modification) ·
+[Model contract](../../../../src/components/cpus/specifications/6502.md#shifts-rotates-and-byte-adjustments) ·
 [Example definition](../../../../src/machines/6502/shifts-example.machine) ·
 [Example tests](../../../../tests/machines/6502/shifts-example.test.ts) ·
 [CPU coverage](../../coverage.md#6502)
@@ -106,5 +106,5 @@ specify every state and access in the twenty records and check:
 
 Instruction behavior and encodings follow the
 [Synertek/MOS programming manual](https://syncopate.us/books/Synertek6502ProgrammingManual.html),
-sections 10.1–10.8 and Appendix B. The [model contract](../model.md#shifts-and-memory-modification)
+sections 10.1–10.8 and Appendix B. The [model contract](../../../../src/components/cpus/specifications/6502.md#shifts-rotates-and-byte-adjustments)
 defines the recorded NMOS write sequence and the omitted bus activity.

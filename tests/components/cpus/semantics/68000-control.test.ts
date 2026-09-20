@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { stripTypeScriptTypes } from "node:module";
 import { cpu68000StateDescription } from "../../../../src/components/cpus/state/68000.js";
-import { cpu6502StateDescription } from "../../../../src/components/cpus/state/6502.js";
+import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import { alignmentFault, cpuSymbols, fetchWord, flagLiteral, literal, lowBit, readNextAddress, readSource, selectTarget, value, when, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
 import type { Statement } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";

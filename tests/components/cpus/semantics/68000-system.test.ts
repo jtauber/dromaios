@@ -9,7 +9,7 @@ import { generateInstructions } from "../../../../src/components/cpus/semantics/
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 import { cpuSymbols, flagLiteral, literal, resetDevices, when, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
 import { cpu68000StateDescription } from "../../../../src/components/cpus/state/68000.js";
-import { cpu6502StateDescription } from "../../../../src/components/cpus/state/6502.js";
+import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import { initialState } from "../../../helpers/68000-state.js";
 import type { Cpu68000State, Cpu68000Exception } from "../../../../src/components/cpus/68000.js";
 import type { Cpu68000AddressContext, Cpu68000ControlContext, Cpu68000ResetContext, OperandAlignmentFault, TargetAlignmentFault } from "../../../../src/components/cpus/68000-context.js";

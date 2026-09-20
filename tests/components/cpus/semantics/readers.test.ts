@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
-import { sourceReaders } from "../../../../src/components/cpus/generated/6502.js";
+import { sourceReaders } from "../../../helpers/6502-sources.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
-import { cpu6502StateDescription } from "../../../../src/components/cpus/state/6502.js";
-import type { Cpu6502State } from "../../../../src/components/cpus/state/6502.js";
+import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
+import type { Cpu6502State } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import type { SourceDefinitions, ValueSource } from "../../../../src/components/cpus/semantics/model.js";
 import { literal, value } from "../../../../src/components/cpus/semantics/model.js";
 

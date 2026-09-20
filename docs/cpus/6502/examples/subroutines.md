@@ -5,7 +5,7 @@ Save A, call a routine that calls another routine, store their arithmetic
 result, restore A, and jump to completion. The stack wraps within page one.
 This builds on the [accumulator stack example](stack.md).
 
-[Model contract](../model.md#jumps-and-subroutines) ·
+[Model contract](../../../../src/components/cpus/specifications/6502.md#subroutines-and-returns) ·
 [Example definition](../../../../src/machines/6502/subroutines-example.machine) ·
 [Example tests](../../../../tests/machines/6502/subroutines-example.test.ts) ·
 [CPU coverage](../../coverage.md#6502)
@@ -15,7 +15,7 @@ This builds on the [accumulator stack example](stack.md).
 The example introduces absolute `JMP` (`4C`), absolute `JSR` (`20`), and implied
 `RTS` (`60`). Their return-pointer convention and access order follow the
 [manufacturer manual](https://syncopate.us/books/Synertek6502ProgrammingManual.html),
-sections 4.0.2 and 8.1–8.3, and the [model contract](../model.md#jumps-and-subroutines).
+sections 4.0.2 and 8.1–8.3, and the [model contract](../../../../src/components/cpus/specifications/6502.md#subroutines-and-returns).
 JSR saves the address of its final operand byte; RTS adds one to that saved
 pointer. Calls and returns preserve flags and share the same RAM stack as
 PHA/PLA. The model omits dummy reads and makes no timing claim.

@@ -256,8 +256,7 @@ The authoring layers have separate homes:
 | [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
 | [decimal.ts](../../src/components/cpus/semantics/decimal.ts) | Shared decimal-correction selection with explicit Intel/Motorola flag and result stages |
-| [6502 chapter](../../src/components/cpus/specifications/6502.md#arithmetic-in-binary-and-decimal) | NMOS ADC/SBC binary facts, decimal digit correction, and distinct flag/write stages |
-| [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts) | External interrupt entry and integration with chapter-owned sources, status, and instructions |
+| [6502 chapter](../../src/components/cpus/specifications/6502.md) | Complete state, instruction inventory, NMOS arithmetic, status, reset, execution, and named external-entry policies |
 | [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Typed module catalogue shared by executable generation, explanation, and reproducibility checks |
 
@@ -513,8 +512,9 @@ modifiers use the address sources directly. Zero-page indexing wraps the byte
 address before widening; absolute indexing wraps the word address. LDX uses Y for
 indexed modes, whereas LDY uses X.
 
-`sources6502` groups eight named address sources and eight `bbb` operand sources.
-The operand readers and generated accumulator bodies use the same selector inventory.
+`sources6502` in the [test harness](../../tests/helpers/6502-sources.ts) groups
+eight chapter address sources and eight `bbb` operand sources for standalone
+generation probes. Production accumulator bodies inline the same selector inventory.
 This removes a second addressing implementation and operand list from the CPU.
 Indirect JMP uses its explicit page-wrapped pointer source. Generated JSR
 fetches its operand bytes separately around the stack writes.
@@ -1542,7 +1542,7 @@ optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,68000,8008,8080,8088,6809,z80}.ts`,
-`6502-interrupts.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-word-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, `68000-bits.ts`, `68000-word-arithmetic.ts`,
+`6502-state.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-word-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, `68000-bits.ts`, `68000-word-arithmetic.ts`,
 `68000-decimal.ts`, `68000-control.ts`, `68000-transfers.ts`, `68000-system.ts`, and the separate 8088 transfer, ALU, unary,
 stack, addressing, string, arithmetic, and control modules. The separate 8088
 operand modules contain specialized resolved bodies; its numeric opcode module retains automatic bindings.
@@ -1561,11 +1561,12 @@ bodies. Reproducibility tests compare every module with fresh output and run the
 native generator in a clean temporary tree from another working directory.
 
 Handwritten CPU schemas live under
-[`src/components/cpus/state/`](../../src/components/cpus/state). The 8008 schema,
-mutable stored-state type, public aliases, and readonly caller policies are
-generated from its chapter into `semantics/generated/state/` and re-exported
-by `generated/8008-cpu.ts`. Other schemas remain authored TypeScript. Chapter generation builds the 8008 schema without importing
-existing output, before the instruction registry loads it. The machine parser
+[`src/components/cpus/state/`](../../src/components/cpus/state). The 8008, 8080,
+and 6502 schemas, mutable stored-state types, public aliases, and readonly caller
+policies are generated into `semantics/generated/state/` and re-exported by their
+`generated/<cpu>-cpu.ts` modules. Other schemas remain authored TypeScript.
+Chapter generation builds owned schemas without importing existing output,
+before the instruction registry loads them. The machine parser
 uses these same schemas without importing executable handlers or expanded chapter
 data. After a clean, generate CPUs before running machine generation separately.
 There is one authority for each CPU's stored fields. Complete chapters also

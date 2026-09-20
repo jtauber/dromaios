@@ -8,7 +8,7 @@ import { instructions as zilog } from "../../../../src/components/cpus/generated
 import type { ByteInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 import { byteStack } from "../../../../src/components/cpus/semantics/stack.js";
 import { cpuSymbols } from "../../../../src/components/cpus/semantics/model.js";
-import { cpu6502StateDescription } from "../../../../src/components/cpus/state/6502.js";
+import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import { stackState } from "../../../helpers/stack-forms.js";
 import type { StackCpu } from "../../../helpers/stack-forms.js";
 

@@ -4,7 +4,7 @@ import { CpuZ80 } from "../../src/components/cpus/z80.js";
 import { Cpu6809 } from "../../src/components/cpus/6809.js";
 import { Cpu6800 } from "../../src/components/cpus/6800.js";
 import { Ram } from "../../src/components/memory/ram.js";
-import { Cpu6502 } from "../../src/components/cpus/6502.js";
+import { Cpu6502 } from "../../src/components/cpus/generated/6502-cpu.js";
 import { Cpu8088 } from "../../src/components/cpus/8088.js";
 import type { Cpu8088State, Cpu8088Access } from "../../src/components/cpus/8088.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";

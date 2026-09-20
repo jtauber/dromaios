@@ -7,7 +7,7 @@ between the corrected accumulator and its N/Z flags.
 
 [Machine definition](../../../../src/machines/6502/decimal-example.machine) ·
 [Example tests](../../../../tests/machines/6502/decimal-example.test.ts) ·
-[Arithmetic contract](../model.md#arithmetic-and-decimal-mode)
+[Arithmetic contract](../../../../src/components/cpus/specifications/6502.md#arithmetic-in-binary-and-decimal)
 
 ## Initial state and memory
 
@@ -67,7 +67,7 @@ that subtraction independently of the preceding addition's carry.
 
 Both decimal ADC results are zero, but Z remains clear and N remains set:
 NMOS flags follow the intermediate results described in the
-[arithmetic contract](../model.md#arithmetic-and-decimal-mode). The final CLD
+[arithmetic contract](../../../../src/components/cpus/specifications/6502.md#arithmetic-in-binary-and-decimal). The final CLD
 returns to binary mode. Final A = `99`, PC = `021C`, N/V/D/I/Z/C =
 `1/0/0/0/0/0`; X/Y/SP retain their initial values.
 

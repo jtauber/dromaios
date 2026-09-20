@@ -10,7 +10,7 @@ import { stackState } from "../../../helpers/stack-forms.js";
 import { flagRegister } from "../../../../src/components/cpus/flags.js";
 import { cpuSymbols, capture, flagLiteral, flagValue, literal, or, readFlag, replaceFlags, select, value, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
 import type { Expression, FlagExpression, FlagPolicy, NumberExpression } from "../../../../src/components/cpus/semantics/model.js";
-import { cpu6502StateDescription } from "../../../../src/components/cpus/state/6502.js";
+import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";

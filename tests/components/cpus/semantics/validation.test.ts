@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { cpu6502StateDescription } from "../../../../src/components/cpus/6502.js";
+import { cpu6502StateDescription } from "../../../../src/components/cpus/generated/6502-cpu.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/6809.js";
 import { addOverflow, borrow, carry, halfBorrow, halfCarry, overflow, subtract, updateFlags, addWrap, bitAnd, bitOr, bitXor, capture, concat, cpuSymbols, evenParity, extend, flagLiteral, flagValue, highByte, lowByte, literal, readFlag, readMemory, shiftLeft, value, writeLatch, xor, zero } from "../../../../src/components/cpus/semantics/model.js";
 import type { Expression, FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement } from "../../../../src/components/cpus/semantics/model.js";

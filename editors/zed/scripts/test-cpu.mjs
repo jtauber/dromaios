@@ -30,7 +30,7 @@ const html = treeSitter('cpu', ['highlight', ...configArgs, '--html', '--style',
 for (const [text, category] of [
   ['cpu', 'keyword'], ['state', 'keyword'], ['family', 'keyword'], ['encoding', 'keyword'],
   ['defer', 'keyword'], ['irq', 'keyword'], ['into', 'keyword'], ['unless', 'keyword'],
-  ['callback', 'keyword'], ['validate', 'keyword'], ['DEFERRED', 'property'], ['ENABLED', 'property'],
+  ['callback', 'keyword'], ['validate', 'keyword'], ['using', 'keyword'], ['vectors', 'keyword'], ['DEFERRED', 'property'], ['ENABLED', 'property'],
   ['A', 'property'], ['C', 'property'], ['ADDRESS', 'property'], ['STOPPED', 'property'],
   ['addressStack', 'variable'], ['slot', 'variable'], ['source', 'variable'], ['carry', 'variable'],
   ['signExtend', 'function'], ['addOverflow', 'function'], ['overflow', 'function'], ['transfer', 'function'], ['add', 'function'], ['carry', 'function'], ['u14', 'function'],

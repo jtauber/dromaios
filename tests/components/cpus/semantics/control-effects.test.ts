@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
-import { cpu6502StateDescription } from "../../../../src/components/cpus/state/6502.js";
+import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
 import { cpu8080StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
 import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";

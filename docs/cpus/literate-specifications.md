@@ -2,11 +2,11 @@
 
 Executable chapters are maintained CPU sources:
 
-- [MOS 6502: state, status, and the complete instruction set](../../src/components/cpus/specifications/6502.md)
-  owns the complete stored-state schema, packed status, and all 151 documented
-  instruction forms. External entry uses the same status view and I-update policy.
-  Reset, normal execution, and IRQ/NMI orchestration still belong to TypeScript;
-  their contracts remain in the model document.
+- [MOS 6502: the complete model](../../src/components/cpus/specifications/6502.md)
+  owns stored state, packed status, all 151 documented forms, reset vector reads,
+  ordinary execution, IRQ/NMI entry, and the generated public interface. Its
+  chapter also owns the public contracts and hardware references; no separate
+  model document or handwritten 6502 implementation remains.
 - [Intel 8008: the complete model](../../src/components/cpus/specifications/8008.md)
   defines every documented instruction, including control flow, restarts,
   halts, and port transfers. The chapter owns behavior, encodings, and stored-state
@@ -26,7 +26,7 @@ Executable chapters are maintained CPU sources:
 
 This is an authoring-language prototype over the existing
 [instruction representation](instruction-semantics.md), with a deliberately
-small vocabulary. It now describes complete instruction-level 8008 and 8080 models;
+small vocabulary. It now describes complete instruction-level 8008, 8080, and 6502 models;
 other execution architectures still need language and runtime support.
 Current counts and milestone evidence belong in the
 [coverage report](coverage.md#literate-authoring-milestone).
@@ -197,11 +197,24 @@ does not write are preserved. The core supplies valid inputs and decides when
 to invoke the action; input widths are compile-time contracts, as for other
 generated helpers, rather than new runtime argument validation.
 
-Both forms reject instruction fetching, memory, ports, address decoding, and
-CPU-boundary effects. Restrictions follow reusable sources and nested branches,
-including constant-false branches, and diagnostics identify the calling statement.
-Views additionally reject every write. These checks prevent snapshot inspection
-and reset from acquiring hidden external effects.
+Views and plain state actions reject instruction fetching, memory, ports,
+address decoding, and CPU-boundary effects. An action can explicitly add
+`using memory` after its parameters (or description if it has no parameters):
+
+```text
+action reset "read the reset vector" using memory {
+  low = memory(u16($FFFC))
+  high = memory(u16($FFFD))
+  PC <- concat(high, low)
+}
+```
+
+Such actions can read/write memory and state, but still cannot fetch instructions,
+access ports, or invoke CPU-boundary effects. Restrictions follow sources and
+nested branches, including constant-false branches, with diagnostics at the
+calling statement. Counter writes, retirement, and supplied-instruction acceptance
+still require state-only actions; vector reset/entry may use memory. Views reject
+all writes and external effects, keeping snapshot inspection pure.
 
 `ARRAY[] <- value` fills the existing array in ascending slot order. The value
 must match the declared element width; old slot contents are never read. It
@@ -224,22 +237,24 @@ byte-memory connection, one-byte opcode dispatch, a stopped latch, and
 instructions supplied by an acknowledgement callback. The
 [8080 section](../../src/components/cpus/specifications/8080.md#instruction-boundaries-and-interrupt-acceptance)
 adds enable/deferral recognition and an instruction-local retirement request.
-It has one `execution` block per chapter. Fields below are required except the
+The [6502](../../src/components/cpus/specifications/6502.md#reset-and-instruction-boundaries)
+adds memory-only execution with no halt state, reset bus reads, and named external
+entries. Each chapter has one `execution` block per chapter. Fields below are required except the
 callback-validation policy; references must name earlier declarations.
 
 | Field | Contract |
 | --- | --- |
 | `memory 14` | Exact RAM size is 2 to this power; supported widths are 1–16 bits. Memory is checked before initial-state getters are read. |
 | `counter PC write setPC` | Read the named state view and write through an action with one 16-bit input. The view must fit the memory width. Sequential arithmetic wraps at 16 bits; the writer may impose a narrower wrap. |
-| `stopped STOPPED` | Read this latch before an ordinary step; a set latch returns a halted record without fetching. Read it again after successful execution to select the outcome. |
+| `stopped STOPPED` | Read this latch before an ordinary step; a set latch returns a halted record without fetching. Read it again after successful execution to select the outcome. `stopped none` instead declares no halted outcome for vector execution. |
 | `word little` | Supply a little-endian `fetchWord`; `big` supplies high-byte-first fetching. Explicit byte fetches in instruction bodies retain their own order. |
 | `opcode advance on dispatch` | Advance the captured initial PC by one only if an opcode handler exists. `on read` advances after the successful read, before lookup, including undefined opcodes. |
 | `operand advance after read` | Fetch from live PC, then advance the captured address by one only after the read succeeds. This is the only supported operand-advance policy. |
 | `failure retain` | Propagate thrown failures, retain completed effects, return no record, and release the guard. Rollback is unsupported. |
-| `reset action reset` | Invoke the named state action between reset snapshots under the same guard. |
+| `reset action reset` | Invoke the input-free action between reset snapshots under the same guard. Vector execution records any memory effects declared by the action. |
 | `retire none` | No additional retirement effects. `retire action NAME` invokes an input-free state action after a successful handler, including HLT, before the after-snapshot. `retire irq into LATCH` instead writes whether that instruction requested `defer irq`, consuming an old delay or renewing it. Halted, undefined, or failed attempts skip retirement. |
 
-The nested `interrupt` block supports these policies:
+A nested `interrupt` block without `vectors` declares supplied-instruction delivery:
 
 | Field | Contract |
 | --- | --- |
@@ -254,18 +269,42 @@ instruction representation; validation and generated context types do not infer
 that capability from the CPU name. The declaration must precede families that
 request deferral.
 
-Both paths select the chapter's same opcode table. Stored-state operations still
+Ordinary and supplied-instruction paths select the chapter's same opcode table. Stored-state operations still
 use the instruction representation; the execution declaration generates only
 bindings to [shared runtime code](../../src/components/cpus/byte-execution.ts).
 The runtime supplies chronological memory/port/acknowledgement recording,
 snapshot assembly, and a guard shared by step, reset, and interrupt. Each call
 owns its records; snapshots remain callable inside device callbacks.
 
-Unknown fields, duplicate or missing policies, wrong reference kinds or action
-signatures, and opcodes wider than a byte fail at Markdown locations. Unsupported
-architectures are rejected explicitly: this contract does not yet express priority
-interrupts, prefixes, segmented fetches, vector entry, wait states, or reset-time
-bus reads. Those need evidence from further CPUs before extending the language.
+Vector entry is a distinct interrupt contract:
+
+```text
+interrupt vectors {
+  source irq unless flag I with enter($FFFE)
+  source nmi always with enter($FFFA)
+}
+```
+
+Each source name becomes part of the public `interrupt(source)` union. A set
+mask flag returns `ignored` / `masked` without effects; `always` accepts without
+reading a mask. An accepted offer invokes its named action with the listed
+constant numeric arguments, checked against the action's input widths. The
+chapter action owns stacking, vector reads, and state changes. The runtime adds
+snapshots, chronological accesses, and `instruction: null`; it never fabricates
+an opcode or acknowledgement. Unknown source values throw before snapshots or
+memory access. Source names must be unique; an empty catalogue is rejected.
+
+The [vector runtime](../../src/components/cpus/vector-execution.ts) reuses the
+same byte fetch/dispatch engine, recorder, and reentrancy guard as other models.
+Its current contract requires `stopped none`, `retire none`, and memory-only
+instruction bodies. These limits are checked even inside hidden sources and
+untaken branches. Reset/entry actions cannot fetch or use ports. No processor
+name, vector, stack convention, or mask bit is built into the runtime.
+
+Unknown fields, duplicate or missing policies, wrong references or action
+signatures, and opcodes wider than a byte fail at Markdown locations. Priority
+arbitration, prefixes, segmented fetches, and wait states remain outside these
+execution contracts. Further CPUs should supply evidence before extending them.
 
 ### Public interfaces
 
@@ -287,7 +326,8 @@ Unknown entries, invalid names, missing views, and repeated interfaces report
 Markdown locations.
 
 Shared interface conventions supply construction, `snapshot()`, `reset()`,
-`step()`, and `interrupt(acknowledge)` for the current byte execution contract.
+`step()`, and either `interrupt(acknowledge)` for supplied instructions or
+`interrupt(source)` for vector entry.
 Construction validates RAM before initial-state getters, validates and copies
 state, then binds execution. Snapshots copy all stored state and evaluate the
 listed views in declaration order. The generated methods delegate to the same
@@ -297,7 +337,9 @@ adapter is needed.
 The class name prefixes `State`, `StoredState`, `Snapshot`, and the concrete
 instruction, access, reset, step, and interrupt record types. Interrupt records
 include ignored outcomes only when the execution contract declares recognition
-conditions. A lowercased first letter names the schema export, such as
+conditions. Vector interfaces expose their declared `InterruptSource` union,
+memory-only records, and no halted step outcome; only masked source names can
+appear in an ignored record. A lowercased first letter names the schema export, such as
 `cpu8008StateDescription`. Internal
 stored state is mutable. Caller state accepts readonly fixed arrays; snapshots
 and records are recursively readonly. Array/group fields also receive aliases
@@ -313,8 +355,8 @@ compatibility wrapper at the old handwritten path.
 
 For machine integration, RAM size is derived from the execution contract's
 `memory` width. Completion bounds are derived from the width of the view exposed
-as snapshot `pc`, independently of RAM size. A model without that public view
-can still run, but `.machine` rejects an `end` declaration for it. Generated
+as snapshot `pc`, or of a directly stored `pc` field, independently of RAM size.
+Without either, the model can still run but `.machine` rejects an `end` declaration. Generated
 caller-state types retain fixed tuples and readonly arrays in parsed machine
 types; generated RAM-size literals remain associated with the model discriminant.
 The manifest imports only small schemas, never executable CPU modules or expanded
@@ -609,10 +651,9 @@ view/restoration, and all 151 documented instruction forms. Existing selector/so
 bindings express its irregular index-load/store encodings and cross-indexing.
 ADC/SBC retain explicit digit correction; memory updates retain two writes and
 separate carry/N/Z stages. Branches use signed widening, JSR interleaves its final
-operand fetch with pushes, and RTI restores flags before PC. External entry uses
-the chapter's status view and mask policy, but its orchestration, reset, and normal
-execution remain TypeScript. The thin state adapter retains only public aliases
-and a generated-schema re-export.
+operand fetch with pushes, and RTI restores flags before PC. The chapter also
+owns reset bus effects, ordinary execution, named IRQ/NMI entry, and its public
+interface. No handwritten 6502 implementation remains.
 The 8008 now expresses its address-stack selector, array, and port effects;
 the 68000 still uses its native effective-address decoder, including A7 banking
 and pending auto-updates. Its 192 chapter encodings select generated bodies
@@ -625,7 +666,8 @@ fidelity. The 8080 now reuses its execution services with chapter-defined
 interrupt enable, delayed recognition, and retirement. It also owns all word,
 stack/control, and status instructions, its generated public interface, and
 the full model contract. Both CPUs have zero handwritten implementation.
-The next migration should challenge a different execution architecture.
+The 6502 now supplies that different execution architecture: reset and interrupt
+vector reads, masked named entry, no acknowledgement stream, and no halted state.
 A differently named test CPU already exercises different storage, address width, views, and
 actions through the same compiler and runtime. This is evidence for the current
 contract, not proof that it covers the remaining architectures. Each further
@@ -636,6 +678,7 @@ estimate of the work remaining toward that goal.
 
 The [6502 language tests](../../tests/components/cpus/semantics/literate.test.ts),
 [6502 control/stack chapter tests](../../tests/components/cpus/semantics/literate-6502-control.test.ts),
+[6502 lifecycle chapter tests](../../tests/components/cpus/semantics/literate-6502-lifecycle.test.ts),
 [state-authoring tests](../../tests/components/cpus/semantics/literate-state.test.ts),
 [8008 transfer tests](../../tests/components/cpus/semantics/literate-8008.test.ts),
 [8008 arithmetic language tests](../../tests/components/cpus/semantics/literate-8008-arithmetic.test.ts),

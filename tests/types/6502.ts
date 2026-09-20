@@ -1,4 +1,4 @@
-import type { Cpu6502, Cpu6502ResetRecord, Cpu6502StepRecord, Cpu6502InterruptRecord } from "../../src/components/cpus/6502.js";
+import type { Cpu6502, Cpu6502ResetRecord, Cpu6502StepRecord, Cpu6502InterruptRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 
 // Compiled by npm test; never called. Each expected error guards the public API.
 export function checkPublicTypes(cpu: Cpu6502, record: Cpu6502StepRecord): void {
@@ -114,6 +114,10 @@ export function checkInterruptTypes(cpu: Cpu6502, record: Cpu6502InterruptRecord
   cpu.interrupt("brk");
   // @ts-expect-error The request source is explicit.
   cpu.interrupt();
+  // @ts-expect-error Vector entry accepts a source, never an acknowledgement callback.
+  cpu.interrupt(() => 0);
+  // @ts-expect-error The 6502 has no port access records.
+  const port: Cpu6502InterruptRecord["accesses"][number] = { kind: "port-read", port: 0, value: 0 };
   const instruction: null = record.instruction;
   if (record.outcome === "ignored") {
     const source: "irq" = record.source;

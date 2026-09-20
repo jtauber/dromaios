@@ -78,9 +78,9 @@ test("regeneration mirrors nested definitions, ignores its output, and removes o
 
 test("machine paths determine factory names, source comments, and imports at each directory depth", () => {
   for (const [path, name, sourcePath, cpuPath, helperPath] of [
-    ["lesson.machine", "createLesson", "../lesson.machine", "../../components/cpus/6502.js", "../ram-example.js"],
-    ["6502/example.machine", "create6502Example", "../../6502/example.machine", "../../../components/cpus/6502.js", "../../ram-example.js"],
-    ["6502/stack/example.machine", "create6502StackExample", "../../../6502/stack/example.machine", "../../../../components/cpus/6502.js", "../../../ram-example.js"],
+    ["lesson.machine", "createLesson", "../lesson.machine", "../../components/cpus/generated/6502-cpu.js", "../ram-example.js"],
+    ["6502/example.machine", "create6502Example", "../../6502/example.machine", "../../../components/cpus/generated/6502-cpu.js", "../../ram-example.js"],
+    ["6502/stack/example.machine", "create6502StackExample", "../../../6502/stack/example.machine", "../../../../components/cpus/generated/6502-cpu.js", "../../../ram-example.js"],
   ] as const) {
     const generated = compileMachine(source, path);
     assert.ok(generated.includes(`// Generated from ${sourcePath};`));

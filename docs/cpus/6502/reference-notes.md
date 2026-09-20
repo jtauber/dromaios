@@ -6,7 +6,7 @@ example remains a four-instruction subset; the later ideas below do not expand
 its scope.
 Source links identify the versions examined. Existing emulator behavior is
 evidence to investigate, with hardware expectations checked independently
-against the references in the [model contract](model.md#references) and
+against the references in the [model contract](../../../src/components/cpus/specifications/6502.md#references) and
 example specifications.
 
 ## Operation and operand separation: use in the first example
@@ -97,7 +97,7 @@ D. A focused check with A = `$09`, operand = `$01`, C false, and D true produced
 A = `$0A` while leaving D true in that implementation.
 
 These older implementations do not establish decimal-mode correctness. The
-[arithmetic contract](model.md#arithmetic-and-decimal-mode) instead specifies
+[arithmetic contract](../../../src/components/cpus/specifications/6502.md#arithmetic-in-binary-and-decimal) instead specifies
 NMOS digit correction and intermediate flags, checked exhaustively and against
 independent reference cases. The [decimal example](examples/decimal.md) exercises
 carry and borrow between packed-decimal bytes.

@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
-import type { Cpu6502State } from "../../../../src/components/cpus/state/6502.js";
+import type { Cpu6502State } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 
 const file = "src/components/cpus/specifications/6502.md", markdown = readFileSync(file, "utf8");
 interface Context { fetchByte(): number; readByte(address: number): number; writeByte(address: number, value: number): void }

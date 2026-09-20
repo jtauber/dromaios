@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Cpu6502 } from "../../../src/components/cpus/6502.js";
-import type { Cpu6502Flags, Cpu6502MemoryAccess, Cpu6502State } from "../../../src/components/cpus/6502.js";
+import { Cpu6502 } from "../../../src/components/cpus/generated/6502-cpu.js";
+import type { Cpu6502Flags, Cpu6502MemoryAccess, Cpu6502State } from "../../../src/components/cpus/generated/6502-cpu.js";
 import { Ram } from "../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
 import { runCpu } from "../../../src/runtime/run-cpu.js";

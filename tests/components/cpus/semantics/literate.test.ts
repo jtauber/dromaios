@@ -5,9 +5,10 @@ import { test } from "node:test";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { ChapterError, chapterBlocks } from "../../../../src/components/cpus/semantics/literate/document.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
-import { instructions6502, sources6502 } from "../../../../src/components/cpus/semantics/definitions/6502.js";
-import { cpu6502StateDescription } from "../../../../src/components/cpus/state/6502.js";
-import type { Cpu6502State } from "../../../../src/components/cpus/state/6502.js";
+import { instructions6502 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { sources6502 } from "../../../helpers/6502-sources.js";
+import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
+import type { Cpu6502State } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import { defineState, unsigned, flag, group } from "../../../../src/components/cpus/state.js";
 
 const file = "src/components/cpus/specifications/6502.md";

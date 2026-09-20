@@ -81,7 +81,7 @@ describes the working chapter prototype; the
   corresponding handwritten definitions rather than keeping two authorities.
 - Challenge the language with contrasting families and whole-CPU migrations,
   including state, decoding, lifecycle, and generated public interfaces. The
-  8008 and 8080 now have complete chapters; next challenge the language with
+  8008, 8080, and 6502 now have complete chapters; next challenge the language with
   another execution architecture.
   Keep the final language shape open to what those examples teach us.
 - Address remaining accuracy and machine-integration needs in reviewable

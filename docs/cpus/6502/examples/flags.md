@@ -5,7 +5,7 @@ Select a stack slot, verify its position after a push, count to a memory limit,
 and branch on a masked status byte. Clear overflow explicitly, restore A,
 and supply carry to binary ADC before storing the result with D set.
 
-[Model contract](../model.md#flag-controls-and-nop) ·
+[Model contract](../../../../src/components/cpus/specifications/6502.md#changing-individual-flags) ·
 [Example definition](../../../../src/machines/6502/flags-example.machine) ·
 [Example tests](../../../../tests/machines/6502/flags-example.test.ts) ·
 [CPU coverage](../../coverage.md#6502)
@@ -117,4 +117,4 @@ ADC/SBC, reset preserves D, and CLD restores binary arithmetic.
 
 Instruction rules follow the [manufacturer manual](https://syncopate.us/books/Synertek6502ProgrammingManual.html),
 chapters 3–4 and sections 7.8–7.9, 8.8–8.9. The
-[model contract](../model.md) defines arithmetic modes and the recorded access boundary.
+[model contract](../../../../src/components/cpus/specifications/6502.md) defines arithmetic modes and the recorded access boundary.

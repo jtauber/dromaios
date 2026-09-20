@@ -724,7 +724,7 @@ is not a substitute for specifying the accesses.
 
 ### Flag updates can straddle a failing write
 
-The current [6502 implementation](../../src/components/cpus/6502.ts) has this
+The current [6502 implementation](../../src/components/cpus/specifications/6502.md) has this
 sequence for an ASL memory operand, after its address is obtained:
 
 1. Read the original byte.

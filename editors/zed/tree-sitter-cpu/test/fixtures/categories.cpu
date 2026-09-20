@@ -96,3 +96,16 @@ execution {
     callback validate on read
   }
 }
+
+// Memory actions and named vector entry, without a synthetic stopped latch.
+action vectorReset "reset from memory" using memory {
+  low = memory(u16($FFFC))
+  PC <- extend(low, 16)
+}
+execution {
+  stopped none
+  interrupt vectors {
+    source irq unless flag I with enter($FFFE)
+    source nmi always with enter($FFFA)
+  }
+}

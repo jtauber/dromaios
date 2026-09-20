@@ -27,7 +27,7 @@ async function generated(text: string, cpu: "8008" | "8080" = "8008"): Promise<R
   const opcodes = moduleUrl(generateInstructions(cpu, Object.fromEntries(Object.values(chapter.families).flat()), { bindOpcodes: true }));
   const actions = moduleUrl(generateInstructions(cpu, chapter.actions, { sources: { cpu: { name: cpu, state }, groups: { views: chapter.views } } }));
   const execution = moduleUrl(generateChapterExecution(cpu, cpu, chapter.execution!), { [`./${cpu}.ts`]: opcodes, [`./${cpu}-state.ts`]: actions });
-  return import(moduleUrl(generateChapterInterface(cpu, state, api), {
+  return import(moduleUrl(generateChapterInterface(cpu, state, api, chapter.execution!), {
     [`../semantics/generated/state/${cpu}.ts`]: schema, [`./${cpu}-state.ts`]: actions, [`./${cpu}-execution.ts`]: execution,
   }));
 }

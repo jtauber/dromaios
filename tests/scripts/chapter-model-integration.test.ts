@@ -6,22 +6,22 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 
-test("a partial 6502 chapter's state edits reach construction, snapshots, and machine parsing", t => {
+test("the 6502 chapter's state edits reach construction, snapshots, and machine parsing", t => {
   const directory = mkdtempSync(join(tmpdir(), "dromaios-6502-state-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
-  cpSync("scripts/generate-cpu-chapters.ts", join(directory, "scripts/generate-cpu-chapters.ts"));
+  for (const name of ["generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const chapter = join(directory, "src/components/cpus/specifications/6502.md");
   writeFileSync(chapter, readFileSync(chapter, "utf8").replace("register SP: 8", "register SP: 8\n  register SCRATCH: 8"));
-  const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-chapters.ts")], { encoding: "utf8" });
+  const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
   assert.equal(generated.status, 0, generated.stderr);
   const url = (path: string) => JSON.stringify(pathToFileURL(join(directory, path)).href);
   const machine = readFileSync("src/machines/6502/example.machine", "utf8");
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
-    import { Cpu6502, cpu6502StateDescription } from ${url("src/components/cpus/6502.ts")};
+    import { Cpu6502, cpu6502StateDescription } from ${url("src/components/cpus/generated/6502-cpu.ts")};
     import { parseMachine } from ${url("src/machines/machine-language.ts")};
     const text = ${JSON.stringify(machine)};
     assert.equal(cpu6502StateDescription.scratch.bits, 8);
@@ -55,7 +55,7 @@ test("the 6502 chapter's status view and mask policy drive both software and ext
   writeFileSync(chapter, original.replace("return or(u8($20),", "return or(u8($00),").replace("I = value", "I = not(value)"));
   const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
   assert.equal(generated.status, 0, generated.stderr);
-  const url = JSON.stringify(pathToFileURL(join(directory, "src/components/cpus/6502.ts")).href);
+  const url = JSON.stringify(pathToFileURL(join(directory, "src/components/cpus/generated/6502-cpu.ts")).href);
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
     import { Cpu6502 } from ${url};

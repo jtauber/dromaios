@@ -8,7 +8,7 @@ import { instructions as motorola6800 } from "../../../../src/components/cpus/ge
 import type { Cpu6800State } from "../../../../src/components/cpus/state/6800.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
-import type { Cpu6502State } from "../../../../src/components/cpus/state/6502.js";
+import type { Cpu6502State } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import type { Cpu8080State } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
 import { capture, cpuSymbols, flagLiteral, flagValue, literal, lowBit, negative, not, readFlag, readRegister,
   shiftLeft, shiftRight, updateFlags, value, writeRegister, xor } from "../../../../src/components/cpus/semantics/model.js";

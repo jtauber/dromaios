@@ -74,8 +74,8 @@ them. Keep cycle timing and electrical bus behavior explicit limitations.
 The 8080's [port and control contract](../../src/components/cpus/specifications/8080.md#instruction-boundaries-and-interrupt-acceptance)
 and [external delivery API](../../src/components/cpus/specifications/8080.md#external-interrupt-delivery) implement
 the first item. The 8008's [port contract](../../src/components/cpus/specifications/8008.md#port-input-and-output)
-implements the second. The 6502 now implements [entry and return](6502/model.md#interrupt-entry-and-return)
-and [explicit IRQ/NMI offers](6502/model.md#external-interrupt-delivery), with
+implements the second. The 6502 now implements [entry and return](../../src/components/cpus/specifications/6502.md#software-interrupt-and-interrupt-return)
+and [explicit IRQ/NMI offers](../../src/components/cpus/specifications/6502.md#external-interrupt-delivery), with
 its recognition timing limits documented there. The 6800 now completes its
 [interrupt and wait behavior](6800/model.md#waiting-and-external-interrupt-delivery),
 including native frames, return, and snapshot-preserved WAI. The 6809 completes

@@ -94,7 +94,7 @@ unused IRQ/BRK vector to `0000`, as in the arithmetic example.
 
 ## Reset and restart
 
-Reset retains the [existing 6502 policy](../model.md#cpu-reset).
+Reset retains the [existing 6502 policy](../../../../src/components/cpus/specifications/6502.md#reset-and-instruction-boundaries).
 Immediately after PHA, reset reads `FFFC` then `FFFD`, returns PC to `0200`,
 changes SP from `FE` to `FB`, and sets I. A, X, Y, the other flags, and RAM
 remain unchanged, including the saved `80` at `01FF`.

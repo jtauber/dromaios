@@ -33,20 +33,23 @@ interface Symbols {
 
 export interface StatementOptions {
   readonly inputs?: Readonly<Record<string, Width>>;
-  readonly effects?: "view" | "state";
+  readonly effects?: "view" | "state" | "memory";
 }
 
-/** State views are read-only; state actions can also write, but neither can touch external devices. */
-function checkStateEffects(steps: readonly Statement[], effects: "view" | "state"): void {
+/** Views are pure reads; actions need an explicit memory capability for bus effects. */
+export function checkStateEffects(steps: readonly Statement[], effects: "view" | "state" | "memory"): void {
   for (const step of steps) {
     switch (step.kind) {
       case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": break;
       case "when": checkStateEffects(step.steps, effects); break;
       case "read-source": checkStateEffects(step.source.steps, effects); break;
       case "write-register": case "write-element": case "fill-array": case "write-latch": case "update-flags": case "replace-flags":
-        if (effects === "state") break;
+        if (effects !== "view") break;
         throw new Error("Views may only read stored state.");
-      default: throw new Error("Views and state actions cannot fetch instructions or access memory, ports, or CPU boundaries.");
+      case "read-memory": case "write-memory":
+        if (effects === "memory") break;
+        throw new Error("Views and state actions cannot fetch instructions or access memory without using memory.");
+      default: throw new Error("Views and actions cannot fetch instructions or access ports or CPU boundaries.");
     }
   }
 }
@@ -165,4 +168,11 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
     if (options.effects) checkStateEffects(steps, options.effects);
   };
   return parse(lines, validate);
+}
+
+/** Generated action signatures include a context only when an actual memory effect needs one. */
+export function usesMemory(steps: readonly Statement[]): boolean {
+  return steps.some(step => step.kind === "read-memory" || step.kind === "write-memory"
+    || (step.kind === "read-source" && usesMemory(step.source.steps))
+    || (step.kind === "when" && usesMemory(step.steps)));
 }

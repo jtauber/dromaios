@@ -5,7 +5,7 @@ Read four bytes through a zero-page pointer, transform each in a subroutine,
 and write an indexed output buffer. Record the last index whose result is at
 least `A4`, then load that result back into A. Both buffers cross a page boundary.
 
-[Model contract](../model.md#memory-operands-logic-and-comparison) ·
+[Model contract](../../../../src/components/cpus/specifications/6502.md#addressing-a-byte) ·
 [Example definition](../../../../src/machines/6502/buffer-example.machine) ·
 [Example tests](../../../../tests/machines/6502/buffer-example.test.ts) ·
 [CPU coverage](../../coverage.md#6502)
@@ -125,4 +125,4 @@ or preceding after-state. Instruction bytes are the actual fetched bytes.
 Addressing, flag effects, and opcode forms follow the
 [Synertek/MOS programming manual](https://syncopate.us/books/Synertek6502ProgrammingManual.html),
 sections 2.2.4, 4.2.1, 6.1–6.5, 7, 8, and Appendix B. The
-[model contract](../model.md) defines the deliberately omitted bus activity.
+[model contract](../../../../src/components/cpus/specifications/6502.md) defines the deliberately omitted bus activity.

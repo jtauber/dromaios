@@ -4,7 +4,7 @@ This program adds five three times, counts down in X, counts completed
 iterations in Y, and stores fifteen in RAM. Its final branch uses the Z flag
 left by DEX, even though A still holds a nonzero sum.
 
-[Model contract](../model.md#register-operations-and-relative-branches) ·
+[Model contract](../../../../src/components/cpus/specifications/6502.md#register-transfers) ·
 [Example definition](../../../../src/machines/6502/counted-loop-example.machine) ·
 [Example tests](../../../../tests/machines/6502/counted-loop-example.test.ts) ·
 [CPU coverage](../../coverage.md#6502)
@@ -36,7 +36,7 @@ The destination `0080` and completion address `0210` start at zero.
 | N, V, D, I, Z, C | `1`, `1`, `0`, `0`, `1`, `1` |
 
 These are explicit example choices. D is clear to select binary ADC; each iteration clears C before adding. Register and branch
-behavior follows the [model contract](../model.md#register-operations-and-relative-branches)
+behavior follows the [model contract](../../../../src/components/cpus/specifications/6502.md#register-transfers)
 and the [manufacturer manual](https://syncopate.us/books/Synertek6502ProgrammingManual.html),
 sections 4.1 and 7, with encodings in Appendix B.
 
@@ -89,7 +89,7 @@ A seven-step budget pauses at `020B`, immediately before the first BNE, with
 A = `05`, X = `02`, and Y = `01`. A further twelve steps complete the program;
 the concatenated records match an uninterrupted run.
 
-Reset follows the [6502 reset contract](../model.md#cpu-reset): read the current
+Reset follows the [6502 reset contract](../../../../src/components/cpus/specifications/6502.md#reset-and-instruction-boundaries): read the current
 vector, set PC to `0200`, set I, and change SP from `FF` to `FC`. Registers,
 other flags, and RAM retain their final values. The setup instructions execute
 again when resumed. Restarting through the factory creates fresh components

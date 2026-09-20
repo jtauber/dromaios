@@ -5,7 +5,7 @@ Save the caller's flags, call a dispatch stub that jumps through a RAM pointer,
 and restore the flags after arithmetic in the selected subroutine. Keep the
 accumulator result while branching on the restored Z flag.
 
-[Model contract](../model.md#status-stack) ·
+[Model contract](../../../../src/components/cpus/specifications/6502.md#status-as-a-byte) ·
 [Example definition](../../../../src/machines/6502/status-example.machine) ·
 [Example tests](../../../../tests/machines/6502/status-example.test.ts) ·
 [CPU coverage](../../coverage.md#6502)
@@ -97,6 +97,6 @@ ADC then executes in decimal mode, producing `86` from the invalid BCD
 operand `7F` plus `01`. The program completes in eleven instructions, stores
 `86`, and restores the caller's flags and SP through RTS/PLP.
 
-The [model contract](../model.md#status-stack) cites manufacturer instruction
+The [model contract](../../../../src/components/cpus/specifications/6502.md#status-as-a-byte) cites manufacturer instruction
 rules and the independent PHP/PLP/JMP reference cases, and defines the omitted
 bus activity and deferred interrupt behavior.

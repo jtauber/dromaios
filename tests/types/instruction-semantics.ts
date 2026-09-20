@@ -27,11 +27,12 @@ import type { Cpu8088State } from "../../src/components/cpus/8088.js";
 import { byteRegisterView } from "../../src/components/cpus/semantics/builders.js";
 import { cpu6809StateDescription } from "../../src/components/cpus/state/6809.js";
 import { cpuZ80StateDescription } from "../../src/components/cpus/state/z80.js";
-import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
+import { cpu6502StateDescription } from "../../src/components/cpus/generated/6502-cpu.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/generated/8080-cpu.js";
 import { readTest, reportInterrupt, sendEscape, testChoice, writeChoice, readPort, writePort, deferInterrupt, divide, iterate, reject, and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, projectAddress, readFlag, readLatch, readMemory, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
-import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
+import { instructions as generated6502 } from "../../src/components/cpus/generated/6502.js";
+import { sourceReaders } from "../../src/components/cpus/generated/6502-state.js";
 import { instructions as generatedZ80 } from "../../src/components/cpus/generated/z80.js";
 import type { CpuZ80State } from "../../src/components/cpus/z80.js";
 import { instructions as generated8008 } from "../../src/components/cpus/generated/8008.js";
@@ -41,7 +42,7 @@ import { instructions as generated8080 } from "../../src/components/cpus/generat
 import { instructions as generated6809 } from "../../src/components/cpus/generated/6809.js";
 import { instructions as generated6800 } from "../../src/components/cpus/generated/6800.js";
 import type { Cpu6800State } from "../../src/components/cpus/6800.js";
-import type { Cpu6502State } from "../../src/components/cpus/6502.js";
+import type { Cpu6502State } from "../../src/components/cpus/generated/6502-cpu.js";
 import type { Cpu8080State } from "../../src/components/cpus/generated/8080-cpu.js";
 import type { Cpu6809State } from "../../src/components/cpus/6809.js";
 
@@ -266,12 +267,12 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   // @ts-expect-error Repeated blocks cannot fetch or run a second iteration inside the body.
   generatedZ80.lddr(z80, { readByte: () => 0, writeByte: () => {}, fetchByte: () => 0 });
   const readers = sourceReaders(mos);
-  const address: number = readers.addresses.absoluteX({ fetchByte: () => 0 });
-  const byte: number = readers.operands[3]({ fetchByte: () => 0, readByte: () => 0 });
-  // @ts-expect-error An indirect address needs pointer reads, even without a final data read.
-  readers.addresses.indirectIndexed({ fetchByte: () => 0 });
-  // @ts-expect-error The memory operand needs a data read; its address reader does not.
-  readers.operands[3]({ fetchByte: () => 0 });
+  const address: number = readers.views.NEXT();
+  const status: number = readers.views.STATUS();
+  // @ts-expect-error State views neither fetch nor access memory.
+  readers.views.NEXT({ fetchByte: () => 0 });
+  // @ts-expect-error Packed status also requires no memory context.
+  readers.views.STATUS({ readByte: () => 0 });
   // @ts-expect-error Reader bindings require the concrete CPU state.
   sourceReaders(intel);
   generated6502[0x20](mos, { fetchByte: () => 0, writeByte: () => {} });

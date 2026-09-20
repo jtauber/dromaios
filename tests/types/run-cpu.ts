@@ -1,6 +1,6 @@
 import type { Cpu8008, Cpu8008StepRecord } from "../../src/components/cpus/generated/8008-cpu.js";
 import type { Cpu8080, Cpu8080StepRecord } from "../../src/components/cpus/generated/8080-cpu.js";
-import type { Cpu6502, Cpu6502StepRecord } from "../../src/components/cpus/6502.js";
+import type { Cpu6502, Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 import type { Cpu6800, Cpu6800StepRecord } from "../../src/components/cpus/6800.js";
 import type { Cpu6809, Cpu6809StepRecord } from "../../src/components/cpus/6809.js";
 import type { CpuZ80, CpuZ80StepRecord } from "../../src/components/cpus/z80.js";

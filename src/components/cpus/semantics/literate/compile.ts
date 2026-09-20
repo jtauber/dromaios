@@ -114,7 +114,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         if (execution) header.fail("Execution is already declared.");
         header.expect("{"); header.end();
         const { body, end } = chapterBody(lines, index); index = end;
-        execution = chapterExecution(header, body, { views, actions, latches });
+        execution = chapterExecution(header, body, { views, actions, latches, flags });
         if (execution.retireDeferral !== undefined) cpu = { ...cpu, irqDeferral: true };
         continue;
       }
@@ -147,10 +147,11 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
           } while (header.take(","));
           header.expect(")");
         }
+        const memory = header.take("using"); if (memory) header.expect("memory");
         open();
         const definition = { cpu, name: description, explanation: block.explanation, inputs, steps: [] };
         header.checked(() => validateInstruction(definition));
-        const bodySteps = steps(body, { inputs, effects: "state" });
+        const bodySteps = steps(body, { inputs, effects: memory ? "memory" : "state" });
         actions.set(name, header.checked(() => defineInstruction({ ...definition, steps: bodySteps })));
       } else if (kind === "policy") {
         const description = header.quoted(); header.expect("(");
@@ -297,7 +298,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
   if (execution) for (const entries of families.values()) for (const [opcode, definition] of entries) {
     const tokens = opcodes.get(opcode)!;
     if (opcode > 0xff) tokens.fail("Byte execution requires one-byte opcodes.");
-    tokens.checked(() => checkByteExecution(definition.steps, execution.retireDeferral !== undefined));
+    tokens.checked(() => checkByteExecution(definition.steps, execution.retireDeferral !== undefined, execution.interrupt === "vectors"));
   }
   return { cpu: cpu.name, ...(ownsState ? { state: cpu.state } : {}), ...(execution ? { execution } : {}), ...(publicInterface ? { interface: publicInterface } : {}), sources: Object.fromEntries(sources), views: Object.fromEntries(views), actions: Object.fromEntries(actions), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), conditions: Object.fromEntries(conditions), families: Object.fromEntries(families) };
 }

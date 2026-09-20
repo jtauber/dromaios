@@ -14,7 +14,7 @@ async function generateCpuSemantics(directory: string): Promise<void> {
     [name, generateInstructions(cpu, definitions, options)] as const);
   for (const { name, cpu, chapter } of chapters) {
     if (chapter.execution) modules.push([`${name}-execution`, generateChapterExecution(cpu, name, chapter.execution)]);
-    if (chapter.interface) modules.push([`${name}-cpu`, generateChapterInterface(name, chapter.state!, chapter.interface)]);
+    if (chapter.interface) modules.push([`${name}-cpu`, generateChapterInterface(name, chapter.state!, chapter.interface, chapter.execution!)]);
   }
   const names = new Set<string>();
   for (const [name] of modules) {

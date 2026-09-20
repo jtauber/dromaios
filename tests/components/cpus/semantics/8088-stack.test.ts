@@ -9,7 +9,7 @@ import { instructions8088, stack8088 } from "../../../../src/components/cpus/sem
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import { cpuSymbols, deferInterrupt } from "../../../../src/components/cpus/semantics/model.js";
 import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
-import { cpu6502StateDescription } from "../../../../src/components/cpus/state/6502.js";
+import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 import { segmentedWordStack } from "../../../../src/components/cpus/semantics/stack.js";
 import type { Statement } from "../../../../src/components/cpus/semantics/model.js";

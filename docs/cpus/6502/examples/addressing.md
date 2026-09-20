@@ -82,7 +82,7 @@ executes BRK there and follows the unused IRQ/BRK vector to `0000`.
 
 ## Reset and restart
 
-Reset follows the [existing 6502 policy](../model.md#cpu-reset).
+Reset follows the [existing 6502 policy](../../../../src/components/cpus/specifications/6502.md#reset-and-instruction-boundaries).
 After this program it reads `FFFC` then `FFFD`, sets PC to `0200`, sets I, and
 changes SP from `FF` to `FC`. Other state and RAM remain unchanged, including
 the copied byte. Resuming execution reads the source's current contents.

@@ -4,7 +4,7 @@
 The example loads 2, adds 3, and stores 5, providing a second architecture
 against which to examine the [8080 example](../../8080/examples/arithmetic.md).
 
-The [6502 model contract](../model.md) defines state, records, reset, and the
+The [6502 model contract](../../../../src/components/cpus/specifications/6502.md) defines state, records, reset, and the
 binary arithmetic mode. Current support is tracked in
 [6502 implementation coverage](../../coverage.md#6502).
 
@@ -83,11 +83,11 @@ The [manufacturer manual][1] defines these operations and encodings.
 
 Fetch all address bytes before STA writes, even when it overwrites itself.
 The example initializes D = false. A CPU initialized with D true follows the
-model's [NMOS decimal arithmetic rules](../model.md#arithmetic-and-decimal-mode).
+model's [NMOS decimal arithmetic rules](../../../../src/components/cpus/specifications/6502.md#arithmetic-in-binary-and-decimal).
 
 ## Expected execution
 
-Records use the [6502 step format](../model.md#step-records).
+Records use the [6502 step format](../../../../src/components/cpus/specifications/6502.md#step-records).
 
 Each record's `before` equals the preceding record's `after`, starting with
 the initial state above. All four outcomes are `executed`:
@@ -128,12 +128,12 @@ code produced the intended result; acceptance tests check state and RAM too.
 Calling the CPU directly at `0208` executes BRK and consumes the zero padding
 byte at `0209`. It pushes return PC `020A` and status `34`, reducing SP to
 `FC`, then follows the unused IRQ/BRK vector to `0000`. BRK is a
-[software interrupt](../model.md#interrupt-entry-and-return); the caller
+[software interrupt](../../../../src/components/cpus/specifications/6502.md#software-interrupt-and-interrupt-return); the caller
 owns the lesson boundary.
 
 ## Reset and restart
 
-Reset follows the [6502 model contract](../model.md#cpu-reset).
+Reset follows the [6502 model contract](../../../../src/components/cpus/specifications/6502.md#reset-and-instruction-boundaries).
 
 After the completed lesson, reset produces PC `0200` and SP `FC`, while A and
 RAM at `0080` remain `05`. The access list is exactly `R FFFC:00`, `R FFFD:02`.
@@ -151,7 +151,7 @@ The tests cover:
 
 1. The full initial memory image, including reset vector, and independent setup
    calls. Constructor and snapshot validation/ownership follow the
-   [model contract](../model.md).
+   [model contract](../../../../src/components/cpus/specifications/6502.md).
 2. All four exact records and the full final RAM image; caller completion with
    no extra access; a direct fifth CPU call executing BRK and recording its stack/vector accesses.
 3. CLC changes only C and PC; LDA tests `00`, `80`, and `FF`, replacing N/Z and
@@ -188,7 +188,7 @@ Explicit binary ADC cases, with D false:
 - [Synertek/MOS MCS6500 Programming Manual][1], sections 2.1–2.2, 3, 5.4–5.5,
   9.2–9.3, 9.11, and Appendix B: instruction semantics, encodings, and flags.
   This is a reproduction of the manufacturer manual.
-- The [model contract](../model.md#references) cites the reset references and
+- The [model contract](../../../../src/components/cpus/specifications/6502.md#references) cites the reset references and
   distinguishes hardware behavior from model policies.
 
 The initialization values and caller completion rule are choices for this example.

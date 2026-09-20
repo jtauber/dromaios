@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions as mos } from "../../../../src/components/cpus/generated/6502.js";
-import { instructions as mosEntry } from "../../../../src/components/cpus/generated/6502-interrupts.js";
+import { instructions as mosEntry } from "../../../../src/components/cpus/generated/6502-state.js";
 import { instructions as m6800 } from "../../../../src/components/cpus/generated/6800.js";
 import { instructions as m6809 } from "../../../../src/components/cpus/generated/6809.js";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as z80 } from "../../../../src/components/cpus/generated/z80.js";
 import { instructions6502, instructions6800, instructions6809, instructions8080, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
-import type { Cpu6502State } from "../../../../src/components/cpus/state/6502.js";
+import type { Cpu6502State } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import type { Cpu6800State } from "../../../../src/components/cpus/state/6800.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu8080State } from "../../../../src/components/cpus/semantics/generated/state/8080.js";

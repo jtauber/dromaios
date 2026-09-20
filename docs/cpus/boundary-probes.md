@@ -34,7 +34,7 @@ bus faults, instruction timing, or a new rollback policy.
 ### 6502: a location can change after another byte was captured
 
 Start with PC=`01FD`, SP=`FF`, and code `20 44 55` (JSR).
-The [current instruction](../../src/components/cpus/6502.ts) performs:
+The [current instruction](../../src/components/cpus/specifications/6502.md) performs:
 
 | Step | Access | State/value captured after success |
 | --- | --- | --- |
@@ -128,7 +128,7 @@ inherited model. A complete future family must retain software BRK semantics;
 the current subset still defers BRK and interrupt delivery.
 
 These independent traces derive from that binding and the
-[current 6502 contract](6502/model.md). `R logical/bus → value` and
+[current 6502 contract](../../src/components/cpus/specifications/6502.md). `R logical/bus → value` and
 `W logical/bus ← value` denote complete accesses in order. Each case preserves
 unmentioned state; N/Z entries below replace only those two flags.
 
