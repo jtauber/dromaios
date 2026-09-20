@@ -21,10 +21,10 @@ The complete 8008, 8080, and 6502 models are now authored in their
 [executable chapters](literate-specifications.md). The shared construction
 patterns described below still explain the representation; for current 8080
 behavior and encoding ownership, read its [chapter](../../src/components/cpus/specifications/8080.md).
-The 6800 chapter also owns stored state, packed condition codes, and its
-transfer, logic, and comparison families, including addressing and encodings.
+The 6800 chapter owns stored state, packed condition codes, and every instruction
+family, including addressing, encodings, and reusable stack/frame actions.
 The construction history below describes the earlier shared-builder migration;
-remaining 6800 instructions, Z80, and other partial migrations retain TypeScript builders.
+the Z80, 6809, 8088, and other partial migrations retain TypeScript builders.
 
 ## The review slice
 
@@ -554,6 +554,17 @@ Its captures live in a fresh scope; only its yielded value enters its caller's
 scope. Sources can explicitly update registers or access memory. Nothing about
 the word “source” makes its body pure. A resolved memory address is an immutable
 captured word used by later reads/writes, not a callback that can resolve again.
+
+An `Action` has a name, optional numeric inputs, and an ordered body.
+`perform(action, arguments)` captures all arguments from the caller before
+expanding its body in a fresh scope. Only parameters enter that scope; action
+captures do not escape it. Validation checks exact argument names and widths,
+state references, and every nested effect. Composed actions cannot reject an
+instruction, including through nested sources or conditions. Generation inlines
+the body and collects its required capabilities; the reporter shows the action
+boundary and expanded effects. The chapter language exposes this as
+[`perform`](literate-specifications.md#views-and-state-actions), with references
+restricted to earlier actions so recursion cannot arise.
 
 A `FlagPolicy` declares numeric parameters and Boolean assignments. Each
 invocation binds exactly those parameters from captured caller values. Policies
@@ -1927,24 +1938,22 @@ fetching, recording, and guarding. The public core supplies owned state and
 snapshots; its handwritten step and interrupt algorithms are removed.
 The machine parser reads its separate state schema without
 depending on generated execution code.
-The 6800 and 6809 bind generated A/B and memory bodies through one
-`motorolaUnaryOperations` selector table, including TST and CLR. Each CPU's static
-inventory contains function references only; each invocation supplies the current
-CPU state. CPU-owned wrappers resolve one address, with the 6809 rejecting
-undefined postbytes before body entry. The handwritten unary calculations and
-memory-modification paths are gone. JMP remains a separate address operation.
-The remaining 6800 byte arithmetic and the 6809
-comparisons, arithmetic, logic, and byte/word transfers use `motorolaOperandBindings`.
-The 6809 uses it across its three opcode pages for comparisons.
+The 6800 chapter owns every instruction body and encoding, including addressing,
+branches, stacks, and interrupt-frame effects. Its core binds the generated opcode
+table directly and calls the chapter's external-entry action for accepted IRQ/NMI.
+No handwritten opcode selectors, operand wrappers, or instruction builders remain
+for this CPU; reset and execution/event recognition remain in the core.
+The 6809 binds generated A/B and memory bodies through the
+`motorolaUnaryOperations` selector table, including TST and CLR. Its static
+inventory contains function references only; each invocation supplies current
+CPU state. CPU-owned wrappers resolve one address and reject undefined postbytes
+before body entry. JMP remains a separate address operation.
+The 6809 comparisons, arithmetic, logic, and byte/word transfers use
+`motorolaOperandBindings`, including comparisons across three opcode pages.
 Each register has an immediate body that fetches its operand and a memory body
 that receives the decoder's resolved address. This covers CMPA/B/D/X/Y/U/S in
-all four addressing modes, with no special indexed postbyte path. Unsupported
-postbytes retain the same rejection behavior before body entry. ADDD/SUBD use
-the same bindings; the old word-arithmetic helper is gone. The 6800 chapter now owns
-CMPA/CMPB/CPX and CBA, including operand fetching and addressing; ABA and SBA
-retain their direct TypeScript bindings.
-The handwritten accumulator-operation table and original 6800 CPX helper are
-gone. Binding captures a state
+all four addressing modes, with no special indexed postbyte path. ADDD/SUBD use
+the same bindings. Binding captures a state
 getter without reading it until execution, and resolves each memory address once
 before entering its body. Address decoding remains outside those resolved-memory
 definitions; migrated 6800 chapter forms include it in their complete bodies.

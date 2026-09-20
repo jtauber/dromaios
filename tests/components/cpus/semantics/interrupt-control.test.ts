@@ -58,9 +58,9 @@ function enter6800(s: Cpu6800State, c: Context, vector: number) {
   const high = c.readByte(vector), low = c.readByte(vector + 1); s.pc = high * 256 + low;
 }
 const m6800Cases: Case<Cpu6800State>[] = [
-  { name: "SWI", actual: m6800.swi, reference(s, c) { enter6800(s, c, 0xfffa); } },
-  { name: "WAI", actual: m6800.wai, reference(s, c) { save6800(s, c); s.waiting = true; } },
-  { name: "RTI", actual: m6800.rti, reference(s, c) {
+  { name: "SWI", actual: m6800[0x3f], reference(s, c) { enter6800(s, c, 0xfffa); } },
+  { name: "WAI", actual: m6800[0x3e], reference(s, c) { save6800(s, c); s.waiting = true; } },
+  { name: "RTI", actual: m6800[0x3b], reference(s, c) {
     const pop = () => { s.sp = word(s.sp + 1); return c.readByte(s.sp); };
     const popWord = () => { const high = pop(); return high * 256 + pop(); };
     s.flags = unpack(pop(), m6800Bits); s.b = pop(); s.a = pop(); s.x = popWord(); s.pc = popWord();
@@ -111,7 +111,7 @@ const z80Cases: Case<CpuZ80State>[] = [
 test("twenty documented interrupt/control forms and two external entry helpers are defined", () => {
   assert.deepEqual([instructions6502[0]!.name, instructions6502[0x40]!.name], ["BRK", "RTI"]);
   const inventories: readonly [Readonly<Record<string, InstructionDefinition | undefined>>, readonly string[], readonly string[]][] = [
-    [instructions6800, ["swi", "wai", "rti"], ["SWI", "WAI", "RTI"]],
+    [instructions6800, ["63", "62", "59"], ["SWI", "WAI", "RTI"]],
     [instructions6809, ["swi", "swi2", "swi3", "sync", "cwai", "rti"], ["SWI", "SWI2", "SWI3", "SYNC", "CWAI", "RTI"]],
     [instructions8080, [String(0xf3), String(0xfb)], ["DI", "EI"]],
     [instructionsZ80, ["di", "ei", "im0", "im1", "im2", "retn", "reti"], ["DI", "EI", "IM 0", "IM 1", "IM 2", "RETN", "RETI"]],

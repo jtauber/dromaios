@@ -11,8 +11,8 @@ Bodies begin after opcode selection. Chapter-owned forms include their operand
 fetching and addressing; remaining Motorola memory bodies receive a resolved
 address from the existing decoder. Declared inputs
 are captured before entry. Statements are
-ordered. Captures are immutable; a source
-block has its own scope. Conditional and bounded iteration blocks inherit outer
+ordered. Captures are immutable; each source and action
+expansion has its own scope. Action arguments are captured in the caller before its effects. Conditional and bounded iteration blocks inherit outer
 captures; local captures do not escape. Each iteration sees its own current value.
 Untaken blocks and zero iterations have no effects. Named outcomes end the body.
 All expressions in one flag update are evaluated before
@@ -240959,6 +240959,16 @@ return outcome "line-f"; no later effects
 
 Flags preserved throughout: X, N, Z, V, C, T, S.
 
+### 6800 NOP
+
+NOP has no effects after opcode fetching. Preserve all stored state.
+
+```text
+
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
 ### 6800 TAP
 
 Capture A and replace all six flags, ignoring bits 7/6. Preserve every register and the waiting latch; no memory access occurs after the opcode fetch.
@@ -240998,6 +241008,127 @@ write A:u8 := status
 ```
 
 Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 INX
+
+Capture X, add one with word wrap, and write X. Then read back X and update Z only.
+
+```text
+original:u16 := read X
+write X:u16 := addWrap(original, 0001:u16)
+adjusted:u16 := read X
+flags "index Z" simultaneously {
+  Z := isZero(adjusted)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, N, V, C.
+
+### 6800 DEX
+
+Capture X, subtract one with word wrap, and write X. Then read back X and update Z only.
+
+```text
+original:u16 := read X
+write X:u16 := subtract(original, 0001:u16)
+adjusted:u16 := read X
+flags "index Z" simultaneously {
+  Z := isZero(adjusted)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, N, V, C.
+
+### 6800 CLV
+
+Clear V; preserve every other flag and register.
+
+```text
+flags "set V" simultaneously {
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, N, Z, C.
+
+### 6800 SEV
+
+Set V; preserve every other flag and register.
+
+```text
+flags "set V" simultaneously {
+  V := 1:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, N, Z, C.
+
+### 6800 CLC
+
+Clear C; preserve every other flag and register.
+
+```text
+flags "set C" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, N, Z, V.
+
+### 6800 SEC
+
+Set C; preserve every other flag and register.
+
+```text
+flags "set C" simultaneously {
+  C := 1:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, N, Z, V.
+
+### 6800 CLI
+
+Clear I; preserve every other flag and register.
+
+```text
+flags "set I" simultaneously {
+  I := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, N, Z, V, C.
+
+### 6800 SEI
+
+Set I; preserve every other flag and register.
+
+```text
+flags "set I" simultaneously {
+  I := 1:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, N, Z, V, C.
+
+### 6800 SBA
+
+Read A then B and subtract, ignoring incoming C. Update N/Z/V/C before writing A; preserve B, H/I, and every other register. No data-memory access occurs.
+
+```text
+left:u8 := read A
+right:u8 := read B
+result := subtract(left, right)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, 0:flag)
+  C := borrow(left, right, 0:flag)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
 
 ### 6800 CBA
 
@@ -241049,6 +241180,1660 @@ flags "6800 byte result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 DAA
+
+Capture A, H, then C; choose both corrections from those captures. Add them to A with byte wrap. Set N/Z, clear V, and retain or set C before writing A. Preserve H/I and other state. No instruction or data-memory access occurs.
+
+```text
+original:u8 := read A
+half:flag := read H
+carry:flag := read C
+low := select(or(not(borrow(bitAnd(original, 0F:u8), 0A:u8)), half), 06:u8, 00:u8)
+high := select(or(not(borrow(original, 9A:u8)), carry), 60:u8, 00:u8)
+correction := bitOr(low, high)
+result := addWrap(original, correction)
+flags "6800 DAA" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := or(carry, carry(original, correction))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ABA
+
+Read A then B and add, ignoring incoming C. Update N/Z/V/C/H before writing A; preserve B, I, and every other register. No data-memory access occurs.
+
+```text
+left:u8 := read A
+right:u8 := read B
+result := addWrap(left, right)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, 0:flag)
+  C := carry(left, right, 0:flag)
+  H := halfCarry4(left, right, 0:flag)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: I.
+
+### 6800 BRA
+
+Fetch the displacement, read the post-fetch PC, then add the signed offset with word wrapping. Preserve all flags and other registers.
+
+```text
+offset:u8 := fetch byte
+pc:u16 := read PC
+write PC:u16 := addWrap(pc, signExtend16(offset))
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BHI
+
+Fetch the signed displacement, then capture C/Z in that order. BHI tests `and(not(c), not(z))`; BLS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u8 := fetch byte
+c:flag := read C
+z:flag := read Z
+inverse:u8 := source "BHI" {
+  yield 00:u8
+}
+when xor(and(not(c), not(z)), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BLS
+
+Fetch the signed displacement, then capture C/Z in that order. BHI tests `and(not(c), not(z))`; BLS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u8 := fetch byte
+c:flag := read C
+z:flag := read Z
+inverse:u8 := source "BLS" {
+  yield 01:u8
+}
+when xor(and(not(c), not(z)), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BCC
+
+Fetch the signed displacement, then capture C in that order. BCC tests `not(c)`; BCS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u8 := fetch byte
+c:flag := read C
+inverse:u8 := source "BCC" {
+  yield 00:u8
+}
+when xor(not(c), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BCS
+
+Fetch the signed displacement, then capture C in that order. BCC tests `not(c)`; BCS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u8 := fetch byte
+c:flag := read C
+inverse:u8 := source "BCS" {
+  yield 01:u8
+}
+when xor(not(c), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BNE
+
+Fetch the signed displacement, then capture Z in that order. BNE tests `not(z)`; BEQ inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u8 := fetch byte
+z:flag := read Z
+inverse:u8 := source "BNE" {
+  yield 00:u8
+}
+when xor(not(z), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BEQ
+
+Fetch the signed displacement, then capture Z in that order. BNE tests `not(z)`; BEQ inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u8 := fetch byte
+z:flag := read Z
+inverse:u8 := source "BEQ" {
+  yield 01:u8
+}
+when xor(not(z), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BVC
+
+Fetch the signed displacement, then capture V in that order. BVC tests `not(v)`; BVS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u8 := fetch byte
+v:flag := read V
+inverse:u8 := source "BVC" {
+  yield 00:u8
+}
+when xor(not(v), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BVS
+
+Fetch the signed displacement, then capture V in that order. BVC tests `not(v)`; BVS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u8 := fetch byte
+v:flag := read V
+inverse:u8 := source "BVS" {
+  yield 01:u8
+}
+when xor(not(v), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BPL
+
+Fetch the signed displacement, then capture N in that order. BPL tests `not(n)`; BMI inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u8 := fetch byte
+n:flag := read N
+inverse:u8 := source "BPL" {
+  yield 00:u8
+}
+when xor(not(n), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BMI
+
+Fetch the signed displacement, then capture N in that order. BPL tests `not(n)`; BMI inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u8 := fetch byte
+n:flag := read N
+inverse:u8 := source "BMI" {
+  yield 01:u8
+}
+when xor(not(n), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BGE
+
+Fetch the signed displacement, then capture N/V in that order. BGE tests `not(xor(n, v))`; BLT inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u8 := fetch byte
+n:flag := read N
+v:flag := read V
+inverse:u8 := source "BGE" {
+  yield 00:u8
+}
+when xor(not(xor(n, v)), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BLT
+
+Fetch the signed displacement, then capture N/V in that order. BGE tests `not(xor(n, v))`; BLT inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u8 := fetch byte
+n:flag := read N
+v:flag := read V
+inverse:u8 := source "BLT" {
+  yield 01:u8
+}
+when xor(not(xor(n, v)), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BGT
+
+Fetch the signed displacement, then capture N/V/Z in that order. BGT tests `and(not(z), not(xor(n, v)))`; BLE inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u8 := fetch byte
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+inverse:u8 := source "BGT" {
+  yield 00:u8
+}
+when xor(and(not(z), not(xor(n, v))), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BLE
+
+Fetch the signed displacement, then capture N/V/Z in that order. BGT tests `and(not(z), not(xor(n, v)))`; BLE inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u8 := fetch byte
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+inverse:u8 := source "BLE" {
+  yield 01:u8
+}
+when xor(and(not(z), not(xor(n, v))), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 TSX
+
+Capture SP, add one with word wrap, and write X. Preserve all flags.
+
+```text
+original:u16 := read SP
+write X:u16 := addWrap(original, 0001:u16)
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 INS
+
+Capture SP, add one with word wrap, and write SP. Preserve all flags.
+
+```text
+original:u16 := read SP
+write SP:u16 := addWrap(original, 0001:u16)
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 PULA
+
+Increment SP before reading, then replace A/B only after the read succeeds. Preserve all flags and every other register; a failed read retains the increment.
+
+```text
+result:u8 := source "pop byte through SP" {
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0001:u16)
+  address:u16 := read SP
+  byte:u8 := read memory[address]
+  yield byte
+}
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 PULB
+
+Increment SP before reading, then replace A/B only after the read succeeds. Preserve all flags and every other register; a failed read retains the increment.
+
+```text
+result:u8 := source "pop byte through SP" {
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0001:u16)
+  address:u16 := read SP
+  byte:u8 := read memory[address]
+  yield byte
+}
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 DES
+
+Capture SP, subtract one with word wrap, and write SP. Preserve all flags.
+
+```text
+original:u16 := read SP
+write SP:u16 := subtract(original, 0001:u16)
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 TXS
+
+Capture X, subtract one with word wrap, and write SP. Preserve all flags.
+
+```text
+original:u16 := read X
+write SP:u16 := subtract(original, 0001:u16)
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 PSHA
+
+Capture A/B before reading SP, then push that byte. Decrement live SP only after the write succeeds. Preserve all flags and every other register.
+
+```text
+original:u8 := read A
+perform "push byte through SP" {
+  byte:u8 := original
+  address:u16 := read SP
+  write memory[address] := byte
+  pointer:u16 := read SP
+  write SP:u16 := subtract(pointer, 0001:u16)
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 PSHB
+
+Capture A/B before reading SP, then push that byte. Decrement live SP only after the write succeeds. Preserve all flags and every other register.
+
+```text
+original:u8 := read B
+perform "push byte through SP" {
+  byte:u8 := original
+  address:u16 := read SP
+  write memory[address] := byte
+  pointer:u16 := read SP
+  write SP:u16 := subtract(pointer, 0001:u16)
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 RTS
+
+Pull the complete high-first return address, then replace PC. Preserve every flag and other register. A failed read retains completed SP increments and prevents PC replacement.
+
+```text
+returnPC:u16 := source "pop high-first word through SP" {
+  high:u8 := source "pop byte through SP" {
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    yield byte
+  }
+  low:u8 := source "pop byte through SP" {
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write PC:u16 := returnPC
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 RTI
+
+RTI pulls CC, B, A, X, and PC in that order. Replace all six flags immediately after CC is read; commit each later register only after its complete read. Preserve waiting. Each pull increments live SP before reading; a failed read retains earlier increments and restorations.
+
+```text
+status:u8 := source "pop byte through SP" {
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0001:u16)
+  address:u16 := read SP
+  byte:u8 := read memory[address]
+  yield byte
+}
+replace flags "restore condition codes" simultaneously {
+  H := not(isZero(bitAnd(status, 20:u8)))
+  I := not(isZero(bitAnd(status, 10:u8)))
+  N := not(isZero(bitAnd(status, 08:u8)))
+  Z := not(isZero(bitAnd(status, 04:u8)))
+  V := not(isZero(bitAnd(status, 02:u8)))
+  C := not(isZero(bitAnd(status, 01:u8)))
+} // Replace the complete flag object.
+b:u8 := source "pop byte through SP" {
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0001:u16)
+  address:u16 := read SP
+  byte:u8 := read memory[address]
+  yield byte
+}
+write B:u8 := b
+a:u8 := source "pop byte through SP" {
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0001:u16)
+  address:u16 := read SP
+  byte:u8 := read memory[address]
+  yield byte
+}
+write A:u8 := a
+index:u16 := source "pop high-first word through SP" {
+  high:u8 := source "pop byte through SP" {
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    yield byte
+  }
+  low:u8 := source "pop byte through SP" {
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write X:u16 := index
+pc:u16 := source "pop high-first word through SP" {
+  high:u8 := source "pop byte through SP" {
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    yield byte
+  }
+  low:u8 := source "pop byte through SP" {
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write PC:u16 := pc
+```
+
+Flags preserved throughout: none.
+
+### 6800 WAI
+
+Save the complete frame, then set WAITING. Preserve I until wake-up. Failed stack writes prevent waiting and retain only completed frame bytes and SP changes.
+
+```text
+perform "save the complete interrupt frame" {
+  pc:u16 := read PC
+  perform "push high-first word through SP" {
+    word:u16 := pc
+    perform "push byte through SP" {
+      byte:u8 := lowByte(word)
+      address:u16 := read SP
+      write memory[address] := byte
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+    }
+    perform "push byte through SP" {
+      byte:u8 := highByte(word)
+      address:u16 := read SP
+      write memory[address] := byte
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+    }
+  }
+  index:u16 := read X
+  perform "push high-first word through SP" {
+    word:u16 := index
+    perform "push byte through SP" {
+      byte:u8 := lowByte(word)
+      address:u16 := read SP
+      write memory[address] := byte
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+    }
+    perform "push byte through SP" {
+      byte:u8 := highByte(word)
+      address:u16 := read SP
+      write memory[address] := byte
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+    }
+  }
+  a:u8 := read A
+  perform "push byte through SP" {
+    byte:u8 := a
+    address:u16 := read SP
+    write memory[address] := byte
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+  }
+  b:u8 := read B
+  perform "push byte through SP" {
+    byte:u8 := b
+    address:u16 := read SP
+    write memory[address] := byte
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+  }
+  status:u8 := source "packed condition codes" {
+    h:flag := read H
+    i:flag := read I
+    n:flag := read N
+    z:flag := read Z
+    v:flag := read V
+    c:flag := read C
+    hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+    nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+    vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+    yield bitOr(C0:u8, bitOr(hi, bitOr(nz, vc)))
+  }
+  perform "push byte through SP" {
+    byte:u8 := status
+    address:u16 := read SP
+    write memory[address] := byte
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+  }
+}
+write waiting:boolean := true
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 SWI
+
+Save a frame unless WAI already supplied it, release waiting, set I, then read the high-first `$FFFA` vector before replacing PC. Preserve H/N/Z/V/C and other registers; failed accesses retain completed effects.
+
+```text
+perform "external interrupt entry" {
+  vector:u16 := FFFA:u16
+  waiting:flag := read control latch waiting
+  when not(waiting) {
+    perform "save the complete interrupt frame" {
+      pc:u16 := read PC
+      perform "push high-first word through SP" {
+        word:u16 := pc
+        perform "push byte through SP" {
+          byte:u8 := lowByte(word)
+          address:u16 := read SP
+          write memory[address] := byte
+          pointer:u16 := read SP
+          write SP:u16 := subtract(pointer, 0001:u16)
+        }
+        perform "push byte through SP" {
+          byte:u8 := highByte(word)
+          address:u16 := read SP
+          write memory[address] := byte
+          pointer:u16 := read SP
+          write SP:u16 := subtract(pointer, 0001:u16)
+        }
+      }
+      index:u16 := read X
+      perform "push high-first word through SP" {
+        word:u16 := index
+        perform "push byte through SP" {
+          byte:u8 := lowByte(word)
+          address:u16 := read SP
+          write memory[address] := byte
+          pointer:u16 := read SP
+          write SP:u16 := subtract(pointer, 0001:u16)
+        }
+        perform "push byte through SP" {
+          byte:u8 := highByte(word)
+          address:u16 := read SP
+          write memory[address] := byte
+          pointer:u16 := read SP
+          write SP:u16 := subtract(pointer, 0001:u16)
+        }
+      }
+      a:u8 := read A
+      perform "push byte through SP" {
+        byte:u8 := a
+        address:u16 := read SP
+        write memory[address] := byte
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+      }
+      b:u8 := read B
+      perform "push byte through SP" {
+        byte:u8 := b
+        address:u16 := read SP
+        write memory[address] := byte
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+      }
+      status:u8 := source "packed condition codes" {
+        h:flag := read H
+        i:flag := read I
+        n:flag := read N
+        z:flag := read Z
+        v:flag := read V
+        c:flag := read C
+        hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+        nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+        vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+        yield bitOr(C0:u8, bitOr(hi, bitOr(nz, vc)))
+      }
+      perform "push byte through SP" {
+        byte:u8 := status
+        address:u16 := read SP
+        write memory[address] := byte
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+      }
+    }
+  }
+  write waiting:boolean := false
+  flags "set I" simultaneously {
+    I := 1:flag
+  } // Preserve unlisted flags.
+  high:u8 := read memory[vector]
+  low:u8 := read memory[addWrap(vector, 0001:u16)]
+  write PC:u16 := concatHighLow(high, low)
+}
+```
+
+Flags preserved throughout: H, N, Z, V, C.
+
+### 6800 NEGA
+
+Negate modulo 256. V marks original `$80`; C marks a nonzero original. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read A
+result := subtract(00:u8, original)
+flags "6800 NEG" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(00:u8, original)
+  C := borrow(00:u8, original)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 COMA
+
+Take the ones' complement, clearing V and setting C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read A
+result := subtract(FF:u8, original)
+flags "6800 COM" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 1:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 LSRA
+
+Shift right, inserting zero. C is the outgoing low bit; V is N XOR C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read A
+result := shiftRight(original, 0:flag)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 RORA
+
+Capture incoming C after the operand; rotate it into the top bit. Set C from the outgoing low bit and V to N XOR C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read A
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ASRA
+
+Shift right, retaining the original sign. Set C from the outgoing low bit and V to N XOR C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read A
+result := shiftRight(original, topBit(original))
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ASLA
+
+Shift left, inserting zero. Set C from the original sign bit and V to N XOR C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read A
+result := shiftLeft(original, 0:flag)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ROLA
+
+Capture incoming C after the operand; rotate it into the low bit. Set C from the original sign bit and V to N XOR C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read A
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 DECA
+
+Decrement modulo 256. Set V only for original `$80`; preserve C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read A
+result := subtract(original, 01:u8)
+flags "6800 DEC" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := isZero(subtract(original, 80:u8))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 INCA
+
+Increment modulo 256. Set V only for original `$7F`; preserve C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read A
+result := addWrap(original, 01:u8)
+flags "6800 INC" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := isZero(subtract(original, 7F:u8))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 TSTA
+
+Test the byte, clearing V and C without writing a result. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read A
+result := original
+flags "6800 TST" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 CLRA
+
+Do not read the destination. Set Z and clear N/C/V, then write zero; preserve H/I. No register other than the selected destination changes.
+
+```text
+result := 00:u8
+flags "6800 CLR" simultaneously {
+  N := 0:flag
+  Z := 1:flag
+  C := 0:flag
+  V := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 NEGB
+
+Negate modulo 256. V marks original `$80`; C marks a nonzero original. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read B
+result := subtract(00:u8, original)
+flags "6800 NEG" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(00:u8, original)
+  C := borrow(00:u8, original)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 COMB
+
+Take the ones' complement, clearing V and setting C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read B
+result := subtract(FF:u8, original)
+flags "6800 COM" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 1:flag
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 LSRB
+
+Shift right, inserting zero. C is the outgoing low bit; V is N XOR C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read B
+result := shiftRight(original, 0:flag)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 RORB
+
+Capture incoming C after the operand; rotate it into the top bit. Set C from the outgoing low bit and V to N XOR C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read B
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ASRB
+
+Shift right, retaining the original sign. Set C from the outgoing low bit and V to N XOR C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read B
+result := shiftRight(original, topBit(original))
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ASLB
+
+Shift left, inserting zero. Set C from the original sign bit and V to N XOR C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read B
+result := shiftLeft(original, 0:flag)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ROLB
+
+Capture incoming C after the operand; rotate it into the low bit. Set C from the original sign bit and V to N XOR C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read B
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 DECB
+
+Decrement modulo 256. Set V only for original `$80`; preserve C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read B
+result := subtract(original, 01:u8)
+flags "6800 DEC" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := isZero(subtract(original, 80:u8))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 INCB
+
+Increment modulo 256. Set V only for original `$7F`; preserve C. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read B
+result := addWrap(original, 01:u8)
+flags "6800 INC" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := isZero(subtract(original, 7F:u8))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 TSTB
+
+Test the byte, clearing V and C without writing a result. Set N/Z from the result; preserve H/I. No register other than the selected destination changes.
+
+```text
+original:u8 := read B
+result := original
+flags "6800 TST" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 CLRB
+
+Do not read the destination. Set Z and clear N/C/V, then write zero; preserve H/I. No register other than the selected destination changes.
+
+```text
+result := 00:u8
+flags "6800 CLR" simultaneously {
+  N := 0:flag
+  Z := 1:flag
+  C := 0:flag
+  V := 0:flag
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 NEG indexed
+
+Resolve the address once. Negate modulo 256. V marks original `$80`; C marks a nonzero original. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "indexed by X with unsigned offset" {
+  offset:u8 := fetch byte
+  index:u16 := read X
+  yield addWrap(index, zeroExtend16(offset))
+}
+original:u8 := read memory[address]
+result := subtract(00:u8, original)
+flags "6800 NEG" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(00:u8, original)
+  C := borrow(00:u8, original)
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 COM indexed
+
+Resolve the address once. Take the ones' complement, clearing V and setting C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "indexed by X with unsigned offset" {
+  offset:u8 := fetch byte
+  index:u16 := read X
+  yield addWrap(index, zeroExtend16(offset))
+}
+original:u8 := read memory[address]
+result := subtract(FF:u8, original)
+flags "6800 COM" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 1:flag
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 LSR indexed
+
+Resolve the address once. Shift right, inserting zero. C is the outgoing low bit; V is N XOR C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "indexed by X with unsigned offset" {
+  offset:u8 := fetch byte
+  index:u16 := read X
+  yield addWrap(index, zeroExtend16(offset))
+}
+original:u8 := read memory[address]
+result := shiftRight(original, 0:flag)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ROR indexed
+
+Resolve the address once. Capture incoming C after the operand; rotate it into the top bit. Set C from the outgoing low bit and V to N XOR C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "indexed by X with unsigned offset" {
+  offset:u8 := fetch byte
+  index:u16 := read X
+  yield addWrap(index, zeroExtend16(offset))
+}
+original:u8 := read memory[address]
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ASR indexed
+
+Resolve the address once. Shift right, retaining the original sign. Set C from the outgoing low bit and V to N XOR C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "indexed by X with unsigned offset" {
+  offset:u8 := fetch byte
+  index:u16 := read X
+  yield addWrap(index, zeroExtend16(offset))
+}
+original:u8 := read memory[address]
+result := shiftRight(original, topBit(original))
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ASL indexed
+
+Resolve the address once. Shift left, inserting zero. Set C from the original sign bit and V to N XOR C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "indexed by X with unsigned offset" {
+  offset:u8 := fetch byte
+  index:u16 := read X
+  yield addWrap(index, zeroExtend16(offset))
+}
+original:u8 := read memory[address]
+result := shiftLeft(original, 0:flag)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ROL indexed
+
+Resolve the address once. Capture incoming C after the operand; rotate it into the low bit. Set C from the original sign bit and V to N XOR C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "indexed by X with unsigned offset" {
+  offset:u8 := fetch byte
+  index:u16 := read X
+  yield addWrap(index, zeroExtend16(offset))
+}
+original:u8 := read memory[address]
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 DEC indexed
+
+Resolve the address once. Decrement modulo 256. Set V only for original `$80`; preserve C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "indexed by X with unsigned offset" {
+  offset:u8 := fetch byte
+  index:u16 := read X
+  yield addWrap(index, zeroExtend16(offset))
+}
+original:u8 := read memory[address]
+result := subtract(original, 01:u8)
+flags "6800 DEC" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := isZero(subtract(original, 80:u8))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 INC indexed
+
+Resolve the address once. Increment modulo 256. Set V only for original `$7F`; preserve C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "indexed by X with unsigned offset" {
+  offset:u8 := fetch byte
+  index:u16 := read X
+  yield addWrap(index, zeroExtend16(offset))
+}
+original:u8 := read memory[address]
+result := addWrap(original, 01:u8)
+flags "6800 INC" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := isZero(subtract(original, 7F:u8))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 TST indexed
+
+Resolve the address once. Test the byte, clearing V and C without writing a result. Set N/Z from the result; preserve H/I. A failed read prevents flag updates.
+
+```text
+address:u16 := source "indexed by X with unsigned offset" {
+  offset:u8 := fetch byte
+  index:u16 := read X
+  yield addWrap(index, zeroExtend16(offset))
+}
+original:u8 := read memory[address]
+result := original
+flags "6800 TST" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 JMP indexed
+
+JMP uses `011 m 1110`, where `m=0/1` selects indexed/extended. It resolves the address without reading the target byte, then replaces PC. Preserve flags and all other state; failed address fetching leaves PC at the completed fetch boundary.
+
+```text
+target:u16 := source "indexed by X with unsigned offset" {
+  offset:u8 := fetch byte
+  index:u16 := read X
+  yield addWrap(index, zeroExtend16(offset))
+}
+write PC:u16 := target
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 CLR indexed
+
+Resolve the address once. Do not read the destination. Set Z and clear N/C/V, then write zero; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "indexed by X with unsigned offset" {
+  offset:u8 := fetch byte
+  index:u16 := read X
+  yield addWrap(index, zeroExtend16(offset))
+}
+result := 00:u8
+flags "6800 CLR" simultaneously {
+  N := 0:flag
+  Z := 1:flag
+  C := 0:flag
+  V := 0:flag
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 NEG extended
+
+Resolve the address once. Negate modulo 256. V marks original `$80`; C marks a nonzero original. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "extended, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+result := subtract(00:u8, original)
+flags "6800 NEG" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(00:u8, original)
+  C := borrow(00:u8, original)
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 COM extended
+
+Resolve the address once. Take the ones' complement, clearing V and setting C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "extended, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+result := subtract(FF:u8, original)
+flags "6800 COM" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 1:flag
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 LSR extended
+
+Resolve the address once. Shift right, inserting zero. C is the outgoing low bit; V is N XOR C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "extended, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+result := shiftRight(original, 0:flag)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ROR extended
+
+Resolve the address once. Capture incoming C after the operand; rotate it into the top bit. Set C from the outgoing low bit and V to N XOR C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "extended, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ASR extended
+
+Resolve the address once. Shift right, retaining the original sign. Set C from the outgoing low bit and V to N XOR C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "extended, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+result := shiftRight(original, topBit(original))
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ASL extended
+
+Resolve the address once. Shift left, inserting zero. Set C from the original sign bit and V to N XOR C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "extended, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+result := shiftLeft(original, 0:flag)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ROL extended
+
+Resolve the address once. Capture incoming C after the operand; rotate it into the low bit. Set C from the original sign bit and V to N XOR C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "extended, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "6800 shift" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 DEC extended
+
+Resolve the address once. Decrement modulo 256. Set V only for original `$80`; preserve C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "extended, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+result := subtract(original, 01:u8)
+flags "6800 DEC" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := isZero(subtract(original, 80:u8))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 INC extended
+
+Resolve the address once. Increment modulo 256. Set V only for original `$7F`; preserve C. Set N/Z from the result; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "extended, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+result := addWrap(original, 01:u8)
+flags "6800 INC" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := isZero(subtract(original, 7F:u8))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 TST extended
+
+Resolve the address once. Test the byte, clearing V and C without writing a result. Set N/Z from the result; preserve H/I. A failed read prevents flag updates.
+
+```text
+address:u16 := source "extended, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+result := original
+flags "6800 TST" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 JMP extended
+
+JMP uses `011 m 1110`, where `m=0/1` selects indexed/extended. It resolves the address without reading the target byte, then replaces PC. Preserve flags and all other state; failed address fetching leaves PC at the completed fetch boundary.
+
+```text
+target:u16 := source "extended, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write PC:u16 := target
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 CLR extended
+
+Resolve the address once. Do not read the destination. Set Z and clear N/C/V, then write zero; preserve H/I. Apply flags before any write; a failed write retains them and completed addressing effects.
+
+```text
+address:u16 := source "extended, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+result := 00:u8
+flags "6800 CLR" simultaneously {
+  N := 0:flag
+  Z := 1:flag
+  C := 0:flag
+  V := 0:flag
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 SUBA #byte
+
+Fetch or read the operand, then A/B; ignore incoming C. Subtract with byte wrap, set N/Z/V/C with C meaning borrow, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, 0:flag)
+  C := borrow(left, right, 0:flag)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
 ### 6800 CMPA #byte
 
 Fetch or read the source before capturing A/B. Subtract it, set N/Z/V/C, and preserve H/I. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
@@ -241066,6 +242851,29 @@ flags "6800 byte comparison" simultaneously {
   V := subtractOverflow(left, right)
   C := borrow(left, right)
 } // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 SBCA #byte
+
+Fetch or read the operand, then A/B, then incoming C as borrow. Subtract the operand and borrow, set N/Z/V/C, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
 ```
 
 Flags preserved throughout: H, I.
@@ -241151,6 +242959,30 @@ flags "6800 byte result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 ADCA #byte
+
+Fetch or read the operand, then A/B, then incoming C. Add all three, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: I.
+
 ### 6800 ORAA #byte
 
 Fetch or read the operand before capturing A/B. Combine the captured bytes by inclusive OR, write the result, then set N/Z and clear V. Preserve H/I/C. A failed read prevents register and flag updates.
@@ -241171,6 +243003,29 @@ flags "6800 byte result" simultaneously {
 ```
 
 Flags preserved throughout: H, I, C.
+
+### 6800 ADDA #byte
+
+Fetch or read the operand, then A/B; ignore incoming C. Add with byte wrap, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state. A failed source read prevents arithmetic, flags, and writeback.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, 0:flag)
+  C := carry(left, right, 0:flag)
+  H := halfCarry4(left, right, 0:flag)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: I.
 
 ### 6800 CPX #word
 
@@ -241193,6 +243048,42 @@ flags "6800 CPX high-byte N/V and whole-word Z" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 BSR
+
+Fetch a signed displacement and calculate its target from post-fetch PC. Capture PC again for the return address, push it low/high, and write the target only after both writes succeed. Preserve all flags and other registers.
+
+```text
+target:u16 := source "relative call target" {
+  offset:u8 := fetch byte
+  pc:u16 := read PC
+  yield addWrap(pc, signExtend16(offset))
+}
+perform "save return address and call" {
+  target:u16 := target
+  returnPC:u16 := read PC
+  perform "push high-first word through SP" {
+    word:u16 := returnPC
+    perform "push byte through SP" {
+      byte:u8 := lowByte(word)
+      address:u16 := read SP
+      write memory[address] := byte
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+    }
+    perform "push byte through SP" {
+      byte:u8 := highByte(word)
+      address:u16 := read SP
+      write memory[address] := byte
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+    }
+  }
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
 ### 6800 LDS #word
 
 Fetch or read the complete word high byte first, then write SP/X and set N/Z from that captured word, clearing V. Preserve H/I/C and the waiting latch. A failed read prevents register and flag updates.
@@ -241212,6 +243103,32 @@ flags "6800 word result" simultaneously {
 ```
 
 Flags preserved throughout: H, I, C.
+
+### 6800 SUBA direct
+
+Fetch or read the operand, then A/B; ignore incoming C. Subtract with byte wrap, set N/Z/V/C with C meaning borrow, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at direct, page zero" {
+  address:u16 := source "direct, page zero" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, 0:flag)
+  C := borrow(left, right, 0:flag)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
 
 ### 6800 CMPA direct
 
@@ -241234,6 +243151,33 @@ flags "6800 byte comparison" simultaneously {
   V := subtractOverflow(left, right)
   C := borrow(left, right)
 } // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 SBCA direct
+
+Fetch or read the operand, then A/B, then incoming C as borrow. Subtract the operand and borrow, set N/Z/V/C, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at direct, page zero" {
+  address:u16 := source "direct, page zero" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
 ```
 
 Flags preserved throughout: H, I.
@@ -241355,6 +243299,34 @@ flags "6800 byte result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 ADCA direct
+
+Fetch or read the operand, then A/B, then incoming C. Add all three, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at direct, page zero" {
+  address:u16 := source "direct, page zero" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: I.
+
 ### 6800 ORAA direct
 
 Fetch or read the operand before capturing A/B. Combine the captured bytes by inclusive OR, write the result, then set N/Z and clear V. Preserve H/I/C. A failed read prevents register and flag updates.
@@ -241379,6 +243351,33 @@ flags "6800 byte result" simultaneously {
 ```
 
 Flags preserved throughout: H, I, C.
+
+### 6800 ADDA direct
+
+Fetch or read the operand, then A/B; ignore incoming C. Add with byte wrap, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state. A failed source read prevents arithmetic, flags, and writeback.
+
+```text
+right:u8 := source "byte at direct, page zero" {
+  address:u16 := source "direct, page zero" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, 0:flag)
+  C := carry(left, right, 0:flag)
+  H := halfCarry4(left, right, 0:flag)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: I.
 
 ### 6800 CPX direct
 
@@ -241450,6 +243449,33 @@ flags "6800 word result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 SUBA indexed
+
+Fetch or read the operand, then A/B; ignore incoming C. Subtract with byte wrap, set N/Z/V/C with C meaning borrow, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at indexed by X with unsigned offset" {
+  address:u16 := source "indexed by X with unsigned offset" {
+    offset:u8 := fetch byte
+    index:u16 := read X
+    yield addWrap(index, zeroExtend16(offset))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, 0:flag)
+  C := borrow(left, right, 0:flag)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
 ### 6800 CMPA indexed
 
 Fetch or read the source before capturing A/B. Subtract it, set N/Z/V/C, and preserve H/I. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
@@ -241472,6 +243498,34 @@ flags "6800 byte comparison" simultaneously {
   V := subtractOverflow(left, right)
   C := borrow(left, right)
 } // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 SBCA indexed
+
+Fetch or read the operand, then A/B, then incoming C as borrow. Subtract the operand and borrow, set N/Z/V/C, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at indexed by X with unsigned offset" {
+  address:u16 := source "indexed by X with unsigned offset" {
+    offset:u8 := fetch byte
+    index:u16 := read X
+    yield addWrap(index, zeroExtend16(offset))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
 ```
 
 Flags preserved throughout: H, I.
@@ -241598,6 +243652,35 @@ flags "6800 byte result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 ADCA indexed
+
+Fetch or read the operand, then A/B, then incoming C. Add all three, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at indexed by X with unsigned offset" {
+  address:u16 := source "indexed by X with unsigned offset" {
+    offset:u8 := fetch byte
+    index:u16 := read X
+    yield addWrap(index, zeroExtend16(offset))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: I.
+
 ### 6800 ORAA indexed
 
 Fetch or read the operand before capturing A/B. Combine the captured bytes by inclusive OR, write the result, then set N/Z and clear V. Preserve H/I/C. A failed read prevents register and flag updates.
@@ -241624,6 +243707,34 @@ flags "6800 byte result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 ADDA indexed
+
+Fetch or read the operand, then A/B; ignore incoming C. Add with byte wrap, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state. A failed source read prevents arithmetic, flags, and writeback.
+
+```text
+right:u8 := source "byte at indexed by X with unsigned offset" {
+  address:u16 := source "indexed by X with unsigned offset" {
+    offset:u8 := fetch byte
+    index:u16 := read X
+    yield addWrap(index, zeroExtend16(offset))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, 0:flag)
+  C := carry(left, right, 0:flag)
+  H := halfCarry4(left, right, 0:flag)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: I.
+
 ### 6800 CPX indexed
 
 Fetch or read the complete high-first word before capturing X. N/V describe high-byte subtraction without low-byte borrow; Z tests whole-word equality. Preserve H/I/C and X. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
@@ -241649,6 +243760,42 @@ flags "6800 CPX high-byte N/V and whole-word Z" simultaneously {
 ```
 
 Flags preserved throughout: H, I, C.
+
+### 6800 JSR indexed
+
+Resolve the indexed or extended target before capturing the return PC. Push that PC low/high and write the target only after both writes succeed. Preserve all flags and other registers; failed writes retain completed stack effects.
+
+```text
+target:u16 := source "indexed by X with unsigned offset" {
+  offset:u8 := fetch byte
+  index:u16 := read X
+  yield addWrap(index, zeroExtend16(offset))
+}
+perform "save return address and call" {
+  target:u16 := target
+  returnPC:u16 := read PC
+  perform "push high-first word through SP" {
+    word:u16 := returnPC
+    perform "push byte through SP" {
+      byte:u8 := lowByte(word)
+      address:u16 := read SP
+      write memory[address] := byte
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+    }
+    perform "push byte through SP" {
+      byte:u8 := highByte(word)
+      address:u16 := read SP
+      write memory[address] := byte
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+    }
+  }
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
 
 ### 6800 LDS indexed
 
@@ -241697,6 +243844,33 @@ flags "6800 word result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 SUBA extended
+
+Fetch or read the operand, then A/B; ignore incoming C. Subtract with byte wrap, set N/Z/V/C with C meaning borrow, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at extended, high byte first" {
+  address:u16 := source "extended, high byte first" {
+    high:u8 := fetch byte
+    low:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, 0:flag)
+  C := borrow(left, right, 0:flag)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
 ### 6800 CMPA extended
 
 Fetch or read the source before capturing A/B. Subtract it, set N/Z/V/C, and preserve H/I. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
@@ -241719,6 +243893,34 @@ flags "6800 byte comparison" simultaneously {
   V := subtractOverflow(left, right)
   C := borrow(left, right)
 } // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 SBCA extended
+
+Fetch or read the operand, then A/B, then incoming C as borrow. Subtract the operand and borrow, set N/Z/V/C, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at extended, high byte first" {
+  address:u16 := source "extended, high byte first" {
+    high:u8 := fetch byte
+    low:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
 ```
 
 Flags preserved throughout: H, I.
@@ -241845,6 +244047,35 @@ flags "6800 byte result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 ADCA extended
+
+Fetch or read the operand, then A/B, then incoming C. Add all three, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at extended, high byte first" {
+  address:u16 := source "extended, high byte first" {
+    high:u8 := fetch byte
+    low:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: I.
+
 ### 6800 ORAA extended
 
 Fetch or read the operand before capturing A/B. Combine the captured bytes by inclusive OR, write the result, then set N/Z and clear V. Preserve H/I/C. A failed read prevents register and flag updates.
@@ -241871,6 +244102,34 @@ flags "6800 byte result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 ADDA extended
+
+Fetch or read the operand, then A/B; ignore incoming C. Add with byte wrap, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state. A failed source read prevents arithmetic, flags, and writeback.
+
+```text
+right:u8 := source "byte at extended, high byte first" {
+  address:u16 := source "extended, high byte first" {
+    high:u8 := fetch byte
+    low:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, 0:flag)
+  C := carry(left, right, 0:flag)
+  H := halfCarry4(left, right, 0:flag)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: I.
+
 ### 6800 CPX extended
 
 Fetch or read the complete high-first word before capturing X. N/V describe high-byte subtraction without low-byte borrow; Z tests whole-word equality. Preserve H/I/C and X. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
@@ -241896,6 +244155,42 @@ flags "6800 CPX high-byte N/V and whole-word Z" simultaneously {
 ```
 
 Flags preserved throughout: H, I, C.
+
+### 6800 JSR extended
+
+Resolve the indexed or extended target before capturing the return PC. Push that PC low/high and write the target only after both writes succeed. Preserve all flags and other registers; failed writes retain completed stack effects.
+
+```text
+target:u16 := source "extended, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+perform "save return address and call" {
+  target:u16 := target
+  returnPC:u16 := read PC
+  perform "push high-first word through SP" {
+    word:u16 := returnPC
+    perform "push byte through SP" {
+      byte:u8 := lowByte(word)
+      address:u16 := read SP
+      write memory[address] := byte
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+    }
+    perform "push byte through SP" {
+      byte:u8 := highByte(word)
+      address:u16 := read SP
+      write memory[address] := byte
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+    }
+  }
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
 
 ### 6800 LDS extended
 
@@ -241944,6 +244239,28 @@ flags "6800 word result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 SUBB #byte
+
+Fetch or read the operand, then A/B; ignore incoming C. Subtract with byte wrap, set N/Z/V/C with C meaning borrow, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read B
+result := subtract(left, right)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, 0:flag)
+  C := borrow(left, right, 0:flag)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
 ### 6800 CMPB #byte
 
 Fetch or read the source before capturing A/B. Subtract it, set N/Z/V/C, and preserve H/I. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
@@ -241961,6 +244278,29 @@ flags "6800 byte comparison" simultaneously {
   V := subtractOverflow(left, right)
   C := borrow(left, right)
 } // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 SBCB #byte
+
+Fetch or read the operand, then A/B, then incoming C as borrow. Subtract the operand and borrow, set N/Z/V/C, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read B
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
 ```
 
 Flags preserved throughout: H, I.
@@ -242046,6 +244386,30 @@ flags "6800 byte result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 ADCB #byte
+
+Fetch or read the operand, then A/B, then incoming C. Add all three, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read B
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: I.
+
 ### 6800 ORAB #byte
 
 Fetch or read the operand before capturing A/B. Combine the captured bytes by inclusive OR, write the result, then set N/Z and clear V. Preserve H/I/C. A failed read prevents register and flag updates.
@@ -242067,6 +244431,29 @@ flags "6800 byte result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 ADDB #byte
+
+Fetch or read the operand, then A/B; ignore incoming C. Add with byte wrap, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state. A failed source read prevents arithmetic, flags, and writeback.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read B
+result := addWrap(left, right)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, 0:flag)
+  C := carry(left, right, 0:flag)
+  H := halfCarry4(left, right, 0:flag)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: I.
+
 ### 6800 LDX #word
 
 Fetch or read the complete word high byte first, then write SP/X and set N/Z from that captured word, clearing V. Preserve H/I/C and the waiting latch. A failed read prevents register and flag updates.
@@ -242086,6 +244473,32 @@ flags "6800 word result" simultaneously {
 ```
 
 Flags preserved throughout: H, I, C.
+
+### 6800 SUBB direct
+
+Fetch or read the operand, then A/B; ignore incoming C. Subtract with byte wrap, set N/Z/V/C with C meaning borrow, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at direct, page zero" {
+  address:u16 := source "direct, page zero" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read B
+result := subtract(left, right)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, 0:flag)
+  C := borrow(left, right, 0:flag)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
 
 ### 6800 CMPB direct
 
@@ -242108,6 +244521,33 @@ flags "6800 byte comparison" simultaneously {
   V := subtractOverflow(left, right)
   C := borrow(left, right)
 } // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 SBCB direct
+
+Fetch or read the operand, then A/B, then incoming C as borrow. Subtract the operand and borrow, set N/Z/V/C, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at direct, page zero" {
+  address:u16 := source "direct, page zero" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read B
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
 ```
 
 Flags preserved throughout: H, I.
@@ -242229,6 +244669,34 @@ flags "6800 byte result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 ADCB direct
+
+Fetch or read the operand, then A/B, then incoming C. Add all three, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at direct, page zero" {
+  address:u16 := source "direct, page zero" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read B
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: I.
+
 ### 6800 ORAB direct
 
 Fetch or read the operand before capturing A/B. Combine the captured bytes by inclusive OR, write the result, then set N/Z and clear V. Preserve H/I/C. A failed read prevents register and flag updates.
@@ -242253,6 +244721,33 @@ flags "6800 byte result" simultaneously {
 ```
 
 Flags preserved throughout: H, I, C.
+
+### 6800 ADDB direct
+
+Fetch or read the operand, then A/B; ignore incoming C. Add with byte wrap, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state. A failed source read prevents arithmetic, flags, and writeback.
+
+```text
+right:u8 := source "byte at direct, page zero" {
+  address:u16 := source "direct, page zero" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read B
+result := addWrap(left, right)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, 0:flag)
+  C := carry(left, right, 0:flag)
+  H := halfCarry4(left, right, 0:flag)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: I.
 
 ### 6800 LDX direct
 
@@ -242299,6 +244794,33 @@ flags "6800 word result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 SUBB indexed
+
+Fetch or read the operand, then A/B; ignore incoming C. Subtract with byte wrap, set N/Z/V/C with C meaning borrow, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at indexed by X with unsigned offset" {
+  address:u16 := source "indexed by X with unsigned offset" {
+    offset:u8 := fetch byte
+    index:u16 := read X
+    yield addWrap(index, zeroExtend16(offset))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read B
+result := subtract(left, right)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, 0:flag)
+  C := borrow(left, right, 0:flag)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
 ### 6800 CMPB indexed
 
 Fetch or read the source before capturing A/B. Subtract it, set N/Z/V/C, and preserve H/I. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
@@ -242321,6 +244843,34 @@ flags "6800 byte comparison" simultaneously {
   V := subtractOverflow(left, right)
   C := borrow(left, right)
 } // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 SBCB indexed
+
+Fetch or read the operand, then A/B, then incoming C as borrow. Subtract the operand and borrow, set N/Z/V/C, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at indexed by X with unsigned offset" {
+  address:u16 := source "indexed by X with unsigned offset" {
+    offset:u8 := fetch byte
+    index:u16 := read X
+    yield addWrap(index, zeroExtend16(offset))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read B
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
 ```
 
 Flags preserved throughout: H, I.
@@ -242447,6 +244997,35 @@ flags "6800 byte result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 ADCB indexed
+
+Fetch or read the operand, then A/B, then incoming C. Add all three, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at indexed by X with unsigned offset" {
+  address:u16 := source "indexed by X with unsigned offset" {
+    offset:u8 := fetch byte
+    index:u16 := read X
+    yield addWrap(index, zeroExtend16(offset))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read B
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: I.
+
 ### 6800 ORAB indexed
 
 Fetch or read the operand before capturing A/B. Combine the captured bytes by inclusive OR, write the result, then set N/Z and clear V. Preserve H/I/C. A failed read prevents register and flag updates.
@@ -242472,6 +245051,34 @@ flags "6800 byte result" simultaneously {
 ```
 
 Flags preserved throughout: H, I, C.
+
+### 6800 ADDB indexed
+
+Fetch or read the operand, then A/B; ignore incoming C. Add with byte wrap, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state. A failed source read prevents arithmetic, flags, and writeback.
+
+```text
+right:u8 := source "byte at indexed by X with unsigned offset" {
+  address:u16 := source "indexed by X with unsigned offset" {
+    offset:u8 := fetch byte
+    index:u16 := read X
+    yield addWrap(index, zeroExtend16(offset))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read B
+result := addWrap(left, right)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, 0:flag)
+  C := carry(left, right, 0:flag)
+  H := halfCarry4(left, right, 0:flag)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: I.
 
 ### 6800 LDX indexed
 
@@ -242520,6 +245127,33 @@ flags "6800 word result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 SUBB extended
+
+Fetch or read the operand, then A/B; ignore incoming C. Subtract with byte wrap, set N/Z/V/C with C meaning borrow, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at extended, high byte first" {
+  address:u16 := source "extended, high byte first" {
+    high:u8 := fetch byte
+    low:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read B
+result := subtract(left, right)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, 0:flag)
+  C := borrow(left, right, 0:flag)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
 ### 6800 CMPB extended
 
 Fetch or read the source before capturing A/B. Subtract it, set N/Z/V/C, and preserve H/I. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
@@ -242542,6 +245176,34 @@ flags "6800 byte comparison" simultaneously {
   V := subtractOverflow(left, right)
   C := borrow(left, right)
 } // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 SBCB extended
+
+Fetch or read the operand, then A/B, then incoming C as borrow. Subtract the operand and borrow, set N/Z/V/C, and write A/B after flags. Preserve H/I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at extended, high byte first" {
+  address:u16 := source "extended, high byte first" {
+    high:u8 := fetch byte
+    low:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read B
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6800 subtraction" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
 ```
 
 Flags preserved throughout: H, I.
@@ -242668,6 +245330,35 @@ flags "6800 byte result" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 ADCB extended
+
+Fetch or read the operand, then A/B, then incoming C. Add all three, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state; failed reads prevent later effects.
+
+```text
+right:u8 := source "byte at extended, high byte first" {
+  address:u16 := source "extended, high byte first" {
+    high:u8 := fetch byte
+    low:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read B
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: I.
+
 ### 6800 ORAB extended
 
 Fetch or read the operand before capturing A/B. Combine the captured bytes by inclusive OR, write the result, then set N/Z and clear V. Preserve H/I/C. A failed read prevents register and flag updates.
@@ -242693,6 +245384,34 @@ flags "6800 byte result" simultaneously {
 ```
 
 Flags preserved throughout: H, I, C.
+
+### 6800 ADDB extended
+
+Fetch or read the operand, then A/B; ignore incoming C. Add with byte wrap, set N/Z/V/C/H, and write A/B after flags. Preserve I and other state. A failed source read prevents arithmetic, flags, and writeback.
+
+```text
+right:u8 := source "byte at extended, high byte first" {
+  address:u16 := source "extended, high byte first" {
+    high:u8 := fetch byte
+    low:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read B
+result := addWrap(left, right)
+flags "6800 addition" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, 0:flag)
+  C := carry(left, right, 0:flag)
+  H := halfCarry4(left, right, 0:flag)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: I.
 
 ### 6800 LDX extended
 
@@ -242743,1917 +245462,96 @@ Flags preserved throughout: H, I, C.
 
 ### 6800 external interrupt entry
 
-Unless WAI already saved the frame, push PC, X, A, B, then CC with old I. Capture each field at its turn; words push low/high. Release WAI, set I, then read the complete high-first vector before writing PC. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+External entry and SWI skip frame saving when WAI already saved it. After any required frame, release waiting, set I, and read both vector bytes high first before changing PC. A failed vector read retains those state and stack effects.
 
 ```text
 vector:u16 := input
 waiting:flag := read control latch waiting
 when not(waiting) {
-  frame4:u16 := source "register PC" {
-    contents:u16 := read PC
-    yield contents
+  perform "save the complete interrupt frame" {
+    pc:u16 := read PC
+    perform "push high-first word through SP" {
+      word:u16 := pc
+      perform "push byte through SP" {
+        byte:u8 := lowByte(word)
+        address:u16 := read SP
+        write memory[address] := byte
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+      }
+      perform "push byte through SP" {
+        byte:u8 := highByte(word)
+        address:u16 := read SP
+        write memory[address] := byte
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+      }
+    }
+    index:u16 := read X
+    perform "push high-first word through SP" {
+      word:u16 := index
+      perform "push byte through SP" {
+        byte:u8 := lowByte(word)
+        address:u16 := read SP
+        write memory[address] := byte
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+      }
+      perform "push byte through SP" {
+        byte:u8 := highByte(word)
+        address:u16 := read SP
+        write memory[address] := byte
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+      }
+    }
+    a:u8 := read A
+    perform "push byte through SP" {
+      byte:u8 := a
+      address:u16 := read SP
+      write memory[address] := byte
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+    }
+    b:u8 := read B
+    perform "push byte through SP" {
+      byte:u8 := b
+      address:u16 := read SP
+      write memory[address] := byte
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+    }
+    status:u8 := source "packed condition codes" {
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(C0:u8, bitOr(hi, bitOr(nz, vc)))
+    }
+    perform "push byte through SP" {
+      byte:u8 := status
+      address:u16 := read SP
+      write memory[address] := byte
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+    }
   }
-  frame4FirstAddress:u16 := read SP
-  write memory[frame4FirstAddress] := lowByte(frame4)
-  frame4FirstPointer:u16 := read SP
-  write SP:u16 := subtract(frame4FirstPointer, 0001:u16)
-  frame4SecondAddress:u16 := read SP
-  write memory[frame4SecondAddress] := highByte(frame4)
-  frame4SecondPointer:u16 := read SP
-  write SP:u16 := subtract(frame4SecondPointer, 0001:u16)
-  frame3:u16 := source "register X" {
-    contents:u16 := read X
-    yield contents
-  }
-  frame3FirstAddress:u16 := read SP
-  write memory[frame3FirstAddress] := lowByte(frame3)
-  frame3FirstPointer:u16 := read SP
-  write SP:u16 := subtract(frame3FirstPointer, 0001:u16)
-  frame3SecondAddress:u16 := read SP
-  write memory[frame3SecondAddress] := highByte(frame3)
-  frame3SecondPointer:u16 := read SP
-  write SP:u16 := subtract(frame3SecondPointer, 0001:u16)
-  frame2:u8 := source "register A" {
-    contents:u8 := read A
-    yield contents
-  }
-  frame2Address:u16 := read SP
-  write memory[frame2Address] := frame2
-  frame2Pointer:u16 := read SP
-  write SP:u16 := subtract(frame2Pointer, 0001:u16)
-  frame1:u8 := source "register B" {
-    contents:u8 := read B
-    yield contents
-  }
-  frame1Address:u16 := read SP
-  write memory[frame1Address] := frame1
-  frame1Pointer:u16 := read SP
-  write SP:u16 := subtract(frame1Pointer, 0001:u16)
-  frame0:u8 := source "packed condition codes" {
-    h:flag := read H
-    i:flag := read I
-    n:flag := read N
-    z:flag := read Z
-    v:flag := read V
-    c:flag := read C
-    hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-    nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-    vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-    yield bitOr(C0:u8, bitOr(hi, bitOr(nz, vc)))
-  }
-  frame0Address:u16 := read SP
-  write memory[frame0Address] := frame0
-  frame0Pointer:u16 := read SP
-  write SP:u16 := subtract(frame0Pointer, 0001:u16)
 }
 write waiting:boolean := false
-flags "mask IRQ" simultaneously {
+flags "set I" simultaneously {
   I := 1:flag
 } // Preserve unlisted flags.
-vectorHigh:u8 := read memory[vector]
-vectorLow:u8 := read memory[addWrap(vector, 0001:u16)]
-write PC:u16 := concatHighLow(vectorHigh, vectorLow)
+high:u8 := read memory[vector]
+low:u8 := read memory[addWrap(vector, 0001:u16)]
+write PC:u16 := concatHighLow(high, low)
 ```
 
 Flags preserved throughout: H, N, Z, V, C.
-
-### 6800 SWI
-
-Unless WAI already saved the frame, push PC, X, A, B, then CC with old I. Capture each field at its turn; words push low/high. Release WAI, set I, then read the complete high-first vector before writing PC. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
-
-```text
-waiting:flag := read control latch waiting
-when not(waiting) {
-  frame4:u16 := source "register PC" {
-    contents:u16 := read PC
-    yield contents
-  }
-  frame4FirstAddress:u16 := read SP
-  write memory[frame4FirstAddress] := lowByte(frame4)
-  frame4FirstPointer:u16 := read SP
-  write SP:u16 := subtract(frame4FirstPointer, 0001:u16)
-  frame4SecondAddress:u16 := read SP
-  write memory[frame4SecondAddress] := highByte(frame4)
-  frame4SecondPointer:u16 := read SP
-  write SP:u16 := subtract(frame4SecondPointer, 0001:u16)
-  frame3:u16 := source "register X" {
-    contents:u16 := read X
-    yield contents
-  }
-  frame3FirstAddress:u16 := read SP
-  write memory[frame3FirstAddress] := lowByte(frame3)
-  frame3FirstPointer:u16 := read SP
-  write SP:u16 := subtract(frame3FirstPointer, 0001:u16)
-  frame3SecondAddress:u16 := read SP
-  write memory[frame3SecondAddress] := highByte(frame3)
-  frame3SecondPointer:u16 := read SP
-  write SP:u16 := subtract(frame3SecondPointer, 0001:u16)
-  frame2:u8 := source "register A" {
-    contents:u8 := read A
-    yield contents
-  }
-  frame2Address:u16 := read SP
-  write memory[frame2Address] := frame2
-  frame2Pointer:u16 := read SP
-  write SP:u16 := subtract(frame2Pointer, 0001:u16)
-  frame1:u8 := source "register B" {
-    contents:u8 := read B
-    yield contents
-  }
-  frame1Address:u16 := read SP
-  write memory[frame1Address] := frame1
-  frame1Pointer:u16 := read SP
-  write SP:u16 := subtract(frame1Pointer, 0001:u16)
-  frame0:u8 := source "packed condition codes" {
-    h:flag := read H
-    i:flag := read I
-    n:flag := read N
-    z:flag := read Z
-    v:flag := read V
-    c:flag := read C
-    hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-    nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-    vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-    yield bitOr(C0:u8, bitOr(hi, bitOr(nz, vc)))
-  }
-  frame0Address:u16 := read SP
-  write memory[frame0Address] := frame0
-  frame0Pointer:u16 := read SP
-  write SP:u16 := subtract(frame0Pointer, 0001:u16)
-}
-write waiting:boolean := false
-flags "mask IRQ" simultaneously {
-  I := 1:flag
-} // Preserve unlisted flags.
-vectorHigh:u8 := read memory[FFFA:u16]
-vectorLow:u8 := read memory[addWrap(FFFA:u16, 0001:u16)]
-write PC:u16 := concatHighLow(vectorHigh, vectorLow)
-```
-
-Flags preserved throughout: H, N, Z, V, C.
-
-### 6800 WAI
-
-Save the complete interrupt frame before entering WAI; preserve I until wake-up. A failed push prevents waiting. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
-
-```text
-frame4:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-frame4FirstAddress:u16 := read SP
-write memory[frame4FirstAddress] := lowByte(frame4)
-frame4FirstPointer:u16 := read SP
-write SP:u16 := subtract(frame4FirstPointer, 0001:u16)
-frame4SecondAddress:u16 := read SP
-write memory[frame4SecondAddress] := highByte(frame4)
-frame4SecondPointer:u16 := read SP
-write SP:u16 := subtract(frame4SecondPointer, 0001:u16)
-frame3:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-frame3FirstAddress:u16 := read SP
-write memory[frame3FirstAddress] := lowByte(frame3)
-frame3FirstPointer:u16 := read SP
-write SP:u16 := subtract(frame3FirstPointer, 0001:u16)
-frame3SecondAddress:u16 := read SP
-write memory[frame3SecondAddress] := highByte(frame3)
-frame3SecondPointer:u16 := read SP
-write SP:u16 := subtract(frame3SecondPointer, 0001:u16)
-frame2:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-frame2Address:u16 := read SP
-write memory[frame2Address] := frame2
-frame2Pointer:u16 := read SP
-write SP:u16 := subtract(frame2Pointer, 0001:u16)
-frame1:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-frame1Address:u16 := read SP
-write memory[frame1Address] := frame1
-frame1Pointer:u16 := read SP
-write SP:u16 := subtract(frame1Pointer, 0001:u16)
-frame0:u8 := source "packed condition codes" {
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(C0:u8, bitOr(hi, bitOr(nz, vc)))
-}
-frame0Address:u16 := read SP
-write memory[frame0Address] := frame0
-frame0Pointer:u16 := read SP
-write SP:u16 := subtract(frame0Pointer, 0001:u16)
-write waiting:boolean := true
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 RTI
-
-Pull CC, B, A, X, then PC. Replace flags immediately after CC; commit each later field only after its complete read. Preserve waiting. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
-
-```text
-frame0:u8 := source "pop byte through SP" {
-  pointer:u16 := read SP
-  write SP:u16 := addWrap(pointer, 0001:u16)
-  address:u16 := read SP
-  byte:u8 := read memory[address]
-  yield byte
-}
-replace flags "restore condition codes" simultaneously {
-  H := not(isZero(bitAnd(frame0, 20:u8)))
-  I := not(isZero(bitAnd(frame0, 10:u8)))
-  N := not(isZero(bitAnd(frame0, 08:u8)))
-  Z := not(isZero(bitAnd(frame0, 04:u8)))
-  V := not(isZero(bitAnd(frame0, 02:u8)))
-  C := not(isZero(bitAnd(frame0, 01:u8)))
-} // Replace the complete flag object.
-frame1:u8 := source "pop byte through SP" {
-  pointer:u16 := read SP
-  write SP:u16 := addWrap(pointer, 0001:u16)
-  address:u16 := read SP
-  byte:u8 := read memory[address]
-  yield byte
-}
-write B:u8 := frame1
-frame2:u8 := source "pop byte through SP" {
-  pointer:u16 := read SP
-  write SP:u16 := addWrap(pointer, 0001:u16)
-  address:u16 := read SP
-  byte:u8 := read memory[address]
-  yield byte
-}
-write A:u8 := frame2
-frame3:u16 := source "pop big-endian word" {
-  high:u8 := source "pop byte through SP" {
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    yield byte
-  }
-  low:u8 := source "pop byte through SP" {
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    yield byte
-  }
-  yield concatHighLow(high, low)
-}
-write X:u16 := frame3
-frame4:u16 := source "pop big-endian word" {
-  high:u8 := source "pop byte through SP" {
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    yield byte
-  }
-  low:u8 := source "pop byte through SP" {
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    yield byte
-  }
-  yield concatHighLow(high, low)
-}
-write PC:u16 := frame4
-```
-
-Flags preserved throughout: none.
-
-### 6800 NOP
-
-No effects after opcode fetching.
-
-```text
-
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 DAA
-
-Choose low/high corrections from the original A and half/full carry, including invalid BCD inputs. Add the correction; update N/Z, clear undefined V, and retain or set C before writing A. Preserve H and control flags. No instruction or data-memory access occurs.
-
-```text
-original:u8 := read A
-half:flag := read H
-carry:flag := read C
-correction := bitOr(select(or(not(borrow(bitAnd(original, 0F:u8), 0A:u8)), half), 06:u8, 00:u8), select(or(not(borrow(original, 9A:u8)), carry), 60:u8, 00:u8))
-result := addWrap(original, correction)
-flags "DAA" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := or(carry, carry(original, correction))
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 CLV
-
-Clear V; preserve every other flag and register.
-
-```text
-flags "CLV" simultaneously {
-  V := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: H, I, N, Z, C.
-
-### 6800 SEV
-
-Set V; preserve every other flag and register.
-
-```text
-flags "SEV" simultaneously {
-  V := 1:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: H, I, N, Z, C.
-
-### 6800 CLC
-
-Clear C; preserve every other flag and register.
-
-```text
-flags "CLC" simultaneously {
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: H, I, N, Z, V.
-
-### 6800 SEC
-
-Set C; preserve every other flag and register.
-
-```text
-flags "SEC" simultaneously {
-  C := 1:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: H, I, N, Z, V.
-
-### 6800 CLI
-
-Clear I; preserve every other flag and register.
-
-```text
-flags "CLI" simultaneously {
-  I := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: H, N, Z, V, C.
-
-### 6800 SEI
-
-Set I; preserve every other flag and register.
-
-```text
-flags "SEI" simultaneously {
-  I := 1:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: H, N, Z, V, C.
-
-### 6800 INX
-
-Capture X, add one with word wrap, and write X. Then update Z only.
-
-```text
-result:u16 := source "adjusted word" {
-  original:u16 := read X
-  yield addWrap(original, 0001:u16)
-}
-write X:u16 := result
-adjusted:u16 := read X
-flags "index Z" simultaneously {
-  Z := isZero(adjusted)
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: H, I, N, V, C.
-
-### 6800 DEX
-
-Capture X, subtract one with word wrap, and write X. Then update Z only.
-
-```text
-result:u16 := source "adjusted word" {
-  original:u16 := read X
-  yield subtract(original, 0001:u16)
-}
-write X:u16 := result
-adjusted:u16 := read X
-flags "index Z" simultaneously {
-  Z := isZero(adjusted)
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: H, I, N, V, C.
-
-### 6800 INS
-
-Capture SP, add one with word wrap, and write SP. Preserve all flags.
-
-```text
-result:u16 := source "adjusted word" {
-  original:u16 := read SP
-  yield addWrap(original, 0001:u16)
-}
-write SP:u16 := result
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 DES
-
-Capture SP, subtract one with word wrap, and write SP. Preserve all flags.
-
-```text
-result:u16 := source "adjusted word" {
-  original:u16 := read SP
-  yield subtract(original, 0001:u16)
-}
-write SP:u16 := result
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 TSX
-
-Capture SP, add one with word wrap, and write X. Preserve all flags.
-
-```text
-result:u16 := source "adjusted word" {
-  original:u16 := read SP
-  yield addWrap(original, 0001:u16)
-}
-write X:u16 := result
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 TXS
-
-Capture X, subtract one with word wrap, and write SP. Preserve all flags.
-
-```text
-result:u16 := source "adjusted word" {
-  original:u16 := read X
-  yield subtract(original, 0001:u16)
-}
-write SP:u16 := result
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BSR
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are big-endian.
-
-```text
-target:u16 := source "relative call target" {
-  offset:u8 := source "immediate byte" {
-    byte:u8 := fetch byte
-    yield byte
-  }
-  pc:u16 := read PC
-  yield addWrap(pc, signExtend16(offset))
-}
-returnPC:u16 := read PC
-firstAddress:u16 := read SP
-write memory[firstAddress] := lowByte(returnPC)
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := highByte(returnPC)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-write PC:u16 := target
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 JSR resolved address
-
-After address resolution, capture the current return PC, push it, then write the captured target to PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are big-endian.
-
-```text
-address:u16 := input
-returnPC:u16 := read PC
-firstAddress:u16 := read SP
-write memory[firstAddress] := lowByte(returnPC)
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := highByte(returnPC)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-write PC:u16 := address
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 RTS
-
-If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are big-endian.
-
-```text
-returnPC:u16 := source "pop big-endian word" {
-  high:u8 := source "pop byte through SP" {
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    yield byte
-  }
-  low:u8 := source "pop byte through SP" {
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    yield byte
-  }
-  yield concatHighLow(high, low)
-}
-write PC:u16 := returnPC
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 PSHA
-
-Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
-
-```text
-original:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-byteAddress:u16 := read SP
-write memory[byteAddress] := original
-bytePointer:u16 := read SP
-write SP:u16 := subtract(bytePointer, 0001:u16)
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 PULA
-
-Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
-
-```text
-result:u8 := source "pop byte through SP" {
-  pointer:u16 := read SP
-  write SP:u16 := addWrap(pointer, 0001:u16)
-  address:u16 := read SP
-  byte:u8 := read memory[address]
-  yield byte
-}
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 PSHB
-
-Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
-
-```text
-original:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-byteAddress:u16 := read SP
-write memory[byteAddress] := original
-bytePointer:u16 := read SP
-write SP:u16 := subtract(bytePointer, 0001:u16)
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 PULB
-
-Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
-
-```text
-result:u8 := source "pop byte through SP" {
-  pointer:u16 := read SP
-  write SP:u16 := addWrap(pointer, 0001:u16)
-  address:u16 := read SP
-  byte:u8 := read memory[address]
-  yield byte
-}
-write B:u8 := result
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BRA
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-pc:u16 := read PC
-write PC:u16 := addWrap(pc, signExtend16(offset))
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BHI
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-c:flag := read C
-z:flag := read Z
-when and(not(c), not(z)) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BLS
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-c:flag := read C
-z:flag := read Z
-when not(and(not(c), not(z))) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BCC
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-c:flag := read C
-when not(c) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BCS
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-c:flag := read C
-when not(not(c)) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BNE
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-z:flag := read Z
-when not(z) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BEQ
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-z:flag := read Z
-when not(not(z)) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BVC
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-v:flag := read V
-when not(v) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BVS
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-v:flag := read V
-when not(not(v)) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BPL
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-n:flag := read N
-when not(n) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BMI
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-n:flag := read N
-when not(not(n)) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BGE
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-n:flag := read N
-v:flag := read V
-when not(xor(n, v)) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BLT
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-n:flag := read N
-v:flag := read V
-when not(not(xor(n, v))) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BGT
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-n:flag := read N
-v:flag := read V
-z:flag := read Z
-when and(not(z), not(xor(n, v))) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 BLE
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-n:flag := read N
-v:flag := read V
-z:flag := read Z
-when not(and(not(z), not(xor(n, v)))) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 JMP resolved address
-
-After successful address resolution, write the captured address to PC without a target-memory read. Preserve all flags and other registers.
-
-```text
-address:u16 := input
-write PC:u16 := address
-```
-
-Flags preserved throughout: H, I, N, Z, V, C.
-
-### 6800 NEGA
-
-Capture A. Negate the byte modulo 256. V marks original 80; C marks a nonzero original. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read A
-result := subtract(00:u8, original)
-flags "6800 NEG" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(00:u8, original)
-  C := borrow(00:u8, original)
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 NEGB
-
-Capture B. Negate the byte modulo 256. V marks original 80; C marks a nonzero original. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read B
-result := subtract(00:u8, original)
-flags "6800 NEG" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(00:u8, original)
-  C := borrow(00:u8, original)
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 NEG memory
-
-Entry is after successful address resolution. Read the byte at that captured address. Negate the byte modulo 256. V marks original 80; C marks a nonzero original. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-result := subtract(00:u8, original)
-flags "6800 NEG" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(00:u8, original)
-  C := borrow(00:u8, original)
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 COMA
-
-Capture A. Take the byte's ones' complement: FF minus the original. Clear V and set C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read A
-result := subtract(FF:u8, original)
-flags "6800 COM" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 1:flag
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 COMB
-
-Capture B. Take the byte's ones' complement: FF minus the original. Clear V and set C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read B
-result := subtract(FF:u8, original)
-flags "6800 COM" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 1:flag
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 COM memory
-
-Entry is after successful address resolution. Read the byte at that captured address. Take the byte's ones' complement: FF minus the original. Clear V and set C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-result := subtract(FF:u8, original)
-flags "6800 COM" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 1:flag
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 LSRA
-
-Capture A. Shift right, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read A
-result := shiftRight(original, 0:flag)
-flags "6800 LSR" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := lowBit(original)
-  V := xor(topBit(result), lowBit(original))
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 LSRB
-
-Capture B. Shift right, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read B
-result := shiftRight(original, 0:flag)
-flags "6800 LSR" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := lowBit(original)
-  V := xor(topBit(result), lowBit(original))
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 LSR memory
-
-Entry is after successful address resolution. Read the byte at that captured address. Shift right, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-result := shiftRight(original, 0:flag)
-flags "6800 LSR" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := lowBit(original)
-  V := xor(topBit(result), lowBit(original))
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 RORA
-
-Capture A. Shift right, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read A
-carry:flag := read C
-result := shiftRight(original, carry)
-flags "6800 ROR" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := lowBit(original)
-  V := xor(topBit(result), lowBit(original))
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 RORB
-
-Capture B. Shift right, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read B
-carry:flag := read C
-result := shiftRight(original, carry)
-flags "6800 ROR" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := lowBit(original)
-  V := xor(topBit(result), lowBit(original))
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 ROR memory
-
-Entry is after successful address resolution. Read the byte at that captured address. Shift right, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-carry:flag := read C
-result := shiftRight(original, carry)
-flags "6800 ROR" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := lowBit(original)
-  V := xor(topBit(result), lowBit(original))
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 ASRA
-
-Capture A. Shift right, inserting the original sign bit. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read A
-result := shiftRight(original, topBit(original))
-flags "6800 ASR" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := lowBit(original)
-  V := xor(topBit(result), lowBit(original))
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 ASRB
-
-Capture B. Shift right, inserting the original sign bit. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read B
-result := shiftRight(original, topBit(original))
-flags "6800 ASR" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := lowBit(original)
-  V := xor(topBit(result), lowBit(original))
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 ASR memory
-
-Entry is after successful address resolution. Read the byte at that captured address. Shift right, inserting the original sign bit. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-result := shiftRight(original, topBit(original))
-flags "6800 ASR" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := lowBit(original)
-  V := xor(topBit(result), lowBit(original))
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 ASLA
-
-Capture A. Shift left, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read A
-result := shiftLeft(original, 0:flag)
-flags "6800 ASL" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := topBit(original)
-  V := xor(topBit(result), topBit(original))
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 ASLB
-
-Capture B. Shift left, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read B
-result := shiftLeft(original, 0:flag)
-flags "6800 ASL" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := topBit(original)
-  V := xor(topBit(result), topBit(original))
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 ASL memory
-
-Entry is after successful address resolution. Read the byte at that captured address. Shift left, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-result := shiftLeft(original, 0:flag)
-flags "6800 ASL" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := topBit(original)
-  V := xor(topBit(result), topBit(original))
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 ROLA
-
-Capture A. Shift left, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read A
-carry:flag := read C
-result := shiftLeft(original, carry)
-flags "6800 ROL" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := topBit(original)
-  V := xor(topBit(result), topBit(original))
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 ROLB
-
-Capture B. Shift left, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read B
-carry:flag := read C
-result := shiftLeft(original, carry)
-flags "6800 ROL" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := topBit(original)
-  V := xor(topBit(result), topBit(original))
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 ROL memory
-
-Entry is after successful address resolution. Read the byte at that captured address. Shift left, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-carry:flag := read C
-result := shiftLeft(original, carry)
-flags "6800 ROL" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := topBit(original)
-  V := xor(topBit(result), topBit(original))
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 DECA
-
-Capture A. Decrement modulo 256. V marks original 80; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read A
-result := subtract(original, 01:u8)
-flags "6800 DEC" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := isZero(subtract(original, 80:u8))
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I, C.
-
-### 6800 DECB
-
-Capture B. Decrement modulo 256. V marks original 80; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read B
-result := subtract(original, 01:u8)
-flags "6800 DEC" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := isZero(subtract(original, 80:u8))
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: H, I, C.
-
-### 6800 DEC memory
-
-Entry is after successful address resolution. Read the byte at that captured address. Decrement modulo 256. V marks original 80; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-result := subtract(original, 01:u8)
-flags "6800 DEC" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := isZero(subtract(original, 80:u8))
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: H, I, C.
-
-### 6800 INCA
-
-Capture A. Increment modulo 256. V marks original 7F; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read A
-result := addWrap(original, 01:u8)
-flags "6800 INC" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := isZero(subtract(original, 7F:u8))
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I, C.
-
-### 6800 INCB
-
-Capture B. Increment modulo 256. V marks original 7F; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-original:u8 := read B
-result := addWrap(original, 01:u8)
-flags "6800 INC" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := isZero(subtract(original, 7F:u8))
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: H, I, C.
-
-### 6800 INC memory
-
-Entry is after successful address resolution. Read the byte at that captured address. Increment modulo 256. V marks original 7F; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-result := addWrap(original, 01:u8)
-flags "6800 INC" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := isZero(subtract(original, 7F:u8))
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: H, I, C.
-
-### 6800 TSTA
-
-Capture A. Test the original byte, clearing V. Clear C. Apply the declared flags, preserving unlisted flags. Do not write a result. No data-memory access occurs.
-
-```text
-original:u8 := read A
-result := original
-flags "6800 TST" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 TSTB
-
-Capture B. Test the original byte, clearing V. Clear C. Apply the declared flags, preserving unlisted flags. Do not write a result. No data-memory access occurs.
-
-```text
-original:u8 := read B
-result := original
-flags "6800 TST" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 TST memory
-
-Entry is after successful address resolution. Read the byte at that captured address. Test the original byte, clearing V. Clear C. Apply the declared flags, preserving unlisted flags. Do not write a result. A failed read preserves flags and completed addressing effects.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-result := original
-flags "6800 TST" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 CLRA
-
-Do not read the destination. Clear the byte. Set Z; clear N/C/V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-result := 00:u8
-flags "6800 CLR" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := 0:flag
-  V := 0:flag
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 CLRB
-
-Do not read the destination. Clear the byte. Set Z; clear N/C/V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
-
-```text
-result := 00:u8
-flags "6800 CLR" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := 0:flag
-  V := 0:flag
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 CLR memory
-
-Entry is after successful address resolution. Do not read the destination. Clear the byte. Set Z; clear N/C/V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed write retains their updates and completed addressing effects.
-
-```text
-address:u16 := input
-result := 00:u8
-flags "6800 CLR" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  C := 0:flag
-  V := 0:flag
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 SUBA #byte
-
-Fetch the immediate operand. Only then read A. Ignore incoming C. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-right:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-left:u8 := read A
-result := subtract(left, right)
-flags "6800 subtract" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right)
-  C := borrow(left, right)
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 SUBA memory
-
-Entry is after successful address resolution. Read the operand at that address. Only then read A. Ignore incoming C. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-address:u16 := input
-byte:u8 := read memory[address]
-right := byte
-left:u8 := read A
-result := subtract(left, right)
-flags "6800 subtract" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right)
-  C := borrow(left, right)
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 SBCA #byte
-
-Fetch the immediate operand. Only then read A. Capture C as the incoming borrow. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-right:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-left:u8 := read A
-carry:flag := read C
-result := subtract(left, right, carry)
-flags "6800 subtract" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right, carry)
-  C := borrow(left, right, carry)
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 SBCA memory
-
-Entry is after successful address resolution. Read the operand at that address. Only then read A. Capture C as the incoming borrow. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-address:u16 := input
-byte:u8 := read memory[address]
-right := byte
-left:u8 := read A
-carry:flag := read C
-result := subtract(left, right, carry)
-flags "6800 subtract" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right, carry)
-  C := borrow(left, right, carry)
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 ADCA #byte
-
-Fetch the immediate operand. Only then read A. Capture C as the incoming carry. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-right:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-left:u8 := read A
-carry:flag := read C
-result := addWrap(left, right, carry)
-flags "6800 add" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := addOverflow(left, right, carry)
-  C := carry(left, right, carry)
-  H := halfCarry4(left, right, carry)
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: I.
-
-### 6800 ADCA memory
-
-Entry is after successful address resolution. Read the operand at that address. Only then read A. Capture C as the incoming carry. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-address:u16 := input
-byte:u8 := read memory[address]
-right := byte
-left:u8 := read A
-carry:flag := read C
-result := addWrap(left, right, carry)
-flags "6800 add" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := addOverflow(left, right, carry)
-  C := carry(left, right, carry)
-  H := halfCarry4(left, right, carry)
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: I.
-
-### 6800 ADDA #byte
-
-Fetch the immediate operand. Only then read A. Ignore incoming C. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-right:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-left:u8 := read A
-result := addWrap(left, right)
-flags "6800 add" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := addOverflow(left, right)
-  C := carry(left, right)
-  H := halfCarry4(left, right)
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: I.
-
-### 6800 ADDA memory
-
-Entry is after successful address resolution. Read the operand at that address. Only then read A. Ignore incoming C. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-address:u16 := input
-byte:u8 := read memory[address]
-right := byte
-left:u8 := read A
-result := addWrap(left, right)
-flags "6800 add" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := addOverflow(left, right)
-  C := carry(left, right)
-  H := halfCarry4(left, right)
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: I.
-
-### 6800 SUBB #byte
-
-Fetch the immediate operand. Only then read B. Ignore incoming C. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-right:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-left:u8 := read B
-result := subtract(left, right)
-flags "6800 subtract" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right)
-  C := borrow(left, right)
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 SUBB memory
-
-Entry is after successful address resolution. Read the operand at that address. Only then read B. Ignore incoming C. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-address:u16 := input
-byte:u8 := read memory[address]
-right := byte
-left:u8 := read B
-result := subtract(left, right)
-flags "6800 subtract" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right)
-  C := borrow(left, right)
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 SBCB #byte
-
-Fetch the immediate operand. Only then read B. Capture C as the incoming borrow. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-right:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-left:u8 := read B
-carry:flag := read C
-result := subtract(left, right, carry)
-flags "6800 subtract" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right, carry)
-  C := borrow(left, right, carry)
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 SBCB memory
-
-Entry is after successful address resolution. Read the operand at that address. Only then read B. Capture C as the incoming borrow. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-address:u16 := input
-byte:u8 := read memory[address]
-right := byte
-left:u8 := read B
-carry:flag := read C
-result := subtract(left, right, carry)
-flags "6800 subtract" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right, carry)
-  C := borrow(left, right, carry)
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: H, I.
-
-### 6800 ADCB #byte
-
-Fetch the immediate operand. Only then read B. Capture C as the incoming carry. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-right:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-left:u8 := read B
-carry:flag := read C
-result := addWrap(left, right, carry)
-flags "6800 add" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := addOverflow(left, right, carry)
-  C := carry(left, right, carry)
-  H := halfCarry4(left, right, carry)
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: I.
-
-### 6800 ADCB memory
-
-Entry is after successful address resolution. Read the operand at that address. Only then read B. Capture C as the incoming carry. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-address:u16 := input
-byte:u8 := read memory[address]
-right := byte
-left:u8 := read B
-carry:flag := read C
-result := addWrap(left, right, carry)
-flags "6800 add" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := addOverflow(left, right, carry)
-  C := carry(left, right, carry)
-  H := halfCarry4(left, right, carry)
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: I.
-
-### 6800 ADDB #byte
-
-Fetch the immediate operand. Only then read B. Ignore incoming C. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-right:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-left:u8 := read B
-result := addWrap(left, right)
-flags "6800 add" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := addOverflow(left, right)
-  C := carry(left, right)
-  H := halfCarry4(left, right)
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: I.
-
-### 6800 ADDB memory
-
-Entry is after successful address resolution. Read the operand at that address. Only then read B. Ignore incoming C. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
-
-```text
-address:u16 := input
-byte:u8 := read memory[address]
-right := byte
-left:u8 := read B
-result := addWrap(left, right)
-flags "6800 add" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := addOverflow(left, right)
-  C := carry(left, right)
-  H := halfCarry4(left, right)
-} // Preserve unlisted flags.
-write B:u8 := result
-```
-
-Flags preserved throughout: I.
-
-### 6800 ABA
-
-Read A then B and ignore incoming C. Set N/Z/V/C from the binary result, with C meaning carry; set H from the low-nibble carry. Preserve I. Write A after flags; B is unchanged. No data-memory access occurs.
-
-```text
-left:u8 := read A
-right:u8 := read B
-result := addWrap(left, right)
-flags "6800 add" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := addOverflow(left, right)
-  C := carry(left, right)
-  H := halfCarry4(left, right)
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: I.
-
-### 6800 SBA
-
-Read A then B and ignore incoming C. Set N/Z/V/C from the binary result, with C meaning borrow; preserve H. Preserve I. Write A after flags; B is unchanged. No data-memory access occurs.
-
-```text
-left:u8 := read A
-right:u8 := read B
-result := subtract(left, right)
-flags "6800 subtract" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right)
-  C := borrow(left, right)
-} // Preserve unlisted flags.
-write A:u8 := result
-```
-
-Flags preserved throughout: H, I.
 
 ### 6502 BRK
 

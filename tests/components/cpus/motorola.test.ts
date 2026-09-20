@@ -30,7 +30,7 @@ test("Motorola decimal correction updates the supplied flags and preserves H and
   for (const incoming of [false, true]) {
     const flags = { h: incoming, c: incoming, n: true, z: true, v: true, i: !incoming, f: incoming };
     const state = { a: 0x9a, b: 0, x: 0, sp: 0, pc: 0, waiting: false, flags };
-    m6800.daa(state);
+    m6800[0x19](state);
     assert.equal(state.a, 0);
     assert.equal(state.flags, flags);
     assert.deepEqual(flags, { h: incoming, c: true, n: false, z: true, v: false, i: !incoming, f: incoming });

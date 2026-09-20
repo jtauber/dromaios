@@ -1,7 +1,7 @@
-import { alignmentFault, capture, commitAddressUpdates, deferInterrupt, fetchByte, fillArray, flagValue, highByte, lowByte, replaceFlags, not, readElement,
+import { alignmentFault, capture, commitAddressUpdates, deferInterrupt, fetchByte, fillArray, flagValue, highByte, lowByte, replaceFlags, not, perform, readElement,
   readFlag, readLatch, readMemory, readPort, readRegister, readSource, resolveAddress, updateFlags,
   value, when, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
-import type { CpuDeclaration, Expression, Flag, FlagExpression, FlagPolicy, Latch, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
+import type { CpuDeclaration, Expression, Flag, FlagExpression, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
 import { validateInstruction } from "../validate.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
@@ -26,6 +26,7 @@ interface Symbols {
   readonly latches: ReadonlyMap<string, Latch>;
   readonly flags: ReadonlyMap<string, Flag>;
   readonly policies: ReadonlyMap<string, FlagPolicy>;
+  readonly actions: ReadonlyMap<string, InstructionDefinition>;
   readonly sources: ReadonlyMap<string, ValueSource>;
   readonly operands: ReadonlyMap<string, ChapterOperand>;
   readonly conditions: ReadonlyMap<string, ChapterCondition>;
@@ -43,6 +44,7 @@ export function checkStateEffects(steps: readonly Statement[], effects: "view" |
       case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": break;
       case "when": checkStateEffects(step.steps, effects); break;
       case "read-source": checkStateEffects(step.source.steps, effects); break;
+      case "perform": checkStateEffects(step.action.steps, effects); break;
       case "write-register": case "write-element": case "fill-array": case "write-latch": case "update-flags": case "replace-flags":
         if (effects !== "view") break;
         throw new Error("Views may only read stored state.");
@@ -56,7 +58,7 @@ export function checkStateEffects(steps: readonly Statement[], effects: "view" |
 
 /** Lower ordered effects, checking each prefix in its enclosing lexical scopes. */
 export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symbols, options: StatementOptions = {}): Statement[] {
-  const { cpu, registers, arrays, latches, flags, policies, sources, operands, conditions } = symbols;
+  const { cpu, registers, arrays, latches, flags, policies, actions, sources, operands, conditions } = symbols;
   // Compiler captures cannot collide with, or be referenced by, any authored name,
   // including later statements and nested blocks.
   const usedNames = new Set([...Object.keys(options.inputs ?? {}), ...lines.flatMap(tokens => tokens.source.text.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? [])]);
@@ -85,6 +87,13 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         tokens.checked(() => check([]));
         const nested = parse(body, check);
         result.push(...captures, when(predicate, nested));
+      } else if (tokens.take("perform")) {
+        const action = tokens.lookup(actions); tokens.expect("(");
+        const args: Record<string, NumberExpression> = {};
+        for (const [index, name] of Object.keys(action.inputs ?? {}).entries()) {
+          if (index) tokens.expect(","); args[name] = expression(tokens);
+        }
+        tokens.expect(")"); result.push(perform(action, args));
       } else if (tokens.take("fault")) {
         tokens.expect("alignment"); const operation = tokens.word();
         if (operation !== "read" && operation !== "write") return tokens.fail("Expected a data read or write alignment fault.");
@@ -173,6 +182,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
 /** Generated action signatures include a context only when an actual memory effect needs one. */
 export function usesMemory(steps: readonly Statement[]): boolean {
   return steps.some(step => step.kind === "read-memory" || step.kind === "write-memory"
+    || (step.kind === "perform" && usesMemory(step.action.steps))
     || (step.kind === "read-source" && usesMemory(step.source.steps))
     || (step.kind === "when" && usesMemory(step.steps)));
 }

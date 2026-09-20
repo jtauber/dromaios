@@ -278,7 +278,7 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6502[0x20](mos, { fetchByte: () => 0, writeByte: () => {} });
   generated6502[0x48](mos, { writeByte: () => {} });
   generated6502[0x60](mos, { readByte: () => 0 });
-  generated6800.bsr(m6800, { fetchByte: () => 0, writeByte: () => {} });
+  generated6800[0x8d](m6800, { fetchByte: () => 0, writeByte: () => {} });
   generated6809.jsr(motorola, 0xffff, { writeByte: () => {} });
   generated8080[0xc5](intel, { writeByte: () => {} });
   generated8080[0xc1](intel, { readByte: () => 0 });
@@ -297,7 +297,7 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6502[0x48](mos, { readByte: () => 0, writeByte: () => {} });
   generated6502[0x10](mos, { fetchByte: () => 0 });
   generated6502[0x6c](mos, { fetchByte: () => 0, readByte: () => 0 });
-  generated6800.bra(m6800, { fetchByte: () => 0 });
+  generated6800[0x20](m6800, { fetchByte: () => 0 });
   generated6809.lbrn(motorola, { fetchByte: () => 0 });
   generated6809.jump(motorola, 0xffff);
   generated8080[0xc2](intel, { fetchByte: () => 0 });
@@ -312,8 +312,8 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated8080[0xc3](intel, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error Register-indirect jumps do not fetch or read memory.
   generatedZ80.jumpIY(z80, { readByte: () => 0 });
-  // @ts-expect-error Resolved jumps cannot resolve their address again.
-  generated6800.jump(m6800, 0xffff, { fetchByte: () => 0 });
+  // @ts-expect-error JMP resolves its address without reading the destination.
+  generated6800[0x7e](m6800, { fetchByte: () => 0, readByte: () => 0 });
   generated6502[0xaa](mos);
   generated6502[0xc9](mos, { fetchByte: () => 0 });
   generated6502[0xb6](mos, { fetchByte: () => 0, readByte: () => 0 });
@@ -425,7 +425,7 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated8080[0x76](intel);
   generated6502[0x69](mos, { fetchByte: () => 0 });
   generated6502[0x28](mos, { readByte: () => 0 });
-  generated6800.daa(m6800);
+  generated6800[0x19](m6800);
   generated6809.orcc(motorola, { fetchByte: () => 0 });
   generatedZ80[0xf5](z80, { writeByte: () => {} });
   // @ts-expect-error Decimal adjustment needs no memory capability.
@@ -555,9 +555,9 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6809.cmpxMemory(motorola, 0xffff, { readByte: () => 0, fetchByte: () => 0 });
   // @ts-expect-error A comparison cannot write its memory operand.
   generated6809.cmpdMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
-  generated6800.clrA(m6800);
-  generated6800.clrMemory(m6800, 0xffff, { writeByte: () => {} });
-  generated6800.tstMemory(m6800, 0xffff, { readByte: () => 0 });
+  generated6800[0x4f](m6800);
+  generated6800[0x7f](m6800, { fetchByte: () => 0xff, writeByte: () => {} });
+  generated6800[0x7d](m6800, { fetchByte: () => 0xff, readByte: () => 0 });
   generated6800[0x81](m6800, { fetchByte: () => 0 });
   generated6800[0xbc](m6800, { fetchByte: () => 0xff, readByte: () => 0 });
   generated6800[0x11](m6800);
@@ -577,20 +577,20 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6800[0xff](m6800, { fetchByte: () => 0xff });
   // @ts-expect-error Word bodies retain the concrete CPU state.
   generated6800[0x8e](motorola, { fetchByte: () => 0 });
-  generated6800.aba(m6800);
-  generated6800.adcaImmediate(m6800, { fetchByte: () => 0 });
+  generated6800[0x1b](m6800);
+  generated6800[0x89](m6800, { fetchByte: () => 0 });
   generated6809.sbcbMemory(motorola, 0xffff, { readByte: () => 0 });
   generated6809.adddMemory(motorola, 0xffff, { readByte: () => 0 });
   // @ts-expect-error Word arithmetic fetches explicit high/low bytes, not an opaque word source.
   generated6809.subdImmediate(motorola, { fetchWord: () => 0 });
-  // @ts-expect-error Resolved arithmetic cannot fetch another address.
-  generated6800.subaMemory(m6800, 0xffff, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error Extended arithmetic requires address fetching as well as data reads.
+  generated6800[0xb0](m6800, { readByte: () => 0 });
   // @ts-expect-error Arithmetic bodies never write data memory.
   generated6809.adcbMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error SBA has no fetching or memory capability.
-  generated6800.sba(m6800, { fetchByte: () => 0 });
+  generated6800[0x10](m6800, { fetchByte: () => 0 });
   // @ts-expect-error Arithmetic retains each CPU's concrete state.
-  generated6800.addaImmediate(motorola, { fetchByte: () => 0 });
+  generated6800[0x8b](motorola, { fetchByte: () => 0 });
   generated6800[0x16](m6800);
   generated6800[0x17](m6800);
   generated6800[0x86](m6800, { fetchByte: () => 0 });
@@ -630,9 +630,9 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   // @ts-expect-error CBA needs no instruction context.
   generated6800[0x11](m6800, { fetchByte: () => 0 });
   // @ts-expect-error The original 6800 CLR has no read capability.
-  generated6800.clrMemory(m6800, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  generated6800[0x7f](m6800, { fetchByte: () => 0xff, readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Generated 6800 bodies retain the 6800 state type.
-  generated6800.clrA(motorola);
+  generated6800[0x4f](motorola);
   // @ts-expect-error TST has no write capability.
   generated6809.tstMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error The original 6809 CLR reads its operand even though the result is constant.

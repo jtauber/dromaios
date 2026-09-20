@@ -48,6 +48,7 @@ export function checkByteExecution(steps: readonly Statement[], deferral = false
       break;
     case "when": checkByteExecution(step.steps, deferral, memoryOnly); break;
     case "read-source": checkByteExecution(step.source.steps, deferral, memoryOnly); break;
+    case "perform": checkByteExecution(step.action.steps, deferral, memoryOnly); break;
     default: throw new Error(`Byte execution does not support ${step.kind}.`);
   }
 }

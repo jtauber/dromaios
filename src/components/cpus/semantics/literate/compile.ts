@@ -72,7 +72,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
     readonly operands?: ReadonlyMap<string, ChapterOperand>;
     readonly conditions?: ReadonlyMap<string, ChapterCondition>;
   } = {}) {
-    return chapterStatements(lines, { cpu, registers, arrays, latches, flags, policies,
+    return chapterStatements(lines, { cpu, registers, arrays, latches, flags, policies, actions,
       sources: options.bindings ?? sources, operands: options.operands ?? new Map(), conditions: options.conditions ?? new Map() }, options);
   }
 

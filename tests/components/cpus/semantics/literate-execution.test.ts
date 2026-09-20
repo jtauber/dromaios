@@ -158,7 +158,7 @@ test("byte execution rejects native decoder and fault effects, including hidden 
       const source = hidden ? `source hidden "native boundary": 8 {\n  ${effect}\n  return u8(0)\n}\n` : "";
       const body = hidden ? "byte = source hidden" : effect;
       const text = `${setup}\nNative effects need a different runtime contract.\n\n\`\`\`cpu\n${source}family NATIVE "01000010" {\n  when 0 {\n    ${body}\n  }\n}\n\`\`\`\n`;
-      const message = hidden && effect.startsWith("fault") ? /value sources cannot reject/ : /Byte execution does not support/;
+      const message = hidden && effect.startsWith("fault") ? /value sources and composed actions cannot reject/ : /Byte execution does not support/;
       assert.throws(() => compileCpuChapter(text, { name: "68000" }, file),
         (error: unknown) => error instanceof ChapterError && error.line > 1 && message.test(error.message));
     }

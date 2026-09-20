@@ -109,3 +109,15 @@ execution {
     source nmi always with enter($FFFA)
   }
 }
+
+// Reusable effects are statements, with typed argument expressions.
+action prepare "reset before entry" {
+  perform reset()
+}
+action enter "write an entry byte" (address: 16, byte: 8) using memory {
+  memory(address) <- byte
+}
+family trap "11 111 111" {
+  perform prepare()
+  perform enter(u16($1000), u8($80))
+}

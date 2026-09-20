@@ -19,9 +19,9 @@ interface Probe { readonly cpu: StackCpu; readonly fields: readonly Field[]; rea
 const probes: readonly Probe[] = [
   { cpu: "6502", fields: ["a"], push: mos[0x48], pop: mos[0x68] },
   { cpu: "6502", fields: ["pc"], word: true, pop: mos[0x60], increment: 1 },
-  { cpu: "6800", fields: ["a"], push: m6800.pshA, pop: m6800.pulA },
-  { cpu: "6800", fields: ["b"], push: m6800.pshB, pop: m6800.pulB },
-  { cpu: "6800", fields: ["pc"], word: true, pop: m6800.rts },
+  { cpu: "6800", fields: ["a"], push: m6800[0x36], pop: m6800[0x32] },
+  { cpu: "6800", fields: ["b"], push: m6800[0x37], pop: m6800[0x33] },
+  { cpu: "6800", fields: ["pc"], word: true, pop: m6800[0x39] },
   { cpu: "6809", fields: ["pc"], word: true, pop: m6809.rts },
   ...(["8080", "z80"] as const).flatMap(cpu => {
     const generated = cpu === "8080" ? intel : zilog;

@@ -30,6 +30,11 @@ also corroborates IRQ/NMI masking and reuse of the WAI frame.
 The supported encodings are for the original 6800; later-family additions
 and undocumented opcodes are outside this model.
 
+All instruction encodings, addressing, and effects are authored in the executable
+chapter, including shared stack and interrupt-frame actions. This document retains
+the public API and lifecycle contracts while reset, execution, and external-event
+recognition remain in the handwritten core.
+
 ## Stored state
 
 The [chapter](../../../src/components/cpus/specifications/6800.md#stored-state)

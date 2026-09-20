@@ -12,6 +12,8 @@ import type { FlagPolicy } from "../../../../src/components/cpus/semantics/model
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 
+import { extended6800 } from "../../../helpers/6800-operands.js";
+
 const state6800 = (): Cpu6800State => ({ a: 0x55, b: 0xaa, x: 0, sp: 0, pc: 0, waiting: false,
   flags: { h: true, i: true, n: true, z: true, v: true, c: false } });
 const state6809 = (): Cpu6809State => ({ a: 0x55, b: 0xaa, x: 0, y: 0, s: 0, u: 0, dp: 0, pc: 0, waitMode: "none", nmiArmed: false,
@@ -140,7 +142,12 @@ test("Motorola arithmetic reads complete operands before registers and carry, th
       }
     }
   }
-  check(state6800, byteBodies(m6800));
+  check(state6800, byteBodies({
+    subaImmediate: m6800[0x80], subbImmediate: m6800[0xc0], subaMemory: extended6800(m6800[0xb0]), subbMemory: extended6800(m6800[0xf0]),
+    sbcaImmediate: m6800[0x82], sbcbImmediate: m6800[0xc2], sbcaMemory: extended6800(m6800[0xb2]), sbcbMemory: extended6800(m6800[0xf2]),
+    adcaImmediate: m6800[0x89], adcbImmediate: m6800[0xc9], adcaMemory: extended6800(m6800[0xb9]), adcbMemory: extended6800(m6800[0xf9]),
+    addaImmediate: m6800[0x8b], addbImmediate: m6800[0xcb], addaMemory: extended6800(m6800[0xbb]), addbMemory: extended6800(m6800[0xfb]),
+  }));
   check(state6809, [...byteBodies(m6809),
     ...(["sub", "add"] as const).map(operation => ({ name: `${operation}d`, register: "d" as const, adding: operation === "add", withCarry: false,
       immediate: m6809[`${operation}dImmediate`], memory: m6809[`${operation}dMemory`],
@@ -162,7 +169,7 @@ test("6800 ABA and SBA capture A then B, ignore incoming C, and update flags bef
       },
       set(target, key, value) { events.push(`write ${String(key)}`); return Reflect.set(target, key, value); },
     });
-    (adding ? m6800.aba : m6800.sba)(observed);
+    (adding ? m6800[0x1b] : m6800[0x10])(observed);
     const { result, h, ...changes } = expected(8, adding, 0x55, 0xaa, false);
     assert.equal(state.a, result); assert.equal(state.b, 0xaa);
     assert.deepEqual(flags, { ...state6800().flags, ...changes, h: adding ? h : true });

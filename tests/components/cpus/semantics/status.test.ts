@@ -84,7 +84,7 @@ test("decimal adjustment replaces Intel flags before A and retains the Motorola 
       return Reflect.set(target, key, value);
     } });
     if (cpu === "8080") intel[0x27](observed); else if (cpu === "z80") zilog[0x27](observed);
-    else (cpu === "6800" ? m6800 : m6809).daa(observed);
+    else (cpu === "6800" ? m6800[0x19] : m6809.daa)(observed);
     assert.equal(state.a, cpu === "z80" ? 0x34 : 0);
     assert.deepEqual(writes, cpu === "8080" || cpu === "z80" ? ["flags", "a"] : ["a"]);
     if (cpu === "6800" || cpu === "6809") assert.equal(state.flags, oldFlags); else assert.notEqual(state.flags, oldFlags);

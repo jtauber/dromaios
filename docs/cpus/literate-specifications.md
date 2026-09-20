@@ -20,11 +20,11 @@ Executable chapters are maintained CPU sources:
   recognition and EI retirement, every instruction, and its generated public
   interface. Its API contracts and hardware guide live in the same chapter; no
   handwritten 8080 implementation remains.
-- [Motorola 6800: state, transfers, logic, and comparisons](../../src/components/cpus/specifications/6800.md)
-  owns the complete stored schema, packed condition codes, and 77 instruction
-  forms with their addressing and encodings. Remaining TypeScript stack and
-  interrupt bodies reuse its condition-code view and restoration policy; the
-  core still owns execution, reset, IRQ/NMI recognition, and WAI boundaries.
+- [Motorola 6800: state and the complete instruction set](../../src/components/cpus/specifications/6800.md)
+  owns the complete stored schema, packed condition codes, and all 197 instruction
+  forms with their addressing and encodings. Composed actions share stack and
+  interrupt-frame effects with external entry. The core still owns execution,
+  reset, IRQ/NMI recognition, and WAI boundaries.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -198,8 +198,8 @@ later bodies; each use reads current state with its own capture scope.
 values with lowercase names and explicit widths, available throughout that
 action but absent from sources' independent scopes. An action can read and
 write stored state, apply flag policies, and use nested conditions. Fields it
-does not write are preserved. The core supplies valid inputs and decides when
-to invoke the action; input widths are compile-time contracts, as for other
+does not write are preserved. Chapter bodies or execution bindings supply inputs
+and select when it runs; input widths are compile-time contracts, as for other
 generated helpers, rather than new runtime argument validation.
 
 Views and plain state actions reject instruction fetching, memory, ports,
@@ -215,11 +215,35 @@ action reset "read the reset vector" using memory {
 ```
 
 Such actions can read/write memory and state, but still cannot fetch instructions,
-access ports, or invoke CPU-boundary effects. Restrictions follow sources and
+access ports, or invoke CPU-boundary effects. Restrictions follow sources, performed actions, and
 nested branches, including constant-false branches, with diagnostics at the
 calling statement. Counter writes, retirement, and supplied-instruction acceptance
 still require state-only actions; vector reset/entry may use memory. Views reject
 all writes and external effects, keeping snapshot inspection pure.
+
+`perform NAME(arguments)` expands an earlier action at that statement. Arguments
+are numeric expressions in declaration order, with exactly the declared widths;
+all are captured in the caller's scope before the first action effect. Each
+expansion has its own scope: it sees its parameters, not caller captures, and
+its locals do not escape. Calls may nest but cannot reference a later action or
+recurse. A source, instruction, or action may perform another action. A pure view
+may only perform an action whose entire body is pure; a plain state action cannot
+hide a memory access inside another action or a constant-false condition.
+
+```text
+action pushWord "push a word onto a descending stack" (word: 16) using memory {
+  perform pushByte(lowByte(word))
+  perform pushByte(highByte(word))
+}
+```
+
+Here `pushByte` must already declare its byte input and ordered stack effects.
+The 6800 chapter uses this composition for pushes, calls, and interrupt frames.
+Generated bodies inline the checked effects; they need no opaque runtime callback.
+A failure stops subsequent effects and retains earlier ones, including inside
+nested actions. Expanded descriptions retain action boundaries and show their
+bodies. [Composition tests](../../tests/components/cpus/semantics/literate-actions.test.ts)
+check isolated scopes, argument order, transitive capabilities, and failures.
 
 `ARRAY[] <- value` fills the existing array in ascending slot order. The value
 must match the declared element width; old slot contents are never read. It

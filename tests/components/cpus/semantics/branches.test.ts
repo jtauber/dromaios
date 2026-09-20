@@ -24,11 +24,12 @@ interface Probe {
 const names = ["bra", "brn", "bhi", "bls", "bcc", "bcs", "bne", "beq", "bvc", "bvs", "bpl", "bmi", "bge", "blt", "bgt", "ble"] as const;
 const flagReads: readonly Probe["flags"][] = [[], [], ["c", "z"], ["c", "z"], ["c"], ["c"], ["z"], ["z"], ["v"], ["v"], ["n"], ["n"], ["n", "v"], ["n", "v"], ["n", "v", "z"], ["n", "v", "z"]];
 const tests: readonly ((set: boolean) => boolean)[] = [() => true, () => false, s => !s, s => s, s => !s, s => s, s => !s, s => s, s => !s, s => s, s => !s, s => s, () => true, () => false, s => !s, s => s];
+const branches6800 = [m6800[0x20], undefined, m6800[0x22], m6800[0x23], m6800[0x24], m6800[0x25], m6800[0x26], m6800[0x27], m6800[0x28], m6800[0x29], m6800[0x2a], m6800[0x2b], m6800[0x2c], m6800[0x2d], m6800[0x2e], m6800[0x2f]] as const;
 const probes: Probe[] = [
   ...([0x10, 0x30, 0x50, 0x70, 0x90, 0xb0, 0xd0, 0xf0] as const).map((opcode, i): Probe => ({ name: `6502 ${opcode}`, execute: mos[opcode], bytes: [0xfe],
     flags: [(["n", "v", "c", "z"] as const)[Math.floor(i / 2)]!], taken: set => set === Boolean(i % 2), relative: true })),
   ...names.flatMap((name, i): Probe[] => [
-    ...(name === "brn" ? [] : [{ name: `6800 ${name}`, execute: m6800[name as Exclude<typeof name, "brn">], bytes: [0xfe], flags: flagReads[i]!, taken: tests[i]!, relative: true }]),
+    ...(name === "brn" ? [] : [{ name: `6800 ${name}`, execute: branches6800[i]!, bytes: [0xfe], flags: flagReads[i]!, taken: tests[i]!, relative: true }]),
     { name: `6809 ${name}`, execute: m6809[name], bytes: [0xfe], flags: flagReads[i]!, taken: tests[i]!, relative: true },
     { name: `6809 l${name}`, execute: m6809[`l${name}`], bytes: [0xff, 0xfe], flags: flagReads[i]!, taken: tests[i]!, relative: true },
   ]),

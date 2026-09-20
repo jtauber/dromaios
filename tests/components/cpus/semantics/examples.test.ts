@@ -166,12 +166,12 @@ test("6809 unary explanations distinguish real CLR reads, read-only TST, and car
 });
 
 test("6800 unary explanations expose the three differences from the 6809", () => {
-  const clear = description("6800", "CLR memory");
+  const clear = description("6800", "CLR extended");
   assert.doesNotMatch(clear, /read memory|read [AB]:|original:u8/);
-  assert.ok(clear.indexOf("N := topBit(result)") < clear.indexOf("write memory[address] := result"));
-  assert.match(description("6800", "TST memory"), /C := 0:flag/);
+  assert.ok(clear.indexOf("N := 0:flag") < clear.indexOf("write memory[address] := result"));
+  assert.match(description("6800", "TST extended"), /C := 0:flag/);
   for (const name of ["LSRA", "ROR memory", "ASRB"]) {
-    assert.match(description("6800", name), /V := xor\(topBit\(result\), lowBit\(original\)\)/);
+    assert.match(description("6800", name.replace("memory", "extended")), /V := xor\(topBit\(result\), lowBit\(original\)\)/);
     assert.match(description("6809", name), /Flags preserved throughout: E, F, H, I, V\./);
   }
 });
@@ -309,7 +309,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 12371);
+  assert.equal(instructionDefinitions.length, 12400);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {

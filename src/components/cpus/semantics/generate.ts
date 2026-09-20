@@ -149,6 +149,17 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
       for (const step of steps) {
         let captured: CapturedValue;
         switch (step.kind) {
+          case "perform": {
+            comment(`Action: ${step.action.name}`);
+            const actionScope = new Map<string, CapturedValue>();
+            for (const name of Object.keys(step.action.inputs ?? {})) {
+              const argument = number(step.arguments[name]!, scope), captured = local(name);
+              emit(`const ${captured}: number = ${argument.code};`);
+              actionScope.set(name, { code: captured, type: argument.type });
+            }
+            body(step.action.steps, actionScope);
+            continue;
+          }
           case "when":
             emit(`if (${flag(step.condition, scope)}) {`);
             depth += "  ";

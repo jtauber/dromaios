@@ -58,6 +58,12 @@ export function describeInstruction(definition: InstructionDefinition): string {
     const emit = (line: string): void => { lines.push(indent + line); };
     for (const step of steps) {
       switch (step.kind) {
+        case "perform":
+          emit(`perform "${step.action.name}" {`);
+          for (const [name, bits] of Object.entries(step.action.inputs ?? {})) emit(`  ${name}:u${bits} := ${number(step.arguments[name]!)}`);
+          body(step.action.steps, indent + "  ");
+          emit("}");
+          break;
         case "when":
           emit(`when ${flag(step.condition, {})} {`);
           body(step.steps, indent + "  ");
@@ -168,8 +174,8 @@ Bodies begin after opcode selection. Chapter-owned forms include their operand
 fetching and addressing; remaining Motorola memory bodies receive a resolved
 address from the existing decoder. Declared inputs
 are captured before entry. Statements are
-ordered. Captures are immutable; a source
-block has its own scope. Conditional and bounded iteration blocks inherit outer
+ordered. Captures are immutable; each source and action
+expansion has its own scope. Action arguments are captured in the caller before its effects. Conditional and bounded iteration blocks inherit outer
 captures; local captures do not escape. Each iteration sees its own current value.
 Untaken blocks and zero iterations have no effects. Named outcomes end the body.
 All expressions in one flag update are evaluated before

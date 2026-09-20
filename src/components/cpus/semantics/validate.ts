@@ -205,11 +205,21 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         scope.set(name, type);
       };
       const rejection = (reason: string): void => {
-        if (!allowRejection) fail(where, "value sources cannot reject an instruction");
+        if (!allowRejection) fail(where, "value sources and composed actions cannot reject an instruction");
         if (typeof reason !== "string" || !/^[a-z][a-z0-9-]*$/.test(reason)) fail(where, "invalid rejection reason");
       };
       let captured: ValueType;
       switch (step.kind) {
+        case "perform": {
+          const inputs = step.action.inputs ?? {}, local = new Map<string, ValueType>();
+          if (Object.keys(step.arguments).length !== Object.keys(inputs).length
+            || Object.keys(step.arguments).some(name => !Object.hasOwn(inputs, name))) fail(where, "action arguments must match its inputs");
+          for (const [name, bits] of Object.entries(inputs)) {
+            identifier(name, where); expect(step.arguments[name]!, width(bits, where)); local.set(name, bits);
+          }
+          steps(step.action.steps, local, `${where} / action ${step.action.name}`, false);
+          return;
+        }
         case "when":
           flagExpression(step.condition, scope, where);
           steps(step.steps, new Map(scope), where, allowRejection);
@@ -281,7 +291,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
           return;
         case "alignment-fault":
           if (cpu.name !== "68000") fail(where, "alignment faults require a 68000 boundary");
-          if (!allowRejection) fail(where, "value sources cannot reject an instruction");
+          if (!allowRejection) fail(where, "value sources and composed actions cannot reject an instruction");
           if (!["read", "write", "fetch"].includes(step.operation) || !["data", "program"].includes(step.space)
             || (step.operation === "write" && step.space === "program") || (step.operation === "fetch" && step.space !== "program")) fail(where, "invalid alignment fault access space");
           expect(step.address, 32); return;

@@ -78,6 +78,7 @@ export interface EscapeRequest {
   readonly memory?: { readonly segment: NumberExpression; readonly offset: NumberExpression; readonly address: AddressExpression; readonly value: NumberExpression };
 }
 export type Statement =
+  | { readonly kind: "perform"; readonly action: Action; readonly arguments: Readonly<Record<string, NumberExpression>> }
   | { readonly kind: "when"; readonly condition: FlagExpression; readonly steps: readonly Statement[] }
   | { readonly kind: "iterate"; readonly name: string; readonly count: NumberExpression; readonly initial: NumberExpression; readonly steps: readonly Statement[]; readonly result: NumberExpression }
   | { readonly kind: "iterate-together"; readonly count: NumberExpression; readonly values: Readonly<Record<string, IterationValue>>; readonly steps: readonly Statement[] }
@@ -115,13 +116,15 @@ export type Statement =
   | { readonly kind: "write-port"; readonly port: NumberExpression; readonly value: NumberExpression }
   | { readonly kind: "write-memory"; readonly address: AddressExpression; readonly value: NumberExpression }
   | { readonly kind: "update-flags" | "replace-flags"; readonly policy: FlagPolicy; readonly arguments: Readonly<Record<string, Expression>> };
-export interface InstructionDefinition {
+export interface Action {
   readonly name: string;
-  readonly cpu: CpuDeclaration;
-  readonly explanation: string;
   /** Captured numeric inputs supplied by the caller, in declaration order, before the body runs. */
   readonly inputs?: Readonly<Record<string, Width>>;
   readonly steps: readonly Statement[];
+}
+export interface InstructionDefinition extends Action {
+  readonly cpu: CpuDeclaration;
+  readonly explanation: string;
 }
 
 type UnsignedNames<Fields> = { [Key in keyof Fields]: Fields[Key] extends UnsignedField ? Key : never }[keyof Fields] & string;
@@ -259,6 +262,9 @@ export const readLatch = (name: string, latch: Latch): Statement => ({ kind: "re
 export const exchangeFlags = (left: FlagGroup, right: FlagGroup): Statement => ({ kind: "exchange-flags", left, right });
 export const readMemory = (name: string, address: AddressExpression): Statement => ({ kind: "read-memory", name, address });
 export const readSource = (name: string, source: ValueSource): Statement => ({ kind: "read-source", name, source });
+/** Expand a named operation in its own capture scope; arguments are captured before its effects. */
+export const perform = (action: Action, args: Readonly<Record<string, NumberExpression>>): Statement =>
+  ({ kind: "perform", action: { name: action.name, ...(action.inputs ? { inputs: action.inputs } : {}), steps: action.steps }, arguments: args });
 export const writeRegister = (register: Register, value: NumberExpression): Statement => ({ kind: "write-register", register, value });
 export const writeElement = (array: RegisterArray, index: NumberExpression, value: NumberExpression): Statement => ({ kind: "write-element", array, index, value });
 export const fillArray = (array: RegisterArray, value: NumberExpression): Statement => ({ kind: "fill-array", array, value });

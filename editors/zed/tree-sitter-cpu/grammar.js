@@ -57,7 +57,7 @@ module.exports = grammar({
 
     body: $ => seq('{', repeat($._statement), '}'),
     _statement: $ => choice(
-      $.capture, $.write, $.apply_statement, $.when_statement,
+      $.capture, $.write, $.apply_statement, $.perform_statement, $.when_statement,
       $.return_statement, $.fault_statement, $.commit_statement, $.defer_statement,
     ),
     capture: $ => seq(field('name', $.identifier), '=', choice($._read, $._expression)),
@@ -73,6 +73,7 @@ module.exports = grammar({
     operand_target: $ => seq('operand', $.identifier),
     memory_target: $ => seq(choice('memory', 'port'), '(', $._expression, ')'),
     apply_statement: $ => seq(choice('apply', 'replace'), field('name', $.identifier), $.arguments),
+    perform_statement: $ => seq('perform', field('name', $.identifier), $.arguments),
     when_statement: $ => seq('when', choice(seq('test', $.identifier), $._expression), $.body),
     return_statement: $ => seq('return', $._expression),
     fault_statement: $ => seq('fault', 'alignment', choice('read', 'write'),

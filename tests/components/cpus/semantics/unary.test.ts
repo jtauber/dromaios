@@ -120,6 +120,12 @@ test("6809 unary bodies read once, apply only their declared flags in order, and
 });
 
 test("6800 unary bodies retain their flag order, clear TST carry, and never read a CLR destination", () => {
+  const opcodes = {
+    neg: [0x40, 0x50, 0x70], com: [0x43, 0x53, 0x73], lsr: [0x44, 0x54, 0x74],
+    ror: [0x46, 0x56, 0x76], asr: [0x47, 0x57, 0x77], asl: [0x48, 0x58, 0x78],
+    rol: [0x49, 0x59, 0x79], dec: [0x4a, 0x5a, 0x7a], inc: [0x4c, 0x5c, 0x7c],
+    tst: [0x4d, 0x5d, 0x7d], clr: [0x4f, 0x5f, 0x7f],
+  } as const;
   // Literal expectations include right-shift overflow and unchanged zero writes.
   for (const [name, original, result, updates] of [
     ["neg", 0x80, 0x80, [["n", true], ["z", false], ["v", true], ["c", true]]],
@@ -139,11 +145,12 @@ test("6800 unary bodies retain their flag order, clear TST carry, and never read
       flags: observe({ ...beforeFlags }, events, "flags.") };
     const observed = observe(state, events), register = target === "A" ? "a" : "b";
     let memory: number = original;
-    if (target === "Memory") motorola6800[`${name}Memory`](observed, 0xffff, {
+    if (target === "Memory") motorola6800[opcodes[name][2]](observed, {
+      fetchByte: () => 0xff,
       readByte(address) { assert.equal(address, 0xffff); events.push("read memory"); return memory; },
       writeByte(address, byte) { assert.equal(address, 0xffff); events.push(`memory=${byte}`); memory = byte; },
     });
-    else motorola6800[`${name}${target}`](observed);
+    else motorola6800[opcodes[name][target === "A" ? 0 : 1]](observed);
     assert.deepEqual(events, [
       ...(name === "clr" ? [] : [target === "Memory" ? "read memory" : `read ${register}`]),
       ...(name === "ror" || name === "rol" ? ["read flags.c"] : []),

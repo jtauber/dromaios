@@ -1,5 +1,5 @@
 [
-  "cpu" "state" "register" "flag" "array" "latch" "source" "view" "action"
+  "cpu" "state" "register" "flag" "array" "latch" "source" "view" "action" "perform"
   "policy" "operands" "pair" "codes" "conditions" "family" "encoding" "for" "in"
   "with" "named" "except" "fetch" "operand" "apply" "replace" "when" "test" "return"
   "fault" "alignment" "read" "write" "if" "commit" "addresses" "defer" "irq" "into"
@@ -18,6 +18,7 @@
 (family_declaration name: (identifier) @function)
 (call function: (identifier) @function)
 (apply_statement name: (identifier) @function)
+(perform_statement name: (identifier) @function)
 (source_read name: (identifier) @function)
 (interface_declaration name: (identifier) @type)
 (number) @number
