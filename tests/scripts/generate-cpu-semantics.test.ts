@@ -15,14 +15,14 @@ test("native CPU generation bootstraps without generated files and removes obsol
   const output = join(directory, "src/components/cpus/generated");
   rmSync(output, { recursive: true, force: true });
   const chapters = join(directory, "src/components/cpus/semantics/generated");
-  const chapterNames = ["6502.ts", "68000-word-transfers.ts", "8008.ts", "8080.ts", "catalogue.ts", "interfaces.ts"];
-  const chapterFiles = [...chapterNames, "state/6502.ts", "state/8008.ts", "state/8080.ts"];
+  const chapterNames = ["6502.ts", "6800.ts", "68000-word-transfers.ts", "8008.ts", "8080.ts", "catalogue.ts", "interfaces.ts"];
+  const chapterFiles = [...chapterNames, "state/6502.ts", "state/6800.ts", "state/8008.ts", "state/8080.ts"];
   rmSync(chapters, { recursive: true, force: true });
   const run = () => {
     const result = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { cwd: tmpdir(), encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(readdirSync(chapters).sort(), [...chapterNames, "state"]);
-    assert.deepEqual(readdirSync(join(chapters, "state")).sort(), ["6502.ts", "8008.ts", "8080.ts"]);
+    assert.deepEqual(readdirSync(join(chapters, "state")).sort(), ["6502.ts", "6800.ts", "8008.ts", "8080.ts"]);
     for (const name of chapterFiles) assert.equal(readFileSync(join(chapters, name), "utf8"),
       readFileSync(`src/components/cpus/semantics/generated/${name}`, "utf8"));
     assert.deepEqual(readdirSync(output).sort(), ["6502-cpu.ts", "6502-execution.ts", "6502-state.ts", "6502.ts", "6800.ts", "68000-arithmetic.ts", "68000-bits.ts", "68000-control.ts", "68000-decimal.ts", "68000-logic.ts", "68000-moves.ts", "68000-quick.ts", "68000-system.ts", "68000-transfers.ts", "68000-word-arithmetic.ts", "68000-word-moves.ts", "68000.ts", "6809.ts", "8008-cpu.ts", "8008-execution.ts", "8008-state.ts", "8008.ts", "8080-cpu.ts", "8080-execution.ts", "8080-state.ts", "8080.ts", "8088-addressing.ts", "8088-alu.ts", "8088-arithmetic.ts", "8088-control.ts", "8088-stack.ts", "8088-strings.ts", "8088-transfers.ts", "8088-unary.ts", "8088.ts", "z80.ts"]);
@@ -51,6 +51,7 @@ test("native CPU generation bootstraps without generated files and removes obsol
   run();
   for (const [name, before, after] of [
     ["6502", "A <- result", "A <- missing"],
+    ["6800", "operand r <- result", "operand r <- missing"],
     ["8008", "result = fetch", "result = source missing"],
     ["8008", "register B: 8", "register B: 8 = a"],
     ["8008", "counter PC write setPC", "counter PC write missing"],

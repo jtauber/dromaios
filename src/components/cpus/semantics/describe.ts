@@ -164,7 +164,8 @@ See the [representation contract](instruction-semantics.md) for primitive meanin
 validation, execution bindings, and current limits. The same definitions also
 generate typed instruction bodies for the bounded CPU migration.
 
-Bodies begin after opcode selection. Motorola memory bodies receive a resolved
+Bodies begin after opcode selection. Chapter-owned forms include their operand
+fetching and addressing; remaining Motorola memory bodies receive a resolved
 address from the existing decoder. Declared inputs
 are captured before entry. Statements are
 ordered. Captures are immutable; a source

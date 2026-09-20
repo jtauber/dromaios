@@ -510,8 +510,8 @@ SP is stored directly. The Z80 applies the same views independently to each bank
 The [flag-register helper](../../src/components/cpus/flags.ts) takes a map from
 flag names to bit positions, plus any fixed output bits. `encode` reads current
 Booleans; `decode` creates a fresh flag object and ignores unmodeled input bits.
-Z80's AF, 6800/6809's CC, 8088's FLAGS, and 68000's condition/system flags
-declare layouts beside their state schemas. The 6502 and 8080 instead express
+Z80's AF, 6809's CC, 8088's FLAGS, and 68000's condition/system flags
+declare layouts beside their state schemas. The 6502, 6800, and 8080 instead express
 packing and complete flag replacement in their executable chapters.
 The helper owns and freezes both the layout and its codec; generated status
 sources use the same `bits` and

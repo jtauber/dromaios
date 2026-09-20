@@ -1,3 +1,4 @@
+import { extended6800 } from "../../../helpers/6800-operands.js";
 import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
@@ -173,7 +174,12 @@ test("Motorola logical bodies capture operands before A/B, use restored flags, a
     }
   }
   check((): Cpu6800State => ({ a: 0x55, b: 0xaa, x: 0, sp: 0, pc: 0, waiting: false,
-    flags: { h: true, i: true, n: true, z: true, v: true, c: true } }), m6800);
+    flags: { h: true, i: true, n: true, z: true, v: true, c: true } }), {
+    andaImmediate: m6800[0x84], andbImmediate: m6800[0xc4], andaMemory: extended6800(m6800[0xb4]), andbMemory: extended6800(m6800[0xf4]),
+    bitaImmediate: m6800[0x85], bitbImmediate: m6800[0xc5], bitaMemory: extended6800(m6800[0xb5]), bitbMemory: extended6800(m6800[0xf5]),
+    eoraImmediate: m6800[0x88], eorbImmediate: m6800[0xc8], eoraMemory: extended6800(m6800[0xb8]), eorbMemory: extended6800(m6800[0xf8]),
+    oraImmediate: m6800[0x8a], orbImmediate: m6800[0xca], oraMemory: extended6800(m6800[0xba]), orbMemory: extended6800(m6800[0xfa]),
+  });
   check((): Cpu6809State => ({ a: 0x55, b: 0xaa, x: 0, y: 0, s: 0, u: 0, dp: 0, pc: 0, waitMode: "none", nmiArmed: false,
     flags: { e: true, f: true, h: true, i: true, n: true, z: true, v: true, c: true } }), m6809);
 });

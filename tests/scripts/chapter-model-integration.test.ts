@@ -6,6 +6,52 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 
+test("6800 chapter state and condition-code edits reach the public core, machine parser, and interrupt frames", t => {
+  const directory = mkdtempSync(join(tmpdir(), "dromaios-6800-chapter-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  mkdirSync(join(directory, "scripts"));
+  for (const name of ["generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
+  cpSync("src/components", join(directory, "src/components"), { recursive: true });
+  cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
+  const chapter = join(directory, "src/components/cpus/specifications/6800.md");
+  writeFileSync(chapter, readFileSync(chapter, "utf8").replace("register SP: 16", "register SP: 16\n  register SCRATCH: 8")
+    .replace("return or(u8($C0),", "return or(u8($80),").replace("I = not(zero(and(status, u8($10))))", "I = zero(and(status, u8($10)))"));
+  const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
+  assert.equal(generated.status, 0, generated.stderr);
+  const url = (path: string) => JSON.stringify(pathToFileURL(join(directory, path)).href);
+  const machine = readFileSync("src/machines/6800/example.machine", "utf8");
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { Cpu6800, cpu6800StateDescription } from ${url("src/components/cpus/6800.ts")};
+    import { parseMachine } from ${url("src/machines/machine-language.ts")};
+    const text = ${JSON.stringify(machine)};
+    assert.equal(cpu6800StateDescription.scratch.bits, 8);
+    assert.throws(() => parseMachine(text), /Missing fields.*SCRATCH/);
+    const definition = parseMachine(text.replace("cpu 6800 {", "cpu 6800 { SCRATCH = A5"));
+    assert.equal(definition.initialState.scratch, 0xa5);
+    for (const operation of ["TPA", "TAP", "WAI", "SWI", "irq", "nmi", "RTI"]) {
+      const bytes = new Uint8Array(65536);
+      bytes[0x200] = { TPA: 7, TAP: 6, WAI: 0x3e, SWI: 0x3f, RTI: 0x3b }[operation] ?? 1;
+      const ram = { size: bytes.length, read: address => bytes[address], write: (address, byte) => { bytes[address] = byte; } };
+      const initial = { a: 0, b: 0, x: 0, sp: 0xff, pc: 0x200, waiting: false, scratch: 0xa5,
+        flags: { h: false, i: false, n: false, z: false, v: false, c: false } };
+      const missing = { ...initial }; delete missing.scratch;
+      assert.throws(() => new Cpu6800(ram, missing), /scratch/);
+      const cpu = new Cpu6800(ram, initial);
+      initial.scratch = 0;
+      const snapshot = cpu.snapshot(); snapshot.scratch = 0;
+      assert.equal(cpu.snapshot().scratch, 0xa5);
+      if (operation === "irq" || operation === "nmi") cpu.interrupt(operation); else cpu.step();
+      const after = cpu.snapshot();
+      assert.equal(after.scratch, 0xa5);
+      if (operation === "TPA") assert.equal(after.a, 0x80);
+      else if (operation === "TAP" || operation === "RTI") assert.equal(after.flags.i, true);
+      else assert.equal(bytes[0xf9], 0x80, "the stack frame must use the edited packed CC");
+    }
+  `], { cwd: tmpdir(), encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+});
+
 test("the 6502 chapter's state edits reach construction, snapshots, and machine parsing", t => {
   const directory = mkdtempSync(join(tmpdir(), "dromaios-6502-state-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));

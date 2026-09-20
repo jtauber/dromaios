@@ -20,6 +20,11 @@ Executable chapters are maintained CPU sources:
   recognition and EI retirement, every instruction, and its generated public
   interface. Its API contracts and hardware guide live in the same chapter; no
   handwritten 8080 implementation remains.
+- [Motorola 6800: state, transfers, logic, and comparisons](../../src/components/cpus/specifications/6800.md)
+  owns the complete stored schema, packed condition codes, and 77 instruction
+  forms with their addressing and encodings. Remaining TypeScript stack and
+  interrupt bodies reuse its condition-code view and restoration policy; the
+  core still owns execution, reset, IRQ/NMI recognition, and WAI boundaries.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.

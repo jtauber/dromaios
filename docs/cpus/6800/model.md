@@ -5,6 +5,7 @@ level with flat 64 KiB RAM. Instruction fetches and PC increments wrap at 16 bit
 addresses and the reset vector use the high byte first.
 
 [Implementation](../../../src/components/cpus/6800.ts) ·
+[Executable chapter](../../../src/components/cpus/specifications/6800.md) ·
 [CPU tests](../../../tests/components/cpus/6800.test.ts) ·
 [Public type checks](../../../tests/types/6800.ts) ·
 [Coverage](../coverage.md#6800) ·
@@ -30,6 +31,11 @@ The supported encodings are for the original 6800; later-family additions
 and undocumented opcodes are outside this model.
 
 ## Stored state
+
+The [chapter](../../../src/components/cpus/specifications/6800.md#stored-state)
+generates the stored-state schema. Its condition-code view and restoration
+policy also serve the remaining TypeScript stack and interrupt definitions.
+This document retains the wider public and execution contract during migration.
 
 `Cpu6800State` requires all these fields:
 

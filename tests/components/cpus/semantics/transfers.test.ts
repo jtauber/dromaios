@@ -1,3 +1,4 @@
+import { extended6800 } from "../../../helpers/6800-operands.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions as m6800 } from "../../../../src/components/cpus/generated/6800.js";
@@ -72,12 +73,16 @@ test("Motorola byte transfers capture once, perform the access before flags, and
       }
     }
   }
-  check(state6800, m6800);
+  check(state6800, {
+    ldaImmediate: m6800[0x86], ldbImmediate: m6800[0xc6],
+    ldaMemory: extended6800(m6800[0xb6]), ldbMemory: extended6800(m6800[0xf6]),
+    staMemory: extended6800(m6800[0xb7]), stbMemory: extended6800(m6800[0xf7]),
+  });
   check(state6809, m6809);
 });
 
 test("6800 TAB/TBA capture the source once, write the destination, then set flags without memory", () => {
-  for (const [body, source, destination] of [[m6800.tab, "a", "b"], [m6800.tba, "b", "a"]] as const) {
+  for (const [body, source, destination] of [[m6800[0x16], "a", "b"], [m6800[0x17], "b", "a"]] as const) {
     const state = state6800(), before = structuredClone(state), events: string[] = [], flags = { ...state.flags };
     const observed = new Proxy(state, {
       get(target, key, receiver) {
@@ -162,9 +167,10 @@ test("Motorola word transfers capture once, wrap high-first accesses, and delay 
       }
     }
   }
-  check(state6800, ([{ name: "s", fields: ["sp"] }, { name: "x", fields: ["x"] }] as const).map(form => ({ ...form,
-    immediate: m6800[`ld${form.name}Immediate`], memory: m6800[`ld${form.name}Memory`], store: m6800[`st${form.name}Memory`],
-  })));
+  check(state6800, [
+    { name: "s", fields: ["sp"], immediate: m6800[0x8e], memory: extended6800(m6800[0xbe]), store: extended6800(m6800[0xbf]) },
+    { name: "x", fields: ["x"], immediate: m6800[0xce], memory: extended6800(m6800[0xfe]), store: extended6800(m6800[0xff]) },
+  ]);
   check(state6809, ([{ name: "d", fields: ["a", "b"] }, { name: "x", fields: ["x"] },
     { name: "y", fields: ["y"] }, { name: "u", fields: ["u"] }, { name: "s", fields: ["s"], arm: true }] as const).map(form => ({ ...form,
     immediate: m6809[`ld${form.name}Immediate`], memory: m6809[`ld${form.name}Memory`], store: m6809[`st${form.name}Memory`],

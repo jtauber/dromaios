@@ -17,11 +17,14 @@ an external authoring path into this representation. The language guide records
 the executable chapters and their shared addressing rules; other definitions
 remain TypeScript-authored.
 
-The complete 8008 and 8080 models are now authored in their
+The complete 8008, 8080, and 6502 models are now authored in their
 [executable chapters](literate-specifications.md). The shared construction
 patterns described below still explain the representation; for current 8080
 behavior and encoding ownership, read its [chapter](../../src/components/cpus/specifications/8080.md).
-Z80 and other partial migrations retain TypeScript builders.
+The 6800 chapter also owns stored state, packed condition codes, and its
+transfer, logic, and comparison families, including addressing and encodings.
+The construction history below describes the earlier shared-builder migration;
+remaining 6800 instructions, Z80, and other partial migrations retain TypeScript builders.
 
 ## The review slice
 
@@ -251,12 +254,13 @@ The authoring layers have separate homes:
 | [control-flow.ts](../../src/components/cpus/semantics/control-flow.ts) | Conditional effects, jumps, branches, calls, returns, and vector loads with explicit operand/condition/stack order |
 | [ports.ts](../../src/components/cpus/semantics/ports.ts) | Shared byte/word port transfers: capture addresses before operands, transfer low byte first, and commit input only after complete reads |
 | [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, ordered frames, and complete push/pop instruction construction |
-| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, byte/word-transfer, branch, and subroutine construction, with explicit access and flag policies |
+| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, arithmetic, branch, and subroutine construction; remaining 6809 comparison, logic, and transfer builders |
 | [intel.ts](../../src/components/cpus/semantics/intel.ts) | Z80 builders for byte ALU, byte and word transfers, arithmetic, exchanges, jumps, stacks, and subroutines, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
 | [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
 | [decimal.ts](../../src/components/cpus/semantics/decimal.ts) | Shared decimal-correction selection with explicit Intel/Motorola flag and result stages |
 | [6502 chapter](../../src/components/cpus/specifications/6502.md) | Complete state, instruction inventory, NMOS arithmetic, status, reset, execution, and named external-entry policies |
+| [6800 chapter](../../src/components/cpus/specifications/6800.md) | Complete stored state, packed condition codes, and transfer/logic/comparison families with addressing and encodings |
 | [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Typed module catalogue shared by executable generation, explanation, and reproducibility checks |
 
@@ -459,8 +463,9 @@ The destination is a stored register or an explicit statement list using
 `result`; those statements are expanded directly, without an opaque setter.
 The 6502 chapter spells out the same stages for its 18 load forms and six
 register transfers. It applies N/Z except for TXS, which preserves every flag.
-A source that fails never reaches the destination write or flag update. Motorola byte/word loads and
-TAB/TBA use the same recipe with a width-dependent N/Z policy and V cleared.
+A source that fails never reaches the destination write or flag update. The 6809
+byte/word loads use the same recipe with a width-dependent N/Z policy and V
+cleared; the 6800 chapter now expresses these stages and TAB/TBA directly.
 
 `intelByteTransfer` builds explicit source-capture and destination-write
 statements for the 8080/Z80 transfer families. Register transfers retain a real
@@ -1928,25 +1933,30 @@ inventory contains function references only; each invocation supplies the curren
 CPU state. CPU-owned wrappers resolve one address, with the 6809 rejecting
 undefined postbytes before body entry. The handwritten unary calculations and
 memory-modification paths are gone. JMP remains a separate address operation.
-The 6800 and 6809 share `motorolaOperandBindings` for comparisons, arithmetic, logic, and
-byte/word transfers, with the 6809 using it across its three opcode pages for comparisons.
+The remaining 6800 byte arithmetic and the 6809
+comparisons, arithmetic, logic, and byte/word transfers use `motorolaOperandBindings`.
+The 6809 uses it across its three opcode pages for comparisons.
 Each register has an immediate body that fetches its operand and a memory body
 that receives the decoder's resolved address. This covers CMPA/B/D/X/Y/U/S in
 all four addressing modes, with no special indexed postbyte path. Unsupported
 postbytes retain the same rejection behavior before body entry. ADDD/SUBD use
-the same bindings; the old word-arithmetic helper is gone. The 6800 binds
-CMPA/CMPB/CPX through the same wrapper and CBA, ABA, and SBA directly.
+the same bindings; the old word-arithmetic helper is gone. The 6800 chapter now owns
+CMPA/CMPB/CPX and CBA, including operand fetching and addressing; ABA and SBA
+retain their direct TypeScript bindings.
 The handwritten accumulator-operation table and original 6800 CPX helper are
 gone. Binding captures a state
 getter without reading it until execution, and resolves each memory address once
-before entering its body. Address decoding remains outside the generated definitions.
+before entering its body. Address decoding remains outside those resolved-memory
+definitions; migrated 6800 chapter forms include it in their complete bodies.
 
+The 6809
 `motorolaByteBindings` selects SUB/CMP/SBC/AND/BIT/LD/ST/EOR/ADC/OR/ADD and A/B from the native
 `1 r mm oooo` encoding. Stores omit the immediate binding. Each resolved-memory
 body serves direct, indexed, and extended forms, with no new addressing path.
 
-Loads and the 6800's TAB/TBA reuse `transfer`: capture a source or an already
-read value, write the destination, then apply the Motorola result policy.
+The earlier load and TAB/TBA migration used `transfer`: capture a source or an
+already read value, write the destination, then apply the Motorola result policy.
+The 6800 chapter now spells out those stages; the 6809 retains the builder.
 `motorolaTransfers` constructs byte and word families; word reads reuse the
 same high/low layout and immediate source as comparisons. Stores capture the
 register or view after addressing, write each byte without reading the

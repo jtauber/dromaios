@@ -558,25 +558,25 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6800.clrA(m6800);
   generated6800.clrMemory(m6800, 0xffff, { writeByte: () => {} });
   generated6800.tstMemory(m6800, 0xffff, { readByte: () => 0 });
-  generated6800.cmpaImmediate(m6800, { fetchByte: () => 0 });
-  generated6800.cpxMemory(m6800, 0xffff, { readByte: () => 0 });
-  generated6800.cba(m6800);
-  generated6800.ldsImmediate(m6800, { fetchByte: () => 0 });
-  generated6800.ldxMemory(m6800, 0xffff, { readByte: () => 0 });
-  generated6800.stsMemory(m6800, 0xffff, { writeByte: () => {} });
+  generated6800[0x81](m6800, { fetchByte: () => 0 });
+  generated6800[0xbc](m6800, { fetchByte: () => 0xff, readByte: () => 0 });
+  generated6800[0x11](m6800);
+  generated6800[0x8e](m6800, { fetchByte: () => 0 });
+  generated6800[0xfe](m6800, { fetchByte: () => 0xff, readByte: () => 0 });
+  generated6800[0xbf](m6800, { fetchByte: () => 0xff, writeByte: () => {} });
   generated6809.ldsImmediate(motorola, { fetchByte: () => 0 });
   generated6809.lddMemory(motorola, 0xffff, { readByte: () => 0 });
   generated6809.stdMemory(motorola, 0xffff, { writeByte: () => {} });
   // @ts-expect-error Word loads need byte fetching, not an opaque word fetch.
-  generated6800.ldsImmediate(m6800, { fetchWord: () => 0 });
+  generated6800[0x8e](m6800, { fetchWord: () => 0 });
   // @ts-expect-error Word stores cannot read destination memory.
   generated6809.stsMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Resolved word loads cannot fetch another address.
   generated6809.ldyMemory(motorola, 0xffff, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error Word stores require writes, including unchanged values.
-  generated6800.stxMemory(m6800, 0xffff, {});
+  generated6800[0xff](m6800, { fetchByte: () => 0xff });
   // @ts-expect-error Word bodies retain the concrete CPU state.
-  generated6800.ldsImmediate(motorola, { fetchByte: () => 0 });
+  generated6800[0x8e](motorola, { fetchByte: () => 0 });
   generated6800.aba(m6800);
   generated6800.adcaImmediate(m6800, { fetchByte: () => 0 });
   generated6809.sbcbMemory(motorola, 0xffff, { readByte: () => 0 });
@@ -591,44 +591,44 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6800.sba(m6800, { fetchByte: () => 0 });
   // @ts-expect-error Arithmetic retains each CPU's concrete state.
   generated6800.addaImmediate(motorola, { fetchByte: () => 0 });
-  generated6800.tab(m6800);
-  generated6800.tba(m6800);
-  generated6800.ldaImmediate(m6800, { fetchByte: () => 0 });
+  generated6800[0x16](m6800);
+  generated6800[0x17](m6800);
+  generated6800[0x86](m6800, { fetchByte: () => 0 });
   generated6809.ldbImmediate(motorola, { fetchByte: () => 0 });
-  generated6800.ldbMemory(m6800, 0xffff, { readByte: () => 0 });
+  generated6800[0xf6](m6800, { fetchByte: () => 0xff, readByte: () => 0 });
   generated6809.ldaMemory(motorola, 0xffff, { readByte: () => 0 });
-  generated6800.staMemory(m6800, 0xffff, { writeByte: () => {} });
+  generated6800[0xb7](m6800, { fetchByte: () => 0xff, writeByte: () => {} });
   generated6809.stbMemory(motorola, 0xffff, { writeByte: () => {} });
-  // @ts-expect-error Resolved byte stores have no destination-read capability.
-  generated6800.stbMemory(m6800, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Byte stores have no destination-read capability.
+  generated6800[0xf7](m6800, { fetchByte: () => 0xff, readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Store addressing is already complete, including any indirect pointer reads.
   generated6809.staMemory(motorola, 0xffff, { fetchByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Byte stores require a write capability even when the destination is unchanged.
   generated6809.stbMemory(motorola, 0xffff, {});
   // @ts-expect-error Immediate byte loads have no data-memory capability.
-  generated6800.ldaImmediate(m6800, { fetchByte: () => 0, readByte: () => 0 });
+  generated6800[0x86](m6800, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error Resolved loads cannot fetch another address.
   generated6809.ldbMemory(motorola, 0xffff, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error TAB needs no fetching or memory context.
-  generated6800.tab(m6800, { fetchByte: () => 0 });
+  generated6800[0x16](m6800, { fetchByte: () => 0 });
   // @ts-expect-error Byte transfer bodies require the concrete CPU state.
-  generated6800.ldaImmediate(motorola, { fetchByte: () => 0 });
-  generated6800.andaImmediate(m6800, { fetchByte: () => 0 });
-  generated6800.orbMemory(m6800, 0xffff, { readByte: () => 0 });
+  generated6800[0x86](motorola, { fetchByte: () => 0 });
+  generated6800[0x84](m6800, { fetchByte: () => 0 });
+  generated6800[0xfa](m6800, { fetchByte: () => 0xff, readByte: () => 0 });
   generated6809.bitbImmediate(motorola, { fetchByte: () => 0 });
   generated6809.eoraMemory(motorola, 0xffff, { readByte: () => 0 });
   // @ts-expect-error A resolved logical memory body cannot fetch another address.
   generated6809.andaMemory(motorola, 0xffff, { readByte: () => 0, fetchByte: () => 0 });
   // @ts-expect-error Logical instructions never write memory, including BIT.
-  generated6800.bitaMemory(m6800, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  generated6800[0xb5](m6800, { fetchByte: () => 0xff, readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Immediate logic cannot access data memory.
-  generated6800.eorbImmediate(m6800, { fetchByte: () => 0, readByte: () => 0 });
+  generated6800[0xc8](m6800, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error CPX needs two explicit byte reads, never a write capability.
-  generated6800.cpxMemory(m6800, 0xffff, { readByte: () => 0, writeByte: () => {} });
-  // @ts-expect-error The address is already resolved when a memory comparison starts.
-  generated6800.cmpbMemory(m6800, 0xffff, { readByte: () => 0, fetchByte: () => 0 });
+  generated6800[0xbc](m6800, { fetchByte: () => 0xff, readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Complete extended comparisons require address fetching as well as data reads.
+  generated6800[0xf1](m6800, { readByte: () => 0 });
   // @ts-expect-error CBA needs no instruction context.
-  generated6800.cba(m6800, { fetchByte: () => 0 });
+  generated6800[0x11](m6800, { fetchByte: () => 0 });
   // @ts-expect-error The original 6800 CLR has no read capability.
   generated6800.clrMemory(m6800, 0xffff, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Generated 6800 bodies retain the 6800 state type.
