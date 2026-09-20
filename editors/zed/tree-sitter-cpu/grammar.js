@@ -33,7 +33,7 @@ module.exports = grammar({
 
     operands_declaration: $ => seq('operands', field('name', $.identifier), '{', repeat($.operand_entry), '}'),
     operand_entry: $ => seq($.number, $.string, '=', choice(
-      seq('register', $._state_name), seq(choice('memory', 'value'), $.identifier),
+      seq('register', $._state_name), seq('pair', $._state_name, $._state_name), seq(choice('memory', 'value'), $.identifier),
     )),
     codes_declaration: $ => seq('codes', field('name', $.identifier), optional(seq(':', $.number)),
       '{', repeat($.code_entry), '}'),
@@ -72,7 +72,7 @@ module.exports = grammar({
     array_target: $ => seq($._state_name, '[', optional($._expression), ']'),
     operand_target: $ => seq('operand', $.identifier),
     memory_target: $ => seq(choice('memory', 'port'), '(', $._expression, ')'),
-    apply_statement: $ => seq('apply', field('name', $.identifier), $.arguments),
+    apply_statement: $ => seq(choice('apply', 'replace'), field('name', $.identifier), $.arguments),
     when_statement: $ => seq('when', choice(seq('test', $.identifier), $._expression), $.body),
     return_statement: $ => seq('return', $._expression),
     fault_statement: $ => seq('fault', 'alignment', choice('read', 'write'),

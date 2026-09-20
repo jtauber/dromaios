@@ -1,6 +1,6 @@
 # 8080 polling echo
 
-[CPU port contract](../model.md#port-io) ·
+[CPU port contract](../../../../src/components/cpus/specifications/8080.md#port-transfers) ·
 [Machine composition](../../../../src/machines/8080/echo-example.machine) ·
 [Example tests](../../../../tests/machines/8080/echo-example.test.ts) ·
 [Byte input](../../../devices/byte-input.md) ·

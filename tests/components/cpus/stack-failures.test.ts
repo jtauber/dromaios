@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { Cpu6502 } from "../../../src/components/cpus/6502.js";
 import { Cpu6800 } from "../../../src/components/cpus/6800.js";
 import { Cpu6809 } from "../../../src/components/cpus/6809.js";
-import { Cpu8080 } from "../../../src/components/cpus/8080.js";
+import { Cpu8080 } from "../../../src/components/cpus/generated/8080-cpu.js";
 import { CpuZ80 } from "../../../src/components/cpus/z80.js";
 import type { CpuZ80InterruptAccess } from "../../../src/components/cpus/z80.js";
 import { stackForms, stackState } from "../../helpers/stack-forms.js";

@@ -28,7 +28,7 @@ import { byteRegisterView } from "../../src/components/cpus/semantics/builders.j
 import { cpu6809StateDescription } from "../../src/components/cpus/state/6809.js";
 import { cpuZ80StateDescription } from "../../src/components/cpus/state/z80.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
-import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
+import { cpu8080StateDescription } from "../../src/components/cpus/generated/8080-cpu.js";
 import { readTest, reportInterrupt, sendEscape, testChoice, writeChoice, readPort, writePort, deferInterrupt, divide, iterate, reject, and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, projectAddress, readFlag, readLatch, readMemory, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
@@ -42,7 +42,7 @@ import { instructions as generated6809 } from "../../src/components/cpus/generat
 import { instructions as generated6800 } from "../../src/components/cpus/generated/6800.js";
 import type { Cpu6800State } from "../../src/components/cpus/6800.js";
 import type { Cpu6502State } from "../../src/components/cpus/6502.js";
-import type { Cpu8080State } from "../../src/components/cpus/8080.js";
+import type { Cpu8080State } from "../../src/components/cpus/generated/8080-cpu.js";
 import type { Cpu6809State } from "../../src/components/cpus/6809.js";
 
 // Compiled, never called: names come from CPU schemas; reads, expressions, and writes have distinct roles.

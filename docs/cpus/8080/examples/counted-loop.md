@@ -5,7 +5,7 @@ INR changes each byte, DAD advances the address, and DCR/JNZ count down the
 remaining bytes. DCX then points HL back to the last byte changed and SHLD
 stores that address.
 
-[Model contract](../model.md#increment-decrement-and-word-arithmetic) ·
+[Model contract](../../../../src/components/cpus/specifications/8080.md#word-arithmetic) ·
 [Coverage](../../coverage.md#8080) ·
 [Machine definition](../../../../src/machines/8080/counted-loop-example.machine) ·
 [Example tests](../../../../tests/machines/8080/counted-loop-example.test.ts) ·
@@ -115,7 +115,7 @@ independent byte calculations.
 
 The [Intel 8080 Assembly Language Programming Manual][intel], pages 15 and 24,
 defines INR/DCR, DAD, and DCX. The
-[model contract](../model.md#increment-decrement-and-word-arithmetic) records
+[model contract](../../../../src/components/cpus/specifications/8080.md#word-arithmetic) records
 their exact flags, access ordering, and preservation rules.
 
 [intel]: https://altairclone.com/downloads/manuals/8080%20Programmers%20Manual.pdf

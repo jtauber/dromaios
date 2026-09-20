@@ -5,7 +5,7 @@ it right through carry to restore the original word. Each byte moves through
 A; MOV preserves carry between the two byte rotations. Circular rotations and
 CMA then transform the low byte for a final store.
 
-[Model contract](../model.md#rotates-and-carry) ·
+[Model contract](../../../../src/components/cpus/specifications/8080.md#accumulator-rotates) ·
 [Coverage](../../coverage.md#8080) ·
 [Machine definition](../../../../src/machines/8080/rotates-example.machine) ·
 [Example tests](../../../../tests/machines/8080/rotates-example.test.ts) ·
@@ -106,7 +106,7 @@ successive instructions.
 
 The [Intel 8080 Assembly Language Programming Manual][intel], pages 14–15 and
 21–22, defines STC/CMC, CMA, and the four rotates. Appendix B specifies their
-encodings and bit transfers. The [model contract](../model.md#rotates-and-carry)
+encodings and bit transfers. The [model contract](../../../../src/components/cpus/specifications/8080.md#accumulator-rotates)
 records the flag and access rules.
 
 [intel]: https://altairclone.com/downloads/manuals/8080%20Programmers%20Manual.pdf

@@ -3,13 +3,12 @@ import { instructions6502, interrupts6502, sources6502 } from "./definitions/650
 import { instructions6800 } from "./definitions/6800.ts";
 import { chapterInstructionModules } from "./generated/catalogue.ts";
 import { instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088 } from "./definitions/8088.ts";
-import { instructions8080 } from "./definitions/8080.ts";
 import { instructions6809 } from "./definitions/6809.ts";
 import { instructionsZ80 } from "./definitions/z80.ts";
 import type { generateInstructions } from "./generate.ts";
 
 export * from "./generated/catalogue.ts";
-export { instructions68000, quick68000, moves68000, wordMoves68000, logic68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000, instructions6502, interrupts6502, sources6502, instructions6800, instructions8080, instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088, instructions6809, instructionsZ80 };
+export { instructions68000, quick68000, moves68000, wordMoves68000, logic68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000, instructions6502, interrupts6502, sources6502, instructions6800, instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088, instructions6809, instructionsZ80 };
 
 type GenerationParameters = Parameters<typeof generateInstructions>;
 interface InstructionModule {
@@ -37,10 +36,7 @@ export const instructionModules: readonly InstructionModule[] = Object.freeze([
   { name: "6502", cpu: "6502", definitions: instructions6502, options: { bindOpcodes: true, sources: sources6502 } },
   { name: "6502-interrupts", cpu: "6502", definitions: interrupts6502 },
   { name: "6800", cpu: "6800", definitions: instructions6800 },
-  // The 8080 chapter owns execution; its remaining TS families still join the
-  // same instruction module until the chapter owns the complete inventory.
-  ...chapterInstructionModules.map(module => module.name === "8080"
-    ? { ...module, definitions: instructions8080, options: { ...module.options, origin: "semantics/definitions/8080.ts" } } : module),
+  ...chapterInstructionModules,
   { name: "8088", cpu: "8088", definitions: instructions8088, options: { bindOpcodes: true } },
   { name: "8088-transfers", cpu: "8088", definitions: transfers8088 },
   { name: "8088-alu", cpu: "8088", definitions: alu8088 },

@@ -65,6 +65,12 @@ instruction registry. Consumers import `Cpu8008` and its public types from
 [`tests/types/8008.ts`](../../tests/types/8008.ts) checks the public TypeScript
 API. Corresponding `.js` files under `dist/` are compiled build output.
 
+The 8080 now follows the same file map, replacing `8008` with `8080` in the
+generated paths. Its sole authored source is
+[`specifications/8080.md`](../../src/components/cpus/specifications/8080.md);
+consumers import `Cpu8080` and its public types from `generated/8080-cpu.ts`.
+There are no handwritten state, definition, or public-class adapters.
+
 ## Reading order
 
 Within a CPU core, use this order where the corresponding code exists:
@@ -103,7 +109,7 @@ Each CPU module exports a `cpu…StateDescription` beside its public state
 type. For all eight CPUs, the schema and public types are exposed through
 CPU-owned modules under [`state/`](../../src/components/cpus/state), or generated
 schema modules for complete chapters, and are re-exported by the public CPU
-module. The 8008 schema and public types are generated from its chapter; other
+module. The 8008 and 8080 schemas and public types are generated from their chapters; other
 schemas remain authored TypeScript.
 This lets instruction generation load schemas without loading execution. The description
 owns stored field names, types, and constraints. The
@@ -138,7 +144,7 @@ The descriptions have these consumers:
   sparse arrays fail validation. Extra metadata and derived views are ignored.
 - Snapshots use `copyState(description, storedState)` to detach known-valid
   state without repeating numeric and Boolean validation. Each CPU's `snapshot()`
-  adds its derived views; the 8008 obtains them from generated chapter readers.
+  adds its derived views; the 8008 and 8080 obtain them from generated chapter readers.
 - The [machine parser](../../src/machines/machine-language.ts) uses the model catalogue
   to obtain those same descriptions to recognize fields and check values, array lengths, and
   choices. It retains ownership of hexadecimal notation, braces, capitalization,
@@ -179,7 +185,7 @@ Choose the grouping from the CPU's encoding:
 | Model | Organization in the current source |
 | --- | --- |
 | [8008](../../src/components/cpus/specifications/8008.md) | Native `xx yyy zzz` groups; A is register selector `000`, M is `111`; preserve documented HLT exceptions |
-| [8080](../../src/components/cpus/specifications/8080.md) | Chapter byte families use `01 ddd sss`, `10 ooo sss`, `00 rrr 10d`, and `00 ooo 111`; remaining word/control/status builders join them in one generated opcode table |
+| [8080](../../src/components/cpus/specifications/8080.md) | Complete chapter uses byte fields `01 ddd sss` / `10 ooo sss`, word selector `pp`, and condition `ccc`; one generated opcode table binds all forms |
 | [6502](../../src/components/cpus/6502.ts) | `aaa bbb cc`; `cc=01` groups `aaa` operations with shared `bbb` operand sources; `cc=00/10` retain `bbb` subgroups and their distinct implied/addressing forms |
 | [6800](../../src/components/cpus/6800.ts) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; unary forms use `01 tt oooo`, with `tt` selecting A/B/indexed/extended; short branches use `0010 ttt p`, keeping the unused `21` explicit |
 | [6809](../../src/components/cpus/6809.ts) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, `0110 oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte; pages `10`/`11` share word-family builders, with long conditions on page `10` |
@@ -340,12 +346,12 @@ or universal CPU base class.
 
 ## Shared 8080/Z80 instruction family
 
-The [8080 chapter](../../src/components/cpus/specifications/8080.md) now owns
-byte transfers, byte ALU/adjustments, rotates, ports, and interrupt controls.
-Its stored state, pair views, reset, recognition, and retirement policies bind
-to shared byte execution. `Cpu8080` is a small public adapter, with no inherited
-decoder. Its remaining TypeScript word/control/status families join the chapter's
-forms in one generated table; numeric opcode keys bind every complete body.
+The [8080 chapter](../../src/components/cpus/specifications/8080.md) owns every
+instruction, stored state, pair views, reset, recognition, and retirement policy.
+Its generated `Cpu8080` public class binds those definitions to shared byte
+execution, with no inherited decoder or handwritten adapter. Numeric opcode
+keys bind every complete body. Register-pair operands expose the high/low read
+and write order; stack effects and packed status remain explicit in the chapter.
 
 [`Cpu8080Family`](../../src/components/cpus/8080-family.ts) remains the Z80's
 internal base. It describes the 240 common 8080 encodings, register operands,
@@ -363,13 +369,11 @@ parity versus overflow and opposite subtraction half-carry conventions. The
 Z80's indexed bodies receive resolved addresses from its decoder.
 
 The [encoding inventory](../../src/components/cpus/intel-encodings.ts) still
-serves Z80 construction and binding, and the remaining 8080 TypeScript families.
-Z80 byte transfers use `00 ddd 110` and `01 ddd sss`; the 8080 now declares those
-patterns directly in its chapter. Remaining word, accumulator-memory, exchange,
-stack, and control families share construction, while the two cores bind their
-generated bodies through their respective execution paths.
+serves Z80 construction and binding. The 8080 declares every pattern directly
+in its chapter. The two models preserve the same ordered word, stack, and control
+effects through their respective authoring and execution paths.
 
-Word transfers share construction and their immediate, memory, and SP-copy
+Z80 word transfers share construction and their immediate, memory, and SP-copy
 inventory. Bodies fetch complete addresses, read or write memory low byte first,
 and express split-register writes explicitly. Their pair descriptions reuse the
 runtime's register-pair byte mapping. Z80 ED HL forms share their unprefixed
@@ -397,20 +401,19 @@ use the same conditional construction, and JP (IX/IY) uses a stored-word source.
 DJNZ fetches before decrementing B and never accesses flags. Prefix decoding,
 refresh, and supplied-instruction retirement remain in the core.
 
-Each concrete constructor validates and copies its state before passing that
+The Z80 constructor validates and copies its state before passing that
 owned state to `super`. The base constructor binds only the state; the Z80
-constructs its private runtime interrupt stack afterward. Each concrete CPU
-initializes its operation selectors
-before calling `baseInstructions()` to construct its table; the base constructor
+constructs its private runtime interrupt stack afterward. It initializes its
+operation selectors before calling `baseInstructions()` to construct its table; the base constructor
 must never call that builder or a CPU hook. CPU-specific helpers stay in `#` methods except for the required overrides;
 protected members form the internal TypeScript inheritance boundary.
 
 State descriptions, public snapshots, reset, instruction fetching, and step
-outcomes remain in the concrete CPU modules. Z80 prefix validation and R updates
-therefore keep their existing execution contract. Both expose `snapshot`,
+outcomes come from the 8080 chapter or the Z80 core. Z80 prefix validation and
+R updates therefore keep their existing execution contract. Both expose `snapshot`,
 `reset`, `step`, and their own boundary-level `interrupt` operation. The family
-adds no public controls or mutable state access. This shallow hierarchy expresses
-the 8080/Z80 relationship and is not a requirement for other processors.
+adds no public controls or mutable state access. This internal Z80 hierarchy
+is not a requirement for other processors.
 
 The 8008 uses the same instruction representation without inheriting this
 execution core. Its [literate chapter](../../src/components/cpus/specifications/8008.md)

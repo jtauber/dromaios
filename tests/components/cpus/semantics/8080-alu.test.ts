@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/8080.js";
-import type { Cpu8080State } from "../../../../src/components/cpus/state/8080.js";
+import type { Cpu8080State } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
 
 const families = [
   ["add", 0x80, 0xc6], ["adc", 0x88, 0xce], ["sub", 0x90, 0xd6], ["sbb", 0x98, 0xde],

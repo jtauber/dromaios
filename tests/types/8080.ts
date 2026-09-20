@@ -1,11 +1,11 @@
-import { Cpu8080 } from "../../src/components/cpus/8080.js";
+import { Cpu8080 } from "../../src/components/cpus/generated/8080-cpu.js";
 import type {
   Cpu8080ResetRecord,
   Cpu8080Snapshot,
   Cpu8080State,
   Cpu8080StepRecord,
   Cpu8080InterruptRecord,
-} from "../../src/components/cpus/8080.js";
+} from "../../src/components/cpus/generated/8080-cpu.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import type { BytePorts, PortAccess } from "../../src/components/cpus/port-access.js";
 

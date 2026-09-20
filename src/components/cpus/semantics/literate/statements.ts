@@ -1,4 +1,4 @@
-import { alignmentFault, capture, commitAddressUpdates, deferInterrupt, fetchByte, fillArray, flagValue, not, readElement,
+import { alignmentFault, capture, commitAddressUpdates, deferInterrupt, fetchByte, fillArray, flagValue, highByte, lowByte, replaceFlags, not, readElement,
   readFlag, readLatch, readMemory, readPort, readRegister, readSource, resolveAddress, updateFlags,
   value, when, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
 import type { CpuDeclaration, Expression, Flag, FlagExpression, FlagPolicy, Latch, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
@@ -10,6 +10,7 @@ import { expression, flagExpression } from "./expressions.ts";
 export type ChapterOperand = { readonly name: string; readonly read: ValueSource } & (
   | { readonly kind: "memory"; readonly address: ValueSource }
   | { readonly kind: "register"; readonly register: Register }
+  | { readonly kind: "pair"; readonly high: Register; readonly low: Register }
   | { readonly kind: "value" }
 );
 export interface ChapterCondition {
@@ -42,7 +43,7 @@ function checkStateEffects(steps: readonly Statement[], effects: "view" | "state
       case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": break;
       case "when": checkStateEffects(step.steps, effects); break;
       case "read-source": checkStateEffects(step.source.steps, effects); break;
-      case "write-register": case "write-element": case "fill-array": case "write-latch": case "update-flags":
+      case "write-register": case "write-element": case "fill-array": case "write-latch": case "update-flags": case "replace-flags":
         if (effects === "state") break;
         throw new Error("Views may only read stored state.");
       default: throw new Error("Views and state actions cannot fetch instructions or access memory, ports, or CPU boundaries.");
@@ -90,17 +91,19 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         tokens.expect("irq"); result.push(deferInterrupt("irq"));
       } else if (tokens.take("commit")) {
         tokens.expect("addresses"); result.push(commitAddressUpdates());
-      } else if (tokens.take("apply")) {
+      } else if (tokens.next === "apply" || tokens.next === "replace") {
+        const effect = tokens.word() === "apply" ? updateFlags : replaceFlags;
         const policy = tokens.lookup(policies); tokens.expect("(");
         const args: Record<string, Expression> = {};
         for (const [index, [name, type]] of Object.entries(policy.parameters).entries()) {
           if (index) tokens.expect(","); args[name] = type === "flag" ? flagExpression(tokens) : expression(tokens);
         }
-        tokens.expect(")"); result.push(updateFlags(policy, args));
+        tokens.expect(")"); result.push(effect(policy, args));
       } else if (tokens.take("operand")) {
         const operand = tokens.lookup(operands); tokens.expect("<-"); const contents = expression(tokens);
         if (operand.kind === "value") tokens.fail("A value-only operand cannot be written.");
         if (operand.kind === "register") result.push(writeRegister(operand.register, contents));
+        if (operand.kind === "pair") result.push(writeRegister(operand.high, highByte(contents)), writeRegister(operand.low, lowByte(contents)));
         if (operand.kind === "memory") {
           const address = temporary("destinationAddress");
           result.push(readSource(address, operand.address), writeMemory(value(address), contents));

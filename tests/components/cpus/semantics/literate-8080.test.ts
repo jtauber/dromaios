@@ -1,32 +1,27 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { instructions as actions, sourceReaders } from "../../../../src/components/cpus/generated/8080-state.js";
 import { instructions8080 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
+import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
-import type { Cpu8080State } from "../../../../src/components/cpus/state/8080.js";
+import type { Cpu8080State } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
 
 const file = "src/components/cpus/specifications/8080.md", markdown = readFileSync(file, "utf8");
 const state = (): Cpu8080State => ({ a: 0x81, b: 0x12, c: 0x34, d: 0x56, e: 0x78, h: 0xab, l: 0xcd,
   pc: 0xffff, sp: 0, flags: { s: true, z: false, ac: true, p: false, cy: true },
   interruptEnabled: true, interruptDeferred: true, halted: true });
 
-test("the 8080 chapter owns exactly 167 documented encodings in the production catalogue", () => {
+test("the 8080 chapter owns all 244 documented encodings in the production catalogue", () => {
   const chapter = compileCpuChapter(markdown, { name: "8080" }, file);
   const definitions = Object.fromEntries(Object.values(chapter.families).flat());
-  const expected = [
-    ...Array.from({ length: 64 }, (_, i) => 0x40 + i).filter(opcode => opcode !== 0x76),
-    ...Array.from({ length: 64 }, (_, i) => 0x80 + i),
-    ...Array.from({ length: 8 }, (_, i) => [0x04 + 8 * i, 0x05 + 8 * i, 0x06 + 8 * i, 0xc6 + 8 * i]).flat(),
-    0x07, 0x0f, 0x17, 0x1f, 0xd3, 0xdb, 0xf3, 0xfb,
-  ].sort((a, b) => a - b);
-  assert.equal(expected.length, 167);
-  assert.deepEqual(Object.keys(definitions).map(Number).sort((a, b) => a - b), expected);
-  for (const opcode of expected) assert.deepEqual(instructions8080[opcode], definitions[opcode], `Chapter form ${opcode.toString(16)} must reach production unchanged`);
   const undocumented = [0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38, 0xcb, 0xd9, 0xdd, 0xed, 0xfd];
-  assert.deepEqual(Object.keys(instructions8080).map(Number).sort((a, b) => a - b),
-    Array.from({ length: 256 }, (_, i) => i).filter(opcode => !undocumented.includes(opcode)));
+  const expected = Array.from({ length: 256 }, (_, i) => i).filter(opcode => !undocumented.includes(opcode));
+  assert.equal(expected.length, 244);
+  assert.deepEqual(Object.keys(definitions).map(Number).sort((a, b) => a - b), expected);
+  assert.deepEqual(instructions8080, definitions, "Every production definition comes directly from the chapter");
 });
 
 test("8080 chapter views read live high/low bytes once and counter writes touch only PC", () => {
@@ -68,4 +63,59 @@ for (const [before, after, message] of [
 ] as const) test(`8080 auxiliary carry expressions reject ${after}`, () => {
   assert.throws(() => compileCpuChapter(markdown.replace(before, after), { name: "8080" }, file),
     error => error instanceof ChapterError && error.file === file && error.line > 0 && message.test(error.message));
+});
+
+for (const [before, after, message] of [
+  ["pair B C", "pair SP C", /two byte registers/],
+  ["pair B C", "pair B UNKNOWN", /Unknown name UNKNOWN/],
+  ["operand p <- add(original, u16(1))", "operand p <- u8(1)", /16-bit|word/],
+  ["replace PSW(lowByte(result))", "replace CARRY(1)", /every stored flag/],
+  ["select(sign, u8($80), u8(0))", "select(accumulator, u8($80), u8(0))", /flag accumulator/],
+  ["select(sign, u8($80), u8(0))", "select(sign, u16($80), u8(0))", /equal widths|same width/],
+  ["or(not(borrow(original, u8($9a))), carry)", "or(original, carry)", /flag original/],
+] as const) test(`8080 word/status syntax rejects ${after}`, () => {
+  assert.ok(markdown.includes(before));
+  const line = markdown.slice(0, markdown.indexOf(before)).split("\n").length;
+  assert.throws(() => compileCpuChapter(markdown.replace(before, after), { name: "8080" }, file), error => {
+    assert.ok(error instanceof ChapterError); assert.equal(error.file, file);
+    assert.equal(error.line, line); assert.match(error.message, message); return true;
+  });
+});
+
+async function probes(text: string, opcodes: readonly number[]) {
+  const chapter = compileCpuChapter(text, { name: "8080" }, file);
+  const definitions = Object.fromEntries(Object.values(chapter.families).flat());
+  const source = generateInstructions("8080", Object.fromEntries(opcodes.map(opcode => [opcode, definitions[opcode]!])));
+  const alu = new URL("../../../../src/components/cpus/alu.js", import.meta.url).href;
+  const javascript = stripTypeScriptTypes(source).replace('"../alu.ts"', JSON.stringify(alu));
+  const generated: { instructions: Record<number, (state: Cpu8080State, context: { fetchByte(): number }) => void> } =
+    await import(`data:text/javascript,${encodeURIComponent(javascript)}`);
+  return generated.instructions;
+}
+
+test("editing a pair declaration changes both reads and writes without changing stored state", async () => {
+  const execute = await probes(markdown.replace("pair B C", "pair C B"), [0x01, 0x03]);
+  const stored = state(), events: string[] = [];
+  const observed = new Proxy(stored, {
+    get(target, key, receiver) { events.push(`read ${String(key)}`); return Reflect.get(target, key, receiver); },
+    set(target, key, contents) { events.push(`write ${String(key)}`); return Reflect.set(target, key, contents); },
+  });
+  const bytes = [0xff, 0x7f];
+  execute[0x01]!(observed, { fetchByte: () => bytes.shift()! });
+  assert.deepEqual([stored.b, stored.c], [0xff, 0x7f]);
+  assert.deepEqual(events, ["write c", "write b"]);
+  events.length = 0;
+  execute[0x03]!(observed, { fetchByte: () => assert.fail("INX does not fetch operands") });
+  assert.deepEqual([stored.b, stored.c], [0, 0x80]);
+  assert.deepEqual(events, ["read c", "read b", "write c", "write b"]);
+});
+
+test("decimal predicates, conditional values, and flag replacement come from the chapter", async () => {
+  const execute = await probes(markdown.replace("u8($60), u8(0)", "u8($20), u8(0)"), [0x27]);
+  const stored = state(); stored.a = 0x9b; stored.flags.ac = stored.flags.cy = false;
+  const originalFlags = stored.flags, before = { ...originalFlags };
+  execute[0x27]!(stored, { fetchByte: () => assert.fail("DAA has no operands") });
+  assert.equal(stored.a, 0xc1);
+  assert.deepEqual(stored.flags, { s: true, z: false, p: false, ac: true, cy: true });
+  assert.notEqual(stored.flags, originalFlags); assert.deepEqual(originalFlags, before);
 });

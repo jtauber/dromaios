@@ -5,7 +5,7 @@ to recover `01F0`. Each calculation propagates carry or borrow between two
 byte operations. It then masks and combines bits and branches on a comparison
 that preserves the accumulator.
 
-[Model contract](../model.md#accumulator-arithmetic-and-logic) ·
+[Model contract](../../../../src/components/cpus/specifications/8080.md#arithmetic-and-logical-flags) ·
 [Coverage](../../coverage.md#8080) ·
 [Machine definition](../../../../src/machines/8080/alu-example.machine) ·
 [Example tests](../../../../tests/machines/8080/alu-example.test.ts) ·
@@ -102,7 +102,7 @@ contains `10 02 F0 01 75`. Code, input, and all other RAM remain unchanged.
 The [Intel 8080 Assembly Language Programming Manual][intel], Chapter 2 and
 Appendix B, defines the accumulator arithmetic/logic families and their
 register, memory, and immediate forms. The
-[model contract](../model.md#accumulator-arithmetic-and-logic) specifies exact
+[model contract](../../../../src/components/cpus/specifications/8080.md#arithmetic-and-logical-flags) specifies exact
 flag rules, including the 8080-specific auxiliary carry behavior, and access
 and preservation guarantees. The introductory
 [arithmetic example](arithmetic.md) remains a smaller starting program.

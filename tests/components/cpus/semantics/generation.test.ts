@@ -15,7 +15,7 @@ import { instructionBodies, instructionSet } from "../../../../src/components/cp
 import { cpuSymbols, addWrap, capture, highByte, lowByte, literal, readRegister, value, writeLatch, writeRegister, zero } from "../../../../src/components/cpus/semantics/model.js";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/state/6502.js";
 import type { Cpu6502State } from "../../../../src/components/cpus/state/6502.js";
-import type { Cpu8080State } from "../../../../src/components/cpus/state/8080.js";
+import type { Cpu8080State } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6800State } from "../../../../src/components/cpus/state/6800.js";
 
@@ -49,7 +49,7 @@ test("shared body keys build only their first form and retain encounter order, i
 
 test("the catalogue and chapter bindings name exactly the generated modules, each reproducible without changing its inputs", () => {
   const directory = "src/components/cpus/generated";
-  const filenames = [...instructionModules.map(({ name }) => `${name}.ts`), "8008-execution.ts", "8008-cpu.ts", "8080-execution.ts"];
+  const filenames = [...instructionModules.map(({ name }) => `${name}.ts`), "8008-execution.ts", "8008-cpu.ts", "8080-execution.ts", "8080-cpu.ts"];
   assert.equal(new Set(filenames).size, filenames.length, "module names must not overwrite one another");
   assert.deepEqual(readdirSync(directory).sort(), filenames.sort());
   for (const module of instructionModules) {

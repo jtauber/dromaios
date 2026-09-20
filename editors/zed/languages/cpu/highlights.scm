@@ -1,7 +1,7 @@
 [
   "cpu" "state" "register" "flag" "array" "latch" "source" "view" "action"
-  "policy" "operands" "codes" "conditions" "family" "encoding" "for" "in"
-  "with" "named" "except" "fetch" "operand" "apply" "when" "test" "return"
+  "policy" "operands" "pair" "codes" "conditions" "family" "encoding" "for" "in"
+  "with" "named" "except" "fetch" "operand" "apply" "replace" "when" "test" "return"
   "fault" "alignment" "read" "write" "if" "commit" "addresses" "defer" "irq" "into"
   "execution" "memory" "port" "counter" "stopped" "word" "opcode" "advance"
   "on" "dispatch" "after" "failure" "retain" "reset" "retire" "interrupt"

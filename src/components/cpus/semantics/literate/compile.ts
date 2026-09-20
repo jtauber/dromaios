@@ -2,7 +2,7 @@ import type { StateFields } from "../../state.ts";
 import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
 import type { OpcodeEntry } from "../../opcodes.ts";
 import { memorySource, registerSource } from "../builders.ts";
-import { isWidth, literal, readSource } from "../model.ts";
+import { concat, isWidth, literal, readRegister, readSource, value } from "../model.ts";
 import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Latch, Register, RegisterArray, ValueSource, ValueType, Width } from "../model.ts";
 import { defineInstruction, validateFlagPolicy, validateInstruction } from "../validate.ts";
 import { chapterBlocks, chapterBody, ChapterError, ChapterTokens } from "./document.ts";
@@ -115,6 +115,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         header.expect("{"); header.end();
         const { body, end } = chapterBody(lines, index); index = end;
         execution = chapterExecution(header, body, { views, actions, latches });
+        if (execution.retireDeferral !== undefined) cpu = { ...cpu, irqDeferral: true };
         continue;
       }
       if (["register", "flag", "array", "latch"].includes(kind)) {
@@ -199,8 +200,13 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
             if (operandKind === "register") {
               const register = tokens.lookup(registers);
               entries.push({ kind: "register", name: description, register, read: registerSource(register) });
+            } else if (operandKind === "pair") {
+              const high = tokens.lookup(registers), low = tokens.lookup(registers);
+              if (high.width !== 8 || low.width !== 8) tokens.fail("Register pairs require two byte registers, high then low.");
+              entries.push({ kind: "pair", name: description, high, low,
+                read: { name: description, width: 16, steps: [readRegister("high", high), readRegister("low", low)], result: concat(value("high"), value("low")) } });
             } else {
-              if (operandKind !== "memory" && operandKind !== "value") tokens.fail("Expected register, memory, or value operand.");
+              if (operandKind !== "memory" && operandKind !== "value") tokens.fail("Expected register, pair, memory, or value operand.");
               const source = tokens.lookup(sources);
               if (operandKind === "memory" && source.width !== 16) tokens.fail("Memory operands require a 16-bit address source.");
               entries.push(operandKind === "memory" ? { kind: "memory", name: description, address: source, read: memorySource(source) }

@@ -12,7 +12,7 @@ slots. These examples exercise several encoding relationships:
 | CPU | Pattern | Meaning |
 | --- | --- | --- |
 | [8008](../../src/components/cpus/specifications/8008.md#eight-accumulator-operations) | `00 ooo 100`, `10 ooo sss` | Each operation fixes `ooo` and shares one body across immediate and register/memory encodings; `sss` selects A/B/C/D/E/H/L/M |
-| [8080](../../src/components/cpus/8080.ts) | `00 pp q 001` | `pp` selects BC/DE/HL/SP; `q=0` binds LXI and `q=1` binds DAD |
+| [8080](../../src/components/cpus/specifications/8080.md) | `00 pp q 001` | `pp` selects BC/DE/HL/SP; `q=0` binds LXI and `q=1` binds DAD |
 | [6502](../../src/components/cpus/6502.ts) | `ff v 100 00` | `ff` selects N/V/C/Z; `v` selects the value required to branch |
 | [6800](../../src/components/cpus/6800.ts) | `0010 ttt p` | Seven conditional pairs expand `p`; BRA is explicit because `21` is unused |
 | [6809](../../src/components/cpus/6809.ts) | `0010 ttt p` | `ttt` selects a condition; `p` selects whether to invert it |

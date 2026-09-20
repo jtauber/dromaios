@@ -5,7 +5,7 @@ The example loads 2 into the accumulator, adds 3, stores 5 in RAM, and halts.
 Its purpose is to make each instruction's state changes and memory accesses
 observable and independently checkable.
 
-The [8080 model contract](../model.md) defines state, records, and reset.
+The [8080 model contract](../../../../src/components/cpus/specifications/8080.md) defines state, records, and reset.
 Current support is tracked in [8080 implementation coverage](../../coverage.md#8080).
 
 [Example definition](../../../../src/machines/8080/example.machine) ·
@@ -84,7 +84,7 @@ the record format and unsupported-opcode policy are choices for this model.
 
 ## Expected records for the program
 
-Records use the [8080 step format](../model.md#step-records).
+Records use the [8080 step format](../../../../src/components/cpus/specifications/8080.md#step-records).
 
 The initial-state table supplies the first `before` snapshot. Each following
 record's `before` equals the preceding record's `after`.
@@ -115,13 +115,13 @@ Memory at `0080` stays `00` until step 3, then becomes `05`. There are no other
 memory writes. Together these tables and the unchanged-state rules define
 the complete four records.
 
-A fifth call follows the [already halted policy](../model.md#halt-and-unsupported-opcodes):
+A fifth call follows the [already halted policy](../../../../src/components/cpus/specifications/8080.md#halt-and-unsupported-opcodes):
 `outcome: halted`, `instruction: null`, equal before/after snapshots, and no
 accesses. PC stays at `0008`; A and RAM retain their final values.
 
 ## Reset and restart
 
-Reset follows the [8080 model contract](../model.md#cpu-reset).
+Reset follows the [8080 model contract](../../../../src/components/cpus/specifications/8080.md#reset).
 
 After resetting the completed program, PC is `0000` and both control latches
 are false. A and RAM at `0080` still contain `05`, and P is still true.
@@ -146,7 +146,7 @@ Headless checks establish:
 5. PC and operand fetching wrap at `FFFF`: placing `MVI A,n` at `FFFF` reads its
    immediate from `0000` and leaves PC at `0001`.
 6. Unsupported opcodes, CPU reset, record independence, and inspection follow
-   the [model contract](../model.md). Restart restores this example's initial
+   the [model contract](../../../../src/components/cpus/specifications/8080.md). Restart restores this example's initial
    state and memory image.
 7. RAM follows its [host API contract](../../../machines/definitions.md#ram-and-cpu-ownership).
 

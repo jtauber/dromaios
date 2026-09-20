@@ -23,9 +23,9 @@ readable documentation and implementation source. Typed definitions and code
 generation provide a working foundation. The first
 [literate chapter](cpus/literate-specifications.md) now compiles Markdown `cpu`
 fences into that representation, with diagnostics tied to the document.
-The 8008 now supplies a complete description at its declared instruction-level
-fidelity, including state, lifecycle policies, and its generated public API.
-Its chapter is the sole processor-specific implementation source. Generalizing whole-CPU
+The 8008 and 8080 now have complete descriptions at their declared instruction-level
+fidelity, including state, lifecycle policies, and generated public APIs.
+Their chapters are the sole processor-specific implementation sources. Generalizing whole-CPU
 authoring across the other architectures remains active work.
 
 The current [stored-state descriptions](cpus/implementation.md#stored-state-descriptions)
@@ -220,8 +220,8 @@ models, variants, and machine compositions can still require revisions.
 
 The 8008 and 8080 bind chapter-defined state and execution policies to shared
 [byte execution](../src/components/cpus/byte-execution.ts). The 8080 chapter
-selects interrupt recognition and EI retirement; its remaining TypeScript
-instruction families still share construction with the Z80. The Z80 retains
+selects interrupt recognition and EI retirement and defines its complete
+instruction inventory. The Z80 retains
 its [8080-family base](../src/components/cpus/8080-family.ts), additional
 instructions, and prefix decoding. Paired programs expose common encodings
 alongside their different flag semantics.

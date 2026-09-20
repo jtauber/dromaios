@@ -39,6 +39,8 @@ test("chapter edits drive machine schemas, RAM bounds, entry points, and automat
     const parsed = parseMachine(source + "\\nmemory 7FFF { AA } end 3FFF");
     assert.equal(parsed.ramSize, 0x8000); assert.equal(parsed.initialState.ready, true);
     assert.equal(cpuModels["8008"].name, "CpuSmall");
+    assert.equal(cpuModels["8080"].module, "generated/8080-cpu");
+    assert.equal(cpuModels["8080"].maximumPc, 0xffff, "stored PC also supplies public completion bounds");
     assert.equal(cpuModels["8008"].ramSize, 0x8000);
     assert.equal(cpuModels["8008"].maximumPc, 0x3fff);
     assert.throws(() => parseMachine(source.replace("ready = true", "")), /Missing fields.*ready/);

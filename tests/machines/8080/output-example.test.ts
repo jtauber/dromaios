@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Cpu8080 } from "../../../src/components/cpus/8080.js";
-import type { Cpu8080Access, Cpu8080Snapshot, Cpu8080StepRecord } from "../../../src/components/cpus/8080.js";
+import { Cpu8080 } from "../../../src/components/cpus/generated/8080-cpu.js";
+import type { Cpu8080Access, Cpu8080Snapshot, Cpu8080StepRecord } from "../../../src/components/cpus/generated/8080-cpu.js";
 import type { Ram } from "../../../src/components/memory/ram.js";
 import { create8080OutputExample } from "../../../src/machines/generated/8080/output-example.js";
 import { create68000OutputExample } from "../../../src/machines/generated/68000/output-example.js";

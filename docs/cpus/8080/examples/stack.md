@@ -45,7 +45,7 @@ is visible. These are lesson values, not hardware power-on defaults.
 `create8080StackExampleMemory()` returns the loaded RAM without creating a CPU.
 `create8080StackExample()` returns fresh `{ cpu, ram }` components in the state
 above, without resetting or executing the CPU. State ownership and derived
-views follow the [register-pair contract](../model.md#register-views).
+views follow the [register-pair contract](../../../../src/components/cpus/specifications/8080.md#register-views-and-counter-writes).
 
 ## Stack instruction behavior
 
@@ -53,7 +53,7 @@ The register-pair PUSH and POP forms each occupy one instruction byte. They
 advance PC by one and preserve all flags, the accumulator, unrelated register
 pairs, and control latches. B, D, and H select BC, DE, and HL respectively. The
 [PSW example](psw.md) covers saving and restoring A and the packed flags byte;
-the [model contract](../model.md#stack-accesses-and-psw) defines both cases.
+the [model contract](../../../../src/components/cpus/specifications/8080.md#packed-status-and-the-ram-stack) defines both cases.
 
 PUSH writes the pair's high byte at `SP−1`, then its low byte at `SP−2`,
 leaving SP at `SP−2`. The pair is unchanged. POP reads the low byte at SP,
@@ -69,7 +69,7 @@ stack overlaps its opcode reads that location again as data.
 
 ## Expected records and memory
 
-The [8080 record format](../model.md#step-records) is unchanged. Only
+The [8080 record format](../../../../src/components/cpus/specifications/8080.md#step-records) is unchanged. Only
 instruction fetches contribute to `instruction.bytes`. Stack reads and writes
 appear in `accesses`, in the order they occur. Thus POP records one instruction
 byte and three accesses: the opcode read and two data reads. No extra read is

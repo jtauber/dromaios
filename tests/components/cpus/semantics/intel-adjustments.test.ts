@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
-import type { Cpu8080State } from "../../../../src/components/cpus/state/8080.js";
+import type { Cpu8080State } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
 import type { ByteMemory } from "../../../../src/components/cpus/memory-access.js";
 import { instructions as zilog } from "../../../../src/components/cpus/generated/z80.js";
 import { initialState, flagPattern } from "../z80/helpers.js";

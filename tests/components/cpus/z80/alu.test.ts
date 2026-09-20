@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CpuZ80 } from "../../../../src/components/cpus/z80.js";
 import type { CpuZ80Flags } from "../../../../src/components/cpus/z80.js";
-import { Cpu8080 } from "../../../../src/components/cpus/8080.js";
+import { Cpu8080 } from "../../../../src/components/cpus/generated/8080-cpu.js";
 import { Ram } from "../../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../../helpers/observed-ram.js";
 import { initialState, snapshot, flagPattern, transferColumns, aluForms, expectedAlu, checkBaseStep, checkPrefixedStep } from "./helpers.js";

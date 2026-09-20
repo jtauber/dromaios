@@ -3,7 +3,7 @@ import type { ByteOutputSnapshot } from "../../src/components/devices/byte-outpu
 import type { MemoryConnection } from "../../src/components/memory/connection.js";
 import { create68000OutputExample } from "../../src/machines/generated/68000/output-example.js";
 import { create8080OutputExample } from "../../src/machines/generated/8080/output-example.js";
-import type { Cpu8080ResetRecord } from "../../src/components/cpus/8080.js";
+import type { Cpu8080ResetRecord } from "../../src/components/cpus/generated/8080-cpu.js";
 import type { BytePorts } from "../../src/components/cpus/port-access.js";
 
 // Compiled, never called: notification, inspection, restoration, and memory-connection types.

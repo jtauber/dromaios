@@ -71,8 +71,8 @@ relevant connection failures. A device callback is not an interrupt scheduler;
 introduce scheduling and memory-mapped devices when a concrete machine needs
 them. Keep cycle timing and electrical bus behavior explicit limitations.
 
-The 8080's [port and control contract](8080/model.md#interrupt-controls-and-instruction-retirement)
-and [external delivery API](8080/model.md#external-interrupt-delivery) implement
+The 8080's [port and control contract](../../src/components/cpus/specifications/8080.md#instruction-boundaries-and-interrupt-acceptance)
+and [external delivery API](../../src/components/cpus/specifications/8080.md#external-interrupt-delivery) implement
 the first item. The 8008's [port contract](../../src/components/cpus/specifications/8008.md#port-input-and-output)
 implements the second. The 6502 now implements [entry and return](6502/model.md#interrupt-entry-and-return)
 and [explicit IRQ/NMI offers](6502/model.md#external-interrupt-delivery), with

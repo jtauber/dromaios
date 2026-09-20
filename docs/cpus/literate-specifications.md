@@ -13,17 +13,18 @@ Executable chapters are maintained CPU sources:
   to shared runtime services; no handwritten 8008 implementation remains. Its
   API contracts, hardware references, checks, and limitations also live in the
   chapter; there is no separate model document.
-- [Intel 8080: state, execution, and byte families](../../src/components/cpus/specifications/8080.md)
+- [Intel 8080: the complete model](../../src/components/cpus/specifications/8080.md)
   owns stored fields, register-pair views, reset, normal execution, interrupt
-  recognition and EI retirement, and byte transfers/arithmetic/rotates/I/O.
-  Remaining instructions and the public interface still have TypeScript adapters.
+  recognition and EI retirement, every instruction, and its generated public
+  interface. Its API contracts and hardware guide live in the same chapter; no
+  handwritten 8080 implementation remains.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
 
 This is an authoring-language prototype over the existing
 [instruction representation](instruction-semantics.md), with a deliberately
-small vocabulary. It now describes a complete instruction-level 8008 model;
+small vocabulary. It now describes complete instruction-level 8008 and 8080 models;
 other execution architectures still need language and runtime support.
 Current counts and milestone evidence belong in the
 [coverage report](coverage.md#literate-authoring-milestone).
@@ -89,11 +90,13 @@ An `execution` contract also generates `generated/<chapter>-execution.ts`,
 binding named views/actions and the instruction table to the shared byte runtime.
 Chapters with owned state and execution generate instruction catalogue entries
 automatically. During a partial migration, the registry may combine a chapter's
-forms with its remaining TypeScript definitions, as for the 8080.
+forms with its remaining TypeScript definitions.
 An `interface` declaration also generates `generated/<chapter>-cpu.ts`, the
 public class and result types, plus public state aliases in the schema module.
 A small generated `interfaces.ts` manifest supplies class names, module paths,
-state schemas and caller types, RAM sizes, and public-PC bounds. The shared
+state schemas and caller types, RAM sizes, and public-PC bounds. A stored
+unsigned `pc` supplies those bounds directly; a derived snapshot `pc` uses its
+view width. The shared
 [model catalogue](../../src/components/cpus/models.ts) combines those entries
 with integration metadata for handwritten cores. Machine parsing, flat and
 composed machine generation, and CPU test selection use that catalogue.
@@ -144,8 +147,9 @@ Quoted descriptions use JSON string escaping.
 | `A <- result`, `memory(address) <- byte`, `port(selector) <- byte` | Write to a register, byte memory location, or port. |
 | `ADDRESS[slot] <- target`, `STOPPED <- 1` | Write an indexed stored register or a Boolean control latch; latch writes also accept captured flag expressions. |
 | `ADDRESS[] <- u14($0000)` | Fill every physical array slot with the same width-checked value, without reading previous elements. |
-| `result = operand s`, `operand d <- result` | Read or write a selected register/memory operand at this point. |
+| `result = operand s`, `operand d <- result` | Read or write a selected register, pair, or memory operand at this point. |
 | `defer irq` | Request one-boundary IRQ deferral on successful retirement; requires `retire irq into LATCH`. This does not immediately write stored state. |
+| `replace PSW(status)` | Replace the complete flag object; the policy must define every stored flag. |
 | `apply NZ(result)`, `apply ALU(result, carry(left, right))` | Apply a declared flag policy to typed numeric and flag expressions. |
 | `address = resolve(16, mode, code)` | Ask the existing address decoder to resolve an operand of the stated width; mode and code are captured three-bit values. |
 | `fault alignment read(address) if lowBit(address)` | Return an alignment fault when the captured predicate is true, before subsequent effects. `write` identifies a failed destination access. |
@@ -243,6 +247,11 @@ The nested `interrupt` block supports these policies:
 | `counter preserve` | Supplied bytes leave PC untouched. `advance` instead increments live PC after each successful acknowledgement, including an undefined opcode. |
 | `unknown retain` | An undefined supplied opcode reports unsupported, retaining acceptance and completed fetch effects. It requests no operands and performs no retirement action. |
 
+A declared retirement destination also grants IRQ deferral to the chapter's
+instruction representation; validation and generated context types do not infer
+that capability from the CPU name. The declaration must precede families that
+request deferral.
+
 Both paths select the chapter's same opcode table. Stored-state operations still
 use the instruction representation; the execution declaration generates only
 bindings to [shared runtime code](../../src/components/cpus/byte-execution.ts).
@@ -321,6 +330,7 @@ Numeric expressions are capture names, explicitly sized literals such as
 | `add(left, right[, carry])`, `subtract(left, right[, borrow])` | Wrap at the operands' equal width; the optional third argument is a flag expression. |
 | `and(left, right)`, `or(left, right)`, `xor(left, right)` | Bitwise operations on equal-width values. |
 | `shiftLeft(value, bit)`, `shiftRight(value, bit)` | Shift one place, inserting the flag expression at the vacated end. |
+| `select(condition, yes, no)` | Choose between two equal-width numeric expressions using a flag expression. |
 | `concat(high, low)` | Join two equal-width values, with high first. |
 | `extend(value, width)`, `truncate(value, width)` | Widen or narrow explicitly. |
 | `highByte(word)`, `lowByte(word)` | Extract a byte from a sixteen-bit word. |
@@ -346,6 +356,7 @@ Flag expressions are captured flags or policy parameters, literal `0`/`1`, or:
 
 | Predicate | Meaning |
 | --- | --- |
+| `and(left, right)`, `or(left, right)`, `xor(left, right)` | Combine flag expressions; numeric contexts use the bitwise versions. |
 | `not(flag)` | Negate a captured flag expression. |
 | `negative(value)`, `zero(value)`, `lowBit(value)` | Test the top bit at the value's width, zero, or bit zero. |
 | `evenParity(byte)` | Test even parity of a byte, including zero. |
@@ -353,15 +364,19 @@ Flag expressions are captured flags or policy parameters, literal `0`/`1`, or:
 | `halfCarry(left, right[, incoming])`, `halfBorrow(left, right[, incoming])` | Test carry or borrow from the low nibble of equally sized operands, including an optional incoming flag. The 8080 chapter explicitly negates half-borrow for its subtraction AC rule. |
 
 Flag constants use `0` and `1`, not spelled-out booleans. Updates take effect
-together, and unlisted flags are preserved. Duplicate parameters and duplicate
-flag updates are rejected. Policy expressions use only their parameters and
+together. `apply` preserves unlisted flags and the current flag object; `replace`
+requires all stored flags and creates a new flag object. Duplicate parameters
+and duplicate flag updates are rejected. Policy expressions use only their parameters and
 literals; they cannot refer to source names or capture names in an instruction
 that applies the policy. These same typed predicates can appear in instruction
 expressions and alignment-fault conditions.
 
 A declaration such as `operands bytes { … }` lists every binary selector value
 in numeric order, each with a quoted operand label and `register A`,
-`memory sourceName`, or `value sourceName`. For this slice, memory sources return
+`pair B C`, `memory sourceName`, or `value sourceName`. A pair requires two byte
+registers, high then low: reads capture both in order, and writes split a
+sixteen-bit value in that same order. This is an operand rule, not additional
+storage. Value-only operands cannot be written. For this slice, memory sources return
 sixteen-bit addresses and memory accesses transfer one byte. Every operand
 supplies `.read`; only a memory operand supplies `.address`. A family can select
 a source view from a catalogue:
@@ -596,9 +611,10 @@ literate coverage.
 
 The 8008 supplies the first whole-CPU description at its declared instruction-level
 fidelity. The 8080 now reuses its execution services with chapter-defined
-interrupt enable, delayed recognition, and retirement. Its remaining word,
-stack/control, status, and public-interface definitions are the next migration
-work; its model document remains until the chapter owns the full contract.
+interrupt enable, delayed recognition, and retirement. It also owns all word,
+stack/control, and status instructions, its generated public interface, and
+the full model contract. Both CPUs have zero handwritten implementation.
+The next migration should challenge a different execution architecture.
 A differently named test CPU already exercises different storage, address width, views, and
 actions through the same compiler and runtime. This is evidence for the current
 contract, not proof that it covers the remaining architectures. Each further

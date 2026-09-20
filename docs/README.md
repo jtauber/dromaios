@@ -40,7 +40,7 @@ see the [development instructions](../README.md#development).
 ## CPU models
 
 - [Intel 8008: literate specification](../src/components/cpus/specifications/8008.md)
-- [Intel 8080](cpus/8080/model.md) · [literate chapter in progress](../src/components/cpus/specifications/8080.md)
+- [Intel 8080](../src/components/cpus/specifications/8080.md) — complete executable chapter
 - [MOS 6502](cpus/6502/model.md)
 - [Motorola 6800](cpus/6800/model.md)
 - [Motorola 6809](cpus/6809/model.md)

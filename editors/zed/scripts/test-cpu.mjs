@@ -35,7 +35,7 @@ for (const [text, category] of [
   ['addressStack', 'variable'], ['slot', 'variable'], ['source', 'variable'], ['carry', 'variable'],
   ['transfer', 'function'], ['add', 'function'], ['carry', 'function'], ['u14', 'function'],
   ['Cpu8008', 'type'], ['8', 'number'], ['$0000', 'number'], ['000', 'number'],
-  ['little', 'constant'], ['none', 'constant'], ['&lt;-', 'operator'],
+  ['pair', 'keyword'], ['replace', 'keyword'], ['little', 'constant'], ['none', 'constant'], ['&lt;-', 'operator'],
 ]) {
   assert.ok(html.includes(`<span class='${category}'>${text}</span>`), `${text} is highlighted as ${category}`);
 }

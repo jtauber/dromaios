@@ -5,7 +5,7 @@ per operand. Each byte holds two decimal digits, one in each nibble. Ordinary
 binary addition produces an intermediate result; DAA adjusts it, and carry
 passes to the next pair of digits.
 
-[Model contract](../model.md#decimal-adjustment) ·
+[Model contract](../../../../src/components/cpus/specifications/8080.md#decimal-adjustment) ·
 [Coverage](../../coverage.md#8080) ·
 [Machine definition](../../../../src/machines/8080/decimal-example.machine) ·
 [Example tests](../../../../tests/machines/8080/decimal-example.test.ts) ·
@@ -91,7 +91,7 @@ and records remain independent of later execution and caller edits.
 The [Intel 8080 Assembly Language Programming Manual][intel], printed pages
 15–16, specifies the correction and carry rules. Its pages 56–57 illustrate
 multi-byte decimal addition. The [8080/8085 manual][intel-later], pages
-3-18–3-19, also works through DAA. The [model contract](../model.md#decimal-adjustment)
+3-18–3-19, also works through DAA. The [model contract](../../../../src/components/cpus/specifications/8080.md#decimal-adjustment)
 defines the exact flags, wrapping, and access behavior.
 
 [intel]: https://altairclone.com/downloads/manuals/8080%20Programmers%20Manual.pdf

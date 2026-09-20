@@ -4,7 +4,7 @@ This example moves a byte through registers and memory, transfers words between
 HL and RAM, and exchanges register pairs and stack data. Every arithmetic flag
 keeps its initial value throughout the program.
 
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/8080.md) ·
 [Coverage](../../coverage.md#8080) ·
 [Machine definition](../../../../src/machines/8080/transfers-example.machine) ·
 [Example tests](../../../../tests/machines/8080/transfers-example.test.ts) ·
@@ -83,7 +83,7 @@ Appendix B. All transfer forms preserve arithmetic flags. MOV supports all
 register/memory combinations except M,M; MVI supports all eight destinations.
 LDAX/STAX select BC or DE; direct forms encode a little-endian address.
 
-The [model's data-transfer access contract](../model.md#data-transfer-accesses)
+The [model's data-transfer access contract](../../../../src/components/cpus/specifications/8080.md#word-operands-and-transfers)
 specifies memory order, wrapped addresses, and overlapping code/data behavior.
 The implementation builds MOV/MVI handlers from the CPU's operand table;
 the tests use separately authored opcode rows and expected state changes.

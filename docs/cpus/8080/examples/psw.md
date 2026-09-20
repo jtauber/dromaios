@@ -5,7 +5,7 @@ then restores them. A subsequent addition uses the restored carry. The stack
 crosses the `FFFF`/`0000` boundary; NOP occupies a step between the change
 and the restore without changing that state.
 
-[Model contract](../model.md#stack-accesses-and-psw) ·
+[Model contract](../../../../src/components/cpus/specifications/8080.md#packed-status-and-the-ram-stack) ·
 [Coverage](../../coverage.md#8080) ·
 [Machine definition](../../../../src/machines/8080/psw-example.machine) ·
 [Example tests](../../../../tests/machines/8080/psw-example.test.ts) ·
@@ -93,7 +93,7 @@ detached records, and NOP's preservation and single-fetch behavior.
 
 The [Intel 8080 Assembly Language Programming Manual][intel], printed pages
 16 and 22–23, describes NOP and the PSW stack forms. The
-[model contract](../model.md#stack-accesses-and-psw) defines the flag layout
+[model contract](../../../../src/components/cpus/specifications/8080.md#packed-status-and-the-ram-stack) defines the flag layout
 and access ordering. Intel's page 23 examples save A = `1F` with flags = `47`
 and restore A = `FF` with flags = `C3`; CPU checks cover those values as well.
 

@@ -16,7 +16,7 @@ const initial = () => ({ a: 0x42, b: 0, c: 0, d: 0, e: 0, h: 0, l: 0,
   flags: { s: false, z: true, p: false, c: true }, addressStack: [0, 1, 2, 3, 4, 5, 6, 0x3fff], stackIndex: 7, halted: false });
 
 /** Exercise emitted modules together, resolving their normal imports without writing build output. */
-async function generated(text = markdown, cpu: "8008" | "8080" = "8008") {
+async function generated(text = markdown, cpu = "8008") {
   const chapter = compileCpuChapter(text, { name: cpu }, file);
   const base = new URL("../../../../src/components/cpus/generated/", import.meta.url);
   const moduleUrl = (source: string, bindings: Readonly<Record<string, string>> = {}): string => {
@@ -306,4 +306,20 @@ for (const [before, after, message] of [
 test("IRQ retirement validation descends into untaken branches", () => {
   const text = intel.replace("retire irq into DEFERRED", "retire none").replace("  defer irq", "  when 0 {\n    defer irq\n  }");
   assert.throws(() => compileCpuChapter(text, { name: "8080" }, intelFile), /deferral needs a declared retirement destination/);
+});
+
+
+test("a renamed complete 8080 chapter retains generated IRQ deferral and retirement", async () => {
+  const renamed = intel.replace('cpu "8080"', 'cpu "byteprobe"');
+  const model = await generated(renamed, "byteprobe"), state = intelState(), ram = new Ram(0x10000);
+  const cpu = model.createExecution(state, ram, () => structuredClone(state));
+  ram.write(0, 0xfb); ram.write(1, 0x00); // EI; NOP
+  cpu.step(); assert.equal(state.interruptEnabled, true); assert.equal(state.interruptDeferred, true);
+  const before = structuredClone(state);
+  const ignored = cpu.interrupt(() => assert.fail("Deferred offers must not acknowledge"));
+  assert.deepEqual(ignored, { before, after: before, instruction: null, accesses: [], outcome: "ignored", reason: "deferred" });
+  cpu.step(); assert.equal(state.interruptDeferred, false);
+  const accepted = cpu.interrupt(() => 0xfb); // Supplied EI renews the same declared delay.
+  assert.equal(accepted.outcome, "executed");
+  assert.equal(state.pc, 2); assert.equal(state.interruptEnabled, true); assert.equal(state.interruptDeferred, true);
 });

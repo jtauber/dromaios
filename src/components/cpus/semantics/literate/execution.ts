@@ -24,7 +24,7 @@ export interface ChapterExecution {
 export function checkByteExecution(steps: readonly Statement[], deferral = false): void {
   for (const step of steps) switch (step.kind) {
     case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch":
-    case "write-register": case "write-element": case "fill-array": case "write-latch": case "update-flags":
+    case "write-register": case "write-element": case "fill-array": case "write-latch": case "update-flags": case "replace-flags":
     case "fetch-byte": case "fetch-word": case "read-memory": case "write-memory": case "read-port": case "write-port": break;
     case "defer-interrupt":
       if (!deferral || step.scope !== "irq") throw new Error("IRQ deferral needs a declared retirement destination.");

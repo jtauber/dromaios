@@ -8,7 +8,7 @@ register pair. Current support is tracked in [8080 implementation coverage](../.
 [Example tests](../../../../tests/machines/8080/register-pairs-example.test.ts) ·
 [CPU tests](../../../../tests/components/cpus/8080.test.ts)
 
-The [model's register views](../model.md#register-views) define BC, DE, and
+The [model's register views](../../../../src/components/cpus/specifications/8080.md#register-views-and-counter-writes) define BC, DE, and
 HL as detached views of stored bytes, with no separate initialization inputs.
 For example, H = `12` and L = `FF` give HL = `12FF`.
 
@@ -58,11 +58,11 @@ and [INX description](https://altairclone.com/downloads/manuals/8080%20Programme
 All B, D, H, and SP forms of both instructions follow this contract, although
 the program uses only H. Incrementing SP here performs no stack memory access.
 The instruction-level access records omit timing, dummy bus accesses, and
-electrical activity, as specified in the [model contract](../model.md#step-records).
+electrical activity, as specified in the [model contract](../../../../src/components/cpus/specifications/8080.md#step-records).
 
 ## Expected records
 
-Records retain the [8080 step format](../model.md#step-records). The first
+Records retain the [8080 step format](../../../../src/components/cpus/specifications/8080.md#step-records). The first
 `before` snapshot is the initial state above; each following `before` equals
 the previous `after`. The table lists every changed field. A, B, C, D, E, BC,
 DE, SP, all flags, and interrupt enable remain at their initial values.
@@ -83,7 +83,7 @@ read. There are no writes or reads beyond these entries.
 | 3 | `R 0004:76` |
 
 A fourth call returns `halted` with `instruction: null`, identical before/after
-snapshots, and no accesses. The [unsupported-opcode policy](../model.md#halt-and-unsupported-opcodes)
+snapshots, and no accesses. The [unsupported-opcode policy](../../../../src/components/cpus/specifications/8080.md#halt-and-unsupported-opcodes)
 is unchanged for forms outside the coverage inventory.
 
 ## Reset and restart

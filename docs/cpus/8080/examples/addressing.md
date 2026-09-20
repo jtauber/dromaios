@@ -66,7 +66,7 @@ no cycle counts, dummy bus accesses, or electrical activity.
 
 ## Expected records
 
-Records use the [8080 step format](../model.md#step-records). The first
+Records use the [8080 step format](../../../../src/components/cpus/specifications/8080.md#step-records). The first
 `before` snapshot is the initial state above; subsequent `before` snapshots
 equal the previous `after`. The table lists all changed fields. B, C, D, E,
 BC, DE, SP, flags, and interrupt enable retain their initial values.

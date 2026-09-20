@@ -1,6 +1,6 @@
 # 8080 port output
 
-[Model contract](../model.md#port-io) ·
+[Model contract](../../../../src/components/cpus/specifications/8080.md#port-transfers) ·
 [Machine composition](../../../../src/machines/8080/output-example.machine) ·
 [Example tests](../../../../tests/machines/8080/output-example.test.ts) ·
 [Byte-output contract](../../../devices/byte-output.md)

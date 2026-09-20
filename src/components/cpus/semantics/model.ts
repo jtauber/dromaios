@@ -10,7 +10,12 @@ export interface RegisterArray { readonly kind: "register-array"; readonly cpu: 
 export interface Flag { readonly kind: "flag"; readonly cpu: string; readonly field: string }
 export interface Latch { readonly kind: "latch"; readonly cpu: string; readonly field: string }
 export interface Choice<Value extends string | number = string | number> { readonly kind: "choice"; readonly cpu: string; readonly field: string; readonly values: readonly Value[] }
-export interface CpuDeclaration { readonly name: string; readonly state: StateFields }
+export interface CpuDeclaration {
+  readonly name: string;
+  readonly state: StateFields;
+  /** A chapter execution contract supplies an IRQ-deferral destination at retirement. */
+  readonly irqDeferral?: true;
+}
 
 interface ArithmeticOperands {
   readonly left: NumberExpression;

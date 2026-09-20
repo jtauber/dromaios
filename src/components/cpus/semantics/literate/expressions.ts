@@ -1,4 +1,4 @@
-import { addWrap, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
+import { addWrap, and, or, xor, select, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
   flagValue, halfBorrow, halfCarry, highByte, isWidth, literal, lowBit, lowByte, negative, not, shiftLeft, shiftRight,
   subtract, truncate, value, zero } from "../model.ts";
 import type { FlagExpression, NumberExpression, Width } from "../model.ts";
@@ -18,6 +18,10 @@ export function expression(tokens: ChapterTokens): NumberExpression {
     const bits = Number(name.slice(1));
     if (!isWidth(bits)) return tokens.fail("Unsupported literal width.");
     result = literal(bits, tokens.number());
+  } else if (name === "select") {
+    const condition = flagExpression(tokens); tokens.expect(",");
+    const yes = expression(tokens); tokens.expect(",");
+    result = select(condition, yes, expression(tokens));
   } else if (name === "highByte" || name === "lowByte") {
     result = (name === "highByte" ? highByte : lowByte)(expression(tokens));
   } else if (name === "extend" || name === "truncate") {
@@ -48,7 +52,10 @@ export function flagExpression(tokens: ChapterTokens): FlagExpression {
   if (!tokens.take("(")) return flagValue(name);
   let result: FlagExpression;
   if (name === "not") result = not(flagExpression(tokens));
-  else if (["carry", "borrow", "halfCarry", "halfBorrow"].includes(name)) {
+  else if (name === "and" || name === "or" || name === "xor") {
+    const left = flagExpression(tokens); tokens.expect(",");
+    result = { and, or, xor }[name](left, flagExpression(tokens));
+  } else if (["carry", "borrow", "halfCarry", "halfBorrow"].includes(name)) {
     const left = expression(tokens); tokens.expect(","); const right = expression(tokens);
     const incoming = tokens.take(",") ? flagExpression(tokens) : undefined;
     const operation = { carry, borrow, halfCarry, halfBorrow }[name as "carry" | "borrow" | "halfCarry" | "halfBorrow"];

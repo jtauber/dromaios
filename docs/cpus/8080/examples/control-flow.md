@@ -4,7 +4,7 @@ This example repeatedly calls an increment subroutine until A wraps to zero,
 then stores the result and halts. It exercises a backward conditional jump,
 subroutine return addresses, and the shared runner's step budget.
 
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/8080.md) ·
 [Coverage](../../coverage.md#8080) ·
 [Machine definition](../../../../src/machines/8080/control-flow-example.machine) ·
 [Example tests](../../../../tests/machines/8080/control-flow-example.test.ts) ·
@@ -54,7 +54,7 @@ does not require or deliver an interrupt.
 
 These behaviors follow Intel's [8080 Assembly Language Programming Manual][intel],
 Chapter 2, printed pages 31–37 and Appendix B. The model's
-[access-record rules](../model.md#control-flow-accesses) define fetching and
+[access-record rules](../../../../src/components/cpus/specifications/8080.md#jumps-calls-and-returns) define fetching and
 stack ordering, including untaken conditions.
 
 ## Expected execution

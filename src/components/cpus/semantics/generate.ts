@@ -27,9 +27,10 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
   const outcomes = new Set<string>();
   let alignmentFaults = false, targetFaults = false;
   const allCapabilities = new Set<Capability>();
+  const irqDeferral = cpu === "z80" || Object.values(definitions).some(definition => definition.cpu.irqDeferral === true);
   const contextExtensions: readonly { name: string; type?: string; file: string; capabilities: readonly Capability[] }[] = [
     { name: "BytePorts", file: "port-access", capabilities: ["readPort", "writePort"] },
-    { name: "InterruptDeferralContext", type: `InterruptDeferralContext${cpu === "8080" || cpu === "z80" ? '<"irq">' : ""}`, file: "instruction-context", capabilities: ["deferInterrupt"] },
+    { name: "InterruptDeferralContext", type: `InterruptDeferralContext${irqDeferral ? '<"irq">' : ""}`, file: "instruction-context", capabilities: ["deferInterrupt"] },
     { name: "RetiNotificationContext", file: "instruction-context", capabilities: ["notifyReti"] },
     { name: "InterruptReportContext", file: "instruction-context", capabilities: ["reportInterrupt"] },
     { name: "Cpu8088ExternalContext", file: "8088-external", capabilities: ["readTest", "sendEscape"] },

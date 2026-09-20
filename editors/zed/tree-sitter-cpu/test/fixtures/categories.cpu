@@ -20,6 +20,7 @@ policy ALU "carry" (result: 8, carry: flag) {
 operands bytes {
   000 "A" = register A
   001 "M" = memory throughHL
+  010 "B" = pair B C
 }
 codes vectors: 14 {
   000 "00" = $00
@@ -39,6 +40,7 @@ family AD {
   left = register A
   result = add(left, right, carry)
   apply ALU(result, carry(left, right, carry))
+  replace ALU(select(carry, u8(1), u8(0)), or(carry, 0))
   A <- result
 }
 family conditional "01 ccc 000" for c in branches {

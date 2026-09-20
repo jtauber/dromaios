@@ -74,7 +74,9 @@ export function generateCpuChapters() {
     "export const chapterInterfaces = {",
     ...publicChapters.map(({ name, cpu, chapter }, index) => {
       const pc = chapter.interface!.snapshots.find(({ field }) => field === "pc");
-      const maximumPc = pc ? 2 ** chapter.views[pc.view]!.width - 1 : undefined;
+      const storedPc = chapter.state?.pc;
+      const pcBits = pc ? chapter.views[pc.view]!.width : storedPc?.kind === "unsigned" ? storedPc.bits : undefined;
+      const maximumPc = pcBits === undefined ? undefined : 2 ** pcBits - 1;
       return `  ${JSON.stringify(cpu)}: { name: ${JSON.stringify(chapter.interface!.name)}, module: "generated/${name}-cpu", state: state${index}, ramSize: ${2 ** chapter.execution!.memoryBits}, maximumPc: ${maximumPc} },`;
     }), "} as const;", "export interface ChapterStates {",
     ...publicChapters.map(({ name, cpu, chapter }) =>

@@ -3,7 +3,7 @@ import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/state/6502.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
-import { cpu8080StateDescription } from "../../../../src/components/cpus/state/8080.js";
+import { cpu8080StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
 import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
 import { cpuZ80StateDescription } from "../../../../src/components/cpus/state/z80.js";
 import type { CpuZ80State } from "../../../../src/components/cpus/state/z80.js";
@@ -41,13 +41,13 @@ test("control choices retain schema ownership, exact alternatives, and Boolean c
 });
 
 test("interrupt effects accept only the owning CPU's deferral scopes and RETI notification", () => {
-  const cpus = [z80, cpuSymbols("8080", cpu8080StateDescription), cpuSymbols("8088", cpu8088StateDescription),
+  const cpus: readonly { declaration: CpuDeclaration }[] = [z80, { declaration: { name: "chapter", state: cpu8080StateDescription, irqDeferral: true } }, cpuSymbols("8088", cpu8088StateDescription),
     motorola, cpuSymbols("6502", cpu6502StateDescription)];
   for (const cpu of cpus) {
     for (const scope of ["irq", "intr", "all"] as const) {
       const check = () => define(cpu.declaration, [deferInterrupt(scope)]);
       const allowed = cpu.declaration.name === "8088" ? scope !== "irq"
-        : ["8080", "z80"].includes(cpu.declaration.name) && scope === "irq";
+        : (cpu.declaration.irqDeferral === true || cpu.declaration.name === "z80") && scope === "irq";
       if (allowed) check(); else assert.throws(check, /deferral/);
     }
     const check = () => define(cpu.declaration, [notifyReti()]);
