@@ -6,6 +6,7 @@ The [examples](../../README.md#cpu-examples) specify concrete programs,
 instruction behavior, and expected execution.
 
 [Implementation](../../../src/components/cpus/6502.ts) ·
+[Literate state and instruction definitions](../../../src/components/cpus/specifications/6502.md) ·
 [CPU tests](../../../tests/components/cpus/6502.test.ts) ·
 [Public type checks](../../../tests/types/6502.ts)
 
@@ -24,6 +25,8 @@ devices, and browser controls are unmodeled. External entry uses the explicit
 
 ## State and initialization
 
+The [chapter's stored-state declaration](../../../src/components/cpus/specifications/6502.md#stored-state)
+generates the schema used by construction, snapshots, and machine parsing.
 `Cpu6502State` contains `a`, `x`, `y`, `sp`, `pc`, and `flags`.
 `Cpu6502Flags` contains booleans `n`, `v`, `d`, `i`, `z`, and `c`.
 I masks explicit IRQ offers, with the opposite sense to the 8080's

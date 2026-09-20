@@ -6,6 +6,41 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 
+test("a partial 6502 chapter's state edits reach construction, snapshots, and machine parsing", t => {
+  const directory = mkdtempSync(join(tmpdir(), "dromaios-6502-state-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  mkdirSync(join(directory, "scripts"));
+  cpSync("scripts/generate-cpu-chapters.ts", join(directory, "scripts/generate-cpu-chapters.ts"));
+  cpSync("src/components", join(directory, "src/components"), { recursive: true });
+  cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
+  const chapter = join(directory, "src/components/cpus/specifications/6502.md");
+  writeFileSync(chapter, readFileSync(chapter, "utf8").replace("register SP: 8", "register SP: 8\n  register SCRATCH: 8"));
+  const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-chapters.ts")], { encoding: "utf8" });
+  assert.equal(generated.status, 0, generated.stderr);
+  const url = (path: string) => JSON.stringify(pathToFileURL(join(directory, path)).href);
+  const machine = readFileSync("src/machines/6502/example.machine", "utf8");
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { Cpu6502, cpu6502StateDescription } from ${url("src/components/cpus/6502.ts")};
+    import { parseMachine } from ${url("src/machines/machine-language.ts")};
+    const text = ${JSON.stringify(machine)};
+    assert.equal(cpu6502StateDescription.scratch.bits, 8);
+    assert.throws(() => parseMachine(text), /Missing fields.*SCRATCH/);
+    const definition = parseMachine(text.replace("cpu 6502 {", "cpu 6502 { SCRATCH = A5"));
+    assert.equal(definition.initialState.scratch, 0xa5);
+    assert.throws(() => parseMachine(text.replace("cpu 6502 {", "cpu 6502 { SCRATCH = 100")), /0.*FF/);
+    const ram = { size: 0x10000, read() { throw new Error("Unexpected RAM read"); }, write() { throw new Error("Unexpected RAM write"); } };
+    const missing = { ...definition.initialState }; delete missing.scratch;
+    assert.throws(() => new Cpu6502(ram, missing), /scratch/);
+    const cpu = new Cpu6502(ram, definition.initialState);
+    assert.equal(cpu.snapshot().scratch, 0xa5);
+    definition.initialState.scratch = 0;
+    const snapshot = cpu.snapshot(); snapshot.scratch = 0;
+    assert.equal(cpu.snapshot().scratch, 0xa5);
+  `], { cwd: tmpdir(), encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+});
+
 test("chapter edits drive machine schemas, RAM bounds, entry points, and automatic model registration", t => {
   const directory = mkdtempSync(join(tmpdir(), "dromaios-chapter-model-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));

@@ -21,7 +21,7 @@ emulators do not count toward implementation here.
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [0](../../src/components/cpus/specifications/8008.md) | [1,422](../../src/components/cpus/specifications/8008.md) | 341 | 250 / 250 | 100% | 6 / 6 |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [0](../../src/components/cpus/specifications/8080.md) | [1,590](../../src/components/cpus/specifications/8080.md) | 511 | 244 / 244 | 100% | 6 / 6 |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [213](../../src/components/cpus/6800.ts) | 0 | 0 | 0 / 197 | 0% | 0 / 6 |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | [184](../../src/components/cpus/specifications/6502-load-store.md) | 83 | 15 / 151 | 9.9% | 0 / 6 |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | [588](../../src/components/cpus/specifications/6502.md) | 211 | 77 / 151 | 51.0% | 1 / 6 |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 0 | 0 | 0 / 698 | 0% | 0 / 6 |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 0 | 0 | 0 / 268 | 0% | 0 / 6 |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [522](../../src/components/cpus/8088.ts) | 0 | 0 | 0 / 291 | 0% | 0 / 6 |
@@ -35,8 +35,8 @@ interfaces; each chapter is its CPU's sole processor-specific implementation sou
 **Literate model milestones** count whole model areas owned by chapters, using
 the six criteria below. The 8008 and 8080 are at **6 / 6**: instructions, stored
 state, register views, reset effects, normal execution, and external events.
-The 8080's final migration raises instruction ownership from **167 to 244 forms**,
-completes its sixth milestone, and removes its remaining handwritten adapters.
+The 6502 now owns its complete stored-state schema, earning **1 / 6**; its
+chapter also supplies **77 of 151 instruction forms**.
 
 **Literate spec lines** count whole Markdown chapters under
 `src/components/cpus/specifications/`, including prose, diagrams, formal blocks,
@@ -69,18 +69,19 @@ CPU policy has been removed. Shared runtime machinery for validation, guarding,
 access recording, and snapshot assembly may remain TypeScript; processor-specific
 choices must come from the chapter.
 
-| Milestone | What the chapter must own | 8008 | 8080 |
-| --- | --- | --- | --- |
-| Complete instruction definitions and encodings | Every documented opcode form and its behavior at the model's declared fidelity | [Complete](../../src/components/cpus/specifications/8008.md) | [Complete](../../src/components/cpus/specifications/8080.md#checks-and-examples) |
-| Stored-state schema | All stored fields, types, widths, and array lengths | [Complete](../../src/components/cpus/specifications/8008.md#stored-state) | [Complete](../../src/components/cpus/specifications/8080.md#stored-state) |
-| Derived register views and writes | Computed registers, aliases, and their write rules | [Complete](../../src/components/cpus/specifications/8008.md#register-views) | [Complete](../../src/components/cpus/specifications/8080.md#register-views-and-counter-writes) |
-| Reset effects | State changes, preservation rules, and any reset-time device or memory effects | [Complete](../../src/components/cpus/specifications/8008.md#reset) | [Complete](../../src/components/cpus/specifications/8080.md#reset) |
-| Normal execution | Fetching, decoding/dispatch, stopping, retirement, and failure policies | [Complete](../../src/components/cpus/specifications/8008.md#execution-and-interrupt-acceptance) | [Complete](../../src/components/cpus/specifications/8080.md#instruction-boundaries-and-interrupt-acceptance) |
-| External events | Interrupt/exception acceptance, entry, and externally supplied execution, as applicable | [Complete](../../src/components/cpus/specifications/8008.md#execution-and-interrupt-acceptance) | [Complete](../../src/components/cpus/specifications/8080.md#instruction-boundaries-and-interrupt-acceptance) |
+| Milestone | What the chapter must own | 8008 | 8080 | 6502 |
+| --- | --- | --- | --- | --- |
+| Complete instruction definitions and encodings | Every documented opcode form and its behavior at the model's declared fidelity | [Complete](../../src/components/cpus/specifications/8008.md) | [Complete](../../src/components/cpus/specifications/8080.md#checks-and-examples) | Not yet |
+| Stored-state schema | All stored fields, types, widths, and array lengths | [Complete](../../src/components/cpus/specifications/8008.md#stored-state) | [Complete](../../src/components/cpus/specifications/8080.md#stored-state) | [Complete](../../src/components/cpus/specifications/6502.md#stored-state) |
+| Derived register views and writes | Computed registers, aliases, and their write rules | [Complete](../../src/components/cpus/specifications/8008.md#register-views) | [Complete](../../src/components/cpus/specifications/8080.md#register-views-and-counter-writes) | Not yet |
+| Reset effects | State changes, preservation rules, and any reset-time device or memory effects | [Complete](../../src/components/cpus/specifications/8008.md#reset) | [Complete](../../src/components/cpus/specifications/8080.md#reset) | Not yet |
+| Normal execution | Fetching, decoding/dispatch, stopping, retirement, and failure policies | [Complete](../../src/components/cpus/specifications/8008.md#execution-and-interrupt-acceptance) | [Complete](../../src/components/cpus/specifications/8080.md#instruction-boundaries-and-interrupt-acceptance) | Not yet |
+| External events | Interrupt/exception acceptance, entry, and externally supplied execution, as applicable | [Complete](../../src/components/cpus/specifications/8008.md#execution-and-interrupt-acceptance) | [Complete](../../src/components/cpus/specifications/8080.md#instruction-boundaries-and-interrupt-acceptance) | Not yet |
 
-The other six CPUs currently have **0 / 6** complete areas. The 6502 and 68000 have
-partial instruction chapters; their progress appears in instruction coverage,
-but neither has completed an entire model milestone. State declarations checked
+The other five CPUs currently have **0 / 6** complete areas. The 68000 has a
+partial instruction chapter, but its state still comes from TypeScript. The
+6502 generates its entire schema from the chapter and retains a thin adapter
+for public names and the remaining status layout. State declarations checked
 against an external TypeScript schema do not earn stored-state credit.
 
 These are milestones, not equally sized units of work, so the count is not
@@ -91,11 +92,15 @@ the remaining authoring boundaries.
 
 ## Literate authoring milestone
 
-The first [executable chapter](../../src/components/cpus/specifications/6502-load-store.md)
-owns all eight LDA and seven STA encodings, their shared addressing sources,
-and the N/Z policy. Those definitions feed real 6502 execution. The chapter's
-addresses and policy also serve other families, but only its fully authored
-LDA/STA bodies earn literate coverage credit.
+The [6502 chapter](../../src/components/cpus/specifications/6502.md) owns all
+**77 load/store, register-transfer, logical, comparison, and BIT forms**, plus
+the complete stored-state schema. Its shared addressing sources and N/Z policy
+also serve the remaining TypeScript definitions; those uses earn no extra
+literate instruction credit. Existing language features express the cross-indexed
+loads/stores, omitted modes, no-borrow comparison carry, and BIT flag sources.
+[Chapter tests](../../tests/components/cpus/semantics/literate.test.ts) check the
+exact inventory and formal edits; [integration tests](../../tests/scripts/chapter-model-integration.test.ts)
+verify that an added state field reaches construction, snapshots, and machine parsing.
 
 The [8008 chapter](../../src/components/cpus/specifications/8008.md)
 owns **all 250 documented forms**: 71 transfers/immediate loads, 72 ALU forms,
@@ -152,11 +157,13 @@ forms**; helpers do not add opcode credit. All eight CPUs now
 have complete instruction-definition migration. The current
 family inventory is:
 
-- [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
-  14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
+- [6502 chapter](../../src/components/cpus/specifications/6502.md) and
+  [remaining definitions](../../src/components/cpus/semantics/definitions/6502.ts):
+  The chapter owns all 14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms,
+  13 STA/STX/STY forms, six register transfers, 24 ORA/AND/EOR forms, and both
+  BIT forms. The TypeScript definitions retain
   all 20 ASL/ROL/LSR/ROR forms, eight memory INC/DEC forms, INX/INY/DEX/DEY,
-  all 24 ORA/AND/EOR forms, both BIT forms, eight conditional branches,
-  and absolute/indirect JMP. Branches fetch before testing flags and read/write
+  eight conditional branches, and absolute/indirect JMP. Branches fetch before testing flags and read/write
   PC only when taken. Indirect JMP retains the NMOS pointer-page wrap.
   PHA/PLA and JSR/RTS add four bodies. PLA applies N/Z only after a successful
   pull; JSR fetches target low, pushes current PC high/low, then fetches target
@@ -630,14 +637,14 @@ judging source reduction; all counts include comments and blank lines.
 | Scope | Lines |
 | --- | ---: |
 | Six remaining handwritten CPU core files | 2,202 |
-| CPU-specific instruction definition files | 2,181 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,018 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,401** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 3,350 |
-| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 130 |
-| Generated executable CPU output, counted separately | 314,339 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 161,226 |
-| Generated state schemas/types, counted separately | 49 |
+| CPU-specific instruction definition files | 2,088 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,012 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,302** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 3,754 |
+| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 128 |
+| Generated executable CPU output, counted separately | 314,327 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 173,590 |
+| Generated state schemas/types, counted separately | 62 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
 outside this source count. Generated TypeScript is reproducible build output,
@@ -685,9 +692,20 @@ Its chapter now has **1,590 lines**, including **511 formal lines**, and replace
 the separate **501-line model document**, which was outside this source count.
 The expanded historical background, hardware and programming guide, and worked
 examples add **296 chapter lines** without changing any formal block or generated
-behavior. Total maintained CPU source (TypeScript, chapters, and the two
-generation scripts) is **12,881 lines**; chapter prose counts toward that total.
+behavior. At that point, maintained CPU source (TypeScript, chapters, and the
+two generation scripts) reached **12,881 lines**; prose counts toward that total.
 Both the 8008 and 8080 now have a single authored implementation source.
+
+The 6502 state and 77-form migration reduces its instruction-definition file
+from **241 to 148 lines** and its state adapter from **15 to 9 lines**. No new
+language or runtime code is needed. Authored CPU TypeScript falls by **99 lines**
+to **9,302**, and bootstrap scripts shrink by **2 lines**. The chapter grows
+from **184 to 588 lines**, with **211 formal lines**, adding history, programming
+explanations, and worked examples. Total maintained CPU source is now
+**13,184 lines**. Generated executable output falls by 12 lines; expanded chapter
+data grows as it takes ownership of more definitions, and the new state module
+adds 13 generated lines. The core remains at 101 handwritten lines until execution
+and lifecycle contracts migrate.
 
 Generated chapter data repeats the validated CPU schema within expanded
 definitions and remains a separate, disposable intermediate representation.

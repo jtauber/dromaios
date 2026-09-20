@@ -109,8 +109,10 @@ Each CPU module exports a `cpu…StateDescription` beside its public state
 type. For all eight CPUs, the schema and public types are exposed through
 CPU-owned modules under [`state/`](../../src/components/cpus/state), or generated
 schema modules for complete chapters, and are re-exported by the public CPU
-module. The 8008 and 8080 schemas and public types are generated from their chapters; other
-schemas remain authored TypeScript.
+module. The 8008 and 8080 schemas and public types are generated from their chapters.
+The 6502's partial chapter also generates its complete schema; its state adapter
+re-exports that schema and retains the public type names and packed-status layout.
+The other five schemas remain authored TypeScript.
 This lets instruction generation load schemas without loading execution. The description
 owns stored field names, types, and constraints. The
 [shared state helpers](../../src/components/cpus/state.ts) provide:

@@ -2,9 +2,11 @@
 
 Executable chapters are maintained CPU sources:
 
-- [MOS 6502: loading and storing the accumulator](../../src/components/cpus/specifications/6502-load-store.md)
-  defines LDA/STA and the addressing catalogue and N/Z policy reused by the
-  remaining 6502 definitions.
+- [MOS 6502: state, addressing, transfers, logic, and comparisons](../../src/components/cpus/specifications/6502.md)
+  owns the complete stored-state schema, all loads/stores and register transfers,
+  ORA/AND/EOR, CMP/CPX/CPY, and BIT. Its addressing catalogue and N/Z policy
+  also serve the remaining TypeScript definitions. Reset and execution boundaries
+  still belong to the core and its model document.
 - [Intel 8008: the complete model](../../src/components/cpus/specifications/8008.md)
   defines every documented instruction, including control flow, restarts,
   halts, and port transfers. The chapter owns behavior, encodings, and stored-state
@@ -174,7 +176,7 @@ it. A chapter with a public `interface` also generates its public state types;
 other CPUs may retain those types in their state modules. Initial values, reset effects, derived register views,
 fetching, and interrupt delivery are separate contracts, not implied by storage.
 
-Partial chapters instead receive an external schema and use top-level state
+Chapters without owned state instead receive an external schema and use top-level state
 declarations to name the fields they need. They cannot also define a `state`
 block. The compiler validates their field kinds, widths, and array lengths
 against that schema; it does not emit a replacement schema for them.
@@ -601,7 +603,11 @@ without owned state validate declarations against an external schema; most
 other instruction families remain authored in TypeScript.
 
 The four chapters now exercise contrasting widths, ordered effects, and
-interrupt-recognition policies.
+interrupt-recognition policies. The 6502 also owns its complete state, transfers,
+logical operations, comparisons, and BIT. Existing selector/source bindings
+express its irregular index-load/store encodings and cross-indexing without new
+language syntax. Its thin state adapter re-exports the generated schema while
+retaining the packed-status layout until those instructions migrate.
 The 8008 now expresses its address-stack selector, array, and port effects;
 the 68000 still uses its native effective-address decoder, including A7 banking
 and pending auto-updates. Its 192 chapter encodings select generated bodies

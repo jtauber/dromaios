@@ -1,15 +1,15 @@
 import { cpu6502StateDescription, cpu6502Status } from "../../state/6502.ts";
 import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
-import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, cpuSymbols, extend, fetchByte, flagLiteral, highByte, literal, lowByte, negative, not,
-  readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
-import type { FlagPolicy, InstructionDefinition, NumberExpression, Register, SourceDefinitions, Statement, ValueSource } from "../model.ts";
-import { compare, instructionSet, logical, memorySource, registerSource, shift, transfer } from "../builders.ts";
+import { addWrap, bitAnd, bitOr, capture, concat, cpuSymbols, extend, fetchByte, flagLiteral, highByte, literal, lowByte,
+  readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister } from "../model.ts";
+import type { InstructionDefinition, NumberExpression, Register, SourceDefinitions, Statement, ValueSource } from "../model.ts";
+import { instructionSet, registerSource, shift } from "../builders.ts";
 import { defineInstruction } from "../validate.ts";
 import { flagCondition, loadVector, jump, relativeBranch, subroutineReturn } from "../control-flow.ts";
 import { byteStack, stackPop, stackPush, wordStack } from "../stack.ts";
 import { flagInstruction, flagPolicy, packedStatus, restoreStatus } from "../status.ts";
 import { mosArithmetic } from "../mos.ts";
-import { sources, policies, operands, families } from "../generated/6502-load-store.ts";
+import { sources, policies, operands, families } from "../generated/6502.ts";
 
 const cpu = cpuSymbols("6502", cpu6502StateDescription);
 const stack = byteStack(cpu.register("sp"), "free", 0x0100);
@@ -26,19 +26,6 @@ const indirectJump: ValueSource = { name: "NMOS page-wrapped pointer", width: 16
 };
 
 const resultNZ = policies.NZ;
-const comparisonFlags: FlagPolicy = {
-  ...resultNZ, name: "6502 comparison", parameters: { left: 8, right: 8, result: 8 },
-  updates: [...resultNZ.updates, { flag: cpu.flag("c"), value: not(borrow(value("left"), value("right"))) }],
-};
-const bitFlags: FlagPolicy = {
-  name: "6502 BIT", parameters: { accumulator: 8, operand: 8 }, unlisted: "preserve", updates: [
-    { flag: cpu.flag("n"), value: negative(value("operand")) },
-    { flag: cpu.flag("v"), value: not(zero(bitAnd(value("operand"), literal(8, 0x40)))) },
-    { flag: cpu.flag("z"), value: zero(bitAnd(value("accumulator"), value("operand"))) },
-  ],
-};
-const logicalOperations = { ORA: bitOr, AND: bitAnd, EOR: bitXor };
-
 function arithmetic(name: "ADC" | "SBC", [operand, source]: Operand): InstructionDefinition {
   return defineInstruction({ cpu: cpu.declaration, name: `${name} ${operand}`,
     explanation: "Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. "
@@ -48,58 +35,6 @@ function arithmetic(name: "ADC" | "SBC", [operand, source]: Operand): Instructio
     steps: [readSource("right", source), ...mosArithmetic(cpu, name)],
   });
 }
-function comparison(register: "a" | "x" | "y", [operand, source]: Operand): InstructionDefinition {
-  return defineInstruction({
-    cpu: cpu.declaration, name: `${{ a: "CMP", x: "CPX", y: "CPY" }[register]} ${operand}`,
-    explanation: "Read the source before the comparison register. Subtract without writing a destination. C "
-      + "means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.",
-    steps: compare(cpu.register(register), source, comparisonFlags),
-  });
-}
-function load(register: "x" | "y", [operand, source]: Operand): InstructionDefinition {
-  return defineInstruction({
-    cpu: cpu.declaration, name: `LD${register.toUpperCase()} ${operand}`,
-    explanation: "Finish the source reads before writing the destination, then set N/Z from the captured byte. "
-      + "Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.",
-    steps: transfer(cpu.register(register), source, resultNZ),
-  });
-}
-function store(register: "x" | "y", [operand, address]: Operand): InstructionDefinition {
-  return defineInstruction({
-    cpu: cpu.declaration, name: `ST${register.toUpperCase()} ${operand}`,
-    explanation: "Resolve the address once, including any pointer reads, before capturing the source register. "
-      + "Write that byte once, even if unchanged, without reading the destination. Preserve every flag. "
-      + "A failed access prevents later effects; completed fetches and pointer reads remain.",
-    steps: [readSource("address", address), readRegister("byte", cpu.register(register)), writeMemory(value("address"), value("byte"))],
-  });
-}
-function logic(name: keyof typeof logicalOperations, [operand, source]: Operand): InstructionDefinition {
-  return defineInstruction({
-    cpu: cpu.declaration, name: `${name} ${operand}`,
-    explanation: "Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. "
-      + "Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.",
-    steps: logical(cpu.register("a"), source, logicalOperations[name], resultNZ),
-  });
-}
-function testBits([operand, source]: Operand): InstructionDefinition {
-  return defineInstruction({
-    cpu: cpu.declaration, name: `BIT ${operand}`,
-    explanation: "Read memory before capturing A. Copy N/V from memory bits 7/6; set Z from A AND memory. "
-      + "Preserve A, C, D, and I. Decimal mode has no effect. A failed read leaves every flag unchanged.",
-    steps: [readSource("operand", source), readRegister("accumulator", cpu.register("a")),
-      updateFlags(bitFlags, { accumulator: value("accumulator"), operand: value("operand") })],
-  });
-}
-function registerTransfer(name: string, from: "a" | "x" | "y" | "sp", to: "a" | "x" | "y" | "sp", policy?: FlagPolicy): InstructionDefinition {
-  return defineInstruction({
-    cpu: cpu.declaration, name,
-    explanation: `Capture ${from.toUpperCase()} and write ${to.toUpperCase()}. `
-      + (policy === undefined ? "Preserve every flag." : `Then apply ${policy.name}, preserving unlisted flags.`)
-      + " No data memory or stack access occurs, including transfers involving SP.",
-    steps: transfer(cpu.register(to), registerSource(cpu.register(from)), policy),
-  });
-}
-
 // A byte operation consumes "original" and captures "result"; its flag stages stay in place.
 function shiftOperation(name: string, direction: "left" | "right", rotate = false) {
   const operation = shift(direction, rotate ? cpu.flag("c") : "zero");
@@ -137,7 +72,6 @@ export const sources6502 = { cpu: cpu.declaration, groups: {
   addresses, operands: Object.fromEntries(accumulatorOperands.map(([, source], code) => [code, source])),
 } } satisfies SourceDefinitions;
 const indexRegisters = ["y", "x"] as const;
-const otherIndex = { x: "y", y: "x" } as const;
 // 0ss bbb 10: ss selects ASL/ROL/LSR/ROR. 11i bbb 10: i selects DEC/INC.
 const shifts = [shiftOperation("ASL", "left"), shiftOperation("ROL", "left", true), shiftOperation("LSR", "right"), shiftOperation("ROR", "right", true)];
 const adjustments = [
@@ -199,37 +133,10 @@ export const instructions6502 = instructionSet([
       immediateByte, flagCondition(cpu.flag(f), v))),
   ...opcodePattern("010 011 00", jump(cpu, "JMP absolute", addresses.absolute)),
   ...opcodePattern("011 011 00", jump(cpu, "JMP indirect", indirectJump)),
-  ...opcodeFamily("000 bbb 01", { b: accumulatorOperands }, ({ b }) => logic("ORA", b)),
-  ...opcodeFamily("001 bbb 01", { b: accumulatorOperands }, ({ b }) => logic("AND", b)),
-  ...opcodeFamily("010 bbb 01", { b: accumulatorOperands }, ({ b }) => logic("EOR", b)),
+  // The chapter owns loads/stores, register transfers, logic, comparisons, and BIT.
+  ...Object.values(families).flat(),
   ...opcodeFamily("011 bbb 01", { b: accumulatorOperands }, ({ b }) => arithmetic("ADC", b)),
   ...opcodeFamily("111 bbb 01", { b: accumulatorOperands }, ({ b }) => arithmetic("SBC", b)),
-  ...families.STA,
-  ...families.LDA,
-  ...opcodeFamily("110 bbb 01", { b: accumulatorOperands }, ({ b }) => comparison("a", b)),
-  // cc=00, aaa=001 selects BIT; bbb=001/011 selects zero page/absolute. No immediate or indexed form.
-  ...opcodeFamily("001 0b1 00", { b: [["zero page", memorySource(addresses.zeroPage)], ["absolute", memorySource(addresses.absolute)]] }, ({ b }) => testBits(b)),
-  // 11r bbb 00: r selects Y/X; bbb=000/001/011 selects immediate/zero page/absolute.
-  ...opcodeFamily("11r 000 00", { r: indexRegisters }, ({ r }) => comparison(r, ["#byte", immediateByte])),
-  ...opcodeFamily("11r 001 00", { r: indexRegisters }, ({ r }) => comparison(r, ["zero page", memorySource(addresses.zeroPage)])),
-  ...opcodeFamily("11r 011 00", { r: indexRegisters }, ({ r }) => comparison(r, ["absolute", memorySource(addresses.absolute)])),
-  // 101 bbb r0: r selects Y/X; indexed loads use the OTHER register as the index.
-  ...opcodeFamily("101 000 r0", { r: indexRegisters }, ({ r }) => load(r, ["#byte", immediateByte])),
-  ...opcodeFamily("101 001 r0", { r: indexRegisters }, ({ r }) => load(r, ["zero page", memorySource(addresses.zeroPage)])),
-  ...opcodeFamily("101 011 r0", { r: indexRegisters }, ({ r }) => load(r, ["absolute", memorySource(addresses.absolute)])),
-  ...opcodeFamily("101 101 r0", { r: indexRegisters }, ({ r }) => load(r, [`zero page,${otherIndex[r].toUpperCase()}`, memorySource(addresses[r === "x" ? "zeroPageY" : "zeroPageX"])])),
-  ...opcodeFamily("101 111 r0", { r: indexRegisters }, ({ r }) => load(r, [`absolute,${otherIndex[r].toUpperCase()}`, memorySource(addresses[r === "x" ? "absoluteY" : "absoluteX"])])),
-  // 100 bbb r0: STY/STX use zp/absolute/zp,OTHER; there is no immediate or absolute-indexed store.
-  ...opcodeFamily("100 001 r0", { r: indexRegisters }, ({ r }) => store(r, ["zero page", addresses.zeroPage])),
-  ...opcodeFamily("100 011 r0", { r: indexRegisters }, ({ r }) => store(r, ["absolute", addresses.absolute])),
-  ...opcodeFamily("100 101 r0", { r: indexRegisters }, ({ r }) => store(r, [`zero page,${otherIndex[r].toUpperCase()}`, addresses[r === "x" ? "zeroPageY" : "zeroPageX"]])),
-  // Register transfers occupy bbb=010/110; TXS alone preserves every flag.
-  ...opcodePattern("101 010 00", registerTransfer("TAY", "a", "y", resultNZ)),
-  ...opcodePattern("100 110 00", registerTransfer("TYA", "y", "a", resultNZ)),
-  ...opcodePattern("100 010 10", registerTransfer("TXA", "x", "a", resultNZ)),
-  ...opcodePattern("101 010 10", registerTransfer("TAX", "a", "x", resultNZ)),
-  ...opcodePattern("100 110 10", registerTransfer("TXS", "x", "sp")),
-  ...opcodePattern("101 110 10", registerTransfer("TSX", "sp", "x", resultNZ)),
   // The same operations serve A and memory; only memory performs the original-value write.
   ...opcodeFamily("0ss 010 10", { s: shifts }, ({ s }) => updateByte(`${s.name} A`, cpu.register("a"), s.steps)),
   ...opcodeFamily("0ss mm1 10", { s: shifts, m: modifyOperands }, ({ s, m: [operand, address] }) => updateByte(`${s.name} ${operand}`, address, s.steps)),

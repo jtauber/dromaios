@@ -1,6 +1,5 @@
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { cpu6502StateDescription } from "../src/components/cpus/state/6502.ts";
 import { cpu68000StateDescription } from "../src/components/cpus/state/68000.ts";
 import { generateChapterState } from "../src/components/cpus/semantics/literate/state.ts";
 import { generatePublicState } from "../src/components/cpus/semantics/literate/interface.ts";
@@ -42,9 +41,8 @@ function chapterModule(chapter: CpuChapter, name: string, cpu: string): string {
 /** Bootstrap chapter data before loading the registry that consumes it; paths are independent of cwd. */
 export function generateCpuChapters() {
   const root = new URL("../src/components/cpus/", import.meta.url);
-  // Only partial chapters need external schemas; complete chapters register themselves.
+  // Only chapters without owned state need external schemas.
   const externalStates = new Map<string, StateFields>([
-    ["6502-load-store", cpu6502StateDescription],
     ["68000-word-transfers", cpu68000StateDescription],
   ]);
   const chapters = readdirSync(new URL("specifications/", root)).filter(file => file.endsWith(".md")).sort().map(file => {

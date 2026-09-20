@@ -188,16 +188,17 @@ test("the indexed load explanation distinguishes the index from the destination 
 test("6502 logic explanations separate result flags from BIT's memory bits and omit BIT writeback", () => {
   for (const [name, operation] of [["ORA", "bitOr"], ["AND", "bitAnd"], ["EOR", "bitXor"]]) {
     const text = description("6502", `${name} #byte`);
-    const read = text.indexOf("read A"), result = text.indexOf(`result := ${operation}(accumulator, operand)`);
+    const fetch = text.indexOf("fetch byte"), read = text.indexOf("read A");
+    const result = text.indexOf(`result := ${operation}(left, right)`);
     const write = text.indexOf("write A:u8 := result"), flags = text.indexOf("N := topBit(result)");
-    assert.ok(text.indexOf("fetch byte") < read && read < result && result < write && write < flags);
+    assert.ok(fetch >= 0 && fetch < read && read < result && result < write && write < flags);
     assert.match(text, /Flags preserved throughout: V, D, I, C\./);
   }
   const bit = description("6502", "BIT zero page");
   assert.ok(bit.indexOf("read memory[address]") < bit.indexOf("read A"));
-  assert.match(bit, /N := topBit\(operand\)/);
-  assert.match(bit, /V := not\(isZero\(bitAnd\(operand, 40:u8\)\)\)/);
-  assert.match(bit, /Z := isZero\(bitAnd\(accumulator, operand\)\)/);
+  assert.match(bit, /N := topBit\(right\)/);
+  assert.match(bit, /V := not\(isZero\(bitAnd\(right, 40:u8\)\)\)/);
+  assert.match(bit, /Z := isZero\(bitAnd\(left, right\)\)/);
   assert.match(bit, /Flags preserved throughout: D, I, C\./);
   assert.doesNotMatch(bit, /write A|write memory/);
 });
