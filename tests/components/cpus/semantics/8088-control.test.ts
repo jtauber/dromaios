@@ -8,7 +8,7 @@ import { record8088External } from "../../../../src/components/cpus/8088-externa
 import type { Cpu8088Escape } from "../../../../src/components/cpus/8088-external.js";
 import type { Cpu8088State } from "../../../../src/components/cpus/state/8088.js";
 import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
-import { cpuZ80StateDescription } from "../../../../src/components/cpus/state/z80.js";
+import { cpuZ80StateDescription } from "../../../../src/components/cpus/semantics/generated/state/z80.js";
 import { cpuSymbols, flagLiteral, flagValue, literal, projectAddress, readTest, reportInterrupt, sendEscape, value, when, writeLatch } from "../../../../src/components/cpus/semantics/model.js";
 import type { Statement } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";

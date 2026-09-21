@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { boolean, choices, defineState, flag, group, unsigned } from "../../../../src/components/cpus/state.js";
-import { cpuZ80StateDescription } from "../../../../src/components/cpus/state/z80.js";
+import { cpuZ80StateDescription } from "../../../../src/components/cpus/semantics/generated/state/z80.js";
 import { instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { instructions } from "../../../../src/components/cpus/generated/z80.js";
@@ -46,7 +46,7 @@ test("the Z80 chapter owns both banks, numeric interrupt mode, and all 698 docum
     FDCB: { prefix: 0xcb, on: "FD", operands: ["displacement"], opcodeFetch: false } });
   for (const owned of [instructionsZ80, instructions]) assert.deepEqual(Object.keys(owned).map(Number).sort((a, b) => a - b), opcodes);
   assert.deepEqual(Object.fromEntries(Object.values(chapter.families).flat()), instructionsZ80);
-  assert.equal(chapter.execution?.interrupt, "external"); assert.equal(chapter.interface, undefined);
+  assert.equal(chapter.execution?.interrupt, "entries"); assert.equal(chapter.interface?.name, "CpuZ80");
 });
 
 test("both banks' pair views read their own high byte then low byte without flags or memory", () => {

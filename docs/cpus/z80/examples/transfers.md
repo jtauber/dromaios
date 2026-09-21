@@ -7,7 +7,7 @@ keeping the alternate bank and interrupt state intact.
 
 [Machine definition](../../../../src/machines/z80/transfers-example.machine) ·
 [Tests](../../../../tests/machines/z80/transfers-example.test.ts) ·
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/z80.md) ·
 [Coverage](../../coverage.md#z80) ·
 [Counted-loop example](counted-loop.md)
 

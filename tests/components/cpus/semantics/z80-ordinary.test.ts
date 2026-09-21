@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { bodiesZ80 as instructions } from "../../../helpers/z80-bodies.js";
-import type { CpuZ80State } from "../../../../src/components/cpus/state/z80.js";
+import type { CpuZ80State } from "../../../../src/components/cpus/semantics/generated/state/z80.js";
 import { initialState, flagPattern } from "../z80/helpers.js";
 
 function observe(state: CpuZ80State, events: string[]) {

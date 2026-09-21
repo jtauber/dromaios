@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
-import { cpuZ80StateDescription } from "../../../../src/components/cpus/state/z80.js";
+import { cpuZ80StateDescription } from "../../../../src/components/cpus/semantics/generated/state/z80.js";
 import { group, unsigned } from "../../../../src/components/cpus/state.js";
 import { capture, cpuSymbols, exchangeFlags, flagLiteral, flagValue, literal, readLatch, readRegister, shiftBits, value, when, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
 import type { CpuDeclaration, FlagGroup, InstructionDefinition, NumberExpression, Statement } from "../../../../src/components/cpus/semantics/model.js";

@@ -7,7 +7,7 @@ ADD HL advances the input pointer while preserving the loop condition.
 
 [Machine definition](../../../../src/machines/z80/decimal-total-example.machine) ·
 [Example tests](../../../../tests/machines/z80/decimal-total-example.test.ts) ·
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/z80.md) ·
 [Coverage inventory](../../coverage.md#z80)
 
 The explicit initial state sets `interruptDeferred` and `nmiDeferred` to false.
@@ -98,7 +98,7 @@ bytes change. Inputs, tags, guards, and code remain intact.
 Every instruction increments R once, wrapping its low seven bits while
 preserving bit 7. Already halted steps perform no accesses or R updates.
 Timing and dummy bus activity remain outside the
-[instruction-step contract](../model.md#instruction-steps).
+[instruction-step contract](../../../../src/components/cpus/specifications/z80.md#instruction-steps).
 
 ## Acceptance checks
 

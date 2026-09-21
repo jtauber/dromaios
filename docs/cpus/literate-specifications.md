@@ -33,11 +33,12 @@ Executable chapters are maintained CPU sources:
   views preserve D/CC/S write rules; chapter actions share stack and interrupt-frame
   effects. Reset, execution, IRQ/FIRQ/NMI recognition, waiting/resume rules,
   and the public interface are chapter-owned; no handwritten implementation remains.
-- [Zilog Z80: instructions, state, reset, and normal execution](../../src/components/cpus/specifications/z80.md)
+- [Zilog Z80: complete model and public interface](../../src/components/cpus/specifications/z80.md)
   owns both register banks, numeric interrupt-mode storage, pair/status views and
   writes, all 698 instruction forms and their prefix layouts, reset, PC/refresh
-  commitment, and retirement. External IRQ/NMI entry and the public interface
-  remain in TypeScript; they share the chapter-bound decoder and retirement.
+  commitment, retirement, and IRQ/NMI entry. Mixed named interrupt entries select
+  direct vectors or supplied instructions. Its public class, bank types, and
+  nested snapshot views are generated; no handwritten implementation remains.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -161,7 +162,8 @@ Quoted descriptions use JSON string escaping.
 | `action setPC "set selected PC" (address: 16) { … }` | Ordered state effects with optional numeric inputs; no instruction fetching, memory, port, or boundary effects. |
 | `execution { … }` | Bind the chapter's views, actions, and opcode families to a checked execution contract. |
 | `interface Cpu8008 "description" { … }` | Generate the public class, concrete result types, and state aliases from owned state and an earlier execution contract. |
-| `snapshot pc = PC` | Expose an earlier numeric state view under a public snapshot field, inside `interface`. |
+| `snapshot pc = PC`, `snapshot alternate.bc = BC_ALT` | Expose an earlier numeric state view under a top-level field or inside a stored group, inside `interface`. |
+| `bank RegisterBank = alternate snapshot BankSnapshot` | Name a stored group type and its readonly snapshot type with derived fields; both names receive the public class prefix. |
 | `offset = fetch` | Fetch and capture the next instruction byte. |
 | `index = register X`, `carry = flag C` | Read and capture a register or flag at this point; the capture retains its numeric or flag type. |
 | `address = source zeroPage` | Evaluate and capture a previously declared source. |
@@ -323,7 +325,7 @@ callback-validation and RETI-notification policies; references must name earlier
 | `reset action reset` | Invoke the input-free action between reset snapshots under the same guard. Vector execution records any memory effects declared by the action. |
 | `retire none` | No additional retirement effects. `retire action NAME` invokes an input-free state action after a successful handler, including HLT, before the after-snapshot. `retire irq into LATCH` instead writes whether that instruction requested `defer irq`, consuming an old delay or renewing it. Decode-before-execution also permits `retire irq into LATCH then action NAME`, committing the request before running the state action. Halted, undefined, or failed attempts skip retirement. |
 
-A nested `interrupt` block without `vectors` declares supplied-instruction delivery:
+A plain `interrupt { … }` block declares supplied-instruction delivery:
 
 | Field | Contract |
 | --- | --- |
@@ -347,9 +349,9 @@ owns its records; snapshots remain callable inside device callbacks.
 
 The [decoded runtime](../../src/components/cpus/decoded-execution.ts) separates
 encoding reads from operand execution. `opcode advance on decode with action NAME`
-requires `interrupt external`, an explicit partial-model contract: the native
-adapter owns external entry while sharing the runtime's guard, decoder, fetch
-action, and instruction retirement. This contract requires a stopped latch and
+supports `interrupt entries`, described below, or `interrupt external` for a
+partial model whose native adapter still owns entry. Both share the runtime's
+guard, decoder, fetch action, and retirement. This contract requires a stopped latch and
 a state-only reset action. It supports flat opcodes and named prefix pages,
 including interposed displacement reads and their fetch classifications. Fetch
 actions receive an eight-bit count and may change only stored state.
@@ -358,9 +360,54 @@ Its optional `notify reti after retire` policy grants notification to instructio
 bodies without testing the CPU's name. The request stays local until successful
 retirement; a failing instruction discards it. The optional device callback runs
 after retirement under the same guard, and its failure retains completed effects.
-A public `interface` cannot be generated until external entry is chapter-owned.
+A public `interface` requires chapter-owned entry; it rejects `interrupt external`.
 Matches and dispatches with unsupported operand fallbacks are currently rejected
 for this runtime: opcode validity must be established before commitment.
+
+Named mixed entries combine direct entry and mode-selected delivery under the
+decoded runtime, as in the [Z80](../../src/components/cpus/specifications/z80.md#execution-and-public-interface):
+
+```text
+interrupt entries {
+  source irq acknowledge {
+    when latch ENABLED otherwise "disabled"
+    unless latch DEFERRED otherwise "deferred"
+    accept action acceptIrq
+    select MODE {
+      case 0 supplied
+      case 1 action enterVector
+      case 2 action enterVector
+    }
+  }
+  source nmi {
+    accept action acceptNmi
+    enter action enterNmi
+  }
+}
+```
+
+Sources are arbitrary names. Recognition gates run in declaration order; the
+first failed `when` or satisfied `unless` supplies the ignored reason. Gates
+precede one input-free, state-only acceptance action and one delivery policy.
+An acknowledged source requires a callback, validated before snapshots or gates.
+After acceptance it reads one validated byte, then selects the current stored
+choice. Cases must cover every numeric or string choice exactly once.
+`supplied` decodes that byte as the first opcode and obtains every later
+instruction byte from acknowledgement, preserving PC during fetching. The
+acceptance action owns the first opcode-fetch effect; subsequent opcode fetches
+invoke the declared fetch action before acknowledgement. Operand and displacement
+reads follow their declared fetch classification. Execution shares ordinary
+retirement and optional RETI notification.
+
+An acknowledged action receives the byte as its only eight-bit input. Direct
+`enter action NAME` has no inputs and requests no acknowledgement. Either entry
+action may access memory, but cannot fetch instructions, use ports, or retire.
+Entry actions own stacking, vector reads, and CPU state changes; the shared
+[entry runtime](../../src/components/cpus/interrupt-entries.ts) only records and
+dispatches those choices under the execution guard. Acceptance and completed
+effects remain after failure. Direct/vector entries report `accepted`; supplied
+instructions report `executed`, `halted`, or `unsupported`. Declined entries
+report `ignored` with the declared reason, no instruction, and no accesses.
 
 Vector entry is a distinct interrupt contract:
 
@@ -432,17 +479,22 @@ interface Cpu8008 "Instruction-level Intel 8008." {
 The declaration requires chapter-owned state and an earlier supported execution
 contract. Its class name starts with `Cpu` followed by an uppercase letter or
 digit, then letters or digits. Each `snapshot` entry names an earlier numeric
-view. Fields must be unique and must not replace stored fields. An empty block
+view. Fields must be unique and must not replace stored fields. A dotted field
+such as `alternate.bc` adds a view inside an existing stored group; deeper paths
+are not supported. An empty block
 exposes stored state alone. Descriptions supply generated comments, never code.
 Unknown entries, invalid names, missing views, and repeated interfaces report
 Markdown locations.
 
 Shared interface conventions supply construction, `snapshot()`, `reset()`,
 `step()`, and either `interrupt(acknowledge)` for supplied instructions or
-`interrupt(source)` for vector entry.
+`interrupt(source)` for vector entry. Mixed named entries generate one overload
+per source, requiring an acknowledgement argument only for acknowledged sources.
+A declared RETI notification adds optional `onReti` after the optional port connection
+in the constructor.
 Construction validates RAM before initial-state getters, validates and copies
 state, then binds execution. Snapshots copy all stored state and evaluate the
-listed views in declaration order. The generated methods delegate to the same
+listed views against that detached copy in declaration order. The generated methods delegate to the same
 execution services selected by the chapter; no CPU-name branch or handwritten
 adapter is needed.
 
@@ -458,7 +510,11 @@ snapshot fields from their input type. A lowercased first letter names the schem
 stored state is mutable. Caller state accepts readonly fixed arrays; snapshots
 and records are recursively readonly. Array/group fields also receive aliases
 formed by capitalizing their first letter (`addressStack` becomes
-`Cpu8008AddressStack`). Alias collisions with other aliases or standard types
+`Cpu8008AddressStack`). A bank declaration such as
+`bank RegisterBank = alternate snapshot BankSnapshot` additionally exports
+`CpuZ80RegisterBank` for the stored group and `CpuZ80BankSnapshot` for its
+recursively readonly fields and derived views. Public bank names must start
+with an uppercase letter and contain letters or digits. Alias collisions with other aliases or standard types
 are rejected. These conventions belong to shared generation; the chapter
 supplies the processor's fields, constraints, names, and view selections.
 
@@ -786,8 +842,8 @@ generator provides three bindings:
   and `nextByte(opcodeFetch)`. It reads the declared layout and returns a bound
   handler (or `undefined`) and the opcode-fetch count, including the initial byte.
   The Z80 uses it for both memory and interrupt-supplied decoding. Its chapter
-  selects ordinary PC/R commitment and retirement; native external entry supplies
-  the interrupt-specific acceptance and fetch timing.
+  selects ordinary PC/R commitment, retirement, interrupt acceptance, and
+  delivery; the shared entry runtime applies supplied fetch timing.
 - `opcodeEntries(state, additional)` binds ordinary fetch-and-dispatch wrappers
   for complete byte-execution chapters. Existing callbacks retain PC, recording,
   and failure policies; the same decoder selects the body or `unsupported`.
@@ -969,6 +1025,12 @@ waiting and latch gates extend the shared vector runtime without CPU-name
 branches. Public types and snapshots are generated, and the complete contract
 and hardware background live in the chapter. No handwritten 6809 implementation
 or separate model document remains.
+The Z80 also owns its complete model. Its execution contract selects full-encoding
+validation, refresh effects, retirement, and mixed named IRQ/NMI entries.
+Chapter actions define acceptance, stacking, and mode-specific vector reads;
+mode 0 shares its chapter decoder. Public bank types and nested snapshot views
+are declared alongside the interface, and its complete contract lives in the
+chapter. No handwritten Z80 implementation remains.
 A differently named test CPU already exercises different storage, address width, views, and
 actions through the same compiler and runtime. This is evidence for the current
 contract, not proof that it covers the remaining architectures. Each further
@@ -989,6 +1051,7 @@ The [6502 language tests](../../tests/components/cpus/semantics/literate.test.ts
 [8008 control/port language tests](../../tests/components/cpus/semantics/literate-8008-control.test.ts),
 [8008 view/reset tests](../../tests/components/cpus/semantics/literate-8008-state.test.ts),
 [execution-language tests](../../tests/components/cpus/semantics/literate-execution.test.ts),
+[named-entry language tests](../../tests/components/cpus/semantics/literate-interrupt-entries.test.ts),
 and [68000 language tests](../../tests/components/cpus/semantics/literate-68000.test.ts)
 check inventories, runtime integration, document diagnostics, malformed selectors
 and exclusions, capture isolation, and formal edits that change execution.

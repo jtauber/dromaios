@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type { BytePorts } from "../../../../src/components/cpus/port-access.js";
-import { CpuZ80 } from "../../../../src/components/cpus/z80.js";
-import type { CpuZ80Flags, CpuZ80RegisterBank, CpuZ80State, CpuZ80MemoryAccess, CpuZ80Access } from "../../../../src/components/cpus/z80.js";
+import { CpuZ80 } from "../../../../src/components/cpus/generated/z80-cpu.js";
+import type { CpuZ80Flags, CpuZ80RegisterBank, CpuZ80State, CpuZ80MemoryAccess, CpuZ80Access } from "../../../../src/components/cpus/generated/z80-cpu.js";
 import { Ram } from "../../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../../helpers/observed-ram.js";
 

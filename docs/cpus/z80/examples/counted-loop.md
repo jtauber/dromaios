@@ -6,7 +6,7 @@ fifteen in RAM, and halts. It complements the
 [6809](../../6809/examples/counted-loop.md) loops with a combined decrement
 and branch that preserves flags, plus visible refresh-register updates.
 
-[Model contract](../model.md#jumps) ·
+[Model contract](../../../../src/components/cpus/specifications/z80.md#jumps-and-relative-branches) ·
 [Example definition](../../../../src/machines/z80/counted-loop-example.machine) ·
 [Example tests](../../../../tests/machines/z80/counted-loop-example.test.ts) ·
 [CPU coverage](../../coverage.md#z80)
@@ -44,7 +44,7 @@ The destination `0080` and reset address `0000` start at zero.
 These are explicit example choices. Distinct banks reveal accidental changes
 to alternate state. R starts near a boundary so its low seven bits wrap during
 setup. Instruction behavior follows the
-[model contract](../model.md#jumps) and the
+[model contract](../../../../src/components/cpus/specifications/z80.md#jumps-and-relative-branches) and the
 [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages
 72, 147, 278–279, and the refresh-register description.
 
@@ -95,7 +95,7 @@ A three-step budget pauses at `0206`, immediately before the first DJNZ,
 with A = `05`, B = `03`, BC = `0333`, and R = `81`. A further seven steps
 complete the program; concatenated records match an uninterrupted run.
 
-Reset follows the [Z80 reset contract](../model.md#cpu-reset): PC/I/R become
+Reset follows the [Z80 reset contract](../../../../src/components/cpus/specifications/z80.md#reset-and-execution): PC/I/R become
 zero, IFF1/IFF2 clear, IM becomes zero, and HALT is released. The two register
 banks and their flags, IX/IY/SP, and RAM retain their values. Reset does not
 return to this example's entry point: a step at `0000` executes NOP (`00`),

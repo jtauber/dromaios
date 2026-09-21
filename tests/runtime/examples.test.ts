@@ -20,7 +20,7 @@ import type { Cpu6809 } from "../../src/components/cpus/generated/6809-cpu.js";
 import type { Cpu68000 } from "../../src/components/cpus/68000.js";
 import { create68000Example } from "../../src/machines/generated/68000/example.js";
 import { create68000TransfersExample } from "../../src/machines/generated/68000/transfers-example.js";
-import type { CpuZ80 } from "../../src/components/cpus/z80.js";
+import type { CpuZ80 } from "../../src/components/cpus/generated/z80-cpu.js";
 import { createZ80Example } from "../../src/machines/generated/z80/example.js";
 import { createZ80TransfersExample } from "../../src/machines/generated/z80/transfers-example.js";
 import type { Ram } from "../../src/components/memory/ram.js";

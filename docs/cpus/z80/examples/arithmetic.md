@@ -4,7 +4,7 @@ Run the same eight program bytes as the introductory
 [8080 example](../../8080/examples/arithmetic.md), with Z80 instruction names
 and flag semantics: load 2, add 3, store 5 at address 0080, and halt.
 
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/z80.md) ·
 [Machine definition](../../../../src/machines/z80/example.machine) ·
 [Example tests](../../../../tests/machines/z80/example.test.ts) ·
 [CPU tests](../../../../tests/components/cpus/z80)

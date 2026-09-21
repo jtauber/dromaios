@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { CpuZ80 } from "../../../../src/components/cpus/z80.js";
-import type { CpuZ80MemoryAccess } from "../../../../src/components/cpus/z80.js";
+import { CpuZ80 } from "../../../../src/components/cpus/generated/z80-cpu.js";
+import type { CpuZ80MemoryAccess } from "../../../../src/components/cpus/generated/z80-cpu.js";
 import { ObservedRam } from "../../../helpers/observed-ram.js";
 import { initialState, snapshot, flagPattern, transferColumns, transferRows, checkBaseStep, wordPairForms, withPair } from "./helpers.js";
 

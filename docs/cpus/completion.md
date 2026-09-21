@@ -81,8 +81,8 @@ its recognition timing limits documented there. The 6800 now completes its
 including native frames, return, and snapshot-preserved WAI. The 6809 completes
 [its interrupt and wait behavior](../../src/components/cpus/specifications/6809.md#execution-and-public-interface)
 with SYNC/CWAI, full/short frames, RTI, software vectors, and NMI arming.
-The Z80 now completes its [port families](z80/model.md#port-input-and-output)
-and [interrupt behavior](z80/model.md#external-interrupt-delivery), including
+The Z80 now completes its [port families](../../src/components/cpus/specifications/z80.md#port-input-and-output)
+and [interrupt behavior](../../src/components/cpus/specifications/z80.md#external-interrupt-delivery), including
 all modes, native entries/returns, HALT release, and snapshot-preserved inhibition.
 The 8088 now implements all eight [IN/OUT forms](8088/model.md#port-input-and-output),
 including byte/word device transfers and snapshot-based program resumption.

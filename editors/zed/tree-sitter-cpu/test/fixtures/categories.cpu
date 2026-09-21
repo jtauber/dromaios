@@ -188,3 +188,24 @@ action exchangeBanks "preserve complete flag objects" {
   exchange FLAGS, ALTERNATE.FLAGS
   exchange = u8(0)
 }
+
+execution {
+  interrupt entries {
+    source irq acknowledge {
+      when latch ENABLED otherwise "disabled"
+      accept action resume
+      select MODE {
+        case 0 supplied
+        case 1 action enterVector
+      }
+    }
+    source nmi {
+      accept action resume
+      enter action enterVector
+    }
+  }
+}
+interface CpuZ80 "bank views" {
+  bank RegisterBank = alternate snapshot BankSnapshot
+  snapshot alternate.bc = BC_ALT
+}

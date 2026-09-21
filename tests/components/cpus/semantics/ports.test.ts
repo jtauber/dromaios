@@ -10,7 +10,7 @@ import type { Cpu8008StoredState } from "../../../../src/components/cpus/semanti
 import type { Cpu8080State } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
 import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
 import type { Cpu8088State } from "../../../../src/components/cpus/state/8088.js";
-import type { CpuZ80State } from "../../../../src/components/cpus/state/z80.js";
+import type { CpuZ80State } from "../../../../src/components/cpus/semantics/generated/state/z80.js";
 import { initialState as state8088 } from "../8088/helpers.js";
 import { initialState as stateZ80 } from "../z80/helpers.js";
 import { capture, cpuSymbols, flagLiteral, literal, readPort, readSource, value, when, writePort } from "../../../../src/components/cpus/semantics/model.js";

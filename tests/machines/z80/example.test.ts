@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { CpuZ80StepRecord } from "../../../src/components/cpus/z80.js";
+import type { CpuZ80StepRecord } from "../../../src/components/cpus/generated/z80-cpu.js";
 import type { Ram } from "../../../src/components/memory/ram.js";
 import { createZ80Example, createZ80ExampleMemory } from "../../../src/machines/generated/z80/example.js";
 import { runCpu } from "../../../src/runtime/run-cpu.js";

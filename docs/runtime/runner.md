@@ -62,7 +62,7 @@ pending external requests before stepping to preserve their priority. An explici
 endpoint still takes precedence over a pending trap.
 
 Z80 IRQ/NMI offers also occur between runs through
-[`interrupt()`](../cpus/z80/model.md#external-interrupt-delivery). Accepted entry
+[`interrupt()`](../../src/components/cpus/specifications/z80.md#external-interrupt-delivery). Accepted entry
 releases HALT; ignored requests preserve it. The runner neither acknowledges
 interrupts nor queues signals. CPU snapshots retain interrupt inhibition, while
 the caller separately retains pending requests and device/RETI-notification state.

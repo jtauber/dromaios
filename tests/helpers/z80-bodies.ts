@@ -3,7 +3,7 @@ import type { ByteInstructionContext } from "../../src/components/cpus/instructi
 import { instructions as chapter } from "../../src/components/cpus/generated/z80.js";
 
 import assert from "node:assert/strict";
-import type { CpuZ80State } from "../../src/components/cpus/state/z80.js";
+import type { CpuZ80State } from "../../src/components/cpus/semantics/generated/state/z80.js";
 
 // Test-owned literal CB selectors keep the access-order probes independent of chapter catalogues.
 const shifts = { rlc: 0x00, rrc: 0x08, rl: 0x10, rr: 0x18, sla: 0x20, sra: 0x28, srl: 0x38 } as const;

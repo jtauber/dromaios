@@ -1,6 +1,6 @@
 # Z80 bit counting and nested calls
 
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/z80.md) ·
 [Machine definition](../../../../src/machines/z80/bit-count-example.machine) ·
 [Tests](../../../../tests/machines/z80/bit-count-example.test.ts) ·
 [Coverage](../../coverage.md#z80)

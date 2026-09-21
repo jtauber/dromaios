@@ -146,7 +146,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         const { body, end } = chapterBody(lines, index); index = end;
         execution = chapterExecution(header, body, { views, actions, latches, choices, flags });
         if (execution.retireDeferral !== undefined) cpu = { ...cpu, irqDeferral: true };
-        if (execution.interrupt === "external" && execution.notifyReti) cpu = { ...cpu, retiNotification: true };
+        if (execution.opcodeAdvance === "decode" && execution.notifyReti) cpu = { ...cpu, retiNotification: true };
         continue;
       }
       if (["register", "flag", "array", "latch", "choice"].includes(kind)) {
@@ -380,7 +380,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
     const tokens = opcodes.get(opcode)!;
     if (opcode > 0xff && !pageTokens.has(opcode >>> 8)) tokens.fail("Byte execution requires one-byte opcodes.");
     tokens.checked(() => checkByteExecution(definition.steps, execution.retireDeferral !== undefined, execution.interrupt === "vectors",
-      execution.interrupt === "external" ? execution : undefined));
+      execution.opcodeAdvance === "decode" ? execution : undefined));
   }
   return { cpu: cpu.name, pages: Object.fromEntries(pages), ...(ownsState ? { state: cpu.state } : {}), ...(execution ? { execution } : {}), ...(publicInterface ? { interface: publicInterface } : {}), sources: Object.fromEntries(sources), views: Object.fromEntries(views), actions: Object.fromEntries(actions), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), conditions: Object.fromEntries(conditions), families: Object.fromEntries(families) };
 }

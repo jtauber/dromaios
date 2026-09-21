@@ -6,7 +6,7 @@ can stop and resume in the middle of either operation.
 
 [Machine definition](../../../../src/machines/z80/indexed-buffer-example.machine) ·
 [Tests](../../../../tests/machines/z80/indexed-buffer-example.test.ts) ·
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/z80.md) ·
 [Coverage](../../coverage.md#z80)
 
 The explicit initial state sets `interruptDeferred` and `nmiDeferred` to false.

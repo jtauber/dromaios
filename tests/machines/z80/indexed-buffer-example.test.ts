@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { CpuZ80 } from "../../../src/components/cpus/z80.js";
-import type { CpuZ80State, CpuZ80RegisterBank, CpuZ80Snapshot, CpuZ80Flags, CpuZ80MemoryAccess, CpuZ80StepRecord } from "../../../src/components/cpus/z80.js";
+import { CpuZ80 } from "../../../src/components/cpus/generated/z80-cpu.js";
+import type { CpuZ80State, CpuZ80RegisterBank, CpuZ80Snapshot, CpuZ80Flags, CpuZ80MemoryAccess, CpuZ80StepRecord } from "../../../src/components/cpus/generated/z80-cpu.js";
 import type { Ram } from "../../../src/components/memory/ram.js";
 import { createZ80IndexedBufferExample, createZ80IndexedBufferExampleMemory } from "../../../src/machines/generated/z80/indexed-buffer-example.js";
 import { runCpu } from "../../../src/runtime/run-cpu.js";

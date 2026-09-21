@@ -21,6 +21,38 @@ function editedChapter(t: TestContext, edit: (chapter: string) => string) {
   return (path: string) => JSON.stringify(pathToFileURL(join(directory, path)).href);
 }
 
+test("Z80 public banks, recognition gates, acceptance effects, and mode delivery are generated from the chapter", t => {
+  const url = editedChapter(t, chapter => chapter
+    .replace("snapshot alternate.bc = BC_ALT", "snapshot alternate.bc = DE_ALT")
+    .replace('when latch IFF1 otherwise "disabled"', 'when latch IFF2 otherwise "disabled"')
+    .replace("case 1 action enterVector", "case 1 supplied")
+    .replace("perform call(u16($0066))", "perform call(u16($0090))")
+    .replace('action acceptNmi "accept NMI and preserve IFF2" () {\n  STOPPED <- 0',
+      'action acceptNmi "accept NMI and preserve IFF2" () {\n  STOPPED <- 1')
+    .replace("address = concat(high, byte)", "address = concat(byte, high)"));
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { CpuZ80 } from ${url("src/components/cpus/generated/z80-cpu.ts")};
+    const bank = { a: 0, b: 1, c: 2, d: 3, e: 4, h: 5, l: 6,
+      flags: { s: false, z: false, h: false, pv: false, n: false, c: false } };
+    const initial = { ...bank, alternate: structuredClone(bank), ix: 0, iy: 0, pc: 0x200, sp: 0x600,
+      i: 0x80, r: 0xfe, iff1: false, iff2: true, im: 1, interruptDeferred: false, nmiDeferred: false, halted: false };
+    const bytes = new Uint8Array(65536); bytes[0x1280] = 0x56; bytes[0x1281] = 0x34;
+    const ram = { size: bytes.length, read: address => bytes[address], write: (address, value) => { bytes[address] = value; } };
+    const cpu = new CpuZ80(ram, initial);
+    assert.equal(cpu.snapshot().alternate.bc, 0x304); assert.equal(cpu.snapshot().bc, 0x102);
+    const supplied = cpu.interrupt("irq", () => 0);
+    assert.equal(supplied.outcome, "executed"); assert.equal(cpu.snapshot().pc, 0x200);
+    const nmi = cpu.interrupt("nmi");
+    assert.equal(nmi.outcome, "accepted"); assert.equal(cpu.snapshot().pc, 0x90);
+    assert.equal(cpu.snapshot().halted, true); assert.equal(cpu.snapshot().sp, 0x5fe);
+    const vector = new CpuZ80(ram, { ...initial, im: 2 });
+    assert.equal(vector.interrupt("irq", () => 0x12).outcome, "accepted");
+    assert.equal(vector.snapshot().pc, 0x3456);
+  `], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+});
+
 // Deliberately wrong hardware edits prove production reads chapter policy, including indexed instructions.
 test("Z80 chapter edits reach construction, both snapshots, byte/word dispatch, branches, decimal flags, and stack actions", t => {
   const url = editedChapter(t, chapter => chapter.replace("register PC: 16", "register SCRATCH: 8\n  register PC: 16")
@@ -34,7 +66,7 @@ test("Z80 chapter edits reach construction, both snapshots, byte/word dispatch, 
     .replace("C = or(not(borrow(original, u8($9A))), carry)", "C = 0"));
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
-    import { CpuZ80, cpuZ80StateDescription } from ${url("src/components/cpus/z80.ts")};
+    import { CpuZ80, cpuZ80StateDescription } from ${url("src/components/cpus/generated/z80-cpu.ts")};
     import { parseMachine } from ${url("src/machines/machine-language.ts")};
     const machine = ${JSON.stringify(readFileSync("src/machines/z80/example.machine", "utf8"))};
     assert.equal(cpuZ80StateDescription.scratch.bits, 8);
@@ -80,7 +112,7 @@ test("Z80 CB prefix, policies, and masks reach ordinary, indexed, and interrupt-
     .replace('000 "0" = $01', '000 "0" = $02'));
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
-    import { CpuZ80 } from ${url("src/components/cpus/z80.ts")};
+    import { CpuZ80 } from ${url("src/components/cpus/generated/z80-cpu.ts")};
     const bank = { a: 0, b: 0x40, c: 0, d: 0, e: 0, h: 4, l: 0,
       flags: { s: true, z: false, h: true, pv: false, n: true, c: true } };
     for (const prefix of [[0x10], [0xdd, 0xcb, 0], [0xfd, 0xcb, 0]]) {
@@ -129,7 +161,7 @@ test("Z80 ED prefix, word flags, block steps, ports, modes, and RETI notificatio
     .replace("  notify reti\n", ""));
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
-    import { CpuZ80 } from ${url("src/components/cpus/z80.ts")};
+    import { CpuZ80 } from ${url("src/components/cpus/generated/z80-cpu.ts")};
     const bank = { a: 0xab, b: 0, c: 2, d: 5, e: 0, h: 4, l: 0,
       flags: { s: false, z: false, h: false, pv: false, n: false, c: true } };
     const initial = { ...bank, alternate: structuredClone(bank), ix: 0, iy: 0, pc: 0x200, sp: 0x600,
@@ -174,7 +206,7 @@ test("Z80 indexed chapter edits control both prefix pages, addressing, and suppl
     .replaceAll("add(base, signExtend(displacement, 16))", "subtract(base, signExtend(displacement, 16))"));
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
-    import { CpuZ80 } from ${url("src/components/cpus/z80.ts")};
+    import { CpuZ80 } from ${url("src/components/cpus/generated/z80-cpu.ts")};
     const flags = { s: false, z: false, h: false, pv: false, n: false, c: false };
     const bank = { a: 0, b: 0, c: 0, d: 0, e: 0, h: 0, l: 0, flags };
     const initial = { ...bank, alternate: bank, ix: 0xffff, iy: 0xffff, pc: 0x200, sp: 0x600,
@@ -209,7 +241,7 @@ test("Z80 reset, refresh, retirement destinations, and RETI callback timing come
     .replace("retire irq into IRQDEFERRED", "retire irq into IFF2"));
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
-    import { CpuZ80 } from ${url("src/components/cpus/z80.ts")};
+    import { CpuZ80 } from ${url("src/components/cpus/generated/z80-cpu.ts")};
     const bank = { a: 1, b: 2, c: 3, d: 4, e: 5, h: 6, l: 7,
       flags: { s: false, z: false, h: false, pv: false, n: false, c: false } };
     const initial = { ...bank, alternate: structuredClone(bank), ix: 0x800, iy: 0x900, pc: 0x200, sp: 0x600,

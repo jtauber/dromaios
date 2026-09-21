@@ -1,5 +1,5 @@
-import { CpuZ80 } from "../../src/components/cpus/z80.js";
-import type { CpuZ80State, CpuZ80Snapshot, CpuZ80StepRecord, CpuZ80ResetRecord, CpuZ80Access, CpuZ80InterruptRecord, CpuZ80InterruptAccess } from "../../src/components/cpus/z80.js";
+import { CpuZ80 } from "../../src/components/cpus/generated/z80-cpu.js";
+import type { CpuZ80State, CpuZ80Snapshot, CpuZ80StepRecord, CpuZ80ResetRecord, CpuZ80Access, CpuZ80InterruptRecord, CpuZ80InterruptAccess } from "../../src/components/cpus/generated/z80-cpu.js";
 import type { BytePorts } from "../../src/components/cpus/port-access.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { createZ80TransfersExample } from "../../src/machines/generated/z80/transfers-example.js";

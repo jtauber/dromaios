@@ -227,10 +227,13 @@ The 6800 also declares WAI suspension and frame reuse on wake-up. The 6809
 uses the same vector runtime with named wait modes, NMI arming, and masked
 SYNC release; chapter actions choose full/short frames and reuse CWAI frames. Both
 execution paths reuse byte fetch/dispatch and recording, with distinct interrupt
-APIs and record types. The Z80 chapter owns all unprefixed instructions and
-register views; its [core](../src/components/cpus/z80.ts) retains prefixed
-instruction binding, decoding, refresh, and interrupt boundaries. Paired programs expose common encodings
-alongside their different flag semantics.
+APIs and record types. The [Z80 chapter](../src/components/cpus/specifications/z80.md)
+owns its complete model and public interface, including all prefix layouts and
+both banks' snapshot views. Shared decoded execution validates complete encodings
+before committing PC/refresh. Chapter-defined interrupt entries combine direct
+NMI vectors, IRQ mode selection, and supplied instructions through that same
+decoder and retirement boundary. Paired programs expose common encodings alongside
+their different flag semantics.
 The 6800 and 6809 chapters express accumulator operations,
 transfers, and control flow through the same instruction representation, retaining
 their distinct addressing and stack rules. Shared arithmetic, status, memory, and stack construction also serves

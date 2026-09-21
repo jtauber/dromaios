@@ -162,7 +162,7 @@ The implementation already has much of the foundation:
 | [Memory recording](../../src/components/cpus/memory-access.ts) | Actual, ordered, completed byte accesses | Compose logical addressing and multi-byte access policies |
 | [Byte execution](../../src/components/cpus/execute-byte-instruction.ts) | Fetching, dispatch, and limited opcode rejection | Share more lifecycle mechanics while selecting execution strategies |
 | [Motorola helpers](../../src/components/cpus/motorola.ts) | Common conditions, byte ALU behavior, and accumulator operations | Separate reusable operation semantics from their encoding selectors |
-| [Call stack](../../src/components/cpus/call-stack.ts) | 8080/Z80 stack accesses, calls, and returns | Separate stack mechanics from call and return recipes |
+| [Stack construction](../../src/components/cpus/semantics/stack.ts) | Ordered push/pop effects in instruction definitions | Share stack mechanics while retaining each CPU's pointer, byte order, and commit rules |
 
 Candidate repetition sits between primitives and opcodes: obtain an operand,
 perform arithmetic, interpret flags, write a result, and record the step.

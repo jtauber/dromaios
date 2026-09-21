@@ -114,10 +114,17 @@ module.exports = grammar({
     action_policy: $ => seq(choice('reset', 'retire'), choice('none', seq('action', $.identifier))),
     retirement_policy: $ => seq('retire', 'irq', 'into', $._state_name, optional(seq('then', 'action', $.identifier))),
     notification_policy: _ => seq('notify', 'reti', 'after', 'retire'),
-    interrupt_policy: $ => seq('interrupt', choice('external', seq(optional('vectors'), '{', repeat(choice(
+    interrupt_policy: $ => seq('interrupt', choice('external', seq('entries', '{', repeat($.interrupt_entry), '}'), seq(optional('vectors'), '{', repeat(choice(
       $.vector_entry,
       $.accept_policy, $.bytes_policy, $.callback_policy, $.interrupt_counter_policy, $.unknown_policy,
     )), '}'))),
+    interrupt_entry: $ => seq('source', $.identifier, optional('acknowledge'), '{', repeat(choice(
+      $.entry_gate, $.entry_action, $.entry_selection,
+    )), '}'),
+    entry_gate: $ => seq(choice('when', 'unless'), 'latch', $._state_name, 'otherwise', $.string),
+    entry_action: $ => seq(choice('accept', 'enter'), 'action', $.identifier),
+    entry_selection: $ => seq('select', $._state_name, '{', repeat($.entry_case), '}'),
+    entry_case: $ => seq('case', choice($.number, $.string), choice('supplied', seq('action', $.identifier))),
     vector_entry: $ => seq('source', $.identifier, choice('always', seq('unless', 'flag', $._state_name),
       seq('when', 'latch', $._state_name, 'otherwise', $.string)), 'with', $.call,
       optional(seq('resume', 'when', 'choice', $._state_name, '=', $.string, 'with', $.call))),
@@ -128,8 +135,10 @@ module.exports = grammar({
     interrupt_counter_policy: _ => seq('counter', choice('preserve', 'advance')),
     unknown_policy: _ => seq('unknown', 'retain'),
     interface_declaration: $ => seq('interface', field('name', $.identifier), $.string,
-      '{', repeat($.snapshot_declaration), '}'),
-    snapshot_declaration: $ => seq('snapshot', $.identifier, '=', $._state_name),
+      '{', repeat(choice($.snapshot_declaration, $.bank_alias)), '}'),
+    snapshot_declaration: $ => seq('snapshot', $.identifier, optional(seq('.', $.identifier)), '=', $._state_name),
+
+    bank_alias: $ => seq('bank', $.identifier, '=', $.identifier, 'snapshot', $.identifier),
 
     // State symbols are syntactically distinct from captured values in queries.
     // Accept unknown/lowercase names so incomplete edits still retain structure.

@@ -6,7 +6,7 @@ ADC carries into the high byte through intervening loads that preserve flags.
 
 [Machine definition](../../../../src/machines/z80/checksum-example.machine) ·
 [Example tests](../../../../tests/machines/z80/checksum-example.test.ts) ·
-[Arithmetic and logic contract](../model.md#arithmetic-and-logic)
+[Arithmetic and logic contract](../../../../src/components/cpus/specifications/z80.md#accumulator-arithmetic-and-logic)
 
 The explicit initial state sets `interruptDeferred` and `nmiDeferred` to false.
 
@@ -87,7 +87,7 @@ Every instruction increments R once, wrapping its low seven bits while
 preserving bit 7. ADD `(HL)` reads its data once; ADC immediate reads its
 operand once. Stores write once without reading the destination. Already
 halted steps perform no accesses or refresh updates. Timing and dummy bus
-activity remain outside the [model contract](../model.md#instruction-steps).
+activity remain outside the [model contract](../../../../src/components/cpus/specifications/z80.md#instruction-steps).
 
 ## Acceptance checks
 

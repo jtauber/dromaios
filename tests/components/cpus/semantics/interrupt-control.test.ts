@@ -12,7 +12,7 @@ import type { Cpu6502State } from "../../../../src/components/cpus/semantics/gen
 import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/semantics/generated/state/6809.js";
 import type { Cpu8080State } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
-import type { CpuZ80State } from "../../../../src/components/cpus/state/z80.js";
+import type { CpuZ80State } from "../../../../src/components/cpus/semantics/generated/state/z80.js";
 import type { InstructionDefinition } from "../../../../src/components/cpus/semantics/model.js";
 import { initialState as initialZ80 } from "../z80/helpers.js";
 

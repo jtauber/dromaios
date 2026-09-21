@@ -5,8 +5,8 @@ import { cpu6502StateDescription } from "../../../../src/components/cpus/semanti
 import { cpu6809StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6809.js";
 import { cpu8080StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
 import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
-import { cpuZ80StateDescription } from "../../../../src/components/cpus/state/z80.js";
-import type { CpuZ80State } from "../../../../src/components/cpus/state/z80.js";
+import { cpuZ80StateDescription } from "../../../../src/components/cpus/semantics/generated/state/z80.js";
+import type { CpuZ80State } from "../../../../src/components/cpus/semantics/generated/state/z80.js";
 import { cpuSymbols, deferInterrupt, flagValue, notifyReti, readLatch, testChoice, when, writeChoice, writeLatch } from "../../../../src/components/cpus/semantics/model.js";
 import type { Choice, CpuDeclaration, Statement } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";

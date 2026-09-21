@@ -19,7 +19,7 @@ end 0202
 test("Z80 generation preserves nested state and uses CpuZ80 with lowercase module paths", () => {
   const source = readFileSync("src/machines/z80/example.machine", "utf8");
   const generated = compileMachine(source, "z80/example.machine");
-  assert.ok(generated.includes('import { CpuZ80 } from "../../../components/cpus/z80.js";'));
+  assert.ok(generated.includes('import { CpuZ80 } from "../../../components/cpus/generated/z80-cpu.js";'));
   assert.ok(generated.includes("create: createZ80Example, createMemory: createZ80ExampleMemory"));
   assert.ok(generated.includes("defineRamExample(CpuZ80,"));
   assert.ok(generated.includes('"alternate": {'));

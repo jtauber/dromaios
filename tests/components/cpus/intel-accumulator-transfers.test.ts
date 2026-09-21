@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Cpu8080 } from "../../../src/components/cpus/generated/8080-cpu.js";
-import { CpuZ80 } from "../../../src/components/cpus/z80.js";
-import type { CpuZ80InterruptAccess } from "../../../src/components/cpus/z80.js";
+import { CpuZ80 } from "../../../src/components/cpus/generated/z80-cpu.js";
+import type { CpuZ80InterruptAccess } from "../../../src/components/cpus/generated/z80-cpu.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
 import { accumulatorState, accumulatorTransfers } from "../../helpers/intel-accumulator-transfers.js";
 import { readAccess, writeAccess } from "./z80/helpers.js";

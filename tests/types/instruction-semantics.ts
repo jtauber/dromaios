@@ -29,7 +29,7 @@ import { cpu8088StateDescription } from "../../src/components/cpus/state/8088.js
 import type { Cpu8088State } from "../../src/components/cpus/8088.js";
 import { byteRegisterView } from "../../src/components/cpus/semantics/builders.js";
 import { cpu6809StateDescription } from "../../src/components/cpus/semantics/generated/state/6809.js";
-import { cpuZ80StateDescription } from "../../src/components/cpus/state/z80.js";
+import { cpuZ80StateDescription } from "../../src/components/cpus/semantics/generated/state/z80.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/generated/6502-cpu.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/generated/8080-cpu.js";
 import { readTest, reportInterrupt, sendEscape, testChoice, writeChoice, readPort, writePort, deferInterrupt, divide, iterate, reject, and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, projectAddress, readFlag, readLatch, readMemory, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
@@ -37,7 +37,7 @@ import type { FlagPolicy, NumberExpression, Statement } from "../../src/componen
 import { instructions as generated6502 } from "../../src/components/cpus/generated/6502.js";
 import { sourceReaders } from "../../src/components/cpus/generated/6502-state.js";
 import { bodiesZ80 as generatedZ80 } from "../helpers/z80-bodies.js";
-import type { CpuZ80State } from "../../src/components/cpus/z80.js";
+import type { CpuZ80State } from "../../src/components/cpus/generated/z80-cpu.js";
 import { instructions as generated8008 } from "../../src/components/cpus/generated/8008.js";
 import { cpu8008StateDescription } from "../../src/components/cpus/semantics/generated/state/8008.js";
 import type { Cpu8008State, Cpu8008StoredState } from "../../src/components/cpus/semantics/generated/state/8008.js";

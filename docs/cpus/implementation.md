@@ -206,7 +206,7 @@ Choose the grouping from the CPU's encoding:
 | [6502](../../src/components/cpus/specifications/6502.md) | `aaa bbb cc`; `cc=01` groups `aaa` operations with shared `bbb` operand sources; `cc=00/10` retain `bbb` subgroups and their distinct implied/addressing forms |
 | [6800](../../src/components/cpus/specifications/6800.md) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; unary forms use `01 tt oooo`, with `tt` selecting A/B/indexed/extended; short branches use `0010 ttt p`, keeping the unused `21` explicit |
 | [6809](../../src/components/cpus/specifications/6809.md) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, `0110 oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte; pages `10`/`11` share chapter word families, with long conditions on page `10` |
-| [Z80](../../src/components/cpus/z80.ts) | Chapter-owned instruction families and prefix layouts; decoded execution commits PC/refresh after complete validation; the adapter owns external interrupt entry |
+| [Z80](../../src/components/cpus/specifications/z80.md) | Chapter-owned instruction families and prefix layouts; decoded execution commits PC/refresh after complete validation; chapter-defined mixed entries select NMI and IRQ modes; the public interface and both bank snapshots are generated |
 | [8088](../../src/components/cpus/8088.ts) | Family-specific fields: `00 ooo 0 d w` / `00 ooo 10 w` for ALU families, `mm ggg rrr` for ModR/M operands or operation extensions, `0101 p rrr` for register stacks, `0111 ttt p` for conditional jumps, and `1010 00 d w` / `1011 w rrr` for transfers; wrap byte offsets within the selected segment before mapping to the physical bus |
 | [68000](../../src/components/cpus/68000.ts) | Sixteen-bit operation words; MOVE encodes destination register/mode before source mode/register; immediate ALU families encode operation, size, and a data-alterable effective address |
 
@@ -377,11 +377,13 @@ including displacement-before-opcode reads. The generated decoder supplies the
 selected body and opcode-fetch count without touching state. The chapter's
 execution contract binds reset, fetch effects, and retirement to
 [`decoded-execution.ts`](../../src/components/cpus/decoded-execution.ts), which
-validates the complete encoding before PC/refresh commitment. Its guard,
-decoder, fetch hook, and retirement are shared with native external entry.
-RETI notification follows successful retirement under that guard. The core
-retains the public interface, snapshot assembly, and IRQ/NMI entry. The chapter
-is automatically registered; no instruction catalogue adapter remains.
+validates the complete encoding before PC/refresh commitment. Named interrupt
+entries bind chapter gates and acceptance actions to direct vectors or mode-selected
+delivery. Supplied instructions share the decoder, fetch hook, and retirement;
+RETI notification follows successful retirement under the same guard. Public
+interface declarations generate the class, both banks' detached views, and bank
+type aliases. The chapter registers the model automatically; no handwritten
+Z80 core, state adapter, or instruction catalogue adapter remains.
 
 IX/IY encodings share bodies through writable register bindings. Indexed byte
 sources fetch their displacement before reading the live index; indexed CB
@@ -599,21 +601,21 @@ EI deferral callback. Their prebuilt handler tables still expose the opcode
 patterns; the bound callbacks and logs belong to one execution. The 8008 runtime
 records accesses into a combined log as they complete. The 8080 appends its port
 log after memory because its I/O instructions transfer once, after all fetches.
-The Z80 binds the same port callbacks in its own prefix-aware step loop and
+The Z80 binds the same port callbacks through shared decoded execution and
 records actual memory/port interleaving, including block I/O.
 
 8008 and 8080 interrupt delivery use the same tables and handler-context binding, with
 acknowledgement supplying instruction bytes while PC stays unchanged by fetches.
 They record data-memory and port transfers as they complete. Acceptance and HALT
-release stay in the CPU; the shared RAM-fetch executor does not need an interrupt mode.
+release are chapter-defined; the shared RAM-fetch executor does not need an interrupt mode.
 
 The [supplied-instruction recorder](../../src/components/cpus/interrupt-instruction.ts)
 shares byte validation and acknowledgement recording between the 8008, 8080,
 and Z80. It returns a fresh `instruction` and `fetchByte` callback; each fetch
 asks the external source once, validates the byte, appends it, and reports the
 completed acknowledgement to the combined access log. It never advances PC.
-Native acceptance, stack behavior, decoding, Z80 refresh, and retirement remain
-in each CPU. The public CPU instruction/access types alias its readonly shapes.
+Chapter actions and execution declarations supply acceptance, stack behavior,
+decoding, Z80 refresh, and retirement policies. The public CPU instruction/access types alias its readonly shapes.
 [Recorder tests](../../tests/components/cpus/interrupt-instruction.test.ts) cover
 lazy reads, all byte values, ownership, and failures; CPU tests retain their
 independent state and access expectations.
@@ -628,8 +630,8 @@ Each CPU selects which operations to guard and supplies its diagnostic message.
 Generated chapter bindings use `programCounter(read, write)` with chapter-owned
 views and actions. The 8008 exposes its live address-stack slot and masks writes
 to 14 bits without adding stored state; the 8080, 6502, 6800, and 6809 bind stored PC.
-The 8008's circular call stack remains explicit in its chapter. The Z80 retains
-complete-prefix decoding and R updates; the
+The 8008's circular call stack remains explicit in its chapter. The Z80 chapter selects
+complete-prefix decoding and R updates in shared decoded execution; the
 8088 retains segment/repeat prefixes, one-element REP steps, trap boundaries,
 and native interrupt delivery; the 68000 retains word opcodes, alignment faults,
 native exception frames, trace retirement, and interrupt offers. Those contracts
@@ -642,19 +644,15 @@ mapped fetches, interleaved data accesses, record independence, and error propag
 [Type checks](../../tests/types/execute-byte-instruction.ts) preserve readonly
 records. Existing CPU and example tests retain independent hardware expectations.
 
-## Runtime Z80 interrupt stack
+## Z80 interrupt stack
 
-The [call-stack helper](../../src/components/cpus/call-stack.ts) remains in
-use only for Z80 external interrupt entry and is private to that CPU. Ordinary
-BC/DE/HL/IX/IY and packed PSW/AF pushes/pops, CALL/RET/RST, and Z80 RETN/RETI
-use generated definitions.
-Both paths retain predecrement-before-write and increment-after-read ordering,
-high/low pushes, low/high pops, and 16-bit wrap. The helper does not own flags,
-interrupt acceptance, memory recording, or CPU lifecycle.
-[Tests](../../tests/components/cpus/call-stack.test.ts) retain its independent
-SP, access-order, and failure checks. The
+Z80 interrupt entry reuses the chapter's ordinary call and push actions.
+Both paths retain predecrement-before-write ordering, high/low pushes, and
+16-bit wrap. The former runtime call-stack helper is removed. Independent
+[interrupt tests](../../tests/components/cpus/z80/interrupts.test.ts) retain
+SP, access-order, overlap, and failure checks. The
 [stack definitions contract](instruction-semantics.md#stacks-and-subroutines)
-explains shared construction across the CPU definitions.
+explains shared construction across the remaining CPU definitions.
 
 ## Shared binary helpers
 
@@ -662,7 +660,7 @@ The [binary helpers](../../src/components/cpus/binary.ts) interpret byte values
 without owning CPU state:
 
 - `signed8(byte)` interprets an unsigned byte as a signed integer in `-128–127`.
-  The Z80, 8088, and 68000 use it for byte displacements in native
+  The 8088 and 68000 use it for byte displacements in native
   address decoding. Generated sign extension is expressed in the definitions.
 - `readWordLE(nextByte)` reads two bytes, low first; `readWordBE(nextByte)` reads
   high first. Both return an unsigned 16-bit value. Each calls `nextByte`

@@ -489,11 +489,11 @@ writes; a failed second write retains the first. A failed second read prevents
 all destination writes. Flags, alternate banks, and control state are never
 accessed. SP copies capture the source and write SP with no instruction context.
 
-The Z80 chapter defines BC/DE/HL views and high-then-low write actions; native
-prefixed builders consume them alongside stored SP, IX, and IY words. Ordinary
-word bodies and encodings also live in the chapter. ED's HL forms call the same
-bodies as their unprefixed counterparts. Its prefix decoder still owns
-recognition, PC/R advancement, and interrupt retirement.
+The Z80 chapter defines BC/DE/HL views and high-then-low write actions;
+prefixed families consume them alongside stored SP, IX, and IY words. All word
+bodies and encodings live in the chapter. ED's HL forms call the same bodies
+as their unprefixed counterparts. Its execution declaration supplies recognition,
+PC/R advancement, and interrupt retirement through the shared decoded runtime.
 
 The 6502 describes effective addresses as word-valued sources. They perform
 operand fetches and any pointer reads, then stop before the final data read.
@@ -1040,8 +1040,8 @@ flags, capture the return PC only if taken, push it, and write PC after both
 writes succeed. Returns test flags before stack access and write PC after a
 complete pop. Untaken calls and returns leave SP untouched and only advance
 PC through instruction fetching. The 8080 and Z80 chapters supply ordinary
-stack/control encodings and bodies; native Z80 IX/IY pushes and pops retain
-the same stack recipe through prefixed bindings.
+stack/control encodings and bodies; Z80 IX/IY pushes and pops reuse the same
+chapter stack actions through writable register bindings.
 
 The 6502 chapter's JSR stays an explicit sequence: fetch low target, read/push current PC
 high, read/push current PC low, fetch high target, then write PC. A stack write

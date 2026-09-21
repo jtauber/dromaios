@@ -5,7 +5,7 @@ import type { Cpu6502State } from "../../src/components/cpus/generated/6502-cpu.
 import type { Cpu6800State } from "../../src/components/cpus/generated/6800-cpu.js";
 import type { Cpu6809State } from "../../src/components/cpus/generated/6809-cpu.js";
 import type { Cpu68000State } from "../../src/components/cpus/68000.js";
-import type { CpuZ80State } from "../../src/components/cpus/z80.js";
+import type { CpuZ80State } from "../../src/components/cpus/generated/z80-cpu.js";
 import { parseMachine } from "../../src/machines/machine-language.js";
 
 // Compiled, never called: the model discriminant must narrow the parsed state.

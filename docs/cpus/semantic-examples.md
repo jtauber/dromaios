@@ -296303,7 +296303,7 @@ Flags preserved throughout: S, Z, AC, P, CY.
 
 ### z80 NOP
 
-NOP changes nothing after opcode fetching. HALT sets STOPPED and retires normally; further steps stop until reset or an accepted interrupt releases it. DI and EI write IFF2 before IFF1. EI requests IRQ inhibition through the following instruction. The native execution boundary still commits that request at successful retirement and implements refresh and interrupt entry.
+NOP changes nothing after opcode fetching. HALT sets STOPPED and retires normally; further steps stop until reset or an accepted interrupt releases it. DI and EI write IFF2 before IFF1. EI requests IRQ inhibition through the following instruction. The chapter-bound execution runtime commits that request at successful retirement.
 
 ```text
 
@@ -298128,7 +298128,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 HALT
 
-NOP changes nothing after opcode fetching. HALT sets STOPPED and retires normally; further steps stop until reset or an accepted interrupt releases it. DI and EI write IFF2 before IFF1. EI requests IRQ inhibition through the following instruction. The native execution boundary still commits that request at successful retirement and implements refresh and interrupt entry.
+NOP changes nothing after opcode fetching. HALT sets STOPPED and retires normally; further steps stop until reset or an accepted interrupt releases it. DI and EI write IFF2 before IFF1. EI requests IRQ inhibition through the following instruction. The chapter-bound execution runtime commits that request at successful retirement.
 
 ```text
 write halted:boolean := true
@@ -301390,7 +301390,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 DI
 
-NOP changes nothing after opcode fetching. HALT sets STOPPED and retires normally; further steps stop until reset or an accepted interrupt releases it. DI and EI write IFF2 before IFF1. EI requests IRQ inhibition through the following instruction. The native execution boundary still commits that request at successful retirement and implements refresh and interrupt entry.
+NOP changes nothing after opcode fetching. HALT sets STOPPED and retires normally; further steps stop until reset or an accepted interrupt releases it. DI and EI write IFF2 before IFF1. EI requests IRQ inhibition through the following instruction. The chapter-bound execution runtime commits that request at successful retirement.
 
 ```text
 write iff2:boolean := false
@@ -301606,7 +301606,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 EI
 
-NOP changes nothing after opcode fetching. HALT sets STOPPED and retires normally; further steps stop until reset or an accepted interrupt releases it. DI and EI write IFF2 before IFF1. EI requests IRQ inhibition through the following instruction. The native execution boundary still commits that request at successful retirement and implements refresh and interrupt entry.
+NOP changes nothing after opcode fetching. HALT sets STOPPED and retires normally; further steps stop until reset or an accepted interrupt releases it. DI and EI write IFF2 before IFF1. EI requests IRQ inhibition through the following instruction. The chapter-bound execution runtime commits that request at successful retirement.
 
 ```text
 write iff2:boolean := true
@@ -307275,7 +307275,7 @@ Flags preserved throughout: none.
 
 ### z80 RETN
 
-RETN and RETI pop and commit the complete PC before reading IFF1 and IFF2. If the latches differ, request IRQ deferral at retirement; then reread IFF2 into IFF1. Both preserve flags and completed stack effects on failure. RETI also requests device notification after architectural retirement. The core still performs that callback: its failure cannot undo the completed return.
+RETN and RETI pop and commit the complete PC before reading IFF1 and IFF2. If the latches differ, request IRQ deferral at retirement; then reread IFF2 into IFF1. Both preserve flags and completed stack effects on failure. RETI also requests device notification after architectural retirement. The shared runtime performs that callback: its failure cannot undo the completed return.
 
 ```text
 target:u16 := source "pop little-endian word" {
@@ -307309,7 +307309,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 IM 0
 
-IM selects a stored mode without changing flags, IFF1, or IFF2. In `01 0 mm 110`, only mm=00/10/11 are documented, selecting modes 0/1/2. The core still owns external interrupt recognition and mode-specific entry.
+IM selects a stored mode without changing flags, IFF1, or IFF2. In `01 0 mm 110`, only mm=00/10/11 are documented, selecting modes 0/1/2. The entry table uses that choice after IRQ acknowledgement.
 
 ```text
 write control im := 0
@@ -307426,7 +307426,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 RETI
 
-RETN and RETI pop and commit the complete PC before reading IFF1 and IFF2. If the latches differ, request IRQ deferral at retirement; then reread IFF2 into IFF1. Both preserve flags and completed stack effects on failure. RETI also requests device notification after architectural retirement. The core still performs that callback: its failure cannot undo the completed return.
+RETN and RETI pop and commit the complete PC before reading IFF1 and IFF2. If the latches differ, request IRQ deferral at retirement; then reread IFF2 into IFF1. Both preserve flags and completed stack effects on failure. RETI also requests device notification after architectural retirement. The shared runtime performs that callback: its failure cannot undo the completed return.
 
 ```text
 target:u16 := source "pop little-endian word" {
@@ -307568,7 +307568,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 IM 1
 
-IM selects a stored mode without changing flags, IFF1, or IFF2. In `01 0 mm 110`, only mm=00/10/11 are documented, selecting modes 0/1/2. The core still owns external interrupt recognition and mode-specific entry.
+IM selects a stored mode without changing flags, IFF1, or IFF2. In `01 0 mm 110`, only mm=00/10/11 are documented, selecting modes 0/1/2. The entry table uses that choice after IRQ acknowledgement.
 
 ```text
 write control im := 1
@@ -307695,7 +307695,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 IM 2
 
-IM selects a stored mode without changing flags, IFF1, or IFF2. In `01 0 mm 110`, only mm=00/10/11 are documented, selecting modes 0/1/2. The core still owns external interrupt recognition and mode-specific entry.
+IM selects a stored mode without changing flags, IFF1, or IFF2. In `01 0 mm 110`, only mm=00/10/11 are documented, selecting modes 0/1/2. The entry table uses that choice after IRQ acknowledgement.
 
 ```text
 write control im := 2
@@ -311599,7 +311599,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 write the next instruction address
 
-Reset sets PC, I, R, and IM to zero, disables both interrupt flip-flops, clears both deferral latches, and releases HALT. It preserves both register banks, IX, IY, SP, and RAM. Reset records detached before/after snapshots and an empty access list: it neither reads a vector nor fabricates a power-on state.
+Reset sets PC, I, R, and IM to zero, disables both interrupt flip-flops, clears both deferral latches, and releases HALT. It preserves both register banks, IX, IY, SP, and RAM. Reset records detached before/after snapshots and an empty access list: it neither reads a vector nor fabricates a power-on state. `CpuZ80ResetRecord` has no instruction or step outcome. Repeated reset has the same defined effects and produces fresh records. Preserving registers whose reset values the manual leaves unspecified is a deterministic model policy, not a claim about physical power-on values. An example's fresh factory instead restores its initial CPU, program, and RAM.
 
 ```text
 word:u16 := input
@@ -311610,7 +311610,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 apply the reset boundary
 
-Reset sets PC, I, R, and IM to zero, disables both interrupt flip-flops, clears both deferral latches, and releases HALT. It preserves both register banks, IX, IY, SP, and RAM. Reset records detached before/after snapshots and an empty access list: it neither reads a vector nor fabricates a power-on state.
+Reset sets PC, I, R, and IM to zero, disables both interrupt flip-flops, clears both deferral latches, and releases HALT. It preserves both register banks, IX, IY, SP, and RAM. Reset records detached before/after snapshots and an empty access list: it neither reads a vector nor fabricates a power-on state. `CpuZ80ResetRecord` has no instruction or step outcome. Repeated reset has the same defined effects and produces fresh records. Preserving registers whose reset values the manual leaves unspecified is a deterministic model policy, not a claim about physical power-on values. An example's fresh factory instead restores its initial CPU, program, and RAM.
 
 ```text
 write PC:u16 := 0000:u16
@@ -311668,7 +311668,7 @@ Flags preserved throughout: none.
 
 ### z80 write B:C
 
-A pair write replaces its high byte before its low byte. These actions also serve the remaining prefixed word definitions. Reading a pair always captures both bytes before any split write, even when source and destination alias.
+A pair write replaces its high byte before its low byte. These actions also serve the prefixed word definitions. Reading a pair always captures both bytes before any split write, even when source and destination alias.
 
 ```text
 word:u16 := input
@@ -311680,7 +311680,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 write D:E
 
-A pair write replaces its high byte before its low byte. These actions also serve the remaining prefixed word definitions. Reading a pair always captures both bytes before any split write, even when source and destination alias.
+A pair write replaces its high byte before its low byte. These actions also serve the prefixed word definitions. Reading a pair always captures both bytes before any split write, even when source and destination alias.
 
 ```text
 word:u16 := input
@@ -311692,7 +311692,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 write H:L
 
-A pair write replaces its high byte before its low byte. These actions also serve the remaining prefixed word definitions. Reading a pair always captures both bytes before any split write, even when source and destination alias.
+A pair write replaces its high byte before its low byte. These actions also serve the prefixed word definitions. Reading a pair always captures both bytes before any split write, even when source and destination alias.
 
 ```text
 word:u16 := input
@@ -312008,6 +312008,111 @@ perform "push a captured word" {
   }
 }
 write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 accept NMI and preserve IFF2
+
+The entry actions below make acceptance and stack effects explicit.
+
+```text
+write halted:boolean := false
+write iff1:boolean := false
+perform "advance the low seven refresh bits" {
+  count:u8 := 01:u8
+  original:u8 := read R
+  write R:u8 := bitOr(bitAnd(original, 80:u8), bitAnd(addWrap(original, count), 7F:u8))
+}
+write nmiDeferred:boolean := true
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 accept IRQ before acknowledgement
+
+The entry actions below make acceptance and stack effects explicit.
+
+```text
+write halted:boolean := false
+write iff1:boolean := false
+perform "advance the low seven refresh bits" {
+  count:u8 := 01:u8
+  original:u8 := read R
+  write R:u8 := bitOr(bitAnd(original, 80:u8), bitAnd(addWrap(original, count), 7F:u8))
+}
+write iff2:boolean := false
+write interruptDeferred:boolean := false
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 push PC and enter NMI
+
+The entry actions below make acceptance and stack effects explicit.
+
+```text
+perform "push return PC then jump" {
+  target:u16 := 0066:u16
+  returnPC:u16 := read PC
+  perform "push a captured word" {
+    word:u16 := returnPC
+    perform "push a captured byte" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+    perform "push a captured byte" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+  }
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 push PC before selecting and reading the IRQ vector
+
+After acknowledgement, IM selects a supplied instruction or a vector entry. Mode 1 ignores the byte and calls `$0038`. Mode 2 pushes PC before forming the vector address from current I and the supplied byte; then it reads the target low byte first. This preserves stack/vector overlap and each partial failure. The low vector byte may be odd, and its following address wraps at sixteen bits.
+
+```text
+byte:u8 := input
+returnPC:u16 := read PC
+perform "push a captured word" {
+  word:u16 := returnPC
+  perform "push a captured byte" {
+    byte:u8 := highByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+  perform "push a captured byte" {
+    byte:u8 := lowByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+}
+modeOne:flag := test control im equals 1
+when modeOne {
+  write PC:u16 := 0038:u16
+}
+when not(modeOne) {
+  high:u8 := read I
+  address := concatHighLow(high, byte)
+  low:u8 := read memory[address]
+  highTarget:u8 := read memory[addWrap(address, 0001:u16)]
+  write PC:u16 := concatHighLow(highTarget, low)
+}
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
