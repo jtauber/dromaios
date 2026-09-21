@@ -28,7 +28,7 @@ test("6809 chapter state, view, and stack edits reach public instructions, index
   const machine = readFileSync("src/machines/6809/example.machine", "utf8");
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
-    import { Cpu6809, cpu6809StateDescription } from ${url("src/components/cpus/6809.ts")};
+    import { Cpu6809, cpu6809StateDescription } from ${url("src/components/cpus/generated/6809-cpu.ts")};
     import { parseMachine } from ${url("src/machines/machine-language.ts")};
     const text = ${JSON.stringify(machine)};
     assert.equal(cpu6809StateDescription.scratch.bits, 8);

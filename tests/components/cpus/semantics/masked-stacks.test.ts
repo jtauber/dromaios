@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { bodies6809 as instructions } from "../../../helpers/6809-bodies.js";
 import type { ByteInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
-import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
+import type { Cpu6809State } from "../../../../src/components/cpus/semantics/generated/state/6809.js";
 
 const flagNames = ["e", "f", "h", "i", "n", "z", "v", "c"] as const;
 const flags = (byte: number) => Object.fromEntries(flagNames.map((name, bit) => [name, Boolean(byte & (128 >> bit))])) as Cpu6809State["flags"];

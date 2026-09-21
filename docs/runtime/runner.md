@@ -103,7 +103,7 @@ the [CPU model contracts](../README.md#cpu-models).
 
 For the 6809, a masked IRQ/FIRQ can release SYNC, while CWAI requires an
 accepted interrupt and reuses its saved frame. The caller performs the
-[boundary offer](../cpus/6809/model.md#waiting-and-external-interrupt-delivery)
+[boundary offer](../../src/components/cpus/specifications/6809.md#execution-and-public-interface)
 between runs; the runner does not poll interrupt sources.
 
 ## Records and types

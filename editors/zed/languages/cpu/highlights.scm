@@ -6,7 +6,7 @@
   "execution" "memory" "port" "counter" "stopped" "word" "opcode" "advance"
   "on" "dispatch" "after" "failure" "retain" "reset" "retire" "interrupt"
   "accept" "always" "unless" "bytes" "acknowledge" "preserve" "interface" "snapshot" "unknown"
-  "callback" "validate" "offer" "using" "vectors" "as" "match" "case" "otherwise"
+  "callback" "validate" "offer" "using" "vectors" "as" "match" "case" "otherwise" "resume"
 ] @keyword
 ["little" "big" "none" "waiting" "unsupported"] @constant
 

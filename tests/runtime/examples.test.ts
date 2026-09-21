@@ -16,7 +16,7 @@ import { create6800Example } from "../../src/machines/generated/6800/example.js"
 import { create6800CountedLoopExample } from "../../src/machines/generated/6800/counted-loop-example.js";
 import { create6800StackExample } from "../../src/machines/generated/6800/stack-example.js";
 import { create6800LogicExample } from "../../src/machines/generated/6800/logic-example.js";
-import type { Cpu6809 } from "../../src/components/cpus/6809.js";
+import type { Cpu6809 } from "../../src/components/cpus/generated/6809-cpu.js";
 import type { Cpu68000 } from "../../src/components/cpus/68000.js";
 import { create68000Example } from "../../src/machines/generated/68000/example.js";
 import { create68000TransfersExample } from "../../src/machines/generated/68000/transfers-example.js";

@@ -266,7 +266,7 @@ The 6809 requires `waitMode = none`, `sync`, or `cwai`, plus Boolean
 `nmiArmed = false` or `true`. Named alternatives are case-sensitive values
 from the CPU's state description; field names follow the usual case-insensitive
 rule. Wait and NMI state are explicit even when a program does not use interrupts.
-See the [6809 control-state contract](../cpus/6809/model.md#nmi-arming).
+See the [6809 control-state contract](../../src/components/cpus/specifications/6809.md#nmi-arming).
 
 Derived views such as 8080/Z80 `BC`, `DE`, and `HL`, and 6809 `D`, cannot be assigned,
 including inside the Z80's alternate bank.

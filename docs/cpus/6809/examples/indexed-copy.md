@@ -4,7 +4,7 @@ Copy three nonzero words and their zero sentinel from a source buffer to a
 destination buffer. X and U advance by two with each transfer. Save both final
 pointers using the direct page after the sentinel ends the loop.
 
-[Model contract](../model.md#indexed-addressing-and-word-transfers) ·
+[Model contract](../../../../src/components/cpus/specifications/6809.md#indexed-postbytes) ·
 [Example definition](../../../../src/machines/6809/indexed-copy-example.machine) ·
 [Example tests](../../../../tests/machines/6809/indexed-copy-example.test.ts) ·
 [CPU coverage](../../coverage.md#6809)

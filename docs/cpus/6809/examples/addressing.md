@@ -92,7 +92,7 @@ check rejection independently of caller completion.
 
 ## Reset and restart
 
-Reset follows the [existing 6809 policy](../model.md#cpu-reset).
+Reset follows the [existing 6809 policy](../../../../src/components/cpus/specifications/6809.md#reset-and-external-entry).
 It reads `FFFE` then `FFFF`, sets PC to `0200`, clears DP, and sets F/I.
 Other state and RAM remain unchanged, including the `A5` copied to `1281`.
 

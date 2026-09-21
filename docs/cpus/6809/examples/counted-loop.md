@@ -5,7 +5,7 @@ RAM. It complements the [6502 counted loop](../../6502/examples/counted-loop.md)
 with an accumulator as the counter and the combined D register visible
 throughout execution.
 
-[Model contract](../model.md#accumulator-operations-and-short-branches) ·
+[Model contract](../../../../src/components/cpus/specifications/6809.md#arithmetic) ·
 [Example definition](../../../../src/machines/6809/counted-loop-example.machine) ·
 [Example tests](../../../../tests/machines/6809/counted-loop-example.test.ts) ·
 [CPU coverage](../../coverage.md#6809)
@@ -41,7 +41,7 @@ The destination `0080` and completion address `020C` start at zero.
 These are explicit example choices. The initial nonzero A/B make changes to
 both halves of D visible. Nonzero DP distinguishes the extended destination
 `0080` from a direct address on page `12`. Register and branch behavior follows
-the [model contract](../model.md#accumulator-operations-and-short-branches),
+the [model contract](../../../../src/components/cpus/specifications/6809.md#arithmetic),
 [Motorola instruction details](https://www.maddes.net/m6809pm/appendix_a.htm),
 and [opcode reference](https://www.maddes.net/m6809pm/appendix_d.htm).
 
@@ -90,7 +90,7 @@ A four-step budget pauses at `0207`, immediately before the first BNE, with
 A = `05`, B = `02`, and D = `0502`. A further eight steps complete the program;
 the concatenated records match an uninterrupted run.
 
-Reset follows the [6809 reset contract](../model.md#cpu-reset): read the current
+Reset follows the [6809 reset contract](../../../../src/components/cpus/specifications/6809.md#reset-and-external-entry): read the current
 vector, set PC to `0200`, clear DP, and set F/I. Both stack pointers, A/B/D,
 other registers and flags, and RAM retain their final values. The setup
 instructions execute again when resumed. Restarting through the factory

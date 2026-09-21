@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { boolean, defineState, flag, group, namedChoices, unsigned } from "../../../../src/components/cpus/state.js";
-import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
-import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
-import { chapter6809 } from "../../../../src/components/cpus/semantics/definitions/6809.js";
+import { cpu6809StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6809.js";
+import type { Cpu6809State } from "../../../../src/components/cpus/semantics/generated/state/6809.js";
+import { instructions6809 as chapter6809 } from "../../../../src/components/cpus/semantics/generated/catalogue.js";
 import { instructions } from "../../../../src/components/cpus/generated/6809.js";
 import { instructions as actions, sourceReaders } from "../../../../src/components/cpus/generated/6809-state.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
@@ -74,7 +74,7 @@ test("the 6809 chapter owns its full schema and exactly 268 base and prefixed fo
   assert.deepEqual(chapter.pages, { secondary: 0x10, tertiary: 0x11 });
   assert.deepEqual(Object.keys(chapter6809).map(Number).sort((a, b) => a - b), opcodes);
   assert.deepEqual(Object.fromEntries(Object.values(chapter.families).flat()), chapter6809);
-  assert.equal(chapter.execution, undefined); assert.equal(chapter.interface, undefined);
+  assert.equal(chapter.execution?.interrupt, "vectors"); assert.equal(chapter.interface?.name, "Cpu6809");
 });
 
 test("D captures A then B, writes A then B, and CC packs and restores every bit", () => {

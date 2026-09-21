@@ -27,7 +27,7 @@ import { instructions as generated8088, opcodeEntries as opcodeEntries8088 } fro
 import { cpu8088StateDescription } from "../../src/components/cpus/state/8088.js";
 import type { Cpu8088State } from "../../src/components/cpus/8088.js";
 import { byteRegisterView } from "../../src/components/cpus/semantics/builders.js";
-import { cpu6809StateDescription } from "../../src/components/cpus/state/6809.js";
+import { cpu6809StateDescription } from "../../src/components/cpus/semantics/generated/state/6809.js";
 import { cpuZ80StateDescription } from "../../src/components/cpus/state/z80.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/generated/6502-cpu.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/generated/8080-cpu.js";
@@ -45,7 +45,7 @@ import { instructions as generated6800 } from "../../src/components/cpus/generat
 import type { Cpu6800State } from "../../src/components/cpus/generated/6800-cpu.js";
 import type { Cpu6502State } from "../../src/components/cpus/generated/6502-cpu.js";
 import type { Cpu8080State } from "../../src/components/cpus/generated/8080-cpu.js";
-import type { Cpu6809State } from "../../src/components/cpus/6809.js";
+import type { Cpu6809State } from "../../src/components/cpus/generated/6809-cpu.js";
 
 // Compiled, never called: names come from CPU schemas; reads, expressions, and writes have distinct roles.
 export function check68000MoveTypes(state: Cpu68000State, context: Cpu68000AddressContext & {

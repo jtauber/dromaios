@@ -470,7 +470,7 @@ Operand resolution must account for aliases and ordering. In the 6809,
 `CMPX ,X++` compares the updated X with the fetched word. A store using X as
 both index and source also observes the addressing update. A word load into
 that same register overwrites the update with the loaded value. See the
-[6809 implementation](../../src/components/cpus/6809.ts) and
+[6809 implementation](../../src/components/cpus/specifications/6809.md) and
 [indexed tests](../../tests/components/cpus/6809.test.ts).
 
 Accordingly, a generic comparison cannot always read its left register before

@@ -59,6 +59,9 @@ export function generateChapterInterface(module: string, state: StateFields, api
   const interruptTypes = vectors
     ? `export type ${name}InterruptSource = ${execution.entries.map(entry => quoted(entry.source)).join(" | ")};`
     : `export type ${name}InterruptAccess = ${name}Access | InterruptAcknowledge;\nexport type ${name}InterruptInstruction = InterruptInstruction;`;
+  const initialState = vectors && api.snapshots.length
+    ? `Omit<${name}Snapshot, ${api.snapshots.map(({ field }) => quoted(field)).join(" | ")}>`
+    : `${name}${vectors ? "Snapshot" : "State"}`;
   return `// Generated from the chapter's public interface. Do not edit.
 import { sourceReaders } from "./${module}-state.ts";
 import { checkMemory, createExecution } from "./${module}-execution.ts";
@@ -92,7 +95,7 @@ export class ${name} {
   readonly #views: ReturnType<typeof sourceReaders>["views"];
   readonly #execution: ReturnType<typeof createExecution<${name}Snapshot>>;
 
-  constructor(ram: Ram, initialState: ${name}${vectors ? "Snapshot" : "State"}${vectors ? "" : ", ports?: BytePorts"}) {
+  constructor(ram: Ram, initialState: ${initialState}${vectors ? "" : ", ports?: BytePorts"}) {
     checkMemory(ram);
     this.#state = readState(${schema}, initialState);
     this.#views = sourceReaders(this.#state).views;

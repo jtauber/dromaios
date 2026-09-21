@@ -17,11 +17,11 @@ and targeted observations, not a certification of the complete emulator.
 - **Specify reset and stopping independently.** The old CPU reset clears A/B,
   X/Y, S/U, and CC before setting F/I and reading the vector. A targeted run of
   the proposed lesson confirmed that reset clears the registers while leaving
-  the stored result intact. The new reset follows the narrower [model policy](model.md#cpu-reset).
+  the stored result intact. The new reset follows the narrower [model policy](../../../src/components/cpus/specifications/6809.md#reset-and-external-entry).
   The old step path advances PC before reporting unsupported instructions and
   fetches a second byte after a prefix. Dromaios also fetches the page opcode,
   but restores PC on rejection without changing other state, using the explicit
-  [prefix policy](model.md#unsupported-instructions-and-prefixes).
+  [prefix policy](../../../src/components/cpus/specifications/6809.md#unsupported-instructions-and-prefixes).
 - **Check prose against hardware.** The [CoCo architecture note][coco-architecture]
   assigns BSR/JSR to U, but those calls use S in both [Motorola's instruction
   definitions][instructions] and the reference implementation. Do not carry that statement
@@ -88,7 +88,7 @@ undefined postbytes are rejected without effects. Their rejection expectations
 come from the model boundary and independent tests, not the CoCo decoder.
 
 The pinned sources provide implementation ideas. Dromaios's
-[model contract](model.md) defines its reset, prefix rejection, and record API;
+[model contract](../../../src/components/cpus/specifications/6809.md) defines its reset, prefix rejection, and record API;
 the example specification defines its initial values and expected execution.
 
 [instructions]: https://www.maddes.net/m6809pm/appendix_a.htm

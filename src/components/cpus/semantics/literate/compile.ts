@@ -119,7 +119,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         if (execution) header.fail("Execution is already declared.");
         header.expect("{"); header.end();
         const { body, end } = chapterBody(lines, index); index = end;
-        execution = chapterExecution(header, body, { views, actions, latches, flags });
+        execution = chapterExecution(header, body, { views, actions, latches, choices, flags });
         if (execution.retireDeferral !== undefined) cpu = { ...cpu, irqDeferral: true };
         continue;
       }

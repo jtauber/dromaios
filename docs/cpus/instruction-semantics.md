@@ -17,7 +17,7 @@ an external authoring path into this representation. The language guide records
 the executable chapters and their shared addressing rules; other definitions
 remain TypeScript-authored.
 
-The complete 8008, 8080, 6502, and 6800 models are now authored in their
+The complete 8008, 8080, 6502, 6800, and 6809 models are now authored in their
 [executable chapters](literate-specifications.md). The shared construction
 patterns described below still explain the representation; for current 8080
 behavior and encoding ownership, read its [chapter](../../src/components/cpus/specifications/8080.md).
@@ -26,7 +26,7 @@ family, including addressing, encodings, and reusable stack/frame actions. Its
 reset, waiting, execution, IRQ/NMI recognition, and public interface also come
 from the chapter, with memory-only vector execution shared with the 6502.
 The construction history below describes the earlier shared-builder migration;
-the Z80, 6809, 8088, and other partial migrations retain TypeScript builders.
+the Z80, 8088, and 68000 retain TypeScript builders.
 
 ## The review slice
 
@@ -262,7 +262,8 @@ The authoring layers have separate homes:
 | [decimal.ts](../../src/components/cpus/semantics/decimal.ts) | Shared decimal-correction selection with explicit Intel/Motorola flag and result stages |
 | [6502 chapter](../../src/components/cpus/specifications/6502.md) | Complete state, instruction inventory, NMOS arithmetic, status, reset, execution, and named external-entry policies |
 | [6800 chapter](../../src/components/cpus/specifications/6800.md) | Complete stored state, packed condition codes, instructions, reset, WAI suspension, IRQ/NMI entry, and public interface |
-| [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
+| [6809 chapter](../../src/components/cpus/specifications/6809.md) | Complete model, indexed/page decoding, named wait modes, IRQ/FIRQ/NMI gates and frames, and public interface |
+| [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Typed module catalogue shared by executable generation, explanation, and reproducibility checks |
 
 Register each generated module once in `instructionModules`, with its filename

@@ -3,8 +3,8 @@ import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { instructions as m6800 } from "../../../../src/components/cpus/generated/6800.js";
 import { bodies6809 as m6809 } from "../../../helpers/6809-bodies.js";
-import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
-import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
+import { cpu6809StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6809.js";
+import type { Cpu6809State } from "../../../../src/components/cpus/semantics/generated/state/6809.js";
 import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
 import { addOverflow, addWrap, borrow, capture, carry, cpuSymbols, flagValue, halfBorrow, halfCarry,
   negative, overflow, readFlag, readRegister, subtract, updateFlags, value, writeRegister, zero } from "../../../../src/components/cpus/semantics/model.js";

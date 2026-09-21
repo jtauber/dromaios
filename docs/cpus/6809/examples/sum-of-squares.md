@@ -4,7 +4,7 @@ This program computes decimal **3² + 4² + 5² = 50**, using indexed input,
 unsigned multiplication, word accumulation, and a subroutine with a word
 local on the stack. It finishes with D and U equal to `0032`.
 
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/6809.md) ·
 [Coverage](../../coverage.md#6809) ·
 [Machine definition](../../../../src/machines/6809/sum-of-squares-example.machine) ·
 [Example tests](../../../../tests/machines/6809/sum-of-squares-example.test.ts)

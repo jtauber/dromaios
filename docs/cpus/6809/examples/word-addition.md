@@ -4,7 +4,7 @@ Add `00FF + 0001` using byte operations on A and B, storing `0100` in RAM.
 The low-byte addition produces a carry; a nested call preserves it for the
 high-byte ADC. Both returns restore S, while U remains untouched.
 
-[Model contract](../model.md#jumps-and-subroutines) ·
+[Model contract](../../../../src/components/cpus/specifications/6809.md#subroutine-stack) ·
 [Example definition](../../../../src/machines/6809/word-addition-example.machine) ·
 [Example tests](../../../../tests/machines/6809/word-addition-example.test.ts) ·
 [CPU coverage](../../coverage.md#6809)

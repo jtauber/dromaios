@@ -1,7 +1,7 @@
 import { Cpu8080 } from "../../src/components/cpus/generated/8080-cpu.js";
 import type { Cpu8080State } from "../../src/components/cpus/generated/8080-cpu.js";
 import type { Cpu6502, Cpu6502State } from "../../src/components/cpus/generated/6502-cpu.js";
-import type { Cpu6809 } from "../../src/components/cpus/6809.js";
+import type { Cpu6809 } from "../../src/components/cpus/generated/6809-cpu.js";
 import type { CpuZ80 } from "../../src/components/cpus/z80.js";
 import { createZ80Example } from "../../src/machines/generated/z80/example.js";
 import type { Ram } from "../../src/components/memory/ram.js";

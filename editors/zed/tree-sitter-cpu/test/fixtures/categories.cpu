@@ -158,3 +158,11 @@ family choiceProbe "1111 1111" {
     otherwise unsupported
   }
 }
+
+execution {
+  stopped choice WAIT unless "none" as waiting
+  interrupt vectors {
+    source irq unless flag I with enter($FFF8) resume when choice WAIT = "sync" with resumeSync()
+    source nmi when latch ENABLED otherwise "unarmed" with enter($FFFC)
+  }
+}

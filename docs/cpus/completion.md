@@ -79,7 +79,7 @@ and [explicit IRQ/NMI offers](../../src/components/cpus/specifications/6502.md#e
 its recognition timing limits documented there. The 6800 now completes its
 [interrupt and wait behavior](../../src/components/cpus/specifications/6800.md#waiting-and-external-interrupt-delivery),
 including native frames, return, and snapshot-preserved WAI. The 6809 completes
-[its interrupt and wait behavior](6809/model.md#waiting-and-external-interrupt-delivery)
+[its interrupt and wait behavior](../../src/components/cpus/specifications/6809.md#execution-and-public-interface)
 with SYNC/CWAI, full/short frames, RTI, software vectors, and NMI arming.
 The Z80 now completes its [port families](z80/model.md#port-input-and-output)
 and [interrupt behavior](z80/model.md#external-interrupt-delivery), including

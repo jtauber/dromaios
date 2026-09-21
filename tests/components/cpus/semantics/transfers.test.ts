@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { instructions as m6800 } from "../../../../src/components/cpus/generated/6800.js";
 import { bodies6809 as m6809 } from "../../../helpers/6809-bodies.js";
 import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
-import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
+import type { Cpu6809State } from "../../../../src/components/cpus/semantics/generated/state/6809.js";
 
 type ByteTransfers<State> = Record<`ld${"a" | "b"}Immediate`, (state: State, instruction: { fetchByte(): number }) => void>
   & Record<`ld${"a" | "b"}Memory`, (state: State, address: number, instruction: { readByte(address: number): number }) => void>

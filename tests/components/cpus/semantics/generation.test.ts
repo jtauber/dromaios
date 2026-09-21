@@ -17,8 +17,8 @@ import { cpuSymbols, addWrap, capture, highByte, lowByte, literal, readRegister,
 import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import type { Cpu6502State } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import type { Cpu8080State } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
-import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
-import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
+import { cpu6809StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6809.js";
+import type { Cpu6809State } from "../../../../src/components/cpus/semantics/generated/state/6809.js";
 import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
 
 function mosState(): Cpu6502State {
@@ -51,7 +51,7 @@ test("shared body keys build only their first form and retain encounter order, i
 
 test("the catalogue and chapter bindings name exactly the generated modules, each reproducible without changing its inputs", () => {
   const directory = "src/components/cpus/generated";
-  const completeChapters = ["6502", "6800", "8008", "8080"] as const;
+  const completeChapters = ["6502", "6800", "6809", "8008", "8080"] as const;
   const filenames = [...instructionModules.map(({ name }) => `${name}.ts`),
     ...completeChapters.flatMap(cpu => [`${cpu}-execution.ts`, `${cpu}-cpu.ts`])];
   assert.equal(new Set(filenames).size, filenames.length, "module names must not overwrite one another");

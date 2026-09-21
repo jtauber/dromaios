@@ -6,8 +6,8 @@ import { instructions } from "../../../../src/components/cpus/generated/6502.js"
 import { instructions as m6800 } from "../../../../src/components/cpus/generated/6800.js";
 import { bodies6809 as m6809 } from "../../../helpers/6809-bodies.js";
 import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
-import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
-import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
+import { cpu6809StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6809.js";
+import type { Cpu6809State } from "../../../../src/components/cpus/semantics/generated/state/6809.js";
 import type { Cpu6502Flags, Cpu6502State } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import { bitAnd, bitOr, bitXor, cpuSymbols, literal, value, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
 import type { InstructionDefinition } from "../../../../src/components/cpus/semantics/model.js";

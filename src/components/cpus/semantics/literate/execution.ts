@@ -1,4 +1,4 @@
-import type { Flag, InstructionDefinition, Latch, Statement, ValueSource } from "../model.ts";
+import type { Choice, Flag, InstructionDefinition, Latch, Statement, ValueSource } from "../model.ts";
 import { checkStateEffects, usesMemory } from "./statements.ts";
 import { chapterVectorEntries, generateVectorExecution } from "./vector-execution.ts";
 import type { VectorEntry } from "./vector-execution.ts";
@@ -29,7 +29,7 @@ export interface SuppliedExecution extends ExecutionBase {
 
 export interface VectorExecution extends ExecutionBase {
   readonly interrupt: "vectors";
-  readonly waiting?: string;
+  readonly waiting?: { readonly field: string; readonly unless?: string };
   readonly entries: readonly VectorEntry[];
 }
 export type ChapterExecution = SuppliedExecution | VectorExecution;
@@ -37,8 +37,8 @@ export type ChapterExecution = SuppliedExecution | VectorExecution;
 /** Reject native decoder/fault effects that cannot run in the byte dispatch context. */
 export function checkByteExecution(steps: readonly Statement[], deferral = false, memoryOnly = false): void {
   for (const step of steps) switch (step.kind) {
-    case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch":
-    case "write-register": case "write-element": case "fill-array": case "write-latch": case "update-flags": case "replace-flags":
+    case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": case "test-choice":
+    case "write-register": case "write-element": case "fill-array": case "write-latch": case "write-choice": case "update-flags": case "replace-flags":
     case "fetch-byte": case "fetch-word": case "read-memory": case "write-memory": break;
     case "read-port": case "write-port":
       if (memoryOnly) throw new Error("Vector execution currently supports memory-only instructions.");
@@ -60,6 +60,7 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
   readonly actions: ReadonlyMap<string, InstructionDefinition>;
   readonly latches: ReadonlyMap<string, Latch>;
   readonly flags: ReadonlyMap<string, Flag>;
+  readonly choices: ReadonlyMap<string, Choice<string>>;
 }): ChapterExecution {
   const fields = new Map<string, ChapterTokens>();
   let vectorLines: readonly ChapterTokens[] | undefined;
@@ -101,11 +102,17 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
   const view = symbols.views.get(counter) ?? pc.fail(`Unknown state view ${counter}.`);
   if (view.width > memoryBits) pc.fail("The counter view must fit the memory address width.");
   pc.expect("write"); const writeCounter = action(pc, 16); pc.end();
-  const stop = required("stopped"), stopped = stop.take("none") ? undefined : stop.lookup(symbols.latches).field;
+  const stop = required("stopped");
+  let stopped: string | undefined, stoppedUnless: string | undefined;
+  if (stop.take("choice")) {
+    const selected = stop.lookup(symbols.choices); stopped = selected.field;
+    stop.expect("unless"); stoppedUnless = stop.quoted();
+    if (!selected.values.includes(stoppedUnless)) stop.fail(`Unknown choice value ${stoppedUnless}.`);
+  } else stopped = stop.take("none") ? undefined : stop.lookup(symbols.latches).field;
   const waiting = stop.take("as");
   if (waiting) {
     stop.expect("waiting");
-    if (stopped === undefined) stop.fail("A waiting outcome requires a stopped latch.");
+    if (stopped === undefined) stop.fail("A waiting outcome requires a stopped latch or choice.");
   }
   stop.end();
   const order = required("word"), word = choice(order, ["little", "big"]); order.end();
@@ -125,14 +132,16 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
   const common = { memoryBits, counter, writeCounter, word, opcodeAdvance, reset, resetMemory,
     ...(retire === undefined ? {} : { retire }), ...(retireDeferral === undefined ? {} : { retireDeferral }) };
   if (vectorLines !== undefined) {
-    if (stopped !== undefined && !waiting) stop.fail("Vector execution requires stopped none or a latch declared as waiting.");
+    if (stopped !== undefined && !waiting) stop.fail("Vector execution requires stopped none or a latch or choice declared as waiting.");
     if (retire !== undefined || retireDeferral !== undefined) retireAt.fail("Vector execution currently requires retire none.");
     const entries = chapterVectorEntries(header, vectorLines, symbols);
     for (const [name, tokens] of fields) tokens.fail(`Unknown execution field ${name}.`);
-    return { ...common, interrupt: "vectors", entries, ...(waiting ? { waiting: stopped } : {}) };
+    const waitingPolicy = waiting && stopped !== undefined
+      ? { field: stopped, ...(stoppedUnless === undefined ? {} : { unless: stoppedUnless }) } : undefined;
+    return { ...common, interrupt: "vectors", entries, ...(waitingPolicy === undefined ? {} : { waiting: waitingPolicy }) };
   }
-  if (waiting) stop.fail("A waiting outcome requires vector interrupts.");
-  const stoppedLatch = stopped ?? stop.fail("Supplied-instruction execution requires a stopped latch.");
+  if (waiting || stoppedUnless !== undefined) stop.fail("A waiting outcome requires vector interrupts.");
+  const stoppedLatch = stopped ?? stop.fail("Supplied-instruction execution requires a stopped latch or choice.");
   const accept = required("interrupt.accept");
   let interruptEnable: string | undefined, interruptDefer: string | undefined;
   if (accept.take("when")) {

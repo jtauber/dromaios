@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Cpu6809 } from "../../../src/components/cpus/6809.js";
-import type { Cpu6809Snapshot, Cpu6809MemoryAccess, Cpu6809StepRecord } from "../../../src/components/cpus/6809.js";
+import { Cpu6809 } from "../../../src/components/cpus/generated/6809-cpu.js";
+import type { Cpu6809Snapshot, Cpu6809MemoryAccess, Cpu6809StepRecord } from "../../../src/components/cpus/generated/6809-cpu.js";
 import type { Ram } from "../../../src/components/memory/ram.js";
 import { create6809SumOfSquaresExample, create6809SumOfSquaresExampleMemory } from "../../../src/machines/generated/6809/sum-of-squares-example.js";
 import { runCpu } from "../../../src/runtime/run-cpu.js";

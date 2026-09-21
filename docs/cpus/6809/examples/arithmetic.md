@@ -5,7 +5,7 @@ The example loads 2, adds 3, and stores 5, providing a third architecture
 alongside the [8080](../../8080/examples/arithmetic.md) and
 [6502](../../6502/examples/arithmetic.md) examples.
 
-The [6809 model contract](../model.md) defines state, records, reset, and
+The [6809 model contract](../../../../src/components/cpus/specifications/6809.md) defines state, records, reset, and
 unsupported-prefix behavior. Current support is tracked in
 [6809 implementation coverage](../../coverage.md#6809).
 
@@ -75,7 +75,7 @@ S and U values make preservation checks meaningful. Incoming C remains true
 through LDA so ADDA visibly ignores it; H and V start true to expose their
 replacement. Flags are supplied state, not inferred from the initial A value.
 
-The snapshot's D value follows the [model's A:B view](../model.md#register-views).
+The snapshot's D value follows the [model's A:B view](../../../../src/components/cpus/specifications/6809.md#register-views-and-writes).
 
 `create6809Example()` returns fresh `{ cpu, ram, endAddress }` values, with
 `endAddress` equal to `0207`. Setup supplies the initial PC directly and does
@@ -121,7 +121,7 @@ Useful arithmetic cases, each with old C both false and true:
 
 ## Expected lesson execution and completion
 
-Records use the [6809 step format](../model.md#step-records).
+Records use the [6809 step format](../../../../src/components/cpus/specifications/6809.md#step-records).
 
 Each record's `before` equals the preceding `after`, starting with the initial
 state above. All three outcomes are `executed`:
@@ -158,7 +158,7 @@ state. The original example image keeps its zero-filled completion address.
 
 ## Reset and restart
 
-Reset follows the [6809 model contract](../model.md#cpu-reset).
+Reset follows the [6809 model contract](../../../../src/components/cpus/specifications/6809.md#reset-and-external-entry).
 
 After the lesson, reset yields PC `0200`, DP `00`, and the exact accesses
 `R FFFE:02`, `R FFFF:00`. A stays `05`, B stays `34`, D stays `0534`, S/U stay
@@ -174,7 +174,7 @@ vector, and zero result byte. It does not apply an additional CPU reset.
 The tests cover:
 
 1. Fresh independent factory calls and the entire initial memory image.
-   Constructor validation and D ownership follow the [model contract](../model.md).
+   Constructor validation and D ownership follow the [model contract](../../../../src/components/cpus/specifications/6809.md).
 2. LDA values `00`, `7F`, `80`, and `FF`, replacing N/Z and clearing old V while
    preserving H/C and unrelated state. Include A = zero with nonzero B.
 3. ADDA for all 65,536 accumulator/operand pairs, with both old carry values
@@ -193,7 +193,7 @@ The tests cover:
 7. Reset produces the exact state and accesses above, preserving the result
    byte; restart restores the full original state and image. General reset and
    record-ownership checks are specified in the
-   [model contract](../model.md#contract-checks).
+   [model contract](../../../../src/components/cpus/specifications/6809.md#checks-and-examples).
 
 ## References
 
@@ -205,7 +205,7 @@ The tests cover:
   and affected flags; [Appendix F opcode map][opcodes]: opcode `00`.
 
 These links are HTML transcriptions of the manufacturer manual. The
-[model contract](../model.md#references) cites reset and prefix references;
+[model contract](../../../../src/components/cpus/specifications/6809.md#references) cites reset and prefix references;
 the [CoCo reference notes](../reference-notes.md) record implementation ideas
 from the earlier emulator. Initial values and completion are example choices.
 

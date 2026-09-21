@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/6809.js";
-import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
+import type { Cpu6809State } from "../../../../src/components/cpus/semantics/generated/state/6809.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 

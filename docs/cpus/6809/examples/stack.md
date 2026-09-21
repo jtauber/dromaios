@@ -145,7 +145,7 @@ endpoint to check rejection independently of caller completion.
 
 ## Reset and restart
 
-Reset follows the [existing 6809 policy](../model.md#cpu-reset).
+Reset follows the [existing 6809 policy](../../../../src/components/cpus/specifications/6809.md#reset-and-external-entry).
 After step 4, it reads `FFFE` then `FFFF`, returns PC to `0200`, clears DP,
 sets F/I, releases any wait, and disarms NMI. It preserves S = `7FFF`, U = `3FFF`, both saved bytes, and the
 rest of the modeled state.

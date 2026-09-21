@@ -1,4 +1,4 @@
-import type { Cpu6809State } from "../../src/components/cpus/state/6809.js";
+import type { Cpu6809State } from "../../src/components/cpus/semantics/generated/state/6809.js";
 import type { ByteInstructionContext } from "../../src/components/cpus/instruction-context.js";
 import type { ByteMemory } from "../../src/components/cpus/memory-access.js";
 import { instructions as actions } from "../../src/components/cpus/generated/6809-state.js";

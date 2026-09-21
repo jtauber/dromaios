@@ -1,10 +1,10 @@
-import { Cpu6809 } from "../../src/components/cpus/6809.js";
+import { Cpu6809 } from "../../src/components/cpus/generated/6809-cpu.js";
 import type {
   Cpu6809ResetRecord,
   Cpu6809Snapshot,
   Cpu6809State,
   Cpu6809StepRecord,
-} from "../../src/components/cpus/6809.js";
+} from "../../src/components/cpus/generated/6809-cpu.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 
 // Compiled by npm test; never called. Each expected error guards the public API.

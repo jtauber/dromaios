@@ -41,7 +41,8 @@ will be organized for learning, exploration, and reference as support develops.
   [model contract](../../src/components/cpus/specifications/8008.md).
 - The **6800 was the sixth CPU**, with its own state, flags, reset contract,
   and [arithmetic example](6800/examples/arithmetic.md). It shares instruction
-  construction with the 6809 while retaining native addressing and stack rules.
+  representation with the 6809 while their chapters retain distinct addressing
+  and stack rules.
 - The **8088 was the seventh CPU**. Its [model contract](8088/model.md) separates
   logical segment:offset addresses from physical RAM addresses, and derives
   byte-register views from stored words. Its [arithmetic example](8088/examples/arithmetic.md)

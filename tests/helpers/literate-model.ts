@@ -15,7 +15,7 @@ export async function generateChapterModule(text: string, name: string, file: st
     return `data:text/javascript,${encodeURIComponent(code)}`;
   };
   const schema = url(generateChapterState(state) + generatePublicState(state, api), {}, new URL("../semantics/generated/state/", base));
-  const opcodes = url(generateInstructions(name, Object.fromEntries(Object.values(chapter.families).flat()), { bindOpcodes: true }));
+  const opcodes = url(generateInstructions(name, Object.fromEntries(Object.values(chapter.families).flat()), { bindOpcodes: true, pages: chapter.pages }));
   const actions = url(generateInstructions(name, chapter.actions, { sources: { cpu: { name, state }, groups: { views: chapter.views } } }));
   const execution = url(generateChapterExecution(name, name, chapter.execution!), { [`./${name}.ts`]: opcodes, [`./${name}-state.ts`]: actions });
   const exports = await import(url(generateChapterInterface(name, state, api, chapter.execution!), {

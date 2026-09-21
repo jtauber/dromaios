@@ -27,7 +27,7 @@ Executable chapters are maintained CPU sources:
   WAI suspension and wake-up, and the public interface are chapter-owned too.
   Its model contracts and hardware guide live beside the formal definitions;
   no handwritten 6800 implementation remains.
-- [Motorola 6809: complete instruction definitions and stored state](../../src/components/cpus/specifications/6809.md)
+- [Motorola 6809: complete model and public interface](../../src/components/cpus/specifications/6809.md)
   owns all 268 instruction forms, stored fields, and D/CC views and writes.
   Named pages and byte matches own prefix/indexed/transfer decoding. Writable
   views preserve D/CC/S write rules; chapter actions share stack and interrupt-frame
@@ -283,14 +283,16 @@ The [6502](../../src/components/cpus/specifications/6502.md#reset-and-instructio
 adds memory-only execution with no halt state, reset bus reads, and named external
 entries. The [6800](../../src/components/cpus/specifications/6800.md#reset-and-instruction-boundaries)
 reuses vector execution with a waiting latch and chapter-defined frame reuse
-on wake-up. Each chapter has one `execution` block. Fields below are required except the
+on wake-up. The [6809](../../src/components/cpus/specifications/6809.md#execution-and-public-interface)
+adds a named wait choice, latch-gated recognition, and masked wake-up.
+Each chapter has one `execution` block. Fields below are required except the
 callback-validation policy; references must name earlier declarations.
 
 | Field | Contract |
 | --- | --- |
 | `memory 14` | Exact RAM size is 2 to this power; supported widths are 1–16 bits. Memory is checked before initial-state getters are read. |
 | `counter PC write setPC` | Read the named state view and write through an action with one 16-bit input. The view must fit the memory width. Sequential arithmetic wraps at 16 bits; the writer may impose a narrower wrap. |
-| `stopped STOPPED` | Read this latch before an ordinary step; a set latch returns a halted record without fetching. Read it again after successful execution to select the outcome. `stopped none` instead declares no stopped outcome for vector execution; `stopped WAITING as waiting` selects waiting records for that runtime. |
+| `stopped STOPPED` | Read this latch before an ordinary step; a set latch returns a halted record without fetching. Read it again after successful execution to select the outcome. `stopped none` instead declares no stopped outcome for vector execution; `stopped WAITING as waiting` selects waiting records for that runtime. `stopped choice WAIT unless "none" as waiting` waits whenever the named choice differs from the declared value. |
 | `word little` | Supply a little-endian `fetchWord`; `big` supplies high-byte-first fetching. Explicit byte fetches in instruction bodies retain their own order. |
 | `opcode advance on dispatch` | Advance the captured initial PC by one only if an opcode handler exists. `on read` advances after the successful read, before lookup, including undefined opcodes. |
 | `operand advance after read` | Fetch from live PC, then advance the captured address by one only after the read succeeds. This is the only supported operand-advance policy. |
@@ -330,7 +332,7 @@ interrupt vectors {
 ```
 
 Each source name becomes part of the public `interrupt(source)` union. A set
-mask flag returns `ignored` / `masked` without effects; `always` accepts without
+mask flag normally returns `ignored` / `masked` without effects; `always` accepts without
 reading a mask. An accepted offer invokes its named action with the listed
 constant numeric arguments, checked against the action's input widths. The
 chapter action owns stacking, vector reads, and state changes. The runtime adds
@@ -338,20 +340,37 @@ snapshots, chronological accesses, and `instruction: null`; it never fabricates
 an opcode or acknowledgement. Unknown source values throw before snapshots or
 memory access. Source names must be unique; an empty catalogue is rejected.
 
+A source can instead require an arming latch, or resume a particular wait mode
+when masked:
+
+```text
+source nmi when latch NMIARMED otherwise "unarmed" with enter($FFFC, $50, $01)
+source irq unless flag I with enter($FFF8, $10, $01) resume when choice WAIT = "sync" with resumeSync()
+```
+
+A clear arming latch returns `ignored` with the declared nonempty reason, without
+running the entry action. A masked source with a matching resume choice invokes
+its input-free, state-only resume action and returns `resumed` / `masked`.
+Neither path accesses memory. The resume clause is valid only for flag-masked
+sources; its value must belong to the declared choice. An unmasked offer always
+runs the entry action, without running the resume action. The generated record
+type retains the permitted sources and reasons for each outcome.
+
 The [vector runtime](../../src/components/cpus/vector-execution.ts) reuses the
 same byte fetch/dispatch engine, recorder, and reentrancy guard as other models.
-Its current contract requires `stopped none` or `stopped LATCH as waiting`,
+Its current contract requires `stopped none`, `stopped LATCH as waiting`, or
+`stopped choice CHOICE unless "value" as waiting`,
 `retire none`, and memory-only instruction bodies. These limits are checked even inside hidden sources and
 untaken branches. Reset/entry actions cannot fetch or use ports. No processor
 name, vector, stack convention, or mask bit is built into the runtime.
 
-A waiting policy checks its latch before fetching and after successful execution.
+A waiting policy checks its latch or choice before fetching and after successful execution.
 An already waiting step has `instruction: null` and no accesses; an instruction
 that sets the latch retains its fetched instruction and accesses in the waiting
 record. The runtime does not clear the latch when accepting an interrupt. Wake-up
 effects and saved-frame reuse belong to the entry action; masked offers preserve
-waiting. Without this policy, the generated step type has no waiting outcome.
-`as waiting` requires a declared latch and vector delivery; it cannot be combined
+waiting unless a matching resume clause explicitly changes it. Without this policy, the generated step type has no waiting outcome.
+`as waiting` requires a declared latch or choice and vector delivery; it cannot be combined
 with `stopped none` or the supplied-instruction contract.
 
 Unknown fields, duplicate or missing policies, wrong references or action
@@ -391,8 +410,10 @@ The class name prefixes `State`, `StoredState`, `Snapshot`, and the concrete
 instruction, access, reset, step, and interrupt record types. Interrupt records
 include ignored outcomes only when the execution contract declares recognition
 conditions. Vector interfaces expose their declared `InterruptSource` union,
-memory-only records, and no halted step outcome; only masked source names can
-appear in an ignored record. A lowercased first letter names the schema export, such as
+memory-only records, and no halted step outcome. Only gated source names can
+appear in an ignored record, and only sources with a resume clause can appear
+in a resumed record. Vector constructors require stored state, omitting derived
+snapshot fields from their input type. A lowercased first letter names the schema export, such as
 `cpu8008StateDescription`. Internal
 stored state is mutable. Caller state accepts readonly fixed arrays; snapshots
 and records are recursively readonly. Array/group fields also receive aliases
@@ -855,9 +876,12 @@ Named pages supply prefix dispatch, including SWI2/SWI3. Effect matches and
 writable view operands describe transfer postbytes and their special writes.
 Chapter actions now express all masked stacks and software frames, and named
 choice reads/writes express SYNC/CWAI waiting. All 268 instruction forms are
-chapter-owned; only reset, execution, and external-event policies remain native.
-External entry consumes the same chapter frame action.
-Its model document still owns the wider execution contract.
+chapter-owned. Its execution contract now also owns reset, IRQ/FIRQ/NMI gates,
+masked SYNC release, CWAI frame reuse, and FIRQ short frames. Named-choice
+waiting and latch gates extend the shared vector runtime without CPU-name
+branches. Public types and snapshots are generated, and the complete contract
+and hardware background live in the chapter. No handwritten 6809 implementation
+or separate model document remains.
 A differently named test CPU already exercises different storage, address width, views, and
 actions through the same compiler and runtime. This is evidence for the current
 contract, not proof that it covers the remaining architectures. Each further
@@ -871,6 +895,7 @@ The [6502 language tests](../../tests/components/cpus/semantics/literate.test.ts
 [6502 lifecycle chapter tests](../../tests/components/cpus/semantics/literate-6502-lifecycle.test.ts),
 [6800 lifecycle chapter tests](../../tests/components/cpus/semantics/literate-6800-lifecycle.test.ts),
 [6809 chapter tests](../../tests/components/cpus/semantics/literate-6809.test.ts),
+[6809 lifecycle tests](../../tests/components/cpus/semantics/literate-6809-lifecycle.test.ts),
 [state-authoring tests](../../tests/components/cpus/semantics/literate-state.test.ts),
 [8008 transfer tests](../../tests/components/cpus/semantics/literate-8008.test.ts),
 [8008 arithmetic language tests](../../tests/components/cpus/semantics/literate-8008-arithmetic.test.ts),

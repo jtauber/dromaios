@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CpuZ80 } from "../../src/components/cpus/z80.js";
-import { Cpu6809 } from "../../src/components/cpus/6809.js";
+import { Cpu6809 } from "../../src/components/cpus/generated/6809-cpu.js";
 import { Cpu6800 } from "../../src/components/cpus/generated/6800-cpu.js";
 import { Ram } from "../../src/components/memory/ram.js";
 import { Cpu6502 } from "../../src/components/cpus/generated/6502-cpu.js";
