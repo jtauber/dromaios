@@ -48,14 +48,17 @@ test("6800 CPX explains high-byte N/V, whole-word Z, and preserved carry in all 
 
 test("6809 memory comparisons show data reads before the register or D view, without repeating address resolution", () => {
   for (const name of ["CMPA", "CMPB", "CMPD", "CMPX", "CMPY", "CMPU", "CMPS"]) {
-    const text = description("6809", `${name} memory`), register = name.slice(3);
+    const register = name.slice(3), mode = ["A", "B", "X"].includes(register) ? "extended" : "memory";
+    const text = description("6809", `${name} ${mode}`);
     const first = text.indexOf("read memory[address]"), last = text.indexOf("read memory[addWrap(address, 0001:u16)]");
     const left = text.indexOf(register === "D" ? 'left:u16 := source "D from A:B"' : `:= read ${register}`);
     assert.ok(first >= 0 && left > first);
     if (register !== "A" && register !== "B") assert.ok(last > first && left > last);
     assert.ok(text.indexOf("result := subtract(left, right)") > left);
     const body = text.split("```text\n")[1]!.split("\n```")[0]!;
-    assert.doesNotMatch(body, /fetch byte|write |read [XYUS]\n.*read memory/s);
+    assert.doesNotMatch(body, /write |read [XYUS]\n.*read memory/s);
+    if (mode === "memory") assert.doesNotMatch(body, /fetch byte/);
+    else assert.equal(body.match(/fetch byte/g)?.length, 2);
     if (register === "D") {
       assert.ok(text.indexOf("read A", left) < text.indexOf("read B", left));
       assert.match(text.slice(left), /yield concatHighLow\(high, low\)/);
@@ -134,34 +137,34 @@ test("8080 and 6809 shift explanations expose their distinct input bits, flag ru
   assert.doesNotMatch(arithmetic, /read C|read memory|write memory/);
 });
 
-test("6809 memory shift explanations declare the resolved input and flag updates before their single write", () => {
-  const text = description("6809", "ROL memory");
-  const input = text.indexOf("address:u16 := input"), read = text.indexOf("original:u8 := read memory[address]");
+test("6809 memory shift explanations declare address fetching and flag updates before their single write", () => {
+  const text = description("6809", "ROL extended");
+  const input = text.indexOf('address:u16 := source "extended"'), read = text.indexOf("original:u8 := read memory[address]");
   const carry = text.indexOf("carry:flag := read C"), flags = text.indexOf("N := topBit(result)");
   const overflow = text.indexOf("V := xor"), write = text.indexOf("write memory[address] := result");
   assert.ok(input >= 0 && input < read && read < carry && carry < flags && flags < overflow && overflow < write);
   assert.equal(text.match(/write memory/g)?.length, 1);
-  assert.doesNotMatch(text, /fetch byte|read [ABXYUS]\b/);
-  assert.match(text, /failed write retains their updates/);
+  assert.equal(text.match(/fetch byte/g)?.length, 2);
+  assert.doesNotMatch(text, /read [ABXYUS]\b/);
 });
 
 test("6809 unary explanations distinguish real CLR reads, read-only TST, and carry-preserving adjustments", () => {
-  const clear = description("6809", "CLR memory");
-  const read = clear.indexOf("original:u8 := read memory[address]"), flags = clear.indexOf("N := topBit(result)");
+  const clear = description("6809", "CLR extended");
+  const read = clear.indexOf("original:u8 := read memory[address]"), flags = clear.indexOf("N := 0:flag");
   assert.ok(read >= 0 && read < clear.indexOf("result := 00:u8") && read < flags);
   assert.ok(flags < clear.indexOf("write memory[address] := result"));
   assert.match(clear, /C := 0:flag/); assert.match(clear, /V := 0:flag/);
-  for (const name of ["TSTA", "TSTB", "TST memory"]) {
+  for (const name of ["TSTA", "TSTB", "TST extended"]) {
     const text = description("6809", name);
     assert.doesNotMatch(text, /write [AB]:|write memory/);
     assert.match(text, /Flags preserved throughout: E, F, H, I, C\./);
   }
-  for (const name of ["INCA", "DEC memory"]) {
+  for (const name of ["INCA", "DEC extended"]) {
     const text = description("6809", name);
     assert.doesNotMatch(text, /read C|C :=/);
     assert.match(text, /Flags preserved throughout: E, F, H, I, C\./);
   }
-  assert.match(description("6809", "NEG memory"), /C := borrow\(00:u8, original\)/);
+  assert.match(description("6809", "NEG extended"), /C := borrow\(00:u8, original\)/);
   assert.match(description("6809", "COMA"), /result := subtract\(FF:u8, original\)/);
 });
 
@@ -170,7 +173,7 @@ test("6800 unary explanations expose the three differences from the 6809", () =>
   assert.doesNotMatch(clear, /read memory|read [AB]:|original:u8/);
   assert.ok(clear.indexOf("N := 0:flag") < clear.indexOf("write memory[address] := result"));
   assert.match(description("6800", "TST extended"), /C := 0:flag/);
-  for (const name of ["LSRA", "ROR memory", "ASRB"]) {
+  for (const name of ["LSRA", "ROR extended", "ASRB"]) {
     assert.match(description("6800", name.replace("memory", "extended")), /V := xor\(topBit\(result\), lowBit\(original\)\)/);
     assert.match(description("6809", name), /Flags preserved throughout: E, F, H, I, V\./);
   }
@@ -213,7 +216,7 @@ test("Motorola logical explanations share result flags and distinguish BIT from 
       assert.ok(operand >= 0 && operand < read && read < result && result < write && write < flags);
       assert.match(text, /V := 0:flag/);
     }
-    for (const mode of ["#byte", cpu === "6800" ? "extended" : "memory"]) {
+    for (const mode of ["#byte", "extended"]) {
       const text = description(cpu, `BITB ${mode}`);
       assert.match(text, /N := topBit\(result\)/);
       assert.match(text, /Z := isZero\(result\)/);
@@ -227,7 +230,7 @@ test("Motorola logical explanations share result flags and distinguish BIT from 
 test("Motorola byte transfers explain captured sources and flags only after successful writes", () => {
   for (const cpu of ["6800", "6809"]) for (const register of ["A", "B"]) {
     const load = cpu === "6800" ? "LDA" : "LD", store = cpu === "6800" ? "STA" : "ST";
-    for (const mode of ["#byte", cpu === "6800" ? "extended" : "memory"]) {
+    for (const mode of ["#byte", "extended"]) {
       const text = description(cpu, `${load}${register} ${mode}`);
       const read = text.indexOf(mode !== "#byte" ? "read memory[address]" : "fetch byte");
       const write = text.indexOf(`write ${register}:u8 := result`), flags = text.indexOf("N := topBit(result)");
@@ -235,14 +238,13 @@ test("Motorola byte transfers explain captured sources and flags only after succ
       assert.match(text, /V := 0:flag/);
       assert.doesNotMatch(text, /:= read [AB]|write memory/);
     }
-    const text = description(cpu, `${store}${register} ${cpu === "6800" ? "extended" : "memory"}`);
+    const text = description(cpu, `${store}${register} extended`);
     const read = text.indexOf(`:= read ${register}`), write = text.indexOf("write memory[address] := result");
     assert.ok(read >= 0 && read < write && write < text.indexOf("N := topBit(result)"));
     assert.equal(text.match(/write memory/g)?.length, 1);
-    assert.match(text, /failed write leaves flags unchanged/);
+    assert.match(text, /failed write (leaves flags unchanged|retains old flags)/);
     assert.doesNotMatch(text, /read memory/);
-    if (cpu === "6809") assert.doesNotMatch(text, /fetch byte/);
-    else assert.ok(text.indexOf("fetch byte") < read);
+    assert.ok(text.indexOf("fetch byte") < read);
     assert.match(text, cpu === "6800" ? /Flags preserved throughout: H, I, C\./ : /Flags preserved throughout: E, F, H, I, C\./);
   }
   for (const name of ["TAB", "TBA"]) {
@@ -257,7 +259,8 @@ test("Motorola byte transfers explain captured sources and flags only after succ
 test("Motorola word-transfer explanations expose byte order, captured stores, D writes, and NMI arming", () => {
   for (const cpu of ["6800", "6809"]) for (const register of cpu === "6800" ? ["S", "X"] : ["D", "X", "Y", "U", "S"]) {
     const stored = cpu === "6800" && register === "S" ? "SP" : register;
-    for (const mode of ["#word", cpu === "6800" ? "extended" : "memory"]) {
+    const memoryMode = cpu === "6809" && ["Y", "S"].includes(register) ? "memory" : "extended";
+    for (const mode of ["#word", memoryMode]) {
       const text = description(cpu, `LD${register} ${mode}`);
       const low = text.indexOf(mode !== "#word" ? "low:u8 := read memory[addWrap(address, 0001:u16)]" : "low:u8 := fetch byte");
       const write = text.indexOf(`write ${register === "D" ? "A:u8" : `${stored}:u16`}`);
@@ -275,14 +278,14 @@ test("Motorola word-transfer explanations expose byte order, captured stores, D 
         assert.ok(write < text.indexOf("write B:u8") && text.indexOf("write B:u8") < text.indexOf("N := topBit(result)"));
       }
     }
-    const text = description(cpu, `ST${register} ${cpu === "6800" ? "extended" : "memory"}`);
+    const text = description(cpu, `ST${register} ${memoryMode}`);
     const high = text.indexOf("write memory[address] := highByte(result)");
     const low = text.indexOf("write memory[addWrap(address, 0001:u16)] := lowByte(result)");
     assert.ok(high > 0 && high < low && low < text.indexOf("N := topBit(result)"));
-    assert.match(text, /Only after both writes succeed/);
-    assert.match(text, /completed writes, fetches, and addressing effects remain/);
+    assert.match(text, /Only after both writes succeed|after both writes succeed/);
+    assert.match(text, /completed writes, fetches, and addressing effects remain|first write remains/);
     assert.doesNotMatch(text, /read memory|write nmiArmed/);
-    if (cpu === "6809") assert.doesNotMatch(text, /fetch byte/);
+    if (memoryMode === "memory") assert.doesNotMatch(text, /fetch byte/);
     else assert.ok(text.indexOf("fetch byte") < high);
     assert.equal(text.match(/write memory/g)?.length, 2);
   }
@@ -310,7 +313,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 12498);
+  assert.equal(instructionDefinitions.length, 12501);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {

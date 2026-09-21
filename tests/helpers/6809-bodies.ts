@@ -1,11 +1,77 @@
+import type { Cpu6809State } from "../../src/components/cpus/state/6809.js";
+import type { ByteInstructionContext } from "../../src/components/cpus/instruction-context.js";
+import type { ByteMemory } from "../../src/components/cpus/memory-access.js";
 import { instructions as remaining } from "../../src/components/cpus/generated/6809.js";
 import { instructions as actions } from "../../src/components/cpus/generated/6809-state.js";
 import { instructions as base } from "../../src/components/cpus/generated/6809-base.js";
 
+const unexpected = (): never => { throw new Error("Unexpected data-memory access"); };
+
+// Supply extended instruction bytes while retaining independently checked operand effects.
+function extended(execute: (state: Cpu6809State, instruction: ByteInstructionContext) => void) {
+  return (state: Cpu6809State, address: number, context: Partial<ByteMemory>): void => {
+    const bytes = [address >> 8, address & 0xff];
+    execute(state, { readByte: unexpected, writeByte: unexpected, ...context, fetchByte: () => bytes.shift()! });
+  };
+}
+
+// LEA has only indexed encodings: use extended indirect through a synthetic pointer.
+function lea(execute: (state: Cpu6809State, instruction: ByteInstructionContext) => void) {
+  return (state: Cpu6809State, address: number): void => {
+    const bytes = [0x9f, 0, 0];
+    execute(state, { fetchByte: () => bytes.shift()!, writeByte: unexpected,
+      readByte: pointer => pointer === 0 ? address >> 8 : address & 0xff });
+  };
+}
+
 // Names used by independent cross-CPU probes; migrated bodies use literal
-// chapter opcodes, while remaining indexed/prefixed forms keep their native names.
+// chapter opcodes, while remaining prefixed forms keep their native names.
 export const bodies6809 = {
   ...remaining,
+  subaMemory: extended(base[0xb0]),
+  subbMemory: extended(base[0xf0]),
+  cmpaMemory: extended(base[0xb1]),
+  cmpbMemory: extended(base[0xf1]),
+  sbcaMemory: extended(base[0xb2]),
+  sbcbMemory: extended(base[0xf2]),
+  andaMemory: extended(base[0xb4]),
+  andbMemory: extended(base[0xf4]),
+  bitaMemory: extended(base[0xb5]),
+  bitbMemory: extended(base[0xf5]),
+  ldaMemory: extended(base[0xb6]),
+  ldbMemory: extended(base[0xf6]),
+  staMemory: extended(base[0xb7]),
+  stbMemory: extended(base[0xf7]),
+  eoraMemory: extended(base[0xb8]),
+  eorbMemory: extended(base[0xf8]),
+  adcaMemory: extended(base[0xb9]),
+  adcbMemory: extended(base[0xf9]),
+  oraMemory: extended(base[0xba]),
+  orbMemory: extended(base[0xfa]),
+  addaMemory: extended(base[0xbb]),
+  addbMemory: extended(base[0xfb]),
+  subdMemory: extended(base[0xb3]),
+  adddMemory: extended(base[0xf3]),
+  cmpxMemory: extended(base[0xbc]),
+  ldxMemory: extended(base[0xbe]),
+  stxMemory: extended(base[0xbf]),
+  lduMemory: extended(base[0xfe]),
+  stuMemory: extended(base[0xff]),
+  lddMemory: extended(base[0xfc]),
+  stdMemory: extended(base[0xfd]),
+  negMemory: extended(base[0x70]),
+  comMemory: extended(base[0x73]),
+  lsrMemory: extended(base[0x74]),
+  rorMemory: extended(base[0x76]),
+  asrMemory: extended(base[0x77]),
+  aslMemory: extended(base[0x78]),
+  rolMemory: extended(base[0x79]),
+  decMemory: extended(base[0x7a]),
+  incMemory: extended(base[0x7c]),
+  tstMemory: extended(base[0x7d]),
+  clrMemory: extended(base[0x7f]),
+  leax: lea(base[0x30]), leay: lea(base[0x31]), leas: lea(base[0x32]), leau: lea(base[0x33]),
+
   nop: base[0x12], daa: base[0x19], orcc: base[0x1a], andcc: base[0x1c],
   sex: base[0x1d], abx: base[0x3a], mul: base[0x3d],
   bsr: base[0x8d], lbsr: base[0x17], rts: base[0x39], lbra: base[0x16],

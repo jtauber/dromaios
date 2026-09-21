@@ -28,11 +28,11 @@ Executable chapters are maintained CPU sources:
   Its model contracts and hardware guide live beside the formal definitions;
   no handwritten 6800 implementation remains.
 - [Motorola 6809: state and base-page instructions](../../src/components/cpus/specifications/6809.md)
-  owns all stored fields, D/CC views and writes, and immediate/direct/extended
-  loads, stores, arithmetic, logic, comparisons, unary and register/flag operations,
-  branches, and non-indexed calls/jumps/returns. Chapter actions also serve indexed
-  JSR/JMP. Indexed decoding, prefix pages, register transfers, masked stacks,
-  remaining instructions, and lifecycle policies stay in TypeScript.
+  owns all stored fields, D/CC views and writes, indexed-postbyte decoding, and
+  base-page loads, stores, arithmetic, logic, comparisons, unary and register/flag
+  operations, branches, LEA, and calls/jumps/returns. Prefix pages use its generated
+  indexed decoder; their definitions, register transfers, masked stacks, remaining
+  instructions, and lifecycle policies stay in TypeScript.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -647,6 +647,47 @@ captured byte. The CPU boundary still owns device connection, byte validation,
 and access recording. Exceptions stop later effects without rolling back earlier
 ones. No CPU-specific behavior is added to the language compiler.
 
+## Byte-pattern matches
+
+A `match` captures an eight-bit selector once and yields a numeric value. It
+uses the same bit vocabulary as opcode families: `0`/`1` fix bits, `x` ignores
+bits, and lowercase selector fields expand an operand catalogue. For example,
+a source can select X/Y/U/S while retaining the complete captured postbyte:
+
+```cpu
+result = match postbyte: 16 {
+  case "0 rr xxxxx" for r in indexedRegisters {
+    base = operand r
+    offset = and(postbyte, u8($1F))
+    signed = select(borrow(offset, u8($10)), extend(offset, 16), or(extend(offset, 16), u16($FFE0)))
+    return add(base, signed)
+  }
+  otherwise unsupported
+}
+```
+
+Every pattern has eight bits, ignoring spaces and underscores. Each case must
+end in `return` with the declared result width; there must be at least one case.
+Cases must be disjoint after selector expansion. Ignored bits remain masks,
+rather than expanding to duplicate bodies. A case inherits outer captures and
+selected operands, but its local captures and new selectors cannot escape.
+Nested matches can further decode the same captured byte.
+
+The last line is always `otherwise unsupported`. If no case matches, the
+containing source or instruction returns that outcome immediately, retaining
+completed fetches, memory accesses, and state changes. It does not yield a value
+or execute later effects. Thus matches belong in sources and instruction bodies;
+views and actions cannot contain them, including through source calls.
+
+The [6809 indexed source](../../src/components/cpus/specifications/6809.md#indexed-postbytes)
+uses nested matches for base selection, mode decoding, and optional indirection.
+It makes auto-updates, S arming, and high-first indirect reads explicit. Generation
+shares a source with a top-level match as one decoder function within its output
+module, with a `number | "unsupported"` result and only its required capabilities.
+Its instruction callers and exported source readers reuse that function. Ordinary
+straight-line sources still inline; this is generated-code sharing, with no
+CPU-specific decoder built into the language.
+
 ## Native address-decoder boundary
 
 `resolve`, `commit addresses`, and alignment faults lower to existing IR effects,
@@ -656,7 +697,8 @@ Ordinary `memory` reads and writes still transfer one byte, including at 32-bit
 logical addresses on the 68000. Its core projects them onto the physical bus.
 Word transfers explicitly combine or split those bytes. A false fault condition
 continues normally; a true one returns the fault to the CPU boundary without
-undoing completed effects. Value sources cannot contain instruction rejection.
+undoing completed effects. Value sources cannot contain explicit fault/rejection
+statements; byte matches can return the fixed `unsupported` outcome described above.
 
 ## Review of the three chapters
 
@@ -726,13 +768,14 @@ The 6800 reuses that boundary with explicit WAI waiting and wake-up rules. Its
 reset, stack frame, and vector actions remain visible in the chapter; its public
 class and records are generated without a handwritten adapter.
 The 6809 adds named-choice storage for its three wait modes. Its chapter supplies
-the complete stored schema, D/CC views and writes, and base-page immediate,
-direct, and extended operand families, unary operations, register/flag operations,
-short branches, LBRA, and non-indexed calls/jumps/returns. Reusable chapter actions
-serve indexed JSR/JMP after native decoding. Unsigned `multiply` exposes the
-existing full-width multiplication expression. Remaining TypeScript instructions
-and external entry consume the same views and writes; indexed decoding, prefix
-pages, register transfers, masked stacks, and lifecycle policies remain native.
+the complete stored schema, D/CC views and writes, and base-page operand families,
+unary operations, register/flag operations, short branches, LBRA, LEA, and
+calls/jumps/returns. Byte-pattern matches now describe its indexed decoder,
+including unsupported postbytes, auto-updates, and indirect pointer reads.
+Unsigned `multiply` exposes the existing full-width multiplication expression.
+Remaining TypeScript instructions and external entry consume the same views,
+writes, and indexed decoder; prefix definitions, register transfers, masked
+stacks, and lifecycle policies remain native.
 Its model document still owns the wider execution contract.
 A differently named test CPU already exercises different storage, address width, views, and
 actions through the same compiler and runtime. This is evidence for the current

@@ -11,9 +11,10 @@ instruction behavior, and expected execution.
 
 The [executable chapter](../../../src/components/cpus/specifications/6809.md)
 owns the stored-state declaration and D/CC read/write rules, consumed by both
-chapter-authored instructions and the remaining TypeScript model. Chapter call
-and jump actions also serve native indexed JSR/JMP after address decoding. This
-document retains the wider API, lifecycle, and hardware contract during migration.
+chapter-authored instructions and the remaining TypeScript model. It also owns
+indexed-postbyte decoding for all base-page and prefixed forms, including address
+updates, NMI arming, and indirect reads. This document retains the wider API,
+lifecycle, and hardware contract during migration.
 
 ## Model boundary
 

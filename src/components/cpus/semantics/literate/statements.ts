@@ -6,6 +6,7 @@ import { validateInstruction } from "../validate.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
 import { expression, flagExpression } from "./expressions.ts";
+import { chapterMatch } from "./matches.ts";
 
 export type ChapterOperand = { readonly name: string; readonly read: ValueSource } & (
   | { readonly kind: "memory"; readonly address: ValueSource }
@@ -30,6 +31,7 @@ interface Symbols {
   readonly sources: ReadonlyMap<string, ValueSource>;
   readonly operands: ReadonlyMap<string, ChapterOperand>;
   readonly conditions: ReadonlyMap<string, ChapterCondition>;
+  readonly catalogues: ReadonlyMap<string, readonly ChapterOperand[]>;
 }
 
 export interface StatementOptions {
@@ -68,7 +70,8 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
     do { name = `${prefix}${nextTemporary++}`; } while (usedNames.has(name));
     return name;
   };
-  function parse(lines: readonly ChapterTokens[], validate: (steps: readonly Statement[]) => void): Statement[] {
+  function parse(lines: readonly ChapterTokens[], validate: (steps: readonly Statement[]) => void,
+    selectedOperands: ReadonlyMap<string, ChapterOperand> = operands): Statement[] {
     const result: Statement[] = [];
     for (let index = 0; index < lines.length; index++) {
       const tokens = lines[index]!;
@@ -85,7 +88,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         const prefix = [...result, ...captures];
         const check = (body: readonly Statement[]) => validate([...prefix, when(predicate, body)]);
         tokens.checked(() => check([]));
-        const nested = parse(body, check);
+        const nested = parse(body, check, selectedOperands);
         result.push(...captures, when(predicate, nested));
       } else if (tokens.take("perform")) {
         const action = tokens.lookup(actions); tokens.expect("(");
@@ -112,7 +115,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         }
         tokens.expect(")"); result.push(effect(policy, args));
       } else if (tokens.take("operand")) {
-        const operand = tokens.lookup(operands); tokens.expect("<-"); const contents = expression(tokens);
+        const operand = tokens.lookup(selectedOperands); tokens.expect("<-"); const contents = expression(tokens);
         if (operand.kind === "value") tokens.fail("A value-only operand cannot be written.");
         if (operand.kind === "register") result.push(writeRegister(operand.register, contents));
         if (operand.kind === "pair") result.push(writeRegister(operand.high, highByte(contents)), writeRegister(operand.low, lowByte(contents)));
@@ -145,7 +148,11 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
           }
         } else {
           tokens.expect("=");
-          if (tokens.take("resolve")) {
+          if (tokens.take("match")) {
+            const { body, end } = chapterBody(lines, index); index = end;
+            result.push(chapterMatch(tokens, body, name, symbols.catalogues, selectedOperands,
+              (body, selected, check) => parse(body, check, selected), step => validate([...result, step])));
+          } else if (tokens.take("resolve")) {
             tokens.expect("("); const size = tokens.number();
             if (size !== 8 && size !== 16 && size !== 32) return tokens.fail("Operand size must be 8, 16, or 32.");
             tokens.expect(","); const mode = expression(tokens); tokens.expect(","); const code = expression(tokens); tokens.expect(")");
@@ -159,7 +166,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
             result.push(readElement(name, array, expression(tokens))); tokens.expect("]");
           } else if (tokens.take("source")) result.push(readSource(name, tokens.lookup(sources)));
           else if (tokens.take("operand")) {
-            const operand = tokens.lookup(operands);
+            const operand = tokens.lookup(selectedOperands);
             result.push(operand.kind === "register" ? readRegister(name, operand.register) : readSource(name, operand.read));
           } else if ((tokens.next === "memory" || tokens.next === "port") && tokens.peek(1) === "(") {
             const effect = tokens.word() === "memory" ? readMemory : readPort;
@@ -182,6 +189,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
 /** Generated action signatures include a context only when an actual memory effect needs one. */
 export function usesMemory(steps: readonly Statement[]): boolean {
   return steps.some(step => step.kind === "read-memory" || step.kind === "write-memory"
+    || (step.kind === "match" && step.cases.some(branch => usesMemory(branch.steps)))
     || (step.kind === "perform" && usesMemory(step.action.steps))
     || (step.kind === "read-source" && usesMemory(step.source.steps))
     || (step.kind === "when" && usesMemory(step.steps)));

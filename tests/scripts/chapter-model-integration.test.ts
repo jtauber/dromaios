@@ -19,6 +19,7 @@ test("6809 chapter state, view, and call edits reach native instructions, indexe
     .replace("A <- highByte(word)\n  B <- lowByte(word)", "A <- lowByte(word)\n  B <- highByte(word)")
     .replace("select(c, u8($01)", "select(c, u8($02)")
     .replace("S <- subtract(pointer, u16($0001))", "S <- subtract(pointer, u16($0002))")
+    .replace("operand r <- add(base, u16($0002))", "operand r <- add(base, u16($0003))")
     .replace("I = not(zero(and(status, u8($10))))", "I = zero(and(status, u8($10)))"));
   const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
   assert.equal(generated.status, 0, generated.stderr);
@@ -34,13 +35,13 @@ test("6809 chapter state, view, and call edits reach native instructions, indexe
     const definition = parseMachine(text.replace("cpu 6809 {", "cpu 6809 { SCRATCH = A5"));
     assert.equal(definition.initialState.scratch, 0xa5);
     for (const operation of ["TFR X,D", "TFR CC,A", "TFR A,CC", "LDA D,X", "RTI", "SWI", "irq", "firq", "nmi",
-      "JSR direct", "JSR extended", "JSR indexed", "BSR", "LBSR"]) {
+      "JSR direct", "JSR extended", "JSR indexed", "BSR", "LBSR", "LDY ,X++"]) {
       const bytes = new Uint8Array(65536);
       bytes.set({ "TFR X,D": [0x1f, 0x10], "TFR CC,A": [0x1f, 0xa8], "TFR A,CC": [0x1f, 0x8a],
         "LDA D,X": [0xa6, 0x8b], RTI: [0x3b], SWI: [0x3f], "JSR direct": [0x9d, 0x80],
-        "JSR extended": [0xbd, 0x80, 0], "JSR indexed": [0xad, 0x84], BSR: [0x8d, 0], LBSR: [0x17, 0, 0],
+        "LDY ,X++": [0x10, 0xae, 0x81], "JSR extended": [0xbd, 0x80, 0], "JSR indexed": [0xad, 0x84], BSR: [0x8d, 0], LBSR: [0x17, 0, 0],
       }[operation] ?? [0x12], 0x200);
-      bytes[0x1434] = 0x7a;
+      bytes[0x1434] = 0x7a; bytes[0x1234] = 0x12; bytes[0x1235] = 0x34;
       const ram = { size: bytes.length, read: address => bytes[address], write: (address, byte) => { bytes[address] = byte; } };
       const initial = { a: 0, b: 2, dp: 0, x: 0x1234, y: 0, s: 0xff, u: 0, pc: 0x200,
         waitMode: "none", nmiArmed: true, scratch: 0xa5,
@@ -58,6 +59,7 @@ test("6809 chapter state, view, and call edits reach native instructions, indexe
       else if (operation === "TFR CC,A") assert.equal(after.a, 2);
       else if (operation === "LDA D,X") assert.equal(after.a, 0x7a);
       else if (operation === "TFR A,CC" || operation === "RTI") assert.equal(after.flags.i, true);
+      else if (operation === "LDY ,X++") { assert.equal(after.x, 0x1237); assert.equal(after.y, 0x1234); }
       else if (operation.startsWith("JSR") || operation === "BSR" || operation === "LBSR") {
         const targets = { "JSR direct": 0x80, "JSR extended": 0x8000, "JSR indexed": 0x1234, BSR: 0x202, LBSR: 0x203 };
         assert.equal(after.pc, targets[operation]); assert.equal(after.s, 0xfb);

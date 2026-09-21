@@ -2,7 +2,7 @@ import { instructions68000, quick68000, moves68000, wordMoves68000, logic68000, 
 import { chapterInstructionModules } from "./generated/catalogue.ts";
 import { instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088 } from "./definitions/8088.ts";
 import { cpu6809StateDescription } from "../state/6809.ts";
-import { instructions6809, chapter6809, actions6809, views6809 } from "./definitions/6809.ts";
+import { instructions6809, chapter6809, actions6809, views6809, addresses6809 } from "./definitions/6809.ts";
 import { instructionsZ80 } from "./definitions/z80.ts";
 import type { generateInstructions } from "./generate.ts";
 
@@ -19,7 +19,7 @@ interface InstructionModule {
 }
 
 /** One catalogue for generation, explanations, and reproducibility checks, in explanation order. */
-export const instructionModules: readonly InstructionModule[] = Object.freeze([
+export const instructionModules: readonly InstructionModule[] = Object.freeze<readonly InstructionModule[]>([
   { name: "68000", cpu: "68000", definitions: instructions68000 },
   { name: "68000-quick", cpu: "68000", definitions: quick68000 },
   { name: "68000-moves", cpu: "68000", definitions: moves68000 },
@@ -42,7 +42,9 @@ export const instructionModules: readonly InstructionModule[] = Object.freeze([
   { name: "8088-strings", cpu: "8088", definitions: strings8088 },
   { name: "8088-arithmetic", cpu: "8088", definitions: arithmetic8088 },
   { name: "8088-control", cpu: "8088", definitions: control8088 },
-  { name: "6809-base", cpu: "6809", definitions: chapter6809, options: { bindOpcodes: true } },
+  { name: "6809-base", cpu: "6809", definitions: chapter6809, options: { bindOpcodes: true,
+    sources: { cpu: { name: "6809", state: cpu6809StateDescription }, groups: { addresses: addresses6809 } },
+  } },
   { name: "6809-state", cpu: "6809", definitions: actions6809, options: {
     sources: { cpu: { name: "6809", state: cpu6809StateDescription }, groups: { views: views6809 } },
   } },

@@ -23,26 +23,6 @@ export function motorolaArithmeticFlags(width: ArithmeticWidth, facts: AdditionR
     c: "carry" in facts ? facts.carry : facts.borrow };
 }
 
-type UnaryName = "neg" | "com" | "lsr" | "ror" | "asr" | "asl" | "rol" | "dec" | "inc" | "tst" | "clr";
-type UnaryBodies<State> = Readonly<Record<`${UnaryName}Memory`, (state: State, address: number, instruction: ByteMemory) => void>>;
-
-/** Bind remaining unary memory bodies to their oooo operation selector. */
-export function motorolaUnaryMemoryOperations<State>(bodies: UnaryBodies<State>) {
-  return ([
-    ["0000", "neg"], // NEG
-    ["0011", "com"], // COM
-    ["0100", "lsr"], // LSR
-    ["0110", "ror"], // ROR
-    ["0111", "asr"], // ASR
-    ["1000", "asl"], // ASL (LSL)
-    ["1001", "rol"], // ROL
-    ["1010", "dec"], // DEC
-    ["1100", "inc"], // INC
-    ["1101", "tst"], // TST: no write
-    ["1111", "clr"], // CLR: only the 6809 reads the operand
-  ] as const).map(([bits, name]) => ({ bits, memory: bodies[`${name}Memory`] }));
-}
-
 /** Bind mm=00 immediate (when supplied) and mm=01/10/11 resolved memory; construction reads no state. */
 export function motorolaOperandBindings<State>(readState: () => State,
   modes: readonly { bits: string; address: (instruction: WordInstructionContext) => number | undefined }[]) {
@@ -55,19 +35,4 @@ export function motorolaOperandBindings<State>(readState: () => State,
       memory(readState(), address, instruction);
     })),
   ];
-}
-
-type ByteReadName = "sub" | "sbc" | "adc" | "add" | "cmp" | "and" | "bit" | "ld" | "eor" | "or";
-type ByteBodies<State> = Readonly<Record<`${ByteReadName | "st"}${"a" | "b"}Memory`, (state: State, address: number, instruction: ByteMemory) => void>>;
-
-/** 1 r mm oooo: r selects A/B; resolved-memory bodies serve the CPU's remaining address modes. */
-export function motorolaByteMemoryBindings<State>(bodies: ByteBodies<State>, bind: ReturnType<typeof motorolaOperandBindings<State>>) {
-  return (["a", "b"] as const).flatMap((register, r) => [
-    ...([
-      ["0000", "sub"], ["0001", "cmp"], ["0010", "sbc"],
-      ["0100", "and"], ["0101", "bit"], ["0110", "ld"],
-      ["1000", "eor"], ["1001", "adc"], ["1010", "or"], ["1011", "add"],
-    ] as const).flatMap(([bits, name]) => bind(`1 ${r} mm ${bits}`, undefined, bodies[`${name}${register}Memory`])),
-    ...bind(`1 ${r} mm 0111`, undefined, bodies[`st${register}Memory`]), // Stores have no immediate form.
-  ]);
 }

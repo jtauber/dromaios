@@ -107,8 +107,8 @@ data logic, arithmetic/comparison, bit operations, shifts/rotates, TAS, word
 products/division, signed bounds, decimal arithmetic, ordinary control flow,
 address calculation, stack frames, MOVEP/MOVEM, and status/system instructions. Bodies
 start after opcode selection. Remaining 6809 memory bodies start after successful
-address resolution; indexed forms retain the handwritten postbyte decoder, and
-prefixed bodies also serve direct/extended modes. Chapter-owned base-page forms
+address resolution; prefixed indexed forms use the chapter-generated postbyte
+decoder, while their direct/extended bindings remain native. Chapter-owned base-page forms
 include their addressing, as do all 6800 forms. The existing
 [boundary probes](boundary-probes.md#existing-models-executable-evidence) and
 independent CPU tests are the behavioral baseline.
@@ -256,7 +256,7 @@ The authoring layers have separate homes:
 | [control-flow.ts](../../src/components/cpus/semantics/control-flow.ts) | Conditional effects, jumps, branches, calls, returns, and vector loads with explicit operand/condition/stack order |
 | [ports.ts](../../src/components/cpus/semantics/ports.ts) | Shared byte/word port transfers: capture addresses before operands, transfer low byte first, and commit input only after complete reads |
 | [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, ordered frames, and complete push/pop instruction construction |
-| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Remaining 6809 indexed unary, arithmetic, comparison, logic, and transfer construction; page-10 long branches and shared Motorola conditions |
+| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Remaining 6809 prefixed word comparison and transfer construction; page-10 long branches and shared Motorola conditions |
 | [intel.ts](../../src/components/cpus/semantics/intel.ts) | Z80 builders for byte ALU, byte and word transfers, arithmetic, exchanges, jumps, stacks, and subroutines, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
 | [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
@@ -285,9 +285,9 @@ the transfers. For example, Intel stack exchange reads low first at `address`,
 then `next`, but writes high first at `next`, then `address`. No helper assumes
 ascending addresses or moves a state update across an access.
 
-Motorola comparisons, logic, loads, and arithmetic use a local `operandFamily`
+Remaining Motorola prefixed comparisons and loads use a local `operandFamily`
 constructor for immediate and resolved-memory forms. It supplies their names,
-address inputs, and byte/word sources. Each family explicitly places the supplied
+address inputs, and operand sources. Each family explicitly places the supplied
 memory reads before consuming their captured value and retains its own flag and
 writeback order. Stores remain separate because they do not read a source operand
 from the destination address.
@@ -379,16 +379,15 @@ definition. CBA uses the same `compare` recipe with B as its register source.
 and an optional captured carry expression, captures `result`, and applies the
 policy. The caller schedules reads and writeback. This preserves each model's
 existing order: Motorola ADC/SBC read the operand, accumulator, then C; 8080
-ADC/SBB read the operand, CY, then A. `motorolaArithmetic` supplies N/Z/V/C at the
-operand width, with C meaning carry for addition and borrow for subtraction.
-Only byte addition replaces H; subtraction and word arithmetic preserve it.
-`motorolaArithmeticFamily` reads the full immediate or resolved-memory operand
-before A/B or the D view, then captures incoming C for ADC/SBC. ADD/SUB and
-ADDD/SUBD never read incoming C. Flags precede destination writes, including
-D's explicit A-then-B writes. ABA/SBA supply their own A-then-B operand reads
-and use the same calculation/policy construction. Failed operand reads retain
-completed fetching and address updates, without arithmetic or writeback.
-Decimal adjustment remains outside this binary arithmetic family.
+ADC/SBB read the operand, CY, then A. The 6800 and 6809 chapters now specify
+N/Z/V/C directly at the operand width, with C meaning carry for addition and
+borrow for subtraction. Only byte addition replaces H; subtraction and word
+arithmetic preserve it. The 6809 reads the full operand before A/B or the D view,
+then captures incoming C for ADC/SBC. ADD/SUB and ADDD/SUBD never read incoming C.
+Flags precede destination writes, including D's explicit A-then-B writes.
+The former Motorola arithmetic builders have been removed. Failed operand reads
+retain completed fetching and address updates, without arithmetic or writeback.
+Decimal adjustment remains separate from binary arithmetic.
 
 The 8080 expands all eight byte ALU families over one B/C/D/E/H/L/M/A/immediate
 source inventory. Addition/subtraction use the same `arithmetic` recipe, with
@@ -541,21 +540,35 @@ Both BIT modes reuse the same address sources. None of these operations reads
 incoming flags or changes C/D/I; ORA/AND/EOR also preserve V. Decimal mode has
 no effect. A failed source read prevents all later register and flag updates.
 
-`logical(register, source, operation, policy, writeBack)` also serves the 6800
-and 6809. It captures a source or already-read expression before the accumulator,
-calculates the result, optionally writes it back, and applies its result policy.
-The operation constructor runs only while building data. Each Motorola CPU uses
-one shared family construction for AND/BIT/EOR/OR on A/B, with separate immediate
-and resolved-memory bodies. N/Z describe the result, V clears, and C/H/control
-flags are preserved. Motorola BIT passes `false` for writeback; unlike 6502 BIT,
-it derives N from the masked result and always clears V. The original 6800's
-ORAA/ORAB spelling is retained, while both CPUs use the same internal body keys.
+The Motorola chapters express AND/BIT/EOR/OR with the same ordered primitives:
+capture the operand before the accumulator, calculate the result, optionally
+write it back, then apply the result policy. N/Z describe the result, V clears,
+and C/H/control flags are preserved. Motorola BIT omits writeback; unlike 6502
+BIT, it derives N from the masked result and always clears V. The original
+6800's ORAA/ORAB spelling is retained. No Motorola logical-family builder remains.
 
 A `ValueSource` has a name, result width, ordered body, and pure result expression.
 Its captures live in a fresh scope; only its yielded value enters its caller's
 scope. Sources can explicitly update registers or access memory. Nothing about
 the word “source” makes its body pure. A resolved memory address is an immutable
 captured word used by later reads/writes, not a callback that can resolve again.
+
+A `match` statement captures a byte selector and tests disjoint mask/value cases.
+Each case has its own ordered steps and numeric result, checked against the
+match's declared width. It inherits outer captures without exporting branch
+locals. An unmatched byte returns `"unsupported"` from the enclosing body,
+retaining completed effects. Sources may contain this fixed rejection path;
+explicit fault/rejection statements remain restricted to instruction bodies.
+Composed actions cannot use matches, including through sources. The chapter
+language exposes [byte-pattern matches](literate-specifications.md#byte-pattern-matches)
+with catalogue selectors and an explicit unsupported fallback.
+
+Sources with a top-level match generate shared decoder functions, deduplicated by
+their complete checked definition within each output module. Callers propagate
+unsupported results before later effects. Ordinary straight-line sources still
+inline. The 6809 chapter's one indexed source therefore serves base-page bodies
+and an exported reader for prefixed bindings without duplicating its decoder
+in every executable instruction.
 
 An `Action` has a name, optional numeric inputs, and an ordered body.
 `perform(action, arguments)` captures all arguments from the caller before
@@ -600,9 +613,7 @@ while right shifts preserve V. That XOR uses the captured original and result,
 so the policy does not depend on assignments to live N or C. The 6502 retains
 its separate carry-before-writeback and N/Z-after-writeback stages, including
 the original-value memory write before a rotate reads incoming C.
-The 6800 chapter owns every unary form. The 6809 chapter owns register, direct,
-and extended forms; `motorolaMemoryUnary` constructs only its remaining indexed
-bodies. Each path captures the original byte when required, calculates the
+The 6800 and 6809 chapters own every unary form, including addressing. Each path captures the original byte when required, calculates the
 result, applies N/Z and the operation's additional flags, and optionally writes
 the result. INC/DEC preserve C; TST clears V and omits writeback. The chapters
 state these differences explicitly:
@@ -614,8 +625,8 @@ state these differences explicitly:
 | Set V on right shifts | Yes: V = N XOR C | No: preserve V |
 
 Both CPUs use the same primitive vocabulary without a runtime CPU-model
-branch. The remaining indexed builder now has only 6809 rules; its former
-6800 options and register-body expansion have been removed.
+branch. The former Motorola unary builder and its native operand wrappers have
+been removed.
 
 Every 6809 memory unary operation reads its operand once. Rotates capture
 incoming C after that read; all operations except TST write once, including
@@ -996,8 +1007,8 @@ capture stage: Motorola compound conditions preserve flag-read order; Z80 DJNZ
 uses that stage to decrement B, then reads B again without touching flags.
 The 6502 chapter expresses branches with an explicit flag test and signed
 widening; its page-wrapped indirect pointer stays in its own source. The Motorola
-chapters likewise own non-indexed JMP address fetching. Indexed 6809 JMP invokes
-the chapter action only after the CPU decoder completes, retaining indexed
+chapters likewise own JMP address fetching. Indexed 6809 JMP invokes the jump
+action after its chapter-owned postbyte decoder completes, retaining indexed
 side effects and rejection. Register-indirect Intel jumps read the register or
 pair directly and never read memory at the destination. Instruction retirement
 stays in the cores.
@@ -1945,34 +1956,25 @@ The 6800 chapter owns its complete model, including addressing, branches, stacks
 interrupt-frame effects, reset, and execution/event recognition. Its generated
 public class uses the shared vector runtime, with chapter-defined IRQ/NMI entry
 and waiting policies. No handwritten 6800 implementation remains.
-The 6809 binds its remaining indexed unary bodies through the
-`motorolaUnaryMemoryOperations` selector table, including TST and CLR. Its
-static inventory contains function references only; each invocation supplies
-current CPU state. CPU-owned wrappers resolve one address and reject undefined
-postbytes before body entry. JMP invokes the chapter's jump action separately
-from byte modification.
-The [6809 chapter](../../src/components/cpus/specifications/6809.md) owns the
-base-page immediate/direct/extended comparisons, arithmetic, logic, and byte/word
-transfers, including addressing. Their indexed forms retain resolved-memory
-bodies bound through `motorolaOperandBindings`; prefixed pages retain all four
-addressing modes. Binding captures a state getter without reading it until
-execution and resolves each memory address once before entering its body.
-The builders can now emit only the remaining memory bodies, removing migrated
-immediate definitions. The chapter also supplies the full stored schema and
-D/CC read/write rules to both generated and remaining TypeScript definitions.
-It also owns unary register/direct/extended forms, DAA, register/flag operations,
-short branches, LBRA, and non-indexed calls/jumps/returns. Its call action also
-serves indexed JSR after native decoding; the former subroutine builder and
-Motorola specialization of the decimal builder have been removed.
+The [6809 chapter](../../src/components/cpus/specifications/6809.md) owns all
+base-page comparisons, arithmetic, logic, byte/word transfers, unary operations,
+DAA, register/flag operations, short branches, LBRA, LEA, and calls/jumps/returns.
+Each includes its addressing. One generated indexed decoder serves these bodies
+and the prefixed word families; its matches reject undefined postbytes while
+retaining completed address effects. The chapter also supplies the full stored
+schema and D/CC read/write rules to the remaining TypeScript definitions.
 
-`motorolaByteMemoryBindings` selects the remaining SUB/CMP/SBC/AND/BIT/LD/ST/EOR/ADC/OR/ADD
-indexed bodies and A/B from `1 r 10 oooo`. No immediate body or alternate indexed
-addressing path is retained for those base-page families.
+Only prefixed word families retain `motorolaOperandBindings`, with immediate,
+direct, indexed, and extended modes. Binding captures a state getter without
+reading it until execution, resolves each memory address once, and rejects
+unsupported indexed postbytes before body entry. Native unary and byte-memory
+wrappers are removed, along with the Motorola arithmetic, logical, unary,
+subroutine, and decimal specializations.
 
 The earlier load and TAB/TBA migration used `transfer`: capture a source or an
 already read value, write the destination, then apply the Motorola result policy.
-The 6800 chapter now spells out those stages; the 6809 retains the builder.
-`motorolaTransfers` constructs byte and word families; word reads reuse the
+The 6800 chapter now spells out those stages; the 6809 retains the builder for prefixed words.
+`motorolaTransfers` constructs their families; word reads reuse the
 same high/low layout and immediate source as comparisons. Stores capture the
 register or view after addressing, write each byte without reading the
 destination, then apply N/Z with V cleared. A failed word store preserves flags

@@ -192,7 +192,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
       if (expression(expr, scope, where) !== bits) fail(where, `expected ${bits}-bit value`);
     }
   }
-  function steps(body: readonly Statement[], scope: Map<string, ValueType>, parent: string, allowRejection = true): void {
+  function steps(body: readonly Statement[], scope: Map<string, ValueType>, parent: string, allowRejection: boolean | "match" = true): void {
     body.forEach((step, index) => {
       const where = `${parent} / ${index + 1} ${step.kind}`;
       const number = (expr: NumberExpression): Width => expression(expr, scope, where);
@@ -205,11 +205,29 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         scope.set(name, type);
       };
       const rejection = (reason: string): void => {
-        if (!allowRejection) fail(where, "value sources and composed actions cannot reject an instruction");
+        if (allowRejection !== true) fail(where, "value sources and composed actions cannot reject an instruction");
         if (typeof reason !== "string" || !/^[a-z][a-z0-9-]*$/.test(reason)) fail(where, "invalid rejection reason");
       };
       let captured: ValueType;
       switch (step.kind) {
+        case "match": {
+          if (allowRejection === false) fail(where, "composed actions cannot reject an instruction through a byte match");
+          expect(step.selector, 8);
+          const bits = width(step.width, where);
+          if (!step.cases.length) fail(where, "a byte match needs at least one case");
+          for (const [index, branch] of step.cases.entries()) {
+            if (![branch.mask, branch.value].every(n => Number.isInteger(n) && n >= 0 && n <= 255)
+              || (branch.value & branch.mask) !== branch.value) fail(where, "invalid byte match mask or value");
+            if (step.cases.slice(0, index).some(other => ((other.value ^ branch.value) & other.mask & branch.mask) === 0)) {
+              fail(where, "byte match cases overlap");
+            }
+            const local = new Map(scope);
+            steps(branch.steps, local, `${where} / case ${index + 1}`, allowRejection);
+            if (expression(branch.result, local, where) !== bits) fail(where, "match result width does not match its declaration");
+          }
+          bind(step.name, bits);
+          return;
+        }
         case "perform": {
           const inputs = step.action.inputs ?? {}, local = new Map<string, ValueType>();
           if (Object.keys(step.arguments).length !== Object.keys(inputs).length
@@ -291,7 +309,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
           return;
         case "alignment-fault":
           if (cpu.name !== "68000") fail(where, "alignment faults require a 68000 boundary");
-          if (!allowRejection) fail(where, "value sources and composed actions cannot reject an instruction");
+          if (allowRejection !== true) fail(where, "value sources and composed actions cannot reject an instruction");
           if (!["read", "write", "fetch"].includes(step.operation) || !["data", "program"].includes(step.space)
             || (step.operation === "write" && step.space === "program") || (step.operation === "fetch" && step.space !== "program")) fail(where, "invalid alignment fault access space");
           expect(step.address, 32); return;
@@ -302,7 +320,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         case "read-memory": address(step.address, scope, where); captured = 8; break;
         case "read-source": {
           const local = new Map<string, ValueType>();
-          steps(step.source.steps, local, `${where} / source ${step.source.name}`, false);
+          steps(step.source.steps, local, `${where} / source ${step.source.name}`, allowRejection === false ? false : "match");
           captured = expression(step.source.result, local, where);
           if (captured !== width(step.source.width, where)) fail(where, "source result width does not match its declaration");
           break;

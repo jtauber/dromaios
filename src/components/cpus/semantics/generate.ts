@@ -27,6 +27,8 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
   const outcomes = new Set<string>();
   let alignmentFaults = false, targetFaults = false;
   const allCapabilities = new Set<Capability>();
+  // Decoders are shared generated functions; ordinary straight-line sources still inline.
+  const decoders = new Map<string, { key: string; code: string; capabilities: Set<Capability> }>();
   const irqDeferral = cpu === "z80" || Object.values(definitions).some(definition => definition.cpu.irqDeferral === true);
   const contextExtensions: readonly { name: string; type?: string; file: string; capabilities: readonly Capability[] }[] = [
     { name: "BytePorts", file: "port-access", capabilities: ["readPort", "writePort"] },
@@ -41,7 +43,8 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
   ];
   const extensions = (capabilities: ReadonlySet<Capability>) => contextExtensions.filter(extension => extension.capabilities.some(name => capabilities.has(name)));
   const contextType = (capabilities: ReadonlySet<Capability>) => "ByteInstructionContext" + extensions(capabilities).map(extension => " & " + (extension.type ?? extension.name)).join("");
-  function compile(name: string, input: InstructionDefinition, result?: NumberExpression): string {
+  function compile(name: string, input: InstructionDefinition, result?: NumberExpression,
+    decoderCapabilities?: Set<Capability>): string {
     const definition = defineInstruction(input);
     if (definition.cpu.name !== cpu) throw new Error(`${name}: expected a ${cpu} definition.`);
     const lines: string[] = [];
@@ -149,6 +152,22 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
       for (const step of steps) {
         let captured: CapturedValue;
         switch (step.kind) {
+          case "match": {
+            const selector = local("selector"), result = local(step.name);
+            emit(`const ${selector} = ${number(step.selector, scope).code};`);
+            emit(`let ${result}: number;`);
+            for (const [index, branch] of step.cases.entries()) {
+              emit(`${index ? "else " : ""}if ((${selector} & 0x${branch.mask.toString(16)}) === 0x${branch.value.toString(16)}) {`);
+              depth += "  ";
+              const inner = new Map(scope);
+              body(branch.steps, inner);
+              emit(`${result} = ${number(branch.result, inner).code};`);
+              depth = depth.slice(0, -2); emit("}");
+            }
+            emit(`else { ${reject("unsupported")} }`);
+            scope.set(step.name, { code: result, type: step.width });
+            continue;
+          }
           case "perform": {
             comment(`Action: ${step.action.name}`);
             const actionScope = new Map<string, CapturedValue>();
@@ -258,6 +277,23 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           case "read-memory": captured = { code: `${access("readByte")}(${address(step.address, scope)})`, type: 8 }; break;
           case "read-source": {
             comment(`Source: ${step.source.name}`);
+            if (step.source.steps.some(step => step.kind === "match")) {
+              const identity = JSON.stringify(step.source);
+              let decoder = decoders.get(identity);
+              if (!decoder) {
+                decoder = { key: `decode${decoders.size}`, code: "", capabilities: new Set<Capability>() };
+                decoders.set(identity, decoder);
+                decoder.code = compile(decoder.key, { cpu: definition.cpu, name: step.source.name,
+                  explanation: "Reusable byte decoding.", steps: step.source.steps }, step.source.result, decoder.capabilities);
+              }
+              for (const capability of decoder.capabilities) capabilities.add(capability);
+              rejections.add("unsupported"); outcomes.add("unsupported");
+              const decoded = local("decoded");
+              emit(`const ${decoded} = decoders.${decoder.key}(state${decoder.capabilities.size ? ", instruction" : ""});`);
+              emit(`if (${decoded} === "unsupported") return ${decoded};`);
+              captured = { code: decoded, type: step.source.width };
+              break;
+            }
             const sourceScope = new Map<string, CapturedValue>();
             body(step.source.steps, sourceScope);
             captured = number(step.source.result, sourceScope);
@@ -309,7 +345,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
       }
     }
     const scope = new Map<string, CapturedValue>();
-    const parameters = result ? [] : [`state: ${stateType}`];
+    const parameters = result && !decoderCapabilities ? [] : [`state: ${stateType}`];
     const bound = !result && boundNames.has(name);
     for (const [name, type] of Object.entries(definition.inputs ?? {})) {
       if (bound) throw new Error(`${definition.name}: opcode bindings cannot supply instruction inputs.`);
@@ -320,10 +356,11 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     body(definition.steps, scope);
     if (result) emit(`return ${number(result, scope).code};`);
     for (const name of capabilities) allCapabilities.add(name);
+    for (const name of capabilities) decoderCapabilities?.add(name);
     if (capabilities.size) parameters.push(`instruction: Pick<${contextType(capabilities)}, ${[...capabilities].map(name => JSON.stringify(name)).join(" | ")}>`);
     const key = bound ? `0x${Number(name).toString(16).padStart(2, "0")}` : JSON.stringify(name);
     return `${indent}// ${JSON.stringify(`${cpu} ${definition.name}`)}\n`
-      + `${indent}${key}(${parameters.join(", ")}): ${result ? "number" : ["void", ...[...rejections].map(reason => JSON.stringify(reason)), ...(rejectsAlignment ? ["OperandAlignmentFault"] : []), ...(rejectsTarget ? ["TargetAlignmentFault"] : [])].join(" | ")} {\n${lines.join("\n")}\n${indent}},`;
+      + `${indent}${key}(${parameters.join(", ")}): ${[result ? "number" : "void", ...[...rejections].map(reason => JSON.stringify(reason)), ...(rejectsAlignment ? ["OperandAlignmentFault"] : []), ...(rejectsTarget ? ["TargetAlignmentFault"] : [])].join(" | ")} {\n${lines.join("\n")}\n${indent}},`;
   }
   const methods = Object.entries(definitions).map(([name, definition]) => compile(name, definition));
   const readers = sources ? Object.entries(sources.groups).map(([group, members]) => {
@@ -352,7 +389,9 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
       "  ];", "  return entries.map(([opcode, execute]) => [opcode, instruction => execute(state, instruction)]);",
     ].join("\n");
   return `// Generated by scripts/generate-cpu-semantics.ts; edit ${origin} instead.\n`
-    + `${imports.join("\n")}\n\nexport const instructions = {\n${methods.join("\n\n")}\n};\n`
+    + `${imports.join("\n")}\n\n`
+    + (decoders.size ? `const decoders = {\n${[...decoders.values()].map(decoder => decoder.code).join("\n\n")}\n};\n\n` : "")
+    + `export const instructions = {\n${methods.join("\n\n")}\n};\n`
     + (sources ? `\n/** Bind reusable sources; fetching and memory access occur only when a reader is called. */
 export function sourceReaders(state: ${stateType}) {
   return {\n${readers.join("\n")}\n  };

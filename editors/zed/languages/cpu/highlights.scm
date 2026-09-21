@@ -6,9 +6,9 @@
   "execution" "memory" "port" "counter" "stopped" "word" "opcode" "advance"
   "on" "dispatch" "after" "failure" "retain" "reset" "retire" "interrupt"
   "accept" "always" "unless" "bytes" "acknowledge" "preserve" "interface" "snapshot" "unknown"
-  "callback" "validate" "offer" "using" "vectors" "as"
+  "callback" "validate" "offer" "using" "vectors" "as" "match" "case" "otherwise"
 ] @keyword
-["little" "big" "none" "waiting"] @constant
+["little" "big" "none" "waiting" "unsupported"] @constant
 
 (identifier) @variable
 (state_identifier) @property

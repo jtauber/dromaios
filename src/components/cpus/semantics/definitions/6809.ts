@@ -1,9 +1,9 @@
-import { views as chapterViews, actions as chapterActions, policies, families } from "../generated/6809.ts";
+import { views as chapterViews, actions as chapterActions, policies, families, sources } from "../generated/6809.ts";
 import { cpu6809StateDescription } from "../../state/6809.ts";
 import { bitAnd, bitOr, fetchByte, flagLiteral, flagValue, literal, cpuSymbols, not, perform, replaceFlags, readSource, testChoice, updateFlags, value, when, writeChoice, writeLatch, writeRegister, zero } from "../model.ts";
 import type { InstructionDefinition, NumberExpression, Statement } from "../model.ts";
 import { instructionSet, registerSource, registerView } from "../builders.ts";
-import { motorolaLongBranches, motorolaByteArithmetic, motorolaArithmeticFamily, motorolaTransfers, motorolaComparison, motorolaLogic, motorolaMemoryUnary } from "../motorola.ts";
+import { motorolaLongBranches, motorolaTransfers, motorolaComparison } from "../motorola.ts";
 import { choose, flagCondition, loadVector } from "../control-flow.ts";
 import { motorola6809TransferForms } from "../../motorola.ts";
 import { flagPolicy } from "../status.ts";
@@ -18,8 +18,8 @@ const writeD = (word: NumberExpression) => [perform(chapterActions.writeD, { wor
 const restoreCC = (status: NumberExpression) => replaceFlags(policies.CCFLAGS, { status });
 export const chapter6809 = instructionSet(Object.values(families).flat());
 export { chapterActions as actions6809, chapterViews as views6809 };
+export const addresses6809 = { indexed: sources.indexed };
 
-const writableD = { source: d, write: writeD(value("result")), explanation: "Write D as A then B" };
 const armNmi = writeLatch(cpu.latch("nmiArmed"), true);
 const views = {
   d: { source: d, write: writeD },
@@ -90,33 +90,18 @@ export const instructions6809: Readonly<Record<string, InstructionDefinition>> =
     explanation: "Pull and replace CC first. Restored E selects the remaining full frame or PC alone; only complete each field after all its reads. Arm NMI after all transfers succeed. " + interruptStack.explanation,
     steps: [...stackFrame([views.cc], interruptStack, "big-endian", true), ...choose(flagCondition(cpu.flag("e"), true),
       stackFrame(interruptFrame.slice(1), interruptStack, "big-endian", true, "rest"), stackFrame([views.pc], interruptStack, "big-endian", true, "rest")), armNmi] }),
-  ...Object.fromEntries((["x", "y", "s", "u"] as const).map(register => [`lea${register}`, defineInstruction({ cpu: cpu.declaration,
-    name: `LEA${register.toUpperCase()}`, inputs: { address: 16 },
-    explanation: "Entry follows successful indexed address resolution, including auto-updates and indirect reads. Write the captured effective address over any earlier update of the destination. "
-      + (register === "s" ? "Arm NMI. Preserve every flag." : register === "u" ? "Preserve every flag." : "Update only Z from the written address."),
-    steps: [...views[register].write(value("address")), ...(register === "x" || register === "y"
-      ? [updateFlags(flagPolicy(cpu, "LEA Z", { address: 16 }, { z: zero(value("address")) }), { address: value("address") })] : [])],
-  })])),
   ...registerTransfers(false), ...registerTransfers(true),
   pshs: registerStack("s", false), puls: registerStack("s", true),
   pshu: registerStack("u", false), pulu: registerStack("u", true),
   // Reuse mask construction in external interrupt entry without ordinary PSHS arming.
   pushFrame: registerStack("s", false, true),
   ...motorolaLongBranches(cpu),
-  ...motorolaMemoryUnary(cpu),
-  ...motorolaLogic(cpu, ["Memory"]),
-  ...motorolaByteArithmetic(cpu, ["Memory"]),
-  ...motorolaArithmeticFamily(cpu, "SUBD", writableD, "subtract", false, ["Memory"]),
-  ...motorolaArithmeticFamily(cpu, "ADDD", writableD, "add", false, ["Memory"]),
-  ...Object.fromEntries((["a", "b", "x", "y", "u"] as const).flatMap(register =>
-    Object.entries(motorolaTransfers(cpu, register.toUpperCase(), cpu.register(register), register === "y" ? undefined : ["Memory"])))),
-  ...motorolaTransfers(cpu, "D", writableD, ["Memory"]),
+  ...motorolaTransfers(cpu, "Y", cpu.register("y")),
   ...motorolaTransfers(cpu, "S", { source: registerSource(cpu.register("s")),
     write: [writeRegister(cpu.register("s"), value("result")), writeLatch(cpu.latch("nmiArmed"), true)],
     explanation: "Write S and arm NMI",
   }),
-  // Base-page immediate/direct/extended forms come from the chapter; these bodies retain indexed and prefixed forms.
-  ...Object.fromEntries((["a", "b", "d", "x", "y", "u", "s"] as const).flatMap(register =>
-    Object.entries(motorolaComparison(cpu, `CMP${register.toUpperCase()}`, register === "d" ? d : cpu.register(register),
-      register === "a" || register === "b" || register === "x" ? ["Memory"] : undefined)))),
+  // Prefixed comparisons retain native opcode bindings; indexed addresses come from the chapter.
+  ...Object.fromEntries((["d", "y", "u", "s"] as const).flatMap(register =>
+    Object.entries(motorolaComparison(cpu, `CMP${register.toUpperCase()}`, register === "d" ? d : cpu.register(register))))),
 };

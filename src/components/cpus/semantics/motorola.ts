@@ -1,6 +1,6 @@
-import { addOverflow, addWrap, and, carry, halfCarry, flagValue, bitAnd, bitOr, bitXor, borrow, capture, concat, fetchByte, flagLiteral, literal, negative, not, overflow, readFlag, readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
+import { addWrap, and, flagValue, borrow, concat, fetchByte, flagLiteral, literal, not, overflow, readFlag, readMemory, readRegister, readSource, updateFlags, value, writeMemory, writeRegister, xor } from "./model.ts";
 import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
-import { arithmetic, compare, immediateByte, logical, negativeZeroPolicy, readWord, shift, transfer, writeWord } from "./builders.ts";
+import { compare, immediateByte, negativeZeroPolicy, readWord, transfer, writeWord } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
 import { relativeBranch } from "./control-flow.ts";
 import type { FlowCpu, Condition } from "./control-flow.ts";
@@ -8,66 +8,7 @@ import { motorolaBranchNames } from "../motorola.ts";
 
 interface MotorolaCpu {
   readonly declaration: CpuDeclaration;
-  register(field: "a" | "b"): Register;
-  flag(field: "n" | "z" | "v" | "c" | "h"): Flag;
-}
-
-/** Remaining 6809 indexed unary bodies receive an already resolved address. */
-export function motorolaMemoryUnary(cpu: MotorolaCpu) {
-  function unary(name: string, calculation: NumberExpression | readonly Statement[], updates: FlagPolicy["updates"], explanation: string, writeBack = true) {
-    const nz = negativeZeroPolicy(`${cpu.declaration.name} ${name}`, cpu.flag("n"), cpu.flag("z"), 8);
-    const policy: FlagPolicy = { ...nz, parameters: { original: 8, result: 8 }, updates: [...nz.updates, ...updates] };
-    return { [`${name.toLowerCase()}Memory`]: defineInstruction({
-      cpu: cpu.declaration, name: `${name} memory`,
-      inputs: { address: 16 },
-      explanation: [
-        "Entry is after successful address resolution. Read the byte at that captured address.",
-        explanation, "Apply the declared flags, preserving unlisted flags.",
-        writeBack ? "Then write the result once, even if unchanged." : "Do not write a result.",
-        "A failed read preserves flags and completed addressing effects.",
-        writeBack && "A failed write retains their updates and completed addressing effects.",
-      ].filter(Boolean).join(" "),
-      steps: [
-        readMemory("original", value("address")),
-        ...("kind" in calculation ? [capture("result", calculation)] : calculation),
-        updateFlags(policy, { original: value("original"), result: value("result") }),
-        ...(writeBack ? [writeMemory(value("address"), value("result"))] : []),
-      ],
-    }) };
-  }
-  function shifts(name: string, direction: "left" | "right", incoming: "zero" | "sign" | Flag = "zero") {
-    const operation = shift(direction, incoming), setsOverflow = direction === "left";
-    return unary(name, operation.steps, [
-      { flag: cpu.flag("c"), value: operation.carry },
-      ...(setsOverflow ? [{ flag: cpu.flag("v"), value: xor(negative(value("result")), operation.carry) }] : []),
-    ], `Shift ${direction}, inserting `
-      + (incoming === "zero" ? "zero" : incoming === "sign" ? "the original sign bit" : "the captured incoming C")
-      + ". Set C from the outgoing bit. " + (setsOverflow ? "Set V to N XOR C." : "Preserve V."));
-  }
-  return {
-    ...unary("NEG", subtract(literal(8, 0), value("original")), [
-      { flag: cpu.flag("v"), value: overflow(literal(8, 0), value("original")) },
-      { flag: cpu.flag("c"), value: borrow(literal(8, 0), value("original")) },
-    ], "Negate the byte modulo 256. V marks original 80; C marks a nonzero original."),
-    ...unary("COM", subtract(literal(8, 0xff), value("original")), [
-      { flag: cpu.flag("v"), value: flagLiteral(false) }, { flag: cpu.flag("c"), value: flagLiteral(true) },
-    ], "Take the byte's ones' complement: FF minus the original. Clear V and set C."),
-    ...shifts("LSR", "right"), ...shifts("ROR", "right", cpu.flag("c")),
-    ...shifts("ASR", "right", "sign"),
-    ...shifts("ASL", "left"), ...shifts("ROL", "left", cpu.flag("c")),
-    ...unary("DEC", subtract(value("original"), literal(8, 1)), [
-      { flag: cpu.flag("v"), value: zero(subtract(value("original"), literal(8, 0x80))) },
-    ], "Decrement modulo 256. V marks original 80; preserve C."),
-    ...unary("INC", addWrap(value("original"), literal(8, 1)), [
-      { flag: cpu.flag("v"), value: zero(subtract(value("original"), literal(8, 0x7f))) },
-    ], "Increment modulo 256. V marks original 7F; preserve C."),
-    ...unary("TST", value("original"), [
-      { flag: cpu.flag("v"), value: flagLiteral(false) },
-    ], "Test the original byte, clearing V and preserving C.", false),
-    ...unary("CLR", literal(8, 0), [
-      { flag: cpu.flag("c"), value: flagLiteral(false) }, { flag: cpu.flag("v"), value: flagLiteral(false) },
-    ], "Clear the byte. Set Z; clear N/C/V."),
-  };
+  flag(field: "n" | "z" | "v" | "c"): Flag;
 }
 
 /** Ordinary byte/word comparison changes NZVC, with C meaning borrow. */
@@ -150,23 +91,6 @@ export function motorolaResultFlags(cpu: MotorolaCpu, operation: string, width: 
   return { ...nz, updates: [...nz.updates, { flag: cpu.flag("v"), value: flagLiteral(false) }] };
 }
 
-/** Shared A/B logical families: N/Z describe the result, V clears, and BIT omits register writeback. */
-export function motorolaLogic(cpu: MotorolaCpu, modes?: OperandModes) {
-  const flags = motorolaResultFlags(cpu, "logic");
-  return Object.fromEntries(([
-    ["and", "AND", bitAnd, true], ["bit", "BIT", bitAnd, false],
-    ["eor", "EOR", bitXor, true], ["or", "OR", bitOr, true],
-  ] as const).flatMap(([key, mnemonic, operation, writeBack]) => (["a", "b"] as const).flatMap(register =>
-    Object.entries(operandFamily(cpu, `${mnemonic}${register.toUpperCase()}`, 8, ({ memory, reads, source }) => ({
-      explanation: (memory ? "Entry is after successful address resolution. Read the byte at that address. " : "Fetch the immediate byte. ")
-        + `Only then read ${register.toUpperCase()} and combine the captured bytes. `
-        + (writeBack ? "Write the result before applying flags. " : "Do not write a result. ")
-        + "Set N/Z from the result and clear V, preserving C, H, and control flags. "
-        + "A failed read prevents register and flag updates; completed fetches and addressing effects remain.",
-      steps: [...reads, ...logical(cpu.register(register), source, operation, flags, writeBack)],
-    }), `${key}${register}`, modes)))));
-}
-
 // A compound destination supplies explicit writes consuming "result", rather than a hidden runtime setter.
 type WritableRegister = Register | { readonly source: ValueSource; readonly write: readonly Statement[]; readonly explanation: string };
 
@@ -198,47 +122,4 @@ export function motorolaTransfers(cpu: MotorolaCpu, suffix: string, register: Wr
         updateFlags(flags, { result: value("result") })],
     }),
   };
-}
-
-/** Binary arithmetic consumes left/right, applies NZVC (and byte-addition H), and leaves writeback to the caller. */
-export function motorolaArithmetic(cpu: MotorolaCpu, operation: "add" | "subtract", width: Width, withCarry = false): readonly Statement[] {
-  const adding = operation === "add", left = value("left"), right = value("right");
-  const incoming = withCarry ? flagValue("carry") : undefined;
-  const nz = negativeZeroPolicy(`${cpu.declaration.name} ${operation}`, cpu.flag("n"), cpu.flag("z"), width);
-  const flags: FlagPolicy = { ...nz, parameters: { left: width, right: width, result: width, ...(withCarry ? { carry: "flag" as const } : {}) },
-    updates: [...nz.updates,
-      { flag: cpu.flag("v"), value: (adding ? addOverflow : overflow)(left, right, incoming) },
-      { flag: cpu.flag("c"), value: (adding ? carry : borrow)(left, right, incoming) },
-      ...(adding && width === 8 ? [{ flag: cpu.flag("h"), value: halfCarry(left, right, incoming) }] : []),
-    ],
-  };
-  return [...(withCarry ? [readFlag("carry", cpu.flag("c"))] : []), ...arithmetic(operation, flags, incoming)];
-}
-
-/** Immediate and resolved-memory arithmetic share operand-first reads, flags, then explicit register writeback. */
-export function motorolaArithmeticFamily(cpu: MotorolaCpu, mnemonic: string, register: WritableRegister,
-  operation: "add" | "subtract", withCarry = false, modes?: OperandModes) {
-  const stored = "kind" in register, width = stored ? register.width : register.source.width;
-  return operandFamily(cpu, mnemonic, width, ({ memory, word, reads, source }) => ({
-    explanation: (memory ? "Entry is after successful address resolution. Read the operand at that address. " : "Fetch the immediate operand. ")
-      + (word ? "Read high byte then low byte, wrapping at FFFF. " : "")
-      + `Only then read ${stored ? register.field.toUpperCase() : register.source.name}. `
-      + (withCarry ? `Capture C as the incoming ${operation === "add" ? "carry" : "borrow"}. ` : "Ignore incoming C. ")
-      + `Apply N/Z/V/C from ${operation === "add" ? "addition" : "subtraction"}; C means ${operation === "add" ? "carry" : "borrow"}. `
-      + (operation === "add" && !word ? "Set H from the low-nibble carry. " : "Preserve H. ")
-      + `Preserve control flags. ${stored ? `Write ${register.field.toUpperCase()}` : register.explanation} after flags. `
-      + "A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.",
-    steps: [...reads, "kind" in source ? capture("right", source) : readSource("right", source),
-      stored ? readRegister("left", register) : readSource("left", register.source),
-      ...motorolaArithmetic(cpu, operation, width, withCarry),
-      ...(stored ? [writeRegister(register, value("result"))] : register.write)],
-  }), undefined, modes);
-}
-
-/** A/B share SUB, SBC, ADC, and ADD; CPU opcode bindings supply their addressing modes. */
-export function motorolaByteArithmetic(cpu: MotorolaCpu, modes?: OperandModes) {
-  return Object.fromEntries((["a", "b"] as const).flatMap(register => ([
-    ["SUB", "subtract", false], ["SBC", "subtract", true], ["ADC", "add", true], ["ADD", "add", false],
-  ] as const).flatMap(([mnemonic, operation, withCarry]) =>
-    Object.entries(motorolaArithmeticFamily(cpu, `${mnemonic}${register.toUpperCase()}`, cpu.register(register), operation, withCarry, modes)))));
 }

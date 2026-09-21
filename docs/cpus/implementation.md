@@ -81,9 +81,9 @@ The [6809 chapter](../../src/components/cpus/specifications/6809.md) is partiall
 migrated. Its state adapter re-exports the generated schema. `generated/6809-base.ts`
 contains complete chapter-owned opcode bodies, and `generated/6809-state.ts`
 supplies D/CC views, writes, and stack/control actions. The handwritten core
-combines chapter bindings with remaining indexed, prefixed, transfer, stack,
-and interrupt bodies from `generated/6809.ts`. Native indexed JSR/JMP also
-invoke the chapter's call/jump actions after decoding their targets.
+combines chapter bindings with remaining prefixed, transfer, stack, and interrupt
+bodies from `generated/6809.ts`. The chapter also generates one indexed decoder
+in `6809-base.ts`, reused by its own bodies and the remaining prefixed bindings.
 
 ## Reading order
 
@@ -762,7 +762,7 @@ records and memory behavior.
 construct the remaining 6809 long conditional branches and Z80 jumps/branches.
 The 6502, 8008, 8080, and 6800 chapters express their control flow directly in
 the same representation; the 6809 chapter owns its short branches, LBRA, and
-non-indexed jumps/calls/returns.
+jumps/calls/returns.
 Fetch the complete operand before reading condition flags. A taken relative
 branch reads the current PC and adds a signed displacement with word wrapping;
 an untaken path does not read or write PC. CPU-owned fetch callbacks retain their
@@ -968,40 +968,35 @@ the 6800 lacks BRN, the 6809 has standalone LBRA, and the 68000 has a distinct
 BSR encoding and displacement cursor.
 
 The [6809 chapter](../../src/components/cpus/specifications/6809.md) now owns
-base-page immediate/direct/extended loads, stores, logic, comparisons, and
-arithmetic, plus unary and register/flag operations, short branches, LBRA,
-and non-indexed calls/jumps/returns. Its D/CC views and writes also serve the
-remaining TypeScript instructions. The original 6800's CPX high-byte N/V rule
+base-page loads, stores, logic, comparisons, and arithmetic in every addressing
+mode, plus unary and register/flag operations, short branches, LBRA, LEA, and
+calls/jumps/returns. Its indexed decoder serves both chapter and native bindings.
+Its D/CC views and writes also serve the remaining TypeScript instructions. The original 6800's CPX high-byte N/V rule
 belongs in its chapter; 6809 comparisons use full-width subtraction flags.
 
 For remaining 6809 forms, `motorolaOperandBindings` binds immediate and
 resolved-memory bodies to the `mm` field. It reads no state during construction,
 resolves each address once, and rejects undefined indexed postbytes before body
-entry. `motorolaByteMemoryBindings` selects A/B comparison, arithmetic, logical,
-load, and store bodies for indexed operands. Prefixed word families retain
-immediate/direct/indexed/extended bindings. Chapter-owned forms need no native
-operand wrapper.
+entry. Only prefixed word families retain these immediate/direct/indexed/extended
+bindings. Their indexed resolver calls the chapter-generated source reader;
+chapter-owned forms need no native operand wrapper.
 
 The [remaining Motorola definitions](../../src/components/cpus/semantics/motorola.ts)
-share operand-first schedules where they agree. Logic writes before flags;
-BIT omits writeback. Loads replace their destination before N/Z/V; stores capture
-the source after addressing, write without reading the destination, and apply
-flags only after every write succeeds. Word accesses are high-first with
-sixteen-bit wrap. Arithmetic applies flags before writeback: byte addition
-replaces H, while subtraction and word arithmetic preserve it. D uses the
-chapter's A-then-B writes; S writes can also arm NMI.
+share operand-first comparison and transfer schedules. Loads replace their
+destination before N/Z/V; stores capture the source after addressing, write
+without reading the destination, and apply flags only after every write succeeds.
+Word accesses are high-first with sixteen-bit wrap. S writes also arm NMI.
 
-`motorolaUnaryMemoryOperations` selects the remaining indexed unary bodies,
-constructed by `motorolaMemoryUnary`. Register, direct, and extended forms
-come from the chapter. Both paths retain CLR's read, preserve C on TST, and
-preserve V on right shifts; the 6800 chapter states its different rules.
+Every 6809 unary form now comes from the chapter, retaining CLR's read,
+preserving C on TST, and preserving V on right shifts. The 6800 chapter states
+its different rules; no shared Motorola unary builder remains.
 JMP remains separate from byte modification. The 6809 chapter now owns DAA,
 including original A/H/C capture, preserved H/control flags, and modeled V
 clearing. The [decimal builder](../../src/components/cpus/semantics/decimal.ts)
 serves only the Z80.
 
-Chapter `call` and `jump` actions also serve indexed JSR/JMP after native address
-resolution. Calls decrement live S before each byte write and preserve NMI arming;
+Chapter `call` and `jump` actions also serve indexed JSR/JMP after chapter-owned
+address resolution. Calls decrement live S before each byte write and preserve NMI arming;
 RTS increments live S only after successful reads. Masked stack and interrupt
 frame construction remains native until those operations migrate.
 

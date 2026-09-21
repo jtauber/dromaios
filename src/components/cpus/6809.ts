@@ -1,11 +1,11 @@
-import { opcodeEntries as chapterOpcodes } from "./generated/6809-base.ts";
+import { opcodeEntries as chapterOpcodes, sourceReaders as chapterSources } from "./generated/6809-base.ts";
 import { instructions as stateActions, sourceReaders } from "./generated/6809-state.ts";
 import { instructions as semantics } from "./generated/6809.ts";
 import type { Ram } from "../memory/ram.js";
 import type { FetchedInstruction, StateTransition, InstructionStep, WaitingStep } from "./execution-records.ts";
 import { executionBoundary } from "./execution-boundary.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
-import { signed8, readWordBE } from "./binary.ts";
+import { readWordBE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
@@ -15,7 +15,7 @@ import type { Cpu6809State } from "./state/6809.ts";
 import type { ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { motorolaUnaryMemoryOperations, motorolaOperandBindings, motorolaByteMemoryBindings, motorolaBranchNames, motorola6809TransferForms } from "./motorola.ts";
+import { motorolaOperandBindings, motorolaBranchNames, motorola6809TransferForms } from "./motorola.ts";
 
 export { cpu6809StateDescription } from "./state/6809.ts";
 export type { Cpu6809State, Cpu6809Flags } from "./state/6809.ts";
@@ -42,12 +42,10 @@ export type Cpu6809InterruptRecord = StateTransition<Cpu6809Snapshot> & { readon
 );
 
 type OpcodeHandler = (instruction: InstructionContext) => "unsupported" | void;
-type AddressedHandler = (address: number, instruction: InstructionContext) => void;
 type OperandReader = (instruction: InstructionContext) => number;
 type AddressReader = (instruction: InstructionContext) => number | undefined;
 
 const instructionPattern = opcodePattern<OpcodeHandler>;
-const addressPattern = opcodePattern<AddressedHandler>;
 
 // Vector address, frame size, and masks applied AFTER saving the original CC.
 const interruptEntries = {
@@ -130,19 +128,14 @@ export class Cpu6809 {
     });
   }
 
-  // Register and flag views.
-
-  get #d(): number { return sourceReaders(this.#state).views.D(); }
-
   // Opcode selectors and construction.
-
-  // Remaining unary encodings use 0110 oooo and native indexed postbytes.
-  // TST (1101) never writes; JMP (1110) uses only the address.
-  static readonly #unaryOperations = motorolaUnaryMemoryOperations(semantics);
 
   // mm in 1 r mm oooo: 00 is immediate; the other modes resolve a data address.
   readonly #directOperandAddress: OperandReader = ({ fetchByte }) => this.#directAddress(fetchByte());
-  readonly #indexedOperandAddress: AddressReader = instruction => this.#indexedAddress(instruction);
+  readonly #indexedOperandAddress: AddressReader = instruction => {
+    const address = chapterSources(this.#state).addresses.indexed(instruction);
+    return address === "unsupported" ? undefined : address;
+  };
   readonly #extendedOperandAddress: OperandReader = ({ fetchWord }) => fetchWord();
   readonly #memoryModes = [
     { bits: "01", address: this.#directOperandAddress },
@@ -156,7 +149,6 @@ export class Cpu6809 {
   readonly #transferHandlers = this.#registerTransferHandlers("tfr");
 
   readonly #operandHandlers = motorolaOperandBindings(() => this.#state, this.#memoryModes);
-  readonly #indexedOperands = motorolaOperandBindings(() => this.#state, [this.#memoryModes[1]]);
 
   // Prefix 10 selects page 2. Word encodings retain mm=00/01/10/11 addressing.
   // Transfers append 0=load/1=store; immediate stores are undefined.
@@ -189,10 +181,6 @@ export class Cpu6809 {
       ...instructionPattern("0001111 0", instruction => this.#executeFollowingByte(this.#exchangeHandlers, instruction)), // EXG
       ...instructionPattern("0001111 1", instruction => this.#executeFollowingByte(this.#transferHandlers, instruction)), // TFR
 
-      // 001100 rr: rr=00/01/10/11 selects X/Y/S/U; only X/Y replace Z.
-      ...this.#addressedHandlers(this.#indexedOperandAddress, opcodeFamily("001100 rr", { r: [semantics.leax, semantics.leay, semantics.leas, semantics.leau] },
-        ({ r: execute }) => (address: number) => execute(this.#state, address))), // LEAX / LEAY / LEAS / LEAU
-
       // 001101 s p: s=0 selects S, s=1 selects U; p=0 pushes, p=1 pulls.
       // Mask bits 7..0: PC, other stack pointer, Y, X, DP, B, A, CC (E F H I N Z V C).
       ...opcodeFamily("001101 s p", { s: [[semantics.pshs, semantics.puls], [semantics.pshu, semantics.pulu]], p: [0, 1] },
@@ -201,32 +189,6 @@ export class Cpu6809 {
       ...instructionPattern("0011 1100", instruction => semantics.cwai(this.#state, instruction)), // CWAI #mask
       ...instructionPattern("0011 1111", instruction => semantics.swi(this.#state, instruction)), // SWI
 
-      // 0110 oooo: indexed unary bodies (including JMP); other modes come from the chapter.
-      ...this.#memoryUnaryHandlers(),
-
-      // Remaining 1 r 10 oooo forms use indexed postbytes; other modes come from the chapter.
-      // CMP/BIT preserve A/B; arithmetic sets flags before writeback; loads/logic write before flags.
-      // Stores apply flags after a successful write.
-      ...motorolaByteMemoryBindings(semantics, this.#indexedOperands), // SUB/CMP/SBC/AND/BIT/LD/ST/EOR/ADC/OR/ADD
-
-      // 10 10 1101: indexed JSR resolves its target before the shared chapter call action.
-      ...this.#addressedHandlers(this.#indexedOperandAddress,
-        addressPattern("10 10 1101", (address, instruction) => stateActions.call(this.#state, address, instruction))),
-
-      // 10 mm 1100: CMPX uses immediate/direct/indexed/extended sources for mm=00/01/10/11.
-      ...this.#indexedOperands("10 mm 1100", undefined, semantics.cmpxMemory), // CMPX
-
-      // 1 r mm 0011: r=0 subtracts from D, r=1 adds to D.
-      ...this.#indexedOperands("10 mm 0011", undefined, semantics.subdMemory), // SUBD
-      ...this.#indexedOperands("11 mm 0011", undefined, semantics.adddMemory), // ADDD
-
-      // 1 r mm 11tt: tt=00/01 select D load/store for r=1; tt=10/11 select X (r=0) or U (r=1).
-      ...this.#indexedOperands("11 mm 1100", undefined, semantics.lddMemory), // LDD
-      ...this.#indexedOperands("11 mm 1101", undefined, semantics.stdMemory), // STD
-      ...this.#indexedOperands("10 mm 1110", undefined, semantics.ldxMemory), // LDX
-      ...this.#indexedOperands("10 mm 1111", undefined, semantics.stxMemory), // STX
-      ...this.#indexedOperands("11 mm 1110", undefined, semantics.lduMemory), // LDU
-      ...this.#indexedOperands("11 mm 1111", undefined, semantics.stuMemory), // STU
     ]);
   }
 
@@ -248,84 +210,10 @@ export class Cpu6809 {
         instruction => semantics[`l${name}`](this.#state, instruction)));
   }
 
-  // CLR reads its operand; TST omits writeback. Address decoding still owns indexed effects.
-  #memoryUnaryHandlers(): readonly OpcodeEntry<OpcodeHandler>[] {
-    return this.#addressedHandlers(this.#indexedOperandAddress, [
-      ...Cpu6809.#unaryOperations.flatMap(({ bits, memory }) => addressPattern(`0110 ${bits}`,
-        (address, instruction) => memory(this.#state, address, instruction))),
-      ...addressPattern("0110 1110", address => stateActions.jump(this.#state, address)), // JMP
-    ]);
-  }
-
-  #addressedHandlers(resolve: AddressReader, entries: readonly OpcodeEntry<AddressedHandler>[]): readonly OpcodeEntry<OpcodeHandler>[] {
-    return entries.map(([opcode, execute]) => [opcode, instruction => {
-      const address = resolve(instruction);
-      if (address === undefined) return "unsupported";
-      execute(address, instruction);
-    }]);
-  }
-
   // Addressing.
 
   #directAddress(offset: number): number {
     return (this.#state.dp << 8) | offset;
-  }
-
-  #indexedAddress(instruction: InstructionContext): number | undefined {
-    const postbyte = instruction.fetchByte();
-    const { fetchByte, fetchWord, readByte } = instruction;
-    // 0 rr nnnnn: rr=00 X, 01 Y, 10 U, 11 S; nnnnn is a signed five-bit offset.
-    const register = (["x", "y", "u", "s"] as const)[(postbyte >>> 5) & 3]!;
-    const base = this.#state[register];
-    if (postbyte < 0x80) {
-      const offset = postbyte & 0x1f;
-      return (base + (offset < 16 ? offset : offset - 32)) & 0xffff;
-    }
-
-    // 1 rr i mmmm: i=1 reads a pointer at the computed address; mmmm selects the mode.
-    // PC-relative forms ignore rr. Extended indirect has exactly the postbyte 10011111.
-    const indirect = (postbyte & 0x10) !== 0;
-    const mode = postbyte & 0x0f;
-    let address: number;
-    switch (mode) {
-      case 0b0000: // ,R+ (no indirect form)
-      case 0b0001: // ,R++
-        if (indirect && mode === 0) return undefined;
-        address = base;
-        this.#state[register] = (base + mode + 1) & 0xffff;
-        if (register === "s") this.#state.nmiArmed = true;
-        break;
-      case 0b0010: // ,-R (no indirect form)
-      case 0b0011: // ,--R
-        if (indirect && mode === 2) return undefined;
-        address = (base - (mode - 1)) & 0xffff;
-        this.#state[register] = address;
-        if (register === "s") this.#state.nmiArmed = true;
-        break;
-      case 0b0100: address = base; break; // ,R
-      case 0b0101: address = base + signed8(this.#state.b); break; // B,R
-      case 0b0110: address = base + signed8(this.#state.a); break; // A,R
-      case 0b1000: address = base + signed8(fetchByte()); break; // n8,R
-      case 0b1001: address = base + fetchWord(); break; // n16,R
-      case 0b1011: address = base + this.#d; break; // D,R
-      case 0b1100: address = this.#relativeAddress(signed8(fetchByte())); break; // n8,PC
-      case 0b1101: address = this.#relativeAddress(fetchWord()); break; // n16,PC
-      case 0b1111:
-        if (postbyte !== 0b1001_1111) return undefined;
-        address = fetchWord(); // [address16]
-        break;
-      default: return undefined; // 0111, 1010, 1110 are reserved.
-    }
-    // Modulo 65536 also interprets D and word offsets as two's-complement values.
-    address &= 0xffff;
-    return indirect ? this.#readWord(address, readByte) : address;
-  }
-
-  // Control flow.
-
-  #relativeAddress(offset: number): number {
-    // PC is past the operand. Modulo 65536 also interprets a word's two's-complement offset.
-    return (this.#state.pc + offset) & 0xffff;
   }
 
   // Interrupt entry and return share the mask-driven register stack operations.

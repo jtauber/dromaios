@@ -67,6 +67,13 @@ export interface ValueSource {
   readonly steps: readonly Statement[];
   readonly result: NumberExpression;
 }
+/** Disjoint masked byte cases; each branch yields a value in its own lexical scope. */
+export interface MatchCase {
+  readonly mask: number;
+  readonly value: number;
+  readonly steps: readonly Statement[];
+  readonly result: NumberExpression;
+}
 export interface SourceDefinitions {
   readonly cpu: CpuDeclaration;
   readonly groups: Readonly<Record<string, Readonly<Record<string, ValueSource>>>>;
@@ -78,6 +85,7 @@ export interface EscapeRequest {
   readonly memory?: { readonly segment: NumberExpression; readonly offset: NumberExpression; readonly address: AddressExpression; readonly value: NumberExpression };
 }
 export type Statement =
+  | { readonly kind: "match"; readonly name: string; readonly selector: NumberExpression; readonly width: Width; readonly cases: readonly MatchCase[] }
   | { readonly kind: "perform"; readonly action: Action; readonly arguments: Readonly<Record<string, NumberExpression>> }
   | { readonly kind: "when"; readonly condition: FlagExpression; readonly steps: readonly Statement[] }
   | { readonly kind: "iterate"; readonly name: string; readonly count: NumberExpression; readonly initial: NumberExpression; readonly steps: readonly Statement[]; readonly result: NumberExpression }

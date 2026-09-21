@@ -523,24 +523,24 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   // @ts-expect-error ALU bodies retain their concrete CPU state.
   generated8080[0xc6](motorola, { fetchByte: () => 0 });
   base6809[0x59](motorola);
-  generated6809.rolMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
-  generated6809.tstMemory(motorola, 0xffff, { readByte: () => 0 });
-  generated6809.clrMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  base6809[0x79](motorola, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
+  base6809[0x7d](motorola, { fetchByte: () => 0, readByte: () => 0 });
+  base6809[0x7f](motorola, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
   base6809[0x40](motorola);
-  generated6809.cmpaMemory(motorola, 0xffff, { readByte: () => 0 });
+  base6809[0xb1](motorola, { fetchByte: () => 0, readByte: () => 0 });
   generated6809.exg_d_s(motorola);
   base6809[0x3d](motorola);
-  generated6809.leax(motorola, 0xffff);
+  base6809[0x30](motorola, { fetchByte: () => 0, readByte: () => 0 });
   generated6809.pshs(motorola, { fetchByte: () => 0xff, writeByte: () => {} });
   generated6809.pulu(motorola, { fetchByte: () => 0xff, readByte: () => 0 });
   generated6809.pushFrame(motorola, 0xff, { writeByte: () => {} });
   generated6809.rti(motorola, { readByte: () => 0 });
   // @ts-expect-error Transfers enter after the CPU fetches and validates their postbyte.
   generated6809.tfr_pc_x(motorola, { fetchByte: () => 0 });
-  // @ts-expect-error LEA receives an already resolved numeric address.
-  generated6809.leas(motorola, () => 0xffff);
-  // @ts-expect-error Resolved LEA cannot fetch or read memory again.
-  generated6809.leax(motorola, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error LEA requires byte fetching and pointer reads, not an opaque resolver.
+  base6809[0x32](motorola, () => 0xffff);
+  // @ts-expect-error LEA now decodes its own address; no separate numeric address is accepted.
+  base6809[0x30](motorola, 0xffff, { readByte: () => 0 });
   // @ts-expect-error Register-mask pushes cannot read memory.
   generated6809.pshu(motorola, { fetchByte: () => 0, writeByte: () => {}, readByte: () => 0 });
   // @ts-expect-error Register-mask pulls cannot write memory.
@@ -553,8 +553,8 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6809.tfr_a_b(m6800);
   generated6809.cmpdMemory(motorola, 0xffff, { readByte: () => 0 });
   generated6809.cmpsImmediate(motorola, { fetchByte: () => 0 });
-  // @ts-expect-error Comparison memory bodies cannot fetch or resolve another address.
-  generated6809.cmpxMemory(motorola, 0xffff, { readByte: () => 0, fetchByte: () => 0 });
+  // @ts-expect-error Extended comparisons fetch individual bytes, not words.
+  base6809[0xbc](motorola, { fetchByte: () => 0, readByte: () => 0, fetchWord: () => 0 });
   // @ts-expect-error A comparison cannot write its memory operand.
   generated6809.cmpdMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
   generated6800[0x4f](m6800);
@@ -567,8 +567,8 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6800[0xfe](m6800, { fetchByte: () => 0xff, readByte: () => 0 });
   generated6800[0xbf](m6800, { fetchByte: () => 0xff, writeByte: () => {} });
   generated6809.ldsImmediate(motorola, { fetchByte: () => 0 });
-  generated6809.lddMemory(motorola, 0xffff, { readByte: () => 0 });
-  generated6809.stdMemory(motorola, 0xffff, { writeByte: () => {} });
+  base6809[0xfc](motorola, { fetchByte: () => 0, readByte: () => 0 });
+  base6809[0xfd](motorola, { fetchByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Word loads need byte fetching, not an opaque word fetch.
   generated6800[0x8e](m6800, { fetchWord: () => 0 });
   // @ts-expect-error Word stores cannot read destination memory.
@@ -581,14 +581,14 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6800[0x8e](motorola, { fetchByte: () => 0 });
   generated6800[0x1b](m6800);
   generated6800[0x89](m6800, { fetchByte: () => 0 });
-  generated6809.sbcbMemory(motorola, 0xffff, { readByte: () => 0 });
-  generated6809.adddMemory(motorola, 0xffff, { readByte: () => 0 });
+  base6809[0xf2](motorola, { fetchByte: () => 0, readByte: () => 0 });
+  base6809[0xf3](motorola, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error Word arithmetic fetches explicit high/low bytes, not an opaque word source.
   base6809[0x83](motorola, { fetchWord: () => 0 });
   // @ts-expect-error Extended arithmetic requires address fetching as well as data reads.
   generated6800[0xb0](m6800, { readByte: () => 0 });
   // @ts-expect-error Arithmetic bodies never write data memory.
-  generated6809.adcbMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  base6809[0xf9](motorola, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error SBA has no fetching or memory capability.
   generated6800[0x10](m6800, { fetchByte: () => 0 });
   // @ts-expect-error Arithmetic retains each CPU's concrete state.
@@ -598,19 +598,19 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6800[0x86](m6800, { fetchByte: () => 0 });
   base6809[0xc6](motorola, { fetchByte: () => 0 });
   generated6800[0xf6](m6800, { fetchByte: () => 0xff, readByte: () => 0 });
-  generated6809.ldaMemory(motorola, 0xffff, { readByte: () => 0 });
+  base6809[0xb6](motorola, { fetchByte: () => 0, readByte: () => 0 });
   generated6800[0xb7](m6800, { fetchByte: () => 0xff, writeByte: () => {} });
-  generated6809.stbMemory(motorola, 0xffff, { writeByte: () => {} });
+  base6809[0xf7](motorola, { fetchByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Byte stores have no destination-read capability.
   generated6800[0xf7](m6800, { fetchByte: () => 0xff, readByte: () => 0, writeByte: () => {} });
-  // @ts-expect-error Store addressing is already complete, including any indirect pointer reads.
-  generated6809.staMemory(motorola, 0xffff, { fetchByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Extended stores fetch individual address bytes, not words.
+  base6809[0xb7](motorola, { fetchByte: () => 0, fetchWord: () => 0, writeByte: () => {} });
   // @ts-expect-error Byte stores require a write capability even when the destination is unchanged.
-  generated6809.stbMemory(motorola, 0xffff, {});
+  base6809[0xf7](motorola, { fetchByte: () => 0 });
   // @ts-expect-error Immediate byte loads have no data-memory capability.
   generated6800[0x86](m6800, { fetchByte: () => 0, readByte: () => 0 });
-  // @ts-expect-error Resolved loads cannot fetch another address.
-  generated6809.ldbMemory(motorola, 0xffff, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error Extended loads fetch individual address bytes, not words.
+  base6809[0xf6](motorola, { fetchByte: () => 0, fetchWord: () => 0, readByte: () => 0 });
   // @ts-expect-error TAB needs no fetching or memory context.
   generated6800[0x16](m6800, { fetchByte: () => 0 });
   // @ts-expect-error Byte transfer bodies require the concrete CPU state.
@@ -618,9 +618,9 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6800[0x84](m6800, { fetchByte: () => 0 });
   generated6800[0xfa](m6800, { fetchByte: () => 0xff, readByte: () => 0 });
   base6809[0xc5](motorola, { fetchByte: () => 0 });
-  generated6809.eoraMemory(motorola, 0xffff, { readByte: () => 0 });
-  // @ts-expect-error A resolved logical memory body cannot fetch another address.
-  generated6809.andaMemory(motorola, 0xffff, { readByte: () => 0, fetchByte: () => 0 });
+  base6809[0xb8](motorola, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error Extended logic fetches individual address bytes, not words.
+  base6809[0xb4](motorola, { fetchByte: () => 0, readByte: () => 0, fetchWord: () => 0 });
   // @ts-expect-error Logical instructions never write memory, including BIT.
   generated6800[0xb5](m6800, { fetchByte: () => 0xff, readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Immediate logic cannot access data memory.
@@ -636,17 +636,17 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   // @ts-expect-error Generated 6800 bodies retain the 6800 state type.
   generated6800[0x4f](motorola);
   // @ts-expect-error TST has no write capability.
-  generated6809.tstMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  base6809[0x7d](motorola, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error The original 6809 CLR reads its operand even though the result is constant.
-  generated6809.clrMemory(motorola, 0xffff, { writeByte: () => {} });
-  // @ts-expect-error A memory shift requires the resolved numeric address before its memory capabilities.
-  generated6809.rolMemory(motorola, { readByte: () => 0, writeByte: () => {} });
-  // @ts-expect-error The resolved address is a value, not an opaque address resolver.
-  generated6809.rolMemory(motorola, () => 0xffff, { readByte: () => 0, writeByte: () => {} });
+  base6809[0x7f](motorola, { fetchByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error A memory shift requires address-byte fetching as well as memory capabilities.
+  base6809[0x79](motorola, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error A memory shift decodes its own address, with no opaque resolver argument.
+  base6809[0x79](motorola, () => 0xffff, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Memory shifts require both read and write capabilities.
-  generated6809.rolMemory(motorola, 0xffff, { readByte: () => 0 });
-  // @ts-expect-error Addressing is already complete; the body cannot fetch more instruction bytes.
-  generated6809.rolMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {}, fetchByte: () => 0 });
+  base6809[0x79](motorola, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error Extended addressing fetches bytes; it does not need a native word-fetch callback.
+  base6809[0x79](motorola, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {}, fetchWord: () => 0 });
   // @ts-expect-error Register shifts need no fetching or memory capability.
   base6809[0x59](motorola, { fetchByte: () => 0 });
   // @ts-expect-error Rotates require their CPU's concrete state.

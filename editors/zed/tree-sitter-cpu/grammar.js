@@ -58,9 +58,12 @@ module.exports = grammar({
 
     body: $ => seq('{', repeat($._statement), '}'),
     _statement: $ => choice(
-      $.capture, $.write, $.apply_statement, $.perform_statement, $.when_statement,
+      $.match_capture, $.capture, $.write, $.apply_statement, $.perform_statement, $.when_statement,
       $.return_statement, $.fault_statement, $.commit_statement, $.defer_statement,
     ),
+    match_capture: $ => seq(field('name', $.identifier), '=', 'match', $._expression, ':', $.number,
+      '{', repeat1($.match_case), 'otherwise', 'unsupported', '}'),
+    match_case: $ => seq('case', field('pattern', $.string), optional(seq('for', commaSeparated($.selector))), $.body),
     capture: $ => seq(field('name', $.identifier), '=', choice($._read, $._expression)),
     _read: $ => choice(
       'fetch', $.state_read, $.array_read, $.source_read, $.operand_read,

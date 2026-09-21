@@ -41,7 +41,12 @@ const controlOpcodes = [
   0x70, 0x73, 0x74, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x7c, 0x7d, 0x7e, 0x7f,
   0x8d, 0x9d, 0xbd,
 ];
-const opcodes = [...operandOpcodes, ...controlOpcodes].sort((a, b) => a - b);
+const indexedOpcodes = [
+  0x30, 0x31, 0x32, 0x33, 0x60, 0x63, 0x64, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6c, 0x6d, 0x6e, 0x6f,
+  0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
+  0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
+];
+const opcodes = [...operandOpcodes, ...controlOpcodes, ...indexedOpcodes].sort((a, b) => a - b);
 
 async function bodies(text: string): Promise<Readonly<Record<number, Body>>> {
   const compiled = compileCpuChapter(text, { name: "6809" }, file);
@@ -51,14 +56,14 @@ async function bodies(text: string): Promise<Readonly<Record<number, Body>>> {
   return (await import(`data:text/javascript,${encodeURIComponent(javascript)}`)).instructions;
 }
 
-test("the 6809 chapter owns its full schema and exactly 163 base-page forms", () => {
+test("the 6809 chapter owns its full schema and exactly 211 base-page forms", () => {
   const expected = defineState({ a: unsigned(8), b: unsigned(8), dp: unsigned(8), x: unsigned(16), y: unsigned(16),
     s: unsigned(16), u: unsigned(16), pc: unsigned(16), waitMode: namedChoices("none", "sync", "cwai"), nmiArmed: boolean,
     flags: group({ e: flag, f: flag, h: flag, i: flag, n: flag, z: flag, v: flag, c: flag }) });
   assert.deepEqual(chapter.state, expected); assert.deepEqual(cpu6809StateDescription, expected);
   assert.deepEqual(Object.keys(cpu6809StateDescription), Object.keys(expected));
   assert.equal(operandOpcodes.length, 88); assert.equal(controlOpcodes.length, 75);
-  assert.equal(opcodes.length, 163);
+  assert.equal(indexedOpcodes.length, 48); assert.equal(opcodes.length, 211);
   assert.deepEqual(Object.keys(chapter6809).map(Number).sort((a, b) => a - b), opcodes);
   assert.deepEqual(Object.fromEntries(Object.values(chapter.families).flat()), chapter6809);
   assert.equal(chapter.execution, undefined); assert.equal(chapter.interface, undefined);

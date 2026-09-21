@@ -47,6 +47,7 @@ export function checkByteExecution(steps: readonly Statement[], deferral = false
       if (!deferral || step.scope !== "irq") throw new Error("IRQ deferral needs a declared retirement destination.");
       break;
     case "when": checkByteExecution(step.steps, deferral, memoryOnly); break;
+    case "match": for (const branch of step.cases) checkByteExecution(branch.steps, deferral, memoryOnly); break;
     case "read-source": checkByteExecution(step.source.steps, deferral, memoryOnly); break;
     case "perform": checkByteExecution(step.action.steps, deferral, memoryOnly); break;
     default: throw new Error(`Byte execution does not support ${step.kind}.`);

@@ -123,3 +123,16 @@ family trap "11 111 111" {
   perform prepare()
   perform enter(u16($1000), u8($80))
 }
+
+// Postbyte matching yields a value or stops the instruction.
+source address "decoded address": 16 {
+  postbyte = fetch
+  result = match postbyte: 16 {
+    case "0 rr xxxxx" for r in registers {
+      base = operand r
+      return base
+    }
+    otherwise unsupported
+  }
+  return result
+}

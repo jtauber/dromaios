@@ -117,16 +117,16 @@ test("unsigned multiplication is a pure byte-by-byte operation with a full word 
   assert.match(describeInstruction(chapter6809[0x3d]!), /product := multiplyUnsigned\(left, right\)/);
 });
 
-test("6809 inherent and resolved-address bodies expose their read, write, and flag stages", () => {
+test("6809 inherent and indexed LEA bodies expose their read, write, and flag stages", () => {
   const cases = [
     { execute: instructions.nop, events: [] },
     { execute: instructions.sex, events: ["read b", "write a", "flag n", "flag z"] },
     { execute: instructions.abx, events: ["read x", "read b", "write x"] },
     { execute: instructions.mul, events: ["read a", "read b", "write a", "write b", "flag z", "flag c"] },
-    { execute: (state: Cpu6809State) => instructions.leax(state, 0), events: ["write x", "flag z"] },
-    { execute: (state: Cpu6809State) => instructions.leay(state, 0x8000), events: ["write y", "flag z"] },
-    { execute: (state: Cpu6809State) => instructions.leas(state, 0xffff), events: ["write s", "write nmiArmed"] },
-    { execute: (state: Cpu6809State) => instructions.leau(state, 0), events: ["write u"] },
+    { execute: (state: Cpu6809State) => instructions.leax(state, 0), events: ["read x", "write x", "flag z"] },
+    { execute: (state: Cpu6809State) => instructions.leay(state, 0x8000), events: ["read x", "write y", "flag z"] },
+    { execute: (state: Cpu6809State) => instructions.leas(state, 0xffff), events: ["read x", "write s", "write nmiArmed"] },
+    { execute: (state: Cpu6809State) => instructions.leau(state, 0), events: ["read x", "write u"] },
   ];
   for (const probe of cases) {
     const actual = state(), events: string[] = [];
