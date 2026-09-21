@@ -1,4 +1,4 @@
-import { opcodeEntries as chapterOpcodes, sourceReaders as chapterSources } from "./generated/6809-base.ts";
+import { opcodeEntries as chapterOpcodes } from "./generated/6809-base.ts";
 import { instructions as stateActions, sourceReaders } from "./generated/6809-state.ts";
 import { instructions as semantics } from "./generated/6809.ts";
 import type { Ram } from "../memory/ram.js";
@@ -8,14 +8,13 @@ import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { readWordBE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
-import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
+import type { ByteInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { copyState, readState } from "./state.ts";
 import { cpu6809StateDescription } from "./state/6809.ts";
 import type { Cpu6809State } from "./state/6809.ts";
 import type { ReadonlyState } from "./state.js";
-import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { motorolaOperandBindings, motorolaBranchNames, motorola6809TransferForms } from "./motorola.ts";
+import { motorola6809TransferForms } from "./motorola.ts";
 
 export { cpu6809StateDescription } from "./state/6809.ts";
 export type { Cpu6809State, Cpu6809Flags } from "./state/6809.ts";
@@ -42,8 +41,6 @@ export type Cpu6809InterruptRecord = StateTransition<Cpu6809Snapshot> & { readon
 );
 
 type OpcodeHandler = (instruction: InstructionContext) => "unsupported" | void;
-type OperandReader = (instruction: InstructionContext) => number;
-type AddressReader = (instruction: InstructionContext) => number | undefined;
 
 const instructionPattern = opcodePattern<OpcodeHandler>;
 
@@ -130,51 +127,18 @@ export class Cpu6809 {
 
   // Opcode selectors and construction.
 
-  // mm in 1 r mm oooo: 00 is immediate; the other modes resolve a data address.
-  readonly #directOperandAddress: OperandReader = ({ fetchByte }) => this.#directAddress(fetchByte());
-  readonly #indexedOperandAddress: AddressReader = instruction => {
-    const address = chapterSources(this.#state).addresses.indexed(instruction);
-    return address === "unsupported" ? undefined : address;
-  };
-  readonly #extendedOperandAddress: OperandReader = ({ fetchWord }) => fetchWord();
-  readonly #memoryModes = [
-    { bits: "01", address: this.#directOperandAddress },
-    { bits: "10", address: this.#indexedOperandAddress },
-    { bits: "11", address: this.#extendedOperandAddress },
-  ] as const;
-
   // TFR/EXG postbyte ssss dddd: selector bit 3 chooses word=0/byte=1.
   // 0000..0101 = D/X/Y/U/S/PC; 1000..1011 = A/B/CC/DP; other selectors are undefined.
   readonly #exchangeHandlers = this.#registerTransferHandlers("exg");
   readonly #transferHandlers = this.#registerTransferHandlers("tfr");
 
-  readonly #operandHandlers = motorolaOperandBindings(() => this.#state, this.#memoryModes);
-
-  // Prefix 10 selects page 2. Word encodings retain mm=00/01/10/11 addressing.
-  // Transfers append 0=load/1=store; immediate stores are undefined.
-  readonly #page2Handlers = opcodeTable<OpcodeHandler>([
-    ...instructionPattern("0011 1111", instruction => semantics.swi2(this.#state, instruction)), // SWI2
-    ...this.#longBranchHandlers(), // LBRN and LBcc; LBRA has base opcode 16
-    ...this.#operandHandlers("10 mm 0011", semantics.cmpdImmediate, semantics.cmpdMemory), // CMPD
-    ...this.#operandHandlers("10 mm 1100", semantics.cmpyImmediate, semantics.cmpyMemory), // CMPY
-    ...this.#operandHandlers("10 mm 1110", semantics.ldyImmediate, semantics.ldyMemory), // LDY
-    ...this.#operandHandlers("10 mm 1111", undefined, semantics.styMemory), // STY
-    ...this.#operandHandlers("11 mm 1110", semantics.ldsImmediate, semantics.ldsMemory), // LDS; arms NMI
-    ...this.#operandHandlers("11 mm 1111", undefined, semantics.stsMemory), // STS
-  ]);
-  // Prefix 11 selects page 3: the same comparison fields select U/S rather than D/Y.
-  readonly #page3Handlers = opcodeTable<OpcodeHandler>([
-    ...instructionPattern("0011 1111", instruction => semantics.swi3(this.#state, instruction)), // SWI3
-    ...this.#operandHandlers("10 mm 0011", semantics.cmpuImmediate, semantics.cmpuMemory), // CMPU
-    ...this.#operandHandlers("10 mm 1100", semantics.cmpsImmediate, semantics.cmpsMemory), // CMPS
-  ]);
-
   // Base opcode page; 10/11 dispatch exactly one following opcode in their own page.
   #createOpcodeHandlers() {
     return opcodeTable<OpcodeHandler>([
-      ...chapterOpcodes(this.#state),
-      ...instructionPattern("0001 0000", instruction => this.#executeFollowingByte(this.#page2Handlers, instruction)),
-      ...instructionPattern("0001 0001", instruction => this.#executeFollowingByte(this.#page3Handlers, instruction)),
+      ...chapterOpcodes(this.#state, {
+        secondary: instructionPattern("0011 1111", instruction => semantics.swi2(this.#state, instruction)),
+        tertiary: instructionPattern("0011 1111", instruction => semantics.swi3(this.#state, instruction)),
+      }),
       ...instructionPattern("0001 0011", () => semantics.sync(this.#state)), // SYNC
 
       // 0001111 t: t=0 exchanges, t=1 transfers; the postbyte selects same-width registers.
@@ -201,19 +165,6 @@ export class Cpu6809 {
   #executeFollowingByte(table: Readonly<Partial<Record<number, OpcodeHandler>>>, instruction: InstructionContext): "unsupported" | void {
     const handler = table[instruction.fetchByte()];
     return handler ? handler(instruction) : "unsupported";
-  }
-
-  // Page 10 has no BRA at 0010 0000; 0010 cccc otherwise retains the native condition codes.
-  #longBranchHandlers(): readonly OpcodeEntry<OpcodeHandler>[] {
-    return motorolaBranchNames.flatMap((name, condition) => name === "bra" ? [] :
-      instructionPattern(`0010 ${condition.toString(2).padStart(4, "0")}`,
-        instruction => semantics[`l${name}`](this.#state, instruction)));
-  }
-
-  // Addressing.
-
-  #directAddress(offset: number): number {
-    return (this.#state.dp << 8) | offset;
   }
 
   // Interrupt entry and return share the mask-driven register stack operations.

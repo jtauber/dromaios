@@ -12,7 +12,7 @@ module.exports = grammar({
       $.cpu_declaration, $.state_declaration, $._state_field,
       $.source_declaration, $.action_declaration, $.policy_declaration,
       $.operands_declaration, $.codes_declaration, $.conditions_declaration,
-      $.family_declaration, $.execution_declaration, $.interface_declaration,
+      $.family_declaration, $.page_declaration, $.execution_declaration, $.interface_declaration,
     )),
 
     cpu_declaration: $ => seq('cpu', field('model', $.string)),
@@ -42,12 +42,14 @@ module.exports = grammar({
     conditions_declaration: $ => seq('conditions', field('name', $.identifier), '{', repeat($.condition_entry), '}'),
     condition_entry: $ => seq($.number, $.string, '=', 'flag', $._state_name, '=', $.number),
 
+    page_declaration: $ => seq('page', field('name', $.identifier), '=', $.number),
     family_declaration: $ => seq('family', field('name', $.identifier), choice(
       seq($._encoding, $.body),
       seq('{', repeat1($.encoding_declaration), repeat($._statement), '}'),
     )),
     encoding_declaration: $ => seq('encoding', $._encoding),
     _encoding: $ => seq(field('pattern', $.string),
+      optional(seq('on', $.identifier)),
       optional(seq('for', commaSeparated($.selector))),
       optional(seq('with', commaSeparated($.source_binding))),
       optional(seq('named', $.string)),

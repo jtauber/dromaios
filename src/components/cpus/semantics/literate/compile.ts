@@ -30,6 +30,8 @@ export interface CpuChapter {
   readonly policies: Readonly<Record<string, FlagPolicy>>;
   readonly operands: Readonly<Record<string, readonly ChapterOperand[]>>;
   readonly conditions: Readonly<Record<string, readonly ChapterCondition[]>>;
+  /** Named one-byte prefix pages; family keys encode prefix:opcode as a word. */
+  readonly pages: Readonly<Record<string, number>>;
   readonly families: Readonly<Record<string, readonly OpcodeEntry<InstructionDefinition>[]>>;
 }
 
@@ -42,6 +44,8 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
   const conditions = new Map<string, readonly ChapterCondition[]>();
   const views = new Map<string, ValueSource>(), actions = new Map<string, InstructionDefinition>();
   const names = new Set<string>(), opcodes = new Map<number, ChapterTokens>();
+  const pages = new Map<string, number>(), pageTokens = new Map<number, ChapterTokens>();
+  const wordPatterns: ChapterTokens[] = [];
   let declared = false, ownsState = false;
   let execution: ChapterExecution | undefined;
   let publicInterface: ChapterInterface | undefined;
@@ -90,7 +94,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         declared = true; header.end(); continue;
       }
       if (!declared) header.fail("Declare the CPU before its contents.");
-      if (!["state", "execution", "interface", "register", "flag", "array", "latch", "choice", "source", "view", "action", "policy", "operands", "codes", "conditions", "family"].includes(kind)) {
+      if (!["state", "execution", "interface", "register", "flag", "array", "latch", "choice", "source", "view", "action", "policy", "operands", "codes", "conditions", "page", "family"].includes(kind)) {
         header.fail(`Unknown declaration ${kind}.`, 1);
       }
       if (kind === "state") {
@@ -123,6 +127,12 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         declareState(header, kind, true); continue;
       }
       const name = declare(header, kind);
+      if (kind === "page") {
+        header.expect("="); const prefix = header.number(); header.end();
+        if (prefix < 1 || prefix > 255) header.fail("Opcode page prefixes must be bytes from $01 through $FF.");
+        if (pageTokens.has(prefix)) header.fail(`Duplicate opcode page prefix $${prefix.toString(16)}.`);
+        pages.set(name, prefix); pageTokens.set(prefix, header); continue;
+      }
       // Keep original lines: each family selection reparses its body, including nested blocks.
       const { body, end } = chapterBody(lines, index); index = end;
       const open = () => { header.expect("{"); header.end(); };
@@ -228,6 +238,9 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         for (const form of forms) {
           const firstDefinition = definitions.length;
           const pattern = form.quoted();
+          const prefix = form.take("on") ? form.lookup(pages) : undefined;
+          if (pattern.replace(/[\s_]/g, "").length === 16) wordPatterns.push(form);
+          if ((prefix !== undefined || pages.size) && pattern.replace(/[\s_]/g, "").length !== 8) form.fail("Opcode pages require eight-bit patterns.");
           const selectors = new Map<string, Selector>();
           if (form.take("for")) do {
             const selector = form.word(); form.expect("in");
@@ -267,8 +280,9 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
           const choices = Object.fromEntries([...selectors].map(([selector, { choices }]) => [selector, choices]));
           const entries = form.checked(() => opcodeFamily(pattern, choices, selected => selected));
           for (const opcode of excluded) if (!entries.some(([candidate]) => opcode === candidate)) form.fail(`Excluded opcode $${opcode.toString(16)} is outside this family.`);
-          for (const [opcode, selected] of entries) {
-            if (excluded.has(opcode)) continue;
+          for (const [byte, selected] of entries) {
+            if (excluded.has(byte)) continue;
+            const opcode = prefix === undefined ? byte : prefix * 256 + byte;
             const bindings = new Map(boundSources), operands = new Map<string, ChapterOperand>();
             const selectedConditions = new Map<string, ChapterCondition>();
             let available = true;
@@ -295,10 +309,17 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
   }
   if (!declared) throw new ChapterError(file, 1, 1, "Expected a cpu declaration in a cpu fence.");
   if (!ownsState && target.state === undefined) throw new ChapterError(file, 1, 1, "Expected a state block.");
+  if (pages.size && wordPatterns.length) wordPatterns[0]!.fail("Word opcode patterns cannot be mixed with byte opcode pages.");
+  for (const [prefix, tokens] of pageTokens) {
+    if (opcodes.has(prefix)) tokens.fail(`Opcode page prefix $${prefix.toString(16)} collides with a base opcode.`);
+  }
+  if (pages.size) for (const [opcode, tokens] of opcodes) {
+    if (opcode > 255 && !pageTokens.has(opcode >>> 8)) tokens.fail("A word opcode cannot be mixed with byte opcode pages.");
+  }
   if (execution) for (const entries of families.values()) for (const [opcode, definition] of entries) {
     const tokens = opcodes.get(opcode)!;
-    if (opcode > 0xff) tokens.fail("Byte execution requires one-byte opcodes.");
+    if (opcode > 0xff && !pageTokens.has(opcode >>> 8)) tokens.fail("Byte execution requires one-byte opcodes.");
     tokens.checked(() => checkByteExecution(definition.steps, execution.retireDeferral !== undefined, execution.interrupt === "vectors"));
   }
-  return { cpu: cpu.name, ...(ownsState ? { state: cpu.state } : {}), ...(execution ? { execution } : {}), ...(publicInterface ? { interface: publicInterface } : {}), sources: Object.fromEntries(sources), views: Object.fromEntries(views), actions: Object.fromEntries(actions), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), conditions: Object.fromEntries(conditions), families: Object.fromEntries(families) };
+  return { cpu: cpu.name, pages: Object.fromEntries(pages), ...(ownsState ? { state: cpu.state } : {}), ...(execution ? { execution } : {}), ...(publicInterface ? { interface: publicInterface } : {}), sources: Object.fromEntries(sources), views: Object.fromEntries(views), actions: Object.fromEntries(actions), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), conditions: Object.fromEntries(conditions), families: Object.fromEntries(families) };
 }

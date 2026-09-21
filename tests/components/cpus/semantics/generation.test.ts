@@ -7,7 +7,7 @@ import { instructions as mos, opcodeEntries } from "../../../../src/components/c
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { bodies6809 as motorola } from "../../../helpers/6809-bodies.js";
 import { instructions as motorola6800 } from "../../../../src/components/cpus/generated/6800.js";
-import { instructionModules, instructions6502, instructions6809 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructionModules, instructions6502 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { generateChapterExecution } from "../../../../src/components/cpus/semantics/literate/execution.js";
@@ -17,6 +17,7 @@ import { cpuSymbols, addWrap, capture, highByte, lowByte, literal, readRegister,
 import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import type { Cpu6502State } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import type { Cpu8080State } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
+import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
 
@@ -437,7 +438,7 @@ test("generated source scopes and policy parameters are hygienic, even for host 
 
 
 test("generated control-latch writes set and clear without reading the latch or flags", async () => {
-  const cpu = instructions6809.ldsImmediate!.cpu;
+  const cpu = { name: "6809", state: cpu6809StateDescription };
   const source = generateInstructions("6809", Object.fromEntries([false, true].map(value => [String(value), {
     cpu, name: "latch", explanation: "Constant latch assignment.",
     steps: [writeLatch({ kind: "latch", cpu: "6809", field: "nmiArmed" }, value)],

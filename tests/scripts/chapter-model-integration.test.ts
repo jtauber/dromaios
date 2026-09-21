@@ -15,6 +15,7 @@ test("6809 chapter state, view, and call edits reach native instructions, indexe
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const chapter = join(directory, "src/components/cpus/specifications/6809.md");
   writeFileSync(chapter, readFileSync(chapter, "utf8").replace("register PC: 16", "register PC: 16\n  register SCRATCH: 8")
+    .replace("page secondary = $10", "page secondary = $14").replace("page tertiary = $11", "page tertiary = $15")
     .replace("return concat(high, low)", "return concat(low, high)")
     .replace("A <- highByte(word)\n  B <- lowByte(word)", "A <- lowByte(word)\n  B <- highByte(word)")
     .replace("select(c, u8($01)", "select(c, u8($02)")
@@ -35,11 +36,11 @@ test("6809 chapter state, view, and call edits reach native instructions, indexe
     const definition = parseMachine(text.replace("cpu 6809 {", "cpu 6809 { SCRATCH = A5"));
     assert.equal(definition.initialState.scratch, 0xa5);
     for (const operation of ["TFR X,D", "TFR CC,A", "TFR A,CC", "LDA D,X", "RTI", "SWI", "irq", "firq", "nmi",
-      "JSR direct", "JSR extended", "JSR indexed", "BSR", "LBSR", "LDY ,X++"]) {
+      "JSR direct", "JSR extended", "JSR indexed", "BSR", "LBSR", "LDY ,X++", "SWI2", "SWI3"]) {
       const bytes = new Uint8Array(65536);
       bytes.set({ "TFR X,D": [0x1f, 0x10], "TFR CC,A": [0x1f, 0xa8], "TFR A,CC": [0x1f, 0x8a],
         "LDA D,X": [0xa6, 0x8b], RTI: [0x3b], SWI: [0x3f], "JSR direct": [0x9d, 0x80],
-        "LDY ,X++": [0x10, 0xae, 0x81], "JSR extended": [0xbd, 0x80, 0], "JSR indexed": [0xad, 0x84], BSR: [0x8d, 0], LBSR: [0x17, 0, 0],
+        "LDY ,X++": [0x14, 0xae, 0x81], SWI2: [0x14, 0x3f], SWI3: [0x15, 0x3f], "JSR extended": [0xbd, 0x80, 0], "JSR indexed": [0xad, 0x84], BSR: [0x8d, 0], LBSR: [0x17, 0, 0],
       }[operation] ?? [0x12], 0x200);
       bytes[0x1434] = 0x7a; bytes[0x1234] = 0x12; bytes[0x1235] = 0x34;
       const ram = { size: bytes.length, read: address => bytes[address], write: (address, byte) => { bytes[address] = byte; } };
@@ -69,7 +70,7 @@ test("6809 chapter state, view, and call edits reach native instructions, indexe
       }
       else {
         assert.equal(bytes[operation === "firq" ? 0xfc : 0xf3], operation === "firq" ? 2 : 0x82);
-        assert.equal(after.flags.i, false, "entry must restore through the edited CC policy");
+        assert.equal(after.flags.i, operation === "SWI2" || operation === "SWI3", "entry must restore through the edited CC policy");
       }
     }
   `], { cwd: tmpdir(), encoding: "utf8" });
@@ -209,7 +210,8 @@ test("chapter edits drive machine schemas, RAM bounds, entry points, and automat
   const original = readFileSync(chapter, "utf8");
   const changed = original.replace("memory 14", "memory 15")
     .replace("interface Cpu8008", "interface CpuSmall")
-    .replace("latch STOPPED = halted", "latch STOPPED = halted\n  latch READY = ready");
+    .replace("latch STOPPED = halted", "latch STOPPED = halted\n  latch READY = ready")
+    + '\nA test-only prefixed load.\n\n```cpu\npage extra = $22\nfamily loadExtra "0000 0001" on extra {\n  A <- u8($77)\n}\n```\n';
   writeFileSync(chapter, changed);
   const result = generate(); assert.equal(result.status, 0, result.stderr);
   const machine = readFileSync("src/machines/8008/example.machine", "utf8").replace("ram 4000", "ram 8000")
@@ -219,6 +221,12 @@ test("chapter edits drive machine schemas, RAM bounds, entry points, and automat
     import { compileMachine } from ${url("scripts/generate-machines.ts")};
     import { cpuModels } from ${url("src/components/cpus/models.ts")};`;
   run(`${imports}
+    const { CpuSmall } = await import(${url("src/components/cpus/generated/8008-cpu.ts")});
+    const image = new Uint8Array(0x8000); image.set([0x22, 1]);
+    const cpu = new CpuSmall({ size: image.length, read: address => image[address], write: (address, byte) => { image[address] = byte; } },
+      { a: 0, b: 0, c: 0, d: 0, e: 0, h: 0, l: 0, addressStack: Array(8).fill(0), stackIndex: 0,
+        halted: false, ready: true, flags: { s: false, z: false, p: false, c: false } });
+    assert.deepEqual(cpu.step().instruction.bytes, [0x22, 1]); assert.equal(cpu.snapshot().a, 0x77);
     const source = ${JSON.stringify(machine)};
     const parsed = parseMachine(source + "\\nmemory 7FFF { AA } end 3FFF");
     assert.equal(parsed.ramSize, 0x8000); assert.equal(parsed.initialState.ready, true);

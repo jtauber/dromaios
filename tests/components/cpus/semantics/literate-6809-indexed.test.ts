@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
-import { sourceReaders, instructions } from "../../../../src/components/cpus/generated/6809-base.js";
+import { instructions } from "../../../../src/components/cpus/generated/6809-base.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
@@ -22,6 +22,8 @@ async function reader(text: string) {
     await import(`data:text/javascript,${encodeURIComponent(javascript)}`);
   return module.sourceReaders;
 }
+
+const sourceReaders = await reader(markdown);
 
 test("the chapter decoder accepts exactly 217 indexed postbytes and invalid modes stop after one fetch", () => {
   // Independent hardware mode inventory, not derived from the chapter's pattern expansion.

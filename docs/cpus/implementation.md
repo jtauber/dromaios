@@ -81,9 +81,10 @@ The [6809 chapter](../../src/components/cpus/specifications/6809.md) is partiall
 migrated. Its state adapter re-exports the generated schema. `generated/6809-base.ts`
 contains complete chapter-owned opcode bodies, and `generated/6809-state.ts`
 supplies D/CC views, writes, and stack/control actions. The handwritten core
-combines chapter bindings with remaining prefixed, transfer, stack, and interrupt
-bodies from `generated/6809.ts`. The chapter also generates one indexed decoder
-in `6809-base.ts`, reused by its own bodies and the remaining prefixed bindings.
+combines chapter bindings with remaining transfer, stack, and interrupt bodies
+from `generated/6809.ts`. Named chapter pages generate prefix dispatch, including
+native SWI2/SWI3 additions. `6809-base.ts` contains both base-page and ordinary
+prefixed bodies, sharing one indexed decoder.
 
 ## Reading order
 
@@ -759,9 +760,9 @@ records and memory behavior.
 ## Shared control flow
 
 [Control-flow definitions](../../src/components/cpus/semantics/control-flow.ts)
-construct the remaining 6809 long conditional branches and Z80 jumps/branches.
+construct the remaining Z80 jumps/branches.
 The 6502, 8008, 8080, and 6800 chapters express their control flow directly in
-the same representation; the 6809 chapter owns its short branches, LBRA, and
+the same representation; the 6809 chapter owns every branch and its
 jumps/calls/returns.
 Fetch the complete operand before reading condition flags. A taken relative
 branch reads the current PC and adds a signed displacement with word wrapping;
@@ -961,31 +962,26 @@ recipe where its complete order matches; keep differences explicit where it does
 The 6800, 6809, and 68000 share the T/F, HI/LS, CC/CS, NE/EQ, VC/VS, PL/MI,
 GE/LT, and GT/LE condition encoding. [Motorola helpers](../../src/components/cpus/motorola.ts)
 retain selectors for the remaining TypeScript definitions; the 6800 chapter
-spells out its conditions and branches, as does the 6809 for short branches
-and LBRA. The remaining `motorolaLongBranches` builder covers only page-10
-LBRN/LBcc. Keep each chip's differences explicit:
+spells out its conditions and branches, as does the 6809 for all short and long
+branches. The former `motorolaLongBranches` builder has been removed. Keep each chip's differences explicit:
 the 6800 lacks BRN, the 6809 has standalone LBRA, and the 68000 has a distinct
 BSR encoding and displacement cursor.
 
-The [6809 chapter](../../src/components/cpus/specifications/6809.md) now owns
+The [6809 chapter](../../src/components/cpus/specifications/6809.md) owns
 base-page loads, stores, logic, comparisons, and arithmetic in every addressing
-mode, plus unary and register/flag operations, short branches, LBRA, LEA, and
-calls/jumps/returns. Its indexed decoder serves both chapter and native bindings.
-Its D/CC views and writes also serve the remaining TypeScript instructions. The original 6800's CPX high-byte N/V rule
-belongs in its chapter; 6809 comparisons use full-width subtraction flags.
+mode, plus unary and register/flag operations, all branches, LEA, calls/jumps/returns,
+and prefixed word comparisons and transfers. Its D/CC views and writes also
+serve remaining TypeScript instructions. The original 6800's CPX high-byte N/V
+rule belongs in its chapter; 6809 comparisons use full-width subtraction flags.
 
-For remaining 6809 forms, `motorolaOperandBindings` binds immediate and
-resolved-memory bodies to the `mm` field. It reads no state during construction,
-resolves each address once, and rejects undefined indexed postbytes before body
-entry. Only prefixed word families retain these immediate/direct/indexed/extended
-bindings. Their indexed resolver calls the chapter-generated source reader;
-chapter-owned forms need no native operand wrapper.
-
-The [remaining Motorola definitions](../../src/components/cpus/semantics/motorola.ts)
-share operand-first comparison and transfer schedules. Loads replace their
-destination before N/Z/V; stores capture the source after addressing, write
-without reading the destination, and apply flags only after every write succeeds.
-Word accesses are high-first with sixteen-bit wrap. S writes also arm NMI.
+All 6809 operand bindings now come from the chapter. Named opcode pages keep
+prefixes distinct from instruction words; their generated tables share the same
+indexed decoder as base-page bodies. The native `motorolaOperandBindings` wrapper
+and comparison/transfer builders are removed. Loads replace their destination
+before N/Z/V; stores capture the source after addressing and apply flags only
+after every write succeeds. Word accesses are high-first with sixteen-bit wrap.
+LDS arms NMI after writeback. [Motorola semantic helpers](../../src/components/cpus/semantics/motorola.ts)
+now retain only shared condition construction for the 68000.
 
 Every 6809 unary form now comes from the chapter, retaining CLR's read,
 preserving C on TST, and preserving V on right shifts. The 6800 chapter states

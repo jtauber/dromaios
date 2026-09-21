@@ -25,13 +25,14 @@ function chapterModule(chapter: CpuChapter, name: string, cpu: string): string {
         : JSON.stringify(definitions, null, 2);
       return `export const ${group}: {\n${fields}\n} = ${data};\n`;
     }),
+    ...(Object.keys(chapter.pages).length ? [`export const pages = ${JSON.stringify(chapter.pages)} as const;`, ""] : []),
     ...(chapter.execution && chapter.state ? [
       'import { instructionSet } from "../builders.ts";',
       `import { state } from "./state/${name}.ts";`,
-      'export const instructions = instructionSet(Object.values(families).flat());',
+      `export const instructions = instructionSet(Object.values(families).flat()${Object.keys(chapter.pages).length ? ", 16" : ""});`,
       `const options = { state: { name: "StoredState", module: "../semantics/generated/state/${name}.ts" }, origin: "specifications/${name}.md" };`,
       'export const instructionModules = [',
-      `  { name: ${JSON.stringify(name)}, cpu: ${JSON.stringify(cpu)} as const, definitions: instructions, options: { ...options, bindOpcodes: true } },`,
+      `  { name: ${JSON.stringify(name)}, cpu: ${JSON.stringify(cpu)} as const, definitions: instructions, options: { ...options, bindOpcodes: true${Object.keys(chapter.pages).length ? ", pages" : ""} } },`,
       `  { name: ${JSON.stringify(`${name}-state`)}, cpu: ${JSON.stringify(cpu)} as const, definitions: actions, options: { ...options, sources: { cpu: { name: ${JSON.stringify(cpu)} as const, state }, groups: { views } } } },`,
       '];', '',
     ] : []),

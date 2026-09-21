@@ -1,9 +1,8 @@
-import { views as chapterViews, actions as chapterActions, policies, families, sources } from "../generated/6809.ts";
+import { views as chapterViews, actions as chapterActions, policies, families, pages } from "../generated/6809.ts";
 import { cpu6809StateDescription } from "../../state/6809.ts";
-import { bitAnd, bitOr, fetchByte, flagLiteral, flagValue, literal, cpuSymbols, not, perform, replaceFlags, readSource, testChoice, updateFlags, value, when, writeChoice, writeLatch, writeRegister, zero } from "../model.ts";
+import { bitAnd, bitOr, fetchByte, flagLiteral, flagValue, literal, cpuSymbols, not, perform, replaceFlags, readSource, testChoice, updateFlags, value, when, writeChoice, writeLatch, zero } from "../model.ts";
 import type { InstructionDefinition, NumberExpression, Statement } from "../model.ts";
-import { instructionSet, registerSource, registerView } from "../builders.ts";
-import { motorolaLongBranches, motorolaTransfers, motorolaComparison } from "../motorola.ts";
+import { instructionSet, registerView } from "../builders.ts";
 import { choose, flagCondition, loadVector } from "../control-flow.ts";
 import { motorola6809TransferForms } from "../../motorola.ts";
 import { flagPolicy } from "../status.ts";
@@ -12,13 +11,12 @@ import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("6809", cpu6809StateDescription);
 
-// Remaining indexed/prefixed bodies share the chapter's views and complete write rules.
+// Remaining transfer, stack, and interrupt bodies share the chapter's views and complete write rules.
 const d = chapterViews.D;
 const writeD = (word: NumberExpression) => [perform(chapterActions.writeD, { word })];
 const restoreCC = (status: NumberExpression) => replaceFlags(policies.CCFLAGS, { status });
-export const chapter6809 = instructionSet(Object.values(families).flat());
-export { chapterActions as actions6809, chapterViews as views6809 };
-export const addresses6809 = { indexed: sources.indexed };
+export const chapter6809 = instructionSet(Object.values(families).flat(), 16);
+export { chapterActions as actions6809, chapterViews as views6809, pages as pages6809 };
 
 const armNmi = writeLatch(cpu.latch("nmiArmed"), true);
 const views = {
@@ -95,13 +93,4 @@ export const instructions6809: Readonly<Record<string, InstructionDefinition>> =
   pshu: registerStack("u", false), pulu: registerStack("u", true),
   // Reuse mask construction in external interrupt entry without ordinary PSHS arming.
   pushFrame: registerStack("s", false, true),
-  ...motorolaLongBranches(cpu),
-  ...motorolaTransfers(cpu, "Y", cpu.register("y")),
-  ...motorolaTransfers(cpu, "S", { source: registerSource(cpu.register("s")),
-    write: [writeRegister(cpu.register("s"), value("result")), writeLatch(cpu.latch("nmiArmed"), true)],
-    explanation: "Write S and arm NMI",
-  }),
-  // Prefixed comparisons retain native opcode bindings; indexed addresses come from the chapter.
-  ...Object.fromEntries((["d", "y", "u", "s"] as const).flatMap(register =>
-    Object.entries(motorolaComparison(cpu, `CMP${register.toUpperCase()}`, register === "d" ? d : cpu.register(register))))),
 };

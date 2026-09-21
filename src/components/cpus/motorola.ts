@@ -1,9 +1,5 @@
 import { negativeZero } from "./flags.ts";
 import type { ArithmeticWidth, AdditionResult, SubtractionResult } from "./alu.ts";
-import type { ByteMemory } from "./memory-access.ts";
-import type { WordInstructionContext } from "./instruction-context.ts";
-import { opcodePattern } from "./opcodes.ts";
-import type { OpcodeEntry } from "./opcodes.ts";
 
 // 0010 ttt p: ttt selects T/HI/CC/NE/VC/PL/GE/GT; p selects the test or its inverse.
 export const motorolaBranchNames = ["bra", "brn", "bhi", "bls", "bcc", "bcs", "bne", "beq",
@@ -21,18 +17,4 @@ export const motorola6809TransferForms = ([
 export function motorolaArithmeticFlags(width: ArithmeticWidth, facts: AdditionResult | SubtractionResult) {
   return { ...negativeZero(width, facts.result), v: facts.overflow,
     c: "carry" in facts ? facts.carry : facts.borrow };
-}
-
-/** Bind mm=00 immediate (when supplied) and mm=01/10/11 resolved memory; construction reads no state. */
-export function motorolaOperandBindings<State>(readState: () => State,
-  modes: readonly { bits: string; address: (instruction: WordInstructionContext) => number | undefined }[]) {
-  return (pattern: string, immediate: ((state: State, instruction: WordInstructionContext) => void) | undefined,
-    memory: (state: State, address: number, instruction: ByteMemory) => void): readonly OpcodeEntry<(instruction: WordInstructionContext) => "unsupported" | void>[] => [
-    ...(immediate ? opcodePattern(pattern.replace("mm", "00"), (instruction: WordInstructionContext) => immediate(readState(), instruction)) : []),
-    ...modes.flatMap(({ bits, address: resolve }) => opcodePattern(pattern.replace("mm", bits), (instruction: WordInstructionContext) => {
-      const address = resolve(instruction);
-      if (address === undefined) return "unsupported";
-      memory(readState(), address, instruction);
-    })),
-  ];
 }

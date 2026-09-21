@@ -25,9 +25,20 @@ function lea(execute: (state: Cpu6809State, instruction: ByteInstructionContext)
 }
 
 // Names used by independent cross-CPU probes; migrated bodies use literal
-// chapter opcodes, while remaining prefixed forms keep their native names.
+// chapter opcodes, while remaining stack and interrupt forms keep their native names.
 export const bodies6809 = {
   ...remaining,
+  cmpdImmediate: base[0x1083], cmpdMemory: extended(base[0x10b3]),
+  cmpyImmediate: base[0x108c], cmpyMemory: extended(base[0x10bc]),
+  cmpuImmediate: base[0x1183], cmpuMemory: extended(base[0x11b3]),
+  cmpsImmediate: base[0x118c], cmpsMemory: extended(base[0x11bc]),
+  ldyImmediate: base[0x108e], ldyMemory: extended(base[0x10be]), styMemory: extended(base[0x10bf]),
+  ldsImmediate: base[0x10ce], ldsMemory: extended(base[0x10fe]), stsMemory: extended(base[0x10ff]),
+  lbrn: base[0x1021], lbhi: base[0x1022], lbls: base[0x1023],
+  lbcc: base[0x1024], lbcs: base[0x1025], lbne: base[0x1026], lbeq: base[0x1027],
+  lbvc: base[0x1028], lbvs: base[0x1029], lbpl: base[0x102a], lbmi: base[0x102b],
+  lbge: base[0x102c], lblt: base[0x102d], lbgt: base[0x102e], lble: base[0x102f],
+
   subaMemory: extended(base[0xb0]),
   subbMemory: extended(base[0xf0]),
   cmpaMemory: extended(base[0xb1]),

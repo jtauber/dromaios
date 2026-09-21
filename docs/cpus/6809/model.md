@@ -13,7 +13,9 @@ The [executable chapter](../../../src/components/cpus/specifications/6809.md)
 owns the stored-state declaration and D/CC read/write rules, consumed by both
 chapter-authored instructions and the remaining TypeScript model. It also owns
 indexed-postbyte decoding for all base-page and prefixed forms, including address
-updates, NMI arming, and indirect reads. This document retains the wider API,
+updates, NMI arming, and indirect reads. Its named opcode pages also generate
+prefix dispatch and all ordinary prefixed comparisons, transfers, and branches.
+This document retains the wider API,
 lifecycle, and hardware contract during migration.
 
 ## Model boundary

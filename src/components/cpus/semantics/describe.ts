@@ -180,8 +180,8 @@ validation, execution bindings, and current limits. The same definitions also
 generate typed instruction bodies for the bounded CPU migration.
 
 Bodies begin after opcode selection. Chapter-owned forms include their operand
-fetching and addressing; remaining Motorola memory bodies receive a resolved
-address from the existing decoder. Declared inputs
+fetching and addressing. Remaining native decoders supply any declared address
+or selector inputs. Declared inputs
 are captured before entry. Statements are
 ordered. Captures are immutable; each source and action
 expansion has its own scope. Action arguments are captured in the caller before its effects. Conditional and bounded iteration blocks inherit outer

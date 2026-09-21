@@ -48,7 +48,7 @@ test("6800 CPX explains high-byte N/V, whole-word Z, and preserved carry in all 
 
 test("6809 memory comparisons show data reads before the register or D view, without repeating address resolution", () => {
   for (const name of ["CMPA", "CMPB", "CMPD", "CMPX", "CMPY", "CMPU", "CMPS"]) {
-    const register = name.slice(3), mode = ["A", "B", "X"].includes(register) ? "extended" : "memory";
+    const register = name.slice(3), mode = "extended";
     const text = description("6809", `${name} ${mode}`);
     const first = text.indexOf("read memory[address]"), last = text.indexOf("read memory[addWrap(address, 0001:u16)]");
     const left = text.indexOf(register === "D" ? 'left:u16 := source "D from A:B"' : `:= read ${register}`);
@@ -57,8 +57,7 @@ test("6809 memory comparisons show data reads before the register or D view, wit
     assert.ok(text.indexOf("result := subtract(left, right)") > left);
     const body = text.split("```text\n")[1]!.split("\n```")[0]!;
     assert.doesNotMatch(body, /write |read [XYUS]\n.*read memory/s);
-    if (mode === "memory") assert.doesNotMatch(body, /fetch byte/);
-    else assert.equal(body.match(/fetch byte/g)?.length, 2);
+    assert.equal(body.match(/fetch byte/g)?.length, 2);
     if (register === "D") {
       assert.ok(text.indexOf("read A", left) < text.indexOf("read B", left));
       assert.match(text.slice(left), /yield concatHighLow\(high, low\)/);
@@ -259,7 +258,7 @@ test("Motorola byte transfers explain captured sources and flags only after succ
 test("Motorola word-transfer explanations expose byte order, captured stores, D writes, and NMI arming", () => {
   for (const cpu of ["6800", "6809"]) for (const register of cpu === "6800" ? ["S", "X"] : ["D", "X", "Y", "U", "S"]) {
     const stored = cpu === "6800" && register === "S" ? "SP" : register;
-    const memoryMode = cpu === "6809" && ["Y", "S"].includes(register) ? "memory" : "extended";
+    const memoryMode = "extended";
     for (const mode of ["#word", memoryMode]) {
       const text = description(cpu, `LD${register} ${mode}`);
       const low = text.indexOf(mode !== "#word" ? "low:u8 := read memory[addWrap(address, 0001:u16)]" : "low:u8 := fetch byte");
@@ -285,8 +284,7 @@ test("Motorola word-transfer explanations expose byte order, captured stores, D 
     assert.match(text, /Only after both writes succeed|after both writes succeed/);
     assert.match(text, /completed writes, fetches, and addressing effects remain|first write remains/);
     assert.doesNotMatch(text, /read memory|write nmiArmed/);
-    if (memoryMode === "memory") assert.doesNotMatch(text, /fetch byte/);
-    else assert.ok(text.indexOf("fetch byte") < high);
+    assert.ok(text.indexOf("fetch byte") < high);
     assert.equal(text.match(/write memory/g)?.length, 2);
   }
 });
@@ -313,7 +311,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 12501);
+  assert.equal(instructionDefinitions.length, 12517);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {

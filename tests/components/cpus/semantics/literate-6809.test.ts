@@ -46,7 +46,13 @@ const indexedOpcodes = [
   0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
   0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
 ];
-const opcodes = [...operandOpcodes, ...controlOpcodes, ...indexedOpcodes].sort((a, b) => a - b);
+const prefixedOpcodes = [
+  0x1021, 0x1022, 0x1023, 0x1024, 0x1025, 0x1026, 0x1027, 0x1028, 0x1029, 0x102a, 0x102b, 0x102c, 0x102d, 0x102e, 0x102f,
+  0x1083, 0x108c, 0x108e, 0x1093, 0x109c, 0x109e, 0x109f, 0x10a3, 0x10ac, 0x10ae, 0x10af, 0x10b3, 0x10bc, 0x10be, 0x10bf,
+  0x10ce, 0x10de, 0x10df, 0x10ee, 0x10ef, 0x10fe, 0x10ff,
+  0x1183, 0x118c, 0x1193, 0x119c, 0x11a3, 0x11ac, 0x11b3, 0x11bc,
+];
+const opcodes = [...operandOpcodes, ...controlOpcodes, ...indexedOpcodes, ...prefixedOpcodes].sort((a, b) => a - b);
 
 async function bodies(text: string): Promise<Readonly<Record<number, Body>>> {
   const compiled = compileCpuChapter(text, { name: "6809" }, file);
@@ -56,14 +62,15 @@ async function bodies(text: string): Promise<Readonly<Record<number, Body>>> {
   return (await import(`data:text/javascript,${encodeURIComponent(javascript)}`)).instructions;
 }
 
-test("the 6809 chapter owns its full schema and exactly 211 base-page forms", () => {
+test("the 6809 chapter owns its full schema and exactly 256 base and prefixed forms", () => {
   const expected = defineState({ a: unsigned(8), b: unsigned(8), dp: unsigned(8), x: unsigned(16), y: unsigned(16),
     s: unsigned(16), u: unsigned(16), pc: unsigned(16), waitMode: namedChoices("none", "sync", "cwai"), nmiArmed: boolean,
     flags: group({ e: flag, f: flag, h: flag, i: flag, n: flag, z: flag, v: flag, c: flag }) });
   assert.deepEqual(chapter.state, expected); assert.deepEqual(cpu6809StateDescription, expected);
   assert.deepEqual(Object.keys(cpu6809StateDescription), Object.keys(expected));
   assert.equal(operandOpcodes.length, 88); assert.equal(controlOpcodes.length, 75);
-  assert.equal(indexedOpcodes.length, 48); assert.equal(opcodes.length, 211);
+  assert.equal(indexedOpcodes.length, 48); assert.equal(prefixedOpcodes.length, 45); assert.equal(opcodes.length, 256);
+  assert.deepEqual(chapter.pages, { secondary: 0x10, tertiary: 0x11 });
   assert.deepEqual(Object.keys(chapter6809).map(Number).sort((a, b) => a - b), opcodes);
   assert.deepEqual(Object.fromEntries(Object.values(chapter.families).flat()), chapter6809);
   assert.equal(chapter.execution, undefined); assert.equal(chapter.interface, undefined);

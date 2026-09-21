@@ -136,3 +136,8 @@ source address "decoded address": 16 {
   }
   return result
 }
+
+page secondary = $10
+family prefixed "0010 0001" on secondary {
+  byte = fetch
+}

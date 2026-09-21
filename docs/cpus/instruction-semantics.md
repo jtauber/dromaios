@@ -106,10 +106,9 @@ The 68000 has all 36,029 documented forms migrated, including ordinary MOVE/MOVE
 data logic, arithmetic/comparison, bit operations, shifts/rotates, TAS, word
 products/division, signed bounds, decimal arithmetic, ordinary control flow,
 address calculation, stack frames, MOVEP/MOVEM, and status/system instructions. Bodies
-start after opcode selection. Remaining 6809 memory bodies start after successful
-address resolution; prefixed indexed forms use the chapter-generated postbyte
-decoder, while their direct/extended bindings remain native. Chapter-owned base-page forms
-include their addressing, as do all 6800 forms. The existing
+start after opcode selection. Chapter-owned 6809 base-page and ordinary prefixed
+forms include their addressing, as do all 6800 forms. Named opcode pages also
+supply the 6809 prefix dispatcher. The existing
 [boundary probes](boundary-probes.md#existing-models-executable-evidence) and
 independent CPU tests are the behavioral baseline.
 
@@ -256,7 +255,7 @@ The authoring layers have separate homes:
 | [control-flow.ts](../../src/components/cpus/semantics/control-flow.ts) | Conditional effects, jumps, branches, calls, returns, and vector loads with explicit operand/condition/stack order |
 | [ports.ts](../../src/components/cpus/semantics/ports.ts) | Shared byte/word port transfers: capture addresses before operands, transfer low byte first, and commit input only after complete reads |
 | [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, ordered frames, and complete push/pop instruction construction |
-| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Remaining 6809 prefixed word comparison and transfer construction; page-10 long branches and shared Motorola conditions |
+| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared Motorola condition construction for remaining 68000 definitions |
 | [intel.ts](../../src/components/cpus/semantics/intel.ts) | Z80 builders for byte ALU, byte and word transfers, arithmetic, exchanges, jumps, stacks, and subroutines, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
 | [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
@@ -285,12 +284,10 @@ the transfers. For example, Intel stack exchange reads low first at `address`,
 then `next`, but writes high first at `next`, then `address`. No helper assumes
 ascending addresses or moves a state update across an access.
 
-Remaining Motorola prefixed comparisons and loads use a local `operandFamily`
-constructor for immediate and resolved-memory forms. It supplies their names,
-address inputs, and operand sources. Each family explicitly places the supplied
-memory reads before consuming their captured value and retains its own flag and
-writeback order. Stores remain separate because they do not read a source operand
-from the destination address.
+The 6800 and 6809 chapters now own every comparison and transfer body with its
+addressing. Their former `operandFamily` constructor is removed. The chapters
+retain operand-first comparison schedules and flags after successful transfer
+writes; stores do not read a source operand from the destination address.
 
 Statement constructors such as `fetchByte("low")`, `readRegister("index", X)`,
 and `writeMemory(address, byte)` return the corresponding data nodes. They do
@@ -368,9 +365,8 @@ parameters; there is no general parameterized instruction-body call node yet.
 We can judge the repeated pattern without first designing higher-order DSL
 parameters for every operand role.
 
-`motorolaComparison` constructs immediate and resolved-memory bodies for each
-compared register or view. Its default policy applies N/Z/V/C at the operand's
-width, with C meaning borrow. The original 6800 CPX instead supplies a named
+The 6809 chapter applies N/Z/V/C at the compared operand's width, with C meaning
+borrow; its former `motorolaComparison` builder is removed. The original 6800 CPX instead supplies a named
 policy using `highByte(left)` and `highByte(right)` for N/V, whole-word subtraction
 for Z, and no C assignment. Its explanation accompanies the policy in the 6800
 definition. CBA uses the same `compare` recipe with B as its register source.
@@ -567,8 +563,8 @@ Sources with a top-level match generate shared decoder functions, deduplicated b
 their complete checked definition within each output module. Callers propagate
 unsupported results before later effects. Ordinary straight-line sources still
 inline. The 6809 chapter's one indexed source therefore serves base-page bodies
-and an exported reader for prefixed bindings without duplicating its decoder
-in every executable instruction.
+and prefixed instruction bodies without duplicating its decoder in every
+executable instruction. Its standalone reader now belongs only to test probes.
 
 An `Action` has a name, optional numeric inputs, and an ordered body.
 `perform(action, arguments)` captures all arguments from the caller before
@@ -1958,32 +1954,29 @@ public class uses the shared vector runtime, with chapter-defined IRQ/NMI entry
 and waiting policies. No handwritten 6800 implementation remains.
 The [6809 chapter](../../src/components/cpus/specifications/6809.md) owns all
 base-page comparisons, arithmetic, logic, byte/word transfers, unary operations,
-DAA, register/flag operations, short branches, LBRA, LEA, and calls/jumps/returns.
+DAA, register/flag operations, every branch, LEA, and calls/jumps/returns, plus
+ordinary prefixed comparisons and transfers.
 Each includes its addressing. One generated indexed decoder serves these bodies
 and the prefixed word families; its matches reject undefined postbytes while
 retaining completed address effects. The chapter also supplies the full stored
 schema and D/CC read/write rules to the remaining TypeScript definitions.
 
-Only prefixed word families retain `motorolaOperandBindings`, with immediate,
-direct, indexed, and extended modes. Binding captures a state getter without
-reading it until execution, resolves each memory address once, and rejects
-unsupported indexed postbytes before body entry. Native unary and byte-memory
-wrappers are removed, along with the Motorola arithmetic, logical, unary,
-subroutine, and decimal specializations.
+[Named opcode pages](literate-specifications.md#opcode-pages) declare the 6809's
+`$10` and `$11` dispatch. Expanded inventory keys combine prefix/opcode, while
+execution fetches them individually. Generation binds separate page tables and
+returns unsupported after an unknown second byte. Native SWI2/SWI3 bodies join
+these tables by page name without supplying another prefix inventory. Duplicate
+entries are rejected. The old Motorola operand wrappers and comparison, transfer,
+and long-branch builders are removed; shared condition construction remains for
+the 68000.
 
 The earlier load and TAB/TBA migration used `transfer`: capture a source or an
 already read value, write the destination, then apply the Motorola result policy.
-The 6800 chapter now spells out those stages; the 6809 retains the builder for prefixed words.
-`motorolaTransfers` constructs their families; word reads reuse the
-same high/low layout and immediate source as comparisons. Stores capture the
-register or view after addressing, write each byte without reading the
-destination, then apply N/Z with V cleared. A failed word store preserves flags
-and completed writes. Unary memory modifications instead apply flags before
-writing. D supplies A/B reads and split writes; S supplies a write followed by
-NMI arming. Both CPUs' byte and word load/store helpers are gone, along with
-the shared runtime result-flag helper. The 6809's later ordinary-instruction
-migration also removes its runtime word-register writer; explicit D and S
-writes are shared within the definition module.
+Both chapters now spell out those stages. Word reads reuse high/low sources;
+stores capture the register after addressing, write each byte without reading
+the destination, then apply N/Z with V cleared. A failed word store preserves
+flags and completed writes. LDS writes S and arms NMI only after a complete
+operand read; earlier indexed S updates and their arming survive a later failure.
 
 The existing independent CPU tests cover values, flag patterns, and unchanged
 writes. Additional probes check each failed access, all 217 legal 6809 indexed
@@ -1994,7 +1987,7 @@ and flags derived from the captured byte or word. All seven word transfer
 families receive failure injection at either byte, including S auto-updates
 and successful LDS arming. Compiler probes test both byte extractions over
 all words and constant latch set/clear without state reads. Type checks restrict store bodies to
-writing, resolved loads to reading, and immediate loads to fetching.
+writing plus address fetching, memory loads to fetching/reading, and immediate loads to fetching.
 
 ## Decision and next review
 

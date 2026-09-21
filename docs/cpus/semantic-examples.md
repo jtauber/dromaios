@@ -8,8 +8,8 @@ validation, execution bindings, and current limits. The same definitions also
 generate typed instruction bodies for the bounded CPU migration.
 
 Bodies begin after opcode selection. Chapter-owned forms include their operand
-fetching and addressing; remaining Motorola memory bodies receive a resolved
-address from the existing decoder. Declared inputs
+fetching and addressing. Remaining native decoders supply any declared address
+or selector inputs. Declared inputs
 are captured before entry. Statements are
 ordered. Captures are immutable; each source and action
 expansion has its own scope. Action arguments are captured in the caller before its effects. Conditional and bounded iteration blocks inherit outer
@@ -327596,20 +327596,26 @@ Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BRN
 
-BRN (`$21`) consumes its displacement without reading flags or PC and without writing any state. The displacement fetch can still fail normally.
+BRN (`$21`) and LBRN (`$10 $21`) consume byte/word displacements without reading flags or PC and without writing any state. Displacement fetching can still fail normally, retaining any earlier fetch.
 
 ```text
-offset:u8 := fetch byte
+offset:u16 := source "signed byte displacement" {
+  offset:u8 := fetch byte
+  yield signExtend16(offset)
+}
 ```
 
 Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BHI
 
-Fetch the signed displacement, then capture C/Z in that order. BHI tests `and(not(c), not(z))`; BLS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+Fetch the complete displacement, then capture C/Z in that order. BHI tests `and(not(c), not(z))`; BLS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
 
 ```text
-offset:u8 := fetch byte
+offset:u16 := source "signed byte displacement" {
+  offset:u8 := fetch byte
+  yield signExtend16(offset)
+}
 c:flag := read C
 z:flag := read Z
 inverse:u8 := source "BHI" {
@@ -327617,7 +327623,7 @@ inverse:u8 := source "BHI" {
 }
 when xor(and(not(c), not(z)), lowBit(inverse)) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  write PC:u16 := addWrap(pc, offset)
 }
 ```
 
@@ -327625,10 +327631,13 @@ Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BLS
 
-Fetch the signed displacement, then capture C/Z in that order. BHI tests `and(not(c), not(z))`; BLS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+Fetch the complete displacement, then capture C/Z in that order. BHI tests `and(not(c), not(z))`; BLS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
 
 ```text
-offset:u8 := fetch byte
+offset:u16 := source "signed byte displacement" {
+  offset:u8 := fetch byte
+  yield signExtend16(offset)
+}
 c:flag := read C
 z:flag := read Z
 inverse:u8 := source "BLS" {
@@ -327636,7 +327645,7 @@ inverse:u8 := source "BLS" {
 }
 when xor(and(not(c), not(z)), lowBit(inverse)) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  write PC:u16 := addWrap(pc, offset)
 }
 ```
 
@@ -327644,17 +327653,20 @@ Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BCC
 
-Fetch the signed displacement, then capture C. BCC tests `not(c)`; BCS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+Fetch the complete displacement, then capture C. BCC tests `not(c)`; BCS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
 
 ```text
-offset:u8 := fetch byte
+offset:u16 := source "signed byte displacement" {
+  offset:u8 := fetch byte
+  yield signExtend16(offset)
+}
 c:flag := read C
 inverse:u8 := source "BCC" {
   yield 00:u8
 }
 when xor(not(c), lowBit(inverse)) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  write PC:u16 := addWrap(pc, offset)
 }
 ```
 
@@ -327662,17 +327674,20 @@ Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BCS
 
-Fetch the signed displacement, then capture C. BCC tests `not(c)`; BCS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+Fetch the complete displacement, then capture C. BCC tests `not(c)`; BCS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
 
 ```text
-offset:u8 := fetch byte
+offset:u16 := source "signed byte displacement" {
+  offset:u8 := fetch byte
+  yield signExtend16(offset)
+}
 c:flag := read C
 inverse:u8 := source "BCS" {
   yield 01:u8
 }
 when xor(not(c), lowBit(inverse)) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  write PC:u16 := addWrap(pc, offset)
 }
 ```
 
@@ -327680,17 +327695,20 @@ Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BNE
 
-Fetch the signed displacement, then capture Z. BNE tests `not(z)`; BEQ inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+Fetch the complete displacement, then capture Z. BNE tests `not(z)`; BEQ inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
 
 ```text
-offset:u8 := fetch byte
+offset:u16 := source "signed byte displacement" {
+  offset:u8 := fetch byte
+  yield signExtend16(offset)
+}
 z:flag := read Z
 inverse:u8 := source "BNE" {
   yield 00:u8
 }
 when xor(not(z), lowBit(inverse)) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  write PC:u16 := addWrap(pc, offset)
 }
 ```
 
@@ -327698,17 +327716,20 @@ Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BEQ
 
-Fetch the signed displacement, then capture Z. BNE tests `not(z)`; BEQ inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+Fetch the complete displacement, then capture Z. BNE tests `not(z)`; BEQ inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
 
 ```text
-offset:u8 := fetch byte
+offset:u16 := source "signed byte displacement" {
+  offset:u8 := fetch byte
+  yield signExtend16(offset)
+}
 z:flag := read Z
 inverse:u8 := source "BEQ" {
   yield 01:u8
 }
 when xor(not(z), lowBit(inverse)) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  write PC:u16 := addWrap(pc, offset)
 }
 ```
 
@@ -327716,17 +327737,20 @@ Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BVC
 
-Fetch the signed displacement, then capture V. BVC tests `not(v)`; BVS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+Fetch the complete displacement, then capture V. BVC tests `not(v)`; BVS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
 
 ```text
-offset:u8 := fetch byte
+offset:u16 := source "signed byte displacement" {
+  offset:u8 := fetch byte
+  yield signExtend16(offset)
+}
 v:flag := read V
 inverse:u8 := source "BVC" {
   yield 00:u8
 }
 when xor(not(v), lowBit(inverse)) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  write PC:u16 := addWrap(pc, offset)
 }
 ```
 
@@ -327734,17 +327758,20 @@ Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BVS
 
-Fetch the signed displacement, then capture V. BVC tests `not(v)`; BVS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+Fetch the complete displacement, then capture V. BVC tests `not(v)`; BVS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
 
 ```text
-offset:u8 := fetch byte
+offset:u16 := source "signed byte displacement" {
+  offset:u8 := fetch byte
+  yield signExtend16(offset)
+}
 v:flag := read V
 inverse:u8 := source "BVS" {
   yield 01:u8
 }
 when xor(not(v), lowBit(inverse)) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  write PC:u16 := addWrap(pc, offset)
 }
 ```
 
@@ -327752,17 +327779,20 @@ Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BPL
 
-Fetch the signed displacement, then capture N. BPL tests `not(n)`; BMI inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+Fetch the complete displacement, then capture N. BPL tests `not(n)`; BMI inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
 
 ```text
-offset:u8 := fetch byte
+offset:u16 := source "signed byte displacement" {
+  offset:u8 := fetch byte
+  yield signExtend16(offset)
+}
 n:flag := read N
 inverse:u8 := source "BPL" {
   yield 00:u8
 }
 when xor(not(n), lowBit(inverse)) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  write PC:u16 := addWrap(pc, offset)
 }
 ```
 
@@ -327770,17 +327800,20 @@ Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BMI
 
-Fetch the signed displacement, then capture N. BPL tests `not(n)`; BMI inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+Fetch the complete displacement, then capture N. BPL tests `not(n)`; BMI inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
 
 ```text
-offset:u8 := fetch byte
+offset:u16 := source "signed byte displacement" {
+  offset:u8 := fetch byte
+  yield signExtend16(offset)
+}
 n:flag := read N
 inverse:u8 := source "BMI" {
   yield 01:u8
 }
 when xor(not(n), lowBit(inverse)) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  write PC:u16 := addWrap(pc, offset)
 }
 ```
 
@@ -327788,10 +327821,13 @@ Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BGE
 
-Fetch the signed displacement, then capture N/V in that order. BGE tests `not(xor(n, v))`; BLT inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+Fetch the complete displacement, then capture N/V in that order. BGE tests `not(xor(n, v))`; BLT inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
 
 ```text
-offset:u8 := fetch byte
+offset:u16 := source "signed byte displacement" {
+  offset:u8 := fetch byte
+  yield signExtend16(offset)
+}
 n:flag := read N
 v:flag := read V
 inverse:u8 := source "BGE" {
@@ -327799,7 +327835,7 @@ inverse:u8 := source "BGE" {
 }
 when xor(not(xor(n, v)), lowBit(inverse)) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  write PC:u16 := addWrap(pc, offset)
 }
 ```
 
@@ -327807,10 +327843,13 @@ Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BLT
 
-Fetch the signed displacement, then capture N/V in that order. BGE tests `not(xor(n, v))`; BLT inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+Fetch the complete displacement, then capture N/V in that order. BGE tests `not(xor(n, v))`; BLT inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
 
 ```text
-offset:u8 := fetch byte
+offset:u16 := source "signed byte displacement" {
+  offset:u8 := fetch byte
+  yield signExtend16(offset)
+}
 n:flag := read N
 v:flag := read V
 inverse:u8 := source "BLT" {
@@ -327818,7 +327857,7 @@ inverse:u8 := source "BLT" {
 }
 when xor(not(xor(n, v)), lowBit(inverse)) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  write PC:u16 := addWrap(pc, offset)
 }
 ```
 
@@ -327826,10 +327865,13 @@ Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BGT
 
-Fetch the signed displacement, then capture N/V/Z in that order. BGT tests `and(not(z), not(xor(n, v)))`; BLE inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+Fetch the complete displacement, then capture N/V/Z in that order. BGT tests `and(not(z), not(xor(n, v)))`; BLE inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
 
 ```text
-offset:u8 := fetch byte
+offset:u16 := source "signed byte displacement" {
+  offset:u8 := fetch byte
+  yield signExtend16(offset)
+}
 n:flag := read N
 v:flag := read V
 z:flag := read Z
@@ -327838,7 +327880,7 @@ inverse:u8 := source "BGT" {
 }
 when xor(and(not(z), not(xor(n, v))), lowBit(inverse)) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  write PC:u16 := addWrap(pc, offset)
 }
 ```
 
@@ -327846,10 +327888,13 @@ Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BLE
 
-Fetch the signed displacement, then capture N/V/Z in that order. BGT tests `and(not(z), not(xor(n, v)))`; BLE inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+Fetch the complete displacement, then capture N/V/Z in that order. BGT tests `and(not(z), not(xor(n, v)))`; BLE inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
 
 ```text
-offset:u8 := fetch byte
+offset:u16 := source "signed byte displacement" {
+  offset:u8 := fetch byte
+  yield signExtend16(offset)
+}
 n:flag := read N
 v:flag := read V
 z:flag := read Z
@@ -327858,7 +327903,7 @@ inverse:u8 := source "BLE" {
 }
 when xor(and(not(z), not(xor(n, v))), lowBit(inverse)) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  write PC:u16 := addWrap(pc, offset)
 }
 ```
 
@@ -355417,6 +355462,4978 @@ flags "word result" simultaneously {
 
 Flags preserved throughout: E, F, H, I, C.
 
+### 6809 LBRN
+
+BRN (`$21`) and LBRN (`$10 $21`) consume byte/word displacements without reading flags or PC and without writing any state. Displacement fetching can still fail normally, retaining any earlier fetch.
+
+```text
+offset:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBHI
+
+Fetch the complete displacement, then capture C/Z in that order. BHI tests `and(not(c), not(z))`; BLS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+c:flag := read C
+z:flag := read Z
+inverse:u8 := source "BHI" {
+  yield 00:u8
+}
+when xor(and(not(c), not(z)), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBLS
+
+Fetch the complete displacement, then capture C/Z in that order. BHI tests `and(not(c), not(z))`; BLS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+c:flag := read C
+z:flag := read Z
+inverse:u8 := source "BLS" {
+  yield 01:u8
+}
+when xor(and(not(c), not(z)), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBCC
+
+Fetch the complete displacement, then capture C. BCC tests `not(c)`; BCS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+c:flag := read C
+inverse:u8 := source "BCC" {
+  yield 00:u8
+}
+when xor(not(c), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBCS
+
+Fetch the complete displacement, then capture C. BCC tests `not(c)`; BCS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+c:flag := read C
+inverse:u8 := source "BCS" {
+  yield 01:u8
+}
+when xor(not(c), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBNE
+
+Fetch the complete displacement, then capture Z. BNE tests `not(z)`; BEQ inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+z:flag := read Z
+inverse:u8 := source "BNE" {
+  yield 00:u8
+}
+when xor(not(z), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBEQ
+
+Fetch the complete displacement, then capture Z. BNE tests `not(z)`; BEQ inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+z:flag := read Z
+inverse:u8 := source "BEQ" {
+  yield 01:u8
+}
+when xor(not(z), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBVC
+
+Fetch the complete displacement, then capture V. BVC tests `not(v)`; BVS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+v:flag := read V
+inverse:u8 := source "BVC" {
+  yield 00:u8
+}
+when xor(not(v), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBVS
+
+Fetch the complete displacement, then capture V. BVC tests `not(v)`; BVS inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+v:flag := read V
+inverse:u8 := source "BVS" {
+  yield 01:u8
+}
+when xor(not(v), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBPL
+
+Fetch the complete displacement, then capture N. BPL tests `not(n)`; BMI inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+n:flag := read N
+inverse:u8 := source "BPL" {
+  yield 00:u8
+}
+when xor(not(n), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBMI
+
+Fetch the complete displacement, then capture N. BPL tests `not(n)`; BMI inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+n:flag := read N
+inverse:u8 := source "BMI" {
+  yield 01:u8
+}
+when xor(not(n), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBGE
+
+Fetch the complete displacement, then capture N/V in that order. BGE tests `not(xor(n, v))`; BLT inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+n:flag := read N
+v:flag := read V
+inverse:u8 := source "BGE" {
+  yield 00:u8
+}
+when xor(not(xor(n, v)), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBLT
+
+Fetch the complete displacement, then capture N/V in that order. BGE tests `not(xor(n, v))`; BLT inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+n:flag := read N
+v:flag := read V
+inverse:u8 := source "BLT" {
+  yield 01:u8
+}
+when xor(not(xor(n, v)), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBGT
+
+Fetch the complete displacement, then capture N/V/Z in that order. BGT tests `and(not(z), not(xor(n, v)))`; BLE inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+inverse:u8 := source "BGT" {
+  yield 00:u8
+}
+when xor(and(not(z), not(xor(n, v))), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBLE
+
+Fetch the complete displacement, then capture N/V/Z in that order. BGT tests `and(not(z), not(xor(n, v)))`; BLE inverts it. Only a taken branch reads and writes PC. Preserve flags and other state; failed fetching prevents the test.
+
+```text
+offset:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+inverse:u8 := source "BLE" {
+  yield 01:u8
+}
+when xor(and(not(z), not(xor(n, v))), lowBit(inverse)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 CMPD #word
+
+CMPD reads its complete operand before D. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 CMPY #word
+
+CMPY reads its complete operand before Y. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := read Y
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 LDY #word
+
+LDY reads or fetches the complete word, then writes Y before setting N/Z and clearing V. Preserve E/F/H/I/C. A failed read prevents these updates; earlier indexed updates and their NMI arming remain.
+
+```text
+result:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write Y:u16 := result
+flags "word result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 CMPD direct
+
+CMPD reads its complete operand before D. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "direct word" {
+  address:u16 := source "direct" {
+    offset:u8 := fetch byte
+    page:u8 := read DP
+    yield concatHighLow(page, offset)
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+left:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 CMPY direct
+
+CMPY reads its complete operand before Y. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "direct word" {
+  address:u16 := source "direct" {
+    offset:u8 := fetch byte
+    page:u8 := read DP
+    yield concatHighLow(page, offset)
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+left:u16 := read Y
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 LDY direct
+
+LDY reads or fetches the complete word, then writes Y before setting N/Z and clearing V. Preserve E/F/H/I/C. A failed read prevents these updates; earlier indexed updates and their NMI arming remain.
+
+```text
+result:u16 := source "direct word" {
+  address:u16 := source "direct" {
+    offset:u8 := fetch byte
+    page:u8 := read DP
+    yield concatHighLow(page, offset)
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+write Y:u16 := result
+flags "word result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 STY direct
+
+STY resolves the address before capturing Y; it never reads the destination. Write high then low with sixteen-bit wrap. Only after both writes succeed, set N/Z and clear V, preserving E/F/H/I/C and the NMI arming left by addressing. A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain.
+
+```text
+address:u16 := source "direct" {
+  offset:u8 := fetch byte
+  page:u8 := read DP
+  yield concatHighLow(page, offset)
+}
+result:u16 := read Y
+write memory[address] := highByte(result)
+write memory[addWrap(address, 0001:u16)] := lowByte(result)
+flags "word result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 CMPD indexed
+
+CMPD reads its complete operand before D. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "indexed word" {
+  address:u16 := source "indexed postbyte" {
+    postbyte:u8 := fetch byte
+    address:u16 := match byte postbyte {
+      case (byte & 60) = 00 {
+        base:u16 := read X
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write X:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write X:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write X:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write X:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 20 {
+        base:u16 := read Y
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write Y:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write Y:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write Y:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write Y:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 40 {
+        base:u16 := read U
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write U:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write U:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write U:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write U:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 60 {
+        base:u16 := read S
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write S:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write S:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write S:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write S:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield address
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+left:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 CMPY indexed
+
+CMPY reads its complete operand before Y. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "indexed word" {
+  address:u16 := source "indexed postbyte" {
+    postbyte:u8 := fetch byte
+    address:u16 := match byte postbyte {
+      case (byte & 60) = 00 {
+        base:u16 := read X
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write X:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write X:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write X:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write X:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 20 {
+        base:u16 := read Y
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write Y:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write Y:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write Y:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write Y:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 40 {
+        base:u16 := read U
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write U:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write U:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write U:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write U:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 60 {
+        base:u16 := read S
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write S:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write S:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write S:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write S:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield address
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+left:u16 := read Y
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 LDY indexed
+
+LDY reads or fetches the complete word, then writes Y before setting N/Z and clearing V. Preserve E/F/H/I/C. A failed read prevents these updates; earlier indexed updates and their NMI arming remain.
+
+```text
+result:u16 := source "indexed word" {
+  address:u16 := source "indexed postbyte" {
+    postbyte:u8 := fetch byte
+    address:u16 := match byte postbyte {
+      case (byte & 60) = 00 {
+        base:u16 := read X
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write X:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write X:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write X:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write X:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 20 {
+        base:u16 := read Y
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write Y:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write Y:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write Y:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write Y:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 40 {
+        base:u16 := read U
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write U:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write U:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write U:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write U:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 60 {
+        base:u16 := read S
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write S:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write S:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write S:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write S:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield address
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+write Y:u16 := result
+flags "word result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 STY indexed
+
+STY resolves the address before capturing Y; it never reads the destination. Write high then low with sixteen-bit wrap. Only after both writes succeed, set N/Z and clear V, preserving E/F/H/I/C and the NMI arming left by addressing. A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain.
+
+```text
+address:u16 := source "indexed postbyte" {
+  postbyte:u8 := fetch byte
+  address:u16 := match byte postbyte {
+    case (byte & 60) = 00 {
+      base:u16 := read X
+      effective:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          offset := bitAnd(postbyte, 1F:u8)
+          signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+          yield addWrap(base, signed)
+        }
+        case (byte & 9F) = 80 {
+          write X:u16 := addWrap(base, 0001:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 8F) = 81 {
+          write X:u16 := addWrap(base, 0002:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 9F) = 82 {
+          updated := subtract(base, 0001:u16)
+          write X:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 83 {
+          updated := subtract(base, 0002:u16)
+          write X:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 84 {
+          yield base
+        }
+        case (byte & 8F) = 85 {
+          offset:u8 := read B
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 86 {
+          offset:u8 := read A
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 88 {
+          offset:u8 := fetch byte
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 89 {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8B {
+          offset:u16 := source "D from A:B" {
+            high:u8 := read A
+            low:u8 := read B
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8C {
+          offset:u8 := fetch byte
+          pc:u16 := read PC
+          yield addWrap(pc, signExtend16(offset))
+        }
+        case (byte & 8F) = 8D {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          pc:u16 := read PC
+          yield addWrap(pc, offset)
+        }
+        case (byte & FF) = 9F {
+          absolute:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield absolute
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      target:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          yield effective
+        }
+        case (byte & 90) = 80 {
+          yield effective
+        }
+        case (byte & 90) = 90 {
+          high:u8 := read memory[effective]
+          low:u8 := read memory[addWrap(effective, 0001:u16)]
+          yield concatHighLow(high, low)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      yield target
+    }
+    case (byte & 60) = 20 {
+      base:u16 := read Y
+      effective:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          offset := bitAnd(postbyte, 1F:u8)
+          signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+          yield addWrap(base, signed)
+        }
+        case (byte & 9F) = 80 {
+          write Y:u16 := addWrap(base, 0001:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 8F) = 81 {
+          write Y:u16 := addWrap(base, 0002:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 9F) = 82 {
+          updated := subtract(base, 0001:u16)
+          write Y:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 83 {
+          updated := subtract(base, 0002:u16)
+          write Y:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 84 {
+          yield base
+        }
+        case (byte & 8F) = 85 {
+          offset:u8 := read B
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 86 {
+          offset:u8 := read A
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 88 {
+          offset:u8 := fetch byte
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 89 {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8B {
+          offset:u16 := source "D from A:B" {
+            high:u8 := read A
+            low:u8 := read B
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8C {
+          offset:u8 := fetch byte
+          pc:u16 := read PC
+          yield addWrap(pc, signExtend16(offset))
+        }
+        case (byte & 8F) = 8D {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          pc:u16 := read PC
+          yield addWrap(pc, offset)
+        }
+        case (byte & FF) = 9F {
+          absolute:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield absolute
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      target:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          yield effective
+        }
+        case (byte & 90) = 80 {
+          yield effective
+        }
+        case (byte & 90) = 90 {
+          high:u8 := read memory[effective]
+          low:u8 := read memory[addWrap(effective, 0001:u16)]
+          yield concatHighLow(high, low)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      yield target
+    }
+    case (byte & 60) = 40 {
+      base:u16 := read U
+      effective:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          offset := bitAnd(postbyte, 1F:u8)
+          signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+          yield addWrap(base, signed)
+        }
+        case (byte & 9F) = 80 {
+          write U:u16 := addWrap(base, 0001:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 8F) = 81 {
+          write U:u16 := addWrap(base, 0002:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 9F) = 82 {
+          updated := subtract(base, 0001:u16)
+          write U:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 83 {
+          updated := subtract(base, 0002:u16)
+          write U:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 84 {
+          yield base
+        }
+        case (byte & 8F) = 85 {
+          offset:u8 := read B
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 86 {
+          offset:u8 := read A
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 88 {
+          offset:u8 := fetch byte
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 89 {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8B {
+          offset:u16 := source "D from A:B" {
+            high:u8 := read A
+            low:u8 := read B
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8C {
+          offset:u8 := fetch byte
+          pc:u16 := read PC
+          yield addWrap(pc, signExtend16(offset))
+        }
+        case (byte & 8F) = 8D {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          pc:u16 := read PC
+          yield addWrap(pc, offset)
+        }
+        case (byte & FF) = 9F {
+          absolute:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield absolute
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      target:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          yield effective
+        }
+        case (byte & 90) = 80 {
+          yield effective
+        }
+        case (byte & 90) = 90 {
+          high:u8 := read memory[effective]
+          low:u8 := read memory[addWrap(effective, 0001:u16)]
+          yield concatHighLow(high, low)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      yield target
+    }
+    case (byte & 60) = 60 {
+      base:u16 := read S
+      effective:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          offset := bitAnd(postbyte, 1F:u8)
+          signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+          yield addWrap(base, signed)
+        }
+        case (byte & 9F) = 80 {
+          write S:u16 := addWrap(base, 0001:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 8F) = 81 {
+          write S:u16 := addWrap(base, 0002:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 9F) = 82 {
+          updated := subtract(base, 0001:u16)
+          write S:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 83 {
+          updated := subtract(base, 0002:u16)
+          write S:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 84 {
+          yield base
+        }
+        case (byte & 8F) = 85 {
+          offset:u8 := read B
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 86 {
+          offset:u8 := read A
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 88 {
+          offset:u8 := fetch byte
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 89 {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8B {
+          offset:u16 := source "D from A:B" {
+            high:u8 := read A
+            low:u8 := read B
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8C {
+          offset:u8 := fetch byte
+          pc:u16 := read PC
+          yield addWrap(pc, signExtend16(offset))
+        }
+        case (byte & 8F) = 8D {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          pc:u16 := read PC
+          yield addWrap(pc, offset)
+        }
+        case (byte & FF) = 9F {
+          absolute:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield absolute
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      target:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          yield effective
+        }
+        case (byte & 90) = 80 {
+          yield effective
+        }
+        case (byte & 90) = 90 {
+          high:u8 := read memory[effective]
+          low:u8 := read memory[addWrap(effective, 0001:u16)]
+          yield concatHighLow(high, low)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      yield target
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield address
+}
+result:u16 := read Y
+write memory[address] := highByte(result)
+write memory[addWrap(address, 0001:u16)] := lowByte(result)
+flags "word result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 CMPD extended
+
+CMPD reads its complete operand before D. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "extended word" {
+  address:u16 := source "extended" {
+    high:u8 := fetch byte
+    low:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+left:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 CMPY extended
+
+CMPY reads its complete operand before Y. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "extended word" {
+  address:u16 := source "extended" {
+    high:u8 := fetch byte
+    low:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+left:u16 := read Y
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 LDY extended
+
+LDY reads or fetches the complete word, then writes Y before setting N/Z and clearing V. Preserve E/F/H/I/C. A failed read prevents these updates; earlier indexed updates and their NMI arming remain.
+
+```text
+result:u16 := source "extended word" {
+  address:u16 := source "extended" {
+    high:u8 := fetch byte
+    low:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+write Y:u16 := result
+flags "word result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 STY extended
+
+STY resolves the address before capturing Y; it never reads the destination. Write high then low with sixteen-bit wrap. Only after both writes succeed, set N/Z and clear V, preserving E/F/H/I/C and the NMI arming left by addressing. A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain.
+
+```text
+address:u16 := source "extended" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+result:u16 := read Y
+write memory[address] := highByte(result)
+write memory[addWrap(address, 0001:u16)] := lowByte(result)
+flags "word result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDS #word
+
+LDS reads or fetches the complete word, then writes S and arms NMI before setting N/Z and clearing V. Preserve E/F/H/I/C. A failed read prevents these updates; earlier indexed updates and their NMI arming remain.
+
+```text
+result:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write S:u16 := result
+write nmiArmed:boolean := true
+flags "word result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDS direct
+
+LDS reads or fetches the complete word, then writes S and arms NMI before setting N/Z and clearing V. Preserve E/F/H/I/C. A failed read prevents these updates; earlier indexed updates and their NMI arming remain.
+
+```text
+result:u16 := source "direct word" {
+  address:u16 := source "direct" {
+    offset:u8 := fetch byte
+    page:u8 := read DP
+    yield concatHighLow(page, offset)
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+write S:u16 := result
+write nmiArmed:boolean := true
+flags "word result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 STS direct
+
+STS resolves the address before capturing S; it never reads the destination. Write high then low with sixteen-bit wrap. Only after both writes succeed, set N/Z and clear V, preserving E/F/H/I/C and the NMI arming left by addressing. A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain.
+
+```text
+address:u16 := source "direct" {
+  offset:u8 := fetch byte
+  page:u8 := read DP
+  yield concatHighLow(page, offset)
+}
+result:u16 := read S
+write memory[address] := highByte(result)
+write memory[addWrap(address, 0001:u16)] := lowByte(result)
+flags "word result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDS indexed
+
+LDS reads or fetches the complete word, then writes S and arms NMI before setting N/Z and clearing V. Preserve E/F/H/I/C. A failed read prevents these updates; earlier indexed updates and their NMI arming remain.
+
+```text
+result:u16 := source "indexed word" {
+  address:u16 := source "indexed postbyte" {
+    postbyte:u8 := fetch byte
+    address:u16 := match byte postbyte {
+      case (byte & 60) = 00 {
+        base:u16 := read X
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write X:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write X:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write X:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write X:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 20 {
+        base:u16 := read Y
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write Y:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write Y:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write Y:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write Y:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 40 {
+        base:u16 := read U
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write U:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write U:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write U:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write U:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 60 {
+        base:u16 := read S
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write S:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write S:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write S:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write S:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield address
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+write S:u16 := result
+write nmiArmed:boolean := true
+flags "word result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 STS indexed
+
+STS resolves the address before capturing S; it never reads the destination. Write high then low with sixteen-bit wrap. Only after both writes succeed, set N/Z and clear V, preserving E/F/H/I/C and the NMI arming left by addressing. A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain.
+
+```text
+address:u16 := source "indexed postbyte" {
+  postbyte:u8 := fetch byte
+  address:u16 := match byte postbyte {
+    case (byte & 60) = 00 {
+      base:u16 := read X
+      effective:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          offset := bitAnd(postbyte, 1F:u8)
+          signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+          yield addWrap(base, signed)
+        }
+        case (byte & 9F) = 80 {
+          write X:u16 := addWrap(base, 0001:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 8F) = 81 {
+          write X:u16 := addWrap(base, 0002:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 9F) = 82 {
+          updated := subtract(base, 0001:u16)
+          write X:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 83 {
+          updated := subtract(base, 0002:u16)
+          write X:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 84 {
+          yield base
+        }
+        case (byte & 8F) = 85 {
+          offset:u8 := read B
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 86 {
+          offset:u8 := read A
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 88 {
+          offset:u8 := fetch byte
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 89 {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8B {
+          offset:u16 := source "D from A:B" {
+            high:u8 := read A
+            low:u8 := read B
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8C {
+          offset:u8 := fetch byte
+          pc:u16 := read PC
+          yield addWrap(pc, signExtend16(offset))
+        }
+        case (byte & 8F) = 8D {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          pc:u16 := read PC
+          yield addWrap(pc, offset)
+        }
+        case (byte & FF) = 9F {
+          absolute:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield absolute
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      target:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          yield effective
+        }
+        case (byte & 90) = 80 {
+          yield effective
+        }
+        case (byte & 90) = 90 {
+          high:u8 := read memory[effective]
+          low:u8 := read memory[addWrap(effective, 0001:u16)]
+          yield concatHighLow(high, low)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      yield target
+    }
+    case (byte & 60) = 20 {
+      base:u16 := read Y
+      effective:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          offset := bitAnd(postbyte, 1F:u8)
+          signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+          yield addWrap(base, signed)
+        }
+        case (byte & 9F) = 80 {
+          write Y:u16 := addWrap(base, 0001:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 8F) = 81 {
+          write Y:u16 := addWrap(base, 0002:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 9F) = 82 {
+          updated := subtract(base, 0001:u16)
+          write Y:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 83 {
+          updated := subtract(base, 0002:u16)
+          write Y:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 84 {
+          yield base
+        }
+        case (byte & 8F) = 85 {
+          offset:u8 := read B
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 86 {
+          offset:u8 := read A
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 88 {
+          offset:u8 := fetch byte
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 89 {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8B {
+          offset:u16 := source "D from A:B" {
+            high:u8 := read A
+            low:u8 := read B
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8C {
+          offset:u8 := fetch byte
+          pc:u16 := read PC
+          yield addWrap(pc, signExtend16(offset))
+        }
+        case (byte & 8F) = 8D {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          pc:u16 := read PC
+          yield addWrap(pc, offset)
+        }
+        case (byte & FF) = 9F {
+          absolute:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield absolute
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      target:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          yield effective
+        }
+        case (byte & 90) = 80 {
+          yield effective
+        }
+        case (byte & 90) = 90 {
+          high:u8 := read memory[effective]
+          low:u8 := read memory[addWrap(effective, 0001:u16)]
+          yield concatHighLow(high, low)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      yield target
+    }
+    case (byte & 60) = 40 {
+      base:u16 := read U
+      effective:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          offset := bitAnd(postbyte, 1F:u8)
+          signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+          yield addWrap(base, signed)
+        }
+        case (byte & 9F) = 80 {
+          write U:u16 := addWrap(base, 0001:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 8F) = 81 {
+          write U:u16 := addWrap(base, 0002:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 9F) = 82 {
+          updated := subtract(base, 0001:u16)
+          write U:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 83 {
+          updated := subtract(base, 0002:u16)
+          write U:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 84 {
+          yield base
+        }
+        case (byte & 8F) = 85 {
+          offset:u8 := read B
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 86 {
+          offset:u8 := read A
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 88 {
+          offset:u8 := fetch byte
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 89 {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8B {
+          offset:u16 := source "D from A:B" {
+            high:u8 := read A
+            low:u8 := read B
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8C {
+          offset:u8 := fetch byte
+          pc:u16 := read PC
+          yield addWrap(pc, signExtend16(offset))
+        }
+        case (byte & 8F) = 8D {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          pc:u16 := read PC
+          yield addWrap(pc, offset)
+        }
+        case (byte & FF) = 9F {
+          absolute:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield absolute
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      target:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          yield effective
+        }
+        case (byte & 90) = 80 {
+          yield effective
+        }
+        case (byte & 90) = 90 {
+          high:u8 := read memory[effective]
+          low:u8 := read memory[addWrap(effective, 0001:u16)]
+          yield concatHighLow(high, low)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      yield target
+    }
+    case (byte & 60) = 60 {
+      base:u16 := read S
+      effective:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          offset := bitAnd(postbyte, 1F:u8)
+          signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+          yield addWrap(base, signed)
+        }
+        case (byte & 9F) = 80 {
+          write S:u16 := addWrap(base, 0001:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 8F) = 81 {
+          write S:u16 := addWrap(base, 0002:u16)
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield base
+        }
+        case (byte & 9F) = 82 {
+          updated := subtract(base, 0001:u16)
+          write S:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 83 {
+          updated := subtract(base, 0002:u16)
+          write S:u16 := updated
+          perform "arm NMI after indexed S update" {
+            postbyte:u8 := postbyte
+            when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+              write nmiArmed:boolean := true
+            }
+          }
+          yield updated
+        }
+        case (byte & 8F) = 84 {
+          yield base
+        }
+        case (byte & 8F) = 85 {
+          offset:u8 := read B
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 86 {
+          offset:u8 := read A
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 88 {
+          offset:u8 := fetch byte
+          yield addWrap(base, signExtend16(offset))
+        }
+        case (byte & 8F) = 89 {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8B {
+          offset:u16 := source "D from A:B" {
+            high:u8 := read A
+            low:u8 := read B
+            yield concatHighLow(high, low)
+          }
+          yield addWrap(base, offset)
+        }
+        case (byte & 8F) = 8C {
+          offset:u8 := fetch byte
+          pc:u16 := read PC
+          yield addWrap(pc, signExtend16(offset))
+        }
+        case (byte & 8F) = 8D {
+          offset:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          pc:u16 := read PC
+          yield addWrap(pc, offset)
+        }
+        case (byte & FF) = 9F {
+          absolute:u16 := source "#word" {
+            high:u8 := fetch byte
+            low:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          yield absolute
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      target:u16 := match byte postbyte {
+        case (byte & 80) = 00 {
+          yield effective
+        }
+        case (byte & 90) = 80 {
+          yield effective
+        }
+        case (byte & 90) = 90 {
+          high:u8 := read memory[effective]
+          low:u8 := read memory[addWrap(effective, 0001:u16)]
+          yield concatHighLow(high, low)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      yield target
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield address
+}
+result:u16 := read S
+write memory[address] := highByte(result)
+write memory[addWrap(address, 0001:u16)] := lowByte(result)
+flags "word result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDS extended
+
+LDS reads or fetches the complete word, then writes S and arms NMI before setting N/Z and clearing V. Preserve E/F/H/I/C. A failed read prevents these updates; earlier indexed updates and their NMI arming remain.
+
+```text
+result:u16 := source "extended word" {
+  address:u16 := source "extended" {
+    high:u8 := fetch byte
+    low:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+write S:u16 := result
+write nmiArmed:boolean := true
+flags "word result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 STS extended
+
+STS resolves the address before capturing S; it never reads the destination. Write high then low with sixteen-bit wrap. Only after both writes succeed, set N/Z and clear V, preserving E/F/H/I/C and the NMI arming left by addressing. A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain.
+
+```text
+address:u16 := source "extended" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+result:u16 := read S
+write memory[address] := highByte(result)
+write memory[addWrap(address, 0001:u16)] := lowByte(result)
+flags "word result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 CMPU #word
+
+CMPU reads its complete operand before U. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := read U
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 CMPS #word
+
+CMPS reads its complete operand before S. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "#word" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := read S
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 CMPU direct
+
+CMPU reads its complete operand before U. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "direct word" {
+  address:u16 := source "direct" {
+    offset:u8 := fetch byte
+    page:u8 := read DP
+    yield concatHighLow(page, offset)
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+left:u16 := read U
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 CMPS direct
+
+CMPS reads its complete operand before S. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "direct word" {
+  address:u16 := source "direct" {
+    offset:u8 := fetch byte
+    page:u8 := read DP
+    yield concatHighLow(page, offset)
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+left:u16 := read S
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 CMPU indexed
+
+CMPU reads its complete operand before U. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "indexed word" {
+  address:u16 := source "indexed postbyte" {
+    postbyte:u8 := fetch byte
+    address:u16 := match byte postbyte {
+      case (byte & 60) = 00 {
+        base:u16 := read X
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write X:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write X:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write X:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write X:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 20 {
+        base:u16 := read Y
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write Y:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write Y:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write Y:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write Y:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 40 {
+        base:u16 := read U
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write U:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write U:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write U:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write U:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 60 {
+        base:u16 := read S
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write S:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write S:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write S:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write S:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield address
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+left:u16 := read U
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 CMPS indexed
+
+CMPS reads its complete operand before S. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "indexed word" {
+  address:u16 := source "indexed postbyte" {
+    postbyte:u8 := fetch byte
+    address:u16 := match byte postbyte {
+      case (byte & 60) = 00 {
+        base:u16 := read X
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write X:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write X:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write X:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write X:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 20 {
+        base:u16 := read Y
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write Y:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write Y:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write Y:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write Y:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 40 {
+        base:u16 := read U
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write U:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write U:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write U:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write U:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      case (byte & 60) = 60 {
+        base:u16 := read S
+        effective:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            offset := bitAnd(postbyte, 1F:u8)
+            signed := select(borrow(offset, 10:u8), zeroExtend16(offset), bitOr(zeroExtend16(offset), FFE0:u16))
+            yield addWrap(base, signed)
+          }
+          case (byte & 9F) = 80 {
+            write S:u16 := addWrap(base, 0001:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 8F) = 81 {
+            write S:u16 := addWrap(base, 0002:u16)
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield base
+          }
+          case (byte & 9F) = 82 {
+            updated := subtract(base, 0001:u16)
+            write S:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 83 {
+            updated := subtract(base, 0002:u16)
+            write S:u16 := updated
+            perform "arm NMI after indexed S update" {
+              postbyte:u8 := postbyte
+              when isZero(bitXor(bitAnd(postbyte, 60:u8), 60:u8)) {
+                write nmiArmed:boolean := true
+              }
+            }
+            yield updated
+          }
+          case (byte & 8F) = 84 {
+            yield base
+          }
+          case (byte & 8F) = 85 {
+            offset:u8 := read B
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 86 {
+            offset:u8 := read A
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 88 {
+            offset:u8 := fetch byte
+            yield addWrap(base, signExtend16(offset))
+          }
+          case (byte & 8F) = 89 {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8B {
+            offset:u16 := source "D from A:B" {
+              high:u8 := read A
+              low:u8 := read B
+              yield concatHighLow(high, low)
+            }
+            yield addWrap(base, offset)
+          }
+          case (byte & 8F) = 8C {
+            offset:u8 := fetch byte
+            pc:u16 := read PC
+            yield addWrap(pc, signExtend16(offset))
+          }
+          case (byte & 8F) = 8D {
+            offset:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            pc:u16 := read PC
+            yield addWrap(pc, offset)
+          }
+          case (byte & FF) = 9F {
+            absolute:u16 := source "#word" {
+              high:u8 := fetch byte
+              low:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield absolute
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        target:u16 := match byte postbyte {
+          case (byte & 80) = 00 {
+            yield effective
+          }
+          case (byte & 90) = 80 {
+            yield effective
+          }
+          case (byte & 90) = 90 {
+            high:u8 := read memory[effective]
+            low:u8 := read memory[addWrap(effective, 0001:u16)]
+            yield concatHighLow(high, low)
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield target
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield address
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+left:u16 := read S
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 CMPU extended
+
+CMPU reads its complete operand before U. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "extended word" {
+  address:u16 := source "extended" {
+    high:u8 := fetch byte
+    low:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+left:u16 := read U
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 CMPS extended
+
+CMPS reads its complete operand before S. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
+
+```text
+right:u16 := source "extended word" {
+  address:u16 := source "extended" {
+    high:u8 := fetch byte
+    low:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  high:u8 := read memory[address]
+  low:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+left:u16 := read S
+result := subtract(left, right)
+flags "16-bit comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I.
+
 ### 6809 write D as A then B
 
 Read A before B to assemble D. Writing D captures a complete word, then replaces A followed by B. Instructions, snapshots, and indexed D offsets use this same view; transfers, stacks, multiplication, and arithmetic use the same write action. Neither operation changes CC or touches memory.
@@ -359203,597 +364220,6 @@ when not(isZero(bitAnd(mask, 01:u8))) {
 ```
 
 Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LBRN
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-when not(1:flag) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, offset)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LBHI
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-c:flag := read C
-z:flag := read Z
-when and(not(c), not(z)) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, offset)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LBLS
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-c:flag := read C
-z:flag := read Z
-when not(and(not(c), not(z))) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, offset)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LBCC
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-c:flag := read C
-when not(c) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, offset)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LBCS
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-c:flag := read C
-when not(not(c)) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, offset)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LBNE
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-z:flag := read Z
-when not(z) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, offset)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LBEQ
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-z:flag := read Z
-when not(not(z)) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, offset)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LBVC
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-v:flag := read V
-when not(v) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, offset)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LBVS
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-v:flag := read V
-when not(not(v)) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, offset)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LBPL
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-n:flag := read N
-when not(n) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, offset)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LBMI
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-n:flag := read N
-when not(not(n)) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, offset)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LBGE
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-n:flag := read N
-v:flag := read V
-when not(xor(n, v)) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, offset)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LBLT
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-n:flag := read N
-v:flag := read V
-when not(not(xor(n, v))) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, offset)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LBGT
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-n:flag := read N
-v:flag := read V
-z:flag := read Z
-when and(not(z), not(xor(n, v))) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, offset)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LBLE
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-n:flag := read N
-v:flag := read V
-z:flag := read Z
-when not(and(not(z), not(xor(n, v)))) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, offset)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 LDY #word
-
-Fetch the immediate word. Read high byte then low byte, wrapping at FFFF. Write Y, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
-
-```text
-result:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-write Y:u16 := result
-flags "6809 transfer" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: E, F, H, I, C.
-
-### 6809 LDY memory
-
-Entry is after successful address resolution. Read the word at that address. Read high byte then low byte, wrapping at FFFF. Write Y, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
-
-```text
-address:u16 := input
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 0001:u16)]
-result := concatHighLow(high, low)
-write Y:u16 := result
-flags "6809 transfer" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: E, F, H, I, C.
-
-### 6809 STY memory
-
-Entry is after successful address resolution. Only then capture Y. Do not read the destination; write high byte then low byte, wrapping at FFFF, even if unchanged. Only after both writes succeed, set N/Z from the captured word and clear V, preserving other flags. A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain.
-
-```text
-address:u16 := input
-result:u16 := read Y
-write memory[address] := highByte(result)
-write memory[addWrap(address, 0001:u16)] := lowByte(result)
-flags "6809 transfer" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: E, F, H, I, C.
-
-### 6809 LDS #word
-
-Fetch the immediate word. Read high byte then low byte, wrapping at FFFF. Write S and arm NMI, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
-
-```text
-result:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-write S:u16 := result
-write nmiArmed:boolean := true
-flags "6809 transfer" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: E, F, H, I, C.
-
-### 6809 LDS memory
-
-Entry is after successful address resolution. Read the word at that address. Read high byte then low byte, wrapping at FFFF. Write S and arm NMI, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
-
-```text
-address:u16 := input
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 0001:u16)]
-result := concatHighLow(high, low)
-write S:u16 := result
-write nmiArmed:boolean := true
-flags "6809 transfer" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: E, F, H, I, C.
-
-### 6809 STS memory
-
-Entry is after successful address resolution. Only then capture S. Do not read the destination; write high byte then low byte, wrapping at FFFF, even if unchanged. Only after both writes succeed, set N/Z from the captured word and clear V, preserving other flags. A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain.
-
-```text
-address:u16 := input
-result:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-write memory[address] := highByte(result)
-write memory[addWrap(address, 0001:u16)] := lowByte(result)
-flags "6809 transfer" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: E, F, H, I, C.
-
-### 6809 CMPD #word
-
-Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read D from A:B. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
-
-```text
-right:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-left:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-result := subtract(left, right)
-flags "6809 comparison" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right)
-  C := borrow(left, right)
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: E, F, H, I.
-
-### 6809 CMPD memory
-
-Entry is after successful address resolution. Read the operand at that captured address. Read high byte then low byte, wrapping at FFFF. Only then read D from A:B. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
-
-```text
-address:u16 := input
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 0001:u16)]
-right := concatHighLow(high, low)
-left:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-result := subtract(left, right)
-flags "6809 comparison" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right)
-  C := borrow(left, right)
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: E, F, H, I.
-
-### 6809 CMPY #word
-
-Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read Y. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
-
-```text
-right:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-left:u16 := read Y
-result := subtract(left, right)
-flags "6809 comparison" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right)
-  C := borrow(left, right)
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: E, F, H, I.
-
-### 6809 CMPY memory
-
-Entry is after successful address resolution. Read the operand at that captured address. Read high byte then low byte, wrapping at FFFF. Only then read Y. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
-
-```text
-address:u16 := input
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 0001:u16)]
-right := concatHighLow(high, low)
-left:u16 := read Y
-result := subtract(left, right)
-flags "6809 comparison" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right)
-  C := borrow(left, right)
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: E, F, H, I.
-
-### 6809 CMPU #word
-
-Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read U. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
-
-```text
-right:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-left:u16 := read U
-result := subtract(left, right)
-flags "6809 comparison" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right)
-  C := borrow(left, right)
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: E, F, H, I.
-
-### 6809 CMPU memory
-
-Entry is after successful address resolution. Read the operand at that captured address. Read high byte then low byte, wrapping at FFFF. Only then read U. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
-
-```text
-address:u16 := input
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 0001:u16)]
-right := concatHighLow(high, low)
-left:u16 := read U
-result := subtract(left, right)
-flags "6809 comparison" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right)
-  C := borrow(left, right)
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: E, F, H, I.
-
-### 6809 CMPS #word
-
-Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read S. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
-
-```text
-right:u16 := source "immediate word, high byte first" {
-  high:u8 := fetch byte
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-left:u16 := read S
-result := subtract(left, right)
-flags "6809 comparison" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right)
-  C := borrow(left, right)
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: E, F, H, I.
-
-### 6809 CMPS memory
-
-Entry is after successful address resolution. Read the operand at that captured address. Read high byte then low byte, wrapping at FFFF. Only then read S. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
-
-```text
-address:u16 := input
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 0001:u16)]
-right := concatHighLow(high, low)
-left:u16 := read S
-result := subtract(left, right)
-flags "6809 comparison" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right)
-  C := borrow(left, right)
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: E, F, H, I.
 
 ### z80 NOP
 

@@ -27,12 +27,13 @@ Executable chapters are maintained CPU sources:
   WAI suspension and wake-up, and the public interface are chapter-owned too.
   Its model contracts and hardware guide live beside the formal definitions;
   no handwritten 6800 implementation remains.
-- [Motorola 6809: state and base-page instructions](../../src/components/cpus/specifications/6809.md)
+- [Motorola 6809: state, addressing, and opcode pages](../../src/components/cpus/specifications/6809.md)
   owns all stored fields, D/CC views and writes, indexed-postbyte decoding, and
   base-page loads, stores, arithmetic, logic, comparisons, unary and register/flag
-  operations, branches, LEA, and calls/jumps/returns. Prefix pages use its generated
-  indexed decoder; their definitions, register transfers, masked stacks, remaining
-  instructions, and lifecycle policies stay in TypeScript.
+  operations, branches, LEA, and calls/jumps/returns. It also owns the ordinary
+  prefixed word families and long branches. Named pages generate prefix dispatch,
+  including the remaining native SWI2/SWI3 bindings. Register transfers, masked
+  stacks, remaining instructions, and lifecycle policies stay in TypeScript.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -275,7 +276,7 @@ they have no opcode bindings and earn no instruction-coverage credit.
 
 The [8008 execution section](../../src/components/cpus/specifications/8008.md#execution-and-interrupt-acceptance)
 declares how its instruction bodies run. The current contract supports a flat
-byte-memory connection, one-byte opcode dispatch, a stopped latch, and
+byte-memory connection, byte opcode dispatch with optional named pages, a stopped latch, and
 instructions supplied by an acknowledgement callback. The
 [8080 section](../../src/components/cpus/specifications/8080.md#instruction-boundaries-and-interrupt-acceptance)
 adds enable/deferral recognition and an instruction-local retirement request.
@@ -356,7 +357,7 @@ with `stopped none` or the supplied-instruction contract.
 
 Unknown fields, duplicate or missing policies, wrong references or action
 signatures, and opcodes wider than a byte fail at Markdown locations. Priority
-arbitration, prefixes, segmented fetches, and bus wait cycles remain outside these
+arbitration, chained or repeated prefixes, segmented fetches, and bus wait cycles remain outside these
 execution contracts. Further CPUs should supply evidence before extending them.
 
 ### Public interfaces
@@ -647,6 +648,59 @@ captured byte. The CPU boundary still owns device connection, byte validation,
 and access recording. Exceptions stop later effects without rolling back earlier
 ones. No CPU-specific behavior is added to the language compiler.
 
+## Opcode pages
+
+A named page assigns a nonzero prefix byte to a separate eight-bit opcode space:
+
+```cpu
+page secondary = $10
+```
+
+Add `on secondary` after an encoding's pattern, before its selectors or source
+bindings. It works in a single-pattern family header or on individual encodings
+within a shared family:
+
+```cpu
+family branchNEPair {
+  encoding "0010 011 p" for p in branchNE.read with d = byteDisplacement named "{p}"
+  encoding "0010 011 p" on secondary for p in branchNE.read with d = immediateWord named "L{p}"
+  offset = source d
+  z = flag Z
+  inverse = source p
+  when xor(not(z), lowBit(inverse)) {
+    pc = register PC
+    PC <- add(pc, offset)
+  }
+}
+```
+
+The unprefixed and prefixed branches share their condition and effects; their
+sources determine displacement width and sign extension. Exclusions apply to
+the eight-bit pattern within the selected page. Declarations precede uses;
+page names and prefixes must be unique. Duplicate opcodes within a page and
+collisions between a prefix and a base opcode are errors, with Markdown locations.
+The same opcode byte may appear in different pages.
+
+This bounded form supports one nonzero prefix (`$01`–`$FF`) followed by one
+opcode byte. It does not model prefix chains, repetition, or intervening operand
+bytes. Word-opcode patterns cannot be mixed with pages. Expanded family keys
+use `prefix * 256 + opcode`, so `$10 $83` has key `$1083`; this is an inventory
+key, not a word fetch. The prefix is still fetched and recorded separately.
+
+Chapter generation exports the page names and prefix bytes with the families.
+The instruction generator uses them to bind base opcodes and prefix dispatch:
+fetch the following byte exactly once, execute its page body, or return
+`unsupported` without fetching operands. Existing fetch callbacks retain PC,
+recording, and failure policies. Page bodies can use the same generated indexed
+decoder as base-page bodies. Complete byte-execution chapters use these bindings
+automatically, without a CPU-name branch in the runtime.
+
+During partial migration, `opcodeEntries(state, additional)` accepts additional
+bodies under declared page names. The 6809 uses this for SWI2/SWI3; changing a
+chapter's prefix also moves those bodies. Additions cannot replace generated
+entries: duplicate or out-of-range opcodes are rejected during binding. Native
+base-page collisions remain checked by the CPU's final opcode table.
+
 ## Byte-pattern matches
 
 A `match` captures an eight-bit selector once and yields a numeric value. It
@@ -684,7 +738,7 @@ uses nested matches for base selection, mode decoding, and optional indirection.
 It makes auto-updates, S arming, and high-first indirect reads explicit. Generation
 shares a source with a top-level match as one decoder function within its output
 module, with a `number | "unsupported"` result and only its required capabilities.
-Its instruction callers and exported source readers reuse that function. Ordinary
+Instruction callers and any exported source readers reuse that function. Ordinary
 straight-line sources still inline; this is generated-code sharing, with no
 CPU-specific decoder built into the language.
 
@@ -768,14 +822,15 @@ The 6800 reuses that boundary with explicit WAI waiting and wake-up rules. Its
 reset, stack frame, and vector actions remain visible in the chapter; its public
 class and records are generated without a handwritten adapter.
 The 6809 adds named-choice storage for its three wait modes. Its chapter supplies
-the complete stored schema, D/CC views and writes, and base-page operand families,
-unary operations, register/flag operations, short branches, LBRA, LEA, and
-calls/jumps/returns. Byte-pattern matches now describe its indexed decoder,
+the complete stored schema, D/CC views and writes, base-page operand families,
+unary operations, register/flag operations, every branch, LEA, and
+calls/jumps/returns, plus prefixed word comparisons and transfers. Byte-pattern matches now describe its indexed decoder,
 including unsupported postbytes, auto-updates, and indirect pointer reads.
 Unsigned `multiply` exposes the existing full-width multiplication expression.
 Remaining TypeScript instructions and external entry consume the same views,
-writes, and indexed decoder; prefix definitions, register transfers, masked
-stacks, and lifecycle policies remain native.
+writes. Named opcode pages now supply prefix dispatch and ordinary prefixed
+bodies; register transfers, masked stacks, interrupt instructions, and lifecycle
+policies remain native.
 Its model document still owns the wider execution contract.
 A differently named test CPU already exercises different storage, address width, views, and
 actions through the same compiler and runtime. This is evidence for the current

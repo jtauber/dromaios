@@ -300,14 +300,14 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6502[0x10](mos, { fetchByte: () => 0 });
   generated6502[0x6c](mos, { fetchByte: () => 0, readByte: () => 0 });
   generated6800[0x20](m6800, { fetchByte: () => 0 });
-  generated6809.lbrn(motorola, { fetchByte: () => 0 });
+  base6809[0x1021](motorola, { fetchByte: () => 0 });
   actions6809.jump(motorola, 0xffff);
   generated8080[0xc2](intel, { fetchByte: () => 0 });
   generated8080[0xe9](intel);
   generatedZ80.jumpIX(z80);
   generatedZ80.djnz(z80, { fetchByte: () => 0 });
   // @ts-expect-error Even a branch that is never taken must fetch its displacement.
-  generated6809.lbrn(motorola);
+  base6809[0x1021](motorola);
   // @ts-expect-error Indirect JMP requires pointer reads.
   generated6502[0x6c](mos, { fetchByte: () => 0 });
   // @ts-expect-error Absolute jumps do not read their destination.
@@ -551,12 +551,12 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6809.pushFrame(motorola, 0xff, { writeByte: () => {}, fetchByte: () => 0 });
   // @ts-expect-error Transfer bodies require the concrete 6809 state.
   generated6809.tfr_a_b(m6800);
-  generated6809.cmpdMemory(motorola, 0xffff, { readByte: () => 0 });
-  generated6809.cmpsImmediate(motorola, { fetchByte: () => 0 });
+  base6809[0x10b3](motorola, { fetchByte: () => 0, readByte: () => 0 });
+  base6809[0x118c](motorola, { fetchByte: () => 0 });
   // @ts-expect-error Extended comparisons fetch individual bytes, not words.
   base6809[0xbc](motorola, { fetchByte: () => 0, readByte: () => 0, fetchWord: () => 0 });
   // @ts-expect-error A comparison cannot write its memory operand.
-  generated6809.cmpdMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  base6809[0x10b3](motorola, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
   generated6800[0x4f](m6800);
   generated6800[0x7f](m6800, { fetchByte: () => 0xff, writeByte: () => {} });
   generated6800[0x7d](m6800, { fetchByte: () => 0xff, readByte: () => 0 });
@@ -566,15 +566,15 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6800[0x8e](m6800, { fetchByte: () => 0 });
   generated6800[0xfe](m6800, { fetchByte: () => 0xff, readByte: () => 0 });
   generated6800[0xbf](m6800, { fetchByte: () => 0xff, writeByte: () => {} });
-  generated6809.ldsImmediate(motorola, { fetchByte: () => 0 });
+  base6809[0x10ce](motorola, { fetchByte: () => 0 });
   base6809[0xfc](motorola, { fetchByte: () => 0, readByte: () => 0 });
   base6809[0xfd](motorola, { fetchByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Word loads need byte fetching, not an opaque word fetch.
   generated6800[0x8e](m6800, { fetchWord: () => 0 });
   // @ts-expect-error Word stores cannot read destination memory.
-  generated6809.stsMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
-  // @ts-expect-error Resolved word loads cannot fetch another address.
-  generated6809.ldyMemory(motorola, 0xffff, { fetchByte: () => 0, readByte: () => 0 });
+  base6809[0x10ff](motorola, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Extended word loads fetch individual bytes, not words.
+  base6809[0x10be](motorola, { fetchByte: () => 0, readByte: () => 0, fetchWord: () => 0 });
   // @ts-expect-error Word stores require writes, including unchanged values.
   generated6800[0xff](m6800, { fetchByte: () => 0xff });
   // @ts-expect-error Word bodies retain the concrete CPU state.
