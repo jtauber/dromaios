@@ -4,6 +4,7 @@ import { cpu68000StateDescription } from "../src/components/cpus/state/68000.ts"
 import { generateChapterState } from "../src/components/cpus/semantics/literate/state.ts";
 import { generatePublicState } from "../src/components/cpus/semantics/literate/interface.ts";
 import { compileCpuChapter } from "../src/components/cpus/semantics/literate/compile.ts";
+import { opcodePageLayouts } from "../src/components/cpus/semantics/opcode-pages.ts";
 import type { CpuChapter } from "../src/components/cpus/semantics/literate/compile.ts";
 import type { StateFields } from "../src/components/cpus/state.ts";
 
@@ -29,7 +30,7 @@ function chapterModule(chapter: CpuChapter, name: string, cpu: string): string {
     ...(chapter.execution && chapter.state ? [
       'import { instructionSet } from "../builders.ts";',
       `import { state } from "./state/${name}.ts";`,
-      `export const instructions = instructionSet(Object.values(families).flat()${Object.keys(chapter.pages).length ? ", 16" : ""});`,
+      `export const instructions = instructionSet(Object.values(families).flat()${opcodePageLayouts(chapter.pages).some(page => page.on) ? ", 24" : Object.keys(chapter.pages).length ? ", 16" : ""});`,
       `const options = { state: { name: "StoredState", module: "../semantics/generated/state/${name}.ts" }, origin: "specifications/${name}.md" };`,
       'export const instructionModules = [',
       `  { name: ${JSON.stringify(name)}, cpu: ${JSON.stringify(cpu)} as const, definitions: instructions, options: { ...options, bindOpcodes: true${Object.keys(chapter.pages).length ? ", pages" : ""} } },`,

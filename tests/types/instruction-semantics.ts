@@ -1,3 +1,4 @@
+import { instructions as indexedZ80 } from "../../src/components/cpus/generated/z80-chapter.js";
 import { instructions as actions6809 } from "../../src/components/cpus/generated/6809-state.js";
 import { instructions as base6809 } from "../../src/components/cpus/generated/6809.js";
 import { instructions as system68000 } from "../../src/components/cpus/generated/68000-system.js";
@@ -344,6 +345,17 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generatedZ80.adcA(z80);
   generatedZ80.cpM(z80, { readByte: () => 0 });
   generatedZ80.sbcImmediate(z80, { fetchByte: () => 0 });
+  indexedZ80[0xdd36](z80, { fetchByte: () => 0, writeByte: () => {} });
+  indexedZ80[0xddcb46](z80, 0xff, { readByte: () => 0 });
+  indexedZ80[0xfdcb06](z80, 0xff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Ordinary indexed bodies fetch their displacement.
+  indexedZ80[0xdd86](z80, { readByte: () => 0 });
+  // @ts-expect-error Indexed bit bodies need their decoded displacement.
+  indexedZ80[0xddcb46](z80, { readByte: () => 0 });
+  // @ts-expect-error The captured displacement is not fetched again.
+  indexedZ80[0xddcb46](z80, 0xff, { readByte: () => 0, fetchByte: () => 0 });
+  // @ts-expect-error Indexed shifts require writeback.
+  indexedZ80[0xfdcb06](z80, 0xff, { readByte: () => 0 });
   generatedZ80.andMemory(z80, 0xffff, { readByte: () => 0 });
   generatedZ80.rlca(z80);
   generated8080[0x02](intel, { writeByte: () => {} });

@@ -369,17 +369,19 @@ execution, with no inherited decoder or handwritten adapter. Numeric opcode
 keys bind every complete body. Register-pair operands expose the high/low read
 and write order; stack effects and packed status remain explicit in the chapter.
 
-The [Z80 chapter](../../src/components/cpus/specifications/z80.md) now owns all
-252 unprefixed instructions, both stored banks, pair views and writes, and packed
-status. Its ordinary table binds chapter opcodes directly; no inherited base
-class or duplicate encoding inventory remains. The core retains CB, ED, DD,
-and FD decoding, refresh increments, reset, and interrupt boundaries.
+The [Z80 chapter](../../src/components/cpus/specifications/z80.md) owns all 698
+documented instruction forms, both stored banks, pair views and writes, and
+packed status. Named pages define CB/ED/DD/FD and the nested indexed-bit layouts,
+including displacement-before-opcode reads. The generated decoder supplies the
+selected body and opcode-fetch count without touching state. The core retains
+PC/refresh commitment, reset, retirement, and external interrupt boundaries.
 
-Native [Intel builders](../../src/components/cpus/semantics/intel.ts) serve the
-remaining prefixed word and indexed-byte forms. Their BC/DE/HL operands consume
-the chapter's pair sources and write actions; IX/IY and SP are stored words.
-ED HL loads/stores call the chapter's unprefixed bodies. Indexed byte arithmetic
-and adjustments also reuse chapter actions after native address resolution.
+IX/IY encodings share bodies through writable register bindings. Indexed byte
+sources fetch their displacement before reading the live index; indexed CB
+bodies receive the byte captured during decoding. Both use the chapter's byte
+arithmetic, adjustment, and bit actions. The old Intel instruction builders and
+native indexed tables are removed; the shared immediate-word source remains
+in [builders.ts](../../src/components/cpus/semantics/builders.ts) for the 8088.
 
 Both chapters expose capture and effect order: word sources precede their
 destinations, word results precede flags, and complete stack pops precede

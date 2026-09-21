@@ -9,7 +9,7 @@ import type { OpcodeEntry } from "../opcodes.ts";
 export interface AccumulatorCpu { readonly declaration: CpuDeclaration; register(field: "a"): Register; flag(field: string): Flag }
 
 /** Check encoding collisions before making the generator's inventory of defined entries. */
-export function instructionSet(entries: readonly OpcodeEntry<InstructionDefinition>[], width: 8 | 16 = 8): Readonly<Record<string, InstructionDefinition>> {
+export function instructionSet(entries: readonly OpcodeEntry<InstructionDefinition>[], width: 8 | 16 | 24 = 8): Readonly<Record<string, InstructionDefinition>> {
   opcodeTable(entries, width);
   return Object.freeze(Object.fromEntries(entries));
 }
@@ -30,6 +30,9 @@ export const immediateByte: ValueSource = {
   name: "immediate byte", width: 8,
   steps: [fetchByte("byte")], result: value("byte"),
 };
+
+export const immediateWord: ValueSource = { name: "immediate word, low byte first", width: 16,
+  steps: [fetchByte("low"), fetchByte("high")], result: concat(value("high"), value("low")) };
 
 export function registerSource(register: Register): ValueSource {
   return { name: `register ${register.bank === undefined ? "" : register.bank.toUpperCase() + "."}${register.field.toUpperCase()}`, width: register.width,

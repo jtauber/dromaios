@@ -26,9 +26,9 @@ the current model. Where the manual leaves a modeled flag unspecified, the
 behavior selected below is checked against an independent reference emulator.
 
 The executable [chapter](../../../src/components/cpus/specifications/z80.md)
-now owns stored fields, both banks' pair views, packed F, and ordinary byte
-loads, arithmetic, and INC/DEC. Indexed arithmetic reuses its actions. This
-contract continues to define the public API and remaining execution policies
+owns all stored fields, both banks' pair views and writes, packed F/AF, all
+698 documented instruction forms, and their prefix layouts. This contract
+continues to define the public API, reset, and execution/interrupt boundaries
 until the chapter owns the complete model.
 
 ## Stored state and register views

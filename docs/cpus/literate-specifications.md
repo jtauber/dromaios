@@ -395,8 +395,8 @@ waiting unless a matching resume clause explicitly changes it. Without this poli
 with `stopped none` or the supplied-instruction contract.
 
 Unknown fields, duplicate or missing policies, wrong references or action
-signatures, and opcodes wider than a byte fail at Markdown locations. Priority
-arbitration, chained or repeated prefixes, segmented fetches, and bus wait cycles remain outside these
+signatures, and unpaged opcodes wider than a byte fail at Markdown locations. Priority
+arbitration, repeated prefixes, segmented fetches, and bus wait cycles remain outside these
 execution contracts. Further CPUs should supply evidence before extending them.
 
 ### Public interfaces
@@ -729,34 +729,68 @@ page names and prefixes must be unique. Duplicate opcodes within a page and
 collisions between a prefix and a base opcode are errors, with Markdown locations.
 The same opcode byte may appear in different pages.
 
-This bounded form supports one nonzero prefix (`$01`–`$FF`) followed by one
-opcode byte. It does not model prefix chains, repetition, or intervening operand
-bytes. Word-opcode patterns cannot be mixed with pages. Expanded family keys
-use `prefix * 256 + opcode`, so `$10 $83` has key `$1083`; this is an inventory
-key, not a word fetch. The prefix is still fetched and recorded separately.
+A short page declaration has one nonzero prefix (`$01`–`$FF`) followed by
+an opcode fetch. A nested page can select an earlier root page and describe
+ordinary byte reads before the final opcode:
 
-Chapter generation exports the page names and prefix bytes with the families.
-The instruction generator uses them to bind base opcodes and prefix dispatch:
-fetch the following byte exactly once, execute its page body, or return
-`unsupported` without fetching operands. Existing fetch callbacks retain PC,
-recording, and failure policies. Page bodies can use the same generated indexed
-decoder as base-page bodies. Complete byte-execution chapters use these bindings
-automatically, without a CPU-name branch in the runtime.
+```cpu
+page DD = $DD
+page FD = $FD
+page DDCB = $CB on DD {
+  displacement:8 = read
+  opcode = read
+}
+```
 
-During partial migration, `opcodeEntries(state, additional)` accepts additional
-bodies under declared page names; changing a
-chapter's prefix also moves those bodies. The complete 6809 instruction chapter
-no longer needs native additions. Additions cannot replace generated
-entries: duplicate or out-of-range opcodes are rejected during binding. Native
-base-page collisions remain checked by the CPU's final opcode table.
+This reads `DD CB displacement opcode`. Each capture becomes an eight-bit input
+to families on that page; it is not fetched again by the instruction body.
+`opcode = fetch` classifies the final byte as an opcode fetch; `opcode = read`
+classifies it as an ordinary read. The Z80 uses that distinction for R.
+Decoding neither reads nor writes stored CPU state. The selected body can read
+the live index after the core has committed its execution boundary.
 
-Cores that validate prefixed instructions before committing PC or refresh changes
-can use `opcodePages(state, additional)` instead. It returns base entries and
-named pages containing their declared `prefix` and bound `handlers`. Binding and
-lookup perform no state or bus effects; the core supplies the opcode and invokes
-the chosen body. The Z80 uses this for its ordinary CB and ED pages, preserving its
-unsupported-opcode and supplied-interrupt fetching rules. `opcodeEntries` builds
-its fetch-and-dispatch wrappers from the same page tables.
+Layouts currently allow at most two prefixes. A nested page requires an earlier
+root page without captures. Prefix paths must be unique and cannot collide
+with instruction slots; captures have distinct names and cannot shadow stored
+state or declarations. Repeated/ignored prefixes and word-opcode patterns mixed
+with byte pages are unsupported. Expanded keys concatenate prefix/opcode bytes,
+omitting captured operands: `DD CB d 06` has key `$DDCB06`. These are inventory
+keys, not word fetches; each encoded byte is still read and recorded separately.
+
+Chapter generation exports page layouts with the families. The instruction
+generator provides three bindings:
+
+- `opcodePages(state, additional)` binds base entries and named page tables.
+  Page handlers take their captured bytes in declaration order, followed by
+  their instruction context. Binding and table lookup have no state or bus effects.
+- `opcodeDecoder(state, additional)` returns a decoder taking the initial opcode
+  and `nextByte(opcodeFetch)`. It reads the declared layout and returns a bound
+  handler (or `undefined`) and the opcode-fetch count, including the initial byte.
+  The Z80 uses it for both memory and interrupt-supplied decoding; its core still
+  decides when PC/R and retirement effects commit.
+- `opcodeEntries(state, additional)` binds ordinary fetch-and-dispatch wrappers
+  for complete byte-execution chapters. Existing callbacks retain PC, recording,
+  and failure policies; the same decoder selects the body or `unsupported`.
+
+During partial migration, optional additional bodies can occupy unused slots
+under declared page names. Changing a prefix also moves those bodies. Duplicates,
+out-of-range opcodes, and collisions with nested prefixes are rejected. The
+complete 6809 and Z80 instruction chapters need no native additions.
+
+An encoding can also bind a stored register as a writable operand:
+
+```cpu
+family INCIndex {
+  encoding "0010 0011" on DD with i = register IX named "INC {i}"
+  encoding "0010 0011" on FD with i = register IY named "INC {i}"
+  original = operand i
+  operand i <- add(original, u16(1))
+}
+```
+
+Register bindings are distinct from source bindings (`with a = addressSource`):
+`operand i` exposes both reads and writes. The alias can appear in the instruction
+name template. Neither kind reads state during family expansion or binding.
 
 ## Byte-pattern matches
 

@@ -56,7 +56,7 @@ the Z80, 8088, and 68000 retain TypeScript builders.
 | Z80 RLD/RRD and all eight block transfer/search forms | Direct nibble shifts; successful memory writes before flags; live pair rereads; one iteration and conditional PC rewind, with no hidden loop |
 | Z80 BIT/RES/SET, including indexed forms | Fixed bit masks; BIT reads without writeback and preserves C; RES/SET write even unchanged values without accessing flags; share chapter operand catalogues and memory actions with shifts |
 | 8080 INR/DCR and Z80 byte INC/DEC, including indexed forms | Chapter-owned read–adjust–flags–write bodies; Z80 indexed callers reuse its memory actions; preserve carry; distinguish 8080 inverse half-borrow and parity from Z80 half-borrow and overflow; retain calculated flags on failed writes |
-| 8080 MOV/MVI and corresponding Z80 LD matrices, immediate and indexed forms | Chapters own the ordinary matrices; native Z80 indexed bodies retain resolved addresses; capture sources before writes, retain HL access timing and real indexed H/L operands, preserve every flag, and exclude HALT |
+| 8080 MOV/MVI and corresponding Z80 LD matrices, immediate and indexed forms | Chapters own ordinary and indexed matrices; Z80 indexed bodies capture resolved addresses; capture sources before writes, retain HL access timing and real indexed H/L operands, preserve every flag, and exclude HALT |
 | 8080 STAX/LDAX/STA/LDA and corresponding Z80 accumulator LD forms | Capture BC/DE or the complete immediate address before A or memory; loads write only after a successful read, stores never read the destination, and neither direction accesses flags |
 | 8080 LXI/LHLD/SHLD/SPHL and Z80 word loads/stores and SP copies, including ED and IX/IY forms | Share complete bodies with low-first fetching and memory accesses, high-first pair reads/writes, captured sources, and explicit second-byte failures; ED's HL forms retain the unprefixed access order |
 | 8080 INX/DCX/DAD and Z80 word INC/DEC, ADD HL/IX/IY, ADC/SBC HL | Reuse chapter pair descriptions and explicit encodings; source before destination, optional C after both; write before flags; preserve all flags on adjustments and use the bit-11 H boundary on Z80 arithmetic |
@@ -255,7 +255,6 @@ The authoring layers have separate homes:
 | [ports.ts](../../src/components/cpus/semantics/ports.ts) | Shared byte/word port transfers: capture addresses before operands, transfer low byte first, and commit input only after complete reads |
 | [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, ordered frames, and complete push/pop instruction construction |
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared Motorola condition construction for remaining 68000 definitions |
-| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Remaining Z80 builders for indexed byte and word transfers/arithmetic, stack exchanges, and pushes/pops; pair sources and writes come from the chapter |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
 | [6502 chapter](../../src/components/cpus/specifications/6502.md) | Complete state, instruction inventory, NMOS arithmetic, status, reset, execution, and named external-entry policies |
 | [6800 chapter](../../src/components/cpus/specifications/6800.md) | Complete stored state, packed condition codes, instructions, reset, WAI suspension, IRQ/NMI entry, and public interface |
@@ -407,25 +406,25 @@ with a shared result S/Z/parity policy, cleared H/N, and outgoing C. Registers a
 once; memory bodies receive one resolved address shared by (HL), (IX+d), and
 (IY+d). Only RL/RR read C, after the operand. Flags precede the result write,
 including unchanged-value writes. A failed read prevents flags and writeback;
-a failed write retains the calculated flags. Prefix decoding and refresh
-increments remain outside the generated body, including the non-M1 displacement
-and final opcode bytes in DD/FD CB sequences. The undocumented SLL row is omitted.
+a failed write retains the calculated flags. Declared page layouts generate prefix decoding outside the instruction body,
+including the non-M1 displacement and final opcode reads in DD/FD CB sequences.
+The core still commits refresh increments at its execution boundary. The undocumented SLL row is omitted.
 
 BIT/RES/SET use chapter families with a shared bit-mask catalogue and three
-resolved-memory actions. Ordinary CB families resolve HL once; native indexed
-callers bind the chapter's mask and supply the resolved IX/IY address. BIT
+resolved-memory actions. Ordinary CB families resolve HL once; indexed chapter families combine their
+captured displacement with live IX/IY, then select the same mask and action. BIT
 isolates the selected bit, omits writeback, and sets Z/PV when that bit is clear;
 S follows masked bit 7, H is set, N is cleared, and C is preserved without
 reading it. This retains the model's observed S/PV policy. RES ANDs with the
 complemented byte mask; SET ORs with the mask. Both write even an unchanged
 result and never access flags. The ordinary CB page owns 248 complete forms;
-its indexed counterparts share these effects but retain native decoding.
+its indexed counterparts add 62 forms through declared nested page layouts.
 
 The 8080 and Z80 chapters each own their byte adjustment policies and encodings.
 Both read the original byte, calculate, apply flags, and then write the result,
 preserving carry without reading it. The 8080 reports parity and inverse
 half-borrow; the Z80 reports signed overflow and half-borrow. Z80 resolved-memory
-actions serve both `(HL)` and native indexed callers, retaining one address
+actions serve both `(HL)` and indexed chapter families, retaining one address
 through read/modify/write and calculated flags after a failed write. The unused
 `intelByteAdjustment` builder has been removed.
 

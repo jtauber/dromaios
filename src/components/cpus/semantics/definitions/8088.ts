@@ -4,9 +4,8 @@ import { opcodeFamily } from "../../opcodes.ts";
 import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, deferInterrupt, evenParity, extend, flagLiteral, flagValue, halfBorrow, halfCarry,
   readTest, reportInterrupt, sendEscape, divide, fetchByte, highByte, iterate, literal, lowByte, multiply, negative, not, overflow, projectAddress, readFlag, readMemory, readRegister, readSource, reject, select, shiftBits, signExtend, subtract, truncate, updateFlags, value, writeLatch, writeMemory, writeRegister, when, xor, zero } from "../model.ts";
 import type { InstructionDefinition, NumberExpression, Statement, ValueSource } from "../model.ts";
-import { arithmetic, atLeast, byteRegisterView, immediateByte, instructionSet, readWord, registerView, registerSource, shift, transfer, writeWord } from "../builders.ts";
+import { arithmetic, atLeast, byteRegisterView, immediateByte, immediateWord, instructionSet, readWord, registerView, registerSource, shift, transfer, writeWord } from "../builders.ts";
 import type { ShiftInput } from "../builders.ts";
-import { immediateWord } from "../intel.ts";
 import { flagInstruction, flagPolicy, packedStatus, restoreStatus, updateStatus } from "../status.ts";
 import { defineInstruction } from "../validate.ts";
 import { choose, conditional, flagCondition, relativeBranchSteps } from "../control-flow.ts";

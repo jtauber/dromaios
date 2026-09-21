@@ -297,7 +297,7 @@ test("Intel exchange explanations expose captured registers and addresses, read/
       "write memory[addWrap(address, 0001:u16)]", "write memory[address]", `write ${register}`].map(part => body.indexOf(part));
     assert.ok(ordered.every((position, index) => position >= 0 && (index === 0 || position > ordered[index - 1]!)));
     assert.doesNotMatch(body, /fetch byte|write SP|:flag := read/);
-    assert.match(text, /A failed access prevents register writeback and retains completed memory writes|A failure retains completed writes but prevents register replacement/);
+    assert.match(text, /A failed access prevents register writeback and retains completed memory writes|A failure retains completed writes but prevents register replacement|failed accesses retain completed effects without replacing the index/);
     assert.match(text, cpu === "8080" ? /Flags preserved throughout: S, Z, AC, P, CY\./ : /Flags preserved throughout: S, Z, H, PV, N, C\./);
   }
   for (const [cpu, name] of [["8080", "XCHG"], ["z80", "EX DE,HL"]] as const) {
@@ -311,7 +311,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 12496);
+  assert.equal(instructionDefinitions.length, 12552);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {
@@ -341,9 +341,11 @@ test("Z80 ALU explanations expose overflow versus parity, borrow half-carry, and
   assert.match(sbc, /PV := subtractOverflow\(left, right, carry\)/);
   assert.match(sbc, /H := halfBorrow4\(left, right, carry\)/);
   assert.match(sbc, /N := 1:flag/);
-  const cp = description("z80", "CP memory");
+  const cp = description("z80", "CP (IX+d)");
   assert.match(cp, /address:u16/); assert.match(cp, /right:u8 := read memory\[address\]/);
-  assert.doesNotMatch(cp, /fetch byte|:= read I[XY]|:= read C|write A/);
+  assert.ok(cp.indexOf("fetch byte") < cp.indexOf("read IX"));
+  assert.ok(cp.indexOf("read IX") < cp.indexOf("read memory"));
+  assert.doesNotMatch(cp, /:= read C|write A/);
   for (const mnemonic of ["AND", "XOR", "OR"]) {
     const text = description("z80", `${mnemonic} B`);
     assert.match(text, /PV := evenParity8\(result\)/);
@@ -398,12 +400,13 @@ test("Intel byte-transfer explanations expose source capture, HL timing, resolve
     assert.match(text, /Flags preserved throughout: /);
   }
   for (const operand of ["H", "L", "n"]) {
-    const text = description("z80", `LD memory,${operand}`);
-    assert.match(text, /address:u16 := input/);
-    assert.match(text, /write memory\[address\] := result/);
-    assert.doesNotMatch(text, /high:u8|low:u8|:= read I[XY]|:= read memory|apply flags/);
-    if (operand === "n") assert.match(text, /result:u8 := fetch byte/);
-    else { assert.match(text, new RegExp(`result:u8 := read ${operand}`)); assert.doesNotMatch(text, /fetch byte/); }
+    const text = description("z80", `LD (IX+d),${operand}`);
+    assert.match(text, /address:u16 := source/);
+    assert.ok(text.indexOf("displacement:u8 := fetch byte") < text.indexOf("read IX"));
+    assert.match(text, /write memory\[address\] := byte/);
+    assert.doesNotMatch(text, /high:u8|low:u8|:= read IY|:= read memory|apply flags/);
+    if (operand === "n") assert.match(text, /byte:u8 := fetch byte/);
+    else { assert.match(text, new RegExp(`byte:u8 := source .*${operand}|byte:u8 := read ${operand}`)); assert.equal(text.match(/:= fetch byte/g)?.length, 1); }
   }
 });
 
@@ -488,7 +491,7 @@ test("Intel byte-adjustment explanations expose different half-carry rules, pres
 
 test("Z80 bit explanations expose fixed masks, BIT's preserved carry, and flag-free RES/SET writeback", () => {
   const masks = ["01", "02", "04", "08", "10", "20", "40", "80"];
-  for (let bit = 0; bit < 8; bit++) for (const target of ["B", "memory"]) {
+  for (let bit = 0; bit < 8; bit++) for (const target of ["B", "(IX+d)"]) {
     const tested = description("z80", `BIT ${bit},${target}`);
     assert.ok(tested.includes(`yield ${masks[bit]}:u8`));
     assert.match(tested, /result := bitAnd\(original, mask\)/);
@@ -500,15 +503,16 @@ test("Z80 bit explanations expose fixed masks, BIT's preserved carry, and flag-f
       const text = description("z80", `${mnemonic} ${bit},${target}`);
       assert.ok(text.includes(`yield ${masks[bit]}:u8`));
       assert.ok(text.includes(`result := ${mnemonic === "RES" ? "bitAnd(original, bitXor(mask, FF:u8))" : "bitOr(original, mask)"}`));
-      assert.ok(text.indexOf("result :=") < text.indexOf(target === "memory" ? "write memory[address] := result" : "write B:u8 := result"));
+      assert.ok(text.indexOf("result :=") < text.indexOf(target === "(IX+d)" ? "write memory[address] := result" : "write B:u8 := result"));
       assert.match(text, /Flags preserved throughout: S, Z, H, PV, N, C\./);
       assert.doesNotMatch(text, /apply flags|:= read (S|Z|H|PV|N|C)\b/);
     }
     for (const mnemonic of ["BIT", "RES", "SET"]) {
       const text = description("z80", `${mnemonic} ${bit},${target}`);
-      if (target === "memory") {
-        assert.match(text, /address:u16 := input/); assert.equal(text.match(/:= read memory/g)?.length, 1);
-        assert.doesNotMatch(text, /fetch byte|:= read (H|L|IX|IY)\b/);
+      if (target === "(IX+d)") {
+        assert.match(text, /displacement:u8 := input/);
+        assert.match(text, /base:u16 := read IX/); assert.equal(text.match(/:= read memory/g)?.length, 1);
+        assert.doesNotMatch(text, /fetch byte|:= read (H|L|IY)\b/);
       }
     }
   }

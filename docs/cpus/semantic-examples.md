@@ -365142,1662 +365142,6 @@ send and record ESC opcode bitOr(shiftBitsLeft(zeroExtend8(highOpcode), 3), bitA
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
-### z80 PUSH IX
-
-Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-original:u16 := source "register IX" {
-  contents:u16 := read IX
-  yield contents
-}
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-firstAddress:u16 := read SP
-write memory[firstAddress] := highByte(original)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := lowByte(original)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 POP IX
-
-Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-result:u16 := source "pop little-endian word" {
-  low:u8 := source "pop byte through SP" {
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  high:u8 := source "pop byte through SP" {
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  yield concatHighLow(high, low)
-}
-write IX:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 PUSH IY
-
-Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-original:u16 := source "register IY" {
-  contents:u16 := read IY
-  yield contents
-}
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-firstAddress:u16 := read SP
-write memory[firstAddress] := highByte(original)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := lowByte(original)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 POP IY
-
-Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-result:u16 := source "pop little-endian word" {
-  low:u8 := source "pop byte through SP" {
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  high:u8 := source "pop byte through SP" {
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  yield concatHighLow(high, low)
-}
-write IY:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 JP (IX)
-
-Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
-
-```text
-target:u16 := source "register IX" {
-  contents:u16 := read IX
-  yield contents
-}
-write PC:u16 := target
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 JP (IY)
-
-Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
-
-```text
-target:u16 := source "register IY" {
-  contents:u16 := read IY
-  yield contents
-}
-write PC:u16 := target
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 ADD IX,BC
-
-Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
-
-```text
-right:u16 := source "B:C register pair" {
-  high:u8 := read B
-  low:u8 := read C
-  yield concatHighLow(high, low)
-}
-left:u16 := source "register IX" {
-  contents:u16 := read IX
-  yield contents
-}
-result := addWrap(left, right)
-write IX:u16 := result
-flags "Z80 ADD word flags (H at bit 11)" simultaneously {
-  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
-  C := carry(left, right)
-  N := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 ADD IX,DE
-
-Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
-
-```text
-right:u16 := source "D:E register pair" {
-  high:u8 := read D
-  low:u8 := read E
-  yield concatHighLow(high, low)
-}
-left:u16 := source "register IX" {
-  contents:u16 := read IX
-  yield contents
-}
-result := addWrap(left, right)
-write IX:u16 := result
-flags "Z80 ADD word flags (H at bit 11)" simultaneously {
-  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
-  C := carry(left, right)
-  N := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 ADD IX,IX
-
-Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
-
-```text
-right:u16 := source "register IX" {
-  contents:u16 := read IX
-  yield contents
-}
-left:u16 := source "register IX" {
-  contents:u16 := read IX
-  yield contents
-}
-result := addWrap(left, right)
-write IX:u16 := result
-flags "Z80 ADD word flags (H at bit 11)" simultaneously {
-  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
-  C := carry(left, right)
-  N := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 ADD IX,SP
-
-Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
-
-```text
-right:u16 := source "register SP" {
-  contents:u16 := read SP
-  yield contents
-}
-left:u16 := source "register IX" {
-  contents:u16 := read IX
-  yield contents
-}
-result := addWrap(left, right)
-write IX:u16 := result
-flags "Z80 ADD word flags (H at bit 11)" simultaneously {
-  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
-  C := carry(left, right)
-  N := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 INC IX
-
-Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
-
-```text
-original:u16 := source "register IX" {
-  contents:u16 := read IX
-  yield contents
-}
-result := addWrap(original, 0001:u16)
-write IX:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 DEC IX
-
-Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
-
-```text
-original:u16 := source "register IX" {
-  contents:u16 := read IX
-  yield contents
-}
-result := subtract(original, 0001:u16)
-write IX:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 ADD IY,BC
-
-Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
-
-```text
-right:u16 := source "B:C register pair" {
-  high:u8 := read B
-  low:u8 := read C
-  yield concatHighLow(high, low)
-}
-left:u16 := source "register IY" {
-  contents:u16 := read IY
-  yield contents
-}
-result := addWrap(left, right)
-write IY:u16 := result
-flags "Z80 ADD word flags (H at bit 11)" simultaneously {
-  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
-  C := carry(left, right)
-  N := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 ADD IY,DE
-
-Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
-
-```text
-right:u16 := source "D:E register pair" {
-  high:u8 := read D
-  low:u8 := read E
-  yield concatHighLow(high, low)
-}
-left:u16 := source "register IY" {
-  contents:u16 := read IY
-  yield contents
-}
-result := addWrap(left, right)
-write IY:u16 := result
-flags "Z80 ADD word flags (H at bit 11)" simultaneously {
-  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
-  C := carry(left, right)
-  N := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 ADD IY,IY
-
-Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
-
-```text
-right:u16 := source "register IY" {
-  contents:u16 := read IY
-  yield contents
-}
-left:u16 := source "register IY" {
-  contents:u16 := read IY
-  yield contents
-}
-result := addWrap(left, right)
-write IY:u16 := result
-flags "Z80 ADD word flags (H at bit 11)" simultaneously {
-  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
-  C := carry(left, right)
-  N := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 ADD IY,SP
-
-Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
-
-```text
-right:u16 := source "register SP" {
-  contents:u16 := read SP
-  yield contents
-}
-left:u16 := source "register IY" {
-  contents:u16 := read IY
-  yield contents
-}
-result := addWrap(left, right)
-write IY:u16 := result
-flags "Z80 ADD word flags (H at bit 11)" simultaneously {
-  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
-  C := carry(left, right)
-  N := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 INC IY
-
-Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
-
-```text
-original:u16 := source "register IY" {
-  contents:u16 := read IY
-  yield contents
-}
-result := addWrap(original, 0001:u16)
-write IY:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 DEC IY
-
-Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
-
-```text
-original:u16 := source "register IY" {
-  contents:u16 := read IY
-  yield contents
-}
-result := subtract(original, 0001:u16)
-write IY:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD IX,nn
-
-Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
-
-```text
-result:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-write IX:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD IX,(nn)
-
-Fetch the complete address low byte first, then read memory low byte then high byte, wrapping at FFFF. Only after both reads succeed, write the destination. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
-
-```text
-result:u16 := source "memory word, low byte first" {
-  address:u16 := source "immediate word, low byte first" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
-    yield concatHighLow(high, low)
-  }
-  low:u8 := read memory[address]
-  high:u8 := read memory[addWrap(address, 0001:u16)]
-  yield concatHighLow(high, low)
-}
-write IX:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD (nn),IX
-
-Fetch the complete address low byte first, then capture the complete source before writing memory low byte then high byte, wrapping at FFFF. Never read the destination; a failed second write retains the first. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
-
-```text
-address:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-result:u16 := source "register IX" {
-  contents:u16 := read IX
-  yield contents
-}
-write memory[address] := lowByte(result)
-write memory[addWrap(address, 0001:u16)] := highByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD SP,IX
-
-Capture the complete source, then write SP without memory access. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
-
-```text
-result:u16 := source "register IX" {
-  contents:u16 := read IX
-  yield contents
-}
-write SP:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD IY,nn
-
-Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
-
-```text
-result:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-write IY:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD IY,(nn)
-
-Fetch the complete address low byte first, then read memory low byte then high byte, wrapping at FFFF. Only after both reads succeed, write the destination. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
-
-```text
-result:u16 := source "memory word, low byte first" {
-  address:u16 := source "immediate word, low byte first" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
-    yield concatHighLow(high, low)
-  }
-  low:u8 := read memory[address]
-  high:u8 := read memory[addWrap(address, 0001:u16)]
-  yield concatHighLow(high, low)
-}
-write IY:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD (nn),IY
-
-Fetch the complete address low byte first, then capture the complete source before writing memory low byte then high byte, wrapping at FFFF. Never read the destination; a failed second write retains the first. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
-
-```text
-address:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-result:u16 := source "register IY" {
-  contents:u16 := read IY
-  yield contents
-}
-write memory[address] := lowByte(result)
-write memory[addWrap(address, 0001:u16)] := highByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD SP,IY
-
-Capture the complete source, then write SP without memory access. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
-
-```text
-result:u16 := source "register IY" {
-  contents:u16 := read IY
-  yield contents
-}
-write SP:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 EX (SP),IX
-
-Capture the complete register, then SP. Read memory low byte then high byte, wrapping at FFFF. Write the original register high byte then low byte to those captured addresses, even if unchanged. Only after both writes succeed, replace the register with the captured memory word; pairs read and write high byte first. A failed access prevents register writeback and retains completed memory writes. Never write SP or access flags, alternate banks, or control state.
-
-```text
-original:u16 := source "register IX" {
-  contents:u16 := read IX
-  yield contents
-}
-address:u16 := read SP
-low:u8 := read memory[address]
-high:u8 := read memory[addWrap(address, 0001:u16)]
-write memory[addWrap(address, 0001:u16)] := highByte(original)
-write memory[address] := lowByte(original)
-result := concatHighLow(high, low)
-write IX:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 EX (SP),IY
-
-Capture the complete register, then SP. Read memory low byte then high byte, wrapping at FFFF. Write the original register high byte then low byte to those captured addresses, even if unchanged. Only after both writes succeed, replace the register with the captured memory word; pairs read and write high byte first. A failed access prevents register writeback and retains completed memory writes. Never write SP or access flags, alternate banks, or control state.
-
-```text
-original:u16 := source "register IY" {
-  contents:u16 := read IY
-  yield contents
-}
-address:u16 := read SP
-low:u8 := read memory[address]
-high:u8 := read memory[addWrap(address, 0001:u16)]
-write memory[addWrap(address, 0001:u16)] := highByte(original)
-write memory[address] := lowByte(original)
-result := concatHighLow(high, low)
-write IY:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD B,memory
-
-Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
-
-```text
-address:u16 := input
-result:u8 := read memory[address]
-write B:u8 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD memory,B
-
-Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
-
-```text
-address:u16 := input
-result:u8 := read B
-write memory[address] := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD C,memory
-
-Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
-
-```text
-address:u16 := input
-result:u8 := read memory[address]
-write C:u8 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD memory,C
-
-Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
-
-```text
-address:u16 := input
-result:u8 := read C
-write memory[address] := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD D,memory
-
-Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
-
-```text
-address:u16 := input
-result:u8 := read memory[address]
-write D:u8 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD memory,D
-
-Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
-
-```text
-address:u16 := input
-result:u8 := read D
-write memory[address] := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD E,memory
-
-Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
-
-```text
-address:u16 := input
-result:u8 := read memory[address]
-write E:u8 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD memory,E
-
-Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
-
-```text
-address:u16 := input
-result:u8 := read E
-write memory[address] := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD H,memory
-
-Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
-
-```text
-address:u16 := input
-result:u8 := read memory[address]
-write H:u8 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD memory,H
-
-Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
-
-```text
-address:u16 := input
-result:u8 := read H
-write memory[address] := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD L,memory
-
-Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
-
-```text
-address:u16 := input
-result:u8 := read memory[address]
-write L:u8 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD memory,L
-
-Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
-
-```text
-address:u16 := input
-result:u8 := read L
-write memory[address] := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD A,memory
-
-Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
-
-```text
-address:u16 := input
-result:u8 := read memory[address]
-write A:u8 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD memory,A
-
-Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
-
-```text
-address:u16 := input
-result:u8 := read A
-write memory[address] := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD memory,n
-
-Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
-
-```text
-address:u16 := input
-result:u8 := fetch byte
-write memory[address] := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 INC at a resolved address
-
-INC reads the original byte, computes the wrapped result, and updates S/Z/H/PV/N before writeback. A failed read leaves flags unchanged; a failed write retains the calculated flags. Preserve the alternate bank and controls. The resolved-memory action also serves the indexed instruction bodies.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-result := addWrap(original, 01:u8)
-flags "Z80 INC, preserving C" simultaneously {
-  S := topBit(result)
-  Z := isZero(result)
-  H := halfCarry4(original, 01:u8)
-  PV := addOverflow(original, 01:u8)
-  N := 0:flag
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: C.
-
-### z80 DEC at a resolved address
-
-DEC reads the original byte, computes the wrapped result, and updates S/Z/H/PV/N before writeback. A failed read leaves flags unchanged; a failed write retains the calculated flags. Preserve the alternate bank and controls. The resolved-memory action also serves the indexed instruction bodies.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-result := subtract(original, 01:u8)
-flags "Z80 DEC, preserving C" simultaneously {
-  S := topBit(result)
-  Z := isZero(result)
-  H := halfBorrow4(original, 01:u8)
-  PV := subtractOverflow(original, 01:u8)
-  N := 1:flag
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: C.
-
-### z80 RLC memory
-
-Rotate left by one bit, returning old bit 7 to bit 0 and to C.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-result := shiftLeft(original, topBit(original))
-flags "Z80 CB rotation and shift flags" simultaneously {
-  S := topBit(result)
-  Z := isZero(result)
-  H := 0:flag
-  PV := evenParity8(result)
-  N := 0:flag
-  C := topBit(original)
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: none.
-
-### z80 RRC memory
-
-Rotate right by one bit, returning old bit 0 to bit 7 and to C.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-result := shiftRight(original, lowBit(original))
-flags "Z80 CB rotation and shift flags" simultaneously {
-  S := topBit(result)
-  Z := isZero(result)
-  H := 0:flag
-  PV := evenParity8(result)
-  N := 0:flag
-  C := lowBit(original)
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: none.
-
-### z80 RL memory
-
-Rotate left through C. Capture the byte before reading C; old bit 7 becomes the new carry and the captured carry enters bit 0.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-carry:flag := read C
-result := shiftLeft(original, carry)
-flags "Z80 CB rotation and shift flags" simultaneously {
-  S := topBit(result)
-  Z := isZero(result)
-  H := 0:flag
-  PV := evenParity8(result)
-  N := 0:flag
-  C := topBit(original)
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: none.
-
-### z80 RR memory
-
-Rotate right through C. Capture the byte before reading C; old bit 0 becomes the new carry and the captured carry enters bit 7.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-carry:flag := read C
-result := shiftRight(original, carry)
-flags "Z80 CB rotation and shift flags" simultaneously {
-  S := topBit(result)
-  Z := isZero(result)
-  H := 0:flag
-  PV := evenParity8(result)
-  N := 0:flag
-  C := lowBit(original)
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: none.
-
-### z80 SLA memory
-
-Shift left by one bit, inserting zero at bit 0. Old bit 7 becomes C.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-result := shiftLeft(original, 0:flag)
-flags "Z80 CB rotation and shift flags" simultaneously {
-  S := topBit(result)
-  Z := isZero(result)
-  H := 0:flag
-  PV := evenParity8(result)
-  N := 0:flag
-  C := topBit(original)
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: none.
-
-### z80 SRA memory
-
-Shift right while retaining the original sign bit. Old bit 0 becomes C.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-result := shiftRight(original, topBit(original))
-flags "Z80 CB rotation and shift flags" simultaneously {
-  S := topBit(result)
-  Z := isZero(result)
-  H := 0:flag
-  PV := evenParity8(result)
-  N := 0:flag
-  C := lowBit(original)
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: none.
-
-### z80 SRL memory
-
-Shift right by one bit, inserting zero at bit 7. Old bit 0 becomes C.
-
-```text
-address:u16 := input
-original:u8 := read memory[address]
-result := shiftRight(original, 0:flag)
-flags "Z80 CB rotation and shift flags" simultaneously {
-  S := topBit(result)
-  Z := isZero(result)
-  H := 0:flag
-  PV := evenParity8(result)
-  N := 0:flag
-  C := lowBit(original)
-} // Preserve unlisted flags.
-write memory[address] := result
-```
-
-Flags preserved throughout: none.
-
-### z80 BIT 0,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "0" {
-  yield 01:u8
-}
-perform "BIT at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, mask)
-  flags "Z80 BIT, preserving C" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := 1:flag
-    PV := isZero(result)
-    N := 0:flag
-  } // Preserve unlisted flags.
-}
-```
-
-Flags preserved throughout: C.
-
-### z80 BIT 1,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "1" {
-  yield 02:u8
-}
-perform "BIT at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, mask)
-  flags "Z80 BIT, preserving C" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := 1:flag
-    PV := isZero(result)
-    N := 0:flag
-  } // Preserve unlisted flags.
-}
-```
-
-Flags preserved throughout: C.
-
-### z80 BIT 2,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "2" {
-  yield 04:u8
-}
-perform "BIT at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, mask)
-  flags "Z80 BIT, preserving C" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := 1:flag
-    PV := isZero(result)
-    N := 0:flag
-  } // Preserve unlisted flags.
-}
-```
-
-Flags preserved throughout: C.
-
-### z80 BIT 3,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "3" {
-  yield 08:u8
-}
-perform "BIT at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, mask)
-  flags "Z80 BIT, preserving C" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := 1:flag
-    PV := isZero(result)
-    N := 0:flag
-  } // Preserve unlisted flags.
-}
-```
-
-Flags preserved throughout: C.
-
-### z80 BIT 4,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "4" {
-  yield 10:u8
-}
-perform "BIT at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, mask)
-  flags "Z80 BIT, preserving C" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := 1:flag
-    PV := isZero(result)
-    N := 0:flag
-  } // Preserve unlisted flags.
-}
-```
-
-Flags preserved throughout: C.
-
-### z80 BIT 5,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "5" {
-  yield 20:u8
-}
-perform "BIT at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, mask)
-  flags "Z80 BIT, preserving C" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := 1:flag
-    PV := isZero(result)
-    N := 0:flag
-  } // Preserve unlisted flags.
-}
-```
-
-Flags preserved throughout: C.
-
-### z80 BIT 6,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "6" {
-  yield 40:u8
-}
-perform "BIT at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, mask)
-  flags "Z80 BIT, preserving C" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := 1:flag
-    PV := isZero(result)
-    N := 0:flag
-  } // Preserve unlisted flags.
-}
-```
-
-Flags preserved throughout: C.
-
-### z80 BIT 7,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "7" {
-  yield 80:u8
-}
-perform "BIT at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, mask)
-  flags "Z80 BIT, preserving C" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := 1:flag
-    PV := isZero(result)
-    N := 0:flag
-  } // Preserve unlisted flags.
-}
-```
-
-Flags preserved throughout: C.
-
-### z80 RES 0,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "0" {
-  yield 01:u8
-}
-perform "RES at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, bitXor(mask, FF:u8))
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RES 1,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "1" {
-  yield 02:u8
-}
-perform "RES at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, bitXor(mask, FF:u8))
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RES 2,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "2" {
-  yield 04:u8
-}
-perform "RES at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, bitXor(mask, FF:u8))
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RES 3,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "3" {
-  yield 08:u8
-}
-perform "RES at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, bitXor(mask, FF:u8))
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RES 4,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "4" {
-  yield 10:u8
-}
-perform "RES at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, bitXor(mask, FF:u8))
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RES 5,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "5" {
-  yield 20:u8
-}
-perform "RES at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, bitXor(mask, FF:u8))
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RES 6,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "6" {
-  yield 40:u8
-}
-perform "RES at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, bitXor(mask, FF:u8))
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RES 7,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "7" {
-  yield 80:u8
-}
-perform "RES at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitAnd(original, bitXor(mask, FF:u8))
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 SET 0,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "0" {
-  yield 01:u8
-}
-perform "SET at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitOr(original, mask)
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 SET 1,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "1" {
-  yield 02:u8
-}
-perform "SET at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitOr(original, mask)
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 SET 2,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "2" {
-  yield 04:u8
-}
-perform "SET at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitOr(original, mask)
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 SET 3,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "3" {
-  yield 08:u8
-}
-perform "SET at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitOr(original, mask)
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 SET 4,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "4" {
-  yield 10:u8
-}
-perform "SET at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitOr(original, mask)
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 SET 5,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "5" {
-  yield 20:u8
-}
-perform "SET at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitOr(original, mask)
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 SET 6,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "6" {
-  yield 40:u8
-}
-perform "SET at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitOr(original, mask)
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 SET 7,memory
-
-Use the chapter's mask and action at the resolved index address.
-
-```text
-address:u16 := input
-mask:u8 := source "7" {
-  yield 80:u8
-}
-perform "SET at a resolved address" {
-  address:u16 := address
-  mask:u8 := mask
-  original:u8 := read memory[address]
-  result := bitOr(original, mask)
-  write memory[address] := result
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 ADD memory
-
-Read once at the resolved index address, then perform the chapter's accumulator action. A failed read prevents its effects.
-
-```text
-address:u16 := input
-right:u8 := read memory[address]
-perform "ADD with a captured byte" {
-  right:u8 := right
-  left:u8 := read A
-  result := addWrap(left, right)
-  flags "Z80 byte result flags" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := halfCarry4(left, right)
-    PV := addOverflow(left, right)
-    N := 0:flag
-    C := carry(left, right)
-  } // Preserve unlisted flags.
-  write A:u8 := result
-}
-```
-
-Flags preserved throughout: none.
-
-### z80 ADC memory
-
-Read once at the resolved index address, then perform the chapter's accumulator action. A failed read prevents its effects.
-
-```text
-address:u16 := input
-right:u8 := read memory[address]
-perform "ADC with a captured byte" {
-  right:u8 := right
-  carry:flag := read C
-  left:u8 := read A
-  result := addWrap(left, right, carry)
-  flags "Z80 byte result flags" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := halfCarry4(left, right, carry)
-    PV := addOverflow(left, right, carry)
-    N := 0:flag
-    C := carry(left, right, carry)
-  } // Preserve unlisted flags.
-  write A:u8 := result
-}
-```
-
-Flags preserved throughout: none.
-
-### z80 SUB memory
-
-Read once at the resolved index address, then perform the chapter's accumulator action. A failed read prevents its effects.
-
-```text
-address:u16 := input
-right:u8 := read memory[address]
-perform "SUB with a captured byte" {
-  right:u8 := right
-  left:u8 := read A
-  result := subtract(left, right)
-  flags "Z80 byte result flags" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := halfBorrow4(left, right)
-    PV := subtractOverflow(left, right)
-    N := 1:flag
-    C := borrow(left, right)
-  } // Preserve unlisted flags.
-  write A:u8 := result
-}
-```
-
-Flags preserved throughout: none.
-
-### z80 SBC memory
-
-Read once at the resolved index address, then perform the chapter's accumulator action. A failed read prevents its effects.
-
-```text
-address:u16 := input
-right:u8 := read memory[address]
-perform "SBC with a captured byte" {
-  right:u8 := right
-  carry:flag := read C
-  left:u8 := read A
-  result := subtract(left, right, carry)
-  flags "Z80 byte result flags" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := halfBorrow4(left, right, carry)
-    PV := subtractOverflow(left, right, carry)
-    N := 1:flag
-    C := borrow(left, right, carry)
-  } // Preserve unlisted flags.
-  write A:u8 := result
-}
-```
-
-Flags preserved throughout: none.
-
-### z80 AND memory
-
-Read once at the resolved index address, then perform the chapter's accumulator action. A failed read prevents its effects.
-
-```text
-address:u16 := input
-right:u8 := read memory[address]
-perform "AND with a captured byte" {
-  right:u8 := right
-  left:u8 := read A
-  result := bitAnd(left, right)
-  flags "Z80 byte result flags" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := 1:flag
-    PV := evenParity8(result)
-    N := 0:flag
-    C := 0:flag
-  } // Preserve unlisted flags.
-  write A:u8 := result
-}
-```
-
-Flags preserved throughout: none.
-
-### z80 XOR memory
-
-Read once at the resolved index address, then perform the chapter's accumulator action. A failed read prevents its effects.
-
-```text
-address:u16 := input
-right:u8 := read memory[address]
-perform "XOR with a captured byte" {
-  right:u8 := right
-  left:u8 := read A
-  result := bitXor(left, right)
-  flags "Z80 byte result flags" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := 0:flag
-    PV := evenParity8(result)
-    N := 0:flag
-    C := 0:flag
-  } // Preserve unlisted flags.
-  write A:u8 := result
-}
-```
-
-Flags preserved throughout: none.
-
-### z80 OR memory
-
-Read once at the resolved index address, then perform the chapter's accumulator action. A failed read prevents its effects.
-
-```text
-address:u16 := input
-right:u8 := read memory[address]
-perform "OR with a captured byte" {
-  right:u8 := right
-  left:u8 := read A
-  result := bitOr(left, right)
-  flags "Z80 byte result flags" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := 0:flag
-    PV := evenParity8(result)
-    N := 0:flag
-    C := 0:flag
-  } // Preserve unlisted flags.
-  write A:u8 := result
-}
-```
-
-Flags preserved throughout: none.
-
-### z80 CP memory
-
-Read once at the resolved index address, then perform the chapter's accumulator action. A failed read prevents its effects.
-
-```text
-address:u16 := input
-right:u8 := read memory[address]
-perform "CP with a captured byte" {
-  right:u8 := right
-  left:u8 := read A
-  result := subtract(left, right)
-  flags "Z80 byte result flags" simultaneously {
-    S := topBit(result)
-    Z := isZero(result)
-    H := halfBorrow4(left, right)
-    PV := subtractOverflow(left, right)
-    N := 1:flag
-    C := borrow(left, right)
-  } // Preserve unlisted flags.
-}
-```
-
-Flags preserved throughout: none.
-
 ### z80 NOP
 
 NOP changes nothing after opcode fetching. HALT sets STOPPED and retires normally; further steps stop until reset or an accepted interrupt releases it. DI and EI write IFF2 before IFF1. EI requests IRQ inhibition through the following instruction. The native execution boundary still commits that request at successful retirement and implements refresh and interrupt entry.
@@ -366945,7 +365289,7 @@ Flags preserved throughout: none.
 
 ### z80 ADD HL,BC
 
-ADD HL,ss uses `00 pp 1001`, with the same pair selector. Read ss before HL, including two complete reads for ADD HL,HL. Write H then L before updating H/C/N in that order. S/Z/PV remain unchanged. The half-carry boundary is bit 11: bit 12 of `left XOR right XOR result` identifies the carry into bit 12. This policy also supplies the remaining native IX/IY word additions.
+ADD HL,ss uses `00 pp 1001`, with the same pair selector. Read ss before HL, including two complete reads for ADD HL,HL. Write H then L before updating H/C/N in that order. S/Z/PV remain unchanged. The half-carry boundary is bit 11: bit 12 of `left XOR right XOR result` identifies the carry into bit 12. This policy also supplies the IX/IY word additions.
 
 ```text
 right:u16 := source "B:C register pair" {
@@ -367234,7 +365578,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 ADD HL,DE
 
-ADD HL,ss uses `00 pp 1001`, with the same pair selector. Read ss before HL, including two complete reads for ADD HL,HL. Write H then L before updating H/C/N in that order. S/Z/PV remain unchanged. The half-carry boundary is bit 11: bit 12 of `left XOR right XOR result` identifies the carry into bit 12. This policy also supplies the remaining native IX/IY word additions.
+ADD HL,ss uses `00 pp 1001`, with the same pair selector. Read ss before HL, including two complete reads for ADD HL,HL. Write H then L before updating H/C/N in that order. S/Z/PV remain unchanged. The half-carry boundary is bit 11: bit 12 of `left XOR right XOR result` identifies the carry into bit 12. This policy also supplies the IX/IY word additions.
 
 ```text
 right:u16 := source "D:E register pair" {
@@ -367540,7 +365884,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 ADD HL,HL
 
-ADD HL,ss uses `00 pp 1001`, with the same pair selector. Read ss before HL, including two complete reads for ADD HL,HL. Write H then L before updating H/C/N in that order. S/Z/PV remain unchanged. The half-carry boundary is bit 11: bit 12 of `left XOR right XOR result` identifies the carry into bit 12. This policy also supplies the remaining native IX/IY word additions.
+ADD HL,ss uses `00 pp 1001`, with the same pair selector. Read ss before HL, including two complete reads for ADD HL,HL. Write H then L before updating H/C/N in that order. S/Z/PV remain unchanged. The half-carry boundary is bit 11: bit 12 of `left XOR right XOR result` identifies the carry into bit 12. This policy also supplies the IX/IY word additions.
 
 ```text
 right:u16 := source "H:L register pair" {
@@ -367836,7 +366180,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 ADD HL,SP
 
-ADD HL,ss uses `00 pp 1001`, with the same pair selector. Read ss before HL, including two complete reads for ADD HL,HL. Write H then L before updating H/C/N in that order. S/Z/PV remain unchanged. The half-carry boundary is bit 11: bit 12 of `left XOR right XOR result` identifies the carry into bit 12. This policy also supplies the remaining native IX/IY word additions.
+ADD HL,ss uses `00 pp 1001`, with the same pair selector. Read ss before HL, including two complete reads for ADD HL,HL. Write H then L before updating H/C/N in that order. S/Z/PV remain unchanged. The half-carry boundary is bit 11: bit 12 of `left XOR right XOR result` identifies the carry into bit 12. This policy also supplies the IX/IY word additions.
 
 ```text
 right:u16 := read SP
@@ -376884,6 +375228,776 @@ write A:u8 := result
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 ADD IX,BC
+
+The word forms use the index register directly, without a displacement. For ADD index,rr (`00 pp 1 001`), pp=10 selects the same index as the destination; the other choices remain BC, DE, and SP. Read the source before the destination, write the result, then update H/N/C while preserving S/Z/PV.
+
+```text
+right:u16 := source "B:C register pair" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+left:u16 := read IX
+result := addWrap(left, right)
+write IX:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 ADD IX,DE
+
+The word forms use the index register directly, without a displacement. For ADD index,rr (`00 pp 1 001`), pp=10 selects the same index as the destination; the other choices remain BC, DE, and SP. Read the source before the destination, write the result, then update H/N/C while preserving S/Z/PV.
+
+```text
+right:u16 := source "D:E register pair" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+left:u16 := read IX
+result := addWrap(left, right)
+write IX:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 LD IX,nn
+
+LD index,nn and LD index,(nn) replace the index only after both bytes have been fetched or read. LD (nn),index fetches the full address before capturing the index and writing low then high. Adjacent memory addresses wrap at FFFF; a failed second access retains the first. LD SP,index only copies the word.
+
+```text
+word:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write IX:u16 := word
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (nn),IX
+
+LD index,nn and LD index,(nn) replace the index only after both bytes have been fetched or read. LD (nn),index fetches the full address before capturing the index and writing low then high. Adjacent memory addresses wrap at FFFF; a failed second access retains the first. LD SP,index only copies the word.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+word:u16 := read IX
+write memory[address] := lowByte(word)
+write memory[addWrap(address, 0001:u16)] := highByte(word)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 INC IX
+
+INC/DEC index (`00 10 q 011`) wrap at 16 bits without accessing flags or memory.
+
+```text
+original:u16 := read IX
+write IX:u16 := addWrap(original, 0001:u16)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 ADD IX,IX
+
+The word forms use the index register directly, without a displacement. For ADD index,rr (`00 pp 1 001`), pp=10 selects the same index as the destination; the other choices remain BC, DE, and SP. Read the source before the destination, write the result, then update H/N/C while preserving S/Z/PV.
+
+```text
+right:u16 := read IX
+left:u16 := read IX
+result := addWrap(left, right)
+write IX:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 LD IX,(nn)
+
+LD index,nn and LD index,(nn) replace the index only after both bytes have been fetched or read. LD (nn),index fetches the full address before capturing the index and writing low then high. Adjacent memory addresses wrap at FFFF; a failed second access retains the first. LD SP,index only copies the word.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+low:u8 := read memory[address]
+high:u8 := read memory[addWrap(address, 0001:u16)]
+write IX:u16 := concatHighLow(high, low)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 DEC IX
+
+INC/DEC index (`00 10 q 011`) wrap at 16 bits without accessing flags or memory.
+
+```text
+original:u16 := read IX
+write IX:u16 := subtract(original, 0001:u16)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 INC (IX+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+perform "INC at a resolved address" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  result := addWrap(original, 01:u8)
+  flags "Z80 INC, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := halfCarry4(original, 01:u8)
+    PV := addOverflow(original, 01:u8)
+    N := 0:flag
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 DEC (IX+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+perform "DEC at a resolved address" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  result := subtract(original, 01:u8)
+  flags "Z80 DEC, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := halfBorrow4(original, 01:u8)
+    PV := subtractOverflow(original, 01:u8)
+    N := 1:flag
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 LD (IX+d),n
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := fetch byte
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 ADD IX,SP
+
+The word forms use the index register directly, without a displacement. For ADD index,rr (`00 pp 1 001`), pp=10 selects the same index as the destination; the other choices remain BC, DE, and SP. Read the source before the destination, write the result, then update H/N/C while preserving S/Z/PV.
+
+```text
+right:u16 := read SP
+left:u16 := read IX
+result := addWrap(left, right)
+write IX:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 LD B,(IX+d)
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read memory[address]
+write B:u8 := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD C,(IX+d)
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read memory[address]
+write C:u8 := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD D,(IX+d)
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read memory[address]
+write D:u8 := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD E,(IX+d)
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read memory[address]
+write E:u8 := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD H,(IX+d)
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read memory[address]
+write H:u8 := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD L,(IX+d)
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read memory[address]
+write L:u8 := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (IX+d),B
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read B
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (IX+d),C
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read C
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (IX+d),D
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read D
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (IX+d),E
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read E
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (IX+d),H
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read H
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (IX+d),L
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read L
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (IX+d),A
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read A
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD A,(IX+d)
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read memory[address]
+write A:u8 := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 ADD A,(IX+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "ADD with a captured byte" {
+  right:u8 := right
+  left:u8 := read A
+  result := addWrap(left, right)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := halfCarry4(left, right)
+    PV := addOverflow(left, right)
+    N := 0:flag
+    C := carry(left, right)
+  } // Preserve unlisted flags.
+  write A:u8 := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC A,(IX+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "ADC with a captured byte" {
+  right:u8 := right
+  carry:flag := read C
+  left:u8 := read A
+  result := addWrap(left, right, carry)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := halfCarry4(left, right, carry)
+    PV := addOverflow(left, right, carry)
+    N := 0:flag
+    C := carry(left, right, carry)
+  } // Preserve unlisted flags.
+  write A:u8 := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 SUB (IX+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "SUB with a captured byte" {
+  right:u8 := right
+  left:u8 := read A
+  result := subtract(left, right)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := halfBorrow4(left, right)
+    PV := subtractOverflow(left, right)
+    N := 1:flag
+    C := borrow(left, right)
+  } // Preserve unlisted flags.
+  write A:u8 := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 SBC A,(IX+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "SBC with a captured byte" {
+  right:u8 := right
+  carry:flag := read C
+  left:u8 := read A
+  result := subtract(left, right, carry)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := halfBorrow4(left, right, carry)
+    PV := subtractOverflow(left, right, carry)
+    N := 1:flag
+    C := borrow(left, right, carry)
+  } // Preserve unlisted flags.
+  write A:u8 := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 AND (IX+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "AND with a captured byte" {
+  right:u8 := right
+  left:u8 := read A
+  result := bitAnd(left, right)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+  write A:u8 := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 XOR (IX+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "XOR with a captured byte" {
+  right:u8 := right
+  left:u8 := read A
+  result := bitXor(left, right)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+  write A:u8 := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 OR (IX+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "OR with a captured byte" {
+  right:u8 := right
+  left:u8 := read A
+  result := bitOr(left, right)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+  write A:u8 := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 CP (IX+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IX plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IX
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "CP with a captured byte" {
+  right:u8 := right
+  left:u8 := read A
+  result := subtract(left, right)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := halfBorrow4(left, right)
+    PV := subtractOverflow(left, right)
+    N := 1:flag
+    C := borrow(left, right)
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 POP IX
+
+PUSH captures the index before either stack access. POP replaces it only after both reads and SP updates. JP (index) copies the index to PC without reading memory. EX (SP),index captures the index, then SP; it reads low/high, writes high/low, and finally replaces the index. Flags and SP are unchanged by EX, and failed accesses retain completed effects without replacing the index.
+
+```text
+word:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write IX:u16 := word
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 EX (SP),IX
+
+PUSH captures the index before either stack access. POP replaces it only after both reads and SP updates. JP (index) copies the index to PC without reading memory. EX (SP),index captures the index, then SP; it reads low/high, writes high/low, and finally replaces the index. Flags and SP are unchanged by EX, and failed accesses retain completed effects without replacing the index.
+
+```text
+original:u16 := read IX
+address:u16 := read SP
+low:u8 := read memory[address]
+high:u8 := read memory[addWrap(address, 0001:u16)]
+write memory[addWrap(address, 0001:u16)] := highByte(original)
+write memory[address] := lowByte(original)
+write IX:u16 := concatHighLow(high, low)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 PUSH IX
+
+PUSH captures the index before either stack access. POP replaces it only after both reads and SP updates. JP (index) copies the index to PC without reading memory. EX (SP),index captures the index, then SP; it reads low/high, writes high/low, and finally replaces the index. Flags and SP are unchanged by EX, and failed accesses retain completed effects without replacing the index.
+
+```text
+word:u16 := read IX
+perform "push a captured word" {
+  word:u16 := word
+  perform "push a captured byte" {
+    byte:u8 := highByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+  perform "push a captured byte" {
+    byte:u8 := lowByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP (IX)
+
+PUSH captures the index before either stack access. POP replaces it only after both reads and SP updates. JP (index) copies the index to PC without reading memory. EX (SP),index captures the index, then SP; it reads low/high, writes high/low, and finally replaces the index. Flags and SP are unchanged by EX, and failed accesses retain completed effects without replacing the index.
+
+```text
+target:u16 := read IX
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD SP,IX
+
+LD index,nn and LD index,(nn) replace the index only after both bytes have been fetched or read. LD (nn),index fetches the full address before capturing the index and writing low then high. Adjacent memory addresses wrap at FFFF; a failed second access retains the first. LD SP,index only copies the word.
+
+```text
+word:u16 := read IX
+write SP:u16 := word
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 IN B,(C)
 
 `01 rrr 00 d` selects input (d=0) or output (d=1). The rrr=110 slot is undocumented and excluded. Capture BC before any transfer. Input reads the port before sampling C, replacing flags, and writing the selected register; P/V is parity. A failed input leaves flags and registers unchanged. Output captures the selected byte after BC and does not access flags.
@@ -379033,6 +378147,2296 @@ when not(isZero(repeat)) {
 ```
 
 Flags preserved throughout: none.
+
+### z80 ADD IY,BC
+
+The word forms use the index register directly, without a displacement. For ADD index,rr (`00 pp 1 001`), pp=10 selects the same index as the destination; the other choices remain BC, DE, and SP. Read the source before the destination, write the result, then update H/N/C while preserving S/Z/PV.
+
+```text
+right:u16 := source "B:C register pair" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+left:u16 := read IY
+result := addWrap(left, right)
+write IY:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 ADD IY,DE
+
+The word forms use the index register directly, without a displacement. For ADD index,rr (`00 pp 1 001`), pp=10 selects the same index as the destination; the other choices remain BC, DE, and SP. Read the source before the destination, write the result, then update H/N/C while preserving S/Z/PV.
+
+```text
+right:u16 := source "D:E register pair" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+left:u16 := read IY
+result := addWrap(left, right)
+write IY:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 LD IY,nn
+
+LD index,nn and LD index,(nn) replace the index only after both bytes have been fetched or read. LD (nn),index fetches the full address before capturing the index and writing low then high. Adjacent memory addresses wrap at FFFF; a failed second access retains the first. LD SP,index only copies the word.
+
+```text
+word:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write IY:u16 := word
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (nn),IY
+
+LD index,nn and LD index,(nn) replace the index only after both bytes have been fetched or read. LD (nn),index fetches the full address before capturing the index and writing low then high. Adjacent memory addresses wrap at FFFF; a failed second access retains the first. LD SP,index only copies the word.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+word:u16 := read IY
+write memory[address] := lowByte(word)
+write memory[addWrap(address, 0001:u16)] := highByte(word)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 INC IY
+
+INC/DEC index (`00 10 q 011`) wrap at 16 bits without accessing flags or memory.
+
+```text
+original:u16 := read IY
+write IY:u16 := addWrap(original, 0001:u16)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 ADD IY,IY
+
+The word forms use the index register directly, without a displacement. For ADD index,rr (`00 pp 1 001`), pp=10 selects the same index as the destination; the other choices remain BC, DE, and SP. Read the source before the destination, write the result, then update H/N/C while preserving S/Z/PV.
+
+```text
+right:u16 := read IY
+left:u16 := read IY
+result := addWrap(left, right)
+write IY:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 LD IY,(nn)
+
+LD index,nn and LD index,(nn) replace the index only after both bytes have been fetched or read. LD (nn),index fetches the full address before capturing the index and writing low then high. Adjacent memory addresses wrap at FFFF; a failed second access retains the first. LD SP,index only copies the word.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+low:u8 := read memory[address]
+high:u8 := read memory[addWrap(address, 0001:u16)]
+write IY:u16 := concatHighLow(high, low)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 DEC IY
+
+INC/DEC index (`00 10 q 011`) wrap at 16 bits without accessing flags or memory.
+
+```text
+original:u16 := read IY
+write IY:u16 := subtract(original, 0001:u16)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 INC (IY+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+perform "INC at a resolved address" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  result := addWrap(original, 01:u8)
+  flags "Z80 INC, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := halfCarry4(original, 01:u8)
+    PV := addOverflow(original, 01:u8)
+    N := 0:flag
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 DEC (IY+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+perform "DEC at a resolved address" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  result := subtract(original, 01:u8)
+  flags "Z80 DEC, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := halfBorrow4(original, 01:u8)
+    PV := subtractOverflow(original, 01:u8)
+    N := 1:flag
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 LD (IY+d),n
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := fetch byte
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 ADD IY,SP
+
+The word forms use the index register directly, without a displacement. For ADD index,rr (`00 pp 1 001`), pp=10 selects the same index as the destination; the other choices remain BC, DE, and SP. Read the source before the destination, write the result, then update H/N/C while preserving S/Z/PV.
+
+```text
+right:u16 := read SP
+left:u16 := read IY
+result := addWrap(left, right)
+write IY:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 LD B,(IY+d)
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read memory[address]
+write B:u8 := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD C,(IY+d)
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read memory[address]
+write C:u8 := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD D,(IY+d)
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read memory[address]
+write D:u8 := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD E,(IY+d)
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read memory[address]
+write E:u8 := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD H,(IY+d)
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read memory[address]
+write H:u8 := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD L,(IY+d)
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read memory[address]
+write L:u8 := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (IY+d),B
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read B
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (IY+d),C
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read C
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (IY+d),D
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read D
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (IY+d),E
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read E
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (IY+d),H
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read H
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (IY+d),L
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read L
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (IY+d),A
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read A
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD A,(IY+d)
+
+LD r,(index+d) and LD (index+d),r encode the real byte register in rrr. Exclude rrr=110: these pages have no memory-to-memory transfer or prefixed HALT. Stores do not read the destination; transfers preserve every flag.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+byte:u8 := read memory[address]
+write A:u8 := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 ADD A,(IY+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "ADD with a captured byte" {
+  right:u8 := right
+  left:u8 := read A
+  result := addWrap(left, right)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := halfCarry4(left, right)
+    PV := addOverflow(left, right)
+    N := 0:flag
+    C := carry(left, right)
+  } // Preserve unlisted flags.
+  write A:u8 := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC A,(IY+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "ADC with a captured byte" {
+  right:u8 := right
+  carry:flag := read C
+  left:u8 := read A
+  result := addWrap(left, right, carry)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := halfCarry4(left, right, carry)
+    PV := addOverflow(left, right, carry)
+    N := 0:flag
+    C := carry(left, right, carry)
+  } // Preserve unlisted flags.
+  write A:u8 := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 SUB (IY+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "SUB with a captured byte" {
+  right:u8 := right
+  left:u8 := read A
+  result := subtract(left, right)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := halfBorrow4(left, right)
+    PV := subtractOverflow(left, right)
+    N := 1:flag
+    C := borrow(left, right)
+  } // Preserve unlisted flags.
+  write A:u8 := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 SBC A,(IY+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "SBC with a captured byte" {
+  right:u8 := right
+  carry:flag := read C
+  left:u8 := read A
+  result := subtract(left, right, carry)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := halfBorrow4(left, right, carry)
+    PV := subtractOverflow(left, right, carry)
+    N := 1:flag
+    C := borrow(left, right, carry)
+  } // Preserve unlisted flags.
+  write A:u8 := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 AND (IY+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "AND with a captured byte" {
+  right:u8 := right
+  left:u8 := read A
+  result := bitAnd(left, right)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+  write A:u8 := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 XOR (IY+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "XOR with a captured byte" {
+  right:u8 := right
+  left:u8 := read A
+  result := bitXor(left, right)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+  write A:u8 := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 OR (IY+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "OR with a captured byte" {
+  right:u8 := right
+  left:u8 := read A
+  result := bitOr(left, right)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+  write A:u8 := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 CP (IY+d)
+
+INC/DEC use the same flag and write ordering as their (HL) forms. The eight accumulator operations (`10 ooo 110`) read the indexed byte before applying their existing arithmetic or logical action; CP retains A. A failed memory read prevents all subsequent register and flag effects.
+
+```text
+address:u16 := source "IY plus fetched signed displacement" {
+  displacement:u8 := fetch byte
+  base:u16 := read IY
+  yield addWrap(base, signExtend16(displacement))
+}
+right:u8 := read memory[address]
+perform "CP with a captured byte" {
+  right:u8 := right
+  left:u8 := read A
+  result := subtract(left, right)
+  flags "Z80 byte result flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := halfBorrow4(left, right)
+    PV := subtractOverflow(left, right)
+    N := 1:flag
+    C := borrow(left, right)
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 POP IY
+
+PUSH captures the index before either stack access. POP replaces it only after both reads and SP updates. JP (index) copies the index to PC without reading memory. EX (SP),index captures the index, then SP; it reads low/high, writes high/low, and finally replaces the index. Flags and SP are unchanged by EX, and failed accesses retain completed effects without replacing the index.
+
+```text
+word:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write IY:u16 := word
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 EX (SP),IY
+
+PUSH captures the index before either stack access. POP replaces it only after both reads and SP updates. JP (index) copies the index to PC without reading memory. EX (SP),index captures the index, then SP; it reads low/high, writes high/low, and finally replaces the index. Flags and SP are unchanged by EX, and failed accesses retain completed effects without replacing the index.
+
+```text
+original:u16 := read IY
+address:u16 := read SP
+low:u8 := read memory[address]
+high:u8 := read memory[addWrap(address, 0001:u16)]
+write memory[addWrap(address, 0001:u16)] := highByte(original)
+write memory[address] := lowByte(original)
+write IY:u16 := concatHighLow(high, low)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 PUSH IY
+
+PUSH captures the index before either stack access. POP replaces it only after both reads and SP updates. JP (index) copies the index to PC without reading memory. EX (SP),index captures the index, then SP; it reads low/high, writes high/low, and finally replaces the index. Flags and SP are unchanged by EX, and failed accesses retain completed effects without replacing the index.
+
+```text
+word:u16 := read IY
+perform "push a captured word" {
+  word:u16 := word
+  perform "push a captured byte" {
+    byte:u8 := highByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+  perform "push a captured byte" {
+    byte:u8 := lowByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP (IY)
+
+PUSH captures the index before either stack access. POP replaces it only after both reads and SP updates. JP (index) copies the index to PC without reading memory. EX (SP),index captures the index, then SP; it reads low/high, writes high/low, and finally replaces the index. Flags and SP are unchanged by EX, and failed accesses retain completed effects without replacing the index.
+
+```text
+target:u16 := read IY
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD SP,IY
+
+LD index,nn and LD index,(nn) replace the index only after both bytes have been fetched or read. LD (nn),index fetches the full address before capturing the index and writing low then high. Adjacent memory addresses wrap at FFFF; a failed second access retains the first. LD SP,index only copies the word.
+
+```text
+word:u16 := read IY
+write SP:u16 := word
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RLC (IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+perform "RLC memory" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  result := shiftLeft(original, topBit(original))
+  flags "Z80 CB rotation and shift flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := topBit(original)
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 RRC (IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+perform "RRC memory" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  result := shiftRight(original, lowBit(original))
+  flags "Z80 CB rotation and shift flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := lowBit(original)
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 RL (IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+perform "RL memory" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  carry:flag := read C
+  result := shiftLeft(original, carry)
+  flags "Z80 CB rotation and shift flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := topBit(original)
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 RR (IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+perform "RR memory" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  carry:flag := read C
+  result := shiftRight(original, carry)
+  flags "Z80 CB rotation and shift flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := lowBit(original)
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 SLA (IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+perform "SLA memory" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  result := shiftLeft(original, 0:flag)
+  flags "Z80 CB rotation and shift flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := topBit(original)
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 SRA (IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+perform "SRA memory" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  result := shiftRight(original, topBit(original))
+  flags "Z80 CB rotation and shift flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := lowBit(original)
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 SRL (IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+perform "SRL memory" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  result := shiftRight(original, 0:flag)
+  flags "Z80 CB rotation and shift flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := lowBit(original)
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 BIT 0,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "0" {
+  yield 01:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 1,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "1" {
+  yield 02:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 2,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "2" {
+  yield 04:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 3,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "3" {
+  yield 08:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 4,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "4" {
+  yield 10:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 5,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "5" {
+  yield 20:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 6,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "6" {
+  yield 40:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 7,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "7" {
+  yield 80:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 RES 0,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "0" {
+  yield 01:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 1,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "1" {
+  yield 02:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 2,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "2" {
+  yield 04:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 3,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "3" {
+  yield 08:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 4,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "4" {
+  yield 10:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 5,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "5" {
+  yield 20:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 6,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "6" {
+  yield 40:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 7,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "7" {
+  yield 80:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 0,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "0" {
+  yield 01:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 1,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "1" {
+  yield 02:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 2,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "2" {
+  yield 04:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 3,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "3" {
+  yield 08:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 4,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "4" {
+  yield 10:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 5,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "5" {
+  yield 20:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 6,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "6" {
+  yield 40:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 7,(IX+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IX
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "7" {
+  yield 80:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RLC (IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+perform "RLC memory" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  result := shiftLeft(original, topBit(original))
+  flags "Z80 CB rotation and shift flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := topBit(original)
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 RRC (IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+perform "RRC memory" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  result := shiftRight(original, lowBit(original))
+  flags "Z80 CB rotation and shift flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := lowBit(original)
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 RL (IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+perform "RL memory" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  carry:flag := read C
+  result := shiftLeft(original, carry)
+  flags "Z80 CB rotation and shift flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := topBit(original)
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 RR (IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+perform "RR memory" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  carry:flag := read C
+  result := shiftRight(original, carry)
+  flags "Z80 CB rotation and shift flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := lowBit(original)
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 SLA (IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+perform "SLA memory" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  result := shiftLeft(original, 0:flag)
+  flags "Z80 CB rotation and shift flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := topBit(original)
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 SRA (IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+perform "SRA memory" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  result := shiftRight(original, topBit(original))
+  flags "Z80 CB rotation and shift flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := lowBit(original)
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 SRL (IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+perform "SRL memory" {
+  address:u16 := address
+  original:u8 := read memory[address]
+  result := shiftRight(original, 0:flag)
+  flags "Z80 CB rotation and shift flags" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 0:flag
+    PV := evenParity8(result)
+    N := 0:flag
+    C := lowBit(original)
+  } // Preserve unlisted flags.
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 BIT 0,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "0" {
+  yield 01:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 1,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "1" {
+  yield 02:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 2,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "2" {
+  yield 04:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 3,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "3" {
+  yield 08:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 4,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "4" {
+  yield 10:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 5,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "5" {
+  yield 20:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 6,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "6" {
+  yield 40:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 7,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "7" {
+  yield 80:u8
+}
+perform "BIT at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, mask)
+  flags "Z80 BIT, preserving C" simultaneously {
+    S := topBit(result)
+    Z := isZero(result)
+    H := 1:flag
+    PV := isZero(result)
+    N := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: C.
+
+### z80 RES 0,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "0" {
+  yield 01:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 1,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "1" {
+  yield 02:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 2,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "2" {
+  yield 04:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 3,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "3" {
+  yield 08:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 4,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "4" {
+  yield 10:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 5,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "5" {
+  yield 20:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 6,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "6" {
+  yield 40:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 7,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "7" {
+  yield 80:u8
+}
+perform "RES at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitAnd(original, bitXor(mask, FF:u8))
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 0,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "0" {
+  yield 01:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 1,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "1" {
+  yield 02:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 2,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "2" {
+  yield 04:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 3,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "3" {
+  yield 08:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 4,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "4" {
+  yield 10:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 5,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "5" {
+  yield 20:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 6,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "6" {
+  yield 40:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 7,(IY+d)
+
+Only rrr=110 is documented: indexed bit operations act on memory without an extra register copy. `00 ooo 110` selects the seven documented shifts/rotates; ooo=110 (SLL) is excluded. `01/10/11 bbb 110` selects BIT/RES/SET. The same memory actions and masks used on the CB page preserve flag order, unchanged writes, and partial failures here.
+
+```text
+displacement:u8 := input
+base:u16 := read IY
+address := addWrap(base, signExtend16(displacement))
+mask:u8 := source "7" {
+  yield 80:u8
+}
+perform "SET at a resolved address" {
+  address:u16 := address
+  mask:u8 := mask
+  original:u8 := read memory[address]
+  result := bitOr(original, mask)
+  write memory[address] := result
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 replace packed F
 

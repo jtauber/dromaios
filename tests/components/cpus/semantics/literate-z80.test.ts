@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { boolean, choices, defineState, flag, group, unsigned } from "../../../../src/components/cpus/state.js";
 import { cpuZ80StateDescription } from "../../../../src/components/cpus/state/z80.js";
-import { chapterZ80, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { chapterZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { instructions } from "../../../../src/components/cpus/generated/z80-chapter.js";
 import { instructions as actions, sourceReaders } from "../../../../src/components/cpus/generated/z80-state.js";
@@ -21,9 +21,17 @@ const edOpcodes = [
   0x72, 0x73, 0x78, 0x79, 0x7a, 0x7b,
   0xa0, 0xa1, 0xa2, 0xa3, 0xa8, 0xa9, 0xaa, 0xab, 0xb0, 0xb1, 0xb2, 0xb3, 0xb8, 0xb9, 0xba, 0xbb,
 ].map(opcode => 0xed00 + opcode);
-const opcodes = [...baseOpcodes, ...cbOpcodes, ...edOpcodes];
+const indexOpcodes = [0x09, 0x19, 0x21, 0x22, 0x23, 0x29, 0x2a, 0x2b, 0x34, 0x35, 0x36, 0x39,
+  0x46, 0x4e, 0x56, 0x5e, 0x66, 0x6e, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x77, 0x7e,
+  0x86, 0x8e, 0x96, 0x9e, 0xa6, 0xae, 0xb6, 0xbe, 0xe1, 0xe3, 0xe5, 0xe9, 0xf9];
+const indexBits = [0x06, 0x0e, 0x16, 0x1e, 0x26, 0x2e, 0x3e,
+  0x46, 0x4e, 0x56, 0x5e, 0x66, 0x6e, 0x76, 0x7e, 0x86, 0x8e, 0x96, 0x9e, 0xa6, 0xae, 0xb6, 0xbe,
+  0xc6, 0xce, 0xd6, 0xde, 0xe6, 0xee, 0xf6, 0xfe];
+const opcodes = [...baseOpcodes, ...cbOpcodes, ...edOpcodes,
+  ...[0xdd, 0xfd].flatMap(prefix => [...indexOpcodes.map(opcode => prefix * 256 + opcode),
+    ...indexBits.map(opcode => prefix * 65536 + 0xcb00 + opcode)])].sort((a, b) => a - b);
 
-test("the Z80 chapter owns both banks, numeric interrupt mode, and exactly 252 unprefixed, 248 CB, and 58 ED forms", () => {
+test("the Z80 chapter owns both banks, numeric interrupt mode, and all 698 documented forms", () => {
   const bank = defineState({ a: unsigned(8), b: unsigned(8), c: unsigned(8), d: unsigned(8), e: unsigned(8), h: unsigned(8), l: unsigned(8),
     flags: group({ s: flag, z: flag, h: flag, pv: flag, n: flag, c: flag }) });
   const expected = defineState({ ...bank, alternate: group(bank), ix: unsigned(16), iy: unsigned(16), pc: unsigned(16), sp: unsigned(16),
@@ -31,12 +39,13 @@ test("the Z80 chapter owns both banks, numeric interrupt mode, and exactly 252 u
   assert.deepEqual(chapter.state, expected); assert.deepEqual(cpuZ80StateDescription, expected);
   assert.deepEqual(Object.keys(cpuZ80StateDescription), Object.keys(expected));
   assert.equal(baseOpcodes.length, 252); assert.equal(cbOpcodes.length, 248);
-  assert.equal(edOpcodes.length, 58); assert.equal(new Set(opcodes).size, 558);
-  assert.deepEqual(chapter.pages, { CB: 0xcb, ED: 0xed });
+  assert.equal(edOpcodes.length, 58); assert.equal(new Set(opcodes).size, 698);
+  assert.equal(indexOpcodes.length, 39); assert.equal(indexBits.length, 31);
+  assert.deepEqual(chapter.pages, { CB: 0xcb, ED: 0xed, DD: 0xdd, FD: 0xfd,
+    DDCB: { prefix: 0xcb, on: "DD", operands: ["displacement"], opcodeFetch: false },
+    FDCB: { prefix: 0xcb, on: "FD", operands: ["displacement"], opcodeFetch: false } });
   for (const owned of [chapterZ80, instructions]) assert.deepEqual(Object.keys(owned).map(Number).sort((a, b) => a - b), opcodes);
   assert.deepEqual(Object.fromEntries(Object.values(chapter.families).flat()), chapterZ80);
-  for (const opcode of opcodes) assert.equal(Object.hasOwn(instructionsZ80, opcode), false, `Native duplicate of ${opcode.toString(16)}`);
-  for (const name of ["im0", "retn", "reti", "rld", "ldir", "otir", "adcHLBC", "inputB", "rlcB", "rlH", "bit0B", "res7A", "set3L", "addB", "adcM", "cpImmediate", "incH", "decA"]) assert.equal(Object.hasOwn(instructionsZ80, name), false);
   assert.equal(chapter.execution, undefined); assert.equal(chapter.interface, undefined);
 });
 

@@ -44,7 +44,10 @@ module.exports = grammar({
     conditions_declaration: $ => seq('conditions', field('name', $.identifier), '{', repeat($.condition_entry), '}'),
     condition_entry: $ => seq($.number, $.string, '=', 'flag', $._state_name, '=', $.number),
 
-    page_declaration: $ => seq('page', field('name', $.identifier), '=', $.number),
+    page_declaration: $ => seq('page', field('name', $.identifier), '=', $.number,
+      optional(seq('on', $.identifier)), optional(seq('{', repeat($.page_capture), $.page_opcode, '}'))),
+    page_capture: $ => seq($.identifier, ':', $.number, '=', 'read'),
+    page_opcode: _ => seq('opcode', '=', choice('fetch', 'read')),
     family_declaration: $ => seq('family', field('name', $.identifier), choice(
       seq($._encoding, $.body),
       seq('{', repeat1($.encoding_declaration), repeat($._statement), '}'),
@@ -58,7 +61,7 @@ module.exports = grammar({
       optional(seq('except', commaSeparated($.string))),
     ),
     selector: $ => seq($.identifier, 'in', $.identifier, optional(seq('.', field('view', $.identifier)))),
-    source_binding: $ => seq($.identifier, '=', $.identifier),
+    source_binding: $ => seq($.identifier, '=', choice($.identifier, seq('register', $._state_name))),
 
     body: $ => seq('{', repeat($._statement), '}'),
     _statement: $ => choice(

@@ -1,6 +1,8 @@
-import { instructions as native } from "../../src/components/cpus/generated/z80.js";
+import { instructions as actions } from "../../src/components/cpus/generated/z80-state.js";
+import type { ByteInstructionContext } from "../../src/components/cpus/instruction-context.js";
 import { instructions as chapter } from "../../src/components/cpus/generated/z80-chapter.js";
 
+import assert from "node:assert/strict";
 import type { CpuZ80State } from "../../src/components/cpus/state/z80.js";
 
 // Test-owned literal CB selectors keep the access-order probes independent of chapter catalogues.
@@ -14,9 +16,100 @@ const cbRegisters = Object.fromEntries(Object.entries(registers).flatMap(([regis
     [`${name}${bit}${register}`, chapter[(0xcb00 + opcode + bit * 8 + code) as keyof typeof chapter]])),
 ])) as Record<CbRegisterName, (state: CpuZ80State) => void>;
 
+// These legacy probes begin after address resolution. Supply zero displacement and
+// the requested IX only for that initial read; separate chapter/core tests check decoding.
+function indexed<Context extends { fetchByte(): number }, Immediate extends boolean = false>(
+  execute: (state: CpuZ80State, context: Context) => void, immediate?: Immediate,
+) {
+  return (state: CpuZ80State, address: number, context: Immediate extends true ? Context : Omit<Context, "fetchByte">) => {
+    let displacement = true;
+    const observed = new Proxy(state, { get(target, key, receiver) { return key === "ix" ? address : Reflect.get(target, key, receiver); } });
+    execute(observed, { ...context, fetchByte() {
+      if (displacement) { displacement = false; return 0; }
+      if (!immediate) assert.fail("Only the displacement should be fetched");
+      return (context as Context).fetchByte();
+    } } as Context);
+  };
+}
+
 // Existing cross-CPU probes keep their names; every migrated entry calls a literal chapter opcode.
 export const bodiesZ80 = {
-  ...native, ...chapter, ...cbRegisters,
+  ...actions, ...chapter, ...cbRegisters,
+  pushIX: chapter[0xdde5],
+  popIX: chapter[0xdde1],
+  jumpIX: chapter[0xdde9],
+  immediateIXWord: chapter[0xdd21],
+  storeIXWord: chapter[0xdd22],
+  loadIXWord: chapter[0xdd2a],
+  copyIXWord: chapter[0xddf9],
+  exchangeIXWord: chapter[0xdde3],
+  incIXWord: chapter[0xdd23],
+  decIXWord: chapter[0xdd2b],
+  addIXBC: chapter[0xdd09],
+  addIXDE: chapter[0xdd19],
+  addIXIX: chapter[0xdd29],
+  addIXSP: chapter[0xdd39],
+  pushIY: chapter[0xfde5],
+  popIY: chapter[0xfde1],
+  jumpIY: chapter[0xfde9],
+  immediateIYWord: chapter[0xfd21],
+  storeIYWord: chapter[0xfd22],
+  loadIYWord: chapter[0xfd2a],
+  copyIYWord: chapter[0xfdf9],
+  exchangeIYWord: chapter[0xfde3],
+  incIYWord: chapter[0xfd23],
+  decIYWord: chapter[0xfd2b],
+  addIYBC: chapter[0xfd09],
+  addIYDE: chapter[0xfd19],
+  addIYIY: chapter[0xfd29],
+  addIYSP: chapter[0xfd39],
+  loadBMemory: indexed(chapter[0xdd46]),
+  storeBMemory: indexed(chapter[0xdd70]),
+  loadCMemory: indexed(chapter[0xdd4e]),
+  storeCMemory: indexed(chapter[0xdd71]),
+  loadDMemory: indexed(chapter[0xdd56]),
+  storeDMemory: indexed(chapter[0xdd72]),
+  loadEMemory: indexed(chapter[0xdd5e]),
+  storeEMemory: indexed(chapter[0xdd73]),
+  loadHMemory: indexed(chapter[0xdd66]),
+  storeHMemory: indexed(chapter[0xdd74]),
+  loadLMemory: indexed(chapter[0xdd6e]),
+  storeLMemory: indexed(chapter[0xdd75]),
+  loadAMemory: indexed(chapter[0xdd7e]),
+  storeAMemory: indexed(chapter[0xdd77]),
+  storeImmediateMemory: indexed(chapter[0xdd36], true),
+  addMemory: indexed(chapter[0xdd86]),
+  adcMemory: indexed(chapter[0xdd8e]),
+  subMemory: indexed(chapter[0xdd96]),
+  sbcMemory: indexed(chapter[0xdd9e]),
+  andMemory: indexed(chapter[0xdda6]),
+  xorMemory: indexed(chapter[0xddae]),
+  orMemory: indexed(chapter[0xddb6]),
+  cpMemory: indexed(chapter[0xddbe]),
+  bit0Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte">) => actions.bitMemory(state, address, 1, context),
+  bit1Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte">) => actions.bitMemory(state, address, 2, context),
+  bit2Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte">) => actions.bitMemory(state, address, 4, context),
+  bit3Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte">) => actions.bitMemory(state, address, 8, context),
+  bit4Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte">) => actions.bitMemory(state, address, 16, context),
+  bit5Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte">) => actions.bitMemory(state, address, 32, context),
+  bit6Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte">) => actions.bitMemory(state, address, 64, context),
+  bit7Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte">) => actions.bitMemory(state, address, 128, context),
+  res0Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.resMemory(state, address, 1, context),
+  res1Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.resMemory(state, address, 2, context),
+  res2Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.resMemory(state, address, 4, context),
+  res3Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.resMemory(state, address, 8, context),
+  res4Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.resMemory(state, address, 16, context),
+  res5Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.resMemory(state, address, 32, context),
+  res6Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.resMemory(state, address, 64, context),
+  res7Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.resMemory(state, address, 128, context),
+  set0Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.setMemory(state, address, 1, context),
+  set1Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.setMemory(state, address, 2, context),
+  set2Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.setMemory(state, address, 4, context),
+  set3Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.setMemory(state, address, 8, context),
+  set4Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.setMemory(state, address, 16, context),
+  set5Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.setMemory(state, address, 32, context),
+  set6Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.setMemory(state, address, 64, context),
+  set7Memory: (state: CpuZ80State, address: number, context: Pick<ByteInstructionContext, "readByte" | "writeByte">) => actions.setMemory(state, address, 128, context),
   im0: chapter[0xed46], im1: chapter[0xed56], im2: chapter[0xed5e],
   retn: chapter[0xed45], reti: chapter[0xed4d], neg: chapter[0xed44],
   rld: chapter[0xed6f], rrd: chapter[0xed67], loadIFromA: chapter[0xed47],

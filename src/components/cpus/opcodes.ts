@@ -21,9 +21,9 @@ const compiledPatterns = new Map<string, CompiledPattern>();
 /** Construct an opcode table, rejecting duplicate entries even if their handlers agree. */
 export function opcodeTable<Handler>(
   entries: readonly OpcodeEntry<Handler>[],
-  width: 8 | 16 = 8,
+  width: 8 | 16 | 24 = 8,
 ): Readonly<Partial<Record<number, Handler>>> {
-  if (width !== 8 && width !== 16) throw new RangeError("Opcode width must be 8 or 16 bits.");
+  if (width !== 8 && width !== 16 && width !== 24) throw new RangeError("Opcode width must be 8, 16, or 24 bits.");
   const table: Partial<Record<number, Handler>> = {};
   for (const [opcode, handler] of entries) {
     checkUnsigned("opcode", opcode, 2 ** width - 1);

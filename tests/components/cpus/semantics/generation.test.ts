@@ -195,7 +195,7 @@ test("opcode inventories reject collisions and invalid encodings before generati
   }
   assert.throws(() => generateInstructions("6502", { tax: definition }, { bindOpcodes: true }), /opcode/);
   assert.throws(() => generateInstructions("6502", { "170": definition, "0xAA": definition }, { bindOpcodes: true }), /Duplicate opcode/);
-  assert.throws(() => generateInstructions("6502", { "170": { ...definition, inputs: { address: 16 } } }, { bindOpcodes: true }), /cannot supply instruction inputs/);
+  assert.throws(() => generateInstructions("6502", { "170": { ...definition, inputs: { address: 16 } } }, { bindOpcodes: true }), /opcode inputs must match its page captures/);
 });
 
 test("generated numeric inputs preserve declaration order, widths, and names independently of host identifiers", async () => {
@@ -235,7 +235,7 @@ test("selected opcode bindings coexist with unbound helpers and reject missing, 
   entries[0]![1](); assert.equal(state.x, 0x80);
   assert.throws(() => generateInstructions("6502", definitions, { bindOpcodes: [171] }), /no instruction definition/);
   assert.throws(() => generateInstructions("6502", definitions, { bindOpcodes: [170, 170] }), /Duplicate opcode/);
-  assert.throws(() => generateInstructions("6502", { 170: helper }, { bindOpcodes: [170] }), /cannot supply instruction inputs/);
+  assert.throws(() => generateInstructions("6502", { 170: helper }, { bindOpcodes: [170] }), /opcode inputs must match its page captures/);
 });
 
 test("generated opcode bindings capture their own CPU instance and read live state only on execution", () => {

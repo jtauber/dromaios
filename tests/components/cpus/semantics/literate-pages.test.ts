@@ -93,7 +93,7 @@ test("page declarations and encodings diagnose unknown names, duplicate slots, i
     ["page second = $30", "page first = $30", /Duplicate declaration/],
     ["on first", "on missing", /Unknown name/],
     ['encoding "0000 0001" on first', 'encoding "0000 0001"', /Duplicate opcode/],
-    ["page first = $20", "page first = $01", /collides with a base opcode/],
+    ["page first = $20", "page first = $01", /collides with an instruction opcode/],
     ['encoding "0000 0001" on first', 'encoding "00000000 00000001" on first', /eight-bit/],
     ['except "0000 0011"', 'except "0000 001x"', /at least one instruction/],
   ] as const) assert.throws(() => compile(markdown.replace(from, to)), (error: unknown) =>

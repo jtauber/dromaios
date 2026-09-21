@@ -1,6 +1,9 @@
 import type { AddressExpression, Expression, FlagExpression, InstructionDefinition, NumberExpression, SourceDefinitions, Statement, ValueType, Width } from "./model.ts";
 import { readSource, value } from "./model.ts";
 import { defineInstruction } from "./validate.ts";
+import { generatePageBindings } from "./generate-pages.ts";
+import { opcodePageLayouts } from "./opcode-pages.ts";
+import type { OpcodePage } from "./opcode-pages.ts";
 import { opcodeTable } from "../opcodes.ts";
 
 interface CapturedValue { readonly code: string; readonly type: ValueType }
@@ -12,27 +15,21 @@ type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePo
 /** Compile the bounded experiment to ordinary typed statements, without executing any effects. */
 export function generateInstructions(cpu: string, definitions: Readonly<Record<string, InstructionDefinition>>,
   { bindOpcodes = false, pages = {}, sources, state, origin = `semantics/definitions/${cpu}.ts` }: {
-    bindOpcodes?: boolean | readonly number[]; pages?: Readonly<Record<string, number>>; sources?: SourceDefinitions;
+    bindOpcodes?: boolean | readonly number[]; pages?: Readonly<Record<string, OpcodePage>>; sources?: SourceDefinitions;
     state?: { readonly name: string; readonly module: string }; origin?: string;
   } = {}): string {
   // Numeric definition keys are the opcode authority when generating execution bindings.
   const boundNames = new Set(bindOpcodes === true ? Object.keys(definitions) : bindOpcodes === false ? [] : bindOpcodes.map(String));
-  const prefixes = Object.entries(pages);
+  const prefixes = opcodePageLayouts(pages);
   if (prefixes.length && !bindOpcodes) throw new Error("Opcode pages require execution bindings.");
-  const prefixBytes = new Set<number>();
-  for (const [name, prefix] of prefixes) {
-    if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(name) || !Number.isInteger(prefix) || prefix < 1 || prefix > 255) {
-      throw new Error("Opcode pages need identifier names and byte prefixes from $01 through $FF.");
-    }
-    if (prefixBytes.has(prefix) || [...boundNames].some(name => Number(name) === prefix)) throw new Error("Duplicate or colliding opcode page prefix.");
-    prefixBytes.add(prefix);
-  }
+  const prefixBytes = new Set(prefixes.map(page => page.key));
+  if ([...boundNames].some(name => prefixBytes.has(Number(name)))) throw new Error("Duplicate or colliding opcode page prefix.");
   if (bindOpcodes) opcodeTable((bindOpcodes === true ? Object.keys(definitions) : bindOpcodes).map(opcode => {
     const definition = definitions[opcode];
     if (!Object.hasOwn(definitions, opcode) || !definition) throw new Error(`Opcode ${opcode} has no instruction definition.`);
     if (prefixes.length && Number(opcode) > 255 && !prefixBytes.has(Number(opcode) >>> 8)) throw new Error(`Opcode ${opcode} has no declared page.`);
     return [Number(opcode), definition];
-  }), prefixes.length || cpu === "68000" ? 16 : 8);
+  }), prefixes.some(page => page.on) ? 24 : prefixes.length || cpu === "68000" ? 16 : 8);
   const stateType = state?.name ?? `Cpu${cpu === "z80" ? "Z80" : cpu}State`;
   const helpers = new Set<string>();
   const outcomes = new Set<string>();
@@ -360,8 +357,11 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     const scope = new Map<string, CapturedValue>();
     const parameters = result && !decoderCapabilities ? [] : [`state: ${stateType}`];
     const bound = !result && boundNames.has(name);
+    const pageInputs = bound ? prefixes.find(page => page.key === Math.floor(Number(name) / 256))?.operands ?? [] : [];
+    if (bound && JSON.stringify(Object.entries(definition.inputs ?? {})) !== JSON.stringify(pageInputs.map(name => [name, 8]))) {
+      throw new Error(`${definition.name}: opcode inputs must match its page captures.`);
+    }
     for (const [name, type] of Object.entries(definition.inputs ?? {})) {
-      if (bound) throw new Error(`${definition.name}: opcode bindings cannot supply instruction inputs.`);
       const code = local(name);
       parameters.push(`${code}: number`);
       scope.set(name, { code, type });
@@ -403,29 +403,9 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
       ...[...boundNames].map(name => `    [0x${Number(name).toString(16)}, instructions[${JSON.stringify(name)}]],`),
       "  ];", "  return entries.map(([opcode, execute]) => [opcode, instruction => execute(state, instruction)]);",
     ].join("\n");
-  const handler = `(instruction: ${boundContext}) => ${outcome}`;
-  const additional = prefixes.length ? `, additional: Partial<Record<${prefixes.map(([name]) => JSON.stringify(name)).join(" | ")}, readonly OpcodeEntry<${handler}>[]>> = {}` : "";
-  const pageBindings = prefixes.length ? [
-    `  const bodies: readonly OpcodeEntry<${executeType}>[] = [`,
-    ...[...boundNames].map(name => `    [0x${Number(name).toString(16)}, instructions[${JSON.stringify(name)}]],`),
-    "  ];",
-    `  const entries: readonly OpcodeEntry<${handler}>[] = bodies.map(([opcode, execute]) => [opcode, instruction => execute(state, instruction)]);`,
-    `  const base = entries.filter(([opcode]) => opcode < 256);`,
-    "  return { base, pages: {",
-    ...prefixes.flatMap(([name, prefix]) => [
-      `    [${JSON.stringify(name)}]: { prefix: ${prefix}, handlers: opcodeTable([...entries.filter(([opcode]) => opcode >>> 8 === ${prefix})`,
-      `      .map(([opcode, execute]): OpcodeEntry<${handler}> => [opcode & 255, execute]), ...(additional[${JSON.stringify(name)}] ?? [])]) },`,
-    ]),
-    "  } };",
-  ].join("\n") : "";
-  if (prefixes.length) bindings = [
-    "  const { base, pages } = opcodePages(state, additional);",
-    "  for (const { prefix, handlers } of Object.values(pages)) base.push([prefix, instruction => {",
-    "    const execute = handlers[instruction.fetchByte()];",
-    '    return execute ? execute(instruction) : "unsupported";',
-    "  }]);",
-    "  return base;",
-  ].join("\n");
+  const generatedPages = prefixes.length ? generatePageBindings(prefixes, boundNames, stateType, boundContext, outcome) : undefined;
+  const additional = generatedPages?.additional ?? "";
+  if (generatedPages) bindings = generatedPages.bindings;
   return `// Generated by scripts/generate-cpu-semantics.ts; edit ${origin} instead.\n`
     + `${imports.join("\n")}\n\n`
     + (decoders.size ? `const decoders = {\n${[...decoders.values()].map(decoder => decoder.code).join("\n\n")}\n};\n\n` : "")
@@ -437,8 +417,11 @@ export function sourceReaders(state: ${stateType}) {
     + (prefixes.length ? `
 /** Bind separate opcode spaces for cores that decode prefixes before executing a body. */
 export function opcodePages(state: ${stateType}${additional}) {
-${pageBindings}
+${generatedPages!.pageBindings}
 }
+
+/** Decode bytes and bind captured operands without reading or writing CPU state. */
+${generatedPages!.decoder}
 ` : "")
     + (bindOpcodes ? `
 /** Bind this CPU instance's state without performing any instruction effects. */

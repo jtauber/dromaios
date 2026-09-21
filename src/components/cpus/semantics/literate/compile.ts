@@ -5,6 +5,8 @@ import { memorySource, registerSource } from "../builders.ts";
 import { concat, isWidth, literal, readRegister, readSource, value } from "../model.ts";
 import type { Choice, CpuDeclaration, Flag, FlagGroup, FlagPolicy, InstructionDefinition, Latch, Register, RegisterArray, ValueSource, ValueType, Width } from "../model.ts";
 import { defineInstruction, validateFlagPolicy, validateInstruction } from "../validate.ts";
+import { opcodePageLayouts } from "../opcode-pages.ts";
+import type { OpcodePage } from "../opcode-pages.ts";
 import { chapterBlocks, chapterBody, ChapterError, ChapterTokens } from "./document.ts";
 import { expression, flagExpression, width } from "./expressions.ts";
 import { chapterExecution, checkByteExecution } from "./execution.ts";
@@ -30,8 +32,8 @@ export interface CpuChapter {
   readonly policies: Readonly<Record<string, FlagPolicy>>;
   readonly operands: Readonly<Record<string, readonly ChapterOperand[]>>;
   readonly conditions: Readonly<Record<string, readonly ChapterCondition[]>>;
-  /** Named one-byte prefix pages; family keys encode prefix:opcode as a word. */
-  readonly pages: Readonly<Record<string, number>>;
+  /** Prefix paths and ordered captures; family keys omit intervening operand bytes. */
+  readonly pages: Readonly<Record<string, OpcodePage>>;
   readonly families: Readonly<Record<string, readonly OpcodeEntry<InstructionDefinition>[]>>;
 }
 
@@ -45,7 +47,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
   const conditions = new Map<string, readonly ChapterCondition[]>();
   const views = new Map<string, ValueSource>(), actions = new Map<string, InstructionDefinition>();
   const names = new Set<string>(), opcodes = new Map<number, ChapterTokens>();
-  const pages = new Map<string, number>(), pageTokens = new Map<number, ChapterTokens>();
+  const pages = new Map<string, OpcodePage>(), pageTokens = new Map<number, ChapterTokens>();
   const wordPatterns: ChapterTokens[] = [];
   let declared = false, ownsState = false;
   let execution: ChapterExecution | undefined;
@@ -151,10 +153,26 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
       }
       const name = declare(header, kind);
       if (kind === "page") {
-        header.expect("="); const prefix = header.number(); header.end();
+        header.expect("="); const prefix = header.number();
         if (prefix < 1 || prefix > 255) header.fail("Opcode page prefixes must be bytes from $01 through $FF.");
-        if (pageTokens.has(prefix)) header.fail(`Duplicate opcode page prefix $${prefix.toString(16)}.`);
-        pages.set(name, prefix); pageTokens.set(prefix, header); continue;
+        const on = header.take("on") ? header.word() : undefined;
+        const operands: string[] = []; let opcodeFetch = true;
+        const detailed = header.take("{");
+        if (detailed) {
+          header.end(); const nested = chapterBody(lines, index); index = nested.end;
+          const last = nested.body.at(-1) ?? header.fail("A page layout must end with opcode = fetch or read.");
+          for (const tokens of nested.body.slice(0, -1)) {
+            const operand = tokens.word(); tokens.expect(":"); tokens.expect("8"); tokens.expect("="); tokens.expect("read"); tokens.end();
+            if (names.has(operand) || registers.has(operand) || flags.has(operand)) tokens.fail("Page operands must not shadow declarations.");
+            operands.push(operand);
+          }
+          last.expect("opcode"); last.expect("=");
+          opcodeFetch = last.take("fetch"); if (!opcodeFetch) last.expect("read"); last.end();
+        } else header.end();
+        const page = on !== undefined || detailed ? { prefix, ...(on ? { on } : {}), operands, opcodeFetch } : prefix;
+        const layouts = header.checked(() => opcodePageLayouts({ ...Object.fromEntries(pages), [name]: page }));
+        const key = layouts.at(-1)!.key;
+        pages.set(name, page); pageTokens.set(key, header); continue;
       }
       // Keep original lines: each family selection reparses its body, including nested blocks.
       const { body, end } = chapterBody(lines, index); index = end;
@@ -269,7 +287,11 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         for (const form of forms) {
           const firstDefinition = definitions.length;
           const pattern = form.quoted();
-          const prefix = form.take("on") ? form.lookup(pages) : undefined;
+          const pageName = form.take("on") ? form.word() : undefined;
+          const page = pageName === undefined ? undefined : opcodePageLayouts(Object.fromEntries(pages)).find(page => page.name === pageName)
+            ?? form.fail(`Unknown name ${pageName}.`);
+          const prefix = page?.key;
+          const inputs = Object.fromEntries((page?.operands ?? []).map(name => [name, 8 as const]));
           if (pattern.replace(/[\s_]/g, "").length === 16) wordPatterns.push(form);
           if ((prefix !== undefined || pages.size) && pattern.replace(/[\s_]/g, "").length !== 8) form.fail("Opcode pages require eight-bit patterns.");
           const selectors = new Map<string, Selector>();
@@ -278,19 +300,23 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
             const choices = form.lookup(new Map<string, readonly Selection[]>([...catalogues, ...conditions]));
             const requested = form.take(".") ? form.word() : "operand";
             if (selectors.has(selector)) form.fail(`Duplicate selector ${selector}.`);
-            if (names.has(selector) || registers.has(selector) || flags.has(selector)) form.fail("A family selector must not shadow a source or other declaration.");
+            if (names.has(selector) || registers.has(selector) || flags.has(selector) || Object.hasOwn(inputs, selector)) form.fail("A family selector must not shadow a source or other declaration.");
             const view = requested === "read" || requested === "address" || requested === "operand" ? requested
               : form.fail("Select a catalogue with .read, .address, or no suffix for operands.");
             if (view !== "operand" && choices[0]?.kind === "condition") form.fail("Conditions have no numeric source view.");
             selectors.set(selector, { choices, view });
           } while (form.take(","));
-          const boundSources = new Map(sources), aliases = new Set<string>();
+          const boundSources = new Map(sources), boundOperands = new Map<string, ChapterOperand>(), aliases = new Set<string>();
           if (form.take("with")) do {
             const alias = form.word(); form.expect("=");
-            if (names.has(alias) || registers.has(alias) || flags.has(alias) || selectors.has(alias) || aliases.has(alias)) {
+            if (names.has(alias) || registers.has(alias) || flags.has(alias) || selectors.has(alias) || aliases.has(alias) || Object.hasOwn(inputs, alias)) {
               form.fail(`Source binding ${alias} must not shadow a declaration or another binding.`);
             }
-            aliases.add(alias); boundSources.set(alias, form.lookup(sources));
+            aliases.add(alias);
+            if (form.take("register")) {
+              const reference = form.reference(), register = registers.get(reference) ?? form.fail(`Unknown register ${reference}.`);
+              boundOperands.set(alias, { kind: "register", name: reference, register, read: registerSource(register) });
+            } else boundSources.set(alias, form.lookup(sources));
           } while (form.take(","));
           const template = form.take("named") ? form.quoted() : undefined;
           if (template === undefined && selectors.size > 1) form.fail("A multi-selector family needs an explicit instruction name template.");
@@ -314,7 +340,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
           for (const [byte, selected] of entries) {
             if (excluded.has(byte)) continue;
             const opcode = prefix === undefined ? byte : prefix * 256 + byte;
-            const bindings = new Map(boundSources), operands = new Map<string, ChapterOperand>();
+            const bindings = new Map(boundSources), operands = new Map(boundOperands);
             const selectedConditions = new Map<string, ChapterCondition>();
             let available = true;
             for (const [selector, { view }] of selectors) {
@@ -329,9 +355,9 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
             if (!available) continue;
             if (opcodes.has(opcode)) form.fail(`Duplicate opcode $${opcode.toString(16)}.`);
             opcodes.set(opcode, form);
-            const bodySteps = steps(body.map(tokens => new ChapterTokens(tokens.source, file)), { bindings, operands, conditions: selectedConditions });
-            definitions.push([opcode, form.checked(() => defineInstruction({ cpu, name: instructionName(selected),
-              explanation: block.explanation, steps: bodySteps }))]);
+            const bodySteps = steps(body.map(tokens => new ChapterTokens(tokens.source, file)), { bindings, operands, conditions: selectedConditions, inputs });
+            definitions.push([opcode, form.checked(() => defineInstruction({ cpu, name: instructionName({ ...Object.fromEntries(boundOperands), ...selected }),
+              explanation: block.explanation, ...(Object.keys(inputs).length ? { inputs } : {}), steps: bodySteps }))]);
           }
           if (definitions.length === firstDefinition) form.fail("An encoding must define at least one instruction.");
         }
@@ -343,7 +369,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
   if (!ownsState && target.state === undefined) throw new ChapterError(file, 1, 1, "Expected a state block.");
   if (pages.size && wordPatterns.length) wordPatterns[0]!.fail("Word opcode patterns cannot be mixed with byte opcode pages.");
   for (const [prefix, tokens] of pageTokens) {
-    if (opcodes.has(prefix)) tokens.fail(`Opcode page prefix $${prefix.toString(16)} collides with a base opcode.`);
+    if (opcodes.has(prefix)) tokens.fail(`Opcode page prefix $${prefix.toString(16)} collides with an instruction opcode.`);
   }
   if (pages.size) for (const [opcode, tokens] of opcodes) {
     if (opcode > 255 && !pageTokens.has(opcode >>> 8)) tokens.fail("A word opcode cannot be mixed with byte opcode pages.");

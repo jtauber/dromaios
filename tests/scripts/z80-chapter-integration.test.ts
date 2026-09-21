@@ -21,7 +21,7 @@ function editedChapter(t: TestContext, edit: (chapter: string) => string) {
   return (path: string) => JSON.stringify(pathToFileURL(join(directory, path)).href);
 }
 
-// Deliberately wrong hardware edits prove production reads chapter policy, including native indexed callers.
+// Deliberately wrong hardware edits prove production reads chapter policy, including indexed instructions.
 test("Z80 chapter edits reach construction, both snapshots, byte/word dispatch, branches, decimal flags, and stack actions", t => {
   const url = editedChapter(t, chapter => chapter.replace("register PC: 16", "register SCRATCH: 8\n  register PC: 16")
     .replaceAll("return concat(high, low)", "return concat(low, high)")
@@ -160,6 +160,42 @@ test("Z80 ED prefix, word flags, block steps, ports, modes, and RETI notificatio
     const cpu = new CpuZ80({ size: 65536, read() { reads++; return 0xed; }, write() { assert.fail(); } }, initial);
     assert.equal(cpu.step().outcome, "unsupported"); assert.equal(reads, 1);
     assert.equal(cpu.snapshot().pc, 0x200); assert.equal(cpu.snapshot().r, 0xfe);
+  `], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+});
+
+// Prefix paths, displacement arithmetic, and opcode-fetch classification are chapter data.
+test("Z80 indexed chapter edits control both prefix pages, addressing, and supplied refresh increments", t => {
+  const url = editedChapter(t, chapter => chapter.replace(/family DJNZ[^]*?\n}\n/, "")
+    .replace("page DD = $DD", "page DD = $10")
+    .replace("page DDCB = $CB", "page DDCB = $ED")
+    .replace("page FDCB = $CB", "page FDCB = $ED")
+    .replaceAll("opcode = read", "opcode = fetch")
+    .replaceAll("add(base, signExtend(displacement, 16))", "subtract(base, signExtend(displacement, 16))"));
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { CpuZ80 } from ${url("src/components/cpus/z80.ts")};
+    const flags = { s: false, z: false, h: false, pv: false, n: false, c: false };
+    const bank = { a: 0, b: 0, c: 0, d: 0, e: 0, h: 0, l: 0, flags };
+    const initial = { ...bank, alternate: bank, ix: 0xffff, iy: 0xffff, pc: 0x200, sp: 0x600,
+      i: 0, r: 0x80, iff1: true, iff2: true, im: 0, interruptDeferred: false, nmiDeferred: false, halted: false };
+    for (const prefix of [0x10, 0xfd]) for (const bits of [false, true]) for (const supplied of [false, true]) {
+      const code = bits ? [prefix, 0xed, 0xff, 0x06] : [prefix, 0x36, 0xff, 0x42];
+      const bytes = new Uint8Array(65536); bytes.set(code, 0x200); bytes[0] = 0x81;
+      const ram = { size: bytes.length, read: address => bytes[address], write: (address, value) => { bytes[address] = value; } };
+      const cpu = new CpuZ80(ram, initial), snapshots = [];
+      const record = supplied ? cpu.interrupt("irq", () => { snapshots.push(cpu.snapshot()); return code.shift(); }) : cpu.step();
+      assert.equal(record.outcome, "executed"); assert.equal(bytes[0], bits ? 3 : 0x42);
+      assert.equal(cpu.snapshot().pc, supplied ? 0x200 : 0x204);
+      assert.equal(cpu.snapshot().r, bits ? 0x83 : 0x82);
+      if (supplied) assert.deepEqual(snapshots.map(state => state.r), bits ? [0x81, 0x82, 0x82, 0x83] : [0x81, 0x82, 0x82, 0x82]);
+    }
+    for (const code of [[0xdd, 0x36, 0, 1], [0x10, 0xcb], [0xfd, 0xcb]]) {
+      const bytes = new Uint8Array(65536); bytes.set(code, 0x200);
+      const cpu = new CpuZ80({ size: bytes.length, read: address => bytes[address], write() {} }, initial);
+      const before = cpu.snapshot(), record = cpu.step();
+      assert.equal(record.outcome, "unsupported"); assert.deepEqual(cpu.snapshot(), before);
+    }
   `], { encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
 });

@@ -175,3 +175,11 @@ test("cached patterns still validate each selector map and recover from failed b
   assert.deepEqual(entries, Array.from({ length: 256 }, (_, opcode) => [opcode,
     Number.parseInt(opcode.toString(2).padStart(8, "0").replace(/^(.{2}).{2}/, "$1"), 2)]));
 });
+
+
+test("three-byte inventory keys preserve both prefixes and enforce 24-bit bounds", () => {
+  const table = opcodeTable([[0xddcb06, "IX"], [0xfdcb06, "IY"], [0xffffff, "last"]], 24);
+  assert.equal(table[0xddcb06], "IX"); assert.equal(table[0xfdcb06], "IY"); assert.equal(table[0xffffff], "last");
+  assert.throws(() => opcodeTable([[0x1000000, "overflow"]], 24), /opcode/);
+  assert.throws(() => opcodeTable([[0xddcb06, "first"], [0xddcb06, "duplicate"]], 24), /Duplicate/);
+});
