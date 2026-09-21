@@ -30,18 +30,26 @@ family load {
 const compile = (text = markdown) => compileCpuChapter(text, {}, "pages.md");
 type Handler = (context: { fetchByte(): number }) => void | "unsupported";
 type State = { a: number };
+type Entry = readonly [number, Handler];
+type Additions = Partial<Record<"first" | "second", readonly Entry[]>>;
+interface GeneratedPages {
+  opcodeEntries(state: State, additional?: Additions): readonly Entry[];
+  opcodePages(state: State, additional?: Additions): {
+    base: readonly Entry[];
+    pages: Record<"first" | "second", { prefix: number; handlers: Readonly<Partial<Record<number, Handler>>> }>;
+  };
+}
 async function executable(text = markdown, selected?: readonly number[]) {
   const chapter = compile(text), definitions = Object.fromEntries(Object.values(chapter.families).flat());
   const code = generateInstructions("probe", definitions, { bindOpcodes: selected ?? true, pages: chapter.pages });
   const javascript = stripTypeScriptTypes(code).replace('"../opcodes.ts"',
     JSON.stringify(new URL("../../../../src/components/cpus/opcodes.js", import.meta.url).href));
-  const module: { opcodeEntries(state: State, additional?: Partial<Record<"first" | "second", readonly (readonly [number, Handler])[]>>): readonly (readonly [number, Handler])[] } =
-    await import(`data:text/javascript,${encodeURIComponent(javascript)}`);
-  return module.opcodeEntries;
+  const module: GeneratedPages = await import(`data:text/javascript,${encodeURIComponent(javascript)}`);
+  return module;
 }
 
 test("named pages isolate opcode spaces and fetch the following opcode exactly once", async () => {
-  const entries = await executable(), state = { a: 0x42 };
+  const { opcodeEntries: entries } = await executable(), state = { a: 0x42 };
   assert.deepEqual(compile().pages, { first: 0x20, second: 0x30 });
   assert.deepEqual(Object.values(compile().families).flat().map(([opcode]) => opcode), [1, 0x2001, 0x3002]);
   const handlers = Object.fromEntries(entries(state));
@@ -58,7 +66,7 @@ test("named pages isolate opcode spaces and fetch the following opcode exactly o
 });
 
 test("prefix and operand failures retain completed effects, and extra page bodies cannot override generated ones", async () => {
-  const entries = await executable(), state = { a: 1 }, failure = new Error("fetch failed");
+  const { opcodeEntries: entries } = await executable(), state = { a: 1 }, failure = new Error("fetch failed");
   let reads = 0;
   const handlers = Object.fromEntries(entries(state, { first: [[3, () => { state.a = 0x99; }]] }));
   handlers[0x20]!({ fetchByte: () => 3 }); assert.equal(state.a, 0x99);
@@ -69,10 +77,10 @@ test("prefix and operand failures retain completed effects, and extra page bodie
   }
   assert.throws(() => entries(state, { first: [[1, () => {}]] }), /Duplicate opcode/);
   assert.throws(() => entries(state, { first: [[256, () => {}]] }), /opcode/);
-  const edited = await executable(markdown.replace("page first = $20", "page first = $40"));
+  const { opcodeEntries: edited } = await executable(markdown.replace("page first = $20", "page first = $40"));
   const changed = Object.fromEntries(edited(state));
   assert.equal(changed[0x20], undefined); assert.equal(typeof changed[0x40], "function");
-  const selected = Object.fromEntries((await executable(markdown, [0x2001]))(state));
+  const selected = Object.fromEntries((await executable(markdown, [0x2001])).opcodeEntries(state));
   assert.equal(selected[1], undefined);
   assert.equal(selected[0x30]!({ fetchByte: () => 2 }), "unsupported");
 });
@@ -104,4 +112,29 @@ test("generation validates page bindings independently of the chapter parser", (
   }
   assert.throws(() => generateInstructions("probe", definitions, { pages: chapter.pages }), /require execution bindings/);
   assert.throws(() => generateInstructions("probe", definitions, { bindOpcodes: true, pages: { first: 32 } }), /no declared page/);
+});
+
+
+test("separate page bindings allow decoding without fetching operands or touching state", async () => {
+  const { opcodePages } = await executable(), state = { a: 0x42 };
+  let effects = 0;
+  const observed = new Proxy(state, {
+    get() { assert.fail("Binding and lookup must not read state"); },
+    set(target, key, value) { effects++; return Reflect.set(target, key, value); },
+  });
+  const { base, pages } = opcodePages(observed, { first: [[3, () => { effects++; }]] });
+  assert.deepEqual(base.map(([opcode]) => opcode), [1]);
+  assert.equal(pages.first.prefix, 0x20); assert.equal(pages.second.prefix, 0x30);
+  assert.deepEqual(Object.keys(pages.first.handlers).map(Number), [1, 3]);
+  assert.deepEqual(Object.keys(pages.second.handlers).map(Number), [2]);
+  assert.equal(pages.first.handlers[2], undefined); assert.equal(effects, 0);
+  let fetched = 0;
+  pages.first.handlers[1]!({ fetchByte() { fetched++; return 0x77; } });
+  assert.equal(fetched, 1); assert.equal(effects, 1); assert.equal(state.a, 0x77);
+  pages.first.handlers[3]!({ fetchByte() { assert.fail("Extra body does not fetch"); } });
+  assert.equal(effects, 2);
+  assert.throws(() => opcodePages(state, { first: [[1, () => {}]] }), /Duplicate opcode/);
+  assert.throws(() => opcodePages(state, { second: [[256, () => {}]] }), /opcode/);
+  const changed = (await executable(markdown.replace("page first = $20", "page first = $40"))).opcodePages(state);
+  assert.equal(changed.pages.first.prefix, 0x40); assert.equal(typeof changed.pages.first.handlers[1], "function");
 });

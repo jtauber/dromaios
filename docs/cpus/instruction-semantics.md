@@ -54,7 +54,7 @@ the Z80, 8088, and 68000 retain TypeScript builders.
 | Z80 accumulator rotates and all documented CB shifts/rotates, including indexed forms | Preserve S/Z/PV on accumulator rotates; derive them for CB operations; share each memory body across HL/IX/IY, with flags before writeback and explicit failure boundaries |
 | Z80 EX AF,AF′/EXX, I/R transfers, and NEG | Schema-owned alternate-bank references, whole flag-object exchange, explicit IFF2 reads, and flags before A |
 | Z80 RLD/RRD and all eight block transfer/search forms | Direct nibble shifts; successful memory writes before flags; live pair rereads; one iteration and conditional PC rewind, with no hidden loop |
-| Z80 BIT/RES/SET, including indexed forms | Fixed bit masks; BIT reads without writeback and preserves C; RES/SET write even unchanged values without accessing flags; share CB construction and bindings with shifts |
+| Z80 BIT/RES/SET, including indexed forms | Fixed bit masks; BIT reads without writeback and preserves C; RES/SET write even unchanged values without accessing flags; share chapter operand catalogues and memory actions with shifts |
 | 8080 INR/DCR and Z80 byte INC/DEC, including indexed forms | Chapter-owned read–adjust–flags–write bodies; Z80 indexed callers reuse its memory actions; preserve carry; distinguish 8080 inverse half-borrow and parity from Z80 half-borrow and overflow; retain calculated flags on failed writes |
 | 8080 MOV/MVI and corresponding Z80 LD matrices, immediate and indexed forms | Chapters own the ordinary matrices; native Z80 indexed bodies retain resolved addresses; capture sources before writes, retain HL access timing and real indexed H/L operands, preserve every flag, and exclude HALT |
 | 8080 STAX/LDAX/STA/LDA and corresponding Z80 accumulator LD forms | Capture BC/DE or the complete immediate address before A or memory; loads write only after a successful read, stores never read the destination, and neither direction accesses flags |
@@ -403,8 +403,8 @@ in its own chapter.
 
 The Z80 chapter describes RLCA/RRCA/RLA/RRA directly,
 clearing N/H after A and C writeback. S/Z/PV remain unchanged. Its CB
-RLC/RRC/RL/RR/SLA/SRA/SRL definitions use the existing `shift` recipe with their
-own result S/Z/parity policy, cleared H/N, and outgoing C. Registers are read
+RLC/RRC/RL/RR/SLA/SRA/SRL definitions declare their bit shifts in the chapter,
+with a shared result S/Z/parity policy, cleared H/N, and outgoing C. Registers are read
 once; memory bodies receive one resolved address shared by (HL), (IX+d), and
 (IY+d). Only RL/RR read C, after the operand. Flags precede the result write,
 including unchanged-value writes. A failed read prevents flags and writeback;
@@ -412,15 +412,15 @@ a failed write retains the calculated flags. Prefix decoding and refresh
 increments remain outside the generated body, including the non-M1 displacement
 and final opcode bytes in DD/FD CB sequences. The undocumented SLL row is omitted.
 
-BIT/RES/SET use the same CPU-local `cbFamily` construction for a single register
-or resolved-memory read and optional writeback. Each bit's mask is a literal in
-the expanded definition. BIT isolates the selected bit, omits writeback, and
-sets Z/PV when that bit is clear; S follows masked bit 7, H is set, N is cleared,
-and C is preserved without reading it. This retains the model's observed S/PV
-policy. RES ANDs with the complemented byte mask; SET ORs with the mask. Both
-write even an unchanged result and never access flags. Their 192 bodies cover
-240 forms: each of the 24 memory bodies serves HL, IX, and IY. No new semantic
-primitive or generator path is needed.
+BIT/RES/SET use chapter families with a shared bit-mask catalogue and three
+resolved-memory actions. Ordinary CB families resolve HL once; native indexed
+callers bind the chapter's mask and supply the resolved IX/IY address. BIT
+isolates the selected bit, omits writeback, and sets Z/PV when that bit is clear;
+S follows masked bit 7, H is set, N is cleared, and C is preserved without
+reading it. This retains the model's observed S/PV policy. RES ANDs with the
+complemented byte mask; SET ORs with the mask. Both write even an unchanged
+result and never access flags. The ordinary CB page owns 248 complete forms;
+its indexed counterparts share these effects but retain native decoding.
 
 The 8080 and Z80 chapters each own their byte adjustment policies and encodings.
 Both read the original byte, calculate, apply flags, and then write the result,
@@ -1860,7 +1860,7 @@ declared position. The 6502 now expands these sources into every ordinary
 instruction body; standalone readers remain focused generator probes.
 
 The 6502 and 8080 use generated chapter dispatch for their complete instruction
-sets. The Z80 chapter binds all 252 unprefixed forms directly, replacing its
+sets. The Z80 chapter binds all 252 unprefixed and 248 ordinary CB forms, replacing its
 inherited base class and remaining native base inventories. Native prefixed
 word definitions consume chapter pair reads/writes and the word-addition policy;
 indexed arithmetic and adjustments reuse chapter actions after native address

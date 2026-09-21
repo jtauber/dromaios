@@ -5,9 +5,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { test } from "node:test";
+import type { TestContext } from "node:test";
 
-// Deliberately wrong hardware edits prove production reads chapter policy, including native indexed callers.
-test("Z80 chapter edits reach construction, both snapshots, byte/word dispatch, branches, decimal flags, and stack actions", t => {
+function editedChapter(t: TestContext, edit: (chapter: string) => string) {
   const directory = mkdtempSync(join(tmpdir(), "dromaios-z80-chapter-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
@@ -15,7 +15,15 @@ test("Z80 chapter edits reach construction, both snapshots, byte/word dispatch, 
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const file = join(directory, "src/components/cpus/specifications/z80.md");
-  writeFileSync(file, readFileSync(file, "utf8").replace("register PC: 16", "register SCRATCH: 8\n  register PC: 16")
+  writeFileSync(file, edit(readFileSync(file, "utf8")));
+  const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
+  assert.equal(generated.status, 0, generated.stderr);
+  return (path: string) => JSON.stringify(pathToFileURL(join(directory, path)).href);
+}
+
+// Deliberately wrong hardware edits prove production reads chapter policy, including native indexed callers.
+test("Z80 chapter edits reach construction, both snapshots, byte/word dispatch, branches, decimal flags, and stack actions", t => {
+  const url = editedChapter(t, chapter => chapter.replace("register PC: 16", "register SCRATCH: 8\n  register PC: 16")
     .replaceAll("return concat(high, low)", "return concat(low, high)")
     .replace("  Z = zero(result)", "  Z = not(zero(result))")
     .replace("select(carry, u8($01)", "select(carry, u8($20)")
@@ -24,9 +32,6 @@ test("Z80 chapter edits reach construction, both snapshots, byte/word dispatch, 
     .replace("PC <- add(pc, signExtend(offset, 16))", "PC <- add(add(pc, u16(1)), signExtend(offset, 16))")
     .replace("SP <- subtract(pointer, u16(1))", "SP <- subtract(pointer, u16(2))")
     .replace("C = or(not(borrow(original, u8($9A))), carry)", "C = 0"));
-  const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
-  assert.equal(generated.status, 0, generated.stderr);
-  const url = (path: string) => JSON.stringify(pathToFileURL(join(directory, path)).href);
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
     import { CpuZ80, cpuZ80StateDescription } from ${url("src/components/cpus/z80.ts")};
@@ -60,6 +65,53 @@ test("Z80 chapter edits reach construction, both snapshots, byte/word dispatch, 
       else if (code[0] === 0x27) { assert.equal(after.a, 0x61); assert.equal(after.flags.c, false); }
       assert.equal(after.scratch, 0xa5);
     }
+  `], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+});
+
+
+test("Z80 CB prefix, policies, and masks reach ordinary, indexed, and interrupt-supplied execution", t => {
+  const url = editedChapter(t, chapter => chapter
+    // Remove DJNZ to free $10, then move CB there. The old prefix must no longer dispatch.
+    .replace(/family DJNZ "00 010 000"[\s\S]*?\n}/, "")
+    .replace("page CB = $CB", "page CB = $10")
+    .replace('policy SHIFT "Z80 CB rotation and shift flags" (result: 8, carry: flag) {\n  S = negative(result)',
+      'policy SHIFT "Z80 CB rotation and shift flags" (result: 8, carry: flag) {\n  S = 0')
+    .replace('000 "0" = $01', '000 "0" = $02'));
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { CpuZ80 } from ${url("src/components/cpus/z80.ts")};
+    const bank = { a: 0, b: 0x40, c: 0, d: 0, e: 0, h: 4, l: 0,
+      flags: { s: true, z: false, h: true, pv: false, n: true, c: true } };
+    for (const prefix of [[0x10], [0xdd, 0xcb, 0], [0xfd, 0xcb, 0]]) {
+      for (const opcode of prefix.length === 1 ? [0x00, 0x06, 0x46, 0x86, 0xc6, 0x36] : [0x06, 0x46, 0x86, 0xc6, 0x36]) {
+        for (const supplied of [false, true]) {
+          const code = [...prefix, opcode], bytes = new Uint8Array(65536); bytes.set(code, 0x200);
+          bytes[0x400] = opcode < 0x40 ? 0x40 : 2;
+          const state = { ...bank, alternate: structuredClone(bank), ix: 0x400, iy: 0x400, pc: 0x200, sp: 0x600,
+            i: 0, r: 0xfe, iff1: true, iff2: true, im: 0, interruptDeferred: false, nmiDeferred: false, halted: false };
+          const cpu = new CpuZ80({ size: bytes.length, read: address => bytes[address], write: (address, value) => { bytes[address] = value; } }, state);
+          let acknowledgements = 0;
+          const record = supplied ? cpu.interrupt("irq", () => code[acknowledgements++]) : cpu.step();
+          const after = cpu.snapshot();
+          assert.equal(record.outcome, opcode === 0x36 ? "unsupported" : "executed");
+          assert.equal(after.pc, supplied || opcode === 0x36 ? 0x200 : 0x200 + code.length);
+          assert.equal(after.r, supplied || opcode !== 0x36 ? 0x80 : 0xfe);
+          assert.equal(acknowledgements, supplied ? code.length : 0);
+          if (opcode === 0 || opcode === 6) { assert.equal(after.flags.s, false); assert.equal(opcode === 0 ? after.b : bytes[0x400], 0x80); }
+          if (opcode === 0x46) assert.equal(after.flags.z, false);
+          if (opcode === 0x86) assert.equal(bytes[0x400], 0);
+          if (opcode === 0xc6) assert.equal(bytes[0x400], 2);
+        }
+      }
+    }
+    const state = { ...bank, alternate: structuredClone(bank), ix: 0, iy: 0, pc: 0, sp: 0,
+      i: 0, r: 5, iff1: false, iff2: false, im: 0, interruptDeferred: false, nmiDeferred: false, halted: false };
+    let reads = 0;
+    const cpu = new CpuZ80({ size: 65536, read() { reads++; return 0xcb; }, write() { assert.fail(); } }, state);
+    const record = cpu.step();
+    assert.equal(record.outcome, "unsupported"); assert.equal(reads, 1);
+    assert.equal(cpu.snapshot().pc, 0); assert.equal(cpu.snapshot().r, 5);
   `], { encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
 });

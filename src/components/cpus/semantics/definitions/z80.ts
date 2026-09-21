@@ -2,19 +2,19 @@ import { cpuZ80StateDescription } from "../../state/z80.ts";
 import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, cpuSymbols, deferInterrupt, evenParity, flagLiteral, flagValue, halfBorrow, literal, negative, not, notifyReti, perform, overflow,
   readFlag, readLatch, readMemory, readPort, readRegister, readSource, replaceFlags, select, shiftBits, subtract, updateFlags, value, when, writeChoice, writeLatch, writeMemory, writePort, writeRegister, xor, zero } from "../model.ts";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement } from "../model.ts";
-import { instructionSet, registerSource, registerView, shift } from "../builders.ts";
-import type { RegisterView, ShiftInput } from "../builders.ts";
+import { instructionSet, registerSource, registerView } from "../builders.ts";
+import type { RegisterView } from "../builders.ts";
 import { intelByteTransfer, intelStackTransfer, intelStackExchange, intelWordAdjustment, intelWordArithmetic, intelWordTransfer } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 import { flagPolicy } from "../status.ts";
 import { choose, flagCondition, jump } from "../control-flow.ts";
 import { byteStack, wordStack } from "../stack.ts";
 import { portTransfer } from "../ports.ts";
-import { actions, views, policies, families } from "../generated/z80.ts";
+import { actions, views, policies, families, operands } from "../generated/z80.ts";
 
 const cpu = cpuSymbols("z80", cpuZ80StateDescription);
-export { actions as actionsZ80, views as viewsZ80 } from "../generated/z80.ts";
-export const chapterZ80 = instructionSet(Object.values(families).flat());
+export { actions as actionsZ80, views as viewsZ80, pages as pagesZ80 } from "../generated/z80.ts";
+export const chapterZ80 = instructionSet(Object.values(families).flat(), 16);
 
 // Native prefixed forms reuse the chapter's pair reads and split writes.
 function pairView(name: "BC" | "DE" | "HL"): RegisterView {
@@ -108,53 +108,16 @@ function wordFlags(mnemonic: "ADC" | "SBC"): FlagPolicy {
 
 const wordAdditionFlags = policies.WORDADD;
 
-/** CB bodies read once; memory uses a resolved address, and BIT omits writeback entirely. */
-function cbFamily(mnemonic: string, steps: readonly Statement[], explanation: string, bit?: number, writeBack = true) {
-  return Object.fromEntries((["b", "c", "d", "e", "h", "l", "a", "memory"] as const).map(target => {
-    const memory = target === "memory";
-    const accesses = writeBack ? "one read and one write, even if the byte is unchanged" : "one read without writing";
-    return [`${mnemonic.toLowerCase()}${bit ?? ""}${memory ? "Memory" : target.toUpperCase()}`, defineInstruction({
-      cpu: cpu.declaration, name: `${mnemonic} ${bit === undefined ? "" : `${bit},`}${memory ? "memory" : target.toUpperCase()}`,
-      ...(memory ? { inputs: { address: 16 as const } } : {}),
-      explanation: (memory ? `Use the resolved HL or indexed address for ${accesses}. ` : "Read the selected byte register. ") + explanation,
-      steps: [memory ? readMemory("original", value("address")) : readRegister("original", cpu.register(target)),
-        ...steps, ...(writeBack ? [memory ? writeMemory(value("address"), value("result")) : writeRegister(cpu.register(target), value("result"))] : [])],
+// Indexed CB still resolves its displacement in the core; masks and effects belong to the chapter.
+function indexedBits(operation: "bit" | "res" | "set") {
+  return Object.fromEntries(operands.bitMasks.map((operand, code) => {
+    if (operand.kind !== "value") throw new Error("Z80 bit masks must be readable values.");
+    return [`${operation}${code}Memory`, defineInstruction({ cpu: cpu.declaration,
+      name: `${operation.toUpperCase()} ${code},memory`, inputs: { address: 16 },
+      explanation: "Use the chapter's mask and action at the resolved index address.",
+      steps: [readSource("mask", operand.read), perform(actions[`${operation}Memory`], { address: value("address"), mask: value("mask") })],
     })];
   }));
-}
-
-function shiftFamily(mnemonic: string, direction: "left" | "right", incoming: ShiftInput = "zero") {
-  const operation = shift(direction, incoming);
-  const flags: FlagPolicy = { name: `Z80 ${mnemonic}`, parameters: { original: 8, result: 8 }, unlisted: "preserve", updates: [
-    { flag: cpu.flag("s"), value: negative(value("result")) }, { flag: cpu.flag("z"), value: zero(value("result")) },
-    { flag: cpu.flag("h"), value: flagLiteral(false) }, { flag: cpu.flag("pv"), value: evenParity(value("result")) },
-    { flag: cpu.flag("n"), value: flagLiteral(false) }, { flag: cpu.flag("c"), value: operation.carry },
-  ] };
-  return cbFamily(mnemonic, [...operation.steps, updateFlags(flags, { original: value("original"), result: value("result") })],
-    (typeof incoming === "string" ? `Shift ${direction}, inserting ${incoming === "outgoing" ? "the outgoing bit" : incoming === "sign" ? "the original sign bit" : "zero"}. `
-      : `After the operand read, capture C and shift ${direction} through it. `)
-    + "Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. "
-    + "Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.");
-}
-
-const bitFlags: FlagPolicy = { name: "Z80 BIT", parameters: { result: 8 }, unlisted: "preserve", updates: [
-  // The model follows observed S/PV behavior: only bit 7 can set S, and PV equals Z.
-  { flag: cpu.flag("s"), value: negative(value("result")) }, { flag: cpu.flag("z"), value: zero(value("result")) },
-  { flag: cpu.flag("h"), value: flagLiteral(true) }, { flag: cpu.flag("pv"), value: zero(value("result")) },
-  { flag: cpu.flag("n"), value: flagLiteral(false) },
-] };
-
-function bitFamily(mnemonic: "BIT" | "RES" | "SET") {
-  return Object.fromEntries(Array.from({ length: 8 }, (_, bit) => {
-    const mask = 1 << bit, testing = mnemonic === "BIT";
-    // BIT isolates its bit; RES ANDs with its byte complement; SET ORs with the mask.
-    const result = (mnemonic === "SET" ? bitOr : bitAnd)(value("original"), literal(8, mnemonic === "RES" ? 0xff ^ mask : mask));
-    return Object.entries(cbFamily(mnemonic, [capture("result", result),
-      ...(testing ? [updateFlags(bitFlags, { result: value("result") })] : [])],
-      (testing ? `Test bit ${bit} without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. `
-        : `${mnemonic === "RES" ? "Clear" : "Set"} bit ${bit} and write the result, even if unchanged. Do not read or write flags. `)
-      + "Preserve the alternate bank and control state. A failed read prevents later effects.", bit, !testing));
-  }).flat());
 }
 
 // Indexed ALU forms resolve their address in the decoder, then reuse the chapter's byte action.
@@ -285,17 +248,9 @@ export const instructionsZ80 = {
   storeImmediateMemory: intelByteTransfer(cpu, "m", "immediate", "LD memory,n"),
   // Resolved indexed operands reuse the chapter's read/modify/write actions.
   incMemory: actions.incMemory, decMemory: actions.decMemory,
-  // CB 00 yyy rrr: yyy selects the operation; rrr selects B/C/D/E/H/L/(HL)/A.
-  // One resolved-memory body also serves DD/FD CB d 00 yyy 110. yyy=110 is undocumented SLL.
-  ...shiftFamily("RLC", "left", "outgoing"), // 000
-  ...shiftFamily("RRC", "right", "outgoing"), // 001
-  ...shiftFamily("RL", "left", cpu.flag("c")), // 010
-  ...shiftFamily("RR", "right", cpu.flag("c")), // 011
-  ...shiftFamily("SLA", "left"), // 100
-  ...shiftFamily("SRA", "right", "sign"), // 101
-  ...shiftFamily("SRL", "right"), // 111
-  // CB xx bbb rrr: xx=01/10/11 selects BIT/RES/SET; bbb selects bit 0..7.
-  ...bitFamily("BIT"), ...bitFamily("RES"), ...bitFamily("SET"),
+  rlcMemory: actions.rlcMemory, rrcMemory: actions.rrcMemory, rlMemory: actions.rlMemory, rrMemory: actions.rrMemory,
+  slaMemory: actions.slaMemory, sraMemory: actions.sraMemory, srlMemory: actions.srlMemory,
+  ...indexedBits("bit"), ...indexedBits("res"), ...indexedBits("set"),
   // DD/FD 10 ooo 110: the same eight byte operations after displacement resolution.
   ...Object.fromEntries((["add", "adc", "sub", "sbc", "and", "xor", "or", "cp"] as const).map(operation =>
     [`${operation}Memory`, indexedArithmetic(operation)])),

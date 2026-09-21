@@ -748,6 +748,14 @@ no longer needs native additions. Additions cannot replace generated
 entries: duplicate or out-of-range opcodes are rejected during binding. Native
 base-page collisions remain checked by the CPU's final opcode table.
 
+Cores that validate prefixed instructions before committing PC or refresh changes
+can use `opcodePages(state, additional)` instead. It returns base entries and
+named pages containing their declared `prefix` and bound `handlers`. Binding and
+lookup perform no state or bus effects; the core supplies the opcode and invokes
+the chosen body. The Z80 uses this for its ordinary CB page, preserving its
+unsupported-opcode and supplied-interrupt fetching rules. `opcodeEntries` builds
+its fetch-and-dispatch wrappers from the same page tables.
+
 ## Byte-pattern matches
 
 A `match` captures an eight-bit selector once and selects a disjoint case. Its

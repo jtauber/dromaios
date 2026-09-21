@@ -1,9 +1,22 @@
 import { instructions as native } from "../../src/components/cpus/generated/z80.js";
 import { instructions as chapter } from "../../src/components/cpus/generated/z80-chapter.js";
 
+import type { CpuZ80State } from "../../src/components/cpus/state/z80.js";
+
+// Test-owned literal CB selectors keep the access-order probes independent of chapter catalogues.
+const shifts = { rlc: 0x00, rrc: 0x08, rl: 0x10, rr: 0x18, sla: 0x20, sra: 0x28, srl: 0x38 } as const;
+const bits = { bit: 0x40, res: 0x80, set: 0xc0 } as const;
+const registers = { B: 0, C: 1, D: 2, E: 3, H: 4, L: 5, A: 7 } as const;
+type CbRegisterName = `${keyof typeof shifts | `${keyof typeof bits}${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`}${keyof typeof registers}`;
+const cbRegisters = Object.fromEntries(Object.entries(registers).flatMap(([register, code]) => [
+  ...Object.entries(shifts).map(([name, opcode]) => [`${name}${register}`, chapter[(0xcb00 + opcode + code) as keyof typeof chapter]]),
+  ...Object.entries(bits).flatMap(([name, opcode]) => Array.from({ length: 8 }, (_, bit) =>
+    [`${name}${bit}${register}`, chapter[(0xcb00 + opcode + bit * 8 + code) as keyof typeof chapter]])),
+])) as Record<CbRegisterName, (state: CpuZ80State) => void>;
+
 // Existing cross-CPU probes keep their names; every migrated entry calls a literal chapter opcode.
 export const bodiesZ80 = {
-  ...native, ...chapter,
+  ...native, ...chapter, ...cbRegisters,
   di: chapter[0xf3], ei: chapter[0xfb], input: chapter[0xdb], output: chapter[0xd3],
   exchangeAf: chapter[0x08], exchangeGeneralBanks: chapter[0xd9],
   jr: chapter[0x18], jrNZ: chapter[0x20], jrZ: chapter[0x28], jrNC: chapter[0x30], jrC: chapter[0x38], djnz: chapter[0x10],

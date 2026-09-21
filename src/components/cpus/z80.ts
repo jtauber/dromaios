@@ -2,7 +2,7 @@ import { instructions as semantics } from "./generated/z80.ts";
 import { cpuZ80StateDescription } from "./state/z80.ts";
 import type { CpuZ80State, CpuZ80RegisterBank } from "./state/z80.ts";
 import type { Ram } from "../memory/ram.js";
-import { instructions as chapter, opcodeEntries as chapterOpcodes } from "./generated/z80-chapter.ts";
+import { instructions as chapter, opcodePages as chapterPages } from "./generated/z80-chapter.ts";
 import { sourceReaders } from "./generated/z80-state.ts";
 import { callStack16LE } from "./call-stack.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
@@ -68,7 +68,7 @@ const instructionPattern = opcodePattern<OpcodeHandler>;
 /** Instruction-level Zilog Z80 with documented opcodes and boundary IRQ/NMI delivery. */
 export class CpuZ80 {
   readonly #state: CpuZ80State;
-  readonly #views: ReturnType<typeof sourceReaders>["views"];
+  readonly #cbPage: ReturnType<typeof chapterPages>["pages"]["CB"];
   readonly #stack: ReturnType<typeof callStack16LE>;
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>>;
   readonly #ram: Ram;
@@ -79,9 +79,10 @@ export class CpuZ80 {
   constructor(ram: Ram, initialState: CpuZ80State, ports?: BytePorts, onReti?: () => void) {
     if (ram.size !== 0x10000) throw new RangeError("The Z80 model requires exactly 64 KiB of RAM.");
     this.#state = readState(cpuZ80StateDescription, initialState);
-    this.#views = sourceReaders(this.#state).views;
     this.#stack = callStack16LE(this.#state);
-    this.#opcodeHandlers = opcodeTable<OpcodeHandler>(chapterOpcodes(this.#state));
+    const { base, pages } = chapterPages(this.#state);
+    this.#opcodeHandlers = opcodeTable<OpcodeHandler>(base);
+    this.#cbPage = pages.CB;
     this.#ram = ram;
     this.#ports = ports;
     this.#onReti = onReti;
@@ -212,9 +213,8 @@ export class CpuZ80 {
   // Instruction decoding, retirement, and interrupt returns.
 
   #decode(opcode: number, nextByte: (opcodeFetch?: boolean) => number): { handler: OpcodeHandler | undefined; opcodeFetches: number } {
-    if (opcode === 0xcb || opcode === 0xed) {
-      return { handler: (opcode === 0xcb ? this.#cbOpcodeHandlers : this.#edOpcodeHandlers)[nextByte()], opcodeFetches: 2 };
-    }
+    if (opcode === this.#cbPage.prefix) return { handler: this.#cbPage.handlers[nextByte()], opcodeFetches: 2 };
+    if (opcode === 0xed) return { handler: this.#edOpcodeHandlers[nextByte()], opcodeFetches: 2 };
     if (opcode === 0xdd || opcode === 0xfd) {
       const index = opcode === 0xdd ? "ix" : "iy", operation = nextByte();
       if (operation === 0xcb) {
@@ -249,9 +249,8 @@ export class CpuZ80 {
 
   // ooo in 10 ooo rrr / 11 ooo 110 selects the same ALU family, including DD/FD memory forms.
   readonly #aluFamilies = ["add", "adc", "sub", "sbc", "and", "xor", "or", "cp"] as const;
-  // CB's xx yyy rrr: xx=00 selects a shift; xx=01/10/11 selects BIT/RES/SET.
-  // yyy is the shift selector for xx=00, otherwise the bit number; rrr selects B/C/D/E/H/L/(HL)/A.
-  // Indexed CB fixes rrr=110 (memory); each generated memory body receives one resolved address.
+  // Indexed CB's xx yyy 110: xx=00 selects a shift; xx=01/10/11 selects BIT/RES/SET.
+  // yyy selects the shift or bit number. The chapter supplies each resolved-memory action.
   readonly #cbOperations = [
     { bits: "00 000", name: "rlc" }, { bits: "00 001", name: "rrc" },
     { bits: "00 010", name: "rl" }, { bits: "00 011", name: "rr" },
@@ -264,9 +263,6 @@ export class CpuZ80 {
       { bits: `11 ${bit.toString(2).padStart(3, "0")}`, name: `set${bit}` as const },
     ]),
   ] as const;
-  readonly #cbOpcodeHandlers = opcodeTable<OpcodeHandler>(this.#cbOperations.flatMap(({ bits, name }) => opcodeFamily(`${bits} rrr`,
-    { r: ["B", "C", "D", "E", "H", "L", "Memory", "A"] as const }, ({ r: target }): OpcodeHandler => target === "Memory"
-      ? instruction => semantics[`${name}Memory`](this.#state, this.#views.HL(), instruction) : () => semantics[`${name}${target}`](this.#state))));
   readonly #indexedCbHandlers = opcodeTable<AddressedHandler>(this.#cbOperations.flatMap(({ bits, name }) =>
     opcodePattern<AddressedHandler>(`${bits} 110`, (address, instruction) => semantics[`${name}Memory`](this.#state, address, instruction))));
 
