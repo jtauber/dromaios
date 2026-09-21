@@ -10,6 +10,7 @@ import type { WordInstructionContext, InterruptDeferralContext, InterruptReportC
 import { copyState, readState } from "./state.ts";
 import { cpu8088StateDescription } from "./state/8088.ts";
 import type { Cpu8088State, Cpu8088Flags } from "./state/8088.ts";
+import { sourceReaders } from "./generated/8088-state.ts";
 import { instructions as semantics, opcodeEntries } from "./generated/8088.ts";
 import { instructions as transfers } from "./generated/8088-transfers.ts";
 import { instructions as alu } from "./generated/8088-alu.ts";
@@ -172,13 +173,14 @@ export class Cpu8088 {
   /** Inspect detached state, byte-register views, and the physical PC without RAM access. */
   snapshot(): Cpu8088Snapshot {
     const state = copyState(cpu8088StateDescription, this.#state);
+    const { views } = sourceReaders(state);
     return {
       ...state,
-      al: state.ax & 0xff, ah: state.ax >>> 8,
-      bl: state.bx & 0xff, bh: state.bx >>> 8,
-      cl: state.cx & 0xff, ch: state.cx >>> 8,
-      dl: state.dx & 0xff, dh: state.dx >>> 8,
-      pc: physicalAddress(state.cs, state.ip),
+      al: views.AL(), ah: views.AH(),
+      bl: views.BL(), bh: views.BH(),
+      cl: views.CL(), ch: views.CH(),
+      dl: views.DL(), dh: views.DH(),
+      pc: views.PC(),
     };
   }
 

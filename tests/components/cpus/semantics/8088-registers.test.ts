@@ -6,8 +6,8 @@ import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { instructions, opcodeEntries } from "../../../../src/components/cpus/generated/8088.js";
 import { instructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
-import { byteRegisterView } from "../../../../src/components/cpus/semantics/builders.js";
-import { cpuSymbols, extend, literal, readSource, value, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
+import { actions, views } from "../../../../src/components/cpus/semantics/generated/8088.js";
+import { cpuSymbols, extend, literal, perform, readSource, value, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
@@ -46,11 +46,12 @@ test("8088 register definitions and bindings retain their 58 complete forms with
 test("byte views read every stored word and preserve the live other half when writing", async () => {
   const cpu = cpuSymbols("8088", cpu8088StateDescription);
   for (const half of ["low", "high"] as const) {
-    const view = byteRegisterView(cpu.register("ax"), half);
+    const sourceView = half === "low" ? views.AL : views.AH;
+    const write = (byte: ReturnType<typeof value>) => [perform(half === "low" ? actions.setAL : actions.setAH, { byte })];
     const definitions = {
       read: defineInstruction({ cpu: cpu.declaration, name: "read view", explanation: "Read the selected byte.",
-        steps: [readSource("byte", view.source), writeRegister(cpu.register("dx"), extend(value("byte"), 16))] }),
-      write: defineInstruction({ cpu: cpu.declaration, name: "write view", explanation: "Replace the selected byte.", inputs: { byte: 8 }, steps: view.write(value("byte")) }),
+        steps: [readSource("byte", sourceView), writeRegister(cpu.register("dx"), extend(value("byte"), 16))] }),
+      write: defineInstruction({ cpu: cpu.declaration, name: "write view", explanation: "Replace the selected byte.", inputs: { byte: 8 }, steps: write(value("byte")) }),
     };
     const source = generateInstructions("8088", definitions);
     const compiled: { instructions: { read(state: Cpu8088State): void; write(state: Cpu8088State, byte: number): void } } =
@@ -64,9 +65,8 @@ test("byte views read every stored word and preserve the live other half when wr
         assert.equal(state.ax, half === "low" ? Math.floor(word / 256) * 256 + byte : byte * 256 + word % 256);
       }
     }
-    assert.throws(() => defineInstruction({ ...definitions.write, steps: view.write(literal(16, 1)) }), /widths/);
+    assert.throws(() => defineInstruction({ ...definitions.write, steps: [perform(actions.setAL, { byte: literal(16, 1) })] }), /expected 8-bit value/);
   }
-  assert.throws(() => byteRegisterView({ ...cpu.register("ax"), width: 8 }, "low"), /stored word/);
 });
 
 interface Effect { readonly name: string; readonly apply?: (state: Cpu8088State) => void }
@@ -160,5 +160,5 @@ test("8088 descriptions expose byte preservation, low-byte parity, and carry aft
   assert.match(text, /PF := evenParity8\(lowByte\(result\)\)/);
   assert.match(text, /Flags preserved throughout: TF, IF, DF\./);
   const move = describeInstruction(instructions8088[0xb4]!);
-  assert.match(move, /concatHighLow\(result, lowByte\(preservedWord\)\)/);
+  assert.match(move, /concatHighLow\(byte, lowByte\(preservedWord\)\)/);
 });

@@ -218,7 +218,7 @@ test("segmented stack and deferral construction reject unsupported widths, CPUs,
   assert.match(describeInstruction(definition), /INTR deferral at successful retirement/);
   assert.match(describeInstruction(instructions8088[0x17]!), /all interrupt deferral at successful retirement/);
   // A full word status layout produces a word, never a truncated status byte.
-  assert.match(describeInstruction(instructions8088[0x9c]!), /u16 := source "packed status"/);
+  assert.match(describeInstruction(instructions8088[0x9c]!), /u16 := source "packed FLAGS word"/);
   assert.match(describeInstruction(instructions8088[0x9d]!), /Replace the complete flag object/);
 });
 

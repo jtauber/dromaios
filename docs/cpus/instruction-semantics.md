@@ -648,16 +648,18 @@ failed register effects, all byte products, and rejected multiplication widths.
 
 ## 8088 byte views and register families
 
-The [8088 definitions](../../src/components/cpus/semantics/definitions/8088.ts)
-use the existing `RegisterView` construction for scalar words and a
-`byteRegisterView(register, "low" | "high")` for their byte slices. A byte source
-reads the stored word once and extracts the selected half. Its write statements
-capture `preservedWord` at writeback and concatenate the new byte with the
-current other half. This prevents an earlier operand read from freezing the
-retained byte across later flag effects. Each view write introduces that capture
-in its containing statement scope; callers give distinct capture names when
-multiple view writes share a scope, as in XCHG. No view primitive, live callback,
-or runtime view object enters the generated body.
+The [8088 chapter](../../src/components/cpus/specifications/8088.md) owns the
+stored schema, writable byte aliases, physical PC, packed FLAGS, register
+selectors, and the immediate MOV/ALU/TEST, word INC/DEC, and LAHF/SAHF families.
+The [remaining definitions](../../src/components/cpus/semantics/definitions/8088.ts)
+consume its byte views and write actions through `RegisterView`, and reuse its
+arithmetic, logic, and status policies. Scalar words still use `registerView`.
+
+Each byte source reads its stored word once. A write action captures the live
+word at writeback and concatenates the new byte with its other half. This
+prevents an earlier operand read from freezing the retained byte across flag
+effects. Action-local captures isolate multiple writes, as in XCHG. There is
+no runtime view object in the generated body.
 
 Immediate MOV and accumulator ALU/TEST fetch all operand bytes before reading
 registers or flags. Words reuse the Intel low-first source; the CPU's fetch
@@ -674,8 +676,8 @@ exchanges capture the selected register before AX and write AX before the select
 register, including both reads and writes for NOP's self-exchange. None of these
 bodies reads or changes TF/IF/DF or the execution-control latches.
 
-One encoded register inventory serves definitions and runtime operands. Numeric
-definition keys drive generated opcode bindings; the constructor combines them
+Chapter byte/word catalogues serve migrated and remaining native definitions.
+Numeric definition keys drive generated opcode bindings; the constructor combines them
 with handwritten entries only after state initialization. The accumulator-dispatch
 and register-adjustment wrappers are removed. Prefix decoding, REP rejection,
 segmented fetching, trap sampling, and interrupt-deferral retirement remain in

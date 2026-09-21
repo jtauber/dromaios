@@ -39,13 +39,18 @@ Executable chapters are maintained CPU sources:
   commitment, retirement, and IRQ/NMI entry. Mixed named interrupt entries select
   direct vectors or supplied instructions. Its public class, bank types, and
   nested snapshot views are generated; no handwritten implementation remains.
+- [Intel 8088: state, register views, and immediate arithmetic](../../src/components/cpus/specifications/8088.md)
+  owns stored state, writable byte aliases, physical PC and packed FLAGS views,
+  immediate MOV, accumulator ALU/TEST, word INC/DEC, and LAHF/SAHF. Remaining
+  native bodies share its register selectors, byte writes, and arithmetic/status
+  policies. Decoding, reset, execution, and the public class remain native.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
 
 This is an authoring-language prototype over the existing
 [instruction representation](instruction-semantics.md), with a deliberately
-small vocabulary. It now describes complete instruction-level 8008, 8080, 6502, 6800, and 6809 models;
+small vocabulary. It now describes complete instruction-level 8008, 8080, 6502, 6800, 6809, and Z80 models;
 other execution architectures still need language and runtime support.
 Current counts and milestone evidence belong in the
 [coverage report](coverage.md#literate-authoring-milestone).

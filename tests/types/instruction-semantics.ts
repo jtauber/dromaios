@@ -27,7 +27,6 @@ import { instructions as transfers8088 } from "../../src/components/cpus/generat
 import { instructions as generated8088, opcodeEntries as opcodeEntries8088 } from "../../src/components/cpus/generated/8088.js";
 import { cpu8088StateDescription } from "../../src/components/cpus/state/8088.js";
 import type { Cpu8088State } from "../../src/components/cpus/8088.js";
-import { byteRegisterView } from "../../src/components/cpus/semantics/builders.js";
 import { cpu6809StateDescription } from "../../src/components/cpus/semantics/generated/state/6809.js";
 import { cpuZ80StateDescription } from "../../src/components/cpus/semantics/generated/state/z80.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/generated/6502-cpu.js";
@@ -675,14 +674,8 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
 // Generated register bodies retain concrete state and only the capabilities they actually use.
 export function check8088Semantics(state: Cpu8088State, intel: Cpu8080State): void {
   const cpu = cpuSymbols("8088", cpu8088StateDescription);
-  byteRegisterView(cpu.register("ax"), "low");
-  byteRegisterView(cpu.register("bx"), "high");
   // @ts-expect-error AL is a view, not stored state.
   cpu.register("al");
-  // @ts-expect-error A byte view requires a register, not a flag.
-  byteRegisterView(cpu.flag("cf"), "low");
-  // @ts-expect-error Word byte views select only low or high.
-  byteRegisterView(cpu.register("ax"), "middle");
   generated8088[0xb0](state, { fetchByte: () => 0 });
   generated8088[0x15](state, { fetchByte: () => 0 });
   generated8088[0x40](state);

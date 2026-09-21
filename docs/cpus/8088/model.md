@@ -5,7 +5,8 @@ RAM, 16-bit registers, 20-bit physical addresses, native interrupt delivery,
 single-step traps, and optional port, ESC, and TEST connections. The stored
 instruction address is CS:IP; the physical PC is a derived view.
 
-[Implementation](../../../src/components/cpus/8088.ts) ·
+[Executable chapter](../../../src/components/cpus/specifications/8088.md) ·
+[Remaining implementation](../../../src/components/cpus/8088.ts) ·
 [CPU tests](../../../tests/components/cpus/8088) ·
 [Public type checks](../../../tests/types/8088.ts) ·
 [Coverage](../coverage.md#8088) ·
@@ -25,33 +26,18 @@ instructions and undocumented encodings are outside its scope.
 
 ## Stored state and derived views
 
-`Cpu8088State` requires all these fields:
+The [chapter's stored-state schema](../../../src/components/cpus/specifications/8088.md#stored-state)
+owns all fields, validation constraints, and control-latch meanings. Its
+[byte views and writes](../../../src/components/cpus/specifications/8088.md#byte-views-and-writes)
+and [packed FLAGS](../../../src/components/cpus/specifications/8088.md#flags-as-a-packed-value)
+are also authoritative; the native core and remaining instruction definitions
+consume those generated rules.
 
-| Fields | Range | Meaning |
-| --- | --- | --- |
-| AX, BX, CX, DX | `0000`–`FFFF` | Word registers with byte-register views |
-| SP, BP, SI, DI | `0000`–`FFFF` | Stack pointer, base pointer, source and destination indices |
-| CS, DS, SS, ES | `0000`–`FFFF` | Code, data, stack, and extra segment values |
-| IP | `0000`–`FFFF` | Instruction offset within CS |
-| `halted` | Boolean | HLT latch; cleared by reset or accepted delivery |
-| `waiting` | Boolean | WAIT in progress; IP identifies its opcode; cleared by TEST release, reset, or accepted delivery |
-| `interruptDeferred` | Boolean | INTR inhibited through the next instruction/REP element/WAIT sample |
-| `recognitionDeferred` | Boolean | INTR, NMI, and trap inhibition after MOV/POP segment or TEST release |
-| `trapPending` | Boolean | Type-1 trap owed from the previously sampled TF |
-| CF, PF, AF, ZF, SF, TF, IF, DF, OF in `flags` | Boolean | Carry, parity, auxiliary carry, zero, sign, trap, interrupt enable, direction, overflow |
-
-TypeScript fields are lowercase, including `flags.if`. `.machine` definitions
-conventionally use uppercase register and flag names and camelCase control latches.
-There is no prefetch queue or public packed FLAGS view. PUSHF/POPF and
-LAHF/SAHF pack/unpack flags internally. Snapshots include the waiting and recognition
-latches; pending external requests and NMI edge detection belong to the caller.
-
-Snapshots add AL/AH, BL/BH, CL/CH, and DL/DH as low/high byte views of the
-corresponding word registers. They also add `pc`, the physical address of
-CS:IP. These values are recomputed from stored state; they are not additional
-storage and cannot be assigned in a `.machine` definition.
-Instructions can write these byte registers: a byte write replaces only the
-selected half of its word, while a word write replaces both halves together.
+`Cpu8088State` contains stored fields only. `.machine` definitions conventionally
+use uppercase register/flag names and camelCase control latches. Snapshots add
+AL/AH, BL/BH, CL/CH, DL/DH, and physical `pc`; these cannot be assigned in a
+`.machine` definition. There is no public packed FLAGS field or prefetch queue.
+Pending external requests and NMI edge detection belong to the caller.
 
 ## Construction and inspection
 

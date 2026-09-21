@@ -42,23 +42,11 @@ export function registerSource(register: Register): ValueSource {
 /** Construction-time read/write view. Only its expanded sources and statements enter definitions. */
 export interface RegisterView {
   readonly source: ValueSource;
-  /** Give each write a distinct capture name when multiple byte views share a statement scope. */
-  readonly write: (contents: NumberExpression, captureName?: string) => readonly Statement[];
+  readonly write: (contents: NumberExpression) => readonly Statement[];
 }
 
 export function registerView(register: Register, afterWrite: readonly Statement[] = []): RegisterView {
   return { source: registerSource(register), write: contents => [writeRegister(register, contents), ...afterWrite] };
-}
-
-/** A byte view of a stored word; capture the retained half at writeback, not at the earlier operand read. */
-export function byteRegisterView(register: Register, half: "low" | "high"): RegisterView {
-  if (register.width !== 16) throw new Error("A byte register view requires a stored word.");
-  return {
-    source: { name: `${half} byte of ${registerSource(register).name}`, width: 8,
-      steps: [readRegister("word", register)], result: (half === "low" ? lowByte : highByte)(value("word")) },
-    write: (contents, captureName = "preservedWord") => [readRegister(captureName, register), writeRegister(register, half === "low"
-      ? concat(highByte(value(captureName)), contents) : concat(contents, lowByte(value(captureName))))],
-  };
 }
 
 /** Resolve an address once, then read its byte. Stores and modifiers can use the address source alone. */

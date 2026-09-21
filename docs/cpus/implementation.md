@@ -124,10 +124,10 @@ Each CPU module exports a `cpu…StateDescription` beside its public state
 type. For all eight CPUs, the schema and public types are exposed through
 CPU-owned modules under [`state/`](../../src/components/cpus/state), or generated
 schema modules for complete chapters, and are re-exported by the public CPU
-module. The 8008, 8080, 6502, 6800, and 6809 schemas and public types are generated from their
-chapters, without handwritten state adapters.
-The Z80 schema is also chapter-owned but still has a small public-type adapter.
-The 8088 and 68000 schemas remain authored TypeScript.
+module. The 8008, 8080, 6502, 6800, 6809, and Z80 schemas and public types are generated
+from their chapters, without handwritten state adapters. The 8088 schema is
+also chapter-owned, with a small public-type adapter. Only the 68000 schema
+remains authored TypeScript.
 This lets instruction generation load schemas without loading execution. The description
 owns stored field names, types, and constraints. The
 [shared state helpers](../../src/components/cpus/state.ts) provide:
@@ -768,7 +768,7 @@ instructions arm NMI at successful completion; interrupt frame helpers preserve
 arming. PULU's S write arms before a subsequent PC pull. The 6809 chapter also
 owns interrupt recognition, frame selection, and vector delivery, sharing frame
 and vector actions with software entry. The 6502, 6800, and 8088 use generated
-entry bodies too. Z80 external entry retains its runtime stack helper; the 68000
+entry bodies too. Z80 external entry composes chapter stack actions; the 68000
 retains native frame and fault-delivery helpers. Keep these boundary policies
 explicit when sharing stack mechanics.
 
@@ -779,9 +779,8 @@ and LEA. Its transfer inventory drives both definitions and postbyte bindings,
 rejecting undefined or mixed-width pairs before body entry. TFR/EXG capture both
 originals before any write; LEA enters only after successful indexed resolution.
 
-The Z80's `intelPairView` reuses the same construction-time read/write view for
-BC/DE/HL. Stored alternate-bank registers come from `cpu.bank("alternate")`,
-not a second schema. Whole flag exchanges move object references explicitly;
+The Z80 chapter reuses writable BC/DE/HL views and their actions. Stored
+alternate-bank registers belong to the chapter's nested bank declaration. Whole flag exchanges move object references explicitly;
 ordinary register exchanges remain ordered reads and writes. Keep latch reads
 explicit too: LD A,I/R captures IFF2 after the special-register byte and before C.
 
@@ -791,19 +790,17 @@ flags, and repeat testing in their existing order. The next step owns refetching
 and refresh. Digit rotates similarly keep their memory write before C, flag
 replacement, and A writeback; constant logical shifts make nibble movement visible.
 
-The 8088 uses `byteRegisterView` for the low/high halves of its stored words.
-The source reads the word once. Its write statements read the word again at
-writeback to preserve the current other half, after any intervening fetches or
-flag effects. These are construction recipes, with no runtime view object in
-generated bodies. The [encoded register inventory](../../src/components/cpus/8088-registers.ts)
-is shared by definitions and the remaining runtime operands.
-When two byte-view writes share a statement scope, give their preservation
-captures distinct names. XCHG must preserve each live other half at its own write.
+The [8088 chapter](../../src/components/cpus/specifications/8088.md#byte-views-and-writes)
+defines low/high byte views of its stored words. Each source reads its word
+once; each write action rereads the live word to preserve its other half after
+intervening fetches or flag effects. Action-local captures isolate multiple
+writes in an instruction such as XCHG. Chapter operand catalogues supply the
+byte and word selectors used by both migrated and remaining native definitions.
 
-Keep 8088 bit patterns beside their bodies in
-[the definitions](../../src/components/cpus/semantics/definitions/8088.ts), as for
-the 6502. Build the combined table after state initialization, retaining collision
-checks against native decoder bindings. The decoder still owns prefixes, segmented
+Keep 8088 bit patterns beside their bodies, in the chapter or
+[remaining definitions](../../src/components/cpus/semantics/definitions/8088.ts).
+Build the combined table after state initialization, retaining collision checks
+against native decoder bindings. The decoder still owns prefixes, segmented
 fetching, and retirement; generated bodies receive only the callbacks their
 effects require. Preserve operand-before-CF captures and flags-before-writeback.
 
