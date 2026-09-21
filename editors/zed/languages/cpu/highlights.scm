@@ -4,7 +4,7 @@
   "with" "named" "except" "fetch" "operand" "apply" "replace" "when" "test" "return"
   "fault" "alignment" "read" "write" "if" "commit" "addresses" "defer" "irq" "into" "notify" "reti"
   "execution" "memory" "port" "counter" "stopped" "word" "opcode" "advance"
-  "on" "dispatch" "after" "failure" "retain" "reset" "retire" "interrupt"
+  "on" "dispatch" "decode" "then" "external" "after" "failure" "retain" "reset" "retire" "interrupt"
   "accept" "always" "unless" "bytes" "acknowledge" "preserve" "interface" "snapshot" "unknown"
   "callback" "validate" "offer" "using" "vectors" "as" "match" "case" "otherwise" "resume"
 ] @keyword

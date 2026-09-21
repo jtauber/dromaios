@@ -1,4 +1,4 @@
-import { instructions as indexedZ80 } from "../../src/components/cpus/generated/z80-chapter.js";
+import { instructions as indexedZ80 } from "../../src/components/cpus/generated/z80.js";
 import { instructions as actions6809 } from "../../src/components/cpus/generated/6809-state.js";
 import { instructions as base6809 } from "../../src/components/cpus/generated/6809.js";
 import { instructions as system68000 } from "../../src/components/cpus/generated/68000-system.js";

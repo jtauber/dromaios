@@ -51,9 +51,11 @@ test("shared body keys build only their first form and retain encounter order, i
 
 test("the catalogue and chapter bindings name exactly the generated modules, each reproducible without changing its inputs", () => {
   const directory = "src/components/cpus/generated";
-  const completeChapters = ["6502", "6800", "6809", "8008", "8080"] as const;
+  const chapters = ["6502", "6800", "6809", "8008", "8080", "z80"].map(cpu => ({ cpu,
+    chapter: compileCpuChapter(readFileSync(`src/components/cpus/specifications/${cpu}.md`, "utf8"), { name: cpu }),
+  }));
   const filenames = [...instructionModules.map(({ name }) => `${name}.ts`),
-    ...completeChapters.flatMap(cpu => [`${cpu}-execution.ts`, `${cpu}-cpu.ts`])];
+    ...chapters.flatMap(({ cpu, chapter }) => [`${cpu}-execution.ts`, ...(chapter.interface ? [`${cpu}-cpu.ts`] : [])])];
   assert.equal(new Set(filenames).size, filenames.length, "module names must not overwrite one another");
   assert.deepEqual(readdirSync(directory).sort(), filenames.sort());
   for (const module of instructionModules) {
@@ -64,8 +66,7 @@ test("the catalogue and chapter bindings name exactly the generated modules, eac
     assert.equal(generateInstructions(cpu, definitions, options), source, `${name}: repeat generation`);
     assert.equal(JSON.stringify(module), before, `${name}: unchanged inputs`);
   }
-  for (const cpu of completeChapters) {
-    const chapter = compileCpuChapter(readFileSync(`src/components/cpus/specifications/${cpu}.md`, "utf8"), { name: cpu });
+  for (const { cpu, chapter } of chapters) {
     const before = JSON.stringify(chapter);
     const source = generateChapterExecution(cpu, cpu, chapter.execution!);
     assert.equal(source, readFileSync(`${directory}/${cpu}-execution.ts`, "utf8"));
@@ -227,8 +228,10 @@ test("selected opcode bindings coexist with unbound helpers and reject missing, 
   const helper = { ...definition, inputs: { address: 16 as const } };
   const definitions = { 170: definition, helper };
   const source = generateInstructions("6502", definitions, { bindOpcodes: [170] });
+  const javascript = stripTypeScriptTypes(source).replace('"../opcodes.ts"',
+    JSON.stringify(new URL("../../../../src/components/cpus/opcodes.js", import.meta.url).href));
   const compiled: { opcodeEntries(state: Cpu6502State): readonly (readonly [number, () => void])[] } =
-    await import(`data:text/javascript,${encodeURIComponent(stripTypeScriptTypes(source))}`);
+    await import(`data:text/javascript,${encodeURIComponent(javascript)}`);
   const state = mosState(); state.a = 0x80;
   const entries = compiled.opcodeEntries(state);
   assert.deepEqual(entries.map(([opcode]) => opcode), [170]);

@@ -332,10 +332,10 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         case "defer-interrupt":
           if (cpu.name === "8088") {
             if (step.scope !== "intr" && step.scope !== "all") fail(where, "8088 interrupt deferral scope must be intr or all");
-          } else if ((cpu.irqDeferral !== true && cpu.name !== "z80") || step.scope !== "irq") fail(where, "IRQ deferral needs a declared retirement destination or Z80 boundary");
+          } else if (cpu.irqDeferral !== true || step.scope !== "irq") fail(where, "IRQ deferral needs a declared retirement destination");
           return;
         case "notify-reti":
-          if (cpu.name !== "z80") fail(where, "RETI notification requires the Z80 boundary");
+          if (cpu.retiNotification !== true) fail(where, "RETI notification requires a declared notification policy");
           return;
         case "report-interrupt":
           if (cpu.name !== "8088") fail(where, "software delivery reporting requires the 8088 boundary");

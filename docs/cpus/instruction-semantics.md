@@ -26,7 +26,7 @@ family, including addressing, encodings, and reusable stack/frame actions. Its
 reset, waiting, execution, IRQ/NMI recognition, and public interface also come
 from the chapter, with memory-only vector execution shared with the 6502.
 The construction history below describes the earlier shared-builder migration;
-the Z80, 8088, and 68000 retain TypeScript builders.
+the 8088 and 68000 retain TypeScript builders.
 
 ## The review slice
 
@@ -259,7 +259,7 @@ The authoring layers have separate homes:
 | [6502 chapter](../../src/components/cpus/specifications/6502.md) | Complete state, instruction inventory, NMOS arithmetic, status, reset, execution, and named external-entry policies |
 | [6800 chapter](../../src/components/cpus/specifications/6800.md) | Complete stored state, packed condition codes, instructions, reset, WAI suspension, IRQ/NMI entry, and public interface |
 | [6809 chapter](../../src/components/cpus/specifications/6809.md) | Complete model, indexed/page decoding, named wait modes, IRQ/FIRQ/NMI gates and frames, and public interface |
-| [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
+| [Z80 chapter](../../src/components/cpus/specifications/z80.md) | Stored state, views, all instruction bodies and encodings, reset, normal execution, and explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Typed module catalogue shared by executable generation, explanation, and reproducibility checks |
 
 Register each generated module once in `instructionModules`, with its filename
@@ -1267,9 +1267,9 @@ and index-register forms perform no data-memory access.
 
 The 8080 and Z80 chapters bind all 72 ordinary byte ALU forms directly from
 formal encodings. Each body owns source reads, flags, and optional A writeback.
-The Z80 also binds sixteen indexed forms to eight resolved-memory bodies that
-perform the chapter's actions. Those native bodies still depend on handwritten
-prefix and displacement decoding, so they earn no complete literate-form credit.
+The Z80 also binds sixteen indexed forms to chapter actions, with chapter-owned
+prefix layouts and displacement/address resolution. Their complete bodies earn
+literate-form credit.
 
 ## Validation and generated explanations
 
@@ -1863,12 +1863,13 @@ declared position. The 6502 now expands these sources into every ordinary
 instruction body; standalone readers remain focused generator probes.
 
 The 6502 and 8080 use generated chapter dispatch for their complete instruction
-sets. The Z80 chapter binds all 252 unprefixed, 248 ordinary CB, and 58 ED forms.
-Separate generated page tables preserve its pre-execution validation and PC/R
-commit order. Native indexed word definitions consume chapter pair reads/writes
-and the word-addition policy; indexed arithmetic, adjustments, and CB operations
-reuse chapter actions after native address resolution. Displacements, prefix
-fetching, PC/R updates, reset, and external interrupt delivery remain in the CPU.
+sets. The Z80 chapter binds all 698 unprefixed, CB, ED, and indexed forms.
+Separate generated page tables preserve full-encoding validation before PC/R
+commitment. Indexed word definitions consume chapter pair reads/writes and its
+word-addition policy; indexed arithmetic, adjustments, and CB operations reuse
+chapter actions after chapter-defined address resolution. Its execution contract
+owns reset, refresh effects, and retirement; external IRQ/NMI entry remains in
+the adapter and shares the decoder and instruction retirement.
 
 Accumulator transfers through BC/DE and absolute addresses are chapter-defined:
 capture the address before A or memory, read pairs high first, fetch words low
@@ -1880,8 +1881,8 @@ cover ordinary and supplied bytes, overlapping code/data, wrapping fetches,
 and every failed access.
 Word bodies also own their complete immediate or absolute-address fetching.
 A private word reader serves Z80 interrupt-vector reads. The chapter owns ED
-and unprefixed word transfers; native IX/IY transfers retain the Intel builder
-with stored words. Chapter pair descriptions serve ordinary and indexed word
+and unprefixed word transfers; IX/IY transfers also use chapter bodies with
+stored words. Chapter pair descriptions serve ordinary and indexed word
 arithmetic, preserving the same capture and write ordering. Source and destination are captured separately even when they alias;
 ADC/SBC capture C after both reads. Adjustments never access flags. Arithmetic
 writes the complete destination before applying the CPU-specific flag policy.

@@ -33,11 +33,11 @@ Executable chapters are maintained CPU sources:
   views preserve D/CC/S write rules; chapter actions share stack and interrupt-frame
   effects. Reset, execution, IRQ/FIRQ/NMI recognition, waiting/resume rules,
   and the public interface are chapter-owned; no handwritten implementation remains.
-- [Zilog Z80: state, unprefixed, CB, and ED instructions](../../src/components/cpus/specifications/z80.md)
-  owns both register banks and numeric interrupt-mode storage, pair/status views,
-  pair-write actions, and all unprefixed, CB, and ED forms. Native indexed forms
-  reuse its pair views/writes, arithmetic, CB memory actions, and masks; prefix
-  fetching and execution boundaries remain in TypeScript.
+- [Zilog Z80: instructions, state, reset, and normal execution](../../src/components/cpus/specifications/z80.md)
+  owns both register banks, numeric interrupt-mode storage, pair/status views and
+  writes, all 698 instruction forms and their prefix layouts, reset, PC/refresh
+  commitment, and retirement. External IRQ/NMI entry and the public interface
+  remain in TypeScript; they share the chapter-bound decoder and retirement.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -172,7 +172,7 @@ Quoted descriptions use JSON string escaping.
 | `ADDRESS[slot] <- target`, `STOPPED <- 1` | Write an indexed stored register or a Boolean control latch; latch writes also accept captured flag expressions. |
 | `ADDRESS[] <- u14($0000)` | Fill every physical array slot with the same width-checked value, without reading previous elements. |
 | `result = operand s`, `operand d <- result` | Read or write a selected register, pair, writable view, or memory operand at this point. |
-| `notify reti` | Request a device notification at successful RETI retirement through the native Z80 boundary. State/memory actions and the shared byte execution contract do not permit this effect yet. |
+| `notify reti` | Request a device notification after successful architectural retirement; requires `notify reti after retire` in a preceding decode-before-execution contract. State/memory actions cannot request notification. |
 | `defer irq` | Request one-boundary IRQ deferral on successful retirement; requires `retire irq into LATCH`. This does not immediately write stored state. |
 | `exchange FLAGS, ALTERNATE.FLAGS` | Exchange complete flag objects with matching stored fields: read right, read left, write left, write right. Preserve identity without reading individual flags; allowed in actions but not views. |
 | `replace PSW(status)` | Replace the complete flag object; the policy must define every flag in exactly one bank. |
@@ -305,21 +305,23 @@ adds memory-only execution with no halt state, reset bus reads, and named extern
 entries. The [6800](../../src/components/cpus/specifications/6800.md#reset-and-instruction-boundaries)
 reuses vector execution with a waiting latch and chapter-defined frame reuse
 on wake-up. The [6809](../../src/components/cpus/specifications/6809.md#execution-and-public-interface)
-adds a named wait choice, latch-gated recognition, and masked wake-up.
+adds a named wait choice, latch-gated recognition, and masked wake-up. The
+[Z80](../../src/components/cpus/specifications/z80.md#reset-and-execution) validates
+the entire opcode before committing PC and its declared fetch effects.
 Each chapter has one `execution` block. Fields below are required except the
-callback-validation policy; references must name earlier declarations.
+callback-validation and RETI-notification policies; references must name earlier declarations.
 
 | Field | Contract |
 | --- | --- |
 | `memory 14` | Exact RAM size is 2 to this power; supported widths are 1–16 bits. Memory is checked before initial-state getters are read. |
-| `counter PC write setPC` | Read the named state view and write through an action with one 16-bit input. The view must fit the memory width. Sequential arithmetic wraps at 16 bits; the writer may impose a narrower wrap. |
+| `counter PC write setPC` | Read the named state view and write through an action with one 16-bit input. The view must fit the memory width. Byte dispatch wraps sequential arithmetic at 16 bits; the writer may impose a narrower wrap. Decode-before-execution wraps to the declared memory width. |
 | `stopped STOPPED` | Read this latch before an ordinary step; a set latch returns a halted record without fetching. Read it again after successful execution to select the outcome. `stopped none` instead declares no stopped outcome for vector execution; `stopped WAITING as waiting` selects waiting records for that runtime. `stopped choice WAIT unless "none" as waiting` waits whenever the named choice differs from the declared value. |
 | `word little` | Supply a little-endian `fetchWord`; `big` supplies high-byte-first fetching. Explicit byte fetches in instruction bodies retain their own order. |
-| `opcode advance on dispatch` | Advance the captured initial PC by one only if an opcode handler exists. `on read` advances after the successful read, before lookup, including undefined opcodes. |
-| `operand advance after read` | Fetch from live PC, then advance the captured address by one only after the read succeeds. This is the only supported operand-advance policy. |
+| `opcode advance on dispatch` | Advance the captured initial PC by one only if an opcode handler exists. `on read` advances after the successful read, before lookup, including undefined opcodes. `on decode with action NAME` validates the full encoding first, then commits PC and invokes the one-byte-input state action with the opcode-fetch count. Unsupported encodings leave PC and fetch effects untouched. |
+| `operand advance after read` | Fetch from live PC, advance only after the read succeeds. Byte dispatch increments the captured address; decode-before-execution increments the live counter after the callback returns. |
 | `failure retain` | Propagate thrown failures, retain completed effects, return no record, and release the guard. Rollback is unsupported. |
 | `reset action reset` | Invoke the input-free action between reset snapshots under the same guard. Vector execution records any memory effects declared by the action. |
-| `retire none` | No additional retirement effects. `retire action NAME` invokes an input-free state action after a successful handler, including HLT, before the after-snapshot. `retire irq into LATCH` instead writes whether that instruction requested `defer irq`, consuming an old delay or renewing it. Halted, undefined, or failed attempts skip retirement. |
+| `retire none` | No additional retirement effects. `retire action NAME` invokes an input-free state action after a successful handler, including HLT, before the after-snapshot. `retire irq into LATCH` instead writes whether that instruction requested `defer irq`, consuming an old delay or renewing it. Decode-before-execution also permits `retire irq into LATCH then action NAME`, committing the request before running the state action. Halted, undefined, or failed attempts skip retirement. |
 
 A nested `interrupt` block without `vectors` declares supplied-instruction delivery:
 
@@ -342,6 +344,23 @@ bindings to [shared runtime code](../../src/components/cpus/byte-execution.ts).
 The runtime supplies chronological memory/port/acknowledgement recording,
 snapshot assembly, and a guard shared by step, reset, and interrupt. Each call
 owns its records; snapshots remain callable inside device callbacks.
+
+The [decoded runtime](../../src/components/cpus/decoded-execution.ts) separates
+encoding reads from operand execution. `opcode advance on decode with action NAME`
+requires `interrupt external`, an explicit partial-model contract: the native
+adapter owns external entry while sharing the runtime's guard, decoder, fetch
+action, and instruction retirement. This contract requires a stopped latch and
+a state-only reset action. It supports flat opcodes and named prefix pages,
+including interposed displacement reads and their fetch classifications. Fetch
+actions receive an eight-bit count and may change only stored state.
+
+Its optional `notify reti after retire` policy grants notification to instruction
+bodies without testing the CPU's name. The request stays local until successful
+retirement; a failing instruction discards it. The optional device callback runs
+after retirement under the same guard, and its failure retains completed effects.
+A public `interface` cannot be generated until external entry is chapter-owned.
+Matches and dispatches with unsupported operand fallbacks are currently rejected
+for this runtime: opcode validity must be established before commitment.
 
 Vector entry is a distinct interrupt contract:
 
@@ -766,11 +785,15 @@ generator provides three bindings:
 - `opcodeDecoder(state, additional)` returns a decoder taking the initial opcode
   and `nextByte(opcodeFetch)`. It reads the declared layout and returns a bound
   handler (or `undefined`) and the opcode-fetch count, including the initial byte.
-  The Z80 uses it for both memory and interrupt-supplied decoding; its core still
-  decides when PC/R and retirement effects commit.
+  The Z80 uses it for both memory and interrupt-supplied decoding. Its chapter
+  selects ordinary PC/R commitment and retirement; native external entry supplies
+  the interrupt-specific acceptance and fetch timing.
 - `opcodeEntries(state, additional)` binds ordinary fetch-and-dispatch wrappers
   for complete byte-execution chapters. Existing callbacks retain PC, recording,
   and failure policies; the same decoder selects the body or `unsupported`.
+
+Flat opcode catalogues also expose `opcodeDecoder(state)`, reporting one opcode
+fetch without executing the selected body.
 
 During partial migration, optional additional bodies can occupy unused slots
 under declared page names. Changing a prefix also moves those bodies. Duplicates,

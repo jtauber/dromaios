@@ -14,7 +14,8 @@ import { generateInstructions } from "../../../../src/components/cpus/semantics/
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import { initialState } from "../z80/helpers.js";
 
-const z80 = cpuSymbols("z80", cpuZ80StateDescription), motorola = cpuSymbols("6809", cpu6809StateDescription);
+const symbols = cpuSymbols("z80", cpuZ80StateDescription);
+const z80 = { ...symbols, declaration: { ...symbols.declaration, irqDeferral: true, retiNotification: true } as const }, motorola = cpuSymbols("6809", cpu6809StateDescription);
 const define = (cpu: CpuDeclaration, steps: readonly Statement[]) => defineInstruction({ cpu, name: "control", explanation: "Control effect probe.", steps });
 
 test("control choices retain schema ownership, exact alternatives, and Boolean capture scope", () => {
@@ -41,17 +42,17 @@ test("control choices retain schema ownership, exact alternatives, and Boolean c
 });
 
 test("interrupt effects accept only the owning CPU's deferral scopes and RETI notification", () => {
-  const cpus: readonly { declaration: CpuDeclaration }[] = [z80, { declaration: { name: "chapter", state: cpu8080StateDescription, irqDeferral: true } }, cpuSymbols("8088", cpu8088StateDescription),
+  const cpus: readonly { declaration: CpuDeclaration }[] = [z80, symbols, { declaration: { name: "chapter", state: cpu8080StateDescription, irqDeferral: true, retiNotification: true } }, cpuSymbols("8088", cpu8088StateDescription),
     motorola, cpuSymbols("6502", cpu6502StateDescription)];
   for (const cpu of cpus) {
     for (const scope of ["irq", "intr", "all"] as const) {
       const check = () => define(cpu.declaration, [deferInterrupt(scope)]);
       const allowed = cpu.declaration.name === "8088" ? scope !== "irq"
-        : (cpu.declaration.irqDeferral === true || cpu.declaration.name === "z80") && scope === "irq";
+        : cpu.declaration.irqDeferral === true && scope === "irq";
       if (allowed) check(); else assert.throws(check, /deferral/);
     }
     const check = () => define(cpu.declaration, [notifyReti()]);
-    if (cpu === z80) check(); else assert.throws(check, /Z80 boundary/);
+    if (cpu.declaration.retiNotification) check(); else assert.throws(check, /notification policy/);
   }
 });
 

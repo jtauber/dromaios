@@ -212,7 +212,7 @@ test("segmented stack and deferral construction reject unsupported widths, CPUs,
   assert.throws(() => segmentedWordStack(intel.register("ss"), mos.register("sp")), /word registers/);
   const definition = { cpu: intel.declaration, name: "defer", explanation: "Boundary request.", steps: [deferInterrupt("intr")] };
   defineInstruction(definition);
-  assert.throws(() => defineInstruction({ ...definition, cpu: mos.declaration }), /boundary/);
+  assert.throws(() => defineInstruction({ ...definition, cpu: mos.declaration }), /declared retirement destination/);
   for (const scope of ["irq", "", false, 1]) assert.throws(() =>
     defineInstruction({ ...definition, steps: [{ kind: "defer-interrupt", scope } as unknown as Statement] }), /scope/);
   assert.match(describeInstruction(definition), /INTR deferral at successful retirement/);

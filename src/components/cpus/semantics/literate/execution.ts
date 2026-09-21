@@ -1,17 +1,18 @@
 import type { Choice, Flag, InstructionDefinition, Latch, Statement, ValueSource } from "../model.ts";
 import { checkStateEffects, usesMemory } from "./statements.ts";
 import { chapterVectorEntries, generateVectorExecution } from "./vector-execution.ts";
+import { generateDecodedExecution } from "./decoded-execution.ts";
 import type { VectorEntry } from "./vector-execution.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
 
-/** The currently supported execution contract: a flat byte bus and one-byte opcode dispatch. */
+/** The currently supported execution contract: a flat byte bus with explicit fetch and retirement policies. */
 export interface ExecutionBase {
   readonly memoryBits: number;
   readonly counter: string;
   readonly writeCounter: string;
   readonly word: "little" | "big";
-  readonly opcodeAdvance: "dispatch" | "read";
+  readonly opcodeAdvance: "dispatch" | "read" | "decode";
   readonly reset: string;
   readonly resetMemory: boolean;
   readonly retire?: string;
@@ -19,6 +20,7 @@ export interface ExecutionBase {
 }
 export interface SuppliedExecution extends ExecutionBase {
   readonly interrupt: "supplied";
+  readonly opcodeAdvance: "dispatch" | "read";
   readonly stopped: string;
   readonly acceptInterrupt: string;
   readonly interruptEnable?: string;
@@ -29,27 +31,40 @@ export interface SuppliedExecution extends ExecutionBase {
 
 export interface VectorExecution extends ExecutionBase {
   readonly interrupt: "vectors";
+  readonly opcodeAdvance: "dispatch" | "read";
   readonly waiting?: { readonly field: string; readonly unless?: string };
   readonly entries: readonly VectorEntry[];
 }
-export type ChapterExecution = SuppliedExecution | VectorExecution;
+export interface DecodedExecution extends ExecutionBase {
+  readonly interrupt: "external";
+  readonly opcodeAdvance: "decode";
+  readonly stopped: string;
+  readonly opcodeFetched: string;
+  readonly notifyReti?: true;
+}
+export type ChapterExecution = SuppliedExecution | VectorExecution | DecodedExecution;
 
 /** Reject native decoder/fault effects that cannot run in the byte dispatch context. */
-export function checkByteExecution(steps: readonly Statement[], deferral = false, memoryOnly = false): void {
+export function checkByteExecution(steps: readonly Statement[], deferral = false, memoryOnly = false, decoded: { readonly notifyReti?: true } | undefined = undefined): void {
   for (const step of steps) switch (step.kind) {
     case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": case "test-choice":
     case "write-register": case "write-element": case "fill-array": case "write-latch": case "write-choice": case "update-flags": case "replace-flags":
-    case "fetch-byte": case "fetch-word": case "read-memory": case "write-memory": break;
+    case "fetch-byte": case "fetch-word": case "read-memory": case "write-memory": case "exchange-flags": break;
     case "read-port": case "write-port":
       if (memoryOnly) throw new Error("Vector execution currently supports memory-only instructions.");
       break;
     case "defer-interrupt":
       if (!deferral || step.scope !== "irq") throw new Error("IRQ deferral needs a declared retirement destination.");
       break;
-    case "when": checkByteExecution(step.steps, deferral, memoryOnly); break;
-    case "dispatch": case "match": for (const branch of step.cases) checkByteExecution(branch.steps, deferral, memoryOnly); break;
-    case "read-source": checkByteExecution(step.source.steps, deferral, memoryOnly); break;
-    case "perform": checkByteExecution(step.action.steps, deferral, memoryOnly); break;
+    case "notify-reti":
+      if (!decoded?.notifyReti) throw new Error("Byte execution does not support notify-reti without a notification policy.");
+      break;
+    case "when": checkByteExecution(step.steps, deferral, memoryOnly, decoded); break;
+    case "dispatch": case "match":
+      if (decoded) throw new Error("Decode-before-execution does not support operand rejection after committing the opcode.");
+      for (const branch of step.cases) checkByteExecution(branch.steps, deferral, memoryOnly); break;
+    case "read-source": checkByteExecution(step.source.steps, deferral, memoryOnly, decoded); break;
+    case "perform": checkByteExecution(step.action.steps, deferral, memoryOnly, decoded); break;
     default: throw new Error(`Byte execution does not support ${step.kind}.`);
   }
 }
@@ -64,11 +79,13 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
 }): ChapterExecution {
   const fields = new Map<string, ChapterTokens>();
   let vectorLines: readonly ChapterTokens[] | undefined;
+  let external = false;
   for (let index = 0; index < lines.length; index++) {
     const tokens = lines[index]!, kind = tokens.word();
     if (fields.has(kind)) tokens.fail(`Duplicate execution field ${kind}.`);
     fields.set(kind, tokens);
     if (kind === "interrupt") {
+      if (tokens.take("external")) { tokens.end(); external = true; continue; }
       const vectors = tokens.take("vectors"); tokens.expect("{"); tokens.end();
       const { body, end } = chapterBody(lines, index); index = end;
       if (vectors) { vectorLines = body; continue; }
@@ -91,7 +108,7 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
     const name = tokens.word(), definition = symbols.actions.get(name) ?? tokens.fail(`Unknown state action ${name}.`);
     const widths = Object.values(definition.inputs ?? {});
     if (input === undefined ? widths.length !== 0 : widths.length !== 1 || widths[0] !== input) {
-      tokens.fail(input === undefined ? "Execution actions must have no inputs." : `Counter writes require one ${input}-bit input.`);
+      tokens.fail(input === undefined ? "Execution actions must have no inputs." : `Execution actions require one ${input}-bit input.`);
     }
     tokens.checked(() => checkStateEffects(definition.steps, memory ? "memory" : "state"));
     return name;
@@ -117,7 +134,10 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
   stop.end();
   const order = required("word"), word = choice(order, ["little", "big"]); order.end();
   const opcode = required("opcode"); opcode.expect("advance"); opcode.expect("on");
-  const opcodeAdvance = choice(opcode, ["dispatch", "read"]); opcode.end();
+  const opcodeAdvance = choice(opcode, ["dispatch", "read", "decode"]);
+  let opcodeFetched: string | undefined;
+  if (opcodeAdvance === "decode") { opcode.expect("with"); opcode.expect("action"); opcodeFetched = action(opcode, 8); }
+  opcode.end();
   const operand = required("operand"); operand.expect("advance"); operand.expect("after"); operand.expect("read"); operand.end();
   const failure = required("failure"); failure.expect("retain"); failure.end();
   const resetAt = required("reset"); resetAt.expect("action"); const reset = action(resetAt, undefined, vectorLines !== undefined); resetAt.end();
@@ -126,11 +146,25 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
   let retire: string | undefined, retireDeferral: string | undefined;
   if (retireAt.take("irq")) {
     retireAt.expect("into"); retireDeferral = retireAt.lookup(symbols.latches).field;
+    if (retireAt.take("then")) { retireAt.expect("action"); retire = action(retireAt); }
   } else if (!retireAt.take("none")) { retireAt.expect("action"); retire = action(retireAt); }
   retireAt.end();
   required("interrupt");
   const common = { memoryBits, counter, writeCounter, word, opcodeAdvance, reset, resetMemory,
     ...(retire === undefined ? {} : { retire }), ...(retireDeferral === undefined ? {} : { retireDeferral }) };
+  if (external) {
+    if (opcodeAdvance !== "decode" || opcodeFetched === undefined) return opcode.fail("External interrupt entry requires decode-before-execution with a fetch action.");
+    if (stopped === undefined || stoppedUnless !== undefined || waiting) return stop.fail("Decode-before-execution requires a stopped latch.");
+    let notifyReti: true | undefined;
+    if (fields.has("notify")) {
+      const notify = required("notify"); notify.expect("reti"); notify.expect("after"); notify.expect("retire"); notify.end();
+      notifyReti = true;
+    }
+    for (const [name, tokens] of fields) tokens.fail(`Unknown execution field ${name}.`);
+    return { ...common, opcodeAdvance, interrupt: "external", stopped, opcodeFetched, ...(notifyReti ? { notifyReti } : {}) };
+  }
+  if (opcodeAdvance === "decode") return opcode.fail("Decode-before-execution currently requires external interrupt entry.");
+  if (retire !== undefined && retireDeferral !== undefined) retireAt.fail("Combined retirement currently requires decode-before-execution.");
   if (vectorLines !== undefined) {
     if (stopped !== undefined && !waiting) stop.fail("Vector execution requires stopped none or a latch or choice declared as waiting.");
     if (retire !== undefined || retireDeferral !== undefined) retireAt.fail("Vector execution currently requires retire none.");
@@ -138,7 +172,7 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
     for (const [name, tokens] of fields) tokens.fail(`Unknown execution field ${name}.`);
     const waitingPolicy = waiting && stopped !== undefined
       ? { field: stopped, ...(stoppedUnless === undefined ? {} : { unless: stoppedUnless }) } : undefined;
-    return { ...common, interrupt: "vectors", entries, ...(waitingPolicy === undefined ? {} : { waiting: waitingPolicy }) };
+    return { ...common, opcodeAdvance, interrupt: "vectors", entries, ...(waitingPolicy === undefined ? {} : { waiting: waitingPolicy }) };
   }
   if (waiting || stoppedUnless !== undefined) stop.fail("A waiting outcome requires vector interrupts.");
   const stoppedLatch = stopped ?? stop.fail("Supplied-instruction execution requires a stopped latch or choice.");
@@ -159,13 +193,14 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
   const advance = required("interrupt.counter"), interruptCounter = choice(advance, ["preserve", "advance"]); advance.end();
   const unknown = required("interrupt.unknown"); unknown.expect("retain"); unknown.end();
   for (const [name, tokens] of fields) tokens.fail(`Unknown execution field ${name}.`);
-  return { ...common, interrupt: "supplied", stopped: stoppedLatch,
+  return { ...common, opcodeAdvance, interrupt: "supplied", stopped: stoppedLatch,
     ...(interruptEnable === undefined ? {} : { interruptEnable }), ...(interruptDefer === undefined ? {} : { interruptDefer }),
     acceptInterrupt, interruptCounter, callbackValidation };
 }
 
 /** Bind validated references to generated functions; no processor-specific execution algorithm is emitted. */
 export function generateChapterExecution(cpu: string, module: string, policy: ChapterExecution): string {
+  if (policy.interrupt === "external") return generateDecodedExecution(cpu, module, policy);
   if (policy.interrupt === "vectors") return generateVectorExecution(cpu, module, policy);
   const quoted = JSON.stringify, action = (name: string) => `actions[${quoted(name)}](state)`;
   let retirement = "() => {}";

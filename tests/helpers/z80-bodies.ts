@@ -1,6 +1,6 @@
 import { instructions as actions } from "../../src/components/cpus/generated/z80-state.js";
 import type { ByteInstructionContext } from "../../src/components/cpus/instruction-context.js";
-import { instructions as chapter } from "../../src/components/cpus/generated/z80-chapter.js";
+import { instructions as chapter } from "../../src/components/cpus/generated/z80.js";
 
 import assert from "node:assert/strict";
 import type { CpuZ80State } from "../../src/components/cpus/state/z80.js";

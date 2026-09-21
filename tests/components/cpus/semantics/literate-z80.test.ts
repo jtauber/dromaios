@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { boolean, choices, defineState, flag, group, unsigned } from "../../../../src/components/cpus/state.js";
 import { cpuZ80StateDescription } from "../../../../src/components/cpus/state/z80.js";
-import { chapterZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
-import { instructions } from "../../../../src/components/cpus/generated/z80-chapter.js";
+import { instructions } from "../../../../src/components/cpus/generated/z80.js";
 import { instructions as actions, sourceReaders } from "../../../../src/components/cpus/generated/z80-state.js";
 import { initialState } from "../z80/helpers.js";
 
@@ -44,9 +44,9 @@ test("the Z80 chapter owns both banks, numeric interrupt mode, and all 698 docum
   assert.deepEqual(chapter.pages, { CB: 0xcb, ED: 0xed, DD: 0xdd, FD: 0xfd,
     DDCB: { prefix: 0xcb, on: "DD", operands: ["displacement"], opcodeFetch: false },
     FDCB: { prefix: 0xcb, on: "FD", operands: ["displacement"], opcodeFetch: false } });
-  for (const owned of [chapterZ80, instructions]) assert.deepEqual(Object.keys(owned).map(Number).sort((a, b) => a - b), opcodes);
-  assert.deepEqual(Object.fromEntries(Object.values(chapter.families).flat()), chapterZ80);
-  assert.equal(chapter.execution, undefined); assert.equal(chapter.interface, undefined);
+  for (const owned of [instructionsZ80, instructions]) assert.deepEqual(Object.keys(owned).map(Number).sort((a, b) => a - b), opcodes);
+  assert.deepEqual(Object.fromEntries(Object.values(chapter.families).flat()), instructionsZ80);
+  assert.equal(chapter.execution?.interrupt, "external"); assert.equal(chapter.interface, undefined);
 });
 
 test("both banks' pair views read their own high byte then low byte without flags or memory", () => {
@@ -90,5 +90,13 @@ test("chapter pair views combine every word in either bank without changing stor
       bytes.setUint16(0, value, false); bank[high] = bytes.getUint8(0); bank[low] = bytes.getUint8(1);
       assert.equal(view(), value); assert.equal(bank[high], bytes.getUint8(0)); assert.equal(bank[low], bytes.getUint8(1));
     }
+  }
+});
+
+test("chapter refresh preserves the stored high bit for every byte and modeled fetch count", () => {
+  for (let byte = 0; byte < 256; byte++) for (const count of [0, 1, 2, 3]) {
+    const state = initialState({ r: byte }), before = structuredClone(state);
+    actions.refresh(state, count);
+    assert.deepEqual(state, { ...before, r: Math.floor(byte / 128) * 128 + (byte % 128 + count) % 128 });
   }
 });

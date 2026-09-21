@@ -13,6 +13,34 @@ cpu "z80"
 state {
   register A: 8
   register B: 8
+  register PC: 16
+  latch STOPPED
+}
+view NEXT "counter": 16 {
+  current = register PC
+  return current
+}
+action setPC "set counter" (value: 16) {
+  PC <- value
+}
+action reset "reset counter" () {
+  PC <- u16(0)
+}
+action fetched "observe fetches" (count: 8) {
+  B <- count
+}
+execution {
+  memory 16
+  counter NEXT write setPC
+  stopped STOPPED
+  word little
+  opcode advance on decode with action fetched
+  operand advance after read
+  failure retain
+  reset action reset
+  retire none
+  notify reti after retire
+  interrupt external
 }
 source enabled "selected constant": 8 {
   return u8(1)
@@ -69,6 +97,7 @@ test("shift and notification diagnostics preserve chapter locations and capabili
     ['family shift "0000 0000"', 'action shift "memory action" () using memory', /state|effect/],
   ] as const) assert.throws(() => compile(markdown.replace(before, after)), error =>
     error instanceof ChapterError && error.file === "effects.md" && error.line > 1 && diagnostic.test(error.message));
-  assert.throws(() => compile(markdown.replace('cpu "z80"', 'cpu "other"')), /requires the Z80 boundary/);
+  compile(markdown.replace('cpu "z80"', 'cpu "other"'));
+  assert.throws(() => compile(markdown.replace("  notify reti after retire\n", "")), /notification policy/);
   assert.throws(() => checkByteExecution(compile().families.shift![0]![1].steps), /does not support notify-reti/);
 });

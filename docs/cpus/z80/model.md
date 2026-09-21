@@ -27,9 +27,11 @@ behavior selected below is checked against an independent reference emulator.
 
 The executable [chapter](../../../src/components/cpus/specifications/z80.md)
 owns all stored fields, both banks' pair views and writes, packed F/AF, all
-698 documented instruction forms, and their prefix layouts. This contract
-continues to define the public API, reset, and execution/interrupt boundaries
-until the chapter owns the complete model.
+698 documented instruction forms, and their prefix layouts. Its
+[reset and execution contract](../../../src/components/cpus/specifications/z80.md#reset-and-execution)
+also owns reset, PC/refresh commitment, and retirement. This document retains
+the public API and external IRQ/NMI entry contract until the chapter owns the
+complete model.
 
 ## Stored state and register views
 

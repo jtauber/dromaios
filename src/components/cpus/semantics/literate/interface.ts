@@ -50,6 +50,7 @@ ${stateAliases(state).map(alias => `export type ${name}${alias.name} = StoredSta
 
 /** Emit the conventional public adapter, with every processor-specific choice supplied by the chapter. */
 export function generateChapterInterface(module: string, state: StateFields, api: ChapterInterface, execution: ChapterExecution): string {
+  if (execution.interrupt === "external") throw new Error("A public interface requires chapter-owned interrupt entry.");
   const vectors = execution.interrupt === "vectors";
   const stoppedStep = vectors ? execution.waiting === undefined ? undefined : "WaitingStep" : "HaltedStep";
   const name = api.name, schema = `${name[0]!.toLowerCase() + name.slice(1)}StateDescription`, quoted = JSON.stringify;

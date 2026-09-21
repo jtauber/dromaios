@@ -126,7 +126,8 @@ CPU-owned modules under [`state/`](../../src/components/cpus/state), or generate
 schema modules for complete chapters, and are re-exported by the public CPU
 module. The 8008, 8080, 6502, 6800, and 6809 schemas and public types are generated from their
 chapters, without handwritten state adapters.
-The other three schemas remain authored TypeScript.
+The Z80 schema is also chapter-owned but still has a small public-type adapter.
+The 8088 and 68000 schemas remain authored TypeScript.
 This lets instruction generation load schemas without loading execution. The description
 owns stored field names, types, and constraints. The
 [shared state helpers](../../src/components/cpus/state.ts) provide:
@@ -205,7 +206,7 @@ Choose the grouping from the CPU's encoding:
 | [6502](../../src/components/cpus/specifications/6502.md) | `aaa bbb cc`; `cc=01` groups `aaa` operations with shared `bbb` operand sources; `cc=00/10` retain `bbb` subgroups and their distinct implied/addressing forms |
 | [6800](../../src/components/cpus/specifications/6800.md) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; unary forms use `01 tt oooo`, with `tt` selecting A/B/indexed/extended; short branches use `0010 ttt p`, keeping the unused `21` explicit |
 | [6809](../../src/components/cpus/specifications/6809.md) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, `0110 oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte; pages `10`/`11` share chapter word families, with long conditions on page `10` |
-| [Z80](../../src/components/cpus/z80.ts) | Chapter-bound unprefixed instructions; shared CB `xx yyy rrr` operations for ordinary/indexed operands; one DD/FD builder selecting IX/IY; ED pair and block families; decode the complete supported encoding before committing state |
+| [Z80](../../src/components/cpus/z80.ts) | Chapter-owned instruction families and prefix layouts; decoded execution commits PC/refresh after complete validation; the adapter owns external interrupt entry |
 | [8088](../../src/components/cpus/8088.ts) | Family-specific fields: `00 ooo 0 d w` / `00 ooo 10 w` for ALU families, `mm ggg rrr` for ModR/M operands or operation extensions, `0101 p rrr` for register stacks, `0111 ttt p` for conditional jumps, and `1010 00 d w` / `1011 w rrr` for transfers; wrap byte offsets within the selected segment before mapping to the physical bus |
 | [68000](../../src/components/cpus/68000.ts) | Sixteen-bit operation words; MOVE encodes destination register/mode before source mode/register; immediate ALU families encode operation, size, and a data-alterable effective address |
 
@@ -373,8 +374,14 @@ The [Z80 chapter](../../src/components/cpus/specifications/z80.md) owns all 698
 documented instruction forms, both stored banks, pair views and writes, and
 packed status. Named pages define CB/ED/DD/FD and the nested indexed-bit layouts,
 including displacement-before-opcode reads. The generated decoder supplies the
-selected body and opcode-fetch count without touching state. The core retains
-PC/refresh commitment, reset, retirement, and external interrupt boundaries.
+selected body and opcode-fetch count without touching state. The chapter's
+execution contract binds reset, fetch effects, and retirement to
+[`decoded-execution.ts`](../../src/components/cpus/decoded-execution.ts), which
+validates the complete encoding before PC/refresh commitment. Its guard,
+decoder, fetch hook, and retirement are shared with native external entry.
+RETI notification follows successful retirement under that guard. The core
+retains the public interface, snapshot assembly, and IRQ/NMI entry. The chapter
+is automatically registered; no instruction catalogue adapter remains.
 
 IX/IY encodings share bodies through writable register bindings. Indexed byte
 sources fetch their displacement before reading the live index; indexed CB

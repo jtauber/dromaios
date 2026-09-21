@@ -37,7 +37,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
   const allCapabilities = new Set<Capability>();
   // Decoders are shared generated functions; ordinary straight-line sources still inline.
   const decoders = new Map<string, { key: string; code: string; capabilities: Set<Capability> }>();
-  const irqDeferral = cpu === "z80" || Object.values(definitions).some(definition => definition.cpu.irqDeferral === true);
+  const irqDeferral = Object.values(definitions).some(definition => definition.cpu.irqDeferral === true);
   const contextExtensions: readonly { name: string; type?: string; file: string; capabilities: readonly Capability[] }[] = [
     { name: "BytePorts", file: "port-access", capabilities: ["readPort", "writePort"] },
     { name: "InterruptDeferralContext", type: `InterruptDeferralContext${irqDeferral ? '<"irq">' : ""}`, file: "instruction-context", capabilities: ["deferInterrupt"] },
@@ -389,7 +389,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
   if (alignmentFaults) imports.push('import type { OperandAlignmentFault } from "../68000-context.ts";');
   if (targetFaults) imports.push('import type { TargetAlignmentFault } from "../68000-context.ts";');
   if (bindOpcodes) imports.push('import type { OpcodeEntry } from "../opcodes.ts";');
-  if (prefixes.length) imports.push('import { opcodeTable } from "../opcodes.ts";');
+  if (bindOpcodes) imports.push('import { opcodeTable } from "../opcodes.ts";');
   if (helpers.size) imports.push(`import { ${[...helpers].sort().join(", ")} } from "../alu.ts";`);
   const boundContext = contextType(allCapabilities);
   const outcome = ["void", ...[...outcomes].map(reason => JSON.stringify(reason)), ...(alignmentFaults ? ["OperandAlignmentFault"] : []), ...(targetFaults ? ["TargetAlignmentFault"] : [])].join(" | ");
@@ -427,6 +427,13 @@ ${generatedPages!.decoder}
 /** Bind this CPU instance's state without performing any instruction effects. */
 export function opcodeEntries(state: ${stateType}${additional}): readonly OpcodeEntry<(instruction: ${boundContext}) => ${outcome}>[] {
 ${bindings}
+}
+` : "")
+    + (bindOpcodes && !prefixes.length ? `
+/** Decode a single-byte encoding without executing its body. */
+export function opcodeDecoder(state: ${stateType}) {
+  const handlers = opcodeTable(opcodeEntries(state));
+  return (opcode: number, _nextByte: (opcodeFetch: boolean) => number) => ({ handler: handlers[opcode], opcodeFetches: 1 });
 }
 ` : "");
 }

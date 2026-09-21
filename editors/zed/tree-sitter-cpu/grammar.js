@@ -101,22 +101,23 @@ module.exports = grammar({
 
     execution_declaration: $ => seq('execution', '{', repeat(choice(
       $.memory_policy, $.counter_policy, $.stopped_policy, $.word_policy,
-      $.opcode_policy, $.operand_policy, $.failure_policy, $.action_policy, $.retirement_policy, $.interrupt_policy,
+      $.opcode_policy, $.operand_policy, $.failure_policy, $.action_policy, $.retirement_policy, $.notification_policy, $.interrupt_policy,
     )), '}'),
     memory_policy: $ => seq('memory', $.number),
     counter_policy: $ => seq('counter', $._state_name, 'write', $.identifier),
     stopped_policy: $ => seq('stopped', choice('none', seq(choice($._state_name,
       seq('choice', $._state_name, 'unless', $.string)), optional(seq('as', 'waiting'))))),
     word_policy: _ => seq('word', choice('little', 'big')),
-    opcode_policy: _ => seq('opcode', 'advance', 'on', choice('dispatch', 'read')),
+    opcode_policy: $ => seq('opcode', 'advance', 'on', choice('dispatch', 'read', seq('decode', 'with', 'action', $.identifier))),
     operand_policy: _ => seq('operand', 'advance', 'after', 'read'),
     failure_policy: _ => seq('failure', 'retain'),
     action_policy: $ => seq(choice('reset', 'retire'), choice('none', seq('action', $.identifier))),
-    retirement_policy: $ => seq('retire', 'irq', 'into', $._state_name),
-    interrupt_policy: $ => seq('interrupt', optional('vectors'), '{', repeat(choice(
+    retirement_policy: $ => seq('retire', 'irq', 'into', $._state_name, optional(seq('then', 'action', $.identifier))),
+    notification_policy: _ => seq('notify', 'reti', 'after', 'retire'),
+    interrupt_policy: $ => seq('interrupt', choice('external', seq(optional('vectors'), '{', repeat(choice(
       $.vector_entry,
       $.accept_policy, $.bytes_policy, $.callback_policy, $.interrupt_counter_policy, $.unknown_policy,
-    )), '}'),
+    )), '}'))),
     vector_entry: $ => seq('source', $.identifier, choice('always', seq('unless', 'flag', $._state_name),
       seq('when', 'latch', $._state_name, 'otherwise', $.string)), 'with', $.call,
       optional(seq('resume', 'when', 'choice', $._state_name, '=', $.string, 'with', $.call))),

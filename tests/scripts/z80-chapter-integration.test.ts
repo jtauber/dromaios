@@ -199,3 +199,40 @@ test("Z80 indexed chapter edits control both prefix pages, addressing, and suppl
   `], { encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
 });
+
+test("Z80 reset, refresh, retirement destinations, and RETI callback timing come from the execution contract", t => {
+  const url = editedChapter(t, chapter => chapter
+    .replace("  PC <- u16(0)", "  PC <- u16($1234)")
+    .replace("add(original, count)", "add(original, add(count, count))")
+    .replace('action afterRetirement "consume NMI inhibition" () {\n  NMIDEFERRED <- 0',
+      'action afterRetirement "consume NMI inhibition" () {\n  NMIDEFERRED <- 1')
+    .replace("retire irq into IRQDEFERRED", "retire irq into IFF2"));
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { CpuZ80 } from ${url("src/components/cpus/z80.ts")};
+    const bank = { a: 1, b: 2, c: 3, d: 4, e: 5, h: 6, l: 7,
+      flags: { s: false, z: false, h: false, pv: false, n: false, c: false } };
+    const initial = { ...bank, alternate: structuredClone(bank), ix: 0x800, iy: 0x900, pc: 0x200, sp: 0x600,
+      i: 0x80, r: 0xfe, iff1: true, iff2: true, im: 0, interruptDeferred: false, nmiDeferred: false, halted: false };
+    for (const code of [[0], [0xcb, 0], [0xed, 0x4d], [0xdd, 0xcb, 0, 6], [0xfb]]) for (const supplied of [false, true]) {
+      const bytes = new Uint8Array(65536); bytes.set(code, 0x200); bytes[0x600] = 0x34; bytes[0x601] = 0x12;
+      let notifications = 0, index = 0;
+      const cpu = new CpuZ80({ size: bytes.length, read: address => bytes[address], write: (address, value) => { bytes[address] = value; } }, initial,
+        undefined, () => {
+          notifications++; const state = cpu.snapshot();
+          assert.equal(state.pc, 0x1234); assert.equal(state.nmiDeferred, true); assert.equal(state.iff2, false);
+          assert.throws(() => cpu.reset(), /not be reentrant/); assert.throws(() => cpu.interrupt("nmi"), /not be reentrant/);
+        });
+      const record = supplied ? cpu.interrupt("irq", () => code[index++]) : cpu.step();
+      assert.equal(record.outcome, "executed");
+      assert.equal(cpu.snapshot().r, code.length === 1 ? 0x80 : 0x82);
+      assert.equal(cpu.snapshot().nmiDeferred, true); assert.equal(cpu.snapshot().interruptDeferred, false);
+      assert.equal(cpu.snapshot().iff2, code[0] === 0xfb); assert.equal(notifications, code[0] === 0xed ? 1 : 0);
+      const before = cpu.snapshot(), reset = cpu.reset(), after = cpu.snapshot();
+      assert.equal(after.pc, 0x1234); assert.equal(after.r, 0); assert.equal(after.nmiDeferred, false);
+      for (const field of ["a", "b", "c", "d", "e", "h", "l", "flags", "alternate", "ix", "iy", "sp"]) assert.deepEqual(after[field], before[field]);
+      assert.deepEqual(reset.accesses, []);
+    }
+  `], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+});

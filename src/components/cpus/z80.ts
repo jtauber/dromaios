@@ -1,19 +1,17 @@
 import { cpuZ80StateDescription } from "./state/z80.ts";
 import type { CpuZ80State, CpuZ80RegisterBank } from "./state/z80.ts";
 import type { Ram } from "../memory/ram.js";
-import { opcodeDecoder } from "./generated/z80-chapter.ts";
+import { checkMemory, createExecution } from "./generated/z80-execution.ts";
 import { sourceReaders } from "./generated/z80-state.ts";
 import { callStack16LE } from "./call-stack.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { readWordLE } from "./binary.ts";
-import { executionBoundary } from "./execution-boundary.ts";
 import { recordInterruptInstruction } from "./interrupt-instruction.ts";
 import type { InterruptInstruction, InterruptAcknowledge } from "./interrupt-instruction.ts";
 import { recordPorts } from "./port-access.ts";
 import type { BytePorts, PortAccess } from "./port-access.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
-import type { WordInstructionContext, InterruptDeferralContext, RetiNotificationContext } from "./instruction-context.ts";
 import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 
@@ -54,26 +52,21 @@ export type CpuZ80InterruptRecord = StateTransition<CpuZ80Snapshot, CpuZ80Interr
   | { readonly source: "irq"; readonly outcome: "unsupported"; readonly reason: "opcode"; readonly instruction: CpuZ80InterruptInstruction }
 );
 
-interface InstructionContext extends WordInstructionContext, BytePorts, InterruptDeferralContext<"irq">, RetiNotificationContext {}
-type OpcodeHandler = (instruction: InstructionContext) => void;
 /** Instruction-level Zilog Z80 with documented opcodes and boundary IRQ/NMI delivery. */
 export class CpuZ80 {
   readonly #state: CpuZ80State;
-  readonly #decode: ReturnType<typeof opcodeDecoder>;
+  readonly #execution: ReturnType<typeof createExecution<CpuZ80Snapshot>>;
   readonly #stack: ReturnType<typeof callStack16LE>;
   readonly #ram: Ram;
   readonly #ports: BytePorts | undefined;
-  readonly #onReti: (() => void) | undefined;
-  readonly #atBoundary = executionBoundary("Z80 step, reset, and interrupt calls must not be reentrant.");
 
   constructor(ram: Ram, initialState: CpuZ80State, ports?: BytePorts, onReti?: () => void) {
-    if (ram.size !== 0x10000) throw new RangeError("The Z80 model requires exactly 64 KiB of RAM.");
+    checkMemory(ram);
     this.#state = readState(cpuZ80StateDescription, initialState);
     this.#stack = callStack16LE(this.#state);
-    this.#decode = opcodeDecoder(this.#state);
+    this.#execution = createExecution(this.#state, ram, () => this.snapshot(), ports, onReti);
     this.#ram = ram;
     this.#ports = ports;
-    this.#onReti = onReti;
   }
 
   /** Inspect detached register banks and their derived pair views without reading RAM. */
@@ -85,73 +78,16 @@ export class CpuZ80 {
   }
 
   /** Apply documented reset effects, release HALT, and preserve other stored state and RAM. */
-  reset(): CpuZ80ResetRecord {
-    return this.#atBoundary(() => {
-      const before = this.snapshot();
-      this.#state.pc = 0;
-      this.#state.i = 0;
-      this.#state.r = 0;
-      this.#state.iff1 = false;
-      this.#state.iff2 = false;
-      this.#state.im = 0;
-      this.#state.interruptDeferred = this.#state.nmiDeferred = false;
-      this.#state.halted = false;
-      return { before, after: this.snapshot(), accesses: [] };
-    });
-  }
+  reset(): CpuZ80ResetRecord { return this.#execution.reset(); }
 
   /** Attempt one instruction or block iteration; unsupported or already halted attempts preserve all state. */
-  step(): CpuZ80StepRecord {
-    return this.#atBoundary(() => {
-      const before = this.snapshot();
-      if (this.#state.halted) {
-        return { before, after: this.snapshot(), instruction: null, accesses: [], outcome: "halted" };
-      }
-      const accesses: CpuZ80Access[] = [];
-      const recordAccess = (access: CpuZ80Access): void => { accesses.push(access); };
-      const { readByte, writeByte } = recordMemory(this.#ram, recordAccess);
-      const { readPort, writePort } = recordPorts(this.#ports, recordAccess);
-      const address = this.#state.pc;
-      const opcode = readByte(address);
-      const bytes = [opcode];
-      // Decode the complete opcode before changing PC/R. Prefixes select only documented pages.
-      const nextEncodingByte = (): number => {
-        const byte = readByte((address + bytes.length) & 0xffff);
-        bytes.push(byte);
-        return byte;
-      };
-      const { handler, opcodeFetches } = this.#decode(opcode, nextEncodingByte);
-      if (handler) {
-        this.#state.pc = (address + bytes.length) & 0xffff;
-        // Operand fetches below are ordinary reads and do not increment R.
-        this.#refresh(opcodeFetches);
-        const fetchByte = (): number => {
-          const byte = readByte(this.#state.pc);
-          this.#state.pc = (this.#state.pc + 1) & 0xffff;
-          bytes.push(byte);
-          return byte;
-        };
-        this.#executeHandler(handler, {
-          fetchByte,
-          fetchWord: () => readWordLE(fetchByte),
-          readByte,
-          writeByte,
-          readPort,
-          writePort,
-        });
-      }
-      const record = { instruction: { address, bytes }, before, after: this.snapshot(), accesses };
-      return handler
-        ? { ...record, outcome: this.#state.halted ? "halted" : "executed" }
-        : { ...record, outcome: "unsupported", reason: "opcode" };
-    });
-  }
+  step(): CpuZ80StepRecord { return this.#execution.step(); }
 
   /** Offer a selected request; ignored offers neither acknowledge nor queue an interrupt. */
   interrupt(source: "nmi"): CpuZ80InterruptRecord;
   interrupt(source: "irq", acknowledge: () => number): CpuZ80InterruptRecord;
   interrupt(source: CpuZ80InterruptSource, acknowledge?: () => number): CpuZ80InterruptRecord {
-    return this.#atBoundary<CpuZ80InterruptRecord>(() => {
+    return this.#execution.atBoundary<CpuZ80InterruptRecord>(() => {
       if (source !== "irq" && source !== "nmi") throw new RangeError("Z80 interrupt source must be irq or nmi.");
       if (source === "irq" && typeof acknowledge !== "function") throw new TypeError("Z80 IRQ requires an acknowledgement callback.");
       const before = this.snapshot();
@@ -167,7 +103,7 @@ export class CpuZ80 {
       // Acceptance precedes device and stack access. NMI preserves IFF2, including nested NMI.
       this.#state.halted = false;
       this.#state.iff1 = false;
-      this.#refresh(1);
+      this.#execution.opcodeFetched(1);
       if (source === "nmi") {
         this.#state.nmiDeferred = true;
         this.#stack.call(0x0066, writeByte);
@@ -177,13 +113,13 @@ export class CpuZ80 {
         const { instruction, fetchByte } = recordInterruptInstruction(acknowledge!, recordAccess);
         const opcode = fetchByte();
         if (this.#state.im === 0) {
-          const { handler } = this.#decode(opcode, (opcodeFetch = true) => {
-            if (opcodeFetch) this.#refresh(1);
+          const { handler } = this.#execution.decode(opcode, (opcodeFetch = true) => {
+            if (opcodeFetch) this.#execution.opcodeFetched(1);
             return fetchByte();
           });
           if (handler) {
             const { readPort, writePort } = recordPorts(this.#ports, recordAccess);
-            this.#executeHandler(handler, { readByte, writeByte, readPort, writePort, fetchByte, fetchWord: () => readWordLE(fetchByte) });
+            this.#execution.execute(handler, { readByte, writeByte, readPort, writePort, fetchByte, fetchWord: () => readWordLE(fetchByte) });
           }
           const record = { before, after: this.snapshot(), instruction, accesses, source };
           return handler
@@ -198,27 +134,10 @@ export class CpuZ80 {
     });
   }
 
-  // Instruction decoding, retirement, and interrupt returns.
-
-  #refresh(count: number): void {
-    this.#state.r = (this.#state.r & 0x80) | ((this.#state.r + count) & 0x7f);
-  }
-
-  #executeHandler(handler: OpcodeHandler, context: WordInstructionContext & BytePorts): void {
-    let deferred = false, reti = false;
-    handler({ ...context, deferInterrupt: () => { deferred = true; }, notifyReti: () => { reti = true; } });
-    // A retired instruction consumes old inhibition; EI or an IFF-changing return renews IRQ inhibition.
-    this.#state.interruptDeferred = deferred;
-    this.#state.nmiDeferred = false;
-    // Notify after architectural retirement; device failure cannot undo the completed return.
-    if (reti) this.#onReti?.();
-  }
-
   // Addressing.
 
-  #readMemoryWord(address: number, readByte: InstructionContext["readByte"]): number {
+  #readMemoryWord(address: number, readByte: (address: number) => number): number {
     const low = readByte(address);
     return low | (readByte((address + 1) & 0xffff) << 8);
   }
-
 }

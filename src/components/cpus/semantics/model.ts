@@ -15,6 +15,8 @@ export interface CpuDeclaration {
   readonly state: StateFields;
   /** A chapter execution contract supplies an IRQ-deferral destination at retirement. */
   readonly irqDeferral?: true;
+  /** The execution boundary delivers RETI notification after successful retirement. */
+  readonly retiNotification?: true;
 }
 
 interface ArithmeticOperands {
