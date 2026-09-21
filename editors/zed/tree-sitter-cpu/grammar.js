@@ -62,14 +62,14 @@ module.exports = grammar({
 
     body: $ => seq('{', repeat($._statement), '}'),
     _statement: $ => choice(
-      $.match_capture, $.match_statement, $.capture, $.write, $.apply_statement, $.perform_statement, $.when_statement,
+      $.match_capture, $.match_statement, $.capture, $.write, $.apply_statement, $.exchange_statement, $.perform_statement, $.when_statement,
       $.return_statement, $.fault_statement, $.commit_statement, $.defer_statement,
     ),
     match_capture: $ => seq(field('name', $.identifier), '=', 'match', $._expression, ':', $.number,
       '{', repeat1($.match_case), 'otherwise', 'unsupported', '}'),
     match_statement: $ => seq('match', $._expression, '{', repeat1($.match_case), 'otherwise', 'unsupported', '}'),
     match_case: $ => seq('case', field('pattern', $.string), optional(seq('for', commaSeparated($.selector))), $.body),
-    capture: $ => seq(field('name', $.identifier), '=', choice($._read, $._expression)),
+    capture: $ => seq(field('name', choice($.identifier, alias('exchange', $.identifier), alias('port', $.identifier))), '=', choice($._read, $._expression)),
     _read: $ => choice(
       'fetch', $.choice_read, $.state_read, $.array_read, $.source_read, $.operand_read,
     ),
@@ -83,6 +83,7 @@ module.exports = grammar({
     operand_target: $ => seq('operand', $.identifier),
     memory_target: $ => seq(choice('memory', 'port'), '(', $._expression, ')'),
     apply_statement: $ => seq(choice('apply', 'replace'), field('name', $.identifier), $.arguments),
+    exchange_statement: $ => seq('exchange', $._state_name, ',', $._state_name),
     perform_statement: $ => seq('perform', field('name', $.identifier), $.arguments),
     when_statement: $ => seq('when', choice(seq('test', $.identifier), $._expression), $.body),
     return_statement: $ => seq('return', $._expression),

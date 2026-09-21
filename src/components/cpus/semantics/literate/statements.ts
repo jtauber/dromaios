@@ -1,7 +1,7 @@
-import { alignmentFault, capture, commitAddressUpdates, deferInterrupt, fetchByte, fillArray, flagValue, highByte, lowByte, replaceFlags, not, perform, readElement,
+import { alignmentFault, capture, commitAddressUpdates, deferInterrupt, exchangeFlags, fetchByte, fillArray, flagValue, highByte, lowByte, replaceFlags, not, perform, readElement,
   readFlag, readLatch, readMemory, readPort, readRegister, readSource, resolveAddress, updateFlags,
   testChoice, value, when, writeChoice, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
-import type { Choice, CpuDeclaration, Expression, Flag, FlagExpression, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
+import type { Choice, CpuDeclaration, Expression, Flag, FlagGroup, FlagExpression, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
 import { validateInstruction } from "../validate.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
@@ -28,6 +28,7 @@ interface Symbols {
   readonly latches: ReadonlyMap<string, Latch>;
   readonly choices: ReadonlyMap<string, Choice>;
   readonly flags: ReadonlyMap<string, Flag>;
+  readonly flagGroups: ReadonlyMap<string, FlagGroup>;
   readonly policies: ReadonlyMap<string, FlagPolicy>;
   readonly actions: ReadonlyMap<string, InstructionDefinition>;
   readonly sources: ReadonlyMap<string, ValueSource>;
@@ -49,7 +50,7 @@ export function checkStateEffects(steps: readonly Statement[], effects: "view" |
       case "when": checkStateEffects(step.steps, effects); break;
       case "read-source": checkStateEffects(step.source.steps, effects); break;
       case "perform": checkStateEffects(step.action.steps, effects); break;
-      case "write-register": case "write-element": case "fill-array": case "write-latch": case "write-choice": case "update-flags": case "replace-flags":
+      case "write-register": case "write-element": case "fill-array": case "write-latch": case "write-choice": case "update-flags": case "replace-flags": case "exchange-flags":
         if (effects !== "view") break;
         throw new Error("Views may only read stored state.");
       case "read-memory": case "write-memory":
@@ -62,7 +63,7 @@ export function checkStateEffects(steps: readonly Statement[], effects: "view" |
 
 /** Lower ordered effects, checking each prefix in its enclosing lexical scopes. */
 export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symbols, options: StatementOptions = {}): Statement[] {
-  const { cpu, registers, arrays, latches, choices, flags, policies, actions, sources, operands, conditions } = symbols;
+  const { cpu, registers, arrays, latches, choices, flags, flagGroups, policies, actions, sources, operands, conditions } = symbols;
   // Compiler captures cannot collide with, or be referenced by, any authored name,
   // including later statements and nested blocks.
   const usedNames = new Set([...Object.keys(options.inputs ?? {}), ...lines.flatMap(tokens => tokens.source.text.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? [])]);
@@ -96,6 +97,10 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         tokens.checked(() => check([]));
         const nested = parse(body, check, selectedOperands);
         result.push(...captures, when(predicate, nested));
+      } else if (tokens.next === "exchange" && tokens.peek(1) !== "=") {
+        tokens.expect("exchange");
+        const left = tokens.lookup(flagGroups, true); tokens.expect(",");
+        result.push(exchangeFlags(left, tokens.lookup(flagGroups, true)));
       } else if (tokens.take("perform")) {
         const action = tokens.lookup(actions); tokens.expect("(");
         const args: Record<string, NumberExpression> = {};

@@ -181,3 +181,8 @@ action banked "qualified bank and numeric choice" {
   MODE <- 2
   enabled = choice MODE = 2
 }
+
+action exchangeBanks "preserve complete flag objects" {
+  exchange FLAGS, ALTERNATE.FLAGS
+  exchange = u8(0)
+}

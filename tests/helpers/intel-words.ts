@@ -1,5 +1,5 @@
 import { instructions as intel } from "../../src/components/cpus/generated/8080.js";
-import { instructions as zilog } from "../../src/components/cpus/generated/z80.js";
+import { bodiesZ80 as zilog } from "./z80-bodies.js";
 import type { ByteInstructionContext } from "../../src/components/cpus/instruction-context.js";
 import { initialState, flagPattern } from "../components/cpus/z80/helpers.js";
 

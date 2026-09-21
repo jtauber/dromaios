@@ -6,8 +6,8 @@ import { instructions as actions6800 } from "../../../../src/components/cpus/gen
 import { instructions as m6800 } from "../../../../src/components/cpus/generated/6800.js";
 import { bodies6809 as m6809 } from "../../../helpers/6809-bodies.js";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
-import { instructions as z80 } from "../../../../src/components/cpus/generated/z80.js";
-import { instructions6502, instructions6800, instructions6809, instructions8080, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { bodiesZ80 as z80 } from "../../../helpers/z80-bodies.js";
+import { instructions6502, instructions6800, instructions6809, instructions8080, instructionsZ80, chapterZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
 import type { Cpu6502State } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/semantics/generated/state/6809.js";
@@ -115,12 +115,12 @@ test("twenty documented interrupt/control forms and two external entry helpers a
     [instructions6800, ["63", "62", "59"], ["SWI", "WAI", "RTI"]],
     [instructions6809, ["63", "4159", "4415", "19", "60", "59"], ["SWI", "SWI2", "SWI3", "SYNC", "CWAI", "RTI"]],
     [instructions8080, [String(0xf3), String(0xfb)], ["DI", "EI"]],
-    [instructionsZ80, ["di", "ei", "im0", "im1", "im2", "retn", "reti"], ["DI", "EI", "IM 0", "IM 1", "IM 2", "RETN", "RETI"]],
+    [{ ...instructionsZ80, ...chapterZ80 }, ["243", "251", "im0", "im1", "im2", "retn", "reti"], ["DI", "EI", "IM 0", "IM 1", "IM 2", "RETN", "RETI"]],
   ];
   for (const [definitions, keys, names] of inventories) assert.deepEqual(keys.map(k => definitions[k]!.name), names);
   assert.equal(Object.keys(instructions6502).length, 151);
   assert.equal(Object.keys(instructions8080).length, 244);
-  assert.equal(Object.keys(instructionsZ80).length, 450);
+  assert.equal(Object.keys(instructionsZ80).length, 357);
   assert.equal("pullFrame" in m6809, false, "RTI replaces the old partial-return helper");
 });
 

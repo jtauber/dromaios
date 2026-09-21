@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 
 // Deliberately wrong hardware edits prove production reads chapter policy, including native indexed callers.
-test("Z80 chapter edits reach construction, both snapshots, byte dispatch, indexed arithmetic, and stack status", t => {
+test("Z80 chapter edits reach construction, both snapshots, byte/word dispatch, branches, decimal flags, and stack actions", t => {
   const directory = mkdtempSync(join(tmpdir(), "dromaios-z80-chapter-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
@@ -19,7 +19,11 @@ test("Z80 chapter edits reach construction, both snapshots, byte dispatch, index
     .replaceAll("return concat(high, low)", "return concat(low, high)")
     .replace("  Z = zero(result)", "  Z = not(zero(result))")
     .replace("select(carry, u8($01)", "select(carry, u8($20)")
-    .replace("C = not(zero(and(status, u8($01))))", "C = zero(and(status, u8($01)))"));
+    .replace("C = not(zero(and(status, u8($01))))", "C = zero(and(status, u8($01)))")
+    .replace("B <- highByte(word)\n  C <- lowByte(word)", "B <- lowByte(word)\n  C <- highByte(word)")
+    .replace("PC <- add(pc, signExtend(offset, 16))", "PC <- add(add(pc, u16(1)), signExtend(offset, 16))")
+    .replace("SP <- subtract(pointer, u16(1))", "SP <- subtract(pointer, u16(2))")
+    .replace("C = or(not(borrow(original, u8($9A))), carry)", "C = 0"));
   const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
   assert.equal(generated.status, 0, generated.stderr);
   const url = (path: string) => JSON.stringify(pathToFileURL(join(directory, path)).href);
@@ -33,7 +37,7 @@ test("Z80 chapter edits reach construction, both snapshots, byte dispatch, index
     assert.equal(parseMachine(machine.replace("cpu z80 {", "cpu z80 { SCRATCH = A5")).initialState.scratch, 0xa5);
     const flags = { s: false, z: false, h: false, pv: false, n: false, c: true };
     const bank = { a: 1, b: 0x12, c: 0x34, d: 0x56, e: 0x78, h: 0x9a, l: 0xbc, flags };
-    for (const code of [[0x80], [0xc6, 1], [0xdd, 0x86, 0], [0xfd, 0x86, 0], [0xf5], [0xf1], [0x7e]]) {
+    for (const code of [[0x80], [0xc6, 1], [0xdd, 0x86, 0], [0xfd, 0x86, 0], [0xf5], [0xf1], [0x7e], [0x01, 1, 2], [0xed, 0x4b, 0, 4], [0x03], [0x18, 1], [0xcd, 1, 2], [0x27]]) {
       const bytes = new Uint8Array(65536); bytes.set(code, 0x200); bytes[0x400] = 1; bytes[0xbc9a] = 0x7f;
       const ram = { size: bytes.length, read: address => bytes[address], write: (address, value) => { bytes[address] = value; } };
       const initial = { ...bank, alternate: { ...bank, b: 0x56, c: 0x78 }, ix: 0x400, iy: 0x400, pc: 0x200, sp: 0x600,
@@ -45,9 +49,15 @@ test("Z80 chapter edits reach construction, both snapshots, byte dispatch, index
       assert.equal(cpu.snapshot().scratch, 0xa5); assert.equal(snapshot.bc, 0x3412); assert.equal(snapshot.alternate.bc, 0x7856);
       cpu.step(); const after = cpu.snapshot();
       if ([0x80, 0xc6, 0xdd, 0xfd].includes(code[0])) { assert.equal(after.flags.z, true); assert.ok(after.a > 1); }
-      else if (code[0] === 0xf5) assert.equal(bytes[0x5fe], 0x20);
+      else if (code[0] === 0xf5) { assert.equal(bytes[0x5fc], 0x20); assert.equal(after.sp, 0x5fc); }
       else if (code[0] === 0xf1) assert.equal(after.flags.c, true);
-      else assert.equal(after.a, 0x7f);
+      else if (code[0] === 0x7e) assert.equal(after.a, 0x7f);
+      else if (code[0] === 0x01) { assert.equal(after.b, 2); assert.equal(after.c, 1); }
+      else if (code[0] === 0xed) { assert.equal(after.b, 1); assert.equal(after.c, 0); }
+      else if (code[0] === 0x03) { assert.equal(after.b, 0x13); assert.equal(after.c, 0x34); }
+      else if (code[0] === 0x18) assert.equal(after.pc, 0x204);
+      else if (code[0] === 0xcd) { assert.equal(after.pc, 0x0102); assert.equal(after.sp, 0x5fc); assert.equal(bytes[0x5fc], 3); }
+      else if (code[0] === 0x27) { assert.equal(after.a, 0x61); assert.equal(after.flags.c, false); }
       assert.equal(after.scratch, 0xa5);
     }
   `], { encoding: "utf8" });

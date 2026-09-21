@@ -156,12 +156,11 @@ The implementation already has much of the foundation:
 | Existing building block | Responsibility | Opportunity to extend the idea |
 | --- | --- | --- |
 | [State descriptions](../../src/components/cpus/state.ts) | Stored fields, constraints, validation, copying, and derived TypeScript types | Describe register relationships and compose lifecycle support |
-| [Register pairs](../../src/components/cpus/register-pairs.ts) and [packed flags](../../src/components/cpus/flags.ts) | Named word views and status-bit layouts | Generalize pairs, slices, selected storage, and view composition |
+| Chapter-defined register views and [packed flags](../../src/components/cpus/flags.ts) | Named word views and status-bit layouts | Generalize pairs, slices, selected storage, and view composition |
 | [Opcode patterns](../../src/components/cpus/opcodes.ts) | Fixed encodings, aliases, selector families, duplicate detection | Bind reusable operations and operand descriptions |
 | [ALU](../../src/components/cpus/alu.ts) and [binary helpers](../../src/components/cpus/binary.ts) | Arithmetic facts, shifts, parity, signed bytes, and word assembly | Reuse instruction behavior above these primitives |
 | [Memory recording](../../src/components/cpus/memory-access.ts) | Actual, ordered, completed byte accesses | Compose logical addressing and multi-byte access policies |
 | [Byte execution](../../src/components/cpus/execute-byte-instruction.ts) | Fetching, dispatch, and limited opcode rejection | Share more lifecycle mechanics while selecting execution strategies |
-| [8080 family](../../src/components/cpus/8080-family.ts) | Z80 base encodings and operand handling; the 8080 now binds its table through chapter-driven byte execution | Compare later Z80 migration against the established behavior and explicit prefix boundaries |
 | [Motorola helpers](../../src/components/cpus/motorola.ts) | Common conditions, byte ALU behavior, and accumulator operations | Separate reusable operation semantics from their encoding selectors |
 | [Call stack](../../src/components/cpus/call-stack.ts) | 8080/Z80 stack accesses, calls, and returns | Separate stack mechanics from call and return recipes |
 

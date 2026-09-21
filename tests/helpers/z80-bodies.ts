@@ -4,6 +4,10 @@ import { instructions as chapter } from "../../src/components/cpus/generated/z80
 // Existing cross-CPU probes keep their names; every migrated entry calls a literal chapter opcode.
 export const bodiesZ80 = {
   ...native, ...chapter,
+  di: chapter[0xf3], ei: chapter[0xfb], input: chapter[0xdb], output: chapter[0xd3],
+  exchangeAf: chapter[0x08], exchangeGeneralBanks: chapter[0xd9],
+  jr: chapter[0x18], jrNZ: chapter[0x20], jrZ: chapter[0x28], jrNC: chapter[0x30], jrC: chapter[0x38], djnz: chapter[0x10],
+  rlca: chapter[0x07], rrca: chapter[0x0f], rla: chapter[0x17], rra: chapter[0x1f],
   incB: chapter[0x04], incC: chapter[0x0c], incD: chapter[0x14], incE: chapter[0x1c], incH: chapter[0x24], incL: chapter[0x2c], incA: chapter[0x3c],
   decB: chapter[0x05], decC: chapter[0x0d], decD: chapter[0x15], decE: chapter[0x1d], decH: chapter[0x25], decL: chapter[0x2d], decA: chapter[0x3d],
   addB: chapter[0x80], addC: chapter[0x81], addD: chapter[0x82], addE: chapter[0x83], addH: chapter[0x84], addL: chapter[0x85], addM: chapter[0x86], addA: chapter[0x87],

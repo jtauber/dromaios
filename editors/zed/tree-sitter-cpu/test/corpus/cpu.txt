@@ -169,3 +169,20 @@ state {
     (register_declaration (state_identifier) (number))
     (comment)
     (MISSING "}")))
+
+==================
+Whole flag groups and contextual capture names
+==================
+action swap "flags" {
+  exchange FLAGS, OTHER.FLAGS
+  exchange = u8(1)
+  port = source portAddress
+}
+---
+(source_file
+  (action_declaration
+    (identifier) (string (string_content))
+    (body
+      (exchange_statement (state_identifier) (state_identifier) (state_identifier))
+      (capture (identifier) (call (identifier) (arguments (number))))
+      (capture (identifier) (source_read (identifier))))))

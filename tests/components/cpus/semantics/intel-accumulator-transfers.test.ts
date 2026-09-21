@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
-import { instructions as zilog } from "../../../../src/components/cpus/generated/z80.js";
+import { bodiesZ80 as zilog } from "../../../helpers/z80-bodies.js";
 import { accumulatorState, accumulatorTransfers } from "../../../helpers/intel-accumulator-transfers.js";
 
 for (const [name, instructions] of [["8080", intel], ["Z80", zilog]] as const) {

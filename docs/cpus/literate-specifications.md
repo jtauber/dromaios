@@ -33,10 +33,11 @@ Executable chapters are maintained CPU sources:
   views preserve D/CC/S write rules; chapter actions share stack and interrupt-frame
   effects. Reset, execution, IRQ/FIRQ/NMI recognition, waiting/resume rules,
   and the public interface are chapter-owned; no handwritten implementation remains.
-- [Zilog Z80: state and byte operations](../../src/components/cpus/specifications/z80.md)
+- [Zilog Z80: state and unprefixed instructions](../../src/components/cpus/specifications/z80.md)
   owns both register banks and numeric interrupt-mode storage, pair/status views,
-  and unprefixed byte loads, ALU operations, and INC/DEC. Indexed arithmetic
-  reuses its actions; other families and execution remain in TypeScript.
+  pair-write actions, and all 252 unprefixed instructions. Native prefixed forms
+  reuse its pair views/writes, byte arithmetic, and word-addition policy; prefix
+  decoding and execution remain in TypeScript.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -172,6 +173,7 @@ Quoted descriptions use JSON string escaping.
 | `ADDRESS[] <- u14($0000)` | Fill every physical array slot with the same width-checked value, without reading previous elements. |
 | `result = operand s`, `operand d <- result` | Read or write a selected register, pair, writable view, or memory operand at this point. |
 | `defer irq` | Request one-boundary IRQ deferral on successful retirement; requires `retire irq into LATCH`. This does not immediately write stored state. |
+| `exchange FLAGS, ALTERNATE.FLAGS` | Exchange complete flag objects with matching stored fields: read right, read left, write left, write right. Preserve identity without reading individual flags; allowed in actions but not views. |
 | `replace PSW(status)` | Replace the complete flag object; the policy must define every flag in exactly one bank. |
 | `apply NZ(result)`, `apply ALU(result, carry(left, right))` | Apply a declared flag policy to typed numeric and flag expressions. |
 | `address = resolve(16, mode, code)` | Ask the existing address decoder to resolve an operand of the stated width; mode and code are captured three-bit values. |
@@ -858,7 +860,7 @@ Shared runtime services enforce the declared execution contract. Chapters
 without owned state validate declarations against an external schema; most
 other instruction families remain authored in TypeScript.
 
-The six chapters now exercise contrasting widths, ordered effects, and
+The seven chapters now exercise contrasting widths, ordered effects, and
 interrupt-recognition policies. The 6502 now owns its complete state, status
 view/restoration, and all 151 documented instruction forms. Existing selector/source
 bindings express its irregular index-load/store encodings and cross-indexing.

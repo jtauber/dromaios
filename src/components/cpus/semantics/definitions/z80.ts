@@ -1,45 +1,35 @@
 import { cpuZ80StateDescription } from "../../state/z80.ts";
-import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, deferInterrupt, evenParity, exchangeFlags, fetchByte, flagLiteral, flagValue, halfBorrow, literal, negative, not, notifyReti, perform, overflow,
+import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, cpuSymbols, deferInterrupt, evenParity, flagLiteral, flagValue, halfBorrow, literal, negative, not, notifyReti, perform, overflow,
   readFlag, readLatch, readMemory, readPort, readRegister, readSource, replaceFlags, select, shiftBits, subtract, updateFlags, value, when, writeChoice, writeLatch, writeMemory, writePort, writeRegister, xor, zero } from "../model.ts";
-import type { FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement, ValueSource } from "../model.ts";
-import { immediateByte, instructionSet, registerSource, registerView, shift } from "../builders.ts";
-import type { ShiftInput } from "../builders.ts";
-import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteTransfer, intelExchanges, intelJumps, intelRegisterStacks, intelStackTransfer, z80StatusInstructions, intelSubroutines, intelStackExchange, intelWordAdjustment, intelWordArithmetic, intelWordArithmeticFamily, intelWordRegister, intelPairView, intelWordTransfer, intelWordTransfers } from "../intel.ts";
+import type { FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement } from "../model.ts";
+import { instructionSet, registerSource, registerView, shift } from "../builders.ts";
+import type { RegisterView, ShiftInput } from "../builders.ts";
+import { intelByteTransfer, intelStackTransfer, intelStackExchange, intelWordAdjustment, intelWordArithmetic, intelWordTransfer } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 import { flagPolicy } from "../status.ts";
-import { choose, flagCondition, jump, relativeBranch } from "../control-flow.ts";
+import { choose, flagCondition, jump } from "../control-flow.ts";
 import { byteStack, wordStack } from "../stack.ts";
 import { portTransfer } from "../ports.ts";
-import { actions, views, families } from "../generated/z80.ts";
+import { actions, views, policies, families } from "../generated/z80.ts";
 
 const cpu = cpuSymbols("z80", cpuZ80StateDescription);
-const conditions = (["z", "c", "pv", "s"] as const).map(flag => cpu.flag(flag));
-const conditionNames = ["NZ", "Z", "NC", "C", "PO", "PE", "P", "M"];
 export { actions as actionsZ80, views as viewsZ80 } from "../generated/z80.ts";
 export const chapterZ80 = instructionSet(Object.values(families).flat());
 
-const alternate = cpu.bank("alternate");
-const bc = intelPairView(cpu, "bc"), de = intelPairView(cpu, "de"), hl = intelPairView(cpu, "hl");
-
-// Immediate I/O captures A for address bits 15..8 before fetching the low byte.
-const immediatePort: ValueSource = { name: "old A and immediate port byte", width: 16,
-  steps: [readRegister("high", cpu.register("a")), fetchByte("low")], result: concat(value("high"), value("low")) };
+// Native prefixed forms reuse the chapter's pair reads and split writes.
+function pairView(name: "BC" | "DE" | "HL"): RegisterView {
+  return { source: views[name], write: word => [perform(actions[`write${name}`], { word })] };
+}
+const bc = pairView("BC"), de = pairView("DE"), hl = pairView("HL");
+function wordRegister(name: "bc" | "de" | "hl" | "sp") {
+  if (name === "sp") return cpu.register("sp");
+  const pair = { bc, de, hl }[name];
+  return { source: pair.source, write: pair.write(value("result")) };
+}
 
 // These bodies replace the complete flag object; any accumulator write follows that replacement.
 function resultFlags(name: string, parameters: FlagPolicy["parameters"], updates: Readonly<Record<string, FlagExpression>>) {
   return flagPolicy(cpu, name, { result: 8, ...parameters }, { s: negative(value("result")), z: zero(value("result")), ...updates });
-}
-
-function exchangeBank(accumulator: boolean) {
-  return defineInstruction({ cpu: cpu.declaration, name: accumulator ? "EX AF,AF′" : "EXX",
-    explanation: "Exchange each stored byte in order, reading alternate then main and writing main then alternate. "
-      + (accumulator ? "After A, exchange the complete flag objects in the same order, without reading individual flags."
-        : "Visit B/C/D/E/H/L, preserving both A registers and both flag objects.") + " No memory or control-state access occurs.",
-    steps: [...(accumulator ? ["a"] as const : ["b", "c", "d", "e", "h", "l"] as const).flatMap(register => [
-      readRegister(`${register}Alternate`, alternate.register(register)), readRegister(`${register}Main`, cpu.register(register)),
-      writeRegister(cpu.register(register), value(`${register}Alternate`)), writeRegister(alternate.register(register), value(`${register}Main`))]),
-      ...(accumulator ? [exchangeFlags(cpu.flags, alternate.flags)] : [])],
-  });
 }
 
 function specialTransfer(register: "i" | "r", load: boolean) {
@@ -100,34 +90,23 @@ function wordTransferName(register: string, operation: "immediate" | "load" | "s
   return { immediate: `LD ${name},nn`, load: `LD ${name},(nn)`, store: `LD (nn),${name}`, copy: `LD SP,${name}` }[operation];
 }
 
-function wordFlags(mnemonic: "ADD" | "ADC" | "SBC"): FlagPolicy {
-  const subtracting = mnemonic === "SBC", withCarry = mnemonic !== "ADD";
-  const left = value("left"), right = value("right"), result = value("result"), incoming = withCarry ? flagValue("carry") : undefined;
+function wordFlags(mnemonic: "ADC" | "SBC"): FlagPolicy {
+  const subtracting = mnemonic === "SBC";
+  const left = value("left"), right = value("right"), result = value("result"), incoming = flagValue("carry");
   // At bit 12, left XOR right XOR result isolates the carry/borrow out of bit 11, including incoming C.
   const half = not(zero(bitAnd(bitXor(bitXor(left, right), result), literal(16, 0x1000))));
   const h = { flag: cpu.flag("h"), value: half }, c = { flag: cpu.flag("c"), value: (subtracting ? borrow : carry)(left, right, incoming) };
   const n = { flag: cpu.flag("n"), value: flagLiteral(subtracting) };
   return { name: `Z80 ${mnemonic} word flags (H at bit 11)`,
-    parameters: { left: 16, right: 16, result: 16, ...(withCarry ? { carry: "flag" as const } : {}) }, unlisted: "preserve",
-    updates: withCarry ? [
+    parameters: { left: 16, right: 16, result: 16, carry: "flag" }, unlisted: "preserve",
+    updates: [
       { flag: cpu.flag("s"), value: negative(result) }, { flag: cpu.flag("z"), value: zero(result) }, h,
       { flag: cpu.flag("pv"), value: (subtracting ? overflow : addOverflow)(left, right, incoming) }, n, c,
-    ] : [h, c, n],
+    ],
   };
 }
 
-const wordAdditionFlags = wordFlags("ADD");
-
-function rotation(name: string, direction: "left" | "right", circular: boolean): InstructionDefinition {
-  return defineInstruction({ cpu: cpu.declaration, name,
-    explanation: `Capture A and rotate ${direction}, inserting ${circular ? "the outgoing bit" : "incoming C captured after A"}. `
-      + "Write A before replacing C, then clear N/H. Preserve S/Z/PV, the alternate bank, and control state. No data-memory access occurs.",
-    steps: [...intelAccumulatorRotate(cpu.register("a"), cpu.flag("c"), direction, circular),
-      updateFlags({ name: "Z80 accumulator rotate N/H", parameters: {}, unlisted: "preserve", updates: [
-        { flag: cpu.flag("n"), value: flagLiteral(false) }, { flag: cpu.flag("h"), value: flagLiteral(false) },
-      ] }, {})],
-  });
-}
+const wordAdditionFlags = policies.WORDADD;
 
 /** CB bodies read once; memory uses a resolved address, and BIT omits writeback entirely. */
 function cbFamily(mnemonic: string, steps: readonly Statement[], explanation: string, bit?: number, writeBack = true) {
@@ -249,14 +228,9 @@ function interruptReturn(notify: boolean) {
 }
 
 export const instructionsZ80 = {
-  ...Object.fromEntries(([false, true] as const).map(enabled => [enabled ? "ei" : "di", defineInstruction({ cpu: cpu.declaration, name: enabled ? "EI" : "DI",
-    explanation: "Write IFF2 before IFF1. " + (enabled ? "Then request IRQ inhibition through the following instruction at successful retirement." : "Retirement consumes any previous inhibition."),
-    steps: [writeLatch(cpu.latch("iff2"), enabled), writeLatch(cpu.latch("iff1"), enabled), ...(enabled ? [deferInterrupt("irq")] : [])] })])),
   ...Object.fromEntries(([0, 1, 2] as const).map(mode => [`im${mode}`, defineInstruction({ cpu: cpu.declaration, name: `IM ${mode}`,
     explanation: "Select a declared interrupt mode without changing flags or interrupt enables.", steps: [writeChoice(cpu.choice("im"), mode)] })])),
   retn: interruptReturn(false), reti: interruptReturn(true),
-  input: portTransfer(cpu.declaration, "IN A,(n)", immediatePort, registerView(cpu.register("a")), false),
-  output: portTransfer(cpu.declaration, "OUT (n),A", immediatePort, registerView(cpu.register("a")), true),
   // ED 01 rrr 00d: omit undocumented rrr=110; d=0 inputs, d=1 outputs through BC.
   ...Object.fromEntries((["b", "c", "d", "e", "h", "l", "a"] as const).flatMap(register => [
     [`input${register.toUpperCase()}`, registerInput(register)],
@@ -265,7 +239,6 @@ export const instructionsZ80 = {
   // ED 101 r d 01o: r repeats, d decrements rather than increments HL, o selects output.
   ini: blockIo(1, false, false), ind: blockIo(-1, false, false), inir: blockIo(1, false, true), indr: blockIo(-1, false, true),
   outi: blockIo(1, true, false), outd: blockIo(-1, true, false), otir: blockIo(1, true, true), otdr: blockIo(-1, true, true),
-  exchangeAf: exchangeBank(true), exchangeGeneralBanks: exchangeBank(false),
   loadAFromI: specialTransfer("i", true), loadAFromR: specialTransfer("r", true),
   loadIFromA: specialTransfer("i", false), loadRFromA: specialTransfer("r", false),
   neg: defineInstruction({ cpu: cpu.declaration, name: "NEG",
@@ -278,49 +251,25 @@ export const instructionsZ80 = {
   rld: rotateDigits(true), rrd: rotateDigits(false),
   ldi: block(1, false, false), ldd: block(-1, false, false), ldir: block(1, false, true), lddr: block(-1, false, true),
   cpi: block(1, true, false), cpd: block(-1, true, false), cpir: block(1, true, true), cpdr: block(-1, true, true),
-  ...z80StatusInstructions(cpu, { source: views.F, write: status => [perform(actions.writeF, { status })] }),
-  ...intelRegisterStacks(cpu, (register, operation) => `${operation.toUpperCase()} ${register.toUpperCase()}`),
   ...Object.fromEntries((["ix", "iy"] as const).flatMap(register => (["push", "pop"] as const).map(operation =>
     [`${operation}${register.toUpperCase()}`, intelStackTransfer(cpu, cpu.register(register), operation, `${operation.toUpperCase()} ${register.toUpperCase()}`)]))),
-  ...intelSubroutines(cpu, conditions, {
-    call: condition => condition === undefined ? "CALL nn" : `CALL ${conditionNames[condition]},nn`,
-    return: condition => condition === undefined ? "RET" : `RET ${conditionNames[condition]}`,
-    restart: address => `RST ${address.toString(16).toUpperCase().padStart(2, "0")}H`,
-  }),
-  ...intelJumps(cpu, conditions,
-    condition => typeof condition === "number" ? `JP ${conditionNames[condition]},nn`
-      : condition === "absolute" ? "JP nn" : "JP (HL)"),
-  jr: relativeBranch(cpu, "JR e", immediateByte),
-  ...Object.fromEntries((["NZ", "Z", "NC", "C"] as const).map((name, index) =>
-    [`jr${name}`, relativeBranch(cpu, `JR ${name},e`, immediateByte, flagCondition(cpu.flag(index < 2 ? "z" : "c"), Boolean(index & 1)))])),
-  djnz: defineInstruction({ ...relativeBranch(cpu, "DJNZ e", immediateByte, {
-    steps: [readRegister("counter", cpu.register("b")), writeRegister(cpu.register("b"), subtract(value("counter"), literal(8, 1))),
-      readRegister("remaining", cpu.register("b"))], test: not(zero(value("remaining"))),
-  }), explanation: "Fetch the displacement, then decrement B with byte wraparound without accessing flags. Read B again; if nonzero, "
-    + "add the signed displacement to the post-fetch PC with word wraparound. If zero, do not read or write PC. A failed fetch prevents the decrement. Preserve other registers." }),
   ...Object.fromEntries((["ix", "iy"] as const).map(index =>
     [`jump${index.toUpperCase()}`, jump(cpu, `JP (${index.toUpperCase()})`, registerSource(cpu.register(index)))])),
-  ...intelAccumulatorTransfers(cpu, (address, operation) => operation === "store" ? `LD (${address === "absolute" ? "nn" : address.toUpperCase()}),A`
-    : `LD A,(${address === "absolute" ? "nn" : address.toUpperCase()})`),
-  ...intelWordTransfers(cpu, wordTransferName),
-  ...intelExchanges(cpu, operation => operation === "stack" ? "EX (SP),HL" : "EX DE,HL"),
-  ...intelWordArithmeticFamily(cpu, wordAdditionFlags, (register, operation) => operation === "add" ? `ADD HL,${register.toUpperCase()}`
-    : `${operation === "increment" ? "INC" : "DEC"} ${register.toUpperCase()}`),
   // ED 01 pp q 010: pp selects BC/DE/HL/SP; q=0 subtracts with carry, q=1 adds with carry.
   ...Object.fromEntries((["SBC", "ADC"] as const).flatMap(mnemonic => (["bc", "de", "hl", "sp"] as const).map(register =>
-    [`${mnemonic.toLowerCase()}HL${register.toUpperCase()}`, intelWordArithmetic(cpu, intelWordRegister(cpu, "hl"), intelWordRegister(cpu, register),
+    [`${mnemonic.toLowerCase()}HL${register.toUpperCase()}`, intelWordArithmetic(cpu, wordRegister("hl"), wordRegister(register),
       mnemonic === "SBC" ? "subtract" : "add", wordFlags(mnemonic), `${mnemonic} HL,${register.toUpperCase()}`, cpu.flag("c"))]))),
   // DD/FD 00 pp 1 001 replaces both destination HL and pp=10 with IX/IY; 00 10 q 011 adjusts the index.
   ...Object.fromEntries((["ix", "iy"] as const).flatMap(index => [
     ...(["bc", "de", index, "sp"] as const).map((register): readonly [string, InstructionDefinition] => [`add${index.toUpperCase()}${register.toUpperCase()}`,
-      intelWordArithmetic(cpu, cpu.register(index), register === "ix" || register === "iy" ? cpu.register(register) : intelWordRegister(cpu, register),
+      intelWordArithmetic(cpu, cpu.register(index), register === "ix" || register === "iy" ? cpu.register(register) : wordRegister(register),
         "add", wordAdditionFlags, `ADD ${index.toUpperCase()},${register.toUpperCase()}`)]),
     ...(["INC", "DEC"] as const).map((mnemonic): readonly [string, InstructionDefinition] => [`${mnemonic.toLowerCase()}${index.toUpperCase()}Word`,
       intelWordAdjustment(cpu, cpu.register(index), mnemonic === "INC" ? 1 : -1, `${mnemonic} ${index.toUpperCase()}`)]),
   ])),
   // ED 01 pp d 011: HL shares its base-page bodies; the other pairs add load/store bodies.
   ...Object.fromEntries((["bc", "de", "sp"] as const).flatMap(register => (["load", "store"] as const).map(operation =>
-    [`${operation}${register.toUpperCase()}Memory`, intelWordTransfer(cpu, intelWordRegister(cpu, register), operation, wordTransferName(register, operation))]))),
+    [`${operation}${register.toUpperCase()}Memory`, intelWordTransfer(cpu, wordRegister(register), operation, wordTransferName(register, operation))]))),
   // DD/FD replace HL with IX/IY for immediate, absolute-memory, and SP loads.
   ...Object.fromEntries((["ix", "iy"] as const).flatMap(register => (["immediate", "load", "store", "copy"] as const).map(operation =>
     [`${operation}${register.toUpperCase()}Word`, intelWordTransfer(cpu, cpu.register(register), operation, wordTransferName(register, operation))]))),
@@ -329,16 +278,13 @@ export const instructionsZ80 = {
     [`exchange${register.toUpperCase()}Word`, intelStackExchange(cpu, cpu.register(register), `EX (SP),${register.toUpperCase()}`)])),
   // DD/FD 01 rrr 110 / 01 110 rrr: use real H/L with a resolved IX/IY address; rrr=110 is excluded.
   ...Object.fromEntries((["b", "c", "d", "e", "h", "l", "a"] as const).flatMap(register => [
-    [`load${register.toUpperCase()}Memory`, intelByteTransfer(cpu, register, "m", `LD ${register.toUpperCase()},memory`, "resolved")],
-    [`store${register.toUpperCase()}Memory`, intelByteTransfer(cpu, "m", register, `LD memory,${register.toUpperCase()}`, "resolved")],
+    [`load${register.toUpperCase()}Memory`, intelByteTransfer(cpu, register, "m", `LD ${register.toUpperCase()},memory`)],
+    [`store${register.toUpperCase()}Memory`, intelByteTransfer(cpu, "m", register, `LD memory,${register.toUpperCase()}`)],
   ])),
   // DD/FD 00 110 110: the decoder fetches d and resolves the address before the body fetches n.
-  storeImmediateMemory: intelByteTransfer(cpu, "m", "immediate", "LD memory,n", "resolved"),
+  storeImmediateMemory: intelByteTransfer(cpu, "m", "immediate", "LD memory,n"),
   // Resolved indexed operands reuse the chapter's read/modify/write actions.
   incMemory: actions.incMemory, decMemory: actions.decMemory,
-  // 00 ooo 111: ooo=000/001 rotates A circularly; 010/011 rotates through C. Preserve S/Z/PV.
-  rlca: rotation("RLCA", "left", true), rrca: rotation("RRCA", "right", true),
-  rla: rotation("RLA", "left", false), rra: rotation("RRA", "right", false),
   // CB 00 yyy rrr: yyy selects the operation; rrr selects B/C/D/E/H/L/(HL)/A.
   // One resolved-memory body also serves DD/FD CB d 00 yyy 110. yyy=110 is undocumented SLL.
   ...shiftFamily("RLC", "left", "outgoing"), // 000

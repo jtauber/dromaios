@@ -22,7 +22,7 @@ const storage = `state {
 const compile = (body: string) => compileCpuChapter(`Bank and numeric-choice probe.\n\n\`\`\`cpu\ncpu "probe"\n${body}\n\`\`\``, {}, "banks.md");
 const state = () => ({ a: 0x12, flags: { c: false }, shadow: { accumulator: 0x34, flags: { carry: true } }, mode: 0 });
 type State = ReturnType<typeof state>;
-async function instructions(body: string): Promise<Record<string, (state: State) => void>> {
+async function instructions<S = State>(body: string): Promise<Record<string, (state: S) => void>> {
   const chapter = compile(body), source = generateInstructions("probe", chapter.actions);
   const javascript = stripTypeScriptTypes(source).replace('"../alu.ts"', JSON.stringify(new URL("../../../../src/components/cpus/alu.js", import.meta.url).href));
   return (await import(`data:text/javascript,${encodeURIComponent(javascript)}`)).instructions;
@@ -118,4 +118,46 @@ for (const [name, text, message] of invalid) test(`bank/choice authoring rejects
 test("the IR rejects a flag from an undeclared bank rather than treating it as a main flag", () => {
   assert.throws(() => defineInstruction({ cpu: { name: "probe", state: compile(storage).state! }, name: "invalid", explanation: "",
     steps: [readFlag("carry", { kind: "flag", cpu: "probe", bank: "missing", field: "c" })] }), /unknown register bank/);
+});
+
+const exchangeStorage = storage.replace("  flag C\n", "  flag C = carry\n");
+const exchangeAction = '\naction swapFlags "exchange whole objects" {\n  exchange FLAGS, OTHER.FLAGS\n}';
+
+test("flag-group exchange preserves object identity and ordered reads/writes, including partial failure", async () => {
+  type Flags = { carry: boolean };
+  type Banks = { flags: Flags; shadow: { flags: Flags } };
+  const generated = await instructions<Banks>(exchangeStorage + exchangeAction);
+  for (const failAt of [-1, 0, 1, 2, 3]) {
+    const events: string[] = [], failure = new Error("flag-group access");
+    const main = new Proxy({ carry: false }, { get() { assert.fail("No individual flag reads"); } });
+    const other = new Proxy({ carry: true }, { get() { assert.fail("No individual flag reads"); } });
+    const state: Banks = { flags: main, shadow: { flags: other } };
+    const access = (name: string) => { events.push(name); if (events.length - 1 === failAt) throw failure; };
+    const shadow = new Proxy(state.shadow, {
+      get(target, key, receiver) { access("read other"); return Reflect.get(target, key, receiver); },
+      set(target, key, value) { access("write other"); return Reflect.set(target, key, value); },
+    });
+    const observed = new Proxy(state, {
+      get(target, key, receiver) { if (key === "shadow") return shadow; access("read main"); return Reflect.get(target, key, receiver); },
+      set(target, key, value) { access("write main"); return Reflect.set(target, key, value); },
+    });
+    const run = () => generated.swapFlags!(observed);
+    if (failAt < 0) run(); else assert.throws(run, error => error === failure);
+    assert.deepEqual(events, ["read other", "read main", "write main", "write other"].slice(0, failAt < 0 ? 4 : failAt + 1));
+    assert.equal(state.flags, failAt < 0 || failAt === 3 ? other : main);
+    assert.equal(state.shadow.flags, failAt < 0 ? main : other);
+  }
+  assert.match(describeInstruction(compile(exchangeStorage + exchangeAction).actions.swapFlags!), /exchange/i);
+});
+
+test("flag-group exchange requires matching layouts and cannot mutate a read-only view", () => {
+  assert.throws(() => compile(storage + exchangeAction), /matching|same|identical/i);
+  assert.throws(() => compile(exchangeStorage + exchangeAction.replace("OTHER.FLAGS", "MISSING.FLAGS")), /Unknown name MISSING.FLAGS/);
+  assert.throws(() => compile(exchangeStorage + exchangeAction.replace("FLAGS,", "A,")), /Unknown name A/);
+  assert.throws(() => compile(exchangeStorage + '\nview BAD "not a view": 8 {\n exchange FLAGS, OTHER.FLAGS\n return u8(0)\n}'), /read|view/i);
+});
+
+test("exchange remains a valid capture name beside the flag-group statement", async () => {
+  const generated = await instructions(exchangeStorage + '\naction capture "a value called exchange" {\n exchange = u8($42)\n A <- exchange\n}');
+  const current = state(); generated.capture!(current); assert.equal(current.a, 0x42);
 });

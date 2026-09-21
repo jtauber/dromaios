@@ -205,7 +205,7 @@ Choose the grouping from the CPU's encoding:
 | [6502](../../src/components/cpus/specifications/6502.md) | `aaa bbb cc`; `cc=01` groups `aaa` operations with shared `bbb` operand sources; `cc=00/10` retain `bbb` subgroups and their distinct implied/addressing forms |
 | [6800](../../src/components/cpus/specifications/6800.md) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; unary forms use `01 tt oooo`, with `tt` selecting A/B/indexed/extended; short branches use `0010 ttt p`, keeping the unused `21` explicit |
 | [6809](../../src/components/cpus/specifications/6809.md) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, `0110 oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte; pages `10`/`11` share chapter word families, with long conditions on page `10` |
-| [Z80](../../src/components/cpus/z80.ts) | Shared 8080 base families plus explicit Z80 extension slots; shared CB `xx yyy rrr` operations for ordinary/indexed operands; one DD/FD builder selecting IX/IY; ED pair and block families; decode the complete supported encoding before committing state |
+| [Z80](../../src/components/cpus/z80.ts) | Chapter-bound unprefixed instructions; shared CB `xx yyy rrr` operations for ordinary/indexed operands; one DD/FD builder selecting IX/IY; ED pair and block families; decode the complete supported encoding before committing state |
 | [8088](../../src/components/cpus/8088.ts) | Family-specific fields: `00 ooo 0 d w` / `00 ooo 10 w` for ALU families, `mm ggg rrr` for ModR/M operands or operation extensions, `0101 p rrr` for register stacks, `0111 ttt p` for conditional jumps, and `1010 00 d w` / `1011 w rrr` for transfers; wrap byte offsets within the selected segment before mapping to the physical bus |
 | [68000](../../src/components/cpus/68000.ts) | Sixteen-bit operation words; MOVE encodes destination register/mode before source mode/register; immediate ALU families encode operation, size, and a data-alterable effective address |
 
@@ -369,67 +369,32 @@ execution, with no inherited decoder or handwritten adapter. Numeric opcode
 keys bind every complete body. Register-pair operands expose the high/low read
 and write order; stack effects and packed status remain explicit in the chapter.
 
-[`Cpu8080Family`](../../src/components/cpus/8080-family.ts) remains the Z80's
-internal base. It describes the 240 common 8080 encodings, register operands,
-pair views, and data-word accesses. The Z80 supplies its operation hooks and
-adds the other unprefixed forms plus CB, ED, DD, and FD pages. Retain that
-structure until the Z80 chapter can own the complete prefix and retirement
-contracts. There is no requirement to make the 8080 inherit it merely because
-the chips share encodings.
+The [Z80 chapter](../../src/components/cpus/specifications/z80.md) now owns all
+252 unprefixed instructions, both stored banks, pair views and writes, and packed
+status. Its ordinary table binds chapter opcodes directly; no inherited base
+class or duplicate encoding inventory remains. The core retains CB, ED, DD,
+and FD decoding, refresh increments, reset, and interrupt boundaries.
 
-The chapter and [Intel builders](../../src/components/cpus/semantics/intel.ts)
-preserve the same explicit effect order: capture byte sources before A or
-destination addresses; apply arithmetic flags before writeback; resolve a
-memory adjustment's address once. The flag rules remain CPU-specific, including
-parity versus overflow and opposite subtraction half-carry conventions. The
-Z80's indexed bodies receive resolved addresses from its decoder.
+Native [Intel builders](../../src/components/cpus/semantics/intel.ts) serve the
+remaining prefixed word and indexed-byte forms. Their BC/DE/HL operands consume
+the chapter's pair sources and write actions; IX/IY and SP are stored words.
+ED HL loads/stores call the chapter's unprefixed bodies. Indexed byte arithmetic
+and adjustments also reuse chapter actions after native address resolution.
 
-The [encoding inventory](../../src/components/cpus/intel-encodings.ts) still
-serves Z80 construction and binding. The 8080 declares every pattern directly
-in its chapter. The two models preserve the same ordered word, stack, and control
-effects through their respective authoring and execution paths.
+Both chapters expose capture and effect order: word sources precede their
+destinations, word results precede flags, and complete stack pops precede
+register writes. Z80 ADD preserves S/Z/PV, while ADC/SBC HL replace them with
+whole-word sign, zero, and overflow. H uses bit 12 of `left XOR right XOR result`.
+Stack exchanges read low/high and write high/low before replacing the register.
+Conditional jumps/calls fetch complete targets before testing; untaken paths
+avoid stack and PC effects. Z80 DJNZ fetches before decrementing and testing B.
 
-Z80 word transfers share construction and their immediate, memory, and SP-copy
-inventory. Bodies fetch complete addresses, read or write memory low byte first,
-and express split-register writes explicitly. Their pair descriptions reuse the
-runtime's register-pair byte mapping. Z80 ED HL forms share their unprefixed
-bodies; IX/IY use stored word registers through the same construction. Keep
-prefix recognition and retirement in the Z80 decoder.
-
-Word arithmetic reuses those pair descriptions. INX/DCX and word INC/DEC
-never access flags. DAD and ADD capture the source before the destination;
-ADC/SBC HL then capture incoming C. All write the result before flags, unlike
-byte arithmetic. DAD updates only CY; Z80 ADD preserves S/Z/PV, while ADC/SBC
-replace them with whole-word sign, zero, and overflow. Z80 H comes from carry
-or borrow out of bit 11, expressed by bit 12 of `left XOR right XOR result`.
-
-The `11 10 m 011` exchange inventory uses the same binder: m=0 selects
-XTHL / EX (SP),HL, and m=1 selects XCHG / EX DE,HL. The stack-exchange
-construction also serves IX/IY. Bodies capture the complete register before SP,
-read low/high, write high/low, then replace the register only after both writes
-succeed. Register-only exchanges swap D/H before E/L. These bodies never write
-SP or access flags.
-
-The jump inventory uses the same binder for `11 ccc 010`, unconditional JMP/JP,
-and PCHL/JP (HL). Definitions capture complete targets before testing flags;
-only taken paths write PC. Z80 JR and DJNZ
-use the same conditional construction, and JP (IX/IY) uses a stored-word source.
-DJNZ fetches before decrementing B and never accesses flags. Prefix decoding,
-refresh, and supplied-instruction retirement remain in the core.
-
-The Z80 constructor validates and copies its state before passing that
-owned state to `super`. The base constructor binds only the state; the Z80
-constructs its private runtime interrupt stack afterward. It initializes its
-operation selectors before calling `baseInstructions()` to construct its table; the base constructor
-must never call that builder or a CPU hook. CPU-specific helpers stay in `#` methods except for the required overrides;
-protected members form the internal TypeScript inheritance boundary.
-
-State descriptions, public snapshots, reset, instruction fetching, and step
-outcomes come from the 8080 chapter or the Z80 core. Z80 prefix validation and
-R updates therefore keep their existing execution contract. Both expose `snapshot`,
-`reset`, `step`, and their own boundary-level `interrupt` operation. The family
-adds no public controls or mutable state access. This internal Z80 hierarchy
-is not a requirement for other processors.
+The Z80 constructor validates and copies state before binding chapter handlers,
+readers, and its private interrupt stack. Binding does not read live state or
+memory. Prefix tables capture callbacks and selectors; execution observes state
+only when a handler runs. All internal state and helpers use private fields.
+Both CPUs retain their public `snapshot`, `reset`, `step`, and boundary-level
+`interrupt` operations, with independently tested records and failure effects.
 
 The 8008 uses the same instruction representation without inheriting this
 execution core. Its [literate chapter](../../src/components/cpus/specifications/8008.md)
@@ -514,11 +479,10 @@ fields, concrete snapshot types, and outcome narrowing through the CPU exports.
 
 ## Register pairs and packed flags
 
-The [remaining pair mapping](../../src/components/cpus/register-pairs.ts) supplies
-BC, DE, and HL byte names to native Z80 word builders. Its chapter now defines
-snapshot pair views for both banks and the HL source used by ordinary byte
-instructions. The 8080 defines its pairs entirely in its own chapter. SP is a
-stored word, not a pair of bytes. Native Z80 pair writes remain to migrate.
+The Z80 chapter defines BC/DE/HL reads for both banks, high-then-low pair writes,
+and AF/F packing and replacement. Snapshots, ordinary instructions, and native
+prefixed builders consume those definitions. The 8080 also defines its pairs in
+its chapter. SP, IX, and IY remain stored words rather than pairs of bytes.
 
 The [flag-register helper](../../src/components/cpus/flags.ts) takes a map from
 flag names to bit positions, plus any fixed output bits. `encode` reads current
@@ -555,7 +519,7 @@ describe the callbacks available to an opcode handler:
 callbacks without exposing that log, and all callback properties are readonly.
 
 The vector runtime supplies `WordInstructionContext` to 6502, 6800, and 6809 handlers.
-The shared 8080-family core imports it as its local `InstructionContext`. Shared byte
+The Z80 extends it as its local `InstructionContext`. Shared byte
 execution for the 8008 and 8080 adds `BytePorts` and IRQ-deferral
 callbacks; chapter validation permits deferral only with a declared retirement
 destination. The Z80 adds ports and deferral, plus RETI notification at retirement.
@@ -987,8 +951,8 @@ preserving C on TST, and preserving V on right shifts. The 6800 chapter states
 its different rules; no shared Motorola unary builder remains.
 JMP remains separate from byte modification. The 6809 chapter now owns DAA,
 including original A/H/C capture, preserved H/control flags, and modeled V
-clearing. The [decimal builder](../../src/components/cpus/semantics/decimal.ts)
-serves only the Z80.
+clearing. The Z80 chapter makes DAA's correction direction and flag/write
+stages explicit; no native decimal builder remains.
 
 Chapter `call` and `jump` actions also serve indexed JSR/JMP after chapter-owned
 address resolution. Calls decrement live S before each byte write and preserve NMI arming;

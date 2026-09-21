@@ -365142,1694 +365142,6 @@ send and record ESC opcode bitOr(shiftBitsLeft(zeroExtend8(highOpcode), 3), bitA
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
-### z80 NOP
-
-No effects after opcode fetching.
-
-```text
-
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD BC,nn
-
-Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
-
-```text
-result:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-write B:u8 := highByte(result)
-write C:u8 := lowByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD (BC),A
-
-Read BC high byte then low byte, without changing the pair. Then capture A and write once to the captured address, without reading the destination. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
-
-```text
-address:u16 := source "BC" {
-  high:u8 := read B
-  low:u8 := read C
-  yield concatHighLow(high, low)
-}
-result:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write memory[address] := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 INC BC
-
-Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
-
-```text
-original:u16 := source "BC" {
-  high:u8 := read B
-  low:u8 := read C
-  yield concatHighLow(high, low)
-}
-result := addWrap(original, 0001:u16)
-write B:u8 := highByte(result)
-write C:u8 := lowByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 ADD HL,BC
-
-Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
-
-```text
-right:u16 := source "BC" {
-  high:u8 := read B
-  low:u8 := read C
-  yield concatHighLow(high, low)
-}
-left:u16 := source "HL" {
-  high:u8 := read H
-  low:u8 := read L
-  yield concatHighLow(high, low)
-}
-result := addWrap(left, right)
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
-flags "Z80 ADD word flags (H at bit 11)" simultaneously {
-  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
-  C := carry(left, right)
-  N := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 LD A,(BC)
-
-Read BC high byte then low byte, without changing the pair. Read once at the captured address, then write A only after the read succeeds; do not read the previous A. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
-
-```text
-result:u8 := source "byte at BC" {
-  address:u16 := source "BC" {
-    high:u8 := read B
-    low:u8 := read C
-    yield concatHighLow(high, low)
-  }
-  byte:u8 := read memory[address]
-  yield byte
-}
-write A:u8 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 DEC BC
-
-Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
-
-```text
-original:u16 := source "BC" {
-  high:u8 := read B
-  low:u8 := read C
-  yield concatHighLow(high, low)
-}
-result := subtract(original, 0001:u16)
-write B:u8 := highByte(result)
-write C:u8 := lowByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD DE,nn
-
-Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
-
-```text
-result:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-write D:u8 := highByte(result)
-write E:u8 := lowByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD (DE),A
-
-Read DE high byte then low byte, without changing the pair. Then capture A and write once to the captured address, without reading the destination. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
-
-```text
-address:u16 := source "DE" {
-  high:u8 := read D
-  low:u8 := read E
-  yield concatHighLow(high, low)
-}
-result:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write memory[address] := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 INC DE
-
-Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
-
-```text
-original:u16 := source "DE" {
-  high:u8 := read D
-  low:u8 := read E
-  yield concatHighLow(high, low)
-}
-result := addWrap(original, 0001:u16)
-write D:u8 := highByte(result)
-write E:u8 := lowByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 ADD HL,DE
-
-Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
-
-```text
-right:u16 := source "DE" {
-  high:u8 := read D
-  low:u8 := read E
-  yield concatHighLow(high, low)
-}
-left:u16 := source "HL" {
-  high:u8 := read H
-  low:u8 := read L
-  yield concatHighLow(high, low)
-}
-result := addWrap(left, right)
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
-flags "Z80 ADD word flags (H at bit 11)" simultaneously {
-  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
-  C := carry(left, right)
-  N := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 LD A,(DE)
-
-Read DE high byte then low byte, without changing the pair. Read once at the captured address, then write A only after the read succeeds; do not read the previous A. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
-
-```text
-result:u8 := source "byte at DE" {
-  address:u16 := source "DE" {
-    high:u8 := read D
-    low:u8 := read E
-    yield concatHighLow(high, low)
-  }
-  byte:u8 := read memory[address]
-  yield byte
-}
-write A:u8 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 DEC DE
-
-Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
-
-```text
-original:u16 := source "DE" {
-  high:u8 := read D
-  low:u8 := read E
-  yield concatHighLow(high, low)
-}
-result := subtract(original, 0001:u16)
-write D:u8 := highByte(result)
-write E:u8 := lowByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD HL,nn
-
-Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
-
-```text
-result:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD (nn),HL
-
-Fetch the complete address low byte first, then capture the complete source before writing memory low byte then high byte, wrapping at FFFF. Never read the destination; a failed second write retains the first. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
-
-```text
-address:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-result:u16 := source "HL" {
-  high:u8 := read H
-  low:u8 := read L
-  yield concatHighLow(high, low)
-}
-write memory[address] := lowByte(result)
-write memory[addWrap(address, 0001:u16)] := highByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 INC HL
-
-Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
-
-```text
-original:u16 := source "HL" {
-  high:u8 := read H
-  low:u8 := read L
-  yield concatHighLow(high, low)
-}
-result := addWrap(original, 0001:u16)
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 DAA
-
-Choose low/high corrections from the original A and half/full carry, including invalid BCD inputs. N selects subtract or add. Replace S/Z/H/PV/N/C, write A, then restore incoming N. No instruction or data-memory access occurs.
-
-```text
-original:u8 := read A
-half:flag := read H
-carry:flag := read C
-subtract:flag := read N
-correction := bitOr(select(or(not(borrow(bitAnd(original, 0F:u8), 0A:u8)), half), 06:u8, 00:u8), select(or(not(borrow(original, 9A:u8)), carry), 60:u8, 00:u8))
-result := select(subtract, subtract(original, correction), addWrap(original, correction))
-replace flags "DAA" simultaneously {
-  S := topBit(result)
-  Z := isZero(result)
-  H := not(isZero(bitAnd(bitXor(original, result), 10:u8)))
-  PV := evenParity8(result)
-  N := 0:flag
-  C := or(not(borrow(original, 9A:u8)), carry)
-} // Replace the complete flag object.
-write A:u8 := result
-flags "restore DAA N" simultaneously {
-  N := subtract
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: none.
-
-### z80 ADD HL,HL
-
-Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
-
-```text
-right:u16 := source "HL" {
-  high:u8 := read H
-  low:u8 := read L
-  yield concatHighLow(high, low)
-}
-left:u16 := source "HL" {
-  high:u8 := read H
-  low:u8 := read L
-  yield concatHighLow(high, low)
-}
-result := addWrap(left, right)
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
-flags "Z80 ADD word flags (H at bit 11)" simultaneously {
-  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
-  C := carry(left, right)
-  N := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 LD HL,(nn)
-
-Fetch the complete address low byte first, then read memory low byte then high byte, wrapping at FFFF. Only after both reads succeed, write the destination. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
-
-```text
-result:u16 := source "memory word, low byte first" {
-  address:u16 := source "immediate word, low byte first" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
-    yield concatHighLow(high, low)
-  }
-  low:u8 := read memory[address]
-  high:u8 := read memory[addWrap(address, 0001:u16)]
-  yield concatHighLow(high, low)
-}
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 DEC HL
-
-Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
-
-```text
-original:u16 := source "HL" {
-  high:u8 := read H
-  low:u8 := read L
-  yield concatHighLow(high, low)
-}
-result := subtract(original, 0001:u16)
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 CPL
-
-Complement A; then set N/H and preserve the other flags.
-
-```text
-original:u8 := read A
-write A:u8 := bitXor(original, FF:u8)
-flags "CPL" simultaneously {
-  N := 1:flag
-  H := 1:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV, C.
-
-### z80 LD SP,nn
-
-Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
-
-```text
-result:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-write SP:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD (nn),A
-
-Fetch the complete address low byte then high byte. Then capture A and write once to the captured address, without reading the destination. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
-
-```text
-address:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-result:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write memory[address] := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 INC SP
-
-Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
-
-```text
-original:u16 := source "register SP" {
-  contents:u16 := read SP
-  yield contents
-}
-result := addWrap(original, 0001:u16)
-write SP:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 SCF
-
-Set C, then clear N/H; preserve S/Z/PV and all registers.
-
-```text
-flags "SCF" simultaneously {
-  C := 1:flag
-  N := 0:flag
-  H := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 ADD HL,SP
-
-Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
-
-```text
-right:u16 := source "register SP" {
-  contents:u16 := read SP
-  yield contents
-}
-left:u16 := source "HL" {
-  high:u8 := read H
-  low:u8 := read L
-  yield concatHighLow(high, low)
-}
-result := addWrap(left, right)
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
-flags "Z80 ADD word flags (H at bit 11)" simultaneously {
-  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
-  C := carry(left, right)
-  N := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 LD A,(nn)
-
-Fetch the complete address low byte then high byte. Read once at the captured address, then write A only after the read succeeds; do not read the previous A. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
-
-```text
-result:u8 := source "byte at immediate word, low byte first" {
-  address:u16 := source "immediate word, low byte first" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
-    yield concatHighLow(high, low)
-  }
-  byte:u8 := read memory[address]
-  yield byte
-}
-write A:u8 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 DEC SP
-
-Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
-
-```text
-original:u16 := source "register SP" {
-  contents:u16 := read SP
-  yield contents
-}
-result := subtract(original, 0001:u16)
-write SP:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 CCF
-
-Copy incoming C to H, complement C, and clear N. Preserve S/Z/PV and all registers.
-
-```text
-carry:flag := read C
-flags "CCF" simultaneously {
-  H := carry
-  C := not(carry)
-  N := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 HALT
-
-Set the halted latch; preserve registers and flags. Retirement remains in the CPU boundary.
-
-```text
-write halted:boolean := true
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RET NZ
-
-If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-condition:flag := read Z
-when not(condition) {
-  returnPC:u16 := source "pop little-endian word" {
-    low:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    high:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write PC:u16 := returnPC
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 POP BC
-
-Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-result:u16 := source "pop little-endian word" {
-  low:u8 := source "pop byte through SP" {
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  high:u8 := source "pop byte through SP" {
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  yield concatHighLow(high, low)
-}
-write B:u8 := highByte(result)
-write C:u8 := lowByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 JP NZ,nn
-
-Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read Z
-when not(condition) {
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 JP nn
-
-Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-write PC:u16 := target
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 CALL NZ,nn
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read Z
-when not(condition) {
-  returnPC:u16 := read PC
-  firstPointer:u16 := read SP
-  write SP:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read SP
-  write memory[firstAddress] := highByte(returnPC)
-  secondPointer:u16 := read SP
-  write SP:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read SP
-  write memory[secondAddress] := lowByte(returnPC)
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 PUSH BC
-
-Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-original:u16 := source "BC" {
-  high:u8 := read B
-  low:u8 := read C
-  yield concatHighLow(high, low)
-}
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-firstAddress:u16 := read SP
-write memory[firstAddress] := highByte(original)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := lowByte(original)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RST 00H
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target := 0000:u16
-returnPC:u16 := read PC
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-firstAddress:u16 := read SP
-write memory[firstAddress] := highByte(returnPC)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := lowByte(returnPC)
-write PC:u16 := target
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RET Z
-
-If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-condition:flag := read Z
-when condition {
-  returnPC:u16 := source "pop little-endian word" {
-    low:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    high:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write PC:u16 := returnPC
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RET
-
-If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-returnPC:u16 := source "pop little-endian word" {
-  low:u8 := source "pop byte through SP" {
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  high:u8 := source "pop byte through SP" {
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  yield concatHighLow(high, low)
-}
-write PC:u16 := returnPC
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 JP Z,nn
-
-Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read Z
-when condition {
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 CALL Z,nn
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read Z
-when condition {
-  returnPC:u16 := read PC
-  firstPointer:u16 := read SP
-  write SP:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read SP
-  write memory[firstAddress] := highByte(returnPC)
-  secondPointer:u16 := read SP
-  write SP:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read SP
-  write memory[secondAddress] := lowByte(returnPC)
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 CALL nn
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-returnPC:u16 := read PC
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-firstAddress:u16 := read SP
-write memory[firstAddress] := highByte(returnPC)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := lowByte(returnPC)
-write PC:u16 := target
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RST 08H
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target := 0008:u16
-returnPC:u16 := read PC
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-firstAddress:u16 := read SP
-write memory[firstAddress] := highByte(returnPC)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := lowByte(returnPC)
-write PC:u16 := target
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RET NC
-
-If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-condition:flag := read C
-when not(condition) {
-  returnPC:u16 := source "pop little-endian word" {
-    low:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    high:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write PC:u16 := returnPC
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 POP DE
-
-Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-result:u16 := source "pop little-endian word" {
-  low:u8 := source "pop byte through SP" {
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  high:u8 := source "pop byte through SP" {
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  yield concatHighLow(high, low)
-}
-write D:u8 := highByte(result)
-write E:u8 := lowByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 JP NC,nn
-
-Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read C
-when not(condition) {
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 CALL NC,nn
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read C
-when not(condition) {
-  returnPC:u16 := read PC
-  firstPointer:u16 := read SP
-  write SP:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read SP
-  write memory[firstAddress] := highByte(returnPC)
-  secondPointer:u16 := read SP
-  write SP:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read SP
-  write memory[secondAddress] := lowByte(returnPC)
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 PUSH DE
-
-Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-original:u16 := source "DE" {
-  high:u8 := read D
-  low:u8 := read E
-  yield concatHighLow(high, low)
-}
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-firstAddress:u16 := read SP
-write memory[firstAddress] := highByte(original)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := lowByte(original)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RST 10H
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target := 0010:u16
-returnPC:u16 := read PC
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-firstAddress:u16 := read SP
-write memory[firstAddress] := highByte(returnPC)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := lowByte(returnPC)
-write PC:u16 := target
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RET C
-
-If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-condition:flag := read C
-when condition {
-  returnPC:u16 := source "pop little-endian word" {
-    low:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    high:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write PC:u16 := returnPC
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 JP C,nn
-
-Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read C
-when condition {
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 CALL C,nn
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read C
-when condition {
-  returnPC:u16 := read PC
-  firstPointer:u16 := read SP
-  write SP:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read SP
-  write memory[firstAddress] := highByte(returnPC)
-  secondPointer:u16 := read SP
-  write SP:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read SP
-  write memory[secondAddress] := lowByte(returnPC)
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RST 18H
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target := 0018:u16
-returnPC:u16 := read PC
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-firstAddress:u16 := read SP
-write memory[firstAddress] := highByte(returnPC)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := lowByte(returnPC)
-write PC:u16 := target
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RET PO
-
-If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-condition:flag := read PV
-when not(condition) {
-  returnPC:u16 := source "pop little-endian word" {
-    low:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    high:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write PC:u16 := returnPC
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 POP HL
-
-Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-result:u16 := source "pop little-endian word" {
-  low:u8 := source "pop byte through SP" {
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  high:u8 := source "pop byte through SP" {
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  yield concatHighLow(high, low)
-}
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 JP PO,nn
-
-Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read PV
-when not(condition) {
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 EX (SP),HL
-
-Capture the complete register, then SP. Read memory low byte then high byte, wrapping at FFFF. Write the original register high byte then low byte to those captured addresses, even if unchanged. Only after both writes succeed, replace the register with the captured memory word; pairs read and write high byte first. A failed access prevents register writeback and retains completed memory writes. Never write SP or access flags, alternate banks, or control state.
-
-```text
-original:u16 := source "HL" {
-  high:u8 := read H
-  low:u8 := read L
-  yield concatHighLow(high, low)
-}
-address:u16 := read SP
-low:u8 := read memory[address]
-high:u8 := read memory[addWrap(address, 0001:u16)]
-write memory[addWrap(address, 0001:u16)] := highByte(original)
-write memory[address] := lowByte(original)
-result := concatHighLow(high, low)
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 CALL PO,nn
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read PV
-when not(condition) {
-  returnPC:u16 := read PC
-  firstPointer:u16 := read SP
-  write SP:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read SP
-  write memory[firstAddress] := highByte(returnPC)
-  secondPointer:u16 := read SP
-  write SP:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read SP
-  write memory[secondAddress] := lowByte(returnPC)
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 PUSH HL
-
-Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-original:u16 := source "HL" {
-  high:u8 := read H
-  low:u8 := read L
-  yield concatHighLow(high, low)
-}
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-firstAddress:u16 := read SP
-write memory[firstAddress] := highByte(original)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := lowByte(original)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RST 20H
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target := 0020:u16
-returnPC:u16 := read PC
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-firstAddress:u16 := read SP
-write memory[firstAddress] := highByte(returnPC)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := lowByte(returnPC)
-write PC:u16 := target
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RET PE
-
-If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-condition:flag := read PV
-when condition {
-  returnPC:u16 := source "pop little-endian word" {
-    low:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    high:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write PC:u16 := returnPC
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 JP (HL)
-
-Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
-
-```text
-target:u16 := source "HL" {
-  high:u8 := read H
-  low:u8 := read L
-  yield concatHighLow(high, low)
-}
-write PC:u16 := target
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 JP PE,nn
-
-Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read PV
-when condition {
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 EX DE,HL
-
-Capture H then D, write D then H; capture L then E, write E then L. Preserve all other registers, flags, alternate banks, and control state without accessing them. No memory access occurs.
-
-```text
-h:u8 := read H
-d:u8 := read D
-write D:u8 := h
-write H:u8 := d
-l:u8 := read L
-e:u8 := read E
-write E:u8 := l
-write L:u8 := e
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 CALL PE,nn
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read PV
-when condition {
-  returnPC:u16 := read PC
-  firstPointer:u16 := read SP
-  write SP:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read SP
-  write memory[firstAddress] := highByte(returnPC)
-  secondPointer:u16 := read SP
-  write SP:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read SP
-  write memory[secondAddress] := lowByte(returnPC)
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RST 28H
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target := 0028:u16
-returnPC:u16 := read PC
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-firstAddress:u16 := read SP
-write memory[firstAddress] := highByte(returnPC)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := lowByte(returnPC)
-write PC:u16 := target
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RET P
-
-If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-condition:flag := read S
-when not(condition) {
-  returnPC:u16 := source "pop little-endian word" {
-    low:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    high:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write PC:u16 := returnPC
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 POP AF
-
-Pop the complete word before writing A and replacing flags. Ignore reserved status bits. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-result:u16 := source "pop little-endian word" {
-  low:u8 := source "pop byte through SP" {
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  high:u8 := source "pop byte through SP" {
-    address:u16 := read SP
-    byte:u8 := read memory[address]
-    pointer:u16 := read SP
-    write SP:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  yield concatHighLow(high, low)
-}
-write A:u8 := highByte(result)
-perform "replace packed F" {
-  status:u8 := lowByte(result)
-  replace flags "restore all documented flags" simultaneously {
-    S := not(isZero(bitAnd(status, 80:u8)))
-    Z := not(isZero(bitAnd(status, 40:u8)))
-    H := not(isZero(bitAnd(status, 10:u8)))
-    PV := not(isZero(bitAnd(status, 04:u8)))
-    N := not(isZero(bitAnd(status, 02:u8)))
-    C := not(isZero(bitAnd(status, 01:u8)))
-  } // Replace the complete flag object.
-}
-```
-
-Flags preserved throughout: none.
-
-### z80 JP P,nn
-
-Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read S
-when not(condition) {
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 CALL P,nn
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read S
-when not(condition) {
-  returnPC:u16 := read PC
-  firstPointer:u16 := read SP
-  write SP:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read SP
-  write memory[firstAddress] := highByte(returnPC)
-  secondPointer:u16 := read SP
-  write SP:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read SP
-  write memory[secondAddress] := lowByte(returnPC)
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 PUSH AF
-
-Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-original:u16 := source "A:F" {
-  a:u8 := read A
-  flags:u8 := source "packed documented flags" {
-    sign:flag := read S
-    zero:flag := read Z
-    half:flag := read H
-    parity:flag := read PV
-    subtract:flag := read N
-    carry:flag := read C
-    sz := bitOr(select(sign, 80:u8, 00:u8), select(zero, 40:u8, 00:u8))
-    hp := bitOr(select(half, 10:u8, 00:u8), select(parity, 04:u8, 00:u8))
-    nc := bitOr(select(subtract, 02:u8, 00:u8), select(carry, 01:u8, 00:u8))
-    yield bitOr(bitOr(sz, hp), nc)
-  }
-  yield concatHighLow(a, flags)
-}
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-firstAddress:u16 := read SP
-write memory[firstAddress] := highByte(original)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := lowByte(original)
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RST 30H
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target := 0030:u16
-returnPC:u16 := read PC
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-firstAddress:u16 := read SP
-write memory[firstAddress] := highByte(returnPC)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := lowByte(returnPC)
-write PC:u16 := target
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RET M
-
-If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-condition:flag := read S
-when condition {
-  returnPC:u16 := source "pop little-endian word" {
-    low:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    high:u8 := source "pop byte through SP" {
-      address:u16 := read SP
-      byte:u8 := read memory[address]
-      pointer:u16 := read SP
-      write SP:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write PC:u16 := returnPC
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 LD SP,HL
-
-Capture the complete source, then write SP without memory access. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
-
-```text
-result:u16 := source "HL" {
-  high:u8 := read H
-  low:u8 := read L
-  yield concatHighLow(high, low)
-}
-write SP:u16 := result
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 JP M,nn
-
-Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read S
-when condition {
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 CALL M,nn
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target:u16 := source "immediate word, low byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-condition:flag := read S
-when condition {
-  returnPC:u16 := read PC
-  firstPointer:u16 := read SP
-  write SP:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read SP
-  write memory[firstAddress] := highByte(returnPC)
-  secondPointer:u16 := read SP
-  write SP:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read SP
-  write memory[secondAddress] := lowByte(returnPC)
-  write PC:u16 := target
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 RST 38H
-
-Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
-
-```text
-target := 0038:u16
-returnPC:u16 := read PC
-firstPointer:u16 := read SP
-write SP:u16 := subtract(firstPointer, 0001:u16)
-firstAddress:u16 := read SP
-write memory[firstAddress] := highByte(returnPC)
-secondPointer:u16 := read SP
-write SP:u16 := subtract(secondPointer, 0001:u16)
-secondAddress:u16 := read SP
-write memory[secondAddress] := lowByte(returnPC)
-write PC:u16 := target
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 DI
-
-Write IFF2 before IFF1. Retirement consumes any previous inhibition.
-
-```text
-write iff2:boolean := false
-write iff1:boolean := false
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 EI
-
-Write IFF2 before IFF1. Then request IRQ inhibition through the following instruction at successful retirement.
-
-```text
-write iff2:boolean := true
-write iff1:boolean := true
-request IRQ deferral at successful retirement
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
 ### z80 IM 0
 
 Select a declared interrupt mode without changing flags or interrupt enables.
@@ -366929,47 +365241,12 @@ request RETI device notification after successful architectural retirement
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
-### z80 IN A,(n)
-
-Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
-
-```text
-port:u16 := source "old A and immediate port byte" {
-  high:u8 := read A
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-low:u8 := read port[port]
-write A:u8 := low
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 OUT (n),A
-
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
-
-```text
-port:u16 := source "old A and immediate port byte" {
-  high:u8 := read A
-  low:u8 := fetch byte
-  yield concatHighLow(high, low)
-}
-contents:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write port[port] := contents
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
 ### z80 IN B,(C)
 
 Read old BC, then input one byte. Only after the read succeeds capture live C, replace S/Z/parity with H/N cleared, and write the selected register. Preserve captured C. A failed input prevents flag and register writes.
 
 ```text
-port:u16 := source "BC" {
+port:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -366994,7 +365271,7 @@ Flags preserved throughout: none.
 Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
 
 ```text
-port:u16 := source "BC" {
+port:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367013,7 +365290,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 Read old BC, then input one byte. Only after the read succeeds capture live C, replace S/Z/parity with H/N cleared, and write the selected register. Preserve captured C. A failed input prevents flag and register writes.
 
 ```text
-port:u16 := source "BC" {
+port:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367038,7 +365315,7 @@ Flags preserved throughout: none.
 Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
 
 ```text
-port:u16 := source "BC" {
+port:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367057,7 +365334,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 Read old BC, then input one byte. Only after the read succeeds capture live C, replace S/Z/parity with H/N cleared, and write the selected register. Preserve captured C. A failed input prevents flag and register writes.
 
 ```text
-port:u16 := source "BC" {
+port:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367082,7 +365359,7 @@ Flags preserved throughout: none.
 Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
 
 ```text
-port:u16 := source "BC" {
+port:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367101,7 +365378,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 Read old BC, then input one byte. Only after the read succeeds capture live C, replace S/Z/parity with H/N cleared, and write the selected register. Preserve captured C. A failed input prevents flag and register writes.
 
 ```text
-port:u16 := source "BC" {
+port:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367126,7 +365403,7 @@ Flags preserved throughout: none.
 Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
 
 ```text
-port:u16 := source "BC" {
+port:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367145,7 +365422,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 Read old BC, then input one byte. Only after the read succeeds capture live C, replace S/Z/parity with H/N cleared, and write the selected register. Preserve captured C. A failed input prevents flag and register writes.
 
 ```text
-port:u16 := source "BC" {
+port:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367170,7 +365447,7 @@ Flags preserved throughout: none.
 Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
 
 ```text
-port:u16 := source "BC" {
+port:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367189,7 +365466,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 Read old BC, then input one byte. Only after the read succeeds capture live C, replace S/Z/parity with H/N cleared, and write the selected register. Preserve captured C. A failed input prevents flag and register writes.
 
 ```text
-port:u16 := source "BC" {
+port:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367214,7 +365491,7 @@ Flags preserved throughout: none.
 Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
 
 ```text
-port:u16 := source "BC" {
+port:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367233,7 +365510,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 Read old BC, then input one byte. Only after the read succeeds capture live C, replace S/Z/parity with H/N cleared, and write the selected register. Preserve captured C. A failed input prevents flag and register writes.
 
 ```text
-port:u16 := source "BC" {
+port:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367258,7 +365535,7 @@ Flags preserved throughout: none.
 Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
 
 ```text
-port:u16 := source "BC" {
+port:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367277,12 +365554,12 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. Do not access PC or apply repeat corrections.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
-inputPort:u16 := source "BC" {
+inputPort:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367291,8 +365568,11 @@ byte:u8 := read port[inputPort]
 counter:u8 := read B
 write B:u8 := subtract(counter, 01:u8)
 write memory[address] := byte
-write H:u8 := highByte(addWrap(address, 0001:u16))
-write L:u8 := lowByte(addWrap(address, 0001:u16))
+perform "write H:L" {
+  word:u16 := addWrap(address, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 addend:u8 := read C
 right := addWrap(addend, 01:u8)
 result:u8 := read B
@@ -367314,12 +365594,12 @@ Flags preserved throughout: none.
 Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. Do not access PC or apply repeat corrections.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
-inputPort:u16 := source "BC" {
+inputPort:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367328,8 +365608,11 @@ byte:u8 := read port[inputPort]
 counter:u8 := read B
 write B:u8 := subtract(counter, 01:u8)
 write memory[address] := byte
-write H:u8 := highByte(subtract(address, 0001:u16))
-write L:u8 := lowByte(subtract(address, 0001:u16))
+perform "write H:L" {
+  word:u16 := subtract(address, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 addend:u8 := read C
 right := subtract(addend, 01:u8)
 result:u8 := read B
@@ -367351,12 +365634,12 @@ Flags preserved throughout: none.
 Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. If live B is nonzero, rewind live PC by two, then correct H/PV for the repeat phase. The next step refetches both opcodes.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
-inputPort:u16 := source "BC" {
+inputPort:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367365,8 +365648,11 @@ byte:u8 := read port[inputPort]
 counter:u8 := read B
 write B:u8 := subtract(counter, 01:u8)
 write memory[address] := byte
-write H:u8 := highByte(addWrap(address, 0001:u16))
-write L:u8 := lowByte(addWrap(address, 0001:u16))
+perform "write H:L" {
+  word:u16 := addWrap(address, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 addend:u8 := read C
 right := addWrap(addend, 01:u8)
 result:u8 := read B
@@ -367413,12 +365699,12 @@ Flags preserved throughout: none.
 Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. If live B is nonzero, rewind live PC by two, then correct H/PV for the repeat phase. The next step refetches both opcodes.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
-inputPort:u16 := source "BC" {
+inputPort:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -367427,8 +365713,11 @@ byte:u8 := read port[inputPort]
 counter:u8 := read B
 write B:u8 := subtract(counter, 01:u8)
 write memory[address] := byte
-write H:u8 := highByte(subtract(address, 0001:u16))
-write L:u8 := lowByte(subtract(address, 0001:u16))
+perform "write H:L" {
+  word:u16 := subtract(address, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 addend:u8 := read C
 right := subtract(addend, 01:u8)
 result:u8 := read B
@@ -367475,7 +365764,7 @@ Flags preserved throughout: none.
 Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. Do not access PC or apply repeat corrections.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
@@ -367483,14 +365772,17 @@ address:u16 := source "HL" {
 byte:u8 := read memory[address]
 counter:u8 := read B
 write B:u8 := subtract(counter, 01:u8)
-outputPort:u16 := source "BC" {
+outputPort:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
 }
 write port[outputPort] := byte
-write H:u8 := highByte(addWrap(address, 0001:u16))
-write L:u8 := lowByte(addWrap(address, 0001:u16))
+perform "write H:L" {
+  word:u16 := addWrap(address, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 addend:u8 := read L
 right := addend
 result:u8 := read B
@@ -367512,7 +365804,7 @@ Flags preserved throughout: none.
 Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. Do not access PC or apply repeat corrections.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
@@ -367520,14 +365812,17 @@ address:u16 := source "HL" {
 byte:u8 := read memory[address]
 counter:u8 := read B
 write B:u8 := subtract(counter, 01:u8)
-outputPort:u16 := source "BC" {
+outputPort:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
 }
 write port[outputPort] := byte
-write H:u8 := highByte(subtract(address, 0001:u16))
-write L:u8 := lowByte(subtract(address, 0001:u16))
+perform "write H:L" {
+  word:u16 := subtract(address, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 addend:u8 := read L
 right := addend
 result:u8 := read B
@@ -367549,7 +365844,7 @@ Flags preserved throughout: none.
 Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. If live B is nonzero, rewind live PC by two, then correct H/PV for the repeat phase. The next step refetches both opcodes.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
@@ -367557,14 +365852,17 @@ address:u16 := source "HL" {
 byte:u8 := read memory[address]
 counter:u8 := read B
 write B:u8 := subtract(counter, 01:u8)
-outputPort:u16 := source "BC" {
+outputPort:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
 }
 write port[outputPort] := byte
-write H:u8 := highByte(addWrap(address, 0001:u16))
-write L:u8 := lowByte(addWrap(address, 0001:u16))
+perform "write H:L" {
+  word:u16 := addWrap(address, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 addend:u8 := read L
 right := addend
 result:u8 := read B
@@ -367611,7 +365909,7 @@ Flags preserved throughout: none.
 Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. If live B is nonzero, rewind live PC by two, then correct H/PV for the repeat phase. The next step refetches both opcodes.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
@@ -367619,14 +365917,17 @@ address:u16 := source "HL" {
 byte:u8 := read memory[address]
 counter:u8 := read B
 write B:u8 := subtract(counter, 01:u8)
-outputPort:u16 := source "BC" {
+outputPort:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
 }
 write port[outputPort] := byte
-write H:u8 := highByte(subtract(address, 0001:u16))
-write L:u8 := lowByte(subtract(address, 0001:u16))
+perform "write H:L" {
+  word:u16 := subtract(address, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 addend:u8 := read L
 right := addend
 result:u8 := read B
@@ -367667,53 +365968,6 @@ when not(isZero(remaining)) {
 ```
 
 Flags preserved throughout: none.
-
-### z80 EX AF,AF′
-
-Exchange each stored byte in order, reading alternate then main and writing main then alternate. After A, exchange the complete flag objects in the same order, without reading individual flags. No memory or control-state access occurs.
-
-```text
-aAlternate:u8 := read ALTERNATE.A
-aMain:u8 := read A
-write A:u8 := aAlternate
-write ALTERNATE.A:u8 := aMain
-exchange FLAGS with ALTERNATE.FLAGS // Capture right then left; write left then right. Exchange objects without reading individual flags.
-```
-
-Flags preserved throughout: none.
-
-### z80 EXX
-
-Exchange each stored byte in order, reading alternate then main and writing main then alternate. Visit B/C/D/E/H/L, preserving both A registers and both flag objects. No memory or control-state access occurs.
-
-```text
-bAlternate:u8 := read ALTERNATE.B
-bMain:u8 := read B
-write B:u8 := bAlternate
-write ALTERNATE.B:u8 := bMain
-cAlternate:u8 := read ALTERNATE.C
-cMain:u8 := read C
-write C:u8 := cAlternate
-write ALTERNATE.C:u8 := cMain
-dAlternate:u8 := read ALTERNATE.D
-dMain:u8 := read D
-write D:u8 := dAlternate
-write ALTERNATE.D:u8 := dMain
-eAlternate:u8 := read ALTERNATE.E
-eMain:u8 := read E
-write E:u8 := eAlternate
-write ALTERNATE.E:u8 := eMain
-hAlternate:u8 := read ALTERNATE.H
-hMain:u8 := read H
-write H:u8 := hAlternate
-write ALTERNATE.H:u8 := hMain
-lAlternate:u8 := read ALTERNATE.L
-lMain:u8 := read L
-write L:u8 := lAlternate
-write ALTERNATE.L:u8 := lMain
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 LD A,I
 
@@ -367804,7 +366058,7 @@ Flags preserved throughout: none.
 Capture HL, read memory, then capture A. Rotate A's low nibble and both memory nibbles left, preserving A's high nibble. Write memory before reading C, replacing S/Z/parity with H/N cleared, and writing A. A failed write preserves A and flags; callbacks cannot change the captured address or result.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
@@ -367832,7 +366086,7 @@ Flags preserved throughout: none.
 Capture HL, read memory, then capture A. Rotate A's low nibble and both memory nibbles right, preserving A's high nibble. Write memory before reading C, replacing S/Z/parity with H/N cleared, and writing A. A failed write preserves A and flags; callbacks cannot change the captured address or result.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
@@ -367860,45 +366114,54 @@ Flags preserved throughout: none.
 Perform one iteration. Read (HL), then capture BC minus one with word wrapping. Read DE and write the captured byte; after success reread and adjust DE, clear N/H, then set PV from the captured count. Preserve S/Z/C. Reread and increment HL, then write the captured count to BC. Do not access PC. Pairs read and write high byte first. Failed accesses retain completed effects and prevent later register/flag updates; decoding and retirement stay in the CPU.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 byte:u8 := read memory[address]
-counter:u16 := source "BC" {
+counter:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
 }
 count := subtract(counter, 0001:u16)
-destination:u16 := source "DE" {
+destination:u16 := source "D:E register pair" {
   high:u8 := read D
   low:u8 := read E
   yield concatHighLow(high, low)
 }
 write memory[destination] := byte
-destinationAfterWrite:u16 := source "DE" {
+destinationAfterWrite:u16 := source "D:E register pair" {
   high:u8 := read D
   low:u8 := read E
   yield concatHighLow(high, low)
 }
-write D:u8 := highByte(addWrap(destinationAfterWrite, 0001:u16))
-write E:u8 := lowByte(addWrap(destinationAfterWrite, 0001:u16))
+perform "write D:E" {
+  word:u16 := addWrap(destinationAfterWrite, 0001:u16)
+  write D:u8 := highByte(word)
+  write E:u8 := lowByte(word)
+}
 flags "LDI" simultaneously {
   N := 0:flag
   H := 0:flag
   PV := not(isZero(count))
 } // Preserve unlisted flags.
-addressAfterTransfer:u16 := source "HL" {
+addressAfterTransfer:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
-write H:u8 := highByte(addWrap(addressAfterTransfer, 0001:u16))
-write L:u8 := lowByte(addWrap(addressAfterTransfer, 0001:u16))
-write B:u8 := highByte(count)
-write C:u8 := lowByte(count)
+perform "write H:L" {
+  word:u16 := addWrap(addressAfterTransfer, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+perform "write B:C" {
+  word:u16 := count
+  write B:u8 := highByte(word)
+  write C:u8 := lowByte(word)
+}
 ```
 
 Flags preserved throughout: S, Z, C.
@@ -367908,45 +366171,54 @@ Flags preserved throughout: S, Z, C.
 Perform one iteration. Read (HL), then capture BC minus one with word wrapping. Read DE and write the captured byte; after success reread and adjust DE, clear N/H, then set PV from the captured count. Preserve S/Z/C. Reread and decrement HL, then write the captured count to BC. Do not access PC. Pairs read and write high byte first. Failed accesses retain completed effects and prevent later register/flag updates; decoding and retirement stay in the CPU.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 byte:u8 := read memory[address]
-counter:u16 := source "BC" {
+counter:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
 }
 count := subtract(counter, 0001:u16)
-destination:u16 := source "DE" {
+destination:u16 := source "D:E register pair" {
   high:u8 := read D
   low:u8 := read E
   yield concatHighLow(high, low)
 }
 write memory[destination] := byte
-destinationAfterWrite:u16 := source "DE" {
+destinationAfterWrite:u16 := source "D:E register pair" {
   high:u8 := read D
   low:u8 := read E
   yield concatHighLow(high, low)
 }
-write D:u8 := highByte(subtract(destinationAfterWrite, 0001:u16))
-write E:u8 := lowByte(subtract(destinationAfterWrite, 0001:u16))
+perform "write D:E" {
+  word:u16 := subtract(destinationAfterWrite, 0001:u16)
+  write D:u8 := highByte(word)
+  write E:u8 := lowByte(word)
+}
 flags "LDD" simultaneously {
   N := 0:flag
   H := 0:flag
   PV := not(isZero(count))
 } // Preserve unlisted flags.
-addressAfterTransfer:u16 := source "HL" {
+addressAfterTransfer:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
-write H:u8 := highByte(subtract(addressAfterTransfer, 0001:u16))
-write L:u8 := lowByte(subtract(addressAfterTransfer, 0001:u16))
-write B:u8 := highByte(count)
-write C:u8 := lowByte(count)
+perform "write H:L" {
+  word:u16 := subtract(addressAfterTransfer, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+perform "write B:C" {
+  word:u16 := count
+  write B:u8 := highByte(word)
+  write C:u8 := lowByte(word)
+}
 ```
 
 Flags preserved throughout: S, Z, C.
@@ -367956,45 +366228,54 @@ Flags preserved throughout: S, Z, C.
 Perform one iteration. Read (HL), then capture BC minus one with word wrapping. Read DE and write the captured byte; after success reread and adjust DE, clear N/H, then set PV from the captured count. Preserve S/Z/C. Reread and increment HL, then write the captured count to BC. Only if the count is nonzero, rewind current PC by two for the next step to refetch both opcodes. Pairs read and write high byte first. Failed accesses retain completed effects and prevent later register/flag updates; decoding and retirement stay in the CPU.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 byte:u8 := read memory[address]
-counter:u16 := source "BC" {
+counter:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
 }
 count := subtract(counter, 0001:u16)
-destination:u16 := source "DE" {
+destination:u16 := source "D:E register pair" {
   high:u8 := read D
   low:u8 := read E
   yield concatHighLow(high, low)
 }
 write memory[destination] := byte
-destinationAfterWrite:u16 := source "DE" {
+destinationAfterWrite:u16 := source "D:E register pair" {
   high:u8 := read D
   low:u8 := read E
   yield concatHighLow(high, low)
 }
-write D:u8 := highByte(addWrap(destinationAfterWrite, 0001:u16))
-write E:u8 := lowByte(addWrap(destinationAfterWrite, 0001:u16))
+perform "write D:E" {
+  word:u16 := addWrap(destinationAfterWrite, 0001:u16)
+  write D:u8 := highByte(word)
+  write E:u8 := lowByte(word)
+}
 flags "LDIR" simultaneously {
   N := 0:flag
   H := 0:flag
   PV := not(isZero(count))
 } // Preserve unlisted flags.
-addressAfterTransfer:u16 := source "HL" {
+addressAfterTransfer:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
-write H:u8 := highByte(addWrap(addressAfterTransfer, 0001:u16))
-write L:u8 := lowByte(addWrap(addressAfterTransfer, 0001:u16))
-write B:u8 := highByte(count)
-write C:u8 := lowByte(count)
+perform "write H:L" {
+  word:u16 := addWrap(addressAfterTransfer, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+perform "write B:C" {
+  word:u16 := count
+  write B:u8 := highByte(word)
+  write C:u8 := lowByte(word)
+}
 when not(isZero(count)) {
   pc:u16 := read PC
   write PC:u16 := subtract(pc, 0002:u16)
@@ -368008,45 +366289,54 @@ Flags preserved throughout: S, Z, C.
 Perform one iteration. Read (HL), then capture BC minus one with word wrapping. Read DE and write the captured byte; after success reread and adjust DE, clear N/H, then set PV from the captured count. Preserve S/Z/C. Reread and decrement HL, then write the captured count to BC. Only if the count is nonzero, rewind current PC by two for the next step to refetch both opcodes. Pairs read and write high byte first. Failed accesses retain completed effects and prevent later register/flag updates; decoding and retirement stay in the CPU.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 byte:u8 := read memory[address]
-counter:u16 := source "BC" {
+counter:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
 }
 count := subtract(counter, 0001:u16)
-destination:u16 := source "DE" {
+destination:u16 := source "D:E register pair" {
   high:u8 := read D
   low:u8 := read E
   yield concatHighLow(high, low)
 }
 write memory[destination] := byte
-destinationAfterWrite:u16 := source "DE" {
+destinationAfterWrite:u16 := source "D:E register pair" {
   high:u8 := read D
   low:u8 := read E
   yield concatHighLow(high, low)
 }
-write D:u8 := highByte(subtract(destinationAfterWrite, 0001:u16))
-write E:u8 := lowByte(subtract(destinationAfterWrite, 0001:u16))
+perform "write D:E" {
+  word:u16 := subtract(destinationAfterWrite, 0001:u16)
+  write D:u8 := highByte(word)
+  write E:u8 := lowByte(word)
+}
 flags "LDDR" simultaneously {
   N := 0:flag
   H := 0:flag
   PV := not(isZero(count))
 } // Preserve unlisted flags.
-addressAfterTransfer:u16 := source "HL" {
+addressAfterTransfer:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
-write H:u8 := highByte(subtract(addressAfterTransfer, 0001:u16))
-write L:u8 := lowByte(subtract(addressAfterTransfer, 0001:u16))
-write B:u8 := highByte(count)
-write C:u8 := lowByte(count)
+perform "write H:L" {
+  word:u16 := subtract(addressAfterTransfer, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+perform "write B:C" {
+  word:u16 := count
+  write B:u8 := highByte(word)
+  write C:u8 := lowByte(word)
+}
 when not(isZero(count)) {
   pc:u16 := read PC
   write PC:u16 := subtract(pc, 0002:u16)
@@ -368060,13 +366350,13 @@ Flags preserved throughout: S, Z, C.
 Perform one iteration. Read (HL), then capture BC minus one with word wrapping. Read A and C, replace comparison flags with PV from the remaining count, and preserve A. Reread and increment HL, then write the captured count to BC. Do not access PC. Pairs read and write high byte first. Failed accesses retain completed effects and prevent later register/flag updates; decoding and retirement stay in the CPU.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 byte:u8 := read memory[address]
-counter:u16 := source "BC" {
+counter:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -368083,15 +366373,21 @@ replace flags "CPI" simultaneously {
   N := 1:flag
   C := carry
 } // Replace the complete flag object.
-addressAfterTransfer:u16 := source "HL" {
+addressAfterTransfer:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
-write H:u8 := highByte(addWrap(addressAfterTransfer, 0001:u16))
-write L:u8 := lowByte(addWrap(addressAfterTransfer, 0001:u16))
-write B:u8 := highByte(count)
-write C:u8 := lowByte(count)
+perform "write H:L" {
+  word:u16 := addWrap(addressAfterTransfer, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+perform "write B:C" {
+  word:u16 := count
+  write B:u8 := highByte(word)
+  write C:u8 := lowByte(word)
+}
 ```
 
 Flags preserved throughout: none.
@@ -368101,13 +366397,13 @@ Flags preserved throughout: none.
 Perform one iteration. Read (HL), then capture BC minus one with word wrapping. Read A and C, replace comparison flags with PV from the remaining count, and preserve A. Reread and decrement HL, then write the captured count to BC. Do not access PC. Pairs read and write high byte first. Failed accesses retain completed effects and prevent later register/flag updates; decoding and retirement stay in the CPU.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 byte:u8 := read memory[address]
-counter:u16 := source "BC" {
+counter:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -368124,15 +366420,21 @@ replace flags "CPD" simultaneously {
   N := 1:flag
   C := carry
 } // Replace the complete flag object.
-addressAfterTransfer:u16 := source "HL" {
+addressAfterTransfer:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
-write H:u8 := highByte(subtract(addressAfterTransfer, 0001:u16))
-write L:u8 := lowByte(subtract(addressAfterTransfer, 0001:u16))
-write B:u8 := highByte(count)
-write C:u8 := lowByte(count)
+perform "write H:L" {
+  word:u16 := subtract(addressAfterTransfer, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+perform "write B:C" {
+  word:u16 := count
+  write B:u8 := highByte(word)
+  write C:u8 := lowByte(word)
+}
 ```
 
 Flags preserved throughout: none.
@@ -368142,13 +366444,13 @@ Flags preserved throughout: none.
 Perform one iteration. Read (HL), then capture BC minus one with word wrapping. Read A and C, replace comparison flags with PV from the remaining count, and preserve A. Reread and increment HL, then write the captured count to BC. Only if the count is nonzero and the updated Z is clear, rewind current PC by two for the next step to refetch both opcodes. Pairs read and write high byte first. Failed accesses retain completed effects and prevent later register/flag updates; decoding and retirement stay in the CPU.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 byte:u8 := read memory[address]
-counter:u16 := source "BC" {
+counter:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -368165,15 +366467,21 @@ replace flags "CPIR" simultaneously {
   N := 1:flag
   C := carry
 } // Replace the complete flag object.
-addressAfterTransfer:u16 := source "HL" {
+addressAfterTransfer:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
-write H:u8 := highByte(addWrap(addressAfterTransfer, 0001:u16))
-write L:u8 := lowByte(addWrap(addressAfterTransfer, 0001:u16))
-write B:u8 := highByte(count)
-write C:u8 := lowByte(count)
+perform "write H:L" {
+  word:u16 := addWrap(addressAfterTransfer, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+perform "write B:C" {
+  word:u16 := count
+  write B:u8 := highByte(word)
+  write C:u8 := lowByte(word)
+}
 when not(isZero(count)) {
   matched:flag := read Z
   when not(matched) {
@@ -368190,13 +366498,13 @@ Flags preserved throughout: none.
 Perform one iteration. Read (HL), then capture BC minus one with word wrapping. Read A and C, replace comparison flags with PV from the remaining count, and preserve A. Reread and decrement HL, then write the captured count to BC. Only if the count is nonzero and the updated Z is clear, rewind current PC by two for the next step to refetch both opcodes. Pairs read and write high byte first. Failed accesses retain completed effects and prevent later register/flag updates; decoding and retirement stay in the CPU.
 
 ```text
-address:u16 := source "HL" {
+address:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 byte:u8 := read memory[address]
-counter:u16 := source "BC" {
+counter:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -368213,15 +366521,21 @@ replace flags "CPDR" simultaneously {
   N := 1:flag
   C := carry
 } // Replace the complete flag object.
-addressAfterTransfer:u16 := source "HL" {
+addressAfterTransfer:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
-write H:u8 := highByte(subtract(addressAfterTransfer, 0001:u16))
-write L:u8 := lowByte(subtract(addressAfterTransfer, 0001:u16))
-write B:u8 := highByte(count)
-write C:u8 := lowByte(count)
+perform "write H:L" {
+  word:u16 := subtract(addressAfterTransfer, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+perform "write B:C" {
+  word:u16 := count
+  write B:u8 := highByte(word)
+  write C:u8 := lowByte(word)
+}
 when not(isZero(count)) {
   matched:flag := read Z
   when not(matched) {
@@ -368329,113 +366643,6 @@ write IY:u16 := result
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
-### z80 JR e
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-pc:u16 := read PC
-write PC:u16 := addWrap(pc, signExtend16(offset))
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 JR NZ,e
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-condition:flag := read Z
-when not(condition) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 JR Z,e
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-condition:flag := read Z
-when condition {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 JR NC,e
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-condition:flag := read C
-when not(condition) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 JR C,e
-
-Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-condition:flag := read C
-when condition {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
-### z80 DJNZ e
-
-Fetch the displacement, then decrement B with byte wraparound without accessing flags. Read B again; if nonzero, add the signed displacement to the post-fetch PC with word wraparound. If zero, do not read or write PC. A failed fetch prevents the decrement. Preserve other registers.
-
-```text
-offset:u8 := source "immediate byte" {
-  byte:u8 := fetch byte
-  yield byte
-}
-counter:u8 := read B
-write B:u8 := subtract(counter, 01:u8)
-remaining:u8 := read B
-when not(isZero(remaining)) {
-  pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
-}
-```
-
-Flags preserved throughout: S, Z, H, PV, N, C.
-
 ### z80 JP (IX)
 
 Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
@@ -368469,20 +366676,23 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 Read the complete source before the destination, even when both operands name the same register. Then capture incoming carry. Subtract with word wraparound; write the destination before applying Z80 SBC word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
 
 ```text
-right:u16 := source "BC" {
+right:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
 }
-left:u16 := source "HL" {
+left:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 carry:flag := read C
 result := subtract(left, right, carry)
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
+perform "write H:L" {
+  word:u16 := result
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 flags "Z80 SBC word flags (H at bit 11)" simultaneously {
   S := topBit(result)
   Z := isZero(result)
@@ -368500,20 +366710,23 @@ Flags preserved throughout: none.
 Read the complete source before the destination, even when both operands name the same register. Then capture incoming carry. Subtract with word wraparound; write the destination before applying Z80 SBC word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
 
 ```text
-right:u16 := source "DE" {
+right:u16 := source "D:E register pair" {
   high:u8 := read D
   low:u8 := read E
   yield concatHighLow(high, low)
 }
-left:u16 := source "HL" {
+left:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 carry:flag := read C
 result := subtract(left, right, carry)
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
+perform "write H:L" {
+  word:u16 := result
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 flags "Z80 SBC word flags (H at bit 11)" simultaneously {
   S := topBit(result)
   Z := isZero(result)
@@ -368531,20 +366744,23 @@ Flags preserved throughout: none.
 Read the complete source before the destination, even when both operands name the same register. Then capture incoming carry. Subtract with word wraparound; write the destination before applying Z80 SBC word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
 
 ```text
-right:u16 := source "HL" {
+right:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
-left:u16 := source "HL" {
+left:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 carry:flag := read C
 result := subtract(left, right, carry)
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
+perform "write H:L" {
+  word:u16 := result
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 flags "Z80 SBC word flags (H at bit 11)" simultaneously {
   S := topBit(result)
   Z := isZero(result)
@@ -368566,15 +366782,18 @@ right:u16 := source "register SP" {
   contents:u16 := read SP
   yield contents
 }
-left:u16 := source "HL" {
+left:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 carry:flag := read C
 result := subtract(left, right, carry)
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
+perform "write H:L" {
+  word:u16 := result
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 flags "Z80 SBC word flags (H at bit 11)" simultaneously {
   S := topBit(result)
   Z := isZero(result)
@@ -368592,20 +366811,23 @@ Flags preserved throughout: none.
 Read the complete source before the destination, even when both operands name the same register. Then capture incoming carry. Add with word wraparound; write the destination before applying Z80 ADC word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
 
 ```text
-right:u16 := source "BC" {
+right:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
 }
-left:u16 := source "HL" {
+left:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 carry:flag := read C
 result := addWrap(left, right, carry)
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
+perform "write H:L" {
+  word:u16 := result
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 flags "Z80 ADC word flags (H at bit 11)" simultaneously {
   S := topBit(result)
   Z := isZero(result)
@@ -368623,20 +366845,23 @@ Flags preserved throughout: none.
 Read the complete source before the destination, even when both operands name the same register. Then capture incoming carry. Add with word wraparound; write the destination before applying Z80 ADC word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
 
 ```text
-right:u16 := source "DE" {
+right:u16 := source "D:E register pair" {
   high:u8 := read D
   low:u8 := read E
   yield concatHighLow(high, low)
 }
-left:u16 := source "HL" {
+left:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 carry:flag := read C
 result := addWrap(left, right, carry)
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
+perform "write H:L" {
+  word:u16 := result
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 flags "Z80 ADC word flags (H at bit 11)" simultaneously {
   S := topBit(result)
   Z := isZero(result)
@@ -368654,20 +366879,23 @@ Flags preserved throughout: none.
 Read the complete source before the destination, even when both operands name the same register. Then capture incoming carry. Add with word wraparound; write the destination before applying Z80 ADC word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
 
 ```text
-right:u16 := source "HL" {
+right:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
-left:u16 := source "HL" {
+left:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 carry:flag := read C
 result := addWrap(left, right, carry)
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
+perform "write H:L" {
+  word:u16 := result
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 flags "Z80 ADC word flags (H at bit 11)" simultaneously {
   S := topBit(result)
   Z := isZero(result)
@@ -368689,15 +366917,18 @@ right:u16 := source "register SP" {
   contents:u16 := read SP
   yield contents
 }
-left:u16 := source "HL" {
+left:u16 := source "H:L register pair" {
   high:u8 := read H
   low:u8 := read L
   yield concatHighLow(high, low)
 }
 carry:flag := read C
 result := addWrap(left, right, carry)
-write H:u8 := highByte(result)
-write L:u8 := lowByte(result)
+perform "write H:L" {
+  word:u16 := result
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
 flags "Z80 ADC word flags (H at bit 11)" simultaneously {
   S := topBit(result)
   Z := isZero(result)
@@ -368715,7 +366946,7 @@ Flags preserved throughout: none.
 Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
 
 ```text
-right:u16 := source "BC" {
+right:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -368740,7 +366971,7 @@ Flags preserved throughout: S, Z, PV.
 Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
 
 ```text
-right:u16 := source "DE" {
+right:u16 := source "D:E register pair" {
   high:u8 := read D
   low:u8 := read E
   yield concatHighLow(high, low)
@@ -368843,7 +367074,7 @@ Flags preserved throughout: S, Z, H, PV, N, C.
 Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
 
 ```text
-right:u16 := source "BC" {
+right:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -368868,7 +367099,7 @@ Flags preserved throughout: S, Z, PV.
 Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
 
 ```text
-right:u16 := source "DE" {
+right:u16 := source "D:E register pair" {
   high:u8 := read D
   low:u8 := read E
   yield concatHighLow(high, low)
@@ -368981,8 +367212,11 @@ result:u16 := source "memory word, low byte first" {
   high:u8 := read memory[addWrap(address, 0001:u16)]
   yield concatHighLow(high, low)
 }
-write B:u8 := highByte(result)
-write C:u8 := lowByte(result)
+perform "write B:C" {
+  word:u16 := result
+  write B:u8 := highByte(word)
+  write C:u8 := lowByte(word)
+}
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -368997,7 +367231,7 @@ address:u16 := source "immediate word, low byte first" {
   high:u8 := fetch byte
   yield concatHighLow(high, low)
 }
-result:u16 := source "BC" {
+result:u16 := source "B:C register pair" {
   high:u8 := read B
   low:u8 := read C
   yield concatHighLow(high, low)
@@ -369023,8 +367257,11 @@ result:u16 := source "memory word, low byte first" {
   high:u8 := read memory[addWrap(address, 0001:u16)]
   yield concatHighLow(high, low)
 }
-write D:u8 := highByte(result)
-write E:u8 := lowByte(result)
+perform "write D:E" {
+  word:u16 := result
+  write D:u8 := highByte(word)
+  write E:u8 := lowByte(word)
+}
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -369039,7 +367276,7 @@ address:u16 := source "immediate word, low byte first" {
   high:u8 := fetch byte
   yield concatHighLow(high, low)
 }
-result:u16 := source "DE" {
+result:u16 := source "D:E register pair" {
   high:u8 := read D
   low:u8 := read E
   yield concatHighLow(high, low)
@@ -369487,84 +367724,6 @@ write memory[address] := result
 ```
 
 Flags preserved throughout: C.
-
-### z80 RLCA
-
-Capture A and rotate left, inserting the outgoing bit. Write A before replacing C, then clear N/H. Preserve S/Z/PV, the alternate bank, and control state. No data-memory access occurs.
-
-```text
-original:u8 := read A
-result := shiftLeft(original, topBit(original))
-write A:u8 := result
-flags "z80 rotate carry" simultaneously {
-  C := topBit(original)
-} // Preserve unlisted flags.
-flags "Z80 accumulator rotate N/H" simultaneously {
-  N := 0:flag
-  H := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 RRCA
-
-Capture A and rotate right, inserting the outgoing bit. Write A before replacing C, then clear N/H. Preserve S/Z/PV, the alternate bank, and control state. No data-memory access occurs.
-
-```text
-original:u8 := read A
-result := shiftRight(original, lowBit(original))
-write A:u8 := result
-flags "z80 rotate carry" simultaneously {
-  C := lowBit(original)
-} // Preserve unlisted flags.
-flags "Z80 accumulator rotate N/H" simultaneously {
-  N := 0:flag
-  H := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 RLA
-
-Capture A and rotate left, inserting incoming C captured after A. Write A before replacing C, then clear N/H. Preserve S/Z/PV, the alternate bank, and control state. No data-memory access occurs.
-
-```text
-original:u8 := read A
-carry:flag := read C
-result := shiftLeft(original, carry)
-write A:u8 := result
-flags "z80 rotate carry" simultaneously {
-  C := topBit(original)
-} // Preserve unlisted flags.
-flags "Z80 accumulator rotate N/H" simultaneously {
-  N := 0:flag
-  H := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
-
-### z80 RRA
-
-Capture A and rotate right, inserting incoming C captured after A. Write A before replacing C, then clear N/H. Preserve S/Z/PV, the alternate bank, and control state. No data-memory access occurs.
-
-```text
-original:u8 := read A
-carry:flag := read C
-result := shiftRight(original, carry)
-write A:u8 := result
-flags "z80 rotate carry" simultaneously {
-  C := lowBit(original)
-} // Preserve unlisted flags.
-flags "Z80 accumulator rotate N/H" simultaneously {
-  N := 0:flag
-  H := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: S, Z, PV.
 
 ### z80 RLC B
 
@@ -373622,6 +371781,70 @@ perform "CP with a captured byte" {
 
 Flags preserved throughout: none.
 
+### z80 NOP
+
+NOP changes nothing after opcode fetching. HALT sets STOPPED and retires normally; further steps stop until reset or an accepted interrupt releases it. DI and EI write IFF2 before IFF1. EI requests IRQ inhibition through the following instruction. The native execution boundary still commits that request at successful retirement and implements refresh and interrupt entry.
+
+```text
+
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD BC,nn
+
+In `00 pp 0001`, pp selects BC, DE, HL, or SP. Fetch the low byte and then the high byte before writing the selected word. Pair writes use the actions above; SP is stored directly. No word transfer reads or updates flags.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+perform "write B:C" {
+  word:u16 := result
+  write B:u8 := highByte(word)
+  write C:u8 := lowByte(word)
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (BC),A
+
+A also transfers through BC or DE (`00 0p d 010`), or through a following absolute address (`00 11 d 010`). d is zero for a store and one for a load. Resolve the complete address before reading A for a store or memory for a load. A failed load does not write A. Stores never read destination memory; all six forms preserve both banks' flags and the other registers.
+
+```text
+address:u16 := source "B:C register pair" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+result:u8 := read A
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 INC BC
+
+`00 pp q 011` increments (q=0) or decrements (q=1) BC/DE/HL/SP. Both capture the complete word before replacing it, wrap at sixteen bits, and preserve every flag without reading it. Word INC/DEC differ from their byte counterparts.
+
+```text
+original:u16 := source "B:C register pair" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+perform "write B:C" {
+  word:u16 := addWrap(original, 0001:u16)
+  write B:u8 := highByte(word)
+  write C:u8 := lowByte(word)
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 INC B
 
 INC reads the original byte, computes the wrapped result, and updates S/Z/H/PV/N before writeback. A failed read leaves flags unchanged; a failed write retains the calculated flags. Preserve the alternate bank and controls. The resolved-memory action also serves the indexed instruction bodies.
@@ -373667,6 +371890,103 @@ Capture the source completely before writing the destination. Register self-copi
 ```text
 result:u8 := fetch byte
 write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RLCA
+
+The pattern `00 ooo 111` selects RLCA/RRCA/RLA/RRA/DAA/CPL/SCF/CCF. Accumulator rotates preserve S/Z/PV, unlike their CB-page counterparts. Capture A before incoming C for through-carry forms; circular forms insert the outgoing bit. Write A, update C, then clear N/H in that order. No memory access occurs and no unlisted flags are read.
+
+```text
+original:u8 := read A
+write A:u8 := shiftLeft(original, topBit(original))
+flags "replace C only" simultaneously {
+  C := topBit(original)
+} // Preserve unlisted flags.
+flags "clear N then H" simultaneously {
+  N := 0:flag
+  H := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 EX AF,AF′
+
+EX AF,AF′ (`00 001 000`) reads alternate A before main A, then writes main before alternate. It next exchanges the entire flag objects in the same order, without reading or reconstructing individual bits. The explicit flag-group exchange preserves that identity and partial-failure contract.
+
+```text
+other:u8 := read ALTERNATE.A
+main:u8 := read A
+write A:u8 := other
+write ALTERNATE.A:u8 := main
+exchange FLAGS with ALTERNATE.FLAGS // Capture right then left; write left then right. Exchange objects without reading individual flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 ADD HL,BC
+
+ADD HL,ss uses `00 pp 1001`, with the same pair selector. Read ss before HL, including two complete reads for ADD HL,HL. Write H then L before updating H/C/N in that order. S/Z/PV remain unchanged. The half-carry boundary is bit 11: bit 12 of `left XOR right XOR result` identifies the carry into bit 12. This policy also supplies the remaining native IX/IY word additions.
+
+```text
+right:u16 := source "B:C register pair" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+left:u16 := source "H:L register pair" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := addWrap(left, right)
+perform "write H:L" {
+  word:u16 := result
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 LD A,(BC)
+
+A also transfers through BC or DE (`00 0p d 010`), or through a following absolute address (`00 11 d 010`). d is zero for a store and one for a load. Resolve the complete address before reading A for a store or memory for a load. A failed load does not write A. Stores never read destination memory; all six forms preserve both banks' flags and the other registers.
+
+```text
+address:u16 := source "B:C register pair" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+result:u8 := read memory[address]
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 DEC BC
+
+`00 pp q 011` increments (q=0) or decrements (q=1) BC/DE/HL/SP. Both capture the complete word before replacing it, wrap at sixteen bits, and preserve every flag without reading it. Word INC/DEC differ from their byte counterparts.
+
+```text
+original:u16 := source "B:C register pair" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+perform "write B:C" {
+  word:u16 := subtract(original, 0001:u16)
+  write B:u8 := highByte(word)
+  write C:u8 := lowByte(word)
+}
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -373720,6 +372040,98 @@ write C:u8 := result
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 RRCA
+
+The pattern `00 ooo 111` selects RLCA/RRCA/RLA/RRA/DAA/CPL/SCF/CCF. Accumulator rotates preserve S/Z/PV, unlike their CB-page counterparts. Capture A before incoming C for through-carry forms; circular forms insert the outgoing bit. Write A, update C, then clear N/H in that order. No memory access occurs and no unlisted flags are read.
+
+```text
+original:u8 := read A
+write A:u8 := shiftRight(original, lowBit(original))
+flags "replace C only" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+flags "clear N then H" simultaneously {
+  N := 0:flag
+  H := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 DJNZ e
+
+DJNZ (`00 010 000`) fetches its displacement, decrements B, then reads B again to test it. A nonzero result takes the relative branch. It preserves every flag; failed fetching prevents the decrement. The reread retains live stored-state behavior at each declared effect.
+
+```text
+offset:u8 := fetch byte
+counter:u8 := read B
+write B:u8 := subtract(counter, 01:u8)
+remaining:u8 := read B
+when not(isZero(remaining)) {
+  perform "add a signed displacement to live PC" {
+    offset:u8 := offset
+    pc:u16 := read PC
+    write PC:u16 := addWrap(pc, signExtend16(offset))
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD DE,nn
+
+In `00 pp 0001`, pp selects BC, DE, HL, or SP. Fetch the low byte and then the high byte before writing the selected word. Pair writes use the actions above; SP is stored directly. No word transfer reads or updates flags.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+perform "write D:E" {
+  word:u16 := result
+  write D:u8 := highByte(word)
+  write E:u8 := lowByte(word)
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (DE),A
+
+A also transfers through BC or DE (`00 0p d 010`), or through a following absolute address (`00 11 d 010`). d is zero for a store and one for a load. Resolve the complete address before reading A for a store or memory for a load. A failed load does not write A. Stores never read destination memory; all six forms preserve both banks' flags and the other registers.
+
+```text
+address:u16 := source "D:E register pair" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+result:u8 := read A
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 INC DE
+
+`00 pp q 011` increments (q=0) or decrements (q=1) BC/DE/HL/SP. Both capture the complete word before replacing it, wrap at sixteen bits, and preserve every flag without reading it. Word INC/DEC differ from their byte counterparts.
+
+```text
+original:u16 := source "D:E register pair" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+perform "write D:E" {
+  word:u16 := addWrap(original, 0001:u16)
+  write D:u8 := highByte(word)
+  write E:u8 := lowByte(word)
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 INC D
 
 INC reads the original byte, computes the wrapped result, and updates S/Z/H/PV/N before writeback. A failed read leaves flags unchanged; a failed write retains the calculated flags. Preserve the alternate bank and controls. The resolved-memory action also serves the indexed instruction bodies.
@@ -373765,6 +372177,105 @@ Capture the source completely before writing the destination. Register self-copi
 ```text
 result:u8 := fetch byte
 write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RLA
+
+The pattern `00 ooo 111` selects RLCA/RRCA/RLA/RRA/DAA/CPL/SCF/CCF. Accumulator rotates preserve S/Z/PV, unlike their CB-page counterparts. Capture A before incoming C for through-carry forms; circular forms insert the outgoing bit. Write A, update C, then clear N/H in that order. No memory access occurs and no unlisted flags are read.
+
+```text
+original:u8 := read A
+carry:flag := read C
+write A:u8 := shiftLeft(original, carry)
+flags "replace C only" simultaneously {
+  C := topBit(original)
+} // Preserve unlisted flags.
+flags "clear N then H" simultaneously {
+  N := 0:flag
+  H := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 JR e
+
+JR has only the four NZ/Z/NC/C conditions, encoded `00 1cc 000`. Its signed byte displacement is fetched before the condition. On a taken path, read the post-fetch PC, add the sign-extended displacement, wrap to a word, and write PC. JR without a condition uses `00 011 000`. Preserve all flags.
+
+```text
+offset:u8 := fetch byte
+perform "add a signed displacement to live PC" {
+  offset:u8 := offset
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 ADD HL,DE
+
+ADD HL,ss uses `00 pp 1001`, with the same pair selector. Read ss before HL, including two complete reads for ADD HL,HL. Write H then L before updating H/C/N in that order. S/Z/PV remain unchanged. The half-carry boundary is bit 11: bit 12 of `left XOR right XOR result` identifies the carry into bit 12. This policy also supplies the remaining native IX/IY word additions.
+
+```text
+right:u16 := source "D:E register pair" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+left:u16 := source "H:L register pair" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := addWrap(left, right)
+perform "write H:L" {
+  word:u16 := result
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 LD A,(DE)
+
+A also transfers through BC or DE (`00 0p d 010`), or through a following absolute address (`00 11 d 010`). d is zero for a store and one for a load. Resolve the complete address before reading A for a store or memory for a load. A failed load does not write A. Stores never read destination memory; all six forms preserve both banks' flags and the other registers.
+
+```text
+address:u16 := source "D:E register pair" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+result:u8 := read memory[address]
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 DEC DE
+
+`00 pp q 011` increments (q=0) or decrements (q=1) BC/DE/HL/SP. Both capture the complete word before replacing it, wrap at sixteen bits, and preserve every flag without reading it. Word INC/DEC differ from their byte counterparts.
+
+```text
+original:u16 := source "D:E register pair" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+perform "write D:E" {
+  word:u16 := subtract(original, 0001:u16)
+  write D:u8 := highByte(word)
+  write E:u8 := lowByte(word)
+}
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -373818,6 +372329,102 @@ write E:u8 := result
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 RRA
+
+The pattern `00 ooo 111` selects RLCA/RRCA/RLA/RRA/DAA/CPL/SCF/CCF. Accumulator rotates preserve S/Z/PV, unlike their CB-page counterparts. Capture A before incoming C for through-carry forms; circular forms insert the outgoing bit. Write A, update C, then clear N/H in that order. No memory access occurs and no unlisted flags are read.
+
+```text
+original:u8 := read A
+carry:flag := read C
+write A:u8 := shiftRight(original, carry)
+flags "replace C only" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+flags "clear N then H" simultaneously {
+  N := 0:flag
+  H := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 JR NZ,e
+
+JR has only the four NZ/Z/NC/C conditions, encoded `00 1cc 000`. Its signed byte displacement is fetched before the condition. On a taken path, read the post-fetch PC, add the sign-extended displacement, wrap to a word, and write PC. JR without a condition uses `00 011 000`. Preserve all flags.
+
+```text
+offset:u8 := fetch byte
+condition0:flag := read Z
+when not(condition0) {
+  perform "add a signed displacement to live PC" {
+    offset:u8 := offset
+    pc:u16 := read PC
+    write PC:u16 := addWrap(pc, signExtend16(offset))
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD HL,nn
+
+In `00 pp 0001`, pp selects BC, DE, HL, or SP. Fetch the low byte and then the high byte before writing the selected word. Pair writes use the actions above; SP is stored directly. No word transfer reads or updates flags.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+perform "write H:L" {
+  word:u16 := result
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (nn),HL
+
+Absolute word transfers first fetch the complete address. Store then captures HL and writes low followed by high; load reads both memory bytes before changing H or L. The second address wraps after `$FFFF`. A failed second write retains the first; a failed load leaves the destination untouched.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+result:u16 := source "H:L register pair" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+write memory[address] := lowByte(result)
+write memory[addWrap(address, 0001:u16)] := highByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 INC HL
+
+`00 pp q 011` increments (q=0) or decrements (q=1) BC/DE/HL/SP. Both capture the complete word before replacing it, wrap at sixteen bits, and preserve every flag without reading it. Word INC/DEC differ from their byte counterparts.
+
+```text
+original:u16 := source "H:L register pair" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+perform "write H:L" {
+  word:u16 := addWrap(original, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 INC H
 
 INC reads the original byte, computes the wrapped result, and updates S/Z/H/PV/N before writeback. A failed read leaves flags unchanged; a failed write retains the calculated flags. Preserve the alternate bank and controls. The resolved-memory action also serves the indexed instruction bodies.
@@ -373867,6 +372474,123 @@ write H:u8 := result
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 DAA
+
+Replace the complete flags object with S/Z/H/PV/N/C, temporarily clearing N; write A, then restore the captured N. H is bit 4 of original A XOR result. P/V reports even parity. This explicit ordering preserves the established model contract, including observers that fail during state writes.
+
+```text
+original:u8 := read A
+half:flag := read H
+carry:flag := read C
+subtract:flag := read N
+low := select(or(not(borrow(bitAnd(original, 0F:u8), 0A:u8)), half), 06:u8, 00:u8)
+high := select(or(not(borrow(original, 9A:u8)), carry), 60:u8, 00:u8)
+correction := bitOr(low, high)
+result := select(subtract, subtract(original, correction), addWrap(original, correction))
+replace flags "replace DAA result flags" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := not(isZero(bitAnd(bitXor(original, result), 10:u8)))
+  PV := evenParity8(result)
+  N := 0:flag
+  C := or(not(borrow(original, 9A:u8)), carry)
+} // Replace the complete flag object.
+write A:u8 := result
+flags "restore N" simultaneously {
+  N := subtract
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 JR Z,e
+
+JR has only the four NZ/Z/NC/C conditions, encoded `00 1cc 000`. Its signed byte displacement is fetched before the condition. On a taken path, read the post-fetch PC, add the sign-extended displacement, wrap to a word, and write PC. JR without a condition uses `00 011 000`. Preserve all flags.
+
+```text
+offset:u8 := fetch byte
+condition0:flag := read Z
+when condition0 {
+  perform "add a signed displacement to live PC" {
+    offset:u8 := offset
+    pc:u16 := read PC
+    write PC:u16 := addWrap(pc, signExtend16(offset))
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 ADD HL,HL
+
+ADD HL,ss uses `00 pp 1001`, with the same pair selector. Read ss before HL, including two complete reads for ADD HL,HL. Write H then L before updating H/C/N in that order. S/Z/PV remain unchanged. The half-carry boundary is bit 11: bit 12 of `left XOR right XOR result` identifies the carry into bit 12. This policy also supplies the remaining native IX/IY word additions.
+
+```text
+right:u16 := source "H:L register pair" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+left:u16 := source "H:L register pair" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := addWrap(left, right)
+perform "write H:L" {
+  word:u16 := result
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 LD HL,(nn)
+
+Absolute word transfers first fetch the complete address. Store then captures HL and writes low followed by high; load reads both memory bytes before changing H or L. The second address wraps after `$FFFF`. A failed second write retains the first; a failed load leaves the destination untouched.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+low:u8 := read memory[address]
+high:u8 := read memory[addWrap(address, 0001:u16)]
+perform "write H:L" {
+  word:u16 := concatHighLow(high, low)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 DEC HL
+
+`00 pp q 011` increments (q=0) or decrements (q=1) BC/DE/HL/SP. Both capture the complete word before replacing it, wrap at sixteen bits, and preserve every flag without reading it. Word INC/DEC differ from their byte counterparts.
+
+```text
+original:u16 := source "H:L register pair" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+perform "write H:L" {
+  word:u16 := subtract(original, 0001:u16)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 INC L
 
 INC reads the original byte, computes the wrapped result, and updates S/Z/H/PV/N before writeback. A failed read leaves flags unchanged; a failed write retains the calculated flags. Preserve the alternate bank and controls. The resolved-memory action also serves the indexed instruction bodies.
@@ -373912,6 +372636,81 @@ Capture the source completely before writing the destination. Register self-copi
 ```text
 result:u8 := fetch byte
 write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CPL
+
+CPL complements A before setting N then H. SCF sets C, then clears N/H. CCF captures C, copies it to H, complements C, and clears N, in that order. All three preserve S/Z/PV and the alternate bank without inspecting them.
+
+```text
+original:u8 := read A
+write A:u8 := bitXor(original, FF:u8)
+flags "CPL flags" simultaneously {
+  N := 1:flag
+  H := 1:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV, C.
+
+### z80 JR NC,e
+
+JR has only the four NZ/Z/NC/C conditions, encoded `00 1cc 000`. Its signed byte displacement is fetched before the condition. On a taken path, read the post-fetch PC, add the sign-extended displacement, wrap to a word, and write PC. JR without a condition uses `00 011 000`. Preserve all flags.
+
+```text
+offset:u8 := fetch byte
+condition0:flag := read C
+when not(condition0) {
+  perform "add a signed displacement to live PC" {
+    offset:u8 := offset
+    pc:u16 := read PC
+    write PC:u16 := addWrap(pc, signExtend16(offset))
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD SP,nn
+
+In `00 pp 0001`, pp selects BC, DE, HL, or SP. Fetch the low byte and then the high byte before writing the selected word. Pair writes use the actions above; SP is stored directly. No word transfer reads or updates flags.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write SP:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (nn),A
+
+A also transfers through BC or DE (`00 0p d 010`), or through a following absolute address (`00 11 d 010`). d is zero for a store and one for a load. Resolve the complete address before reading A for a store or memory for a load. A failed load does not write A. Stores never read destination memory; all six forms preserve both banks' flags and the other registers.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+result:u8 := read A
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 INC SP
+
+`00 pp q 011` increments (q=0) or decrements (q=1) BC/DE/HL/SP. Both capture the complete word before replacing it, wrap at sixteen bits, and preserve every flag without reading it. Word INC/DEC differ from their byte counterparts.
+
+```text
+original:u16 := read SP
+write SP:u16 := addWrap(original, 0001:u16)
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -373986,6 +372785,91 @@ write memory[destinationAddress0] := result
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 SCF
+
+CPL complements A before setting N then H. SCF sets C, then clears N/H. CCF captures C, copies it to H, complements C, and clears N, in that order. All three preserve S/Z/PV and the alternate bank without inspecting them.
+
+```text
+flags "SCF flags" simultaneously {
+  C := 1:flag
+  N := 0:flag
+  H := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 JR C,e
+
+JR has only the four NZ/Z/NC/C conditions, encoded `00 1cc 000`. Its signed byte displacement is fetched before the condition. On a taken path, read the post-fetch PC, add the sign-extended displacement, wrap to a word, and write PC. JR without a condition uses `00 011 000`. Preserve all flags.
+
+```text
+offset:u8 := fetch byte
+condition0:flag := read C
+when condition0 {
+  perform "add a signed displacement to live PC" {
+    offset:u8 := offset
+    pc:u16 := read PC
+    write PC:u16 := addWrap(pc, signExtend16(offset))
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 ADD HL,SP
+
+ADD HL,ss uses `00 pp 1001`, with the same pair selector. Read ss before HL, including two complete reads for ADD HL,HL. Write H then L before updating H/C/N in that order. S/Z/PV remain unchanged. The half-carry boundary is bit 11: bit 12 of `left XOR right XOR result` identifies the carry into bit 12. This policy also supplies the remaining native IX/IY word additions.
+
+```text
+right:u16 := read SP
+left:u16 := source "H:L register pair" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := addWrap(left, right)
+perform "write H:L" {
+  word:u16 := result
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 LD A,(nn)
+
+A also transfers through BC or DE (`00 0p d 010`), or through a following absolute address (`00 11 d 010`). d is zero for a store and one for a load. Resolve the complete address before reading A for a store or memory for a load. A failed load does not write A. Stores never read destination memory; all six forms preserve both banks' flags and the other registers.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+result:u8 := read memory[address]
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 DEC SP
+
+`00 pp q 011` increments (q=0) or decrements (q=1) BC/DE/HL/SP. Both capture the complete word before replacing it, wrap at sixteen bits, and preserve every flag without reading it. Word INC/DEC differ from their byte counterparts.
+
+```text
+original:u16 := read SP
+write SP:u16 := subtract(original, 0001:u16)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 INC A
 
 INC reads the original byte, computes the wrapped result, and updates S/Z/H/PV/N before writeback. A failed read leaves flags unchanged; a failed write retains the calculated flags. Preserve the alternate bank and controls. The resolved-memory action also serves the indexed instruction bodies.
@@ -374034,6 +372918,21 @@ write A:u8 := result
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CCF
+
+CPL complements A before setting N then H. SCF sets C, then clears N/H. CCF captures C, copies it to H, complements C, and clears N, in that order. All three preserve S/Z/PV and the alternate bank without inspecting them.
+
+```text
+carry:flag := read C
+flags "CCF flags" simultaneously {
+  H := carry
+  C := not(carry)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
 
 ### z80 LD B,B
 
@@ -374703,6 +373602,16 @@ destinationAddress0:u16 := source "H:L register pair" {
   yield concatHighLow(high, low)
 }
 write memory[destinationAddress0] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 HALT
+
+NOP changes nothing after opcode fetching. HALT sets STOPPED and retires normally; further steps stop until reset or an accepted interrupt releases it. DI and EI write IFF2 before IFF1. EI requests IRQ inhibition through the following instruction. The native execution boundary still commits that request at successful retirement and implements refresh and interrupt entry.
+
+```text
+write halted:boolean := true
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -376595,6 +375504,170 @@ perform "CP with a captured byte" {
 
 Flags preserved throughout: none.
 
+### z80 RET NZ
+
+RET (`11 001 001`) pops the complete return address before writing PC. Conditional returns use `11 ccc 000` and test the flag before any stack read. Untaken returns never read SP or touch RAM. All forms preserve flags.
+
+```text
+condition0:flag := read Z
+when not(condition0) {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 POP BC
+
+PUSH/POP encode `11 pp q 101/001`, with q=0 and pp selecting BC/DE/HL/AF. PUSH captures the entire register before the first stack access. POP commits its destination only after both reads succeed. AF reads A before packing F; a pop writes A before replacing the whole flag object, ignoring bits 5 and 3.
+
+```text
+result:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+perform "write B:C" {
+  word:u16 := result
+  write B:u8 := highByte(word)
+  write C:u8 := lowByte(word)
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP NZ,nn
+
+For absolute jumps, calls, and returns, `ccc` means Z/C/PV/S selected by its high two bits, with its low bit selecting clear or set. PO/PE test P/V, which may represent parity or signed overflow depending on the preceding instruction. JP cc,nn fetches both target bytes before reading its condition. An untaken path never reads or writes PC; a taken path does not read target memory.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read Z
+when not(condition0) {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP nn
+
+For absolute jumps, calls, and returns, `ccc` means Z/C/PV/S selected by its high two bits, with its low bit selecting clear or set. PO/PE test P/V, which may represent parity or signed overflow depending on the preceding instruction. JP cc,nn fetches both target bytes before reading its condition. An untaken path never reads or writes PC; a taken path does not read target memory.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CALL NZ,nn
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read Z
+when not(condition0) {
+  perform "push return PC then jump" {
+    target:u16 := target
+    returnPC:u16 := read PC
+    perform "push a captured word" {
+      word:u16 := returnPC
+      perform "push a captured byte" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+      perform "push a captured byte" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+    }
+    write PC:u16 := target
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 PUSH BC
+
+PUSH/POP encode `11 pp q 101/001`, with q=0 and pp selecting BC/DE/HL/AF. PUSH captures the entire register before the first stack access. POP commits its destination only after both reads succeed. AF reads A before packing F; a pop writes A before replacing the whole flag object, ignoring bits 5 and 3.
+
+```text
+original:u16 := source "B:C register pair" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+perform "push a captured word" {
+  word:u16 := original
+  perform "push a captured byte" {
+    byte:u8 := highByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+  perform "push a captured byte" {
+    byte:u8 := lowByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 ADD A,n
 
 Capture A without reading incoming flags. Apply the table's flags before writing the byte result to A. A failed operand read prevents every action effect.
@@ -376621,6 +375694,190 @@ perform "ADD with a captured byte" {
 ```
 
 Flags preserved throughout: none.
+
+### z80 RST 00H
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "00H" {
+  yield 0000:u16
+}
+perform "push return PC then jump" {
+  target:u16 := target
+  returnPC:u16 := read PC
+  perform "push a captured word" {
+    word:u16 := returnPC
+    perform "push a captured byte" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+    perform "push a captured byte" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+  }
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET Z
+
+RET (`11 001 001`) pops the complete return address before writing PC. Conditional returns use `11 ccc 000` and test the flag before any stack read. Untaken returns never read SP or touch RAM. All forms preserve flags.
+
+```text
+condition0:flag := read Z
+when condition0 {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET
+
+RET (`11 001 001`) pops the complete return address before writing PC. Conditional returns use `11 ccc 000` and test the flag before any stack read. Untaken returns never read SP or touch RAM. All forms preserve flags.
+
+```text
+returnPC:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write PC:u16 := returnPC
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP Z,nn
+
+For absolute jumps, calls, and returns, `ccc` means Z/C/PV/S selected by its high two bits, with its low bit selecting clear or set. PO/PE test P/V, which may represent parity or signed overflow depending on the preceding instruction. JP cc,nn fetches both target bytes before reading its condition. An untaken path never reads or writes PC; a taken path does not read target memory.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read Z
+when condition0 {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CALL Z,nn
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read Z
+when condition0 {
+  perform "push return PC then jump" {
+    target:u16 := target
+    returnPC:u16 := read PC
+    perform "push a captured word" {
+      word:u16 := returnPC
+      perform "push a captured byte" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+      perform "push a captured byte" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+    }
+    write PC:u16 := target
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CALL nn
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+perform "push return PC then jump" {
+  target:u16 := target
+  returnPC:u16 := read PC
+  perform "push a captured word" {
+    word:u16 := returnPC
+    perform "push a captured byte" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+    perform "push a captured byte" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+  }
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 ADC A,n
 
@@ -376650,6 +375907,205 @@ perform "ADC with a captured byte" {
 
 Flags preserved throughout: none.
 
+### z80 RST 08H
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "08H" {
+  yield 0008:u16
+}
+perform "push return PC then jump" {
+  target:u16 := target
+  returnPC:u16 := read PC
+  perform "push a captured word" {
+    word:u16 := returnPC
+    perform "push a captured byte" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+    perform "push a captured byte" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+  }
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET NC
+
+RET (`11 001 001`) pops the complete return address before writing PC. Conditional returns use `11 ccc 000` and test the flag before any stack read. Untaken returns never read SP or touch RAM. All forms preserve flags.
+
+```text
+condition0:flag := read C
+when not(condition0) {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 POP DE
+
+PUSH/POP encode `11 pp q 101/001`, with q=0 and pp selecting BC/DE/HL/AF. PUSH captures the entire register before the first stack access. POP commits its destination only after both reads succeed. AF reads A before packing F; a pop writes A before replacing the whole flag object, ignoring bits 5 and 3.
+
+```text
+result:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+perform "write D:E" {
+  word:u16 := result
+  write D:u8 := highByte(word)
+  write E:u8 := lowByte(word)
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP NC,nn
+
+For absolute jumps, calls, and returns, `ccc` means Z/C/PV/S selected by its high two bits, with its low bit selecting clear or set. PO/PE test P/V, which may represent parity or signed overflow depending on the preceding instruction. JP cc,nn fetches both target bytes before reading its condition. An untaken path never reads or writes PC; a taken path does not read target memory.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read C
+when not(condition0) {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 OUT (n),A
+
+OUT (n),A and IN A,(n) use `11 01 d 011`: d selects output (0) or input (1). Both capture old A for address bits 15..8 before fetching the low address byte. OUT then rereads live A for the transferred value; IN writes A only after a successful device read. Neither instruction accesses flags. Addressing devices and retaining device state remain the machine's responsibility.
+
+```text
+port:u16 := source "old A and immediate port byte" {
+  high:u8 := read A
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+byte:u8 := read A
+write port[port] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CALL NC,nn
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read C
+when not(condition0) {
+  perform "push return PC then jump" {
+    target:u16 := target
+    returnPC:u16 := read PC
+    perform "push a captured word" {
+      word:u16 := returnPC
+      perform "push a captured byte" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+      perform "push a captured byte" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+    }
+    write PC:u16 := target
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 PUSH DE
+
+PUSH/POP encode `11 pp q 101/001`, with q=0 and pp selecting BC/DE/HL/AF. PUSH captures the entire register before the first stack access. POP commits its destination only after both reads succeed. AF reads A before packing F; a pop writes A before replacing the whole flag object, ignoring bits 5 and 3.
+
+```text
+original:u16 := source "D:E register pair" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+perform "push a captured word" {
+  word:u16 := original
+  perform "push a captured byte" {
+    byte:u8 := highByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+  perform "push a captured byte" {
+    byte:u8 := lowByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 SUB n
 
 Capture A without reading incoming flags. Apply the table's flags before writing the byte result to A. A failed operand read prevents every action effect.
@@ -376676,6 +376132,176 @@ perform "SUB with a captured byte" {
 ```
 
 Flags preserved throughout: none.
+
+### z80 RST 10H
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "10H" {
+  yield 0010:u16
+}
+perform "push return PC then jump" {
+  target:u16 := target
+  returnPC:u16 := read PC
+  perform "push a captured word" {
+    word:u16 := returnPC
+    perform "push a captured byte" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+    perform "push a captured byte" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+  }
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET C
+
+RET (`11 001 001`) pops the complete return address before writing PC. Conditional returns use `11 ccc 000` and test the flag before any stack read. Untaken returns never read SP or touch RAM. All forms preserve flags.
+
+```text
+condition0:flag := read C
+when condition0 {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 EXX
+
+EXX (`11 011 001`) exchanges B/C/D/E/H/L individually in that order, reading alternate then main and writing main then alternate for each byte. It preserves both A registers and both flag objects, with no memory or control-state access.
+
+```text
+otherB:u8 := read ALTERNATE.B
+mainB:u8 := read B
+write B:u8 := otherB
+write ALTERNATE.B:u8 := mainB
+otherC:u8 := read ALTERNATE.C
+mainC:u8 := read C
+write C:u8 := otherC
+write ALTERNATE.C:u8 := mainC
+otherD:u8 := read ALTERNATE.D
+mainD:u8 := read D
+write D:u8 := otherD
+write ALTERNATE.D:u8 := mainD
+otherE:u8 := read ALTERNATE.E
+mainE:u8 := read E
+write E:u8 := otherE
+write ALTERNATE.E:u8 := mainE
+otherH:u8 := read ALTERNATE.H
+mainH:u8 := read H
+write H:u8 := otherH
+write ALTERNATE.H:u8 := mainH
+otherL:u8 := read ALTERNATE.L
+mainL:u8 := read L
+write L:u8 := otherL
+write ALTERNATE.L:u8 := mainL
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP C,nn
+
+For absolute jumps, calls, and returns, `ccc` means Z/C/PV/S selected by its high two bits, with its low bit selecting clear or set. PO/PE test P/V, which may represent parity or signed overflow depending on the preceding instruction. JP cc,nn fetches both target bytes before reading its condition. An untaken path never reads or writes PC; a taken path does not read target memory.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read C
+when condition0 {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 IN A,(n)
+
+OUT (n),A and IN A,(n) use `11 01 d 011`: d selects output (0) or input (1). Both capture old A for address bits 15..8 before fetching the low address byte. OUT then rereads live A for the transferred value; IN writes A only after a successful device read. Neither instruction accesses flags. Addressing devices and retaining device state remain the machine's responsibility.
+
+```text
+port:u16 := source "old A and immediate port byte" {
+  high:u8 := read A
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+byte:u8 := read port[port]
+write A:u8 := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CALL C,nn
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read C
+when condition0 {
+  perform "push return PC then jump" {
+    target:u16 := target
+    returnPC:u16 := read PC
+    perform "push a captured word" {
+      word:u16 := returnPC
+      perform "push a captured byte" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+      perform "push a captured byte" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+    }
+    write PC:u16 := target
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 SBC A,n
 
@@ -376705,6 +376331,213 @@ perform "SBC with a captured byte" {
 
 Flags preserved throughout: none.
 
+### z80 RST 18H
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "18H" {
+  yield 0018:u16
+}
+perform "push return PC then jump" {
+  target:u16 := target
+  returnPC:u16 := read PC
+  perform "push a captured word" {
+    word:u16 := returnPC
+    perform "push a captured byte" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+    perform "push a captured byte" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+  }
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET PO
+
+RET (`11 001 001`) pops the complete return address before writing PC. Conditional returns use `11 ccc 000` and test the flag before any stack read. Untaken returns never read SP or touch RAM. All forms preserve flags.
+
+```text
+condition0:flag := read PV
+when not(condition0) {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 POP HL
+
+PUSH/POP encode `11 pp q 101/001`, with q=0 and pp selecting BC/DE/HL/AF. PUSH captures the entire register before the first stack access. POP commits its destination only after both reads succeed. AF reads A before packing F; a pop writes A before replacing the whole flag object, ignoring bits 5 and 3.
+
+```text
+result:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+perform "write H:L" {
+  word:u16 := result
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP PO,nn
+
+For absolute jumps, calls, and returns, `ccc` means Z/C/PV/S selected by its high two bits, with its low bit selecting clear or set. PO/PE test P/V, which may represent parity or signed overflow depending on the preceding instruction. JP cc,nn fetches both target bytes before reading its condition. An untaken path never reads or writes PC; a taken path does not read target memory.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read PV
+when not(condition0) {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 EX (SP),HL
+
+EX (SP),HL captures HL and SP before any memory access. Read stack low then high, write the original H then L back to those captured addresses, and replace HL only after both writes succeed. Preserve SP and flags. A failure retains completed writes but prevents register replacement; the second address wraps.
+
+```text
+original:u16 := source "H:L register pair" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+address:u16 := read SP
+low:u8 := read memory[address]
+high:u8 := read memory[addWrap(address, 0001:u16)]
+write memory[addWrap(address, 0001:u16)] := highByte(original)
+write memory[address] := lowByte(original)
+perform "write H:L" {
+  word:u16 := concatHighLow(high, low)
+  write H:u8 := highByte(word)
+  write L:u8 := lowByte(word)
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CALL PO,nn
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read PV
+when not(condition0) {
+  perform "push return PC then jump" {
+    target:u16 := target
+    returnPC:u16 := read PC
+    perform "push a captured word" {
+      word:u16 := returnPC
+      perform "push a captured byte" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+      perform "push a captured byte" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+    }
+    write PC:u16 := target
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 PUSH HL
+
+PUSH/POP encode `11 pp q 101/001`, with q=0 and pp selecting BC/DE/HL/AF. PUSH captures the entire register before the first stack access. POP commits its destination only after both reads succeed. AF reads A before packing F; a pop writes A before replacing the whole flag object, ignoring bits 5 and 3.
+
+```text
+original:u16 := source "H:L register pair" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+perform "push a captured word" {
+  word:u16 := original
+  perform "push a captured byte" {
+    byte:u8 := highByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+  perform "push a captured byte" {
+    byte:u8 := lowByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 AND n
 
 Capture A without reading incoming flags. Apply the table's flags before writing the byte result to A. A failed operand read prevents every action effect.
@@ -376731,6 +376564,159 @@ perform "AND with a captured byte" {
 ```
 
 Flags preserved throughout: none.
+
+### z80 RST 20H
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "20H" {
+  yield 0020:u16
+}
+perform "push return PC then jump" {
+  target:u16 := target
+  returnPC:u16 := read PC
+  perform "push a captured word" {
+    word:u16 := returnPC
+    perform "push a captured byte" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+    perform "push a captured byte" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+  }
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET PE
+
+RET (`11 001 001`) pops the complete return address before writing PC. Conditional returns use `11 ccc 000` and test the flag before any stack read. Untaken returns never read SP or touch RAM. All forms preserve flags.
+
+```text
+condition0:flag := read PV
+when condition0 {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP (HL)
+
+For absolute jumps, calls, and returns, `ccc` means Z/C/PV/S selected by its high two bits, with its low bit selecting clear or set. PO/PE test P/V, which may represent parity or signed overflow depending on the preceding instruction. JP cc,nn fetches both target bytes before reading its condition. An untaken path never reads or writes PC; a taken path does not read target memory.
+
+```text
+target:u16 := source "H:L register pair" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP PE,nn
+
+For absolute jumps, calls, and returns, `ccc` means Z/C/PV/S selected by its high two bits, with its low bit selecting clear or set. PO/PE test P/V, which may represent parity or signed overflow depending on the preceding instruction. JP cc,nn fetches both target bytes before reading its condition. An untaken path never reads or writes PC; a taken path does not read target memory.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read PV
+when condition0 {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 EX DE,HL
+
+EX DE,HL exchanges H with D before L with E. Each byte exchange captures both old values, reads H/L before D/E, then writes D/E before H/L. It preserves flags, SP, and the alternate bank without inspecting them.
+
+```text
+highH:u8 := read H
+highD:u8 := read D
+write D:u8 := highH
+write H:u8 := highD
+lowL:u8 := read L
+lowE:u8 := read E
+write E:u8 := lowL
+write L:u8 := lowE
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CALL PE,nn
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read PV
+when condition0 {
+  perform "push return PC then jump" {
+    target:u16 := target
+    returnPC:u16 := read PC
+    perform "push a captured word" {
+      word:u16 := returnPC
+      perform "push a captured byte" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+      perform "push a captured byte" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+    }
+    write PC:u16 := target
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 XOR n
 
@@ -376759,6 +376745,221 @@ perform "XOR with a captured byte" {
 
 Flags preserved throughout: none.
 
+### z80 RST 28H
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "28H" {
+  yield 0028:u16
+}
+perform "push return PC then jump" {
+  target:u16 := target
+  returnPC:u16 := read PC
+  perform "push a captured word" {
+    word:u16 := returnPC
+    perform "push a captured byte" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+    perform "push a captured byte" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+  }
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET P
+
+RET (`11 001 001`) pops the complete return address before writing PC. Conditional returns use `11 ccc 000` and test the flag before any stack read. Untaken returns never read SP or touch RAM. All forms preserve flags.
+
+```text
+condition0:flag := read S
+when not(condition0) {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 POP AF
+
+PUSH/POP encode `11 pp q 101/001`, with q=0 and pp selecting BC/DE/HL/AF. PUSH captures the entire register before the first stack access. POP commits its destination only after both reads succeed. AF reads A before packing F; a pop writes A before replacing the whole flag object, ignoring bits 5 and 3.
+
+```text
+result:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+perform "write A and replace F" {
+  word:u16 := result
+  write A:u8 := highByte(word)
+  perform "replace packed F" {
+    status:u8 := lowByte(word)
+    replace flags "restore all documented flags" simultaneously {
+      S := not(isZero(bitAnd(status, 80:u8)))
+      Z := not(isZero(bitAnd(status, 40:u8)))
+      H := not(isZero(bitAnd(status, 10:u8)))
+      PV := not(isZero(bitAnd(status, 04:u8)))
+      N := not(isZero(bitAnd(status, 02:u8)))
+      C := not(isZero(bitAnd(status, 01:u8)))
+    } // Replace the complete flag object.
+  }
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 JP P,nn
+
+For absolute jumps, calls, and returns, `ccc` means Z/C/PV/S selected by its high two bits, with its low bit selecting clear or set. PO/PE test P/V, which may represent parity or signed overflow depending on the preceding instruction. JP cc,nn fetches both target bytes before reading its condition. An untaken path never reads or writes PC; a taken path does not read target memory.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read S
+when not(condition0) {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 DI
+
+NOP changes nothing after opcode fetching. HALT sets STOPPED and retires normally; further steps stop until reset or an accepted interrupt releases it. DI and EI write IFF2 before IFF1. EI requests IRQ inhibition through the following instruction. The native execution boundary still commits that request at successful retirement and implements refresh and interrupt entry.
+
+```text
+write iff2:boolean := false
+write iff1:boolean := false
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CALL P,nn
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read S
+when not(condition0) {
+  perform "push return PC then jump" {
+    target:u16 := target
+    returnPC:u16 := read PC
+    perform "push a captured word" {
+      word:u16 := returnPC
+      perform "push a captured byte" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+      perform "push a captured byte" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+    }
+    write PC:u16 := target
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 PUSH AF
+
+PUSH/POP encode `11 pp q 101/001`, with q=0 and pp selecting BC/DE/HL/AF. PUSH captures the entire register before the first stack access. POP commits its destination only after both reads succeed. AF reads A before packing F; a pop writes A before replacing the whole flag object, ignoring bits 5 and 3.
+
+```text
+original:u16 := source "A:F" {
+  accumulator:u8 := read A
+  status:u8 := source "packed documented flags" {
+    sign:flag := read S
+    zero:flag := read Z
+    half:flag := read H
+    parity:flag := read PV
+    subtract:flag := read N
+    carry:flag := read C
+    sz := bitOr(select(sign, 80:u8, 00:u8), select(zero, 40:u8, 00:u8))
+    hp := bitOr(select(half, 10:u8, 00:u8), select(parity, 04:u8, 00:u8))
+    nc := bitOr(select(subtract, 02:u8, 00:u8), select(carry, 01:u8, 00:u8))
+    yield bitOr(bitOr(sz, hp), nc)
+  }
+  yield concatHighLow(accumulator, status)
+}
+perform "push a captured word" {
+  word:u16 := original
+  perform "push a captured byte" {
+    byte:u8 := highByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+  perform "push a captured byte" {
+    byte:u8 := lowByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 OR n
 
 Capture A without reading incoming flags. Apply the table's flags before writing the byte result to A. A failed operand read prevents every action effect.
@@ -376786,6 +376987,154 @@ perform "OR with a captured byte" {
 
 Flags preserved throughout: none.
 
+### z80 RST 30H
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "30H" {
+  yield 0030:u16
+}
+perform "push return PC then jump" {
+  target:u16 := target
+  returnPC:u16 := read PC
+  perform "push a captured word" {
+    word:u16 := returnPC
+    perform "push a captured byte" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+    perform "push a captured byte" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+  }
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET M
+
+RET (`11 001 001`) pops the complete return address before writing PC. Conditional returns use `11 ccc 000` and test the flag before any stack read. Untaken returns never read SP or touch RAM. All forms preserve flags.
+
+```text
+condition0:flag := read S
+when condition0 {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD SP,HL
+
+In `00 pp 0001`, pp selects BC, DE, HL, or SP. Fetch the low byte and then the high byte before writing the selected word. Pair writes use the actions above; SP is stored directly. No word transfer reads or updates flags.
+
+```text
+result:u16 := source "H:L register pair" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+write SP:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP M,nn
+
+For absolute jumps, calls, and returns, `ccc` means Z/C/PV/S selected by its high two bits, with its low bit selecting clear or set. PO/PE test P/V, which may represent parity or signed overflow depending on the preceding instruction. JP cc,nn fetches both target bytes before reading its condition. An untaken path never reads or writes PC; a taken path does not read target memory.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read S
+when condition0 {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 EI
+
+NOP changes nothing after opcode fetching. HALT sets STOPPED and retires normally; further steps stop until reset or an accepted interrupt releases it. DI and EI write IFF2 before IFF1. EI requests IRQ inhibition through the following instruction. The native execution boundary still commits that request at successful retirement and implements refresh and interrupt entry.
+
+```text
+write iff2:boolean := true
+write iff1:boolean := true
+request IRQ deferral at successful retirement
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CALL M,nn
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition0:flag := read S
+when condition0 {
+  perform "push return PC then jump" {
+    target:u16 := target
+    returnPC:u16 := read PC
+    perform "push a captured word" {
+      word:u16 := returnPC
+      perform "push a captured byte" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+      perform "push a captured byte" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read SP
+        write SP:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read SP
+        write memory[address] := byte
+      }
+    }
+    write PC:u16 := target
+  }
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 CP n
 
 Capture A without reading incoming flags. Apply the table's flags before retaining A without a write. A failed operand read prevents every action effect.
@@ -376812,6 +377161,40 @@ perform "CP with a captured byte" {
 
 Flags preserved throughout: none.
 
+### z80 RST 38H
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := source "38H" {
+  yield 0038:u16
+}
+perform "push return PC then jump" {
+  target:u16 := target
+  returnPC:u16 := read PC
+  perform "push a captured word" {
+    word:u16 := returnPC
+    perform "push a captured byte" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+    perform "push a captured byte" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read SP
+      write memory[address] := byte
+    }
+  }
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 replace packed F
 
 F packs `S Z 0 H 0 PV N C`, reading the six flags in that order. PUSH AF captures A before this view; POP AF writes A before replacing the flags object. The status action below supplies that replacement to the existing stack body. All six new flag values are computed before the old object is replaced.
@@ -376829,6 +377212,42 @@ replace flags "restore all documented flags" simultaneously {
 ```
 
 Flags preserved throughout: none.
+
+### z80 write B:C
+
+A pair write replaces its high byte before its low byte. These actions also serve the remaining prefixed word definitions. Reading a pair always captures both bytes before any split write, even when source and destination alias.
+
+```text
+word:u16 := input
+write B:u8 := highByte(word)
+write C:u8 := lowByte(word)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 write D:E
+
+A pair write replaces its high byte before its low byte. These actions also serve the remaining prefixed word definitions. Reading a pair always captures both bytes before any split write, even when source and destination alias.
+
+```text
+word:u16 := input
+write D:u8 := highByte(word)
+write E:u8 := lowByte(word)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 write H:L
+
+A pair write replaces its high byte before its low byte. These actions also serve the remaining prefixed word definitions. Reading a pair always captures both bytes before any split write, even when source and destination alias.
+
+```text
+word:u16 := input
+write H:u8 := highByte(word)
+write L:u8 := lowByte(word)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 ADD with a captured byte
 
@@ -377038,3 +377457,104 @@ write memory[address] := result
 ```
 
 Flags preserved throughout: C.
+
+### z80 push a captured byte
+
+The push action captures its argument before touching SP. Each pop source captures a complete byte or word before yielding it to its caller. None of these operations reads or writes flags or erases popped memory.
+
+```text
+byte:u8 := input
+pointer:u16 := read SP
+write SP:u16 := subtract(pointer, 0001:u16)
+address:u16 := read SP
+write memory[address] := byte
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 push a captured word
+
+The push action captures its argument before touching SP. Each pop source captures a complete byte or word before yielding it to its caller. None of these operations reads or writes flags or erases popped memory.
+
+```text
+word:u16 := input
+perform "push a captured byte" {
+  byte:u8 := highByte(word)
+  pointer:u16 := read SP
+  write SP:u16 := subtract(pointer, 0001:u16)
+  address:u16 := read SP
+  write memory[address] := byte
+}
+perform "push a captured byte" {
+  byte:u8 := lowByte(word)
+  pointer:u16 := read SP
+  write SP:u16 := subtract(pointer, 0001:u16)
+  address:u16 := read SP
+  write memory[address] := byte
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 write A and replace F
+
+The push action captures its argument before touching SP. Each pop source captures a complete byte or word before yielding it to its caller. None of these operations reads or writes flags or erases popped memory.
+
+```text
+word:u16 := input
+write A:u8 := highByte(word)
+perform "replace packed F" {
+  status:u8 := lowByte(word)
+  replace flags "restore all documented flags" simultaneously {
+    S := not(isZero(bitAnd(status, 80:u8)))
+    Z := not(isZero(bitAnd(status, 40:u8)))
+    H := not(isZero(bitAnd(status, 10:u8)))
+    PV := not(isZero(bitAnd(status, 04:u8)))
+    N := not(isZero(bitAnd(status, 02:u8)))
+    C := not(isZero(bitAnd(status, 01:u8)))
+  } // Replace the complete flag object.
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 add a signed displacement to live PC
+
+JR has only the four NZ/Z/NC/C conditions, encoded `00 1cc 000`. Its signed byte displacement is fetched before the condition. On a taken path, read the post-fetch PC, add the sign-extended displacement, wrap to a word, and write PC. JR without a condition uses `00 011 000`. Preserve all flags.
+
+```text
+offset:u8 := input
+pc:u16 := read PC
+write PC:u16 := addWrap(pc, signExtend16(offset))
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 push return PC then jump
+
+CALL captures its complete target before the condition. On a taken path it captures the return PC, pushes both bytes, then changes PC. RST uses `11 ttt 111` to call one of eight fixed addresses in the first 64 bytes. The shared action ensures both retain completed stack effects on failure, with PC replaced only after both writes succeed.
+
+```text
+target:u16 := input
+returnPC:u16 := read PC
+perform "push a captured word" {
+  word:u16 := returnPC
+  perform "push a captured byte" {
+    byte:u8 := highByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+  perform "push a captured byte" {
+    byte:u8 := lowByte(word)
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read SP
+    write memory[address] := byte
+  }
+}
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.

@@ -227,9 +227,9 @@ The 6800 also declares WAI suspension and frame reuse on wake-up. The 6809
 uses the same vector runtime with named wait modes, NMI arming, and masked
 SYNC release; chapter actions choose full/short frames and reuse CWAI frames. Both
 execution paths reuse byte fetch/dispatch and recording, with distinct interrupt
-APIs and record types. The Z80 retains
-its [8080-family base](../src/components/cpus/8080-family.ts), additional
-instructions, and prefix decoding. Paired programs expose common encodings
+APIs and record types. The Z80 chapter owns all unprefixed instructions and
+register views; its [core](../src/components/cpus/z80.ts) retains prefixed
+instruction binding, decoding, refresh, and interrupt boundaries. Paired programs expose common encodings
 alongside their different flag semantics.
 The 6800 and 6809 chapters express accumulator operations,
 transfers, and control flow through the same instruction representation, retaining

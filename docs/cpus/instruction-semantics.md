@@ -59,7 +59,7 @@ the Z80, 8088, and 68000 retain TypeScript builders.
 | 8080 MOV/MVI and corresponding Z80 LD matrices, immediate and indexed forms | Chapters own the ordinary matrices; native Z80 indexed bodies retain resolved addresses; capture sources before writes, retain HL access timing and real indexed H/L operands, preserve every flag, and exclude HALT |
 | 8080 STAX/LDAX/STA/LDA and corresponding Z80 accumulator LD forms | Capture BC/DE or the complete immediate address before A or memory; loads write only after a successful read, stores never read the destination, and neither direction accesses flags |
 | 8080 LXI/LHLD/SHLD/SPHL and Z80 word loads/stores and SP copies, including ED and IX/IY forms | Share complete bodies with low-first fetching and memory accesses, high-first pair reads/writes, captured sources, and explicit second-byte failures; ED's HL forms reuse the unprefixed bodies |
-| 8080 INX/DCX/DAD and Z80 word INC/DEC, ADD HL/IX/IY, ADC/SBC HL | Reuse pair descriptions and native base encodings; source before destination, optional C after both; write before flags; preserve all flags on adjustments and use the bit-11 H boundary on Z80 arithmetic |
+| 8080 INX/DCX/DAD and Z80 word INC/DEC, ADD HL/IX/IY, ADC/SBC HL | Reuse chapter pair descriptions and explicit encodings; source before destination, optional C after both; write before flags; preserve all flags on adjustments and use the bit-11 H boundary on Z80 arithmetic |
 | 8080 XTHL/XCHG and Z80 EX DE,HL and EX (SP),HL/IX/IY | Capture the register before SP; read memory low/high, write high/low, then replace the register; preserve completed writes on failure, SP, and flags; register-only exchanges swap high bytes before low bytes |
 | 8008 Lr1r2/LrM/LMr and immediate LrI/LMI | Literate operand selection with native register selectors, matrix prefix, mnemonics, and a 14-bit memory mask; preserve full H/L bytes, source-before-address ordering, and address-slot fetching |
 | 8008 AD/AC/SU/SB/ND/XR/OR/CP, every register/memory/immediate form | One literate body per operation across register, memory, and immediate encodings; typed carry inputs, S/Z/P/C, and an explicit 14-bit memory mask; retain address-slot fetching and supplied-byte rules |
@@ -256,10 +256,8 @@ The authoring layers have separate homes:
 | [ports.ts](../../src/components/cpus/semantics/ports.ts) | Shared byte/word port transfers: capture addresses before operands, transfer low byte first, and commit input only after complete reads |
 | [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, ordered frames, and complete push/pop instruction construction |
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared Motorola condition construction for remaining 68000 definitions |
-| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Remaining Z80 builders for indexed byte transfers, word transfers/arithmetic, exchanges, jumps, stacks, and subroutines, with explicit access ordering; accumulator rotates with CPU-specific flag stages |
-| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Remaining native Z80 word/accumulator-transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted |
+| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Remaining Z80 builders for indexed byte transfers and prefixed word transfers/arithmetic, stack exchanges, and pushes/pops; pair sources and writes come from the chapter |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
-| [decimal.ts](../../src/components/cpus/semantics/decimal.ts) | Shared decimal-correction selection with explicit Intel/Motorola flag and result stages |
 | [6502 chapter](../../src/components/cpus/specifications/6502.md) | Complete state, instruction inventory, NMOS arithmetic, status, reset, execution, and named external-entry policies |
 | [6800 chapter](../../src/components/cpus/specifications/6800.md) | Complete stored state, packed condition codes, instructions, reset, WAI suspension, IRQ/NMI entry, and public interface |
 | [6809 chapter](../../src/components/cpus/specifications/6809.md) | Complete model, indexed/page decoding, named wait modes, IRQ/FIRQ/NMI gates and frames, and public interface |
@@ -403,8 +401,8 @@ once and perform the same chapter actions. The old `intelByteSources` and
 `intelByteAlu` builders have been removed; the 8080's distinct rules also live
 in its own chapter.
 
-The Z80 also reuses `intelAccumulatorRotate` unchanged for RLCA/RRCA/RLA/RRA,
-appending N/H clearing after A and C writeback. S/Z/PV remain unchanged. Its CB
+The Z80 chapter describes RLCA/RRCA/RLA/RRA directly,
+clearing N/H after A and C writeback. S/Z/PV remain unchanged. Its CB
 RLC/RRC/RL/RR/SLA/SRA/SRL definitions use the existing `shift` recipe with their
 own result S/Z/parity policy, cleared H/N, and outgoing C. Registers are read
 once; memory bodies receive one resolved address shared by (HL), (IX+d), and
@@ -472,7 +470,7 @@ The [8008 chapter](../../src/components/cpus/specifications/8008.md)
 expresses its `3FFF` mask directly, so memory accesses use only H:L's low 14 bits
 without narrowing the stored bytes. The earlier masked Intel-helper path is
 removed. Its
-native inventory uses A/B/C/D/E/H/L/M selector order and the `11 ddd sss`
+declared inventory uses A/B/C/D/E/H/L/M selector order and the `11 ddd sss`
 matrix, excluding `FF` HLT. Definition names retain Intel's Lr1r2/LrM/LMr and
 LrI/LMI spelling. Immediate and register stores still capture the source before
 reading H/L; the address-stack selector and STOPPED are outside the body.
@@ -485,7 +483,7 @@ Ordinary transfers retain explicit H/L reads rather than entering at this
 resolved-address boundary.
 
 `intelWordTransfer` uses the existing `transfer` recipe for immediate word loads,
-absolute loads/stores, and HL/IX/IY-to-SP copies. Absolute operations fetch both
+absolute loads/stores, and IX/IY-to-SP copies. Ordinary HL copies live in the chapter. Absolute operations fetch both
 address bytes before touching the source register or data memory. All fetching
 and data-memory transfers are low byte first, with 16-bit address wraparound.
 Stores capture the complete register before either write, including unchanged
@@ -493,13 +491,10 @@ writes; a failed second write retains the first. A failed second read prevents
 all destination writes. Flags, alternate banks, and control state are never
 accessed. SP copies capture the source and write SP with no instruction context.
 
-`intelWordRegister` describes BC/DE/HL using the existing register-pair byte
-mapping, with explicit high-then-low reads and writes; SP, IX, and IY remain
-single stored word registers. These are construction-time descriptions expanded
-into ordinary statements, with no runtime setters or new semantic primitives.
-The seven shared base forms use one encoding inventory for definitions and
-bindings. The Z80 adds ED and IX/IY bindings, with ED's HL forms calling the
-same bodies as their unprefixed counterparts. Its prefix decoder still owns
+The Z80 chapter defines BC/DE/HL views and high-then-low write actions; native
+prefixed builders consume them alongside stored SP, IX, and IY words. Ordinary
+word bodies and encodings also live in the chapter. ED's HL forms call the same
+bodies as their unprefixed counterparts. Its prefix decoder still owns
 recognition, PC/R advancement, and interrupt retirement.
 
 The 6502 describes effective addresses as word-valued sources. They perform
@@ -1041,24 +1036,25 @@ write order. PLA then applies N/Z. Calls capture the target before condition
 flags, capture the return PC only if taken, push it, and write PC after both
 writes succeed. Returns test flags before stack access and write PC after a
 complete pop. Untaken calls and returns leave SP untouched and only advance
-PC through instruction fetching. The
-shared Intel native inventory supplies definition keys and runtime bindings;
-condition callbacks and the old stack-pair dispatch are removed.
+PC through instruction fetching. The 8080 and Z80 chapters supply ordinary
+stack/control encodings and bodies; native Z80 IX/IY pushes and pops retain
+the same stack recipe through prefixed bindings.
 
 The 6502 chapter's JSR stays an explicit sequence: fetch low target, read/push current PC
 high, read/push current PC low, fetch high target, then write PC. A stack write
 can replace the final operand. RTS adds one to the popped word. Motorola calls
 use high-first word layout through chapter actions. Indexed 6809 JSR retains
 S auto-updates and NMI arming before invoking the same chapter call action;
-subroutine stack effects do not arm NMI. Packed-status stacks use native
-construction with explicit packing and replacement stages. The 6809 shares its mask-driven and fixed-frame
-transfers with this construction; external recognition stays in the CPU.
+subroutine stack effects do not arm NMI. Packed-status stacks expose packing
+and replacement stages in the chapters. The 6809 uses its chapter actions for
+both mask-driven transfers and fixed interrupt frames, with recognition selected
+by its execution contract.
 
 ## Packed status and decimal arithmetic
 
 For TypeScript-authored status, each CPU owns one immutable packed layout beside
 its state schema. The runtime `flagRegister` exposes it as `bits` and `fixed`;
-generated sources consume that declaration. The 6502 and 8080 instead describe
+generated sources consume that declaration. The 6502, 6800, 6809, 8080, and Z80 describe
 packing and restoration directly in their executable chapters. Packing reads
 each flag once, inserts its bit, and adds fixed bits. Restoring ignores unmodeled bits and explicitly
 replaces the complete flag object. A replacement must supply every stored flag;
@@ -1863,34 +1859,25 @@ performs no register or memory reads; each call observes live registers at its
 declared position. The 6502 now expands these sources into every ordinary
 instruction body; standalone readers remain focused generator probes.
 
-The 6502 and 8080 now use generated chapter dispatch for their complete
-instruction sets. The Z80 chapter directly binds byte loads, arithmetic, and
-INC/DEC, removing their old hooks from `Cpu8080Family`. Its remaining inherited
-word, control, and stack bindings stay in that class until migration.
+The 6502 and 8080 use generated chapter dispatch for their complete instruction
+sets. The Z80 chapter binds all 252 unprefixed forms directly, replacing its
+inherited base class and remaining native base inventories. Native prefixed
+word definitions consume chapter pair reads/writes and the word-addition policy;
+indexed arithmetic and adjustments reuse chapter actions after native address
+resolution. The 310 documented CB forms still share native ordinary/indexed
+bindings. Prefix recognition, displacements, PC/R updates, reset, and interrupt
+delivery remain in the CPU module.
 
-Z80 indexed arithmetic and adjustments reuse chapter actions after native
-address resolution. Four accumulator rotates still use the native family hook;
-310 documented CB forms share ordinary and indexed bindings. Prefix recognition,
-displacements, PC/R updates, and interrupt delivery remain in the CPU module.
-Native transfer/word/control inventories continue to supply both definition keys
-and binding opcodes for those remaining families. Indexed load/store bodies take
-one resolved address. HALT remains a separate control body outside the chapter's
-byte-transfer matrix.
-
-Accumulator memory transfers through BC/DE and absolute addresses use the same
-inventory and binder, completing the shared ordinary byte load/store bindings.
-Their address sources are captured before A or memory: pair views read high byte
-first, while the immediate word fetches low byte first. Loads reuse `memorySource`
-and `transfer`; stores capture the address and then use `transfer` to read A and
-write memory once. No flags or alternate-bank state are accessed. The old pair
-selector is no longer needed. [Capture-order probes](../../tests/components/cpus/semantics/intel-accumulator-transfers.test.ts)
+Accumulator transfers through BC/DE and absolute addresses are chapter-defined:
+capture the address before A or memory, read pairs high first, fetch words low
+first, and write only after capturing the complete source.
+[Capture-order probes](../../tests/components/cpus/semantics/intel-accumulator-transfers.test.ts)
 change registers and flags during accesses to check that only the intended
 values are captured. [CPU boundary probes](../../tests/components/cpus/intel-accumulator-transfers.test.ts)
 cover ordinary and supplied bytes, overlapping code/data, wrapping fetches,
 and every failed access.
 Word bodies also own their complete immediate or absolute-address fetching.
-The shared word-store helper is removed; its word reader still serves Z80
-interrupt-vector reads. ED and unprefixed HL word transfers
+A private word reader serves Z80 interrupt-vector reads. ED and unprefixed HL word transfers
 share bodies; IX/IY word transfers use the same construction with stored words.
 The same pair descriptions and transfer recipe now serve all 44 word-arithmetic
 forms. Source and destination are captured separately even when they alias;

@@ -4,8 +4,8 @@ import { test } from "node:test";
 import { instructions as i8008 } from "../../../../src/components/cpus/generated/8008.js";
 import { instructions as i8080 } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as i8088 } from "../../../../src/components/cpus/generated/8088.js";
-import { instructions as iz80 } from "../../../../src/components/cpus/generated/z80.js";
-import { instructions8008, instructions8080, instructions8088, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { bodiesZ80 as iz80 } from "../../../helpers/z80-bodies.js";
+import { instructions8008, instructions8080, instructions8088, instructionsZ80, chapterZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
 import type { Cpu8008StoredState } from "../../../../src/components/cpus/semantics/generated/state/8008.js";
 import type { Cpu8080State } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
 import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
@@ -59,8 +59,8 @@ const x86: Case<Cpu8088State>[] = ([
   },
 }));
 const z80: Case<CpuZ80State>[] = [
-  { key: "input", execute: iz80.input, reference(s, c) { s.a = c.readPort(s.a * 256 + c.fetchByte()); } },
-  { key: "output", execute: iz80.output, reference(s, c) { c.writePort(s.a * 256 + c.fetchByte(), s.a); } },
+  { key: String(0xdb), execute: iz80.input, reference(s, c) { s.a = c.readPort(s.a * 256 + c.fetchByte()); } },
+  { key: String(0xd3), execute: iz80.output, reference(s, c) { c.writePort(s.a * 256 + c.fetchByte(), s.a); } },
   ...([["b", "B"], ["c", "C"], ["d", "D"], ["e", "E"], ["h", "H"], ["l", "L"], ["a", "A"]] as const).flatMap(([register, suffix]) => [false, true].map(output => ({
     key: `${output ? "output" : "input"}${suffix}`,
     execute: iz80[`${output ? "output" : "input"}${suffix}`]!,
@@ -101,7 +101,7 @@ function portDefinitions(definitions: Readonly<Record<string, InstructionDefinit
 }
 test("exactly 66 complete port forms enter the executable definition inventory", () => {
   for (const [cases, definitions, count] of [[small, instructions8008, 32], [intel, instructions8080, 2],
-    [z80, instructionsZ80, 24], [x86, instructions8088, 8]] as const) {
+    [z80, { ...instructionsZ80, ...chapterZ80 }, 24], [x86, instructions8088, 8]] as const) {
     assert.equal(cases.length, count);
     assert.deepEqual(cases.map(c => c.key).sort(), portDefinitions(definitions));
   }

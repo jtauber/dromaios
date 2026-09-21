@@ -5,7 +5,7 @@ import { instructions as mos } from "../../../../src/components/cpus/generated/6
 import { instructions as m6800 } from "../../../../src/components/cpus/generated/6800.js";
 import { bodies6809 as m6809 } from "../../../helpers/6809-bodies.js";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
-import { instructions as zilog } from "../../../../src/components/cpus/generated/z80.js";
+import { bodiesZ80 as zilog } from "../../../helpers/z80-bodies.js";
 import { stackState } from "../../../helpers/stack-forms.js";
 import { flagRegister } from "../../../../src/components/cpus/flags.js";
 import { cpuSymbols, capture, flagLiteral, flagValue, literal, or, readFlag, replaceFlags, select, value, writeRegister } from "../../../../src/components/cpus/semantics/model.js";

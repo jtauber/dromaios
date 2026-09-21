@@ -16,9 +16,12 @@ function stateWithFlags(set: boolean) {
   return { ...initialState(), interruptEnabled: true, flags: { ...flagPattern(set ? 63 : 0), cy: set, ac: set, p: set } };
 }
 type State = ReturnType<typeof stateWithFlags>;
-const cpus: readonly { name: string; instructions: Readonly<Record<number, (state: State, context: ByteInstructionContext) => void>> }[] = [
-  { name: "8080", instructions: Object.fromEntries(forms.map(({ opcode }) => [opcode, intel[opcode as keyof typeof intel]])) as Readonly<Record<number, (state: State, context: ByteInstructionContext) => void>> }, { name: "Z80", instructions: zilog },
-];
+type TransferBodies = Readonly<Record<number, (state: State, context: ByteInstructionContext) => void>>;
+const cpus = ([["8080", intel], ["Z80", zilog]] as const).map(([name, bodies]) => ({
+  name,
+  // This test selects only the byte-transfer forms, which need no ports or boundary callbacks.
+  instructions: Object.fromEntries(forms.map(({ opcode }) => [opcode, bodies[opcode as keyof typeof bodies]])) as TransferBodies,
+}));
 
 test("8080/Z80 retain the shared transfer, word-arithmetic, exchange, jump, stack, and status encodings", () => {
   const expected = [0x00, 0x27, 0x2f, 0x37, 0x3f, 0x76, 0xf1, 0xf5, ...forms.map(({ opcode }) => opcode),

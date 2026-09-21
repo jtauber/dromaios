@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { instructions } from "../../../../src/components/cpus/generated/z80.js";
+import { bodiesZ80 as instructions } from "../../../helpers/z80-bodies.js";
 import type { CpuZ80State } from "../../../../src/components/cpus/state/z80.js";
 import { initialState, flagPattern } from "../z80/helpers.js";
 

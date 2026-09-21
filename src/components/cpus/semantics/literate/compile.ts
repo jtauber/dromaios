@@ -3,7 +3,7 @@ import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
 import type { OpcodeEntry } from "../../opcodes.ts";
 import { memorySource, registerSource } from "../builders.ts";
 import { concat, isWidth, literal, readRegister, readSource, value } from "../model.ts";
-import type { Choice, CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Latch, Register, RegisterArray, ValueSource, ValueType, Width } from "../model.ts";
+import type { Choice, CpuDeclaration, Flag, FlagGroup, FlagPolicy, InstructionDefinition, Latch, Register, RegisterArray, ValueSource, ValueType, Width } from "../model.ts";
 import { defineInstruction, validateFlagPolicy, validateInstruction } from "../validate.ts";
 import { chapterBlocks, chapterBody, ChapterError, ChapterTokens } from "./document.ts";
 import { expression, flagExpression, width } from "./expressions.ts";
@@ -38,6 +38,7 @@ export interface CpuChapter {
 /** Compile a bounded literate language to the existing IR, without evaluating host-language code. */
 export function compileCpuChapter(markdown: string, target: { readonly name?: string; readonly state?: StateFields } = {}, file = "<chapter>"): CpuChapter {
   const registers = new Map<string, Register>(), flags = new Map<string, Flag>();
+  const flagGroups = new Map<string, FlagGroup>();
   const arrays = new Map<string, RegisterArray>(), latches = new Map<string, Latch>(), choices = new Map<string, Choice>();
   const sources = new Map<string, ValueSource>(), policies = new Map<string, FlagPolicy>();
   const catalogues = new Map<string, readonly ChapterOperand[]>(), families = new Map<string, readonly OpcodeEntry<InstructionDefinition>[]>();
@@ -80,7 +81,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
     readonly operands?: ReadonlyMap<string, ChapterOperand>;
     readonly conditions?: ReadonlyMap<string, ChapterCondition>;
   } = {}) {
-    return chapterStatements(lines, { cpu, registers, arrays, latches, choices, flags, policies, actions, catalogues,
+    return chapterStatements(lines, { cpu, registers, arrays, latches, choices, flags, flagGroups, policies, actions, catalogues,
       sources: options.bindings ?? sources, operands: options.operands ?? new Map(), conditions: options.conditions ?? new Map() }, options);
   }
 
@@ -95,6 +96,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         if (target.name !== undefined && name !== target.name) header.fail(`Expected CPU ${target.name}.`);
         if (!/^[a-z0-9]+$/.test(name)) header.fail("CPU names must contain lowercase letters or digits.");
         cpu = { ...cpu, name };
+        if (cpu.state.flags?.kind === "group") flagGroups.set("FLAGS", { kind: "flag-group", cpu: name });
         declared = true; header.end(); continue;
       }
       if (!declared) header.fail("Declare the CPU before its contents.");
@@ -121,8 +123,10 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
           })));
           if (fields.flags?.kind !== "group") tokens.fail("A register bank needs its own flags.");
           declarations.push({ symbol: { kind: "bank", field, fields }, tokens });
+          flagGroups.set(`${name}.FLAGS`, { kind: "flag-group", cpu: cpu.name, bank: field });
         }
         cpu = { name: cpu.name, state: chapterState(declarations) }; ownsState = true;
+        if (cpu.state.flags?.kind === "group") flagGroups.set("FLAGS", { kind: "flag-group", cpu: cpu.name });
         continue;
       }
       if (!ownsState && target.state === undefined) header.fail("Define state before other declarations.");

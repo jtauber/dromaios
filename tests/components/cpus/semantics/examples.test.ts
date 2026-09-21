@@ -297,7 +297,7 @@ test("Intel exchange explanations expose captured registers and addresses, read/
       "write memory[addWrap(address, 0001:u16)]", "write memory[address]", `write ${register}`].map(part => body.indexOf(part));
     assert.ok(ordered.every((position, index) => position >= 0 && (index === 0 || position > ordered[index - 1]!)));
     assert.doesNotMatch(body, /fetch byte|write SP|:flag := read/);
-    assert.match(text, /A failed access prevents register writeback and retains completed memory writes/);
+    assert.match(text, /A failed access prevents register writeback and retains completed memory writes|A failure retains completed writes but prevents register replacement/);
     assert.match(text, cpu === "8080" ? /Flags preserved throughout: S, Z, AC, P, CY\./ : /Flags preserved throughout: S, Z, H, PV, N, C\./);
   }
   for (const [cpu, name] of [["8080", "XCHG"], ["z80", "EX DE,HL"]] as const) {
@@ -311,7 +311,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 12442);
+  assert.equal(instructionDefinitions.length, 12450);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {
@@ -357,7 +357,7 @@ test("Z80 shift explanations distinguish accumulator flags from CB flags and pre
   for (const name of ["RLCA", "RRCA", "RLA", "RRA"]) {
     const text = description("z80", name);
     assert.match(text, /Flags preserved throughout: S, Z, PV\./);
-    const write = text.indexOf("write A:u8 := result"), carry = text.indexOf("C :=");
+    const write = text.indexOf("write A:u8 :="), carry = text.indexOf("C :=");
     assert.ok(write >= 0 && write < carry && carry < text.indexOf("N := 0:flag"));
     assert.ok(text.indexOf("N := 0:flag") < text.indexOf("H := 0:flag"));
     if (name === "RLA" || name === "RRA") assert.ok(text.indexOf("read A") < text.indexOf("carry:flag := read C"));
