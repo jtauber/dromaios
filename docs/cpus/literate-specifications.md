@@ -33,11 +33,11 @@ Executable chapters are maintained CPU sources:
   views preserve D/CC/S write rules; chapter actions share stack and interrupt-frame
   effects. Reset, execution, IRQ/FIRQ/NMI recognition, waiting/resume rules,
   and the public interface are chapter-owned; no handwritten implementation remains.
-- [Zilog Z80: state and unprefixed instructions](../../src/components/cpus/specifications/z80.md)
+- [Zilog Z80: state, unprefixed, CB, and ED instructions](../../src/components/cpus/specifications/z80.md)
   owns both register banks and numeric interrupt-mode storage, pair/status views,
-  pair-write actions, and all 252 unprefixed instructions. Native prefixed forms
-  reuse its pair views/writes, byte arithmetic, and word-addition policy; prefix
-  decoding and execution remain in TypeScript.
+  pair-write actions, and all unprefixed, CB, and ED forms. Native indexed forms
+  reuse its pair views/writes, arithmetic, CB memory actions, and masks; prefix
+  fetching and execution boundaries remain in TypeScript.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -172,6 +172,7 @@ Quoted descriptions use JSON string escaping.
 | `ADDRESS[slot] <- target`, `STOPPED <- 1` | Write an indexed stored register or a Boolean control latch; latch writes also accept captured flag expressions. |
 | `ADDRESS[] <- u14($0000)` | Fill every physical array slot with the same width-checked value, without reading previous elements. |
 | `result = operand s`, `operand d <- result` | Read or write a selected register, pair, writable view, or memory operand at this point. |
+| `notify reti` | Request a device notification at successful RETI retirement through the native Z80 boundary. State/memory actions and the shared byte execution contract do not permit this effect yet. |
 | `defer irq` | Request one-boundary IRQ deferral on successful retirement; requires `retire irq into LATCH`. This does not immediately write stored state. |
 | `exchange FLAGS, ALTERNATE.FLAGS` | Exchange complete flag objects with matching stored fields: read right, read left, write left, write right. Preserve identity without reading individual flags; allowed in actions but not views. |
 | `replace PSW(status)` | Replace the complete flag object; the policy must define every flag in exactly one bank. |
@@ -468,6 +469,7 @@ Numeric expressions are capture names, explicitly sized literals such as
 | `add(left, right[, carry])`, `subtract(left, right[, borrow])` | Wrap at the operands' equal width; the optional third argument is a flag expression. |
 | `multiply(left, right)` | Unsigned multiplication of equal byte or word operands; returns the complete double-width product (16 or 32 bits). |
 | `and(left, right)`, `or(left, right)`, `xor(left, right)` | Bitwise operations on equal-width values. |
+| `shiftBits(value, left, count)`, `shiftBits(value, right, count)` | Logical shift with zero insertion and unchanged width; count is a constant from zero through that width. Shifting by the full width yields zero. |
 | `shiftLeft(value, bit)`, `shiftRight(value, bit)` | Shift one place, inserting the flag expression at the vacated end. |
 | `select(condition, yes, no)` | Choose between two equal-width numeric expressions using a flag expression. |
 | `concat(high, low)` | Join two equal-width values, with high first. |
@@ -752,7 +754,7 @@ Cores that validate prefixed instructions before committing PC or refresh change
 can use `opcodePages(state, additional)` instead. It returns base entries and
 named pages containing their declared `prefix` and bound `handlers`. Binding and
 lookup perform no state or bus effects; the core supplies the opcode and invokes
-the chosen body. The Z80 uses this for its ordinary CB page, preserving its
+the chosen body. The Z80 uses this for its ordinary CB and ED pages, preserving its
 unsupported-opcode and supplied-interrupt fetching rules. `opcodeEntries` builds
 its fetch-and-dispatch wrappers from the same page tables.
 

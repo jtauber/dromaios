@@ -32,7 +32,7 @@ const z80: WordForm[] = [
   ...([
     [0x43, 0x4b, ["b", "c"], zilog.storeBCMemory, zilog.loadBCMemory],
     [0x53, 0x5b, ["d", "e"], zilog.storeDEMemory, zilog.loadDEMemory],
-    [0x63, 0x6b, ["h", "l"], zilog[0x22], zilog[0x2a]],
+    [0x63, 0x6b, ["h", "l"], zilog[0xed63], zilog[0xed6b]],
     [0x73, 0x7b, ["sp"], zilog.storeSPMemory, zilog.loadSPMemory],
   ] as const).flatMap(([store, load, fields, write, read]): WordForm[] => [
     { bytes: [0xed, store], fields, operation: "store", execute: write },

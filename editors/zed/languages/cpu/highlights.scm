@@ -2,7 +2,7 @@
   "cpu" "state" "bank" "register" "flag" "array" "latch" "choice" "source" "view" "action" "perform" "exchange"
   "policy" "operands" "pair" "codes" "conditions" "family" "page" "encoding" "for" "in"
   "with" "named" "except" "fetch" "operand" "apply" "replace" "when" "test" "return"
-  "fault" "alignment" "read" "write" "if" "commit" "addresses" "defer" "irq" "into"
+  "fault" "alignment" "read" "write" "if" "commit" "addresses" "defer" "irq" "into" "notify" "reti"
   "execution" "memory" "port" "counter" "stopped" "word" "opcode" "advance"
   "on" "dispatch" "after" "failure" "retain" "reset" "retire" "interrupt"
   "accept" "always" "unless" "bytes" "acknowledge" "preserve" "interface" "snapshot" "unknown"

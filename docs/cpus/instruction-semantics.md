@@ -58,7 +58,7 @@ the Z80, 8088, and 68000 retain TypeScript builders.
 | 8080 INR/DCR and Z80 byte INC/DEC, including indexed forms | Chapter-owned read–adjust–flags–write bodies; Z80 indexed callers reuse its memory actions; preserve carry; distinguish 8080 inverse half-borrow and parity from Z80 half-borrow and overflow; retain calculated flags on failed writes |
 | 8080 MOV/MVI and corresponding Z80 LD matrices, immediate and indexed forms | Chapters own the ordinary matrices; native Z80 indexed bodies retain resolved addresses; capture sources before writes, retain HL access timing and real indexed H/L operands, preserve every flag, and exclude HALT |
 | 8080 STAX/LDAX/STA/LDA and corresponding Z80 accumulator LD forms | Capture BC/DE or the complete immediate address before A or memory; loads write only after a successful read, stores never read the destination, and neither direction accesses flags |
-| 8080 LXI/LHLD/SHLD/SPHL and Z80 word loads/stores and SP copies, including ED and IX/IY forms | Share complete bodies with low-first fetching and memory accesses, high-first pair reads/writes, captured sources, and explicit second-byte failures; ED's HL forms reuse the unprefixed bodies |
+| 8080 LXI/LHLD/SHLD/SPHL and Z80 word loads/stores and SP copies, including ED and IX/IY forms | Share complete bodies with low-first fetching and memory accesses, high-first pair reads/writes, captured sources, and explicit second-byte failures; ED's HL forms retain the unprefixed access order |
 | 8080 INX/DCX/DAD and Z80 word INC/DEC, ADD HL/IX/IY, ADC/SBC HL | Reuse chapter pair descriptions and explicit encodings; source before destination, optional C after both; write before flags; preserve all flags on adjustments and use the bit-11 H boundary on Z80 arithmetic |
 | 8080 XTHL/XCHG and Z80 EX DE,HL and EX (SP),HL/IX/IY | Capture the register before SP; read memory low/high, write high/low, then replace the register; preserve completed writes on failure, SP, and flags; register-only exchanges swap high bytes before low bytes |
 | 8008 Lr1r2/LrM/LMr and immediate LrI/LMI | Literate operand selection with native register selectors, matrix prefix, mnemonics, and a 14-bit memory mask; preserve full H/L bytes, source-before-address ordering, and address-slot fetching |
@@ -123,9 +123,8 @@ recording still use the cores' existing `recordPorts` callbacks.
 [Port-transfer construction](../../src/components/cpus/semantics/ports.ts)
 captures the complete address before reading an output operand or starting
 input. Outputs capture the whole operand before the first write; inputs commit
-the register/view only after every read succeeds. This serves Z80 immediate
-I/O and register output, and all 8088 byte/word I/O. The 8008 and 8080 chapters
-express those ordered effects directly in their formal port families.
+the register/view only after every read succeeds. This serves 8088 byte/word I/O. The 8008, 8080, and Z80 chapters
+express their ordered effects directly in formal port families.
 Address sources expose the difference between an encoded 8008 selector, an
 8080 immediate port, Z80 old-A-high/immediate-low, BC, and 8088 immediate/DX.
 The 8088 byte view preserves live AH after a device callback.
@@ -256,7 +255,7 @@ The authoring layers have separate homes:
 | [ports.ts](../../src/components/cpus/semantics/ports.ts) | Shared byte/word port transfers: capture addresses before operands, transfer low byte first, and commit input only after complete reads |
 | [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, ordered frames, and complete push/pop instruction construction |
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared Motorola condition construction for remaining 68000 definitions |
-| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Remaining Z80 builders for indexed byte transfers and prefixed word transfers/arithmetic, stack exchanges, and pushes/pops; pair sources and writes come from the chapter |
+| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Remaining Z80 builders for indexed byte and word transfers/arithmetic, stack exchanges, and pushes/pops; pair sources and writes come from the chapter |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
 | [6502 chapter](../../src/components/cpus/specifications/6502.md) | Complete state, instruction inventory, NMOS arithmetic, status, reset, execution, and named external-entry policies |
 | [6800 chapter](../../src/components/cpus/specifications/6800.md) | Complete stored state, packed condition codes, instructions, reset, WAI suspension, IRQ/NMI entry, and public interface |
@@ -947,6 +946,11 @@ zero-count writes, and failures during divide-error entry. Existing exhaustive
 CPU arithmetic tests retain their independent instruction expectations.
 
 ## Z80 banks, special registers, and repeated blocks
+
+These encodings and effects are authored in the [Z80 chapter](../../src/components/cpus/specifications/z80.md#ed-word-block-and-control-instructions).
+Its fixed-count `shiftBits` expression and `notify reti` statement expose existing
+representation operations. RETI requests notification; the native boundary
+performs the callback after retirement.
 
 EXX exchanges B/C/D/E/H/L one byte at a time; EX AF,AF′ exchanges A, then the
 complete flag objects. Each exchange reads alternate then main and writes main
@@ -1860,13 +1864,12 @@ declared position. The 6502 now expands these sources into every ordinary
 instruction body; standalone readers remain focused generator probes.
 
 The 6502 and 8080 use generated chapter dispatch for their complete instruction
-sets. The Z80 chapter binds all 252 unprefixed and 248 ordinary CB forms, replacing its
-inherited base class and remaining native base inventories. Native prefixed
-word definitions consume chapter pair reads/writes and the word-addition policy;
-indexed arithmetic and adjustments reuse chapter actions after native address
-resolution. The 310 documented CB forms still share native ordinary/indexed
-bindings. Prefix recognition, displacements, PC/R updates, reset, and interrupt
-delivery remain in the CPU module.
+sets. The Z80 chapter binds all 252 unprefixed, 248 ordinary CB, and 58 ED forms.
+Separate generated page tables preserve its pre-execution validation and PC/R
+commit order. Native indexed word definitions consume chapter pair reads/writes
+and the word-addition policy; indexed arithmetic, adjustments, and CB operations
+reuse chapter actions after native address resolution. Displacements, prefix
+fetching, PC/R updates, reset, and external interrupt delivery remain in the CPU.
 
 Accumulator transfers through BC/DE and absolute addresses are chapter-defined:
 capture the address before A or memory, read pairs high first, fetch words low
@@ -1877,10 +1880,10 @@ values are captured. [CPU boundary probes](../../tests/components/cpus/intel-acc
 cover ordinary and supplied bytes, overlapping code/data, wrapping fetches,
 and every failed access.
 Word bodies also own their complete immediate or absolute-address fetching.
-A private word reader serves Z80 interrupt-vector reads. ED and unprefixed HL word transfers
-share bodies; IX/IY word transfers use the same construction with stored words.
-The same pair descriptions and transfer recipe now serve all 44 word-arithmetic
-forms. Source and destination are captured separately even when they alias;
+A private word reader serves Z80 interrupt-vector reads. The chapter owns ED
+and unprefixed word transfers; native IX/IY transfers retain the Intel builder
+with stored words. Chapter pair descriptions serve ordinary and indexed word
+arithmetic, preserving the same capture and write ordering. Source and destination are captured separately even when they alias;
 ADC/SBC capture C after both reads. Adjustments never access flags. Arithmetic
 writes the complete destination before applying the CPU-specific flag policy.
 Z80 word H uses bit 12 of `left XOR right XOR result`, which identifies carry

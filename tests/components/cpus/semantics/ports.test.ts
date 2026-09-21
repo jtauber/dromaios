@@ -61,8 +61,8 @@ const x86: Case<Cpu8088State>[] = ([
 const z80: Case<CpuZ80State>[] = [
   { key: String(0xdb), execute: iz80.input, reference(s, c) { s.a = c.readPort(s.a * 256 + c.fetchByte()); } },
   { key: String(0xd3), execute: iz80.output, reference(s, c) { c.writePort(s.a * 256 + c.fetchByte(), s.a); } },
-  ...([["b", "B"], ["c", "C"], ["d", "D"], ["e", "E"], ["h", "H"], ["l", "L"], ["a", "A"]] as const).flatMap(([register, suffix]) => [false, true].map(output => ({
-    key: `${output ? "output" : "input"}${suffix}`,
+  ...([["b", "B", 0], ["c", "C", 1], ["d", "D", 2], ["e", "E", 3], ["h", "H", 4], ["l", "L", 5], ["a", "A", 7]] as const).flatMap(([register, suffix, code]) => [false, true].map(output => ({
+    key: String(0xed40 + code * 8 + (output ? 1 : 0)),
     execute: iz80[`${output ? "output" : "input"}${suffix}`]!,
     reference(s: CpuZ80State, c: Context) {
       const port = s.b * 256 + s.c;
@@ -76,10 +76,10 @@ const z80: Case<CpuZ80State>[] = [
   }))),
 ];
 const blocks = [
-  ["ini", 1, false, false], ["ind", -1, false, false], ["inir", 1, false, true], ["indr", -1, false, true],
-  ["outi", 1, true, false], ["outd", -1, true, false], ["otir", 1, true, true], ["otdr", -1, true, true],
+  ["ini", 1, false, false, 0xeda2], ["ind", -1, false, false, 0xedaa], ["inir", 1, false, true, 0xedb2], ["indr", -1, false, true, 0xedba],
+  ["outi", 1, true, false, 0xeda3], ["outd", -1, true, false, 0xedab], ["otir", 1, true, true, 0xedb3], ["otdr", -1, true, true, 0xedbb],
 ] as const;
-for (const [key, delta, output, repeat] of blocks) z80.push({ key, execute: iz80[key], reference(s, c) {
+for (const [key, delta, output, repeat, opcode] of blocks) z80.push({ key: String(opcode), execute: iz80[key], reference(s, c) {
   const address = s.h * 256 + s.l, contents = output ? c.readByte(address) : c.readPort(s.b * 256 + s.c);
   s.b = byte(s.b - 1);
   if (output) c.writePort(s.b * 256 + s.c, contents); else c.writeByte(address, contents);

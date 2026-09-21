@@ -2,7 +2,7 @@ import { instructions as semantics } from "./generated/z80.ts";
 import { cpuZ80StateDescription } from "./state/z80.ts";
 import type { CpuZ80State, CpuZ80RegisterBank } from "./state/z80.ts";
 import type { Ram } from "../memory/ram.js";
-import { instructions as chapter, opcodePages as chapterPages } from "./generated/z80-chapter.ts";
+import { opcodePages as chapterPages } from "./generated/z80-chapter.ts";
 import { sourceReaders } from "./generated/z80-state.ts";
 import { callStack16LE } from "./call-stack.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
@@ -68,7 +68,7 @@ const instructionPattern = opcodePattern<OpcodeHandler>;
 /** Instruction-level Zilog Z80 with documented opcodes and boundary IRQ/NMI delivery. */
 export class CpuZ80 {
   readonly #state: CpuZ80State;
-  readonly #cbPage: ReturnType<typeof chapterPages>["pages"]["CB"];
+  readonly #pages: ReturnType<typeof chapterPages>["pages"];
   readonly #stack: ReturnType<typeof callStack16LE>;
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>>;
   readonly #ram: Ram;
@@ -82,7 +82,7 @@ export class CpuZ80 {
     this.#stack = callStack16LE(this.#state);
     const { base, pages } = chapterPages(this.#state);
     this.#opcodeHandlers = opcodeTable<OpcodeHandler>(base);
-    this.#cbPage = pages.CB;
+    this.#pages = pages;
     this.#ram = ram;
     this.#ports = ports;
     this.#onReti = onReti;
@@ -213,8 +213,8 @@ export class CpuZ80 {
   // Instruction decoding, retirement, and interrupt returns.
 
   #decode(opcode: number, nextByte: (opcodeFetch?: boolean) => number): { handler: OpcodeHandler | undefined; opcodeFetches: number } {
-    if (opcode === this.#cbPage.prefix) return { handler: this.#cbPage.handlers[nextByte()], opcodeFetches: 2 };
-    if (opcode === 0xed) return { handler: this.#edOpcodeHandlers[nextByte()], opcodeFetches: 2 };
+    if (opcode === this.#pages.CB.prefix) return { handler: this.#pages.CB.handlers[nextByte()], opcodeFetches: 2 };
+    if (opcode === this.#pages.ED.prefix) return { handler: this.#pages.ED.handlers[nextByte()], opcodeFetches: 2 };
     if (opcode === 0xdd || opcode === 0xfd) {
       const index = opcode === 0xdd ? "ix" : "iy", operation = nextByte();
       if (operation === 0xcb) {
@@ -269,48 +269,6 @@ export class CpuZ80 {
   // DD/FD share one documented page, selecting IX/IY. No ignored-prefix or IXH/IYL aliases.
   readonly #ixOpcodeHandlers = opcodeTable<OpcodeHandler>(this.#indexHandlers("ix"));
   readonly #iyOpcodeHandlers = opcodeTable<OpcodeHandler>(this.#indexHandlers("iy"));
-
-  // ED's 01 yyy zzz: zzz selects the family; each family below explains yyy.
-  readonly #edOpcodeHandlers = opcodeTable<OpcodeHandler>([
-    // 01 rrr 00 d: rrr selects a register; d=0 inputs, d=1 outputs through old BC.
-    // rrr=110 is undocumented IN (C)/OUT (C),0 and is deliberately omitted.
-    ...this.#byteRegisters.flatMap(({ suffix, bits }) => [
-      ...instructionPattern(`01 ${bits} 00 0`, instruction => semantics[`input${suffix}`]!(this.#state, instruction)), // IN r,(C)
-      ...instructionPattern(`01 ${bits} 00 1`, instruction => semantics[`output${suffix}`]!(this.#state, instruction)), // OUT (C),r
-    ]),
-    // 01 pp q 010/011: pp=BC/DE/HL/SP; q selects SBC/ADC or store/load.
-    ...opcodeFamily("01 pp q 010", { p: ["BC", "DE", "HL", "SP"], q: ["sbc", "adc"] },
-      ({ p: pair, q: operation }) => () => semantics[`${operation}HL${pair}`]!(this.#state)), // SBC / ADC HL,ss
-    // d=0 stores, d=1 loads; ED's HL forms share the unprefixed bodies.
-    ...opcodeFamily("01 pp d 011", { p: [
-      [semantics.storeBCMemory, semantics.loadBCMemory], [semantics.storeDEMemory, semantics.loadDEMemory],
-      [chapter[0x22], chapter[0x2a]], [semantics.storeSPMemory, semantics.loadSPMemory],
-    ], d: [0, 1] }, ({ p: operations, d: direction }) => (instruction: InstructionContext) => operations[direction]!(this.#state, instruction)), // LD (nn),dd / LD dd,(nn)
-    ...instructionPattern("01 000 100", () => semantics.neg(this.#state)), // NEG; other ED x4 aliases are undocumented
-    // 01 00 n 101: both returns restore IFF1 from IFF2; n=1 also notifies the device.
-    ...instructionPattern("01 00 0 101", instruction => semantics.retn(this.#state, instruction)), // RETN
-    ...instructionPattern("01 00 1 101", instruction => semantics.reti(this.#state, instruction)), // RETI
-    // 01 0 mm 110: documented mode selectors 00/10/11 mean IM 0/1/2; 01 is an alias.
-    ...([{ bits: "00", mode: 0 }, { bits: "10", mode: 1 }, { bits: "11", mode: 2 }] as const).flatMap(({ bits, mode }) =>
-      instructionPattern(`01 0 ${bits} 110`, () => semantics[`im${mode}`](this.#state))), // IM 0/1/2
-    // 01 0 d s 111: d=0 writes I/R from A, d=1 loads A; s=0 selects I, s=1 selects R.
-    ...opcodeFamily("01 0 0 s 111", { s: [semantics.loadIFromA, semantics.loadRFromA] }, ({ s: execute }) => () => execute(this.#state)), // LD I/R,A
-    ...opcodeFamily("01 0 1 s 111", { s: [semantics.loadAFromI, semantics.loadAFromR] }, ({ s: execute }) => () => execute(this.#state)), // LD A,I/R
-    ...instructionPattern("01 10 0 111", instruction => semantics.rrd(this.#state, instruction)), // RRD
-    ...instructionPattern("01 10 1 111", instruction => semantics.rld(this.#state, instruction)), // RLD
-    // 101 r d 00 c: r repeats, d=0 increments/1 decrements, c=0 copies/1 compares.
-    ...opcodeFamily("101 r d 00 c", { r: [
-      [[semantics.ldi, semantics.cpi], [semantics.ldd, semantics.cpd]],
-      [[semantics.ldir, semantics.cpir], [semantics.lddr, semantics.cpdr]],
-    ], d: [0, 1], c: [0, 1] }, ({ r: directions, d: direction, c: operation }) =>
-      (instruction: InstructionContext) => directions[direction]![operation]!(this.#state, instruction)), // LDI/R, LDD/R, CPI/R, CPD/R
-    // 101 r d 01 o: r repeats, d=0 increments/1 decrements HL, o=0 inputs/1 outputs.
-    ...opcodeFamily("101 r d 01 o", { r: [
-      [[semantics.ini, semantics.outi], [semantics.ind, semantics.outd]],
-      [[semantics.inir, semantics.otir], [semantics.indr, semantics.otdr]],
-    ], d: [0, 1], o: [0, 1] }, ({ r: directions, d: direction, o: operation }) =>
-      (instruction: InstructionContext) => directions[direction]![operation]!(this.#state, instruction)), // INI/R, IND/R, OUTI/OTIR, OUTD/OTDR
-  ]);
 
   #indexHandlers(index: IndexRegister): readonly OpcodeEntry<OpcodeHandler>[] {
     // 00 pp 1 001 replaces HL with the index in both destination and pp=10 source.

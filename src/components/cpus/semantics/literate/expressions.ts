@@ -1,6 +1,6 @@
 import { addOverflow, addWrap, and, or, xor, select, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
   flagValue, halfBorrow, halfCarry, highByte, isWidth, literal, lowBit, lowByte, multiply, negative, not, shiftLeft, shiftRight,
-  overflow, signExtend, subtract, truncate, value, zero } from "../model.ts";
+  overflow, shiftBits, signExtend, subtract, truncate, value, zero } from "../model.ts";
 import type { FlagExpression, NumberExpression, Width } from "../model.ts";
 import type { ChapterTokens } from "./document.ts";
 
@@ -28,6 +28,10 @@ export function expression(tokens: ChapterTokens): NumberExpression {
     const contents = expression(tokens); tokens.expect(",");
     const operations = { extend, signExtend, truncate };
     result = operations[name as keyof typeof operations](contents, width(tokens));
+  } else if (name === "shiftBits") {
+    const contents = expression(tokens); tokens.expect(","); const direction = tokens.word(); tokens.expect(",");
+    if (direction !== "left" && direction !== "right") tokens.fail("Shift direction must be left or right.");
+    result = shiftBits(contents, direction, tokens.number());
   } else if (name === "shiftLeft" || name === "shiftRight") {
     const contents = expression(tokens); tokens.expect(",");
     result = (name === "shiftLeft" ? shiftLeft : shiftRight)(contents, flagExpression(tokens));

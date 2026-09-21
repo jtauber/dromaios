@@ -351,7 +351,9 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           }
         }
         const code = local(step.name);
-        emit(`const ${code} = ${captured.code};`);
+        // Semantic numeric captures are width-checked values, not TypeScript singleton types.
+        const annotation = step.kind === "capture" || step.kind === "read-source" ? ": number" : "";
+        emit(`const ${code}${annotation} = ${captured.code};`);
         scope.set(step.name, { code, type: captured.type });
       }
     }

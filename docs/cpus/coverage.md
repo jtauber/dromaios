@@ -22,7 +22,7 @@ emulators do not count toward implementation here.
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [0](../../src/components/cpus/specifications/8080.md) | [1,590](../../src/components/cpus/specifications/8080.md) | 511 | 244 / 244 | 100% | 6 / 6 |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [0](../../src/components/cpus/specifications/6800.md) | [1,789](../../src/components/cpus/specifications/6800.md) | 753 | 197 / 197 | 100% | 6 / 6 |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,747](../../src/components/cpus/specifications/6502.md) | 601 | 151 / 151 | 100% | 6 / 6 |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [355](../../src/components/cpus/z80.ts) | [1,455](../../src/components/cpus/specifications/z80.md) | 837 | 500 / 698 | 71.6% | 2 / 6 |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [313](../../src/components/cpus/z80.ts) | [1,923](../../src/components/cpus/specifications/z80.md) | 1,143 | 558 / 698 | 79.9% | 2 / 6 |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,566](../../src/components/cpus/specifications/6809.md) | 1,322 | 268 / 268 | 100% | 6 / 6 |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [522](../../src/components/cpus/8088.ts) | 0 | 0 | 0 / 291 | 0% | 0 / 6 |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [604](../../src/components/cpus/68000.ts) | [154](../../src/components/cpus/specifications/68000-word-transfers.md) | 70 | 192 / 36,029 | 0.5% | 0 / 6 |
@@ -43,7 +43,7 @@ that shared boundary with named wait modes, NMI arming, masked SYNC release,
 CWAI frame reuse, and FIRQ short frames. Its chapter now also owns all six areas
 and generates its public interface. The Z80 owns its complete stored-state
 schema and derived register views/writes, earning **2 / 6**. Its chapter also
-supplies all unprefixed instructions and the ordinary CB page; ED and indexed
+supplies all unprefixed instructions and the ordinary CB and ED pages; indexed
 forms and execution policies remain partly native.
 
 **Literate spec lines** count whole Markdown chapters under
@@ -208,7 +208,7 @@ only the 192 fully authored forms earn literate coverage.
 | Milestone | Evidence / remaining work |
 | --- | --- |
 | Seven executable chapters | The 6502, 6800, 6809, 8008, 8080, Z80, and 68000 exercise prose, checked declarations, encoding selectors and values, multiple widths, addressing, ordered effects, fault returns, typed flag policies, arithmetic bodies shared across encodings, nested conditions, stored arrays/latches/named choices, views, state actions, port effects, interrupt recognition, retirement deferral, byte-pair operands, numeric selection, complete flag replacement, explicit memory actions and their composition, named vector entry, and explicit waiting/wake policies, and disjoint byte-pattern matches with typed results and unsupported fallbacks, and named opcode pages with generated dispatch, writable view operands, reserved selector slots, effect-only matches, nested register banks, numeric choices, and complete flag-object exchange. |
-| Production equivalence | Independent CPU, machine, and type contracts remain in force. Old/new 8080 comparisons match full records, final state, bus events, and memory writes across 131,072 ordinary/supplied cases and 2,526 injected failures. The earlier 8008 migration matched 131,072 cases and 2,048 injected failures. The completed 6502 migration matches 65,536 instruction cases and 5,000 injected access failures, plus 3,072 reset/IRQ/NMI cases and 9,728 access failures with snapshots inside callbacks. The complete 6800 model migration matches 65,536 instruction cases, 512 step/reset/IRQ/NMI boundary cases, and 3,840 injected failures, including snapshots inside memory callbacks. The current 6809 migration matches 65,536 base instructions, 131,072 prefixed instructions, 57,344 indexed instructions, 8,192 register transfers, 20,480 mask/stack instructions, 3,840 lifecycle cases, and 120,405 injected access failures, including callback snapshots. The Z80 CB migration matches 43,008 ordinary/prefixed instruction cases, 8,192 supplied instructions, 192 reset/IRQ/NMI cases, and 35,182 injected access failures, including callback snapshots. |
+| Production equivalence | Independent CPU, machine, and type contracts remain in force. Old/new 8080 comparisons match full records, final state, bus events, and memory writes across 131,072 ordinary/supplied cases and 2,526 injected failures. The earlier 8008 migration matched 131,072 cases and 2,048 injected failures. The completed 6502 migration matches 65,536 instruction cases and 5,000 injected access failures, plus 3,072 reset/IRQ/NMI cases and 9,728 access failures with snapshots inside callbacks. The complete 6800 model migration matches 65,536 instruction cases, 512 step/reset/IRQ/NMI boundary cases, and 3,840 injected failures, including snapshots inside memory callbacks. The current 6809 migration matches 65,536 base instructions, 131,072 prefixed instructions, 57,344 indexed instructions, 8,192 register transfers, 20,480 mask/stack instructions, 3,840 lifecycle cases, and 120,405 injected access failures, including callback snapshots. The Z80 ED migration matches 43,008 ordinary/prefixed instruction cases, 10,240 supplied instructions, 192 reset/IRQ/NMI cases, and 39,942 injected access failures, including callback snapshots. |
 | Authoring feedback | Syntax, state-schema, width, scope, and encoding errors report Markdown locations. Unknown declarations are identified directly; nested scope, array-bound, and policy errors identify the offending statement. Clean builds bootstrap chapter data before instruction generation. |
 | Language review | [Reviewed across the initial three chapters](literate-specifications.md#review-of-the-three-chapters): consistent operand vocabulary, explicit widths and effect order, distinct family explanations, and visible native boundaries. |
 | Complete model authoring | The 8008, 8080, 6502, 6800, and 6809 own all six model areas. [Execution-language tests](../../tests/components/cpus/semantics/literate-execution.test.ts) exercise formal policy edits, invalid contracts, and a different CPU name/schema; [runtime tests](../../tests/components/cpus/byte-execution.test.ts) retain byte order and interleaved access records. [Public-interface tests](../../tests/components/cpus/semantics/literate-interface.test.ts) exercise generated class names, live snapshot mappings, alternate schemas, diagnostics, and comment escaping. [Machine integration tests](../../tests/scripts/chapter-model-integration.test.ts) change chapter memory widths, public names, and state fields, discover an additional CPU, and reject duplicate models before replacing chapter output. The 8080 supplies a second production schema and conditional recognition/retirement policies; [its chapter tests](../../tests/components/cpus/semantics/literate-8080.test.ts) verify the complete inventory, production ownership, views, state actions, pair edits, status behavior, and document diagnostics. A renamed 8080 chapter also retains generated IRQ deferral and retirement without a CPU-name special case. The 6502 adds reset bus effects and named vector entry without a synthetic stopped latch; its renamed-chapter checks retain different mask fields and source names. The 6800 adds waiting outcomes and explicit frame reuse on wake-up. The 6809 adds named wait choices, latch-gated recognition, and masked resume actions; chapter edits and renamed models verify both CPUs through their generated public interfaces. Other execution architectures remain further evidence. |
@@ -220,7 +220,7 @@ CPU language or the amount of work remaining. See the
 ## Completed instruction-definition migration
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **12,491 generated bodies** for instructions and reusable actions,
+contains **12,496 generated bodies** for instructions and reusable actions,
 including 6502/6800/8088 entry helpers, 6809 frame/vector helpers, 8088 WAIT
 resumption, and chapter-defined stack, PC-write, reset, and acceptance actions. They cover **38,128 complete opcode
 forms**; helpers do not add opcode credit. All eight CPUs now
@@ -353,7 +353,7 @@ family inventory is:
   restored E selects RTI's full or short frame before final NMI arming.
 - [Z80 chapter](../../src/components/cpus/specifications/z80.md) and
   [remaining definitions](../../src/components/cpus/semantics/definitions/z80.ts):
-  The chapter owns all 252 documented unprefixed forms and 248 ordinary CB forms.
+  The chapter owns all 252 unprefixed, 248 ordinary CB, and 58 ED forms.
   Unprefixed families include byte and word transfers,
   arithmetic and adjustments, exchanges, stack/control flow, accumulator rotates,
   decimal and carry controls, ports, DI/EI, NOP, and HALT. Native prefixed bodies
@@ -381,13 +381,13 @@ family inventory is:
   resolved-memory transfer bodies cover 30 further IX/IY forms, retaining real
   H/L operands and displacement-before-immediate order. The memory-to-memory
   slot is a separate generated HALT body. Word loads/stores and SP copies add 23 forms
-  from 21 bodies: the seven shared base forms, eight ED absolute pair transfers,
-  and eight IX/IY immediate, absolute, and SP forms. ED's HL transfers reuse
-  their unprefixed bodies. Address fetching, complete source capture, low-first
+  from 23 opcode bodies: seven base forms, eight ED absolute pair transfers,
+  and eight IX/IY immediate, absolute, and SP forms. ED's HL transfers retain
+  the unprefixed behavior. Address fetching, complete source capture, low-first
   memory access, and split pair writes are explicit; flags and alternate banks
   are untouched. Word INC/DEC, ADD HL/IX/IY, and ADC/SBC HL add 32
-  bodies and forms. Native prefixed arithmetic reuses chapter pair descriptions
-  and its ADD policy; IX/IY use stored words. ADC/SBC read C after both operands.
+  bodies and forms. Native indexed arithmetic reuses chapter pair descriptions
+  and its ADD policy; IX/IY use stored words. Chapter ADC/SBC read C after both operands.
   All word arithmetic writes before flags: ADD replaces H/C/N and preserves
   S/Z/PV, while ADC/SBC derive whole-word sign, zero, and signed overflow.
   H uses carry/borrow out of bit 11. Adjustments preserve all flags without
@@ -420,8 +420,7 @@ family inventory is:
   and search bodies perform one iteration per step: capture BC after the read,
   retain live pair updates, then conditionally rewind PC for refetching.
   Constant logical shifts describe nibble movement directly. These 17 forms
-  complete ordinary instruction migration. All 24 I/O forms now add generated
-  bodies: immediate ports capture old A before fetching, register ports use BC,
+  and all 24 I/O forms are chapter-owned: immediate ports capture old A before fetching, register ports use BC,
   and block I/O preserves B decrement between the read and write. Repeated
   forms transfer one byte per step, then rewind PC and correct H/PV as required.
   DI/EI, IM 0/1/2, and RETN/RETI complete 607 bodies covering all 698 forms.
@@ -686,14 +685,14 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Three remaining handwritten CPU core files | 1,481 |
-| CPU-specific instruction definition files | 1,541 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 4,723 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **7,745** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 10,723 |
+| Three remaining handwritten CPU core files | 1,439 |
+| CPU-specific instruction definition files | 1,371 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 4,731 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **7,541** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 11,191 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 129 |
-| Generated executable CPU output, counted separately | 324,413 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 733,361 |
+| Generated executable CPU output, counted separately | 324,823 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 763,390 |
 | Generated state schemas/types, counted separately | 137 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
@@ -707,7 +706,7 @@ migration to zero**. The final public-interface step removes its remaining
 **71 core lines**, **11 state-adapter lines**, and **9 definition-adapter lines**.
 Its generated public class is **52 lines**, its generated state module is
 **24 lines**, and shared generation supplies both. The shared byte runtime
-is now **121 lines**; the literate front end is **1,368 lines**.
+is now **121 lines**; the literate front end is **1,374 lines**.
 
 Across the earlier 8008 execution, public-interface, and machine-integration
 migration, authored CPU TypeScript grew from **9,416 to 9,671 lines**, and CPU
@@ -924,6 +923,25 @@ of **38** including reusable page bindings. The chapter has **1,455 lines**,
 including **837 formal lines**; total maintained CPU source is **18,597 lines**.
 Integration edits prove that changing the CB prefix, shift flags, or bit masks
 changes public execution, including indexed and interrupt-supplied forms.
+
+The fourth Z80 slice moves all 58 ED forms into the chapter, reaching
+**558 / 698 forms (79.9%)**. Word arithmetic/transfers, special registers,
+nibble rotations, block copies/searches, all port forms, interrupt modes, and
+RETN/RETI now have chapter-owned encodings and ordered effects. Block directions
+and repeat bindings share bodies without hiding the per-iteration boundary.
+The chapter exposes fixed-count logical shifts and RETI notification requests;
+the core retains notification delivery after retirement. Native ED dispatch
+and builders are removed. Model milestones remain **2 / 6**; all 140 remaining
+forms are indexed instructions.
+Authored CPU TypeScript falls from **7,745 to 7,541 lines**, a net reduction
+of **204** including language support and numeric-capture generation fixes.
+The core falls from **355 to 313 lines**, and the chapter reaches
+**1,923 lines**, including **1,143 formal lines**. Total maintained CPU source
+is **18,861 lines**. Independent access-order probes retain live rereads,
+flag-object replacement, partial failures, and retirement notification. Chapter
+mutation tests change ED prefix selection, word flags, nibble shifts, block
+steps/repetition, port flags, modes, and RETI notification through public
+ordinary and interrupt-supplied execution.
 
 Generated chapter data repeats the validated CPU schema within expanded
 definitions and remains a separate, disposable intermediate representation.

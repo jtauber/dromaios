@@ -42,7 +42,7 @@ test("Z80 chapter edits reach construction, both snapshots, byte/word dispatch, 
     assert.equal(parseMachine(machine.replace("cpu z80 {", "cpu z80 { SCRATCH = A5")).initialState.scratch, 0xa5);
     const flags = { s: false, z: false, h: false, pv: false, n: false, c: true };
     const bank = { a: 1, b: 0x12, c: 0x34, d: 0x56, e: 0x78, h: 0x9a, l: 0xbc, flags };
-    for (const code of [[0x80], [0xc6, 1], [0xdd, 0x86, 0], [0xfd, 0x86, 0], [0xf5], [0xf1], [0x7e], [0x01, 1, 2], [0xed, 0x4b, 0, 4], [0x03], [0x18, 1], [0xcd, 1, 2], [0x27]]) {
+    for (const code of [[0x80], [0xc6, 1], [0xdd, 0x86, 0], [0xfd, 0x86, 0], [0xf5], [0xf1], [0x7e], [0x01, 1, 2], [0xed, 0x4b, 4, 0], [0x03], [0x18, 1], [0xcd, 1, 2], [0x27]]) {
       const bytes = new Uint8Array(65536); bytes.set(code, 0x200); bytes[0x400] = 1; bytes[0xbc9a] = 0x7f;
       const ram = { size: bytes.length, read: address => bytes[address], write: (address, value) => { bytes[address] = value; } };
       const initial = { ...bank, alternate: { ...bank, b: 0x56, c: 0x78 }, ix: 0x400, iy: 0x400, pc: 0x200, sp: 0x600,
@@ -112,6 +112,54 @@ test("Z80 CB prefix, policies, and masks reach ordinary, indexed, and interrupt-
     const record = cpu.step();
     assert.equal(record.outcome, "unsupported"); assert.equal(reads, 1);
     assert.equal(cpu.snapshot().pc, 0); assert.equal(cpu.snapshot().r, 5);
+  `], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test("Z80 ED prefix, word flags, block steps, ports, modes, and RETI notification are chapter-owned", t => {
+  const url = editedChapter(t, chapter => chapter
+    .replace(/family DJNZ "00 010 000"[\s\S]*?\n}/, "")
+    .replace("page ED = $ED", "page ED = $10")
+    .replace(/policy WORDADC([\s\S]*?)N = 0/, 'policy WORDADC$1N = 1')
+    .replace('0 "I" = $0001', '0 "I" = $0003')
+    .replace("PC <- subtract(pc, u16(2))", "PC <- subtract(pc, u16(3))")
+    .replaceAll("shiftBits(memoryByte, right, 4)", "shiftBits(memoryByte, right, 3)")
+    .replace(/policy INPUTFLAGS([\s\S]*?)PV = evenParity\(result\)/, 'policy INPUTFLAGS$1PV = not(evenParity(result))')
+    .replace('family IM2 "01 0 11 110" on ED named "IM 2" {\n  IM <- 2', 'family IM2 "01 0 11 110" on ED named "IM 2" {\n  IM <- 1')
+    .replace("  notify reti\n", ""));
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { CpuZ80 } from ${url("src/components/cpus/z80.ts")};
+    const bank = { a: 0xab, b: 0, c: 2, d: 5, e: 0, h: 4, l: 0,
+      flags: { s: false, z: false, h: false, pv: false, n: false, c: true } };
+    const initial = { ...bank, alternate: structuredClone(bank), ix: 0, iy: 0, pc: 0x200, sp: 0x600,
+      i: 0x80, r: 0xfe, iff1: true, iff2: true, im: 0, interruptDeferred: false, nmiDeferred: false, halted: false };
+    for (const opcode of [0x4a, 0x57, 0x6f, 0xb0, 0xb1, 0xb2, 0xb3, 0x40, 0x5e, 0x4d]) for (const supplied of [false, true]) {
+      const code = [0x10, opcode], bytes = new Uint8Array(65536); bytes.set(code, 0x200);
+      bytes[0x400] = 0xcd; bytes[0x600] = 0x34; bytes[0x601] = 0x12;
+      let notifications = 0, acknowledgements = 0;
+      const ports = [];
+      const cpu = new CpuZ80({ size: bytes.length, read: address => bytes[address], write: (address, value) => { bytes[address] = value; } }, initial,
+        { readPort(address) { ports.push(["read", address]); return 0x12; }, writePort(address, value) { ports.push(["write", address, value]); } },
+        () => { notifications++; });
+      const record = supplied ? cpu.interrupt("irq", () => code[acknowledgements++]) : cpu.step(), after = cpu.snapshot();
+      assert.equal(record.outcome, "executed"); assert.equal(after.r, 0x80); assert.equal(acknowledgements, supplied ? 2 : 0);
+      if (opcode === 0x4a) { assert.equal(after.hl, 0x403); assert.equal(after.flags.n, true); }
+      if (opcode === 0x57) assert.equal(after.a, 0x80);
+      if (opcode === 0x6f) { assert.equal(after.a, 0xb9); assert.equal(bytes[0x400], 0xdb); }
+      if ([0xb0, 0xb1, 0xb2, 0xb3].includes(opcode)) { assert.equal(after.hl, 0x403); assert.equal(after.pc, supplied ? 0x1fd : 0x1ff); }
+      if (opcode === 0xb0) { assert.equal(after.de, 0x503); assert.equal(bytes[0x500], 0xcd); assert.equal(after.bc, 1); }
+      if (opcode === 0xb1) assert.equal(after.bc, 1);
+      if (opcode === 0xb2) { assert.equal(bytes[0x400], 0x12); assert.deepEqual(ports, [["read", 2]]); }
+      if (opcode === 0xb3) assert.deepEqual(ports, [["write", 0xff02, 0xcd]]);
+      if (opcode === 0x40) { assert.equal(after.b, 0x12); assert.equal(after.flags.pv, false); }
+      if (opcode === 0x5e) assert.equal(after.im, 1);
+      if (opcode === 0x4d) { assert.equal(after.pc, 0x1234); assert.equal(after.sp, 0x602); assert.equal(notifications, 0); }
+    }
+    let reads = 0;
+    const cpu = new CpuZ80({ size: 65536, read() { reads++; return 0xed; }, write() { assert.fail(); } }, initial);
+    assert.equal(cpu.step().outcome, "unsupported"); assert.equal(reads, 1);
+    assert.equal(cpu.snapshot().pc, 0x200); assert.equal(cpu.snapshot().r, 0xfe);
   `], { encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
 });

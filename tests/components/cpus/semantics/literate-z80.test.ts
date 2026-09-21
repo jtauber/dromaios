@@ -14,9 +14,16 @@ const chapter = compileCpuChapter(readFileSync("src/components/cpus/specificatio
 const baseOpcodes = Array.from({ length: 256 }, (_, opcode) => opcode).filter(opcode => ![0xcb, 0xdd, 0xed, 0xfd].includes(opcode));
 
 const cbOpcodes = Array.from({ length: 256 }, (_, opcode) => opcode).filter(opcode => opcode < 0x30 || opcode > 0x37).map(opcode => 0xcb00 + opcode);
-const opcodes = [...baseOpcodes, ...cbOpcodes];
+const edOpcodes = [
+  0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4d, 0x4f,
+  0x50, 0x51, 0x52, 0x53, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5b, 0x5e, 0x5f,
+  0x60, 0x61, 0x62, 0x63, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6f,
+  0x72, 0x73, 0x78, 0x79, 0x7a, 0x7b,
+  0xa0, 0xa1, 0xa2, 0xa3, 0xa8, 0xa9, 0xaa, 0xab, 0xb0, 0xb1, 0xb2, 0xb3, 0xb8, 0xb9, 0xba, 0xbb,
+].map(opcode => 0xed00 + opcode);
+const opcodes = [...baseOpcodes, ...cbOpcodes, ...edOpcodes];
 
-test("the Z80 chapter owns both banks, numeric interrupt mode, and exactly 252 unprefixed and 248 CB forms", () => {
+test("the Z80 chapter owns both banks, numeric interrupt mode, and exactly 252 unprefixed, 248 CB, and 58 ED forms", () => {
   const bank = defineState({ a: unsigned(8), b: unsigned(8), c: unsigned(8), d: unsigned(8), e: unsigned(8), h: unsigned(8), l: unsigned(8),
     flags: group({ s: flag, z: flag, h: flag, pv: flag, n: flag, c: flag }) });
   const expected = defineState({ ...bank, alternate: group(bank), ix: unsigned(16), iy: unsigned(16), pc: unsigned(16), sp: unsigned(16),
@@ -24,11 +31,12 @@ test("the Z80 chapter owns both banks, numeric interrupt mode, and exactly 252 u
   assert.deepEqual(chapter.state, expected); assert.deepEqual(cpuZ80StateDescription, expected);
   assert.deepEqual(Object.keys(cpuZ80StateDescription), Object.keys(expected));
   assert.equal(baseOpcodes.length, 252); assert.equal(cbOpcodes.length, 248);
-  assert.equal(new Set(opcodes).size, 500); assert.deepEqual(chapter.pages, { CB: 0xcb });
+  assert.equal(edOpcodes.length, 58); assert.equal(new Set(opcodes).size, 558);
+  assert.deepEqual(chapter.pages, { CB: 0xcb, ED: 0xed });
   for (const owned of [chapterZ80, instructions]) assert.deepEqual(Object.keys(owned).map(Number).sort((a, b) => a - b), opcodes);
   assert.deepEqual(Object.fromEntries(Object.values(chapter.families).flat()), chapterZ80);
   for (const opcode of opcodes) assert.equal(Object.hasOwn(instructionsZ80, opcode), false, `Native duplicate of ${opcode.toString(16)}`);
-  for (const name of ["rlcB", "rlH", "bit0B", "res7A", "set3L", "addB", "adcM", "cpImmediate", "incH", "decA"]) assert.equal(Object.hasOwn(instructionsZ80, name), false);
+  for (const name of ["im0", "retn", "reti", "rld", "ldir", "otir", "adcHLBC", "inputB", "rlcB", "rlH", "bit0B", "res7A", "set3L", "addB", "adcM", "cpImmediate", "incH", "decA"]) assert.equal(Object.hasOwn(instructionsZ80, name), false);
   assert.equal(chapter.execution, undefined); assert.equal(chapter.interface, undefined);
 });
 

@@ -41,6 +41,8 @@ family AD {
   right = source s
   carry = flag C
   left = register A
+  shifted = shiftBits(left, right, 4)
+  notify reti
   product = multiply(left, right)
   result = add(left, right, carry)
   apply ALU(result, carry(left, right, carry))

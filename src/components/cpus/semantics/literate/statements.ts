@@ -1,4 +1,4 @@
-import { alignmentFault, capture, commitAddressUpdates, deferInterrupt, exchangeFlags, fetchByte, fillArray, flagValue, highByte, lowByte, replaceFlags, not, perform, readElement,
+import { alignmentFault, capture, commitAddressUpdates, deferInterrupt, notifyReti, exchangeFlags, fetchByte, fillArray, flagValue, highByte, lowByte, replaceFlags, not, perform, readElement,
   readFlag, readLatch, readMemory, readPort, readRegister, readSource, resolveAddress, updateFlags,
   testChoice, value, when, writeChoice, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
 import type { Choice, CpuDeclaration, Expression, Flag, FlagGroup, FlagExpression, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
@@ -115,6 +115,8 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         result.push(when(flagExpression(tokens), [alignmentFault(operation, address)]));
       } else if (tokens.take("defer")) {
         tokens.expect("irq"); result.push(deferInterrupt("irq"));
+      } else if (tokens.next === "notify" && tokens.peek(1) !== "=") {
+        tokens.expect("notify"); tokens.expect("reti"); result.push(notifyReti());
       } else if (tokens.take("commit")) {
         tokens.expect("addresses"); result.push(commitAddressUpdates());
       } else if (tokens.next === "apply" || tokens.next === "replace") {
