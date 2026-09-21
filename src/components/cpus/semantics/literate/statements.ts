@@ -26,7 +26,7 @@ interface Symbols {
   readonly registers: ReadonlyMap<string, Register>;
   readonly arrays: ReadonlyMap<string, RegisterArray>;
   readonly latches: ReadonlyMap<string, Latch>;
-  readonly choices: ReadonlyMap<string, Choice<string>>;
+  readonly choices: ReadonlyMap<string, Choice>;
   readonly flags: ReadonlyMap<string, Flag>;
   readonly policies: ReadonlyMap<string, FlagPolicy>;
   readonly actions: ReadonlyMap<string, InstructionDefinition>;
@@ -136,7 +136,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         tokens.expect("("); const address = expression(tokens); tokens.expect(")"); tokens.expect("<-");
         result.push(effect(address, expression(tokens)));
       } else {
-        const name = tokens.word();
+        const name = tokens.reference();
         if (tokens.take("[")) {
           const array = arrays.get(name) ?? tokens.fail(`Unknown array ${name}.`);
           if (tokens.take("]")) {
@@ -147,7 +147,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
           }
         } else if (tokens.take("<-")) {
           const latch = latches.get(name), choice = choices.get(name);
-          if (choice) result.push(writeChoice(choice, tokens.quoted()));
+          if (choice) result.push(writeChoice(choice, tokens.choiceValue()));
           else if (latch) {
             const contents = flagExpression(tokens);
             result.push(writeLatch(latch, contents.kind === "flag-literal" ? contents.value : contents));
@@ -169,10 +169,10 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
           } else if (tokens.take("fetch")) result.push(fetchByte(name));
           else if (tokens.take("choice")) {
             const choice = tokens.lookup(choices); tokens.expect("=");
-            result.push(testChoice(name, choice, tokens.quoted()));
-          } else if (tokens.take("flag")) result.push(readFlag(name, tokens.lookup(flags)));
+            result.push(testChoice(name, choice, tokens.choiceValue()));
+          } else if (tokens.take("flag")) result.push(readFlag(name, tokens.lookup(flags, true)));
           else if (tokens.take("latch")) result.push(readLatch(name, tokens.lookup(latches)));
-          else if (tokens.take("register")) result.push(readRegister(name, tokens.lookup(registers)));
+          else if (tokens.take("register")) result.push(readRegister(name, tokens.lookup(registers, true)));
           else if (tokens.take("array")) {
             const array = tokens.lookup(arrays); tokens.expect("[");
             result.push(readElement(name, array, expression(tokens))); tokens.expect("]");

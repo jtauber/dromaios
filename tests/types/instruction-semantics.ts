@@ -35,7 +35,7 @@ import { readTest, reportInterrupt, sendEscape, testChoice, writeChoice, readPor
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502 } from "../../src/components/cpus/generated/6502.js";
 import { sourceReaders } from "../../src/components/cpus/generated/6502-state.js";
-import { instructions as generatedZ80 } from "../../src/components/cpus/generated/z80.js";
+import { bodiesZ80 as generatedZ80 } from "../helpers/z80-bodies.js";
 import type { CpuZ80State } from "../../src/components/cpus/z80.js";
 import { instructions as generated8008 } from "../../src/components/cpus/generated/8008.js";
 import { cpu8008StateDescription } from "../../src/components/cpus/semantics/generated/state/8008.js";

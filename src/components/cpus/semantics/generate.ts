@@ -261,7 +261,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           case "capture": captured = number(step.value, scope); break;
           case "read-register": captured = { code: `${bank(step.register)}${field(step.register.field)}`, type: step.register.width }; break;
           case "read-element": captured = { code: `state${field(step.array.field)}[${number(step.index, scope).code}]!`, type: step.array.width }; break;
-          case "read-flag": captured = { code: `state.flags${field(step.flag.field)}`, type: "flag" }; break;
+          case "read-flag": captured = { code: `${bank(step.flag)}.flags${field(step.flag.field)}`, type: "flag" }; break;
           case "test-choice": captured = { code: `state${field(step.choice.field)} === ${JSON.stringify(step.value)}`, type: "flag" }; break;
           case "read-latch": captured = { code: `state${field(step.latch.field)}`, type: "flag" }; break;
           case "exchange-flags": {
@@ -343,10 +343,10 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
             const updates = step.policy.updates.map(update => {
               const code = local("flag");
               emit(`const ${code} = ${flag(update.value, parameters)};`);
-              return { field: update.flag.field, code };
+              return { bank: bank(update.flag), field: update.flag.field, code };
             });
-            if (step.kind === "replace-flags") emit(`state.flags = { ${updates.map(update => `[${JSON.stringify(update.field)}]: ${update.code}`).join(", ")} };`);
-            else for (const update of updates) emit(`state.flags${field(update.field)} = ${update.code};`);
+            if (step.kind === "replace-flags") emit(`${updates[0]?.bank ?? "state"}.flags = { ${updates.map(update => `[${JSON.stringify(update.field)}]: ${update.code}`).join(", ")} };`);
+            else for (const update of updates) emit(`${update.bank}.flags${field(update.field)} = ${update.code};`);
             continue;
           }
         }

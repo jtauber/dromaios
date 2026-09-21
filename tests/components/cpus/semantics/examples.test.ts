@@ -311,7 +311,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 12429);
+  assert.equal(instructionDefinitions.length, 12442);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {
@@ -457,7 +457,7 @@ test("8008 transfer explanations retain native mnemonics and explicit 14-bit mem
 test("Intel byte-adjustment explanations expose different half-carry rules, preserved carry, and flag-before-write order", () => {
   for (const [cpu, increment, decrement, carry] of [["8080", "INR", "DCR", "CY"], ["z80", "INC", "DEC", "C"]] as const) {
     for (const name of [increment, decrement]) for (const operand of ["H", "memory"]) {
-      const text = description(cpu, `${name} ${cpu === "8080" && operand === "memory" ? "M" : operand}`);
+      const text = description(cpu, `${name} ${operand === "memory" ? cpu === "8080" ? "M" : "at a resolved address" : operand}`);
       const read = text.indexOf(operand === "memory" ? "original:u8 := read memory[address]" : "original:u8 := read H");
       const flags = text.indexOf("S := topBit(result)"), write = text.indexOf(operand === "memory" ? "write memory[address] := result" : "write H:u8 := result");
       assert.ok(read >= 0 && read < flags && flags < write);

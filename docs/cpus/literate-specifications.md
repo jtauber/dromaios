@@ -31,14 +31,19 @@ Executable chapters are maintained CPU sources:
   owns all 268 instruction forms, stored fields, and D/CC views and writes.
   Named pages and byte matches own prefix/indexed/transfer decoding. Writable
   views preserve D/CC/S write rules; chapter actions share stack and interrupt-frame
-  effects. Reset, execution, and external-event policies stay in TypeScript.
+  effects. Reset, execution, IRQ/FIRQ/NMI recognition, waiting/resume rules,
+  and the public interface are chapter-owned; no handwritten implementation remains.
+- [Zilog Z80: state and byte operations](../../src/components/cpus/specifications/z80.md)
+  owns both register banks and numeric interrupt-mode storage, pair/status views,
+  and unprefixed byte loads, ALU operations, and INC/DEC. Indexed arithmetic
+  reuses its actions; other families and execution remain in TypeScript.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
 
 This is an authoring-language prototype over the existing
 [instruction representation](instruction-semantics.md), with a deliberately
-small vocabulary. It now describes complete instruction-level 8008, 8080, 6502, and 6800 models;
+small vocabulary. It now describes complete instruction-level 8008, 8080, 6502, 6800, and 6809 models;
 other execution architectures still need language and runtime support.
 Current counts and milestone evidence belong in the
 [coverage report](coverage.md#literate-authoring-milestone).
@@ -146,6 +151,8 @@ Quoted descriptions use JSON string escaping.
 | `register A: 8`, `flag N` | Declare stored fields inside `state`, or reference an external schema in a partial chapter. Uppercase names map to lowercase stored fields unless an explicit `= field` mapping follows. |
 | `register SELECTOR: 3 = stackIndex`, `array ADDRESS: 14[8] = addressStack` | Name stored fields explicitly; widths and array lengths define storage inside `state` and must match the external schema otherwise. |
 | `latch STOPPED = halted` | Declare a Boolean control latch, distinct from an architectural flag. |
+| `bank ALTERNATE = alternate { … }` | Declare a separately stored bank of registers and flags inside `state`; refer to members as `ALTERNATE.B` or `ALTERNATE.C`. |
+| `choice IM: 0, 1, 2` | Declare an exact set of numeric alternatives; `IM <- 2` writes one and `mode2 = choice IM = 2` tests it. |
 | `choice WAIT: "none", "sync", "cwai" = waitMode` | Declare a stored field with an exact set of named alternatives. |
 | `waiting = choice WAIT = "cwai"`, `WAIT <- "none"` | Capture a Boolean comparison or write one declared alternative; unknown choices are errors. |
 | `source zeroPage "zero page": 16 { … }` | Ordered steps ending in a numeric `return`; each use has its own capture scope. |
@@ -165,7 +172,7 @@ Quoted descriptions use JSON string escaping.
 | `ADDRESS[] <- u14($0000)` | Fill every physical array slot with the same width-checked value, without reading previous elements. |
 | `result = operand s`, `operand d <- result` | Read or write a selected register, pair, writable view, or memory operand at this point. |
 | `defer irq` | Request one-boundary IRQ deferral on successful retirement; requires `retire irq into LATCH`. This does not immediately write stored state. |
-| `replace PSW(status)` | Replace the complete flag object; the policy must define every stored flag. |
+| `replace PSW(status)` | Replace the complete flag object; the policy must define every flag in exactly one bank. |
 | `apply NZ(result)`, `apply ALU(result, carry(left, right))` | Apply a declared flag policy to typed numeric and flag expressions. |
 | `address = resolve(16, mode, code)` | Ask the existing address decoder to resolve an operand of the stated width; mode and code are captured three-bit values. |
 | `fault alignment read(address) if lowBit(address)` | Return an alignment fault when the captured predicate is true, before subsequent effects. `write` identifies a failed destination access. |
@@ -175,18 +182,29 @@ Quoted descriptions use JSON string escaping.
 
 ### State ownership
 
-A complete state block contains only `register`, `flag`, `array`, `latch`, and `choice`
-declarations. It must be nonempty, appear once after `cpu` and before other
+A complete state block contains `register`, `flag`, `array`, `latch`, `choice`,
+and `bank` declarations. It must be nonempty, appear once after `cpu` and before other
 declarations, and contain every stored field. Instruction bodies use those
 declared names directly; do not redeclare them outside the block. Flags occupy
-a `flags` group; the other declarations describe top-level fields. Two symbols
+a `flags` group; a bank has its own `flags` group and stored byte/word fields.
+Bank members use qualified names and may be registers or flags only. Banks
+cannot nest and must declare their own flags. Register C and flag C may coexist,
+including inside a bank; their reading context determines the namespace. Two symbols
 cannot declare the same stored field, and a field named `flags` cannot collide
 with the architectural flag group. Arrays have positive safe-integer lengths;
 register and element widths use the language's supported numeric widths.
-Named choices require one or more distinct, nonempty quoted strings; spelling
-and case are significant. They generate a literal union type and runtime
-validation. This syntax currently declares storage only: choice reads, writes,
-and lifecycle policies still use the TypeScript instruction representation.
+Choices require one or more distinct values, either nonempty quoted strings
+or nonnegative safe integers. A declaration cannot mix strings and numbers.
+Spelling, case, and value type are significant. Choices generate a literal
+union type and runtime validation. Reads compare against a declared value and
+capture a Boolean; writes select one declared value. Named choices can also
+control vector waiting and masked resume policies. Numeric choices currently
+serve stored state and instruction actions, not those lifecycle clauses.
+
+Register and flag references may select a named bank: `register ALTERNATE.B`,
+`flag ALTERNATE.C`, and `ALTERNATE.B <- result`. Flag policies may update flags
+in multiple banks using captured values. A `replace` policy must cover every
+flag in one bank and replaces only that bank's flags object; it cannot span banks.
 
 The compiler returns the schema along with the instruction families. The build
 generates an immutable state description and a `StoredState` type derived from

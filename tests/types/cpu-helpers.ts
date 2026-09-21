@@ -1,5 +1,4 @@
 import { flagRegister } from "../../src/components/cpus/flags.js";
-import { readRegisterPair } from "../../src/components/cpus/register-pairs.js";
 import type { InstructionStep, HaltedStep } from "../../src/components/cpus/execution-records.js";
 import type { ReadonlyState } from "../../src/components/cpus/state.js";
 
@@ -12,10 +11,6 @@ export function checkCpuHelpers(record: InstructionStep<{ readonly pc: number }>
   decoded.v;
   // @ts-expect-error Every declared flag is required when encoding.
   flags.encode({ n: true, z: false });
-  const bank = { b: 0, c: 0, d: 0, e: 0, h: 0, l: 0 };
-  readRegisterPair(bank, "bc");
-  // @ts-expect-error SP is stored directly and is not a pair of byte registers.
-  readRegisterPair(bank, "sp");
   const state: ReadonlyState<{ registers: [number, number]; alternate: { flags: { c: boolean } } }> = {
     registers: [0, 1], alternate: { flags: { c: false } },
   };

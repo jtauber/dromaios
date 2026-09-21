@@ -1,21 +1,22 @@
-import { cpuZ80StateDescription, cpuZ80Status } from "../../state/z80.ts";
-import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, deferInterrupt, evenParity, exchangeFlags, fetchByte, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, notifyReti, overflow,
+import { cpuZ80StateDescription } from "../../state/z80.ts";
+import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, deferInterrupt, evenParity, exchangeFlags, fetchByte, flagLiteral, flagValue, halfBorrow, literal, negative, not, notifyReti, perform, overflow,
   readFlag, readLatch, readMemory, readPort, readRegister, readSource, replaceFlags, select, shiftBits, subtract, updateFlags, value, when, writeChoice, writeLatch, writeMemory, writePort, writeRegister, xor, zero } from "../model.ts";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement, ValueSource } from "../model.ts";
-import { immediateByte, registerSource, registerView, shift } from "../builders.ts";
+import { immediateByte, instructionSet, registerSource, registerView, shift } from "../builders.ts";
 import type { ShiftInput } from "../builders.ts";
-import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfer, intelByteTransfers, intelExchanges, intelJumps, intelRegisterStacks, intelStackTransfer, z80StatusInstructions, intelSubroutines, intelStackExchange, intelWordAdjustment, intelWordArithmetic, intelWordArithmeticFamily, intelWordRegister, intelPairView, intelWordTransfer, intelWordTransfers } from "../intel.ts";
-import type { IntelByteOperation } from "../intel.ts";
+import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteTransfer, intelExchanges, intelJumps, intelRegisterStacks, intelStackTransfer, z80StatusInstructions, intelSubroutines, intelStackExchange, intelWordAdjustment, intelWordArithmetic, intelWordArithmeticFamily, intelWordRegister, intelPairView, intelWordTransfer, intelWordTransfers } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 import { flagPolicy } from "../status.ts";
 import { choose, flagCondition, jump, relativeBranch } from "../control-flow.ts";
 import { byteStack, wordStack } from "../stack.ts";
 import { portTransfer } from "../ports.ts";
+import { actions, views, families } from "../generated/z80.ts";
 
 const cpu = cpuSymbols("z80", cpuZ80StateDescription);
 const conditions = (["z", "c", "pv", "s"] as const).map(flag => cpu.flag(flag));
 const conditionNames = ["NZ", "Z", "NC", "C", "PO", "PE", "P", "M"];
-const sources = intelByteSources(cpu.register);
+export { actions as actionsZ80, views as viewsZ80 } from "../generated/z80.ts";
+export const chapterZ80 = instructionSet(Object.values(families).flat());
 
 const alternate = cpu.bank("alternate");
 const bc = intelPairView(cpu, "bc"), de = intelPairView(cpu, "de"), hl = intelPairView(cpu, "hl");
@@ -117,18 +118,6 @@ function wordFlags(mnemonic: "ADD" | "ADC" | "SBC"): FlagPolicy {
 
 const wordAdditionFlags = wordFlags("ADD");
 
-function adjustment(mnemonic: "INC" | "DEC") {
-  const increment = mnemonic === "INC", original = value("original"), one = literal(8, 1);
-  return intelByteAdjustment(cpu, mnemonic, increment ? 1 : -1,
-    { name: `Z80 ${mnemonic}`, parameters: { original: 8, result: 8 }, unlisted: "preserve", updates: [
-      { flag: cpu.flag("s"), value: negative(value("result")) }, { flag: cpu.flag("z"), value: zero(value("result")) },
-      { flag: cpu.flag("h"), value: (increment ? halfCarry : halfBorrow)(original, one) },
-      { flag: cpu.flag("pv"), value: (increment ? addOverflow : overflow)(original, one) },
-      { flag: cpu.flag("n"), value: flagLiteral(!increment) },
-    ] }, `${increment ? "Add" : "Subtract"} one with byte wraparound. S/Z describe the result; P/V reports signed overflow. `
-      + `H reports low-nibble ${increment ? "carry" : "borrow"}; ${increment ? "clear" : "set"} N. Preserve the alternate bank and control state.`);
-}
-
 function rotation(name: string, direction: "left" | "right", circular: boolean): InstructionDefinition {
   return defineInstruction({ cpu: cpu.declaration, name,
     explanation: `Capture A and rotate ${direction}, inserting ${circular ? "the outgoing bit" : "incoming C captured after A"}. `
@@ -189,36 +178,12 @@ function bitFamily(mnemonic: "BIT" | "RES" | "SET") {
   }).flat());
 }
 
-// ooo selects ADD/ADC/SUB/SBC/AND/XOR/OR/CP in the unprefixed and DD/FD ALU families.
-// Arithmetic P/V means signed overflow; logic uses parity. H reports carry/borrow, never its inverse.
-function family(mnemonic: string, operation: IntelByteOperation, withCarry = false) {
-  const adding = operation === "add", subtracting = operation === "subtract" || operation === "compare";
-  const left = value("left"), right = value("right"), result = value("result"), incoming = withCarry ? flagValue("carry") : undefined;
-  const flags: FlagPolicy = { name: `Z80 ${mnemonic}`, parameters: { left: 8, right: 8, result: 8, ...(withCarry ? { carry: "flag" as const } : {}) }, unlisted: "preserve",
-    updates: [
-      { flag: cpu.flag("s"), value: negative(result) }, { flag: cpu.flag("z"), value: zero(result) },
-      { flag: cpu.flag("h"), value: adding ? halfCarry(left, right, incoming) : subtracting ? halfBorrow(left, right, incoming) : flagLiteral(operation === "and") },
-      { flag: cpu.flag("pv"), value: adding ? addOverflow(left, right, incoming) : subtracting ? overflow(left, right, incoming) : evenParity(result) },
-      { flag: cpu.flag("n"), value: flagLiteral(subtracting) },
-      { flag: cpu.flag("c"), value: adding ? carry(left, right, incoming) : subtracting ? borrow(left, right, incoming) : flagLiteral(false) },
-    ],
-  };
-  return Object.fromEntries([...sources, ["Memory", undefined] as const].map(([suffix, source]) => {
-    const memory = source === undefined, operand = memory ? "memory" : suffix === "M" ? "(HL)" : suffix === "byte" ? "n" : suffix;
-    return [`${mnemonic.toLowerCase()}${suffix === "byte" ? "Immediate" : suffix}`, defineInstruction({
-      cpu: cpu.declaration, name: `${mnemonic} ${adding || withCarry ? "A," : ""}${operand}`,
-      ...(memory ? { inputs: { address: 16 as const } } : {}),
-      explanation: (memory ? "Entry follows indexed address resolution. Read the byte at that captured address. " : "Read the operand. ")
-        + (withCarry ? "Capture incoming C, then read A. " : "Read A without reading incoming flags. ")
-        + "S/Z describe the byte result. "
-        + (adding || subtracting ? `P/V is signed overflow; H and C report low-nibble and byte ${adding ? "carry" : "borrow"}. `
-          : `P/V is even parity; ${operation === "and" ? "set" : "clear"} H and clear C. `)
-        + `${subtracting ? "Set" : "Clear"} N. Apply flags, then ${operation === "compare" ? "retain A without a write" : "write A"}. `
-        + "Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.",
-      steps: [memory ? readMemory("right", value("address")) : readSource("right", source),
-        ...intelByteAlu(cpu.register("a"), operation, flags, withCarry ? cpu.flag("c") : undefined)],
-    })];
-  }));
+// Indexed ALU forms resolve their address in the decoder, then reuse the chapter's byte action.
+function indexedArithmetic(operation: "add" | "adc" | "sub" | "sbc" | "and" | "xor" | "or" | "cp") {
+  return defineInstruction({ cpu: cpu.declaration, name: `${operation.toUpperCase()} memory`, inputs: { address: 16 },
+    explanation: "Read once at the resolved index address, then perform the chapter's accumulator action. A failed read prevents its effects.",
+    steps: [readMemory("right", value("address")), perform(actions[`${operation}Accumulator`], { right: value("right") })],
+  });
 }
 
 function registerInput(register: "a" | "b" | "c" | "d" | "e" | "h" | "l") {
@@ -313,7 +278,7 @@ export const instructionsZ80 = {
   rld: rotateDigits(true), rrd: rotateDigits(false),
   ldi: block(1, false, false), ldd: block(-1, false, false), ldir: block(1, false, true), lddr: block(-1, false, true),
   cpi: block(1, true, false), cpd: block(-1, true, false), cpir: block(1, true, true), cpdr: block(-1, true, true),
-  ...z80StatusInstructions(cpu, cpuZ80Status),
+  ...z80StatusInstructions(cpu, { source: views.F, write: status => [perform(actions.writeF, { status })] }),
   ...intelRegisterStacks(cpu, (register, operation) => `${operation.toUpperCase()} ${register.toUpperCase()}`),
   ...Object.fromEntries((["ix", "iy"] as const).flatMap(register => (["push", "pop"] as const).map(operation =>
     [`${operation}${register.toUpperCase()}`, intelStackTransfer(cpu, cpu.register(register), operation, `${operation.toUpperCase()} ${register.toUpperCase()}`)]))),
@@ -335,7 +300,6 @@ export const instructionsZ80 = {
     + "add the signed displacement to the post-fetch PC with word wraparound. If zero, do not read or write PC. A failed fetch prevents the decrement. Preserve other registers." }),
   ...Object.fromEntries((["ix", "iy"] as const).map(index =>
     [`jump${index.toUpperCase()}`, jump(cpu, `JP (${index.toUpperCase()})`, registerSource(cpu.register(index)))])),
-  ...intelByteTransfers(cpu, "LD", "LD", "(HL)"),
   ...intelAccumulatorTransfers(cpu, (address, operation) => operation === "store" ? `LD (${address === "absolute" ? "nn" : address.toUpperCase()}),A`
     : `LD A,(${address === "absolute" ? "nn" : address.toUpperCase()})`),
   ...intelWordTransfers(cpu, wordTransferName),
@@ -370,9 +334,8 @@ export const instructionsZ80 = {
   ])),
   // DD/FD 00 110 110: the decoder fetches d and resolves the address before the body fetches n.
   storeImmediateMemory: intelByteTransfer(cpu, "m", "immediate", "LD memory,n", "resolved"),
-  // 00 rrr 10d: rrr selects B/C/D/E/H/L/(HL)/A; d=0 increments, d=1 decrements.
-  // Each memory body also serves DD/FD 00 110 10d after indexed address resolution.
-  ...adjustment("INC"), ...adjustment("DEC"),
+  // Resolved indexed operands reuse the chapter's read/modify/write actions.
+  incMemory: actions.incMemory, decMemory: actions.decMemory,
   // 00 ooo 111: ooo=000/001 rotates A circularly; 010/011 rotates through C. Preserve S/Z/PV.
   rlca: rotation("RLCA", "left", true), rrca: rotation("RRCA", "right", true),
   rla: rotation("RLA", "left", false), rra: rotation("RRA", "right", false),
@@ -387,13 +350,7 @@ export const instructionsZ80 = {
   ...shiftFamily("SRL", "right"), // 111
   // CB xx bbb rrr: xx=01/10/11 selects BIT/RES/SET; bbb selects bit 0..7.
   ...bitFamily("BIT"), ...bitFamily("RES"), ...bitFamily("SET"),
-  // ooo in 10 ooo rrr / 11 ooo 110 selects the same byte ALU family.
-  ...family("ADD", "add"), // 000
-  ...family("ADC", "add", true), // 001
-  ...family("SUB", "subtract"), // 010
-  ...family("SBC", "subtract", true), // 011
-  ...family("AND", "and"), // 100
-  ...family("XOR", "xor"), // 101
-  ...family("OR", "or"), // 110
-  ...family("CP", "compare"), // 111
+  // DD/FD 10 ooo 110: the same eight byte operations after displacement resolution.
+  ...Object.fromEntries((["add", "adc", "sub", "sbc", "and", "xor", "or", "cp"] as const).map(operation =>
+    [`${operation}Memory`, indexedArithmetic(operation)])),
 };

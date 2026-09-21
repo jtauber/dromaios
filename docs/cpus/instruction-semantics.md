@@ -50,13 +50,13 @@ the Z80, 8088, and 68000 retain TypeScript builders.
 | 8088 shifts, rotates, multiply/divide, and decimal/ASCII adjustments | Full CL counts with ordered per-bit effects; complete products; explicit division outcomes before writes; short-circuit decimal flags and original-chip limits |
 | 6502 CMP/CPX/CPY, every supported addressing form | Share subtraction without writeback; preserve V/D/I; C means no borrow |
 | 8080 ADD/ADC/SUB/SBB/ANA/XRA/ORA/CMP and every immediate counterpart | Shared register, memory, and immediate sources; CY before A for ADC/SBB; parity, inverse half-borrow, and ANA's auxiliary carry rule |
-| Z80 ADD/ADC/SUB/SBC/AND/XOR/OR/CP, including (IX+d)/(IY+d) | Share 8080 sources and ALU construction with distinct overflow, half-carry, and N rules; enter indexed bodies after displacement/address resolution; preserve both-bank and prefix-decoding contracts |
+| Z80 ADD/ADC/SUB/SBC/AND/XOR/OR/CP, including (IX+d)/(IY+d) | Chapter-owned byte sources and ALU actions with explicit overflow, half-carry, and N rules; enter indexed bodies after displacement/address resolution; preserve both-bank and prefix-decoding contracts |
 | Z80 accumulator rotates and all documented CB shifts/rotates, including indexed forms | Preserve S/Z/PV on accumulator rotates; derive them for CB operations; share each memory body across HL/IX/IY, with flags before writeback and explicit failure boundaries |
 | Z80 EX AF,AF′/EXX, I/R transfers, and NEG | Schema-owned alternate-bank references, whole flag-object exchange, explicit IFF2 reads, and flags before A |
 | Z80 RLD/RRD and all eight block transfer/search forms | Direct nibble shifts; successful memory writes before flags; live pair rereads; one iteration and conditional PC rewind, with no hidden loop |
 | Z80 BIT/RES/SET, including indexed forms | Fixed bit masks; BIT reads without writeback and preserves C; RES/SET write even unchanged values without accessing flags; share CB construction and bindings with shifts |
-| 8080 INR/DCR and Z80 byte INC/DEC, including indexed forms | Share read–adjust–flags–write bodies; preserve carry; distinguish 8080 inverse half-borrow and parity from Z80 half-borrow and overflow; retain calculated flags on failed writes |
-| 8080 MOV/MVI and corresponding Z80 LD matrices, immediate and indexed forms | Share one encoding inventory for definition generation and execution binding; capture sources before writes, retain HL access timing and real indexed H/L operands, preserve every flag, and exclude HALT |
+| 8080 INR/DCR and Z80 byte INC/DEC, including indexed forms | Chapter-owned read–adjust–flags–write bodies; Z80 indexed callers reuse its memory actions; preserve carry; distinguish 8080 inverse half-borrow and parity from Z80 half-borrow and overflow; retain calculated flags on failed writes |
+| 8080 MOV/MVI and corresponding Z80 LD matrices, immediate and indexed forms | Chapters own the ordinary matrices; native Z80 indexed bodies retain resolved addresses; capture sources before writes, retain HL access timing and real indexed H/L operands, preserve every flag, and exclude HALT |
 | 8080 STAX/LDAX/STA/LDA and corresponding Z80 accumulator LD forms | Capture BC/DE or the complete immediate address before A or memory; loads write only after a successful read, stores never read the destination, and neither direction accesses flags |
 | 8080 LXI/LHLD/SHLD/SPHL and Z80 word loads/stores and SP copies, including ED and IX/IY forms | Share complete bodies with low-first fetching and memory accesses, high-first pair reads/writes, captured sources, and explicit second-byte failures; ED's HL forms reuse the unprefixed bodies |
 | 8080 INX/DCX/DAD and Z80 word INC/DEC, ADD HL/IX/IY, ADC/SBC HL | Reuse pair descriptions and native base encodings; source before destination, optional C after both; write before flags; preserve all flags on adjustments and use the bit-11 H boundary on Z80 arithmetic |
@@ -256,8 +256,8 @@ The authoring layers have separate homes:
 | [ports.ts](../../src/components/cpus/semantics/ports.ts) | Shared byte/word port transfers: capture addresses before operands, transfer low byte first, and commit input only after complete reads |
 | [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, ordered frames, and complete push/pop instruction construction |
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared Motorola condition construction for remaining 68000 definitions |
-| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Z80 builders for byte ALU, byte and word transfers, arithmetic, exchanges, jumps, stacks, and subroutines, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
-| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted |
+| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Remaining Z80 builders for indexed byte transfers, word transfers/arithmetic, exchanges, jumps, stacks, and subroutines, with explicit access ordering; accumulator rotates with CPU-specific flag stages |
+| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Remaining native Z80 word/accumulator-transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
 | [decimal.ts](../../src/components/cpus/semantics/decimal.ts) | Shared decimal-correction selection with explicit Intel/Motorola flag and result stages |
 | [6502 chapter](../../src/components/cpus/specifications/6502.md) | Complete state, instruction inventory, NMOS arithmetic, status, reset, execution, and named external-entry policies |
@@ -319,7 +319,7 @@ and requires the value's width to match each element. The literate spelling is
 `ARRAY[] <- value`; the 8008 reset action uses it to clear its eight address slots.
 `cpu.bank("alternate")` exposes the stored unsigned registers and complete
 flag object in that named top-level bank, using the same CPU declaration.
-Register references carry an optional bank name; they never flatten or copy
+Register and individual flag references carry an optional bank name; they never flatten or copy
 live bank state. Names and widths are checked against the owning schema.
 Arbitrary nested paths and implicit register slices remain outside this API.
 Composed reads use ordinary sources: 8080 HL is explicitly read as H then L,
@@ -387,23 +387,21 @@ retain completed fetching and address updates, without arithmetic or writeback.
 Decimal adjustment remains separate from binary arithmetic.
 
 The 8080 expands all eight byte ALU families over one B/C/D/E/H/L/M/A/immediate
-source inventory. Addition/subtraction use the same `arithmetic` recipe, with
+source inventory. Its chapter uses explicit addition/subtraction expressions, with
 S/Z/P derived from the byte result, CY as carry/borrow, and AC as low-nibble
 carry or inverse half-borrow. ANA instead derives AC from bit 3 of the original
 A OR the operand; XRA/ORA clear it. All three logical families clear CY.
 Flags precede A writeback, while CMP omits the write entirely. The definitions
 use existing expressions and policies without adding a semantic primitive.
 
-`intelByteSources` shares the register, (HL), and immediate source inventory
-between the 8080 and Z80. `intelByteAlu` consumes the captured right operand,
-reads optional carry before A, calculates the result and flags, then writes A
-unless the operation is comparison. It reuses `arithmetic` for addition and
-subtraction. Each CPU supplies its flag policy: Z80 arithmetic uses P/V for
-overflow, H for half-carry/half-borrow, and N for subtraction; logic uses parity,
-sets H only for AND, and clears N/C. The Z80 supplies a resolved address to its
-eight indexed bodies, each shared by IX and IY. They read that address once
-before the ALU construction, without fetching displacement or touching either
-index register again. No general indexed-addressing primitive is needed.
+The [Z80 chapter](../../src/components/cpus/specifications/z80.md) owns its
+byte operand catalogue and eight ALU actions. Each captures optional C before A,
+then applies flags before writeback; CP omits writeback. Arithmetic uses P/V for
+overflow, H for half-carry/half-borrow, and N for subtraction. Logic uses parity,
+sets H only for AND, and clears N/C. Native indexed bodies read a resolved address
+once and perform the same chapter actions. The old `intelByteSources` and
+`intelByteAlu` builders have been removed; the 8080's distinct rules also live
+in its own chapter.
 
 The Z80 also reuses `intelAccumulatorRotate` unchanged for RLCA/RRCA/RLA/RRA,
 appending N/H clearing after A and C writeback. S/Z/PV remain unchanged. Its CB
@@ -426,16 +424,13 @@ write even an unchanged result and never access flags. Their 192 bodies cover
 240 forms: each of the 24 memory bodies serves HL, IX, and IY. No new semantic
 primitive or generator path is needed.
 
-`intelByteAdjustment` shares the complete read–adjust–flags–write construction
-for 8080 INR/DCR and Z80 byte INC/DEC. Each CPU supplies a named flag policy:
-8080 derives S/Z/P from the result, with AC meaning carry on increment and
-inverse borrow on decrement; Z80 uses S/Z, H as carry/borrow, P/V as signed
-overflow, and N to distinguish subtraction. Neither reads nor writes carry.
-The register bodies read and write their selected byte once; memory bodies use
-one supplied address for both accesses. Failed reads prevent flags and writeback;
-failed writes retain the calculated flags. The 32 bodies cover 36 forms, with
-the two Z80 memory bodies each shared by HL, IX, and IY. Existing arithmetic
-expressions suffice; no semantic-model or generator extension is needed.
+The 8080 and Z80 chapters each own their byte adjustment policies and encodings.
+Both read the original byte, calculate, apply flags, and then write the result,
+preserving carry without reading it. The 8080 reports parity and inverse
+half-borrow; the Z80 reports signed overflow and half-borrow. Z80 resolved-memory
+actions serve both `(HL)` and native indexed callers, retaining one address
+through read/modify/write and calculated flags after a failed write. The unused
+`intelByteAdjustment` builder has been removed.
 
 The 8008 chapter defines each of its eight ALU operations once, sharing the
 body between register/memory and immediate encodings. Its source inventory
@@ -466,7 +461,7 @@ byte/word loads use the same recipe with a width-dependent N/Z policy and V
 cleared; the 6800 chapter now expresses these stages and TAB/TBA directly.
 
 `intelByteTransfer` builds explicit source-capture and destination-write
-statements for the 8080/Z80 transfer families. Register transfers retain a real
+statements for the remaining Z80 indexed transfers. Register transfers retain a real
 read and write even when the source equals the destination. Loads through HL
 read H then L before memory and destination writeback. Stores capture the source
 or fetch the immediate first, then read H/L and write memory without a destination
@@ -1271,13 +1266,11 @@ their values are equal, and leaves C committed if the final write fails.
 Memory INC/DEC use the same two writes but preserve C throughout; accumulator
 and index-register forms perform no data-memory access.
 
-The shared 8080/Z80 ALU table binds complete instruction handlers. Each CPU
-selects generated bodies for all 72 register, (HL), and immediate ALU forms;
-each owns its source reads, flag updates, and optional A writeback. The Z80 also
-binds sixteen indexed forms to eight resolved-memory bodies. Their old ALU
-methods and the operand-and-accumulator wrapper are gone; unrelated handwritten
-Z80 operations retain their existing result helpers. The 8080 result helper is
-removed now that DAA is generated.
+The 8080 and Z80 chapters bind all 72 ordinary byte ALU forms directly from
+formal encodings. Each body owns source reads, flags, and optional A writeback.
+The Z80 also binds sixteen indexed forms to eight resolved-memory bodies that
+perform the chapter's actions. Those native bodies still depend on handwritten
+prefix and displacement decoding, so they earn no complete literate-form credit.
 
 ## Validation and generated explanations
 
@@ -1870,27 +1863,20 @@ performs no register or memory reads; each call observes live registers at its
 declared position. The 6502 now expands these sources into every ordinary
 instruction body; standalone readers remain focused generator probes.
 
-This covers the complete 6502 comparison, load/store, logical, shift/rotate, and
-byte increment/decrement families, plus all six register transfers. The 8080 uses
-named bodies for all 72 byte ALU bindings and four accumulator rotates in the
-shared 8080/Z80 family. The Z80 binds its 72 ordinary ALU bodies through that
-same hook, with eight further bodies serving its sixteen indexed ALU forms.
-Both CPUs supply complete generated byte-adjustment handlers to the shared
-`00 rrr 10d` family. The former calculation hook, modification wrapper, and
-modification-table builder are removed; each CPU binds the register bodies
-directly and supplies HL only to the memory body. The Z80 also supplies its
-resolved IX/IY addresses directly, removing its indexed modification wrapper.
-It binds four generated accumulator rotates through the shared family hook,
-and all 310 documented CB forms through unified ordinary and indexed CB bindings.
-Thirty-one resolved-memory bodies each serve HL, IX, and IY after address resolution.
-Its prefix recognition, signed displacement calculation, PC/R updates, and
-interrupt handling remain in the CPU module.
-The shared 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine inventory supplies both definition keys and ordinary
-binding opcodes. Each CPU exposes its generated bodies to one family binder;
-there are no duplicate per-CPU transfer binding tables. HALT is an explicit
-generated control body outside the transfer matrix. The former operand read/write helpers and transfer body are
-removed. Z80 indexed bindings retain their decoder and supply the resolved
-address to generated load/store bodies.
+The 6502 and 8080 now use generated chapter dispatch for their complete
+instruction sets. The Z80 chapter directly binds byte loads, arithmetic, and
+INC/DEC, removing their old hooks from `Cpu8080Family`. Its remaining inherited
+word, control, and stack bindings stay in that class until migration.
+
+Z80 indexed arithmetic and adjustments reuse chapter actions after native
+address resolution. Four accumulator rotates still use the native family hook;
+310 documented CB forms share ordinary and indexed bindings. Prefix recognition,
+displacements, PC/R updates, and interrupt delivery remain in the CPU module.
+Native transfer/word/control inventories continue to supply both definition keys
+and binding opcodes for those remaining families. Indexed load/store bodies take
+one resolved address. HALT remains a separate control body outside the chapter's
+byte-transfer matrix.
+
 Accumulator memory transfers through BC/DE and absolute addresses use the same
 inventory and binder, completing the shared ordinary byte load/store bindings.
 Their address sources are captured before A or memory: pair views read high byte

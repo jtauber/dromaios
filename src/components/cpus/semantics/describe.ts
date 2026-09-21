@@ -109,7 +109,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
         case "capture": emit(`${step.name} := ${number(step.value)}`); break;
         case "read-register": emit(`${step.name}:u${step.register.width} := read ${bank(step.register)}${step.register.field.toUpperCase()}`); break;
         case "read-element": emit(`${step.name}:u${step.array.width} := read ${step.array.field.toUpperCase()}[${number(step.index)}]`); break;
-        case "read-flag": emit(`${step.name}:flag := read ${step.flag.field.toUpperCase()}`); break;
+        case "read-flag": emit(`${step.name}:flag := read ${bank(step.flag)}${step.flag.field.toUpperCase()}`); break;
         case "test-choice": emit(`${step.name}:flag := test control ${step.choice.field} equals ${JSON.stringify(step.value)}`); break;
         case "read-latch": emit(`${step.name}:flag := read control latch ${step.latch.field}`); break;
         case "exchange-flags": {
@@ -152,8 +152,8 @@ export function describeInstruction(definition: InstructionDefinition): string {
         case "update-flags": case "replace-flags":
           emit(`${step.kind === "replace-flags" ? "replace flags" : "flags"} "${step.policy.name}" simultaneously {`);
           for (const update of step.policy.updates) {
-            changed.add(update.flag.field);
-            emit(`  ${update.flag.field.toUpperCase()} := ${flag(update.value, step.arguments)}`);
+            changed.add(bank(update.flag) + update.flag.field);
+            emit(`  ${bank(update.flag)}${update.flag.field.toUpperCase()} := ${flag(update.value, step.arguments)}`);
           }
           emit(step.kind === "replace-flags" ? "} // Replace the complete flag object." : "} // Preserve unlisted flags.");
           break;

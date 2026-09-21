@@ -7,7 +7,7 @@ export type ValueType = Width | "flag";
 export interface Register { readonly kind: "register"; readonly cpu: string; readonly field: string; readonly width: Width; readonly bank?: string }
 export interface FlagGroup { readonly kind: "flag-group"; readonly cpu: string; readonly bank?: string }
 export interface RegisterArray { readonly kind: "register-array"; readonly cpu: string; readonly field: string; readonly width: Width; readonly length: number }
-export interface Flag { readonly kind: "flag"; readonly cpu: string; readonly field: string }
+export interface Flag { readonly kind: "flag"; readonly cpu: string; readonly field: string; readonly bank?: string }
 export interface Latch { readonly kind: "latch"; readonly cpu: string; readonly field: string }
 export interface Choice<Value extends string | number = string | number> { readonly kind: "choice"; readonly cpu: string; readonly field: string; readonly values: readonly Value[] }
 export interface CpuDeclaration {

@@ -514,28 +514,29 @@ fields, concrete snapshot types, and outcome narrowing through the CPU exports.
 
 ## Register pairs and packed flags
 
-The [register-pair helpers](../../src/components/cpus/register-pairs.ts) define
-BC, DE, and HL as high/low byte views shared by the 8080 and Z80. Runtime reads,
-generated split writes, and snapshot views use that one mapping. CPU tables select pair names;
-SP is stored directly. The Z80 applies the same views independently to each bank.
+The [remaining pair mapping](../../src/components/cpus/register-pairs.ts) supplies
+BC, DE, and HL byte names to native Z80 word builders. Its chapter now defines
+snapshot pair views for both banks and the HL source used by ordinary byte
+instructions. The 8080 defines its pairs entirely in its own chapter. SP is a
+stored word, not a pair of bytes. Native Z80 pair writes remain to migrate.
 
 The [flag-register helper](../../src/components/cpus/flags.ts) takes a map from
 flag names to bit positions, plus any fixed output bits. `encode` reads current
 Booleans; `decode` creates a fresh flag object and ignores unmodeled input bits.
-Z80's AF, 6809's CC, 8088's FLAGS, and 68000's condition/system flags
-declare layouts beside their state schemas. The 6502, 6800, and 8080 instead express
-packing and complete flag replacement in their executable chapters.
+The 8088's FLAGS and 68000's condition/system flags declare layouts beside their
+state schemas. The 6502, 6800, 6809, 8080, and Z80 express packing and complete
+flag replacement in their executable chapters.
 The helper owns and freezes both the layout and its codec; generated status
 sources use the same `bits` and
 `fixed` declaration as runtime encoding. Fixed output bits describe the model's packing policy;
 they do not add stored flags or assert hardware behavior for omitted bits.
 Layouts are checked for invalid, repeated, and overlapping bit positions.
 
-[Register-pair tests](../../tests/components/cpus/register-pairs.test.ts)
-check every word against native byte conversion, including preservation of
-other registers and detached views. [Flag tests](../../tests/components/cpus/flags.test.ts)
+[Z80 chapter tests](../../tests/components/cpus/semantics/literate-z80.test.ts)
+check every pair value in both banks against native byte conversion, alongside
+ordered reads and flag packing. [Flag tests](../../tests/components/cpus/flags.test.ts)
 check round trips, ignored/fixed bits, live values, and invalid layouts.
-[Type checks](../../tests/types/cpu-helpers.ts) preserve named flags, valid pairs,
+[Type checks](../../tests/types/cpu-helpers.ts) preserve named flags
 and the concrete readonly snapshot/record contracts.
 
 ## Shared instruction contexts

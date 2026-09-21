@@ -120,7 +120,7 @@ test("twenty documented interrupt/control forms and two external entry helpers a
   for (const [definitions, keys, names] of inventories) assert.deepEqual(keys.map(k => definitions[k]!.name), names);
   assert.equal(Object.keys(instructions6502).length, 151);
   assert.equal(Object.keys(instructions8080).length, 244);
-  assert.equal(Object.keys(instructionsZ80).length, 607);
+  assert.equal(Object.keys(instructionsZ80).length, 450);
   assert.equal("pullFrame" in m6809, false, "RTI replaces the old partial-return helper");
 });
 

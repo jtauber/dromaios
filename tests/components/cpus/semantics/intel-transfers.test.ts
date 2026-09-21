@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
-import { instructions as zilog } from "../../../../src/components/cpus/generated/z80.js";
-import { instructions8080, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { bodiesZ80 as zilog } from "../../../helpers/z80-bodies.js";
+import { instructions8080, instructionsZ80, chapterZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
 import type { ByteInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 import { initialState, flagPattern, transferColumns, transferRows } from "../z80/helpers.js";
 
@@ -30,7 +30,7 @@ test("8080/Z80 retain the shared transfer, word-arithmetic, exchange, jump, stac
     0x02, 0x0a, 0x12, 0x1a, 0x32, 0x3a, 0xe3, 0xeb,
     0x03, 0x0b, 0x09, 0x13, 0x1b, 0x19, 0x23, 0x2b, 0x29, 0x33, 0x3b, 0x39].sort((a, b) => a - b);
   assert.equal(new Set(expected).size, 148);
-  for (const definitions of [instructions8080, instructionsZ80]) {
+  for (const definitions of [instructions8080, { ...instructionsZ80, ...chapterZ80 }]) {
     for (const opcode of expected) assert.ok(Object.hasOwn(definitions, opcode), `Missing shared opcode ${opcode.toString(16)}`);
   }
 });

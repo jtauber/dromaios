@@ -19,7 +19,7 @@ export function chapterVectorEntries(header: ChapterTokens, lines: readonly Chap
   readonly actions: ReadonlyMap<string, InstructionDefinition>;
   readonly flags: ReadonlyMap<string, Flag>;
   readonly latches: ReadonlyMap<string, Latch>;
-  readonly choices: ReadonlyMap<string, Choice<string>>;
+  readonly choices: ReadonlyMap<string, Choice>;
 }): readonly VectorEntry[] {
   const names = new Set<string>();
   if (!lines.length) header.fail("Vector interrupts need at least one source.");
@@ -43,7 +43,9 @@ export function chapterVectorEntries(header: ChapterTokens, lines: readonly Chap
     names.add(source);
     let gate: VectorEntry["gate"], resume: VectorEntry["resume"];
     if (tokens.take("unless")) {
-      tokens.expect("flag"); gate = { kind: "mask", field: tokens.lookup(symbols.flags).field, reason: "masked" };
+      tokens.expect("flag"); const flag = tokens.lookup(symbols.flags, true);
+      if (flag.bank !== undefined) tokens.fail("Vector masks require a top-level flag.");
+      gate = { kind: "mask", field: flag.field, reason: "masked" };
     } else if (tokens.take("when")) {
       tokens.expect("latch"); const field = tokens.lookup(symbols.latches).field;
       tokens.expect("otherwise"); const reason = tokens.quoted();

@@ -38,7 +38,7 @@ export interface CpuChapter {
 /** Compile a bounded literate language to the existing IR, without evaluating host-language code. */
 export function compileCpuChapter(markdown: string, target: { readonly name?: string; readonly state?: StateFields } = {}, file = "<chapter>"): CpuChapter {
   const registers = new Map<string, Register>(), flags = new Map<string, Flag>();
-  const arrays = new Map<string, RegisterArray>(), latches = new Map<string, Latch>(), choices = new Map<string, Choice<string>>();
+  const arrays = new Map<string, RegisterArray>(), latches = new Map<string, Latch>(), choices = new Map<string, Choice>();
   const sources = new Map<string, ValueSource>(), policies = new Map<string, FlagPolicy>();
   const catalogues = new Map<string, readonly ChapterOperand[]>(), families = new Map<string, readonly OpcodeEntry<InstructionDefinition>[]>();
   const conditions = new Map<string, readonly ChapterCondition[]>();
@@ -51,8 +51,8 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
   let publicInterface: ChapterInterface | undefined;
   let cpu: CpuDeclaration = { name: target.name ?? "", state: target.state ?? {} };
 
-  function declare(tokens: ChapterTokens, kind: string): string {
-    const column = tokens.column, name = tokens.word();
+  function declare(tokens: ChapterTokens, kind: string, prefix = ""): string {
+    const column = tokens.column, name = prefix + tokens.word();
     // Registers and flags have distinct namespaces: the 8008 has both register C and flag C.
     if (names.has(name) || (kind !== "flag" && registers.has(name)) || (kind !== "register" && flags.has(name))) {
       tokens.fail(`Duplicate declaration ${name}.`, column);
@@ -60,8 +60,11 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
     if (kind !== "register" && kind !== "flag") names.add(name);
     return name;
   }
-  function declareState(tokens: ChapterTokens, kind: string, check = false) {
-    const name = declare(tokens, kind), symbol = stateSymbol(tokens, kind, name, cpu.name);
+  function declareState(tokens: ChapterTokens, kind: string, check = false, bank?: { name: string; field: string }) {
+    const prefix = bank ? `${bank.name}.` : "", name = declare(tokens, kind, prefix);
+    const declared = stateSymbol(tokens, kind, name.slice(prefix.length), cpu.name);
+    if (bank && declared.kind !== "register" && declared.kind !== "flag") tokens.fail("Banks contain only registers and flags.");
+    const symbol = bank ? { ...declared, bank: bank.field } : declared;
     if (check) checkStateSymbol(tokens, name, symbol, cpu);
     switch (symbol.kind) {
       case "register": registers.set(name, symbol); break;
@@ -103,7 +106,22 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         header.expect("{"); header.end();
         const { body, end } = chapterBody(lines, index); index = end;
         if (body.length === 0) header.fail("State must declare at least one stored field.");
-        const declarations = body.map(tokens => ({ symbol: declareState(tokens, tokens.word()), tokens }));
+        const declarations: Parameters<typeof chapterState>[0][number][] = [];
+        for (let slot = 0; slot < body.length; slot++) {
+          const tokens = body[slot]!;
+          if (!tokens.take("bank")) {
+            declarations.push({ symbol: declareState(tokens, tokens.word()), tokens }); continue;
+          }
+          const name = declare(tokens, "bank"), field = tokens.take("=") ? tokens.word() : name.toLowerCase();
+          if (name !== name.toUpperCase()) tokens.fail("Bank names must be uppercase.");
+          tokens.expect("{"); tokens.end();
+          const nested = chapterBody(body, slot); slot = nested.end;
+          const fields = chapterState(nested.body.map(entry => ({
+            symbol: declareState(entry, entry.word(), false, { name, field }), tokens: entry,
+          })));
+          if (fields.flags?.kind !== "group") tokens.fail("A register bank needs its own flags.");
+          declarations.push({ symbol: { kind: "bank", field, fields }, tokens });
+        }
         cpu = { name: cpu.name, state: chapterState(declarations) }; ownsState = true;
         continue;
       }
@@ -178,9 +196,10 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         const validate = () => validateFlagPolicy(cpu, policy);
         header.checked(validate);
         for (const tokens of body) {
-          const flag = tokens.lookup(flags); tokens.expect("=");
-          if (seen.has(flag.field)) tokens.fail(`Duplicate update of ${flag.field}.`);
-          seen.add(flag.field);
+          const flag = tokens.lookup(flags, true); tokens.expect("=");
+          const key = `${flag.bank ?? ""}.${flag.field}`;
+          if (seen.has(key)) tokens.fail(`Duplicate update of ${flag.field}.`);
+          seen.add(key);
           updates.push({ flag, value: flagExpression(tokens) }); tokens.end();
           tokens.checked(validate);
         }
@@ -203,7 +222,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
             entries.push({ kind: "value", name: description,
               read: { name: description, width: bits, steps: [], result: literal(bits, contents) } });
           } else if (kind === "conditions") {
-            tokens.expect("="); tokens.expect("flag"); const flag = tokens.lookup(flags); tokens.expect("=");
+            tokens.expect("="); tokens.expect("flag"); const flag = tokens.lookup(flags, true); tokens.expect("=");
             const expected = flagExpression(tokens);
             if (expected.kind !== "flag-literal") return tokens.fail("A condition must compare its flag with 0 or 1.");
             tests.push({ kind: "condition", name: description, flag, set: expected.value });
@@ -217,10 +236,10 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
               }
               entries.push({ kind: "view", name: description, read, write });
             } else if (operandKind === "register") {
-              const register = tokens.lookup(registers);
+              const register = tokens.lookup(registers, true);
               entries.push({ kind: "register", name: description, register, read: registerSource(register) });
             } else if (operandKind === "pair") {
-              const high = tokens.lookup(registers), low = tokens.lookup(registers);
+              const high = tokens.lookup(registers, true), low = tokens.lookup(registers, true);
               if (high.width !== 8 || low.width !== 8) tokens.fail("Register pairs require two byte registers, high then low.");
               entries.push({ kind: "pair", name: description, high, low,
                 read: { name: description, width: 16, steps: [readRegister("high", high), readRegister("low", low)], result: concat(value("high"), value("low")) } });

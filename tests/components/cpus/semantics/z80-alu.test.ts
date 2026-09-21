@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { instructions } from "../../../../src/components/cpus/generated/z80.js";
+import { bodiesZ80 as instructions } from "../../../helpers/z80-bodies.js";
 import { initialState, expectedAlu, aluForms } from "../z80/helpers.js";
 
 const families = ["add", "adc", "sub", "sbc", "and", "xor", "or", "cp"] as const;

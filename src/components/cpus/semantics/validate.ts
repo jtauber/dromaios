@@ -48,8 +48,8 @@ function validation(cpu: CpuDeclaration, prefix: string) {
     return width(ref.width, where);
   }
   function flag(ref: Flag, where: string): void {
-    const flags = cpu.state.flags;
-    if (ref.cpu !== cpu.name || flags?.kind !== "group" || flags.fields[ref.field]?.kind !== "flag") fail(where, `unknown flag ${ref.cpu}.${ref.field}`);
+    const flags = ref.cpu === cpu.name ? bank(ref, where).flags : undefined;
+    if (flags?.kind !== "group" || flags.fields[ref.field]?.kind !== "flag") fail(where, `unknown flag ${ref.cpu}.${ref.field}`);
   }
   function latch(ref: Latch, where: string): void {
     if (ref.cpu !== cpu.name || cpu.state[ref.field]?.kind !== "boolean") fail(where, `unknown control latch ${ref.cpu}.${ref.field}`);
@@ -177,8 +177,9 @@ function validation(cpu: CpuDeclaration, prefix: string) {
     const assigned = new Set<string>();
     for (const { flag: target, value } of policy.updates) {
       flag(target, where);
-      if (assigned.has(target.field)) fail(where, `duplicate flag update ${target.field}`);
-      assigned.add(target.field);
+      const key = `${target.bank ?? ""}.${target.field}`;
+      if (assigned.has(key)) fail(where, `duplicate flag update ${target.field}`);
+      assigned.add(key);
       flagExpression(value, parameters, where);
     }
   }
@@ -366,7 +367,9 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         case "update-flags": case "replace-flags":
           policy(step.policy, step.arguments, scope, `${where} / policy ${step.policy.name}`);
           if (step.kind === "replace-flags") {
-            const fields = cpu.state.flags;
+            const target = step.policy.updates[0]?.flag;
+            const fields = bank(target ?? { cpu: cpu.name }, where).flags;
+            if (step.policy.updates.some(update => update.flag.bank !== target?.bank)) fail(where, "replacing flags requires a single bank");
             if (fields?.kind !== "group" || Object.keys(fields.fields).some(name => !step.policy.updates.some(update => update.flag.field === name))) {
               fail(where, "replacing flags requires every stored flag");
             }

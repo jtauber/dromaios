@@ -6,7 +6,8 @@ It uses instruction-level execution records, with one iteration per step for
 repeating block instructions.
 The existing RAM setup and CPU runner work with this model without adapters.
 
-[Implementation](../../../src/components/cpus/z80.ts) ·
+[Literate chapter](../../../src/components/cpus/specifications/z80.md) ·
+[Remaining implementation](../../../src/components/cpus/z80.ts) ·
 [CPU tests](../../../tests/components/cpus/z80) ·
 [Public type checks](../../../tests/types/z80.ts) ·
 [Coverage](../coverage.md#z80) ·
@@ -23,6 +24,12 @@ the register description, CPU control and interrupt sections, and the individual
 instruction descriptions. Undocumented instructions and F bits 3/5 are outside
 the current model. Where the manual leaves a modeled flag unspecified, the
 behavior selected below is checked against an independent reference emulator.
+
+The executable [chapter](../../../src/components/cpus/specifications/z80.md)
+now owns stored fields, both banks' pair views, packed F, and ordinary byte
+loads, arithmetic, and INC/DEC. Indexed arithmetic reuses its actions. This
+contract continues to define the public API and remaining execution policies
+until the chapter owns the complete model.
 
 ## Stored state and register views
 

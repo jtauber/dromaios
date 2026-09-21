@@ -16,12 +16,13 @@ module.exports = grammar({
     )),
 
     cpu_declaration: $ => seq('cpu', field('model', $.string)),
-    state_declaration: $ => seq('state', '{', repeat($._state_field), '}'),
+    state_declaration: $ => seq('state', '{', repeat(choice($._state_field, $.bank_declaration)), '}'),
+    bank_declaration: $ => seq('bank', $._state_name, optional($.field_mapping), '{', repeat(choice($.register_declaration, $.flag_declaration)), '}'),
     _state_field: $ => choice($.register_declaration, $.array_declaration, $.flag_declaration, $.choice_declaration),
     register_declaration: $ => seq('register', $._state_name, ':', $.number, optional($.field_mapping)),
     array_declaration: $ => seq('array', $._state_name, ':', $.number, '[', $.number, ']', optional($.field_mapping)),
     flag_declaration: $ => seq(choice('flag', 'latch'), $._state_name, optional($.field_mapping)),
-    choice_declaration: $ => seq('choice', $._state_name, ':', commaSeparated($.string), optional($.field_mapping)),
+    choice_declaration: $ => seq('choice', $._state_name, ':', commaSeparated(choice($.string, $.number)), optional($.field_mapping)),
     field_mapping: $ => seq('=', $.identifier),
 
     source_declaration: $ => seq(choice('source', 'view'), field('name', $.identifier), $.string, ':', $.number, $.body),
@@ -72,7 +73,7 @@ module.exports = grammar({
     _read: $ => choice(
       'fetch', $.choice_read, $.state_read, $.array_read, $.source_read, $.operand_read,
     ),
-    choice_read: $ => seq('choice', $._state_name, '=', $.string),
+    choice_read: $ => seq('choice', $._state_name, '=', choice($.string, $.number)),
     state_read: $ => seq(choice('register', 'flag', 'latch'), $._state_name),
     array_read: $ => seq('array', $._state_name, '[', $._expression, ']'),
     source_read: $ => seq('source', field('name', $.identifier)),
@@ -126,7 +127,7 @@ module.exports = grammar({
 
     // State symbols are syntactically distinct from captured values in queries.
     // Accept unknown/lowercase names so incomplete edits still retain structure.
-    _state_name: $ => alias($.identifier, $.state_identifier),
+    _state_name: $ => seq(alias($.identifier, $.state_identifier), optional(seq('.', alias($.identifier, $.state_identifier)))),
     identifier: _ => /[A-Za-z][A-Za-z0-9_]*/,
     number: _ => token(choice(/[0-9]+/, /\$[0-9a-fA-F]+/)),
     string: $ => seq('"', repeat(choice($.string_content, $.escape_sequence)), '"'),

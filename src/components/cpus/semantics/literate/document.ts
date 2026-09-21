@@ -71,6 +71,14 @@ export class ChapterTokens {
     if (text === undefined || !/^[A-Za-z][A-Za-z0-9_]*$/.test(text)) return this.fail("Expected a name.");
     this.#index++; return text;
   }
+  reference(): string {
+    let name = this.word();
+    if (this.take(".")) name += `.${this.word()}`;
+    return name;
+  }
+  choiceValue(): string | number {
+    return this.next === undefined || this.next.startsWith('"') ? this.quoted() : this.number();
+  }
   quoted(): string {
     const text = this.next;
     if (!text?.startsWith('"')) return this.fail("Expected a quoted description.");
@@ -86,8 +94,8 @@ export class ChapterTokens {
   number(): number { const text = this.digits(); return text.startsWith("$") ? parseInt(text.slice(1), 16) : Number(text); }
   end(): void { if (this.next !== undefined) this.fail("Unexpected trailing input."); }
 
-  lookup<T>(table: ReadonlyMap<string, T>): T {
-    const column = this.column, name = this.word();
+  lookup<T>(table: ReadonlyMap<string, T>, qualified = false): T {
+    const column = this.column, name = qualified ? this.reference() : this.word();
     return table.get(name) ?? this.fail(`Unknown name ${name}; declare it before use.`, column);
   }
 

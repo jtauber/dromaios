@@ -166,3 +166,18 @@ execution {
     source nmi when latch ENABLED otherwise "unarmed" with enter($FFFC)
   }
 }
+
+state {
+  bank ALTERNATE = alternate {
+    register B: 8
+    flag C
+  }
+  choice MODE: 0, 1, 2
+}
+action banked "qualified bank and numeric choice" {
+  other = register ALTERNATE.B
+  saved = flag ALTERNATE.C
+  ALTERNATE.B <- other
+  MODE <- 2
+  enabled = choice MODE = 2
+}

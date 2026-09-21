@@ -2,10 +2,10 @@ import { instructions as semantics } from "./generated/z80.ts";
 import { cpuZ80StateDescription } from "./state/z80.ts";
 import type { CpuZ80State, CpuZ80RegisterBank } from "./state/z80.ts";
 import type { Ram } from "../memory/ram.js";
-import { pairViews } from "./register-pairs.ts";
+import { opcodeEntries as chapterOpcodes } from "./generated/z80-chapter.ts";
+import { sourceReaders } from "./generated/z80-state.ts";
 import { callStack16LE } from "./call-stack.ts";
 import { Cpu8080Family } from "./8080-family.ts";
-import type { AluInstruction, ByteInstruction } from "./8080-family.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { signed8, readWordLE } from "./binary.ts";
 import { executionBoundary } from "./execution-boundary.ts";
@@ -68,6 +68,7 @@ const instructionPattern = opcodePattern<OpcodeHandler>;
 
 /** Instruction-level Zilog Z80 with documented opcodes and boundary IRQ/NMI delivery. */
 export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
+  readonly #views = sourceReaders(this.state).views;
   readonly #stack = callStack16LE(this.state);
   readonly #ram: Ram;
   readonly #ports: BytePorts | undefined;
@@ -85,7 +86,9 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
   /** Inspect detached register banks and their derived pair views without reading RAM. */
   snapshot(): CpuZ80Snapshot {
     const state = copyState(cpuZ80StateDescription, this.state);
-    return { ...state, ...pairViews(state), alternate: { ...state.alternate, ...pairViews(state.alternate) } };
+    const views = sourceReaders(state).views;
+    return { ...state, bc: views.BC(), de: views.DE(), hl: views.HL(),
+      alternate: { ...state.alternate, bc: views.BC_ALT(), de: views.DE_ALT(), hl: views.HL_ALT() } };
   }
 
   /** Apply documented reset effects, release HALT, and preserve other stored state and RAM. */
@@ -238,25 +241,12 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   protected override readonly generatedInstructions = semantics;
 
-  // d in 00 rrr 10d selects INC/DEC; the same memory bodies serve HL and resolved IX/IY operands.
-  protected override readonly byteAdjustments: readonly ByteInstruction[] = (["inc", "dec"] as const).map(operation => operand => {
-    const suffix = { b: "B", c: "C", d: "D", e: "E", h: "H", l: "L", a: "A" } as const;
-    return operand === "(hl)" ? instruction => semantics[`${operation}Memory`](this.state, this.hl, instruction)
-      : () => semantics[`${operation}${suffix[operand]}`](this.state);
-  });
-
   // rrr selects B/C/D/E/H/L/(HL)/A; port and indexed-register forms omit rrr=110.
   readonly #byteRegisters = this.byteOperands.flatMap((register, code) => register === "(hl)" ? []
     : [{ suffix: ({ b: "B", c: "C", d: "D", e: "E", h: "H", l: "L", a: "A" } as const)[register], bits: code.toString(2).padStart(3, "0") }]);
 
   // ooo in 10 ooo rrr / 11 ooo 110 selects the same ALU family, including DD/FD memory forms.
   readonly #aluFamilies = ["add", "adc", "sub", "sbc", "and", "xor", "or", "cp"] as const;
-  protected override readonly aluInstructions: readonly AluInstruction[] = this.#aluFamilies.map(operation => operand => {
-    const suffix = { b: "B", c: "C", d: "D", e: "E", h: "H", l: "L", "(hl)": "M", a: "A", immediate: "Immediate" } as const;
-    const execute = semantics[`${operation}${suffix[operand]}`];
-    return instruction => execute(this.state, instruction);
-  });
-
   // 00 ooo 111: accumulator/carry operations, in encoded order.
   protected override readonly accumulatorOperations: readonly (() => void)[] = [
     () => semantics.rlca(this.state), // 000 RLCA
@@ -269,9 +259,10 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     () => semantics[0x3f](this.state), // 111 CCF
   ];
 
-  // Shared 8080 families are defined in 8080-family.ts; these fill documented Z80 extension slots.
+  // The chapter owns byte loads, ALU, and INC/DEC; native entries fill the remaining base slots.
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     ...this.baseInstructions(),
+    ...chapterOpcodes(this.state),
     // 00 yyy 000: yyy=001 exchanges AF, 010 is DJNZ, 011 is JR, and 1cc is conditional JR.
     ...instructionPattern("00 001 000", () => semantics.exchangeAf(this.state)), // EX AF,AF'
     ...instructionPattern("00 010 000", instruction => semantics.djnz(this.state, instruction)), // DJNZ e
@@ -304,7 +295,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
   ] as const;
   readonly #cbOpcodeHandlers = opcodeTable<OpcodeHandler>(this.#cbOperations.flatMap(({ bits, name }) => opcodeFamily(`${bits} rrr`,
     { r: ["B", "C", "D", "E", "H", "L", "Memory", "A"] as const }, ({ r: target }): OpcodeHandler => target === "Memory"
-      ? instruction => semantics[`${name}Memory`](this.state, this.hl, instruction) : () => semantics[`${name}${target}`](this.state))));
+      ? instruction => semantics[`${name}Memory`](this.state, this.#views.HL(), instruction) : () => semantics[`${name}${target}`](this.state))));
   readonly #indexedCbHandlers = opcodeTable<AddressedHandler>(this.#cbOperations.flatMap(({ bits, name }) =>
     opcodePattern<AddressedHandler>(`${bits} 110`, (address, instruction) => semantics[`${name}Memory`](this.state, address, instruction))));
 

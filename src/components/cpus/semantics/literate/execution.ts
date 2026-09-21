@@ -60,7 +60,7 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
   readonly actions: ReadonlyMap<string, InstructionDefinition>;
   readonly latches: ReadonlyMap<string, Latch>;
   readonly flags: ReadonlyMap<string, Flag>;
-  readonly choices: ReadonlyMap<string, Choice<string>>;
+  readonly choices: ReadonlyMap<string, Choice>;
 }): ChapterExecution {
   const fields = new Map<string, ChapterTokens>();
   let vectorLines: readonly ChapterTokens[] | undefined;

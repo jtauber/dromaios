@@ -1,11 +1,11 @@
-import { addWrap, bitAnd, bitOr, bitXor, capture, concat, fetchByte, flagLiteral, flagValue, highByte, literal, lowByte, not, readFlag, readMemory, readRegister, readSource, subtract, updateFlags, value, writeLatch, writeMemory, writeRegister } from "./model.ts";
+import { addWrap, bitXor, concat, fetchByte, flagLiteral, flagValue, highByte, literal, lowByte, not, readFlag, readMemory, readRegister, readSource, subtract, updateFlags, value, writeLatch, writeMemory, writeRegister } from "./model.ts";
 import type { CpuDeclaration, Flag, Latch, FlagPolicy, InstructionDefinition, Register, Statement, ValueSource } from "./model.ts";
-import { arithmetic, immediateByte, instructionSet, memorySource, readWord, registerSource, shift, transfer, writeWord } from "./builders.ts";
+import { instructionSet, memorySource, readWord, registerSource, shift, transfer, writeWord } from "./builders.ts";
 import type { RegisterView } from "./builders.ts";
 import { decimalAdjust } from "./decimal.ts";
-import { flagPolicy, packedStatus, restoreStatus } from "./status.ts";
+import { flagPolicy } from "./status.ts";
 import { defineInstruction } from "./validate.ts";
-import { intelAccumulatorTransferForms, intelByteTransferForms, intelExchangeForms, intelJumpForms, intelStackForms, intelSubroutineForms, intelWordArithmeticForms, intelWordTransferForms } from "../intel-encodings.ts";
+import { intelAccumulatorTransferForms, intelExchangeForms, intelJumpForms, intelStackForms, intelSubroutineForms, intelWordArithmeticForms, intelWordTransferForms } from "../intel-encodings.ts";
 import { flagCondition, jump, subroutineCall, subroutineReturn } from "./control-flow.ts";
 import { byteStack, stackPop, stackPush, wordStack } from "./stack.ts";
 import type { IntelByteOperand } from "../intel-encodings.ts";
@@ -57,17 +57,17 @@ export function intelJumps(cpu: IntelWordCpu, flags: readonly Flag[], name: (con
 
 /** Z80 status/control forms bind the shared stack and packed-status builders. */
 export function z80StatusInstructions(cpu: IntelWordCpu & { flag(field: string): Flag; latch(field: "halted"): Latch },
-  layout: Parameters<typeof packedStatus>[1]) {
+  flags: RegisterView) {
   const stack = wordStack(byteStack(cpu.register("sp"), "occupied"), "little-endian");
   const status: ValueSource = { name: "A:F", width: 16,
-    steps: [readRegister("a", cpu.register("a")), readSource("flags", packedStatus(cpu, layout))], result: concat(value("a"), value("flags")) };
+    steps: [readRegister("a", cpu.register("a")), readSource("flags", flags.source)], result: concat(value("a"), value("flags")) };
   return instructionSet([
     [0x00, defineInstruction({ cpu: cpu.declaration, name: "NOP", explanation: "No effects after opcode fetching.", steps: [] })],
     [0x76, defineInstruction({ cpu: cpu.declaration, name: "HALT", explanation: "Set the halted latch; preserve registers and flags. Retirement remains in the CPU boundary.", steps: [writeLatch(cpu.latch("halted"), true)] })],
     [0xf5, stackPush(cpu.declaration, "PUSH AF", stack, status)],
     [0xf1, defineInstruction({ cpu: cpu.declaration, name: "POP AF",
       explanation: "Pop the complete word before writing A and replacing flags. Ignore reserved status bits. " + stack.explanation,
-      steps: [readSource("result", stack.pop), writeRegister(cpu.register("a"), highByte(value("result"))), restoreStatus(cpu, layout, lowByte(value("result")))] })],
+      steps: [readSource("result", stack.pop), writeRegister(cpu.register("a"), highByte(value("result"))), ...flags.write(lowByte(value("result")))] })],
     [0x27, decimalAdjust(cpu)],
     [0x2f, defineInstruction({ cpu: cpu.declaration, name: "CPL",
       explanation: "Complement A; then set N/H and preserve the other flags.",
@@ -218,13 +218,6 @@ export function intelByteTransfer(cpu: IntelByteCpu, destination: IntelByteOpera
   });
 }
 
-/** MOV/MVI and LD share encodings and behavior while retaining their native mnemonics. */
-export function intelByteTransfers(cpu: IntelByteCpu, move: string, immediate: string, memory: string) {
-  const operand = (name: IntelByteOperand | "immediate") => name === "m" ? memory : name === "immediate" ? "n" : name.toUpperCase();
-  return instructionSet([...intelByteTransferForms.immediate, ...intelByteTransferForms.matrix].map(([opcode, { destination, source }]) =>
-    [opcode, intelByteTransfer(cpu, destination, source, `${source === "immediate" ? immediate : move} ${operand(destination)},${operand(source)}`)]));
-}
-
 /** Accumulator memory transfers capture BC/DE or the complete immediate address before accessing A. */
 export function intelAccumulatorTransfers(cpu: IntelWordCpu, names: (address: "bc" | "de" | "absolute", operation: "load" | "store") => string) {
   return instructionSet(Object.values(intelAccumulatorTransferForms).flat().map(([opcode, { address, operation }]) => {
@@ -239,50 +232,6 @@ export function intelAccumulatorTransfers(cpu: IntelWordCpu, names: (address: "b
         : transfer(accumulator, memorySource(addressSource)),
     })];
   }));
-}
-
-/** Byte adjustments preserve carry and apply each CPU's flags before register or resolved-memory writeback. */
-export function intelByteAdjustment(cpu: IntelByteCpu, mnemonic: string, delta: -1 | 1, flags: FlagPolicy, explanation: string) {
-  return Object.fromEntries((["b", "c", "d", "e", "h", "l", "a", "memory"] as const).map(target => {
-    const memory = target === "memory";
-    return [`${mnemonic.toLowerCase()}${memory ? "Memory" : target.toUpperCase()}`, defineInstruction({
-      cpu: cpu.declaration, name: `${mnemonic} ${memory ? "memory" : target.toUpperCase()}`,
-      ...(memory ? { inputs: { address: 16 as const } } : {}),
-      explanation: (memory ? "Read once at the resolved address. " : "Read the selected byte register. ") + explanation
-        + " Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.",
-      steps: [memory ? readMemory("original", value("address")) : readRegister("original", cpu.register(target)),
-        capture("result", (delta === 1 ? addWrap : subtract)(value("original"), literal(8, 1))),
-        updateFlags(flags, { original: value("original"), result: value("result") }),
-        memory ? writeMemory(value("address"), value("result")) : writeRegister(cpu.register(target), value("result"))],
-    })];
-  }));
-}
-
-/** 8080/Z80 register-code order. Each source captures its own reads; M denotes memory through HL. */
-export function intelByteSources(register: (name: "a" | "b" | "c" | "d" | "e" | "h" | "l") => Register) {
-  const memory: ValueSource = { name: "memory through HL", width: 8, steps: [
-    readRegister("high", register("h")), readRegister("low", register("l")),
-    readMemory("byte", concat(value("high"), value("low"))),
-  ], result: value("byte") };
-  return [
-    ...(["b", "c", "d", "e", "h", "l"] as const).map(name => [name.toUpperCase(), registerSource(register(name))] as const),
-    ["M", memory], ["A", registerSource(register("a"))], ["byte", immediateByte],
-  ] as const;
-}
-
-export type IntelByteOperation = "add" | "subtract" | "and" | "xor" | "or" | "compare";
-
-/** Consume captured right, read optional carry before A, then apply flags before writeback. Compare never writes. */
-export function intelByteAlu(accumulator: Register, operation: IntelByteOperation, policy: FlagPolicy, incoming?: Flag): readonly Statement[] {
-  const carry = incoming === undefined ? undefined : flagValue("carry");
-  const left = value("left"), right = value("right"), result = value("result");
-  return [
-    ...(incoming === undefined ? [] : [readFlag("carry", incoming)]), readRegister("left", accumulator),
-    ...(operation === "add" || operation === "subtract" || operation === "compare"
-      ? arithmetic(operation === "compare" ? "subtract" : operation, policy, carry)
-      : [capture("result", { and: bitAnd, xor: bitXor, or: bitOr }[operation](left, right)), updateFlags(policy, { left, right, result })]),
-    ...(operation === "compare" ? [] : [writeRegister(accumulator, result)]),
-  ];
 }
 
 /** Accumulator rotates write A before carry; callers may append other flag updates. */

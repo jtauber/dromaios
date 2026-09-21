@@ -1,10 +1,10 @@
-import { array, boolean, defineState, flag, group, namedChoices, unsigned } from "../../state.ts";
+import { array, boolean, choices, defineState, flag, group, namedChoices, unsigned } from "../../state.ts";
 import type { StateField, StateFields } from "../../state.ts";
 import type { Choice, CpuDeclaration, Flag, Latch, Register, RegisterArray } from "../model.ts";
 import type { ChapterTokens } from "./document.ts";
 import { width } from "./expressions.ts";
 
-export type StateSymbol = Register | RegisterArray | Flag | Latch | Choice<string>;
+export type StateSymbol = Register | RegisterArray | Flag | Latch | Choice;
 
 /** The same declaration syntax names stored fields in complete and partial chapters. */
 export function stateSymbol(tokens: ChapterTokens, kind: string, name: string, cpu: string): StateSymbol {
@@ -21,9 +21,9 @@ export function stateSymbol(tokens: ChapterTokens, kind: string, name: string, c
     symbol = kind === "register" ? { kind, cpu, field, width: bits }
       : { kind: "register-array", cpu, field, width: bits, length };
   } else if (kind === "choice") {
-    tokens.expect(":"); const values: string[] = [];
-    do { values.push(tokens.quoted()); } while (tokens.take(","));
-    tokens.checked(() => namedChoices(values[0]!, ...values.slice(1)));
+    tokens.expect(":"); const values: (string | number)[] = [];
+    do { values.push(tokens.choiceValue()); } while (tokens.take(","));
+    tokens.checked(() => choiceField(values));
     symbol = { kind, cpu, values, field: tokens.take("=") ? tokens.word() : name.toLowerCase() };
   } else {
     if (kind !== "flag" && kind !== "latch") tokens.fail("State blocks contain only registers, flags, arrays, latches, and choices.");
@@ -50,13 +50,19 @@ export function checkStateSymbol(tokens: ChapterTokens, name: string, symbol: St
       if (stored?.kind !== "boolean") tokens.fail(`Latch ${name} does not match the CPU state schema.`);
       break;
     case "choice":
-      if (stored?.kind !== "named-choice" || stored.values.length !== symbol.values.length
+      if ((stored?.kind !== "named-choice" && stored?.kind !== "choice") || stored.values.length !== symbol.values.length
         || stored.values.some((value, index) => value !== symbol.values[index])) tokens.fail(`Choice ${name} does not match the CPU state schema.`);
   }
 }
 
+function choiceField(values: readonly (string | number)[]): StateField {
+  if (values.every(value => typeof value === "string")) return namedChoices(values[0]!, ...values.slice(1));
+  if (values.every(value => typeof value === "number")) return choices(values[0]!, ...values.slice(1));
+  throw new Error("Control choices cannot mix names and numbers.");
+}
+
 /** Build immutable storage in declaration order, with architectural flags in their own group. */
-export function chapterState(declarations: readonly { symbol: StateSymbol; tokens: ChapterTokens }[]): StateFields {
+export function chapterState(declarations: readonly { symbol: StateSymbol | { readonly kind: "bank"; readonly field: string; readonly fields: StateFields }; tokens: ChapterTokens }[]): StateFields {
   const fields = new Map<string, StateField>(), flags = new Map<string, StateField>();
   for (const { symbol, tokens } of declarations) {
     const { kind, field } = symbol;
@@ -66,9 +72,9 @@ export function chapterState(declarations: readonly { symbol: StateSymbol; token
       flags.set(field, flag); fields.set("flags", group(Object.fromEntries(flags)));
     } else {
       if (fields.has(field)) tokens.fail(`Duplicate stored field ${field}.`);
-      fields.set(field, kind === "register" ? unsigned(symbol.width)
+      fields.set(field, kind === "bank" ? group(symbol.fields) : kind === "register" ? unsigned(symbol.width)
         : kind === "register-array" ? array(symbol.length, unsigned(symbol.width))
-        : kind === "choice" ? namedChoices(symbol.values[0]!, ...symbol.values.slice(1)) : boolean);
+        : kind === "choice" ? choiceField(symbol.values) : boolean);
     }
   }
   return defineState(Object.fromEntries(fields));
