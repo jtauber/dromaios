@@ -210,10 +210,10 @@ function validation(cpu: CpuDeclaration, prefix: string) {
       };
       let captured: ValueType;
       switch (step.kind) {
-        case "match": {
+        case "dispatch": case "match": {
           if (allowRejection === false) fail(where, "composed actions cannot reject an instruction through a byte match");
           expect(step.selector, 8);
-          const bits = width(step.width, where);
+          const bits = step.kind === "match" ? width(step.width, where) : undefined;
           if (!step.cases.length) fail(where, "a byte match needs at least one case");
           for (const [index, branch] of step.cases.entries()) {
             if (![branch.mask, branch.value].every(n => Number.isInteger(n) && n >= 0 && n <= 255)
@@ -223,9 +223,9 @@ function validation(cpu: CpuDeclaration, prefix: string) {
             }
             const local = new Map(scope);
             steps(branch.steps, local, `${where} / case ${index + 1}`, allowRejection);
-            if (expression(branch.result, local, where) !== bits) fail(where, "match result width does not match its declaration");
+            if (step.kind === "match" && expression(step.cases[index]!.result, local, where) !== bits) fail(where, "match result width does not match its declaration");
           }
-          bind(step.name, bits);
+          if (step.kind === "match") bind(step.name, bits!);
           return;
         }
         case "perform": {

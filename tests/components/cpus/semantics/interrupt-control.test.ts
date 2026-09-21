@@ -4,7 +4,7 @@ import { instructions as mos } from "../../../../src/components/cpus/generated/6
 import { instructions as mosEntry } from "../../../../src/components/cpus/generated/6502-state.js";
 import { instructions as actions6800 } from "../../../../src/components/cpus/generated/6800-state.js";
 import { instructions as m6800 } from "../../../../src/components/cpus/generated/6800.js";
-import { instructions as m6809 } from "../../../../src/components/cpus/generated/6809.js";
+import { bodies6809 as m6809 } from "../../../helpers/6809-bodies.js";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as z80 } from "../../../../src/components/cpus/generated/z80.js";
 import { instructions6502, instructions6800, instructions6809, instructions8080, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
@@ -113,7 +113,7 @@ test("twenty documented interrupt/control forms and two external entry helpers a
   assert.deepEqual([instructions6502[0]!.name, instructions6502[0x40]!.name], ["BRK", "RTI"]);
   const inventories: readonly [Readonly<Record<string, InstructionDefinition | undefined>>, readonly string[], readonly string[]][] = [
     [instructions6800, ["63", "62", "59"], ["SWI", "WAI", "RTI"]],
-    [instructions6809, ["swi", "swi2", "swi3", "sync", "cwai", "rti"], ["SWI", "SWI2", "SWI3", "SYNC", "CWAI", "RTI"]],
+    [instructions6809, ["63", "4159", "4415", "19", "60", "59"], ["SWI", "SWI2", "SWI3", "SYNC", "CWAI", "RTI"]],
     [instructions8080, [String(0xf3), String(0xfb)], ["DI", "EI"]],
     [instructionsZ80, ["di", "ei", "im0", "im1", "im2", "retn", "reti"], ["DI", "EI", "IM 0", "IM 1", "IM 2", "RETN", "RETI"]],
   ];

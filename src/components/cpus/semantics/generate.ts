@@ -163,20 +163,20 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
       for (const step of steps) {
         let captured: CapturedValue;
         switch (step.kind) {
-          case "match": {
-            const selector = local("selector"), result = local(step.name);
+          case "dispatch": case "match": {
+            const selector = local("selector"), result = step.kind === "match" ? local(step.name) : undefined;
             emit(`const ${selector} = ${number(step.selector, scope).code};`);
-            emit(`let ${result}: number;`);
+            if (result) emit(`let ${result}: number;`);
             for (const [index, branch] of step.cases.entries()) {
               emit(`${index ? "else " : ""}if ((${selector} & 0x${branch.mask.toString(16)}) === 0x${branch.value.toString(16)}) {`);
               depth += "  ";
               const inner = new Map(scope);
               body(branch.steps, inner);
-              emit(`${result} = ${number(branch.result, inner).code};`);
+              if (step.kind === "match") emit(`${result} = ${number(step.cases[index]!.result, inner).code};`);
               depth = depth.slice(0, -2); emit("}");
             }
             emit(`else { ${reject("unsupported")} }`);
-            scope.set(step.name, { code: result, type: step.width });
+            if (step.kind === "match") scope.set(step.name, { code: result!, type: step.width });
             continue;
           }
           case "perform": {

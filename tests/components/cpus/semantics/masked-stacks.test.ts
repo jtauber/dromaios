@@ -1,12 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { instructions } from "../../../../src/components/cpus/generated/6809.js";
+import { bodies6809 as instructions } from "../../../helpers/6809-bodies.js";
 import type { ByteInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
-import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
-import { cpuSymbols, literal } from "../../../../src/components/cpus/semantics/model.js";
-import { registerView } from "../../../../src/components/cpus/semantics/builders.js";
-import { byteStack, maskedStack } from "../../../../src/components/cpus/semantics/stack.js";
 
 const flagNames = ["e", "f", "h", "i", "n", "z", "v", "c"] as const;
 const flags = (byte: number) => Object.fromEntries(flagNames.map((name, bit) => [name, Boolean(byte & (128 >> bit))])) as Cpu6809State["flags"];
@@ -105,14 +101,11 @@ test("mask pulls reread the live pointer after callbacks and commit a word only 
   assert.equal(actual.u, 0x1003); assert.equal(actual.pc, 0x5678);
 });
 
-test("empty masks do not inspect state, and mask construction rejects unsupported register layouts", () => {
+test("empty masks do not inspect state", () => {
   for (const probe of probes) {
     const observed = new Proxy(state(), { get() { assert.fail("empty mask must not read state"); }, set() { assert.fail("empty mask must not write state"); } });
     let fetched = 0;
     probe.execute(observed, 0, { fetchByte() { fetched++; return 0; }, readByte() { assert.fail(); }, writeByte() { assert.fail(); } });
     assert.equal(fetched, probe.frame ? 0 : 1);
   }
-  const cpu = cpuSymbols("6809", cpu6809StateDescription), byte = registerView(cpu.register("a")), stack = byteStack(cpu.register("s"), "occupied");
-  assert.throws(() => maskedStack(Array.from({ length: 9 }, () => byte), stack, "big-endian", literal(8, 0), false), /at most eight/);
-  assert.throws(() => maskedStack([{ ...byte, source: { ...byte.source, width: 14 } }], stack, "big-endian", literal(8, 0), false), /byte or word/);
 });

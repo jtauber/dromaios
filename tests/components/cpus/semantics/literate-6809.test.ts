@@ -6,7 +6,7 @@ import { boolean, defineState, flag, group, namedChoices, unsigned } from "../..
 import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
 import { chapter6809 } from "../../../../src/components/cpus/semantics/definitions/6809.js";
-import { instructions } from "../../../../src/components/cpus/generated/6809-base.js";
+import { instructions } from "../../../../src/components/cpus/generated/6809.js";
 import { instructions as actions, sourceReaders } from "../../../../src/components/cpus/generated/6809-state.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
@@ -33,9 +33,9 @@ const operandOpcodes = [
 
 const controlOpcodes = [
   0x00, 0x03, 0x04, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0c, 0x0d, 0x0e, 0x0f,
-  0x12, 0x16, 0x17, 0x19, 0x1a, 0x1c, 0x1d,
+  0x12, 0x13, 0x1e, 0x1f, 0x16, 0x17, 0x19, 0x1a, 0x1c, 0x1d,
   0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
-  0x39, 0x3a, 0x3d,
+  0x34, 0x35, 0x36, 0x37, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3f,
   0x40, 0x43, 0x44, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4c, 0x4d, 0x4f,
   0x50, 0x53, 0x54, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5c, 0x5d, 0x5f,
   0x70, 0x73, 0x74, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x7c, 0x7d, 0x7e, 0x7f,
@@ -47,6 +47,7 @@ const indexedOpcodes = [
   0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
 ];
 const prefixedOpcodes = [
+  0x103f, 0x113f,
   0x1021, 0x1022, 0x1023, 0x1024, 0x1025, 0x1026, 0x1027, 0x1028, 0x1029, 0x102a, 0x102b, 0x102c, 0x102d, 0x102e, 0x102f,
   0x1083, 0x108c, 0x108e, 0x1093, 0x109c, 0x109e, 0x109f, 0x10a3, 0x10ac, 0x10ae, 0x10af, 0x10b3, 0x10bc, 0x10be, 0x10bf,
   0x10ce, 0x10de, 0x10df, 0x10ee, 0x10ef, 0x10fe, 0x10ff,
@@ -62,14 +63,14 @@ async function bodies(text: string): Promise<Readonly<Record<number, Body>>> {
   return (await import(`data:text/javascript,${encodeURIComponent(javascript)}`)).instructions;
 }
 
-test("the 6809 chapter owns its full schema and exactly 256 base and prefixed forms", () => {
+test("the 6809 chapter owns its full schema and exactly 268 base and prefixed forms", () => {
   const expected = defineState({ a: unsigned(8), b: unsigned(8), dp: unsigned(8), x: unsigned(16), y: unsigned(16),
     s: unsigned(16), u: unsigned(16), pc: unsigned(16), waitMode: namedChoices("none", "sync", "cwai"), nmiArmed: boolean,
     flags: group({ e: flag, f: flag, h: flag, i: flag, n: flag, z: flag, v: flag, c: flag }) });
   assert.deepEqual(chapter.state, expected); assert.deepEqual(cpu6809StateDescription, expected);
   assert.deepEqual(Object.keys(cpu6809StateDescription), Object.keys(expected));
-  assert.equal(operandOpcodes.length, 88); assert.equal(controlOpcodes.length, 75);
-  assert.equal(indexedOpcodes.length, 48); assert.equal(prefixedOpcodes.length, 45); assert.equal(opcodes.length, 256);
+  assert.equal(operandOpcodes.length, 88); assert.equal(controlOpcodes.length, 85);
+  assert.equal(indexedOpcodes.length, 48); assert.equal(prefixedOpcodes.length, 47); assert.equal(opcodes.length, 268);
   assert.deepEqual(chapter.pages, { secondary: 0x10, tertiary: 0x11 });
   assert.deepEqual(Object.keys(chapter6809).map(Number).sort((a, b) => a - b), opcodes);
   assert.deepEqual(Object.fromEntries(Object.values(chapter.families).flat()), chapter6809);
@@ -265,4 +266,24 @@ test("MUL's literate expression yields an unsigned full-width result and retains
     await import(`data:text/javascript,${encodeURIComponent(javascript)}`);
   const words = { x: 0xffff, y: 0xffff, d: 0 };
   compiled.instructions[0]!(words); assert.equal(words.d, 0xfffe0001);
+});
+
+
+test("6809 transfer views and software-frame policies remain editable through the chapter", async () => {
+  const edited = await bodies(markdown
+    .replace('  S <- pointer\n  NMIARMED <- 1', '  S <- pointer\n  NMIARMED <- 0')
+    .replace('perform softwareEntry(u16($FFF4), u8($00))', 'perform softwareEntry(u16($FFE4), u8($10))')
+    .replace('family sync "0001 0011" named "SYNC" {\n  WAIT <- "sync"', 'family sync "0001 0011" named "SYNC" {\n  WAIT <- "cwai"'));
+  const current = state(); current.nmiArmed = false;
+  edited[0x1f]!(current, { fetchByte: () => 0x14, readByte: unexpected, writeByte: unexpected });
+  assert.equal(current.s, current.x); assert.equal(current.nmiArmed, false);
+  const values = [0x12, 0x34], reads: number[] = [];
+  edited[0x37]!(current, { fetchByte: () => 0x40, readByte: address => { reads.push(address); return values.shift()!; }, writeByte: unexpected });
+  assert.equal(current.s, 0x1234); assert.equal(current.nmiArmed, false);
+  edited[0x13]!(current, { fetchByte: unexpected, readByte: unexpected, writeByte: unexpected });
+  assert.equal(current.waitMode, "cwai");
+  reads.length = 0;
+  edited[0x103f]!(current, { fetchByte: unexpected, readByte: address => { reads.push(address); return address & 0xff; }, writeByte: unexpected });
+  assert.deepEqual(reads, [0xffe4, 0xffe5]); assert.equal(current.pc, 0xe4e5);
+  assert.equal(current.flags.i, true); assert.equal(current.waitMode, "none");
 });

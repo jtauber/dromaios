@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { bodies6809 as instructions } from "../../../helpers/6809-bodies.js";
-import { instructions6809 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions as transferBodies } from "../../../../src/components/cpus/generated/6809.js";
 import { chapter6809 } from "../../../../src/components/cpus/semantics/definitions/6809.js";
-import { motorola6809TransferForms } from "../../../../src/components/cpus/motorola.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6809State, Cpu6809Flags } from "../../../../src/components/cpus/state/6809.js";
 import { capture, cpuSymbols, flagLiteral, literal, multiply, value, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
@@ -41,19 +40,22 @@ function writes(register: Register): string[] {
     : [`write ${register}`, ...(register === "s" ? ["write nmiArmed"] : [])];
 }
 
-test("6809 generated transfers cover exactly the 52 legal postbytes for each operation", () => {
-  const expected = groups.flatMap((registers, group) => registers.flatMap((source, s) => registers.map((target, d) =>
-    [(group * 8 + s) * 16 + group * 8 + d, { source, target }] as const)));
-  assert.deepEqual(motorola6809TransferForms, expected);
-  assert.equal(expected.length, 52);
-  for (const operation of ["tfr", "exg"]) {
-    assert.deepEqual(Object.keys(instructions6809).filter(key => key.startsWith(`${operation}_`)).sort(),
-      expected.map(([, { source, target }]) => `${operation}_${source}_${target}`).sort());
+function transfer(operation: "tfr" | "exg", source: Register, target: Register, current: Cpu6809State) {
+  const names: readonly (Register | undefined)[] = [...groups[0], undefined, undefined, ...groups[1]];
+  return transferBodies[operation === "tfr" ? 0x1f : 0x1e](current, { fetchByte: () => names.indexOf(source) * 16 + names.indexOf(target) });
+}
+
+test("6809 generated transfers accept exactly the 52 legal postbytes for each operation", () => {
+  const legal = groups.flatMap((registers, group) => registers.flatMap((_, s) => registers.map((_, d) => (group * 8 + s) * 16 + group * 8 + d)));
+  assert.equal(legal.length, 52);
+  for (const opcode of [0x1e, 0x1f] as const) for (let byte = 0; byte < 256; byte++) {
+    const current = state(), before = structuredClone(current);
+    assert.equal(transferBodies[opcode](current, { fetchByte: () => byte }), legal.includes(byte) ? undefined : "unsupported");
+    if (!legal.includes(byte)) assert.deepEqual(current, before);
   }
 });
 
 test("6809 register transfers capture both originals before writes, including aliases, packed CC, and S arming", () => {
-  const generated: Readonly<Record<`${"tfr" | "exg"}_${string}_${string}`, (state: Cpu6809State) => void>> = instructions;
   for (const operation of ["tfr", "exg"] as const) for (const registers of groups) {
     for (const source of registers) for (const target of registers) for (const byte of [0, 0x55, 0xaa, 0xff]) {
       const actual = state(); actual.flags = flags(byte);
@@ -68,7 +70,7 @@ test("6809 register transfers capture both originals before writes, including al
         get(target, key, receiver) { if (key !== "flags") events.push(`read ${String(key)}`); return Reflect.get(target, key, receiver); },
         set(target, key, value) { events.push(`write ${String(key)}`); return Reflect.set(target, key, value); },
       });
-      generated[`${operation}_${source}_${target}`]!(observed);
+      transfer(operation, source, target, observed);
       assert.deepEqual(events, [...reads(source), ...reads(target), ...writes(target), ...(operation === "exg" ? writes(source) : [])]);
       assert.deepEqual({ ...actual, flags: target === "cc" || (operation === "exg" && source === "cc") ? actual.flags : originalFlags }, expected);
     }
@@ -86,14 +88,14 @@ test("6809 accepted transfer bodies stop on failed reads/writes and never read a
       return Reflect.set(target, key, value);
     },
   });
-  assert.throws(() => instructions.exg_d_x(observed), error => error === failure);
+  assert.throws(() => transfer("exg", "d", "x", observed), error => error === failure);
   assert.deepEqual(events, ["read a", "read b", "read x", "write x", "write a"]);
   assert.deepEqual(actual, { ...before, x: 0x8123 });
   const badTarget = new Proxy(state(), { get(target, key, receiver) { if (key === "x") throw failure; return Reflect.get(target, key, receiver); } });
-  assert.throws(() => instructions.tfr_a_cc(new Proxy(state(), { get(target, key, receiver) {
+  assert.throws(() => transfer("tfr", "a", "cc", new Proxy(state(), { get(target, key, receiver) {
     if (key === "flags") throw failure; return Reflect.get(target, key, receiver);
   } })), error => error === failure);
-  assert.throws(() => instructions.exg_d_x(badTarget), error => error === failure);
+  assert.throws(() => transfer("exg", "d", "x", badTarget), error => error === failure);
   assert.equal(badTarget.a, 0x81);
 });
 

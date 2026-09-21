@@ -65,8 +65,8 @@ the Z80, 6809, 8088, and other partial migrations retain TypeScript builders.
 | 8008 AD/AC/SU/SB/ND/XR/OR/CP, every register/memory/immediate form | One literate body per operation across register, memory, and immediate encodings; typed carry inputs, S/Z/P/C, and an explicit 14-bit memory mask; retain address-slot fetching and supplied-byte rules |
 | 8008 INr/DCr and RLC/RRC/RAL/RAR | Literate arithmetic and bit expressions; preserve C on adjustments, with explicit A-before-C rotate writeback and preserved S/Z/P |
 | 8008 conditional/unconditional jumps, calls, returns, restarts, and halts | Explicit 14-bit targets and three-bit selector wrap; checked physical register arrays; no RAM-stack effects; retain ordinary versus supplied-byte fetching and all documented aliases |
-| 6809 TFR/EXG, all legal same-width postbytes | Construction-time views for D, CC, and S; read both originals before writes; keep postbyte validation in the CPU |
-| 6809 PSHS/PULS/PSHU/PULU and shared interrupt-frame transfers | One byte-mask recipe; each register captured at its turn, each pop committed after its complete read, native NMI arming and partial failures |
+| 6809 TFR/EXG, all legal same-width postbytes | Chapter writable views for D, CC, and S; match postbytes before reading both originals and writing either register |
+| 6809 PSHS/PULS/PSHU/PULU and shared interrupt-frame transfers | One byte-mask recipe; each register captured at its turn, each pop committed after its complete read, explicit NMI arming and partial failures |
 | 6809 LEAX/LEAY/LEAS/LEAU, SEX, ABX, MUL, and NOP | Resolved address inputs, precise flag policies, and unsigned byte multiplication with a full word result |
 | 6809 CMPA/B/D/X/Y/U/S, every addressing form | Byte/word widths, D as A:B, and addressing that changes the register subsequently compared |
 | 6800 CMPA/CMPB/CPX, every addressing form, and CBA | Share comparison construction; original CPX derives N/V from high bytes without low-byte borrow, Z from the whole word, and preserves C |
@@ -156,11 +156,11 @@ all six 8-bit CPUs. External offer validation and recognition, supplied-byte
 fetching, reset, retirement, and device notification delivery use the cores or
 shared runtime services selected by chapter execution contracts.
 
-`stackFrame` lists register views in pull order and reverses them for pushes.
-It captures each field only at its turn and commits each popped field after
-its complete read, using the existing byte/word stacks. The 6800 and 6809 share
-this construction while retaining their free/occupied stack pointers and native
-field order. `loadVector` reads both bytes in the selected byte order before
+Chapter actions list frame fields in physical transfer order. They capture
+each field only at its turn and commit each popped field after its complete
+read. The 6800 and 6809 reuse their chapter byte/word primitives while retaining
+their free/occupied stack pointers and native field order. The former
+`stackFrame` builder is no longer needed. `loadVector` reads both bytes in the selected byte order before
 committing PC. The 6502 explicitly pushes separately read PC bytes, preserving
 live changes between accesses, and consumes BRK's padding before entry. Its
 external-entry body shares that sequence with the saved B marker clear.
@@ -634,18 +634,19 @@ write therefore retains its flag updates without any preceding data-memory read.
 
 ## Register views and postbyte-selected transfers
 
-`RegisterView` pairs a `ValueSource` with a construction-time function returning
-write statements. `registerView(register, afterWrite?)` supplies the scalar case;
-6809 D supplies A/B reads and split writes, CC supplies packing and complete flag
-replacement, and S appends NMI arming. These functions run while definitions are
-built. Only expanded statements enter validation, generation, and explanations;
-there is no runtime view object or hidden setter in a body.
+`RegisterView` remains a TypeScript construction helper pairing a source with
+write statements. Chapters instead declare a writable operand as
+`view D write writeD`: an earlier pure view and a one-input action of the same
+width. The 6809 uses this for D's split A/B writes, CC's complete flag replacement,
+and S's NMI arming. These lower into source reads and composed actions, without
+runtime view objects or hidden setters.
 
-One shared 6809 inventory enumerates the legal same-width pairs in `ssss dddd`.
-The CPU uses it to bind postbytes and the definition module to construct TFR/EXG
-bodies. Each body reads both originals before writing the target, then the source
-for EXG, including self-aliases and post-fetch PC values. Invalid postbytes never
-enter a body. LEA uses the same writes after indexed decoding has finished,
+The 6809 chapter describes `ssss dddd` using separate byte and word catalogues,
+with reserved word slots explicitly `unsupported`. An effect match validates
+the complete same-width pair before reading either original. TFR writes the
+target; EXG then writes the captured target to the source, including self-aliases
+and post-fetch PC values. Both instructions now have complete bodies that fetch
+their own postbyte; the old 104 specialized bodies and native inventory are gone. LEA applies its destination write after indexed decoding has finished,
 retaining auto-updates, indirect reads, and failures before entry. X/Y update
 only Z; S arms NMI; U preserves all flags.
 
@@ -1022,20 +1023,18 @@ a byte pointer can select a fixed aligned page, such as the 6502's `0100`.
 `wordStack` separately declares little- or big-endian memory layout, pushing in
 the reverse order to popping. Each popped byte has a source-local capture.
 
-`maskedStack` takes up to eight byte/word register views in mask-bit order.
-Pulls visit ascending bits; pushes reverse the order. Each selected register is
-captured only at its turn, then its complete byte or word is transferred through
-`byteStack`/`wordStack`. A pull writes the destination only after its full read;
-an empty mask never inspects state. All effects expand into existing conditional,
-source, register, and memory statements.
+The 6809 chapter's four masked-stack actions list CC/A/B/DP/X/Y/other-stack/PC
+in transfer order: ascending bits for pulls and descending bits for pushes.
+They use its byte/word primitives, capture each selected register at its turn,
+and commit each pull after its full read. An empty mask never inspects state.
+The now-unused `maskedStack` and `stackFrame` builders have been removed.
 
-The 6809 supplies CC/A/B/DP/X/Y/other-stack/PC views. Its four instruction bodies
-fetch a mask; nonempty PSHS/PULS arm NMI only after all effects succeed. PULU's S
-view arms immediately after the complete S pop. The external frame-push helper
-receives a captured mask and omits fetching and final arming. Complete RTI now
-uses `stackFrame`: restore CC, inspect E to select the remaining full or short
-frame, then arm NMI only after success. This replaces the former partial-pull
-helper and includes the complete return in migration coverage.
+Ordinary PSHS/PULS arm NMI after a nonempty mask succeeds. PULU's S write action
+arms immediately at that field's turn. External frame entry supplies a captured
+mask to the same system-stack push action, omitting fetching and final arming.
+RTI restores CC, captures E to select the remaining full or short frame, and
+arms NMI only after success. CWAI and software interrupts share the full-frame
+save action; SWI's masks follow the saved CC, while SWI2/SWI3 preserve I/F.
 [Mask probes](../../tests/components/cpus/semantics/masked-stacks.test.ts) cover
 every mask and failed access, register capture timing, complete-word writes,
 live-pointer changes, flag replacement, and both arming schedules.
@@ -1955,18 +1954,19 @@ and waiting policies. No handwritten 6800 implementation remains.
 The [6809 chapter](../../src/components/cpus/specifications/6809.md) owns all
 base-page comparisons, arithmetic, logic, byte/word transfers, unary operations,
 DAA, register/flag operations, every branch, LEA, and calls/jumps/returns, plus
-ordinary prefixed comparisons and transfers.
+ordinary prefixed comparisons and transfers, plus EXG/TFR, masked stacks,
+SYNC/CWAI, RTI, and SWI/SWI2/SWI3.
 Each includes its addressing. One generated indexed decoder serves these bodies
 and the prefixed word families; its matches reject undefined postbytes while
 retaining completed address effects. The chapter also supplies the full stored
-schema and D/CC read/write rules to the remaining TypeScript definitions.
+schema and D/CC read/write rules. All 268 forms now belong to the chapter;
+remaining TypeScript owns reset, execution, and external-event decisions.
 
 [Named opcode pages](literate-specifications.md#opcode-pages) declare the 6809's
 `$10` and `$11` dispatch. Expanded inventory keys combine prefix/opcode, while
 execution fetches them individually. Generation binds separate page tables and
-returns unsupported after an unknown second byte. Native SWI2/SWI3 bodies join
-these tables by page name without supplying another prefix inventory. Duplicate
-entries are rejected. The old Motorola operand wrappers and comparison, transfer,
+returns unsupported after an unknown second byte. SWI2/SWI3 are chapter forms
+on those pages. Duplicate entries are rejected. The old Motorola operand wrappers and comparison, transfer,
 and long-branch builders are removed; shared condition construction remains for
 the 68000.
 

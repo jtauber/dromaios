@@ -14,7 +14,9 @@ owns the stored-state declaration and D/CC read/write rules, consumed by both
 chapter-authored instructions and the remaining TypeScript model. It also owns
 indexed-postbyte decoding for all base-page and prefixed forms, including address
 updates, NMI arming, and indirect reads. Its named opcode pages also generate
-prefix dispatch and all ordinary prefixed comparisons, transfers, and branches.
+prefix dispatch. All 268 instruction forms now come from the chapter, including
+transfer-postbyte validation, masked stacks, waiting, RTI, and software entry.
+External entry shares its frame-push action.
 This document retains the wider API,
 lifecycle, and hardware contract during migration.
 

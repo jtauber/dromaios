@@ -1,7 +1,6 @@
-import { addWrap, bitAnd, bitOr, concat, extend, highByte, literal, lowByte, not, projectAddress, readMemory, readRegister, readSource, subtract, value, when, writeMemory, writeRegister, zero } from "./model.ts";
+import { addWrap, bitOr, concat, extend, highByte, literal, lowByte, projectAddress, readMemory, readRegister, readSource, subtract, value, writeMemory, writeRegister } from "./model.ts";
 import type { CpuDeclaration, FlagPolicy, NumberExpression, Register, Statement, ValueSource } from "./model.ts";
 import { readWord, transfer, writeWord } from "./builders.ts";
-import type { RegisterView } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
 
 export interface Stack {
@@ -71,22 +70,6 @@ export function segmentedWordStack(segment: Register, pointer: Register) {
   } satisfies Stack;
 }
 
-/** Mask bits name registers in pull order; pushes reverse it. Capture each register only at its turn. */
-export function maskedStack(registers: readonly RegisterView[], bytes: ReturnType<typeof byteStack>,
-  order: "little-endian" | "big-endian", mask: NumberExpression, pull: boolean): readonly Statement[] {
-  if (registers.length > 8 || registers.some(register => register.source.width !== 8 && register.source.width !== 16)) {
-    throw new Error("A byte stack mask selects at most eight byte or word registers.");
-  }
-  const words = wordStack(bytes, order);
-  const entries = registers.map((register, bit) => ({ register, bit }));
-  return (pull ? entries : entries.reverse()).map(({ register, bit }) => {
-    const stack = register.source.width === 8 ? bytes : words;
-    return when(not(zero(bitAnd(mask, literal(8, 2 ** bit)))), pull
-      ? [readSource("contents", stack.pop), ...register.write(value("contents"))]
-      : [readSource("contents", register.source), ...stack.push(value("contents"))]);
-  });
-}
-
 /** Capture the whole source before the first stack access. */
 export function stackPush(cpu: CpuDeclaration, name: string, stack: Stack, source: ValueSource) {
   return defineInstruction({ cpu, name,
@@ -102,16 +85,5 @@ export function stackPop(cpu: CpuDeclaration, name: string, stack: Stack, destin
       + (flags ? `Then apply ${flags.name}, preserving unlisted flags. ` : "Preserve all flags. ")
       + "Preserve other registers and control state. " + stack.explanation,
     steps: transfer(destination, stack.pop, flags),
-  });
-}
-
-/** Frame fields are listed in pull order; pushes visit them in reverse, capturing each at its turn. */
-export function stackFrame(registers: readonly RegisterView[], bytes: ReturnType<typeof byteStack>, order: "little-endian" | "big-endian", pull: boolean, prefix = "frame"): readonly Statement[] {
-  const words = wordStack(bytes, order), entries = registers.map((view, index) => ({ view, name: `${prefix}${index}` }));
-  return (pull ? entries : entries.reverse()).flatMap(({ view, name }) => {
-    if (view.source.width !== 8 && view.source.width !== 16) throw new Error("Stack frames require byte or word fields.");
-    const stack = view.source.width === 8 ? bytes : words;
-    return pull ? [readSource(name, stack.pop), ...view.write(value(name))]
-      : [readSource(name, view.source), ...stack.push(value(name), name)];
   });
 }

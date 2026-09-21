@@ -1,14 +1,15 @@
 import { alignmentFault, capture, commitAddressUpdates, deferInterrupt, fetchByte, fillArray, flagValue, highByte, lowByte, replaceFlags, not, perform, readElement,
   readFlag, readLatch, readMemory, readPort, readRegister, readSource, resolveAddress, updateFlags,
-  value, when, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
-import type { CpuDeclaration, Expression, Flag, FlagExpression, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
+  testChoice, value, when, writeChoice, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
+import type { Choice, CpuDeclaration, Expression, Flag, FlagExpression, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
 import { validateInstruction } from "../validate.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
 import { expression, flagExpression } from "./expressions.ts";
 import { chapterMatch } from "./matches.ts";
 
-export type ChapterOperand = { readonly name: string; readonly read: ValueSource } & (
+export type ChapterOperand = { readonly name: string; readonly kind: "unsupported" } | { readonly name: string; readonly read: ValueSource } & (
+  | { readonly kind: "view"; readonly write: InstructionDefinition }
   | { readonly kind: "memory"; readonly address: ValueSource }
   | { readonly kind: "register"; readonly register: Register }
   | { readonly kind: "pair"; readonly high: Register; readonly low: Register }
@@ -25,6 +26,7 @@ interface Symbols {
   readonly registers: ReadonlyMap<string, Register>;
   readonly arrays: ReadonlyMap<string, RegisterArray>;
   readonly latches: ReadonlyMap<string, Latch>;
+  readonly choices: ReadonlyMap<string, Choice<string>>;
   readonly flags: ReadonlyMap<string, Flag>;
   readonly policies: ReadonlyMap<string, FlagPolicy>;
   readonly actions: ReadonlyMap<string, InstructionDefinition>;
@@ -43,11 +45,11 @@ export interface StatementOptions {
 export function checkStateEffects(steps: readonly Statement[], effects: "view" | "state" | "memory"): void {
   for (const step of steps) {
     switch (step.kind) {
-      case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": break;
+      case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": case "test-choice": break;
       case "when": checkStateEffects(step.steps, effects); break;
       case "read-source": checkStateEffects(step.source.steps, effects); break;
       case "perform": checkStateEffects(step.action.steps, effects); break;
-      case "write-register": case "write-element": case "fill-array": case "write-latch": case "update-flags": case "replace-flags":
+      case "write-register": case "write-element": case "fill-array": case "write-latch": case "write-choice": case "update-flags": case "replace-flags":
         if (effects !== "view") break;
         throw new Error("Views may only read stored state.");
       case "read-memory": case "write-memory":
@@ -60,7 +62,7 @@ export function checkStateEffects(steps: readonly Statement[], effects: "view" |
 
 /** Lower ordered effects, checking each prefix in its enclosing lexical scopes. */
 export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symbols, options: StatementOptions = {}): Statement[] {
-  const { cpu, registers, arrays, latches, flags, policies, actions, sources, operands, conditions } = symbols;
+  const { cpu, registers, arrays, latches, choices, flags, policies, actions, sources, operands, conditions } = symbols;
   // Compiler captures cannot collide with, or be referenced by, any authored name,
   // including later statements and nested blocks.
   const usedNames = new Set([...Object.keys(options.inputs ?? {}), ...lines.flatMap(tokens => tokens.source.text.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? [])]);
@@ -75,7 +77,11 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
     const result: Statement[] = [];
     for (let index = 0; index < lines.length; index++) {
       const tokens = lines[index]!;
-      if (tokens.take("when")) {
+      if (tokens.take("match")) {
+        const { body, end } = chapterBody(lines, index); index = end;
+        result.push(chapterMatch(tokens, body, undefined, symbols.catalogues, selectedOperands,
+          (body, selected, check) => parse(body, check, selected), step => validate([...result, step])));
+      } else if (tokens.take("when")) {
         const captures: Statement[] = [];
         let predicate: FlagExpression;
         if (tokens.take("test")) {
@@ -116,6 +122,8 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         tokens.expect(")"); result.push(effect(policy, args));
       } else if (tokens.take("operand")) {
         const operand = tokens.lookup(selectedOperands); tokens.expect("<-"); const contents = expression(tokens);
+        if (operand.kind === "unsupported") return tokens.fail("Unsupported operands cannot be selected.");
+        if (operand.kind === "view") result.push(perform(operand.write, { [Object.keys(operand.write.inputs!)[0]!]: contents }));
         if (operand.kind === "value") tokens.fail("A value-only operand cannot be written.");
         if (operand.kind === "register") result.push(writeRegister(operand.register, contents));
         if (operand.kind === "pair") result.push(writeRegister(operand.high, highByte(contents)), writeRegister(operand.low, lowByte(contents)));
@@ -138,8 +146,9 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
             result.push(writeElement(array, slot, expression(tokens)));
           }
         } else if (tokens.take("<-")) {
-          const latch = latches.get(name);
-          if (latch) {
+          const latch = latches.get(name), choice = choices.get(name);
+          if (choice) result.push(writeChoice(choice, tokens.quoted()));
+          else if (latch) {
             const contents = flagExpression(tokens);
             result.push(writeLatch(latch, contents.kind === "flag-literal" ? contents.value : contents));
           } else {
@@ -158,7 +167,10 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
             tokens.expect(","); const mode = expression(tokens); tokens.expect(","); const code = expression(tokens); tokens.expect(")");
             result.push(resolveAddress(name, size, mode, code));
           } else if (tokens.take("fetch")) result.push(fetchByte(name));
-          else if (tokens.take("flag")) result.push(readFlag(name, tokens.lookup(flags)));
+          else if (tokens.take("choice")) {
+            const choice = tokens.lookup(choices); tokens.expect("=");
+            result.push(testChoice(name, choice, tokens.quoted()));
+          } else if (tokens.take("flag")) result.push(readFlag(name, tokens.lookup(flags)));
           else if (tokens.take("latch")) result.push(readLatch(name, tokens.lookup(latches)));
           else if (tokens.take("register")) result.push(readRegister(name, tokens.lookup(registers)));
           else if (tokens.take("array")) {
@@ -167,6 +179,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
           } else if (tokens.take("source")) result.push(readSource(name, tokens.lookup(sources)));
           else if (tokens.take("operand")) {
             const operand = tokens.lookup(selectedOperands);
+            if (operand.kind === "unsupported") return tokens.fail("Unsupported operands cannot be selected.");
             result.push(operand.kind === "register" ? readRegister(name, operand.register) : readSource(name, operand.read));
           } else if ((tokens.next === "memory" || tokens.next === "port") && tokens.peek(1) === "(") {
             const effect = tokens.word() === "memory" ? readMemory : readPort;
@@ -189,7 +202,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
 /** Generated action signatures include a context only when an actual memory effect needs one. */
 export function usesMemory(steps: readonly Statement[]): boolean {
   return steps.some(step => step.kind === "read-memory" || step.kind === "write-memory"
-    || (step.kind === "match" && step.cases.some(branch => usesMemory(branch.steps)))
+    || ((step.kind === "match" || step.kind === "dispatch") && step.cases.some(branch => usesMemory(branch.steps)))
     || (step.kind === "perform" && usesMemory(step.action.steps))
     || (step.kind === "read-source" && usesMemory(step.source.steps))
     || (step.kind === "when" && usesMemory(step.steps)));

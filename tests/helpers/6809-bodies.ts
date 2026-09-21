@@ -1,9 +1,8 @@
 import type { Cpu6809State } from "../../src/components/cpus/state/6809.js";
 import type { ByteInstructionContext } from "../../src/components/cpus/instruction-context.js";
 import type { ByteMemory } from "../../src/components/cpus/memory-access.js";
-import { instructions as remaining } from "../../src/components/cpus/generated/6809.js";
 import { instructions as actions } from "../../src/components/cpus/generated/6809-state.js";
-import { instructions as base } from "../../src/components/cpus/generated/6809-base.js";
+import { instructions as base } from "../../src/components/cpus/generated/6809.js";
 
 const unexpected = (): never => { throw new Error("Unexpected data-memory access"); };
 
@@ -25,9 +24,12 @@ function lea(execute: (state: Cpu6809State, instruction: ByteInstructionContext)
 }
 
 // Names used by independent cross-CPU probes; migrated bodies use literal
-// chapter opcodes, while remaining stack and interrupt forms keep their native names.
+// chapter opcodes throughout.
 export const bodies6809 = {
-  ...remaining,
+  sync: base[0x13], cwai: base[0x3c], rti: base[0x3b],
+  swi: base[0x3f], swi2: base[0x103f], swi3: base[0x113f],
+  pshs: base[0x34], puls: base[0x35], pshu: base[0x36], pulu: base[0x37],
+  pushFrame: actions.pushSystemRegisters,
   cmpdImmediate: base[0x1083], cmpdMemory: extended(base[0x10b3]),
   cmpyImmediate: base[0x108c], cmpyMemory: extended(base[0x10bc]),
   cmpuImmediate: base[0x1183], cmpuMemory: extended(base[0x11b3]),

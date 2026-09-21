@@ -8,7 +8,7 @@ import { generateInstructions } from "../../src/components/cpus/semantics/genera
 const addresses = ["zeroPage", "zeroPageX", "zeroPageY", "absolute", "absoluteX", "absoluteY", "indexedIndirect", "indirectIndexed"] as const;
 export const sources6502 = { cpu: { name: "6502", state }, groups: {
   addresses: Object.fromEntries(addresses.map(name => [name, sources[name]])),
-  operands: Object.fromEntries(operands.accumulator.map((operand, code) => [code, operand.read])),
+  operands: Object.fromEntries(operands.accumulator.flatMap((operand, code) => operand.kind === "unsupported" ? [] : [[code, operand.read]])),
 } };
 type Fetch = { fetchByte(): number };
 type Reader = (context: Fetch & { readByte(address: number): number }) => number;

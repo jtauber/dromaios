@@ -1,6 +1,5 @@
-import { opcodeEntries as chapterOpcodes } from "./generated/6809-base.ts";
+import { opcodeEntries as chapterOpcodes } from "./generated/6809.ts";
 import { instructions as stateActions, sourceReaders } from "./generated/6809-state.ts";
-import { instructions as semantics } from "./generated/6809.ts";
 import type { Ram } from "../memory/ram.js";
 import type { FetchedInstruction, StateTransition, InstructionStep, WaitingStep } from "./execution-records.ts";
 import { executionBoundary } from "./execution-boundary.ts";
@@ -13,8 +12,7 @@ import { copyState, readState } from "./state.ts";
 import { cpu6809StateDescription } from "./state/6809.ts";
 import type { Cpu6809State } from "./state/6809.ts";
 import type { ReadonlyState } from "./state.js";
-import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { motorola6809TransferForms } from "./motorola.ts";
+import { opcodeTable } from "./opcodes.ts";
 
 export { cpu6809StateDescription } from "./state/6809.ts";
 export type { Cpu6809State, Cpu6809Flags } from "./state/6809.ts";
@@ -42,8 +40,6 @@ export type Cpu6809InterruptRecord = StateTransition<Cpu6809Snapshot> & { readon
 
 type OpcodeHandler = (instruction: InstructionContext) => "unsupported" | void;
 
-const instructionPattern = opcodePattern<OpcodeHandler>;
-
 // Vector address, frame size, and masks applied AFTER saving the original CC.
 const interruptEntries = {
   firq: { vector: 0xfff6, entire: false, masks: 0x50 },
@@ -64,7 +60,7 @@ export class Cpu6809 {
     }
     this.#ram = ram;
     this.#state = readState(cpu6809StateDescription, initialState);
-    this.#opcodeHandlers = this.#createOpcodeHandlers();
+    this.#opcodeHandlers = opcodeTable(chapterOpcodes(this.#state));
   }
 
   /** Inspect a detached copy, including D derived from A/B, without accessing RAM. */
@@ -125,53 +121,11 @@ export class Cpu6809 {
     });
   }
 
-  // Opcode selectors and construction.
-
-  // TFR/EXG postbyte ssss dddd: selector bit 3 chooses word=0/byte=1.
-  // 0000..0101 = D/X/Y/U/S/PC; 1000..1011 = A/B/CC/DP; other selectors are undefined.
-  readonly #exchangeHandlers = this.#registerTransferHandlers("exg");
-  readonly #transferHandlers = this.#registerTransferHandlers("tfr");
-
-  // Base opcode page; 10/11 dispatch exactly one following opcode in their own page.
-  #createOpcodeHandlers() {
-    return opcodeTable<OpcodeHandler>([
-      ...chapterOpcodes(this.#state, {
-        secondary: instructionPattern("0011 1111", instruction => semantics.swi2(this.#state, instruction)),
-        tertiary: instructionPattern("0011 1111", instruction => semantics.swi3(this.#state, instruction)),
-      }),
-      ...instructionPattern("0001 0011", () => semantics.sync(this.#state)), // SYNC
-
-      // 0001111 t: t=0 exchanges, t=1 transfers; the postbyte selects same-width registers.
-      ...instructionPattern("0001111 0", instruction => this.#executeFollowingByte(this.#exchangeHandlers, instruction)), // EXG
-      ...instructionPattern("0001111 1", instruction => this.#executeFollowingByte(this.#transferHandlers, instruction)), // TFR
-
-      // 001101 s p: s=0 selects S, s=1 selects U; p=0 pushes, p=1 pulls.
-      // Mask bits 7..0: PC, other stack pointer, Y, X, DP, B, A, CC (E F H I N Z V C).
-      ...opcodeFamily("001101 s p", { s: [[semantics.pshs, semantics.puls], [semantics.pshu, semantics.pulu]], p: [0, 1] },
-        ({ s: operations, p: direction }) => (instruction: InstructionContext) => operations[direction]!(this.#state, instruction)), // PSHS / PULS / PSHU / PULU
-      ...instructionPattern("0011 1011", instruction => semantics.rti(this.#state, instruction)), // RTI
-      ...instructionPattern("0011 1100", instruction => semantics.cwai(this.#state, instruction)), // CWAI #mask
-      ...instructionPattern("0011 1111", instruction => semantics.swi(this.#state, instruction)), // SWI
-
-    ]);
-  }
-
-  #registerTransferHandlers(operation: "tfr" | "exg") {
-    const bodies: Readonly<Record<`${"tfr" | "exg"}_${string}_${string}`, (state: Cpu6809State) => void>> = semantics;
-    return opcodeTable<OpcodeHandler>(motorola6809TransferForms.map(([postbyte, { source, target }]) =>
-      [postbyte, () => bodies[`${operation}_${source}_${target}`]!(this.#state)]));
-  }
-
-  #executeFollowingByte(table: Readonly<Partial<Record<number, OpcodeHandler>>>, instruction: InstructionContext): "unsupported" | void {
-    const handler = table[instruction.fetchByte()];
-    return handler ? handler(instruction) : "unsupported";
-  }
-
   // Interrupt entry and return share the mask-driven register stack operations.
 
   #saveInterruptFrame(entire: boolean, writeByte: ByteMemory["writeByte"]): void {
     this.#state.flags.e = entire;
-    semantics.pushFrame(this.#state, entire ? 0xff : 0x81, { writeByte }); // Full frame or PC/CC only.
+    stateActions.pushSystemRegisters(this.#state, entire ? 0xff : 0x81, { writeByte }); // Full frame or PC/CC only.
   }
 
   #enterInterrupt(source: keyof typeof interruptEntries, { readByte, writeByte }: ByteMemory): void {

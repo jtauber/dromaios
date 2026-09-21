@@ -327420,6 +327420,16 @@ NOP (`$12`) has no effects after opcode fetching. It does not read stored regist
 
 Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
+### 6809 SYNC
+
+A full frame sets E before saving PC/U/Y/X/DP/B/A/CC. Its action is shared by CWAI and software entry. The lower-level masked action also serves external FIRQ's short PC/CC frame. Neither action implicitly arms NMI.
+
+```text
+write control waitMode := "sync"
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
 ### 6809 LBRA
 
 LBRA (`$16`) fetches a high-first word displacement before reading PC. Add that captured word to the post-fetch PC with sixteen-bit wrapping, which also gives the signed displacement result. Preserve flags and every other register.
@@ -327581,6 +327591,1646 @@ flags "SEX N/Z" simultaneously {
 ```
 
 Flags preserved throughout: E, F, H, I, V, C.
+
+### 6809 EXG
+
+Writable views keep the special register rules beside their definitions. D splits A then B; CC replaces all flags; an explicit S write arms NMI. Even TFR reads both originals before its first write. EXG writes the destination first, then the original destination to the source. This matters for aliases and for observing a partial write failure.
+
+```text
+exchange:u8 := source "EXG" {
+  yield 01:u8
+}
+postbyte:u8 := fetch byte
+match byte postbyte {
+  case (byte & FF) = 00 {
+    originalSource:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    originalTarget:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    perform "write D as A then B" {
+      word:u16 := originalSource
+      write A:u8 := highByte(word)
+      write B:u8 := lowByte(word)
+    }
+    when lowBit(exchange) {
+      perform "write D as A then B" {
+        word:u16 := originalTarget
+        write A:u8 := highByte(word)
+        write B:u8 := lowByte(word)
+      }
+    }
+  }
+  case (byte & FF) = 01 {
+    originalSource:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    originalTarget:u16 := read X
+    write X:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write D as A then B" {
+        word:u16 := originalTarget
+        write A:u8 := highByte(word)
+        write B:u8 := lowByte(word)
+      }
+    }
+  }
+  case (byte & FF) = 02 {
+    originalSource:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    originalTarget:u16 := read Y
+    write Y:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write D as A then B" {
+        word:u16 := originalTarget
+        write A:u8 := highByte(word)
+        write B:u8 := lowByte(word)
+      }
+    }
+  }
+  case (byte & FF) = 03 {
+    originalSource:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    originalTarget:u16 := read U
+    write U:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write D as A then B" {
+        word:u16 := originalTarget
+        write A:u8 := highByte(word)
+        write B:u8 := lowByte(word)
+      }
+    }
+  }
+  case (byte & FF) = 04 {
+    originalSource:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    originalTarget:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    perform "write S and arm NMI" {
+      pointer:u16 := originalSource
+      write S:u16 := pointer
+      write nmiArmed:boolean := true
+    }
+    when lowBit(exchange) {
+      perform "write D as A then B" {
+        word:u16 := originalTarget
+        write A:u8 := highByte(word)
+        write B:u8 := lowByte(word)
+      }
+    }
+  }
+  case (byte & FF) = 05 {
+    originalSource:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    originalTarget:u16 := read PC
+    write PC:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write D as A then B" {
+        word:u16 := originalTarget
+        write A:u8 := highByte(word)
+        write B:u8 := lowByte(word)
+      }
+    }
+  }
+  case (byte & FF) = 10 {
+    originalSource:u16 := read X
+    originalTarget:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    perform "write D as A then B" {
+      word:u16 := originalSource
+      write A:u8 := highByte(word)
+      write B:u8 := lowByte(word)
+    }
+    when lowBit(exchange) {
+      write X:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 11 {
+    originalSource:u16 := read X
+    originalTarget:u16 := read X
+    write X:u16 := originalSource
+    when lowBit(exchange) {
+      write X:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 12 {
+    originalSource:u16 := read X
+    originalTarget:u16 := read Y
+    write Y:u16 := originalSource
+    when lowBit(exchange) {
+      write X:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 13 {
+    originalSource:u16 := read X
+    originalTarget:u16 := read U
+    write U:u16 := originalSource
+    when lowBit(exchange) {
+      write X:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 14 {
+    originalSource:u16 := read X
+    originalTarget:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    perform "write S and arm NMI" {
+      pointer:u16 := originalSource
+      write S:u16 := pointer
+      write nmiArmed:boolean := true
+    }
+    when lowBit(exchange) {
+      write X:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 15 {
+    originalSource:u16 := read X
+    originalTarget:u16 := read PC
+    write PC:u16 := originalSource
+    when lowBit(exchange) {
+      write X:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 20 {
+    originalSource:u16 := read Y
+    originalTarget:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    perform "write D as A then B" {
+      word:u16 := originalSource
+      write A:u8 := highByte(word)
+      write B:u8 := lowByte(word)
+    }
+    when lowBit(exchange) {
+      write Y:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 21 {
+    originalSource:u16 := read Y
+    originalTarget:u16 := read X
+    write X:u16 := originalSource
+    when lowBit(exchange) {
+      write Y:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 22 {
+    originalSource:u16 := read Y
+    originalTarget:u16 := read Y
+    write Y:u16 := originalSource
+    when lowBit(exchange) {
+      write Y:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 23 {
+    originalSource:u16 := read Y
+    originalTarget:u16 := read U
+    write U:u16 := originalSource
+    when lowBit(exchange) {
+      write Y:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 24 {
+    originalSource:u16 := read Y
+    originalTarget:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    perform "write S and arm NMI" {
+      pointer:u16 := originalSource
+      write S:u16 := pointer
+      write nmiArmed:boolean := true
+    }
+    when lowBit(exchange) {
+      write Y:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 25 {
+    originalSource:u16 := read Y
+    originalTarget:u16 := read PC
+    write PC:u16 := originalSource
+    when lowBit(exchange) {
+      write Y:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 30 {
+    originalSource:u16 := read U
+    originalTarget:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    perform "write D as A then B" {
+      word:u16 := originalSource
+      write A:u8 := highByte(word)
+      write B:u8 := lowByte(word)
+    }
+    when lowBit(exchange) {
+      write U:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 31 {
+    originalSource:u16 := read U
+    originalTarget:u16 := read X
+    write X:u16 := originalSource
+    when lowBit(exchange) {
+      write U:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 32 {
+    originalSource:u16 := read U
+    originalTarget:u16 := read Y
+    write Y:u16 := originalSource
+    when lowBit(exchange) {
+      write U:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 33 {
+    originalSource:u16 := read U
+    originalTarget:u16 := read U
+    write U:u16 := originalSource
+    when lowBit(exchange) {
+      write U:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 34 {
+    originalSource:u16 := read U
+    originalTarget:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    perform "write S and arm NMI" {
+      pointer:u16 := originalSource
+      write S:u16 := pointer
+      write nmiArmed:boolean := true
+    }
+    when lowBit(exchange) {
+      write U:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 35 {
+    originalSource:u16 := read U
+    originalTarget:u16 := read PC
+    write PC:u16 := originalSource
+    when lowBit(exchange) {
+      write U:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 40 {
+    originalSource:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    originalTarget:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    perform "write D as A then B" {
+      word:u16 := originalSource
+      write A:u8 := highByte(word)
+      write B:u8 := lowByte(word)
+    }
+    when lowBit(exchange) {
+      perform "write S and arm NMI" {
+        pointer:u16 := originalTarget
+        write S:u16 := pointer
+        write nmiArmed:boolean := true
+      }
+    }
+  }
+  case (byte & FF) = 41 {
+    originalSource:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    originalTarget:u16 := read X
+    write X:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write S and arm NMI" {
+        pointer:u16 := originalTarget
+        write S:u16 := pointer
+        write nmiArmed:boolean := true
+      }
+    }
+  }
+  case (byte & FF) = 42 {
+    originalSource:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    originalTarget:u16 := read Y
+    write Y:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write S and arm NMI" {
+        pointer:u16 := originalTarget
+        write S:u16 := pointer
+        write nmiArmed:boolean := true
+      }
+    }
+  }
+  case (byte & FF) = 43 {
+    originalSource:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    originalTarget:u16 := read U
+    write U:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write S and arm NMI" {
+        pointer:u16 := originalTarget
+        write S:u16 := pointer
+        write nmiArmed:boolean := true
+      }
+    }
+  }
+  case (byte & FF) = 44 {
+    originalSource:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    originalTarget:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    perform "write S and arm NMI" {
+      pointer:u16 := originalSource
+      write S:u16 := pointer
+      write nmiArmed:boolean := true
+    }
+    when lowBit(exchange) {
+      perform "write S and arm NMI" {
+        pointer:u16 := originalTarget
+        write S:u16 := pointer
+        write nmiArmed:boolean := true
+      }
+    }
+  }
+  case (byte & FF) = 45 {
+    originalSource:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    originalTarget:u16 := read PC
+    write PC:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write S and arm NMI" {
+        pointer:u16 := originalTarget
+        write S:u16 := pointer
+        write nmiArmed:boolean := true
+      }
+    }
+  }
+  case (byte & FF) = 50 {
+    originalSource:u16 := read PC
+    originalTarget:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    perform "write D as A then B" {
+      word:u16 := originalSource
+      write A:u8 := highByte(word)
+      write B:u8 := lowByte(word)
+    }
+    when lowBit(exchange) {
+      write PC:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 51 {
+    originalSource:u16 := read PC
+    originalTarget:u16 := read X
+    write X:u16 := originalSource
+    when lowBit(exchange) {
+      write PC:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 52 {
+    originalSource:u16 := read PC
+    originalTarget:u16 := read Y
+    write Y:u16 := originalSource
+    when lowBit(exchange) {
+      write PC:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 53 {
+    originalSource:u16 := read PC
+    originalTarget:u16 := read U
+    write U:u16 := originalSource
+    when lowBit(exchange) {
+      write PC:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 54 {
+    originalSource:u16 := read PC
+    originalTarget:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    perform "write S and arm NMI" {
+      pointer:u16 := originalSource
+      write S:u16 := pointer
+      write nmiArmed:boolean := true
+    }
+    when lowBit(exchange) {
+      write PC:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 55 {
+    originalSource:u16 := read PC
+    originalTarget:u16 := read PC
+    write PC:u16 := originalSource
+    when lowBit(exchange) {
+      write PC:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 88 {
+    originalSource:u8 := read A
+    originalTarget:u8 := read A
+    write A:u8 := originalSource
+    when lowBit(exchange) {
+      write A:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = 89 {
+    originalSource:u8 := read A
+    originalTarget:u8 := read B
+    write B:u8 := originalSource
+    when lowBit(exchange) {
+      write A:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = 8A {
+    originalSource:u8 := read A
+    originalTarget:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    perform "replace packed CC" {
+      status:u8 := originalSource
+      replace flags "restore all condition codes" simultaneously {
+        E := not(isZero(bitAnd(status, 80:u8)))
+        F := not(isZero(bitAnd(status, 40:u8)))
+        H := not(isZero(bitAnd(status, 20:u8)))
+        I := not(isZero(bitAnd(status, 10:u8)))
+        N := not(isZero(bitAnd(status, 08:u8)))
+        Z := not(isZero(bitAnd(status, 04:u8)))
+        V := not(isZero(bitAnd(status, 02:u8)))
+        C := not(isZero(bitAnd(status, 01:u8)))
+      } // Replace the complete flag object.
+    }
+    when lowBit(exchange) {
+      write A:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = 8B {
+    originalSource:u8 := read A
+    originalTarget:u8 := read DP
+    write DP:u8 := originalSource
+    when lowBit(exchange) {
+      write A:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = 98 {
+    originalSource:u8 := read B
+    originalTarget:u8 := read A
+    write A:u8 := originalSource
+    when lowBit(exchange) {
+      write B:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = 99 {
+    originalSource:u8 := read B
+    originalTarget:u8 := read B
+    write B:u8 := originalSource
+    when lowBit(exchange) {
+      write B:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = 9A {
+    originalSource:u8 := read B
+    originalTarget:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    perform "replace packed CC" {
+      status:u8 := originalSource
+      replace flags "restore all condition codes" simultaneously {
+        E := not(isZero(bitAnd(status, 80:u8)))
+        F := not(isZero(bitAnd(status, 40:u8)))
+        H := not(isZero(bitAnd(status, 20:u8)))
+        I := not(isZero(bitAnd(status, 10:u8)))
+        N := not(isZero(bitAnd(status, 08:u8)))
+        Z := not(isZero(bitAnd(status, 04:u8)))
+        V := not(isZero(bitAnd(status, 02:u8)))
+        C := not(isZero(bitAnd(status, 01:u8)))
+      } // Replace the complete flag object.
+    }
+    when lowBit(exchange) {
+      write B:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = 9B {
+    originalSource:u8 := read B
+    originalTarget:u8 := read DP
+    write DP:u8 := originalSource
+    when lowBit(exchange) {
+      write B:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = A8 {
+    originalSource:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    originalTarget:u8 := read A
+    write A:u8 := originalSource
+    when lowBit(exchange) {
+      perform "replace packed CC" {
+        status:u8 := originalTarget
+        replace flags "restore all condition codes" simultaneously {
+          E := not(isZero(bitAnd(status, 80:u8)))
+          F := not(isZero(bitAnd(status, 40:u8)))
+          H := not(isZero(bitAnd(status, 20:u8)))
+          I := not(isZero(bitAnd(status, 10:u8)))
+          N := not(isZero(bitAnd(status, 08:u8)))
+          Z := not(isZero(bitAnd(status, 04:u8)))
+          V := not(isZero(bitAnd(status, 02:u8)))
+          C := not(isZero(bitAnd(status, 01:u8)))
+        } // Replace the complete flag object.
+      }
+    }
+  }
+  case (byte & FF) = A9 {
+    originalSource:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    originalTarget:u8 := read B
+    write B:u8 := originalSource
+    when lowBit(exchange) {
+      perform "replace packed CC" {
+        status:u8 := originalTarget
+        replace flags "restore all condition codes" simultaneously {
+          E := not(isZero(bitAnd(status, 80:u8)))
+          F := not(isZero(bitAnd(status, 40:u8)))
+          H := not(isZero(bitAnd(status, 20:u8)))
+          I := not(isZero(bitAnd(status, 10:u8)))
+          N := not(isZero(bitAnd(status, 08:u8)))
+          Z := not(isZero(bitAnd(status, 04:u8)))
+          V := not(isZero(bitAnd(status, 02:u8)))
+          C := not(isZero(bitAnd(status, 01:u8)))
+        } // Replace the complete flag object.
+      }
+    }
+  }
+  case (byte & FF) = AA {
+    originalSource:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    originalTarget:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    perform "replace packed CC" {
+      status:u8 := originalSource
+      replace flags "restore all condition codes" simultaneously {
+        E := not(isZero(bitAnd(status, 80:u8)))
+        F := not(isZero(bitAnd(status, 40:u8)))
+        H := not(isZero(bitAnd(status, 20:u8)))
+        I := not(isZero(bitAnd(status, 10:u8)))
+        N := not(isZero(bitAnd(status, 08:u8)))
+        Z := not(isZero(bitAnd(status, 04:u8)))
+        V := not(isZero(bitAnd(status, 02:u8)))
+        C := not(isZero(bitAnd(status, 01:u8)))
+      } // Replace the complete flag object.
+    }
+    when lowBit(exchange) {
+      perform "replace packed CC" {
+        status:u8 := originalTarget
+        replace flags "restore all condition codes" simultaneously {
+          E := not(isZero(bitAnd(status, 80:u8)))
+          F := not(isZero(bitAnd(status, 40:u8)))
+          H := not(isZero(bitAnd(status, 20:u8)))
+          I := not(isZero(bitAnd(status, 10:u8)))
+          N := not(isZero(bitAnd(status, 08:u8)))
+          Z := not(isZero(bitAnd(status, 04:u8)))
+          V := not(isZero(bitAnd(status, 02:u8)))
+          C := not(isZero(bitAnd(status, 01:u8)))
+        } // Replace the complete flag object.
+      }
+    }
+  }
+  case (byte & FF) = AB {
+    originalSource:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    originalTarget:u8 := read DP
+    write DP:u8 := originalSource
+    when lowBit(exchange) {
+      perform "replace packed CC" {
+        status:u8 := originalTarget
+        replace flags "restore all condition codes" simultaneously {
+          E := not(isZero(bitAnd(status, 80:u8)))
+          F := not(isZero(bitAnd(status, 40:u8)))
+          H := not(isZero(bitAnd(status, 20:u8)))
+          I := not(isZero(bitAnd(status, 10:u8)))
+          N := not(isZero(bitAnd(status, 08:u8)))
+          Z := not(isZero(bitAnd(status, 04:u8)))
+          V := not(isZero(bitAnd(status, 02:u8)))
+          C := not(isZero(bitAnd(status, 01:u8)))
+        } // Replace the complete flag object.
+      }
+    }
+  }
+  case (byte & FF) = B8 {
+    originalSource:u8 := read DP
+    originalTarget:u8 := read A
+    write A:u8 := originalSource
+    when lowBit(exchange) {
+      write DP:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = B9 {
+    originalSource:u8 := read DP
+    originalTarget:u8 := read B
+    write B:u8 := originalSource
+    when lowBit(exchange) {
+      write DP:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = BA {
+    originalSource:u8 := read DP
+    originalTarget:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    perform "replace packed CC" {
+      status:u8 := originalSource
+      replace flags "restore all condition codes" simultaneously {
+        E := not(isZero(bitAnd(status, 80:u8)))
+        F := not(isZero(bitAnd(status, 40:u8)))
+        H := not(isZero(bitAnd(status, 20:u8)))
+        I := not(isZero(bitAnd(status, 10:u8)))
+        N := not(isZero(bitAnd(status, 08:u8)))
+        Z := not(isZero(bitAnd(status, 04:u8)))
+        V := not(isZero(bitAnd(status, 02:u8)))
+        C := not(isZero(bitAnd(status, 01:u8)))
+      } // Replace the complete flag object.
+    }
+    when lowBit(exchange) {
+      write DP:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = BB {
+    originalSource:u8 := read DP
+    originalTarget:u8 := read DP
+    write DP:u8 := originalSource
+    when lowBit(exchange) {
+      write DP:u8 := originalTarget
+    }
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: none.
+
+### 6809 TFR
+
+Writable views keep the special register rules beside their definitions. D splits A then B; CC replaces all flags; an explicit S write arms NMI. Even TFR reads both originals before its first write. EXG writes the destination first, then the original destination to the source. This matters for aliases and for observing a partial write failure.
+
+```text
+exchange:u8 := source "TFR" {
+  yield 00:u8
+}
+postbyte:u8 := fetch byte
+match byte postbyte {
+  case (byte & FF) = 00 {
+    originalSource:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    originalTarget:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    perform "write D as A then B" {
+      word:u16 := originalSource
+      write A:u8 := highByte(word)
+      write B:u8 := lowByte(word)
+    }
+    when lowBit(exchange) {
+      perform "write D as A then B" {
+        word:u16 := originalTarget
+        write A:u8 := highByte(word)
+        write B:u8 := lowByte(word)
+      }
+    }
+  }
+  case (byte & FF) = 01 {
+    originalSource:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    originalTarget:u16 := read X
+    write X:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write D as A then B" {
+        word:u16 := originalTarget
+        write A:u8 := highByte(word)
+        write B:u8 := lowByte(word)
+      }
+    }
+  }
+  case (byte & FF) = 02 {
+    originalSource:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    originalTarget:u16 := read Y
+    write Y:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write D as A then B" {
+        word:u16 := originalTarget
+        write A:u8 := highByte(word)
+        write B:u8 := lowByte(word)
+      }
+    }
+  }
+  case (byte & FF) = 03 {
+    originalSource:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    originalTarget:u16 := read U
+    write U:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write D as A then B" {
+        word:u16 := originalTarget
+        write A:u8 := highByte(word)
+        write B:u8 := lowByte(word)
+      }
+    }
+  }
+  case (byte & FF) = 04 {
+    originalSource:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    originalTarget:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    perform "write S and arm NMI" {
+      pointer:u16 := originalSource
+      write S:u16 := pointer
+      write nmiArmed:boolean := true
+    }
+    when lowBit(exchange) {
+      perform "write D as A then B" {
+        word:u16 := originalTarget
+        write A:u8 := highByte(word)
+        write B:u8 := lowByte(word)
+      }
+    }
+  }
+  case (byte & FF) = 05 {
+    originalSource:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    originalTarget:u16 := read PC
+    write PC:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write D as A then B" {
+        word:u16 := originalTarget
+        write A:u8 := highByte(word)
+        write B:u8 := lowByte(word)
+      }
+    }
+  }
+  case (byte & FF) = 10 {
+    originalSource:u16 := read X
+    originalTarget:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    perform "write D as A then B" {
+      word:u16 := originalSource
+      write A:u8 := highByte(word)
+      write B:u8 := lowByte(word)
+    }
+    when lowBit(exchange) {
+      write X:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 11 {
+    originalSource:u16 := read X
+    originalTarget:u16 := read X
+    write X:u16 := originalSource
+    when lowBit(exchange) {
+      write X:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 12 {
+    originalSource:u16 := read X
+    originalTarget:u16 := read Y
+    write Y:u16 := originalSource
+    when lowBit(exchange) {
+      write X:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 13 {
+    originalSource:u16 := read X
+    originalTarget:u16 := read U
+    write U:u16 := originalSource
+    when lowBit(exchange) {
+      write X:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 14 {
+    originalSource:u16 := read X
+    originalTarget:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    perform "write S and arm NMI" {
+      pointer:u16 := originalSource
+      write S:u16 := pointer
+      write nmiArmed:boolean := true
+    }
+    when lowBit(exchange) {
+      write X:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 15 {
+    originalSource:u16 := read X
+    originalTarget:u16 := read PC
+    write PC:u16 := originalSource
+    when lowBit(exchange) {
+      write X:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 20 {
+    originalSource:u16 := read Y
+    originalTarget:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    perform "write D as A then B" {
+      word:u16 := originalSource
+      write A:u8 := highByte(word)
+      write B:u8 := lowByte(word)
+    }
+    when lowBit(exchange) {
+      write Y:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 21 {
+    originalSource:u16 := read Y
+    originalTarget:u16 := read X
+    write X:u16 := originalSource
+    when lowBit(exchange) {
+      write Y:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 22 {
+    originalSource:u16 := read Y
+    originalTarget:u16 := read Y
+    write Y:u16 := originalSource
+    when lowBit(exchange) {
+      write Y:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 23 {
+    originalSource:u16 := read Y
+    originalTarget:u16 := read U
+    write U:u16 := originalSource
+    when lowBit(exchange) {
+      write Y:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 24 {
+    originalSource:u16 := read Y
+    originalTarget:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    perform "write S and arm NMI" {
+      pointer:u16 := originalSource
+      write S:u16 := pointer
+      write nmiArmed:boolean := true
+    }
+    when lowBit(exchange) {
+      write Y:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 25 {
+    originalSource:u16 := read Y
+    originalTarget:u16 := read PC
+    write PC:u16 := originalSource
+    when lowBit(exchange) {
+      write Y:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 30 {
+    originalSource:u16 := read U
+    originalTarget:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    perform "write D as A then B" {
+      word:u16 := originalSource
+      write A:u8 := highByte(word)
+      write B:u8 := lowByte(word)
+    }
+    when lowBit(exchange) {
+      write U:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 31 {
+    originalSource:u16 := read U
+    originalTarget:u16 := read X
+    write X:u16 := originalSource
+    when lowBit(exchange) {
+      write U:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 32 {
+    originalSource:u16 := read U
+    originalTarget:u16 := read Y
+    write Y:u16 := originalSource
+    when lowBit(exchange) {
+      write U:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 33 {
+    originalSource:u16 := read U
+    originalTarget:u16 := read U
+    write U:u16 := originalSource
+    when lowBit(exchange) {
+      write U:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 34 {
+    originalSource:u16 := read U
+    originalTarget:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    perform "write S and arm NMI" {
+      pointer:u16 := originalSource
+      write S:u16 := pointer
+      write nmiArmed:boolean := true
+    }
+    when lowBit(exchange) {
+      write U:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 35 {
+    originalSource:u16 := read U
+    originalTarget:u16 := read PC
+    write PC:u16 := originalSource
+    when lowBit(exchange) {
+      write U:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 40 {
+    originalSource:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    originalTarget:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    perform "write D as A then B" {
+      word:u16 := originalSource
+      write A:u8 := highByte(word)
+      write B:u8 := lowByte(word)
+    }
+    when lowBit(exchange) {
+      perform "write S and arm NMI" {
+        pointer:u16 := originalTarget
+        write S:u16 := pointer
+        write nmiArmed:boolean := true
+      }
+    }
+  }
+  case (byte & FF) = 41 {
+    originalSource:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    originalTarget:u16 := read X
+    write X:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write S and arm NMI" {
+        pointer:u16 := originalTarget
+        write S:u16 := pointer
+        write nmiArmed:boolean := true
+      }
+    }
+  }
+  case (byte & FF) = 42 {
+    originalSource:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    originalTarget:u16 := read Y
+    write Y:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write S and arm NMI" {
+        pointer:u16 := originalTarget
+        write S:u16 := pointer
+        write nmiArmed:boolean := true
+      }
+    }
+  }
+  case (byte & FF) = 43 {
+    originalSource:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    originalTarget:u16 := read U
+    write U:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write S and arm NMI" {
+        pointer:u16 := originalTarget
+        write S:u16 := pointer
+        write nmiArmed:boolean := true
+      }
+    }
+  }
+  case (byte & FF) = 44 {
+    originalSource:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    originalTarget:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    perform "write S and arm NMI" {
+      pointer:u16 := originalSource
+      write S:u16 := pointer
+      write nmiArmed:boolean := true
+    }
+    when lowBit(exchange) {
+      perform "write S and arm NMI" {
+        pointer:u16 := originalTarget
+        write S:u16 := pointer
+        write nmiArmed:boolean := true
+      }
+    }
+  }
+  case (byte & FF) = 45 {
+    originalSource:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    originalTarget:u16 := read PC
+    write PC:u16 := originalSource
+    when lowBit(exchange) {
+      perform "write S and arm NMI" {
+        pointer:u16 := originalTarget
+        write S:u16 := pointer
+        write nmiArmed:boolean := true
+      }
+    }
+  }
+  case (byte & FF) = 50 {
+    originalSource:u16 := read PC
+    originalTarget:u16 := source "D from A:B" {
+      high:u8 := read A
+      low:u8 := read B
+      yield concatHighLow(high, low)
+    }
+    perform "write D as A then B" {
+      word:u16 := originalSource
+      write A:u8 := highByte(word)
+      write B:u8 := lowByte(word)
+    }
+    when lowBit(exchange) {
+      write PC:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 51 {
+    originalSource:u16 := read PC
+    originalTarget:u16 := read X
+    write X:u16 := originalSource
+    when lowBit(exchange) {
+      write PC:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 52 {
+    originalSource:u16 := read PC
+    originalTarget:u16 := read Y
+    write Y:u16 := originalSource
+    when lowBit(exchange) {
+      write PC:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 53 {
+    originalSource:u16 := read PC
+    originalTarget:u16 := read U
+    write U:u16 := originalSource
+    when lowBit(exchange) {
+      write PC:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 54 {
+    originalSource:u16 := read PC
+    originalTarget:u16 := source "system stack pointer" {
+      pointer:u16 := read S
+      yield pointer
+    }
+    perform "write S and arm NMI" {
+      pointer:u16 := originalSource
+      write S:u16 := pointer
+      write nmiArmed:boolean := true
+    }
+    when lowBit(exchange) {
+      write PC:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 55 {
+    originalSource:u16 := read PC
+    originalTarget:u16 := read PC
+    write PC:u16 := originalSource
+    when lowBit(exchange) {
+      write PC:u16 := originalTarget
+    }
+  }
+  case (byte & FF) = 88 {
+    originalSource:u8 := read A
+    originalTarget:u8 := read A
+    write A:u8 := originalSource
+    when lowBit(exchange) {
+      write A:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = 89 {
+    originalSource:u8 := read A
+    originalTarget:u8 := read B
+    write B:u8 := originalSource
+    when lowBit(exchange) {
+      write A:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = 8A {
+    originalSource:u8 := read A
+    originalTarget:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    perform "replace packed CC" {
+      status:u8 := originalSource
+      replace flags "restore all condition codes" simultaneously {
+        E := not(isZero(bitAnd(status, 80:u8)))
+        F := not(isZero(bitAnd(status, 40:u8)))
+        H := not(isZero(bitAnd(status, 20:u8)))
+        I := not(isZero(bitAnd(status, 10:u8)))
+        N := not(isZero(bitAnd(status, 08:u8)))
+        Z := not(isZero(bitAnd(status, 04:u8)))
+        V := not(isZero(bitAnd(status, 02:u8)))
+        C := not(isZero(bitAnd(status, 01:u8)))
+      } // Replace the complete flag object.
+    }
+    when lowBit(exchange) {
+      write A:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = 8B {
+    originalSource:u8 := read A
+    originalTarget:u8 := read DP
+    write DP:u8 := originalSource
+    when lowBit(exchange) {
+      write A:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = 98 {
+    originalSource:u8 := read B
+    originalTarget:u8 := read A
+    write A:u8 := originalSource
+    when lowBit(exchange) {
+      write B:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = 99 {
+    originalSource:u8 := read B
+    originalTarget:u8 := read B
+    write B:u8 := originalSource
+    when lowBit(exchange) {
+      write B:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = 9A {
+    originalSource:u8 := read B
+    originalTarget:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    perform "replace packed CC" {
+      status:u8 := originalSource
+      replace flags "restore all condition codes" simultaneously {
+        E := not(isZero(bitAnd(status, 80:u8)))
+        F := not(isZero(bitAnd(status, 40:u8)))
+        H := not(isZero(bitAnd(status, 20:u8)))
+        I := not(isZero(bitAnd(status, 10:u8)))
+        N := not(isZero(bitAnd(status, 08:u8)))
+        Z := not(isZero(bitAnd(status, 04:u8)))
+        V := not(isZero(bitAnd(status, 02:u8)))
+        C := not(isZero(bitAnd(status, 01:u8)))
+      } // Replace the complete flag object.
+    }
+    when lowBit(exchange) {
+      write B:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = 9B {
+    originalSource:u8 := read B
+    originalTarget:u8 := read DP
+    write DP:u8 := originalSource
+    when lowBit(exchange) {
+      write B:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = A8 {
+    originalSource:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    originalTarget:u8 := read A
+    write A:u8 := originalSource
+    when lowBit(exchange) {
+      perform "replace packed CC" {
+        status:u8 := originalTarget
+        replace flags "restore all condition codes" simultaneously {
+          E := not(isZero(bitAnd(status, 80:u8)))
+          F := not(isZero(bitAnd(status, 40:u8)))
+          H := not(isZero(bitAnd(status, 20:u8)))
+          I := not(isZero(bitAnd(status, 10:u8)))
+          N := not(isZero(bitAnd(status, 08:u8)))
+          Z := not(isZero(bitAnd(status, 04:u8)))
+          V := not(isZero(bitAnd(status, 02:u8)))
+          C := not(isZero(bitAnd(status, 01:u8)))
+        } // Replace the complete flag object.
+      }
+    }
+  }
+  case (byte & FF) = A9 {
+    originalSource:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    originalTarget:u8 := read B
+    write B:u8 := originalSource
+    when lowBit(exchange) {
+      perform "replace packed CC" {
+        status:u8 := originalTarget
+        replace flags "restore all condition codes" simultaneously {
+          E := not(isZero(bitAnd(status, 80:u8)))
+          F := not(isZero(bitAnd(status, 40:u8)))
+          H := not(isZero(bitAnd(status, 20:u8)))
+          I := not(isZero(bitAnd(status, 10:u8)))
+          N := not(isZero(bitAnd(status, 08:u8)))
+          Z := not(isZero(bitAnd(status, 04:u8)))
+          V := not(isZero(bitAnd(status, 02:u8)))
+          C := not(isZero(bitAnd(status, 01:u8)))
+        } // Replace the complete flag object.
+      }
+    }
+  }
+  case (byte & FF) = AA {
+    originalSource:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    originalTarget:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    perform "replace packed CC" {
+      status:u8 := originalSource
+      replace flags "restore all condition codes" simultaneously {
+        E := not(isZero(bitAnd(status, 80:u8)))
+        F := not(isZero(bitAnd(status, 40:u8)))
+        H := not(isZero(bitAnd(status, 20:u8)))
+        I := not(isZero(bitAnd(status, 10:u8)))
+        N := not(isZero(bitAnd(status, 08:u8)))
+        Z := not(isZero(bitAnd(status, 04:u8)))
+        V := not(isZero(bitAnd(status, 02:u8)))
+        C := not(isZero(bitAnd(status, 01:u8)))
+      } // Replace the complete flag object.
+    }
+    when lowBit(exchange) {
+      perform "replace packed CC" {
+        status:u8 := originalTarget
+        replace flags "restore all condition codes" simultaneously {
+          E := not(isZero(bitAnd(status, 80:u8)))
+          F := not(isZero(bitAnd(status, 40:u8)))
+          H := not(isZero(bitAnd(status, 20:u8)))
+          I := not(isZero(bitAnd(status, 10:u8)))
+          N := not(isZero(bitAnd(status, 08:u8)))
+          Z := not(isZero(bitAnd(status, 04:u8)))
+          V := not(isZero(bitAnd(status, 02:u8)))
+          C := not(isZero(bitAnd(status, 01:u8)))
+        } // Replace the complete flag object.
+      }
+    }
+  }
+  case (byte & FF) = AB {
+    originalSource:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    originalTarget:u8 := read DP
+    write DP:u8 := originalSource
+    when lowBit(exchange) {
+      perform "replace packed CC" {
+        status:u8 := originalTarget
+        replace flags "restore all condition codes" simultaneously {
+          E := not(isZero(bitAnd(status, 80:u8)))
+          F := not(isZero(bitAnd(status, 40:u8)))
+          H := not(isZero(bitAnd(status, 20:u8)))
+          I := not(isZero(bitAnd(status, 10:u8)))
+          N := not(isZero(bitAnd(status, 08:u8)))
+          Z := not(isZero(bitAnd(status, 04:u8)))
+          V := not(isZero(bitAnd(status, 02:u8)))
+          C := not(isZero(bitAnd(status, 01:u8)))
+        } // Replace the complete flag object.
+      }
+    }
+  }
+  case (byte & FF) = B8 {
+    originalSource:u8 := read DP
+    originalTarget:u8 := read A
+    write A:u8 := originalSource
+    when lowBit(exchange) {
+      write DP:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = B9 {
+    originalSource:u8 := read DP
+    originalTarget:u8 := read B
+    write B:u8 := originalSource
+    when lowBit(exchange) {
+      write DP:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = BA {
+    originalSource:u8 := read DP
+    originalTarget:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    perform "replace packed CC" {
+      status:u8 := originalSource
+      replace flags "restore all condition codes" simultaneously {
+        E := not(isZero(bitAnd(status, 80:u8)))
+        F := not(isZero(bitAnd(status, 40:u8)))
+        H := not(isZero(bitAnd(status, 20:u8)))
+        I := not(isZero(bitAnd(status, 10:u8)))
+        N := not(isZero(bitAnd(status, 08:u8)))
+        Z := not(isZero(bitAnd(status, 04:u8)))
+        V := not(isZero(bitAnd(status, 02:u8)))
+        C := not(isZero(bitAnd(status, 01:u8)))
+      } // Replace the complete flag object.
+    }
+    when lowBit(exchange) {
+      write DP:u8 := originalTarget
+    }
+  }
+  case (byte & FF) = BB {
+    originalSource:u8 := read DP
+    originalTarget:u8 := read DP
+    write DP:u8 := originalSource
+    when lowBit(exchange) {
+      write DP:u8 := originalTarget
+    }
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: none.
 
 ### 6809 BRA
 
@@ -329920,6 +331570,600 @@ write U:u16 := address
 
 Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
+### 6809 PSHS
+
+Fetch the mask before any register or stack effects. Apply ordinary system-stack NMI arming only after the selected action returns successfully.
+
+```text
+mask:u8 := fetch byte
+perform "pushSystemRegisters" {
+  mask:u8 := mask
+  when not(isZero(bitAnd(mask, 80:u8))) {
+    contents:u16 := read PC
+    perform "push high-first word through S" {
+      word:u16 := contents
+      perform "push byte through S" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+      perform "push byte through S" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+    }
+  }
+  when not(isZero(bitAnd(mask, 40:u8))) {
+    contents:u16 := read U
+    perform "push high-first word through S" {
+      word:u16 := contents
+      perform "push byte through S" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+      perform "push byte through S" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+    }
+  }
+  when not(isZero(bitAnd(mask, 20:u8))) {
+    contents:u16 := read Y
+    perform "push high-first word through S" {
+      word:u16 := contents
+      perform "push byte through S" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+      perform "push byte through S" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+    }
+  }
+  when not(isZero(bitAnd(mask, 10:u8))) {
+    contents:u16 := read X
+    perform "push high-first word through S" {
+      word:u16 := contents
+      perform "push byte through S" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+      perform "push byte through S" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+    }
+  }
+  when not(isZero(bitAnd(mask, 08:u8))) {
+    contents:u8 := read DP
+    perform "push byte through S" {
+      byte:u8 := contents
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
+  }
+  when not(isZero(bitAnd(mask, 04:u8))) {
+    contents:u8 := read B
+    perform "push byte through S" {
+      byte:u8 := contents
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
+  }
+  when not(isZero(bitAnd(mask, 02:u8))) {
+    contents:u8 := read A
+    perform "push byte through S" {
+      byte:u8 := contents
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
+  }
+  when not(isZero(bitAnd(mask, 01:u8))) {
+    contents:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    perform "push byte through S" {
+      byte:u8 := contents
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
+  }
+}
+when not(isZero(mask)) {
+  write nmiArmed:boolean := true
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 PULS
+
+Fetch the mask before any register or stack effects. Apply ordinary system-stack NMI arming only after the selected action returns successfully.
+
+```text
+mask:u8 := fetch byte
+perform "pullSystemRegisters" {
+  mask:u8 := mask
+  when not(isZero(bitAnd(mask, 01:u8))) {
+    contents:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    perform "replace packed CC" {
+      status:u8 := contents
+      replace flags "restore all condition codes" simultaneously {
+        E := not(isZero(bitAnd(status, 80:u8)))
+        F := not(isZero(bitAnd(status, 40:u8)))
+        H := not(isZero(bitAnd(status, 20:u8)))
+        I := not(isZero(bitAnd(status, 10:u8)))
+        N := not(isZero(bitAnd(status, 08:u8)))
+        Z := not(isZero(bitAnd(status, 04:u8)))
+        V := not(isZero(bitAnd(status, 02:u8)))
+        C := not(isZero(bitAnd(status, 01:u8)))
+      } // Replace the complete flag object.
+    }
+  }
+  when not(isZero(bitAnd(mask, 02:u8))) {
+    contents:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    write A:u8 := contents
+  }
+  when not(isZero(bitAnd(mask, 04:u8))) {
+    contents:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    write B:u8 := contents
+  }
+  when not(isZero(bitAnd(mask, 08:u8))) {
+    contents:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    write DP:u8 := contents
+  }
+  when not(isZero(bitAnd(mask, 10:u8))) {
+    contents:u16 := source "pop high-first word through S" {
+      high:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      low:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      yield concatHighLow(high, low)
+    }
+    write X:u16 := contents
+  }
+  when not(isZero(bitAnd(mask, 20:u8))) {
+    contents:u16 := source "pop high-first word through S" {
+      high:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      low:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      yield concatHighLow(high, low)
+    }
+    write Y:u16 := contents
+  }
+  when not(isZero(bitAnd(mask, 40:u8))) {
+    contents:u16 := source "pop high-first word through S" {
+      high:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      low:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      yield concatHighLow(high, low)
+    }
+    write U:u16 := contents
+  }
+  when not(isZero(bitAnd(mask, 80:u8))) {
+    contents:u16 := source "pop high-first word through S" {
+      high:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      low:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      yield concatHighLow(high, low)
+    }
+    write PC:u16 := contents
+  }
+}
+when not(isZero(mask)) {
+  write nmiArmed:boolean := true
+}
+```
+
+Flags preserved throughout: none.
+
+### 6809 PSHU
+
+Fetch the mask before any register or stack effects. Apply ordinary system-stack NMI arming only after the selected action returns successfully.
+
+```text
+mask:u8 := fetch byte
+perform "pushUserRegisters" {
+  mask:u8 := mask
+  when not(isZero(bitAnd(mask, 80:u8))) {
+    contents:u16 := read PC
+    perform "push high-first word through U" {
+      word:u16 := contents
+      perform "push byte through U" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read U
+        write U:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read U
+        write memory[address] := byte
+      }
+      perform "push byte through U" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read U
+        write U:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read U
+        write memory[address] := byte
+      }
+    }
+  }
+  when not(isZero(bitAnd(mask, 40:u8))) {
+    contents:u16 := read S
+    perform "push high-first word through U" {
+      word:u16 := contents
+      perform "push byte through U" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read U
+        write U:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read U
+        write memory[address] := byte
+      }
+      perform "push byte through U" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read U
+        write U:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read U
+        write memory[address] := byte
+      }
+    }
+  }
+  when not(isZero(bitAnd(mask, 20:u8))) {
+    contents:u16 := read Y
+    perform "push high-first word through U" {
+      word:u16 := contents
+      perform "push byte through U" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read U
+        write U:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read U
+        write memory[address] := byte
+      }
+      perform "push byte through U" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read U
+        write U:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read U
+        write memory[address] := byte
+      }
+    }
+  }
+  when not(isZero(bitAnd(mask, 10:u8))) {
+    contents:u16 := read X
+    perform "push high-first word through U" {
+      word:u16 := contents
+      perform "push byte through U" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read U
+        write U:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read U
+        write memory[address] := byte
+      }
+      perform "push byte through U" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read U
+        write U:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read U
+        write memory[address] := byte
+      }
+    }
+  }
+  when not(isZero(bitAnd(mask, 08:u8))) {
+    contents:u8 := read DP
+    perform "push byte through U" {
+      byte:u8 := contents
+      pointer:u16 := read U
+      write U:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read U
+      write memory[address] := byte
+    }
+  }
+  when not(isZero(bitAnd(mask, 04:u8))) {
+    contents:u8 := read B
+    perform "push byte through U" {
+      byte:u8 := contents
+      pointer:u16 := read U
+      write U:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read U
+      write memory[address] := byte
+    }
+  }
+  when not(isZero(bitAnd(mask, 02:u8))) {
+    contents:u8 := read A
+    perform "push byte through U" {
+      byte:u8 := contents
+      pointer:u16 := read U
+      write U:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read U
+      write memory[address] := byte
+    }
+  }
+  when not(isZero(bitAnd(mask, 01:u8))) {
+    contents:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    perform "push byte through U" {
+      byte:u8 := contents
+      pointer:u16 := read U
+      write U:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read U
+      write memory[address] := byte
+    }
+  }
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 PULU
+
+Fetch the mask before any register or stack effects. Apply ordinary system-stack NMI arming only after the selected action returns successfully.
+
+```text
+mask:u8 := fetch byte
+perform "pullUserRegisters" {
+  mask:u8 := mask
+  when not(isZero(bitAnd(mask, 01:u8))) {
+    contents:u8 := source "pop byte through U" {
+      address:u16 := read U
+      byte:u8 := read memory[address]
+      pointer:u16 := read U
+      write U:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    perform "replace packed CC" {
+      status:u8 := contents
+      replace flags "restore all condition codes" simultaneously {
+        E := not(isZero(bitAnd(status, 80:u8)))
+        F := not(isZero(bitAnd(status, 40:u8)))
+        H := not(isZero(bitAnd(status, 20:u8)))
+        I := not(isZero(bitAnd(status, 10:u8)))
+        N := not(isZero(bitAnd(status, 08:u8)))
+        Z := not(isZero(bitAnd(status, 04:u8)))
+        V := not(isZero(bitAnd(status, 02:u8)))
+        C := not(isZero(bitAnd(status, 01:u8)))
+      } // Replace the complete flag object.
+    }
+  }
+  when not(isZero(bitAnd(mask, 02:u8))) {
+    contents:u8 := source "pop byte through U" {
+      address:u16 := read U
+      byte:u8 := read memory[address]
+      pointer:u16 := read U
+      write U:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    write A:u8 := contents
+  }
+  when not(isZero(bitAnd(mask, 04:u8))) {
+    contents:u8 := source "pop byte through U" {
+      address:u16 := read U
+      byte:u8 := read memory[address]
+      pointer:u16 := read U
+      write U:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    write B:u8 := contents
+  }
+  when not(isZero(bitAnd(mask, 08:u8))) {
+    contents:u8 := source "pop byte through U" {
+      address:u16 := read U
+      byte:u8 := read memory[address]
+      pointer:u16 := read U
+      write U:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    write DP:u8 := contents
+  }
+  when not(isZero(bitAnd(mask, 10:u8))) {
+    contents:u16 := source "pop high-first word through U" {
+      high:u8 := source "pop byte through U" {
+        address:u16 := read U
+        byte:u8 := read memory[address]
+        pointer:u16 := read U
+        write U:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      low:u8 := source "pop byte through U" {
+        address:u16 := read U
+        byte:u8 := read memory[address]
+        pointer:u16 := read U
+        write U:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      yield concatHighLow(high, low)
+    }
+    write X:u16 := contents
+  }
+  when not(isZero(bitAnd(mask, 20:u8))) {
+    contents:u16 := source "pop high-first word through U" {
+      high:u8 := source "pop byte through U" {
+        address:u16 := read U
+        byte:u8 := read memory[address]
+        pointer:u16 := read U
+        write U:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      low:u8 := source "pop byte through U" {
+        address:u16 := read U
+        byte:u8 := read memory[address]
+        pointer:u16 := read U
+        write U:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      yield concatHighLow(high, low)
+    }
+    write Y:u16 := contents
+  }
+  when not(isZero(bitAnd(mask, 40:u8))) {
+    contents:u16 := source "pop high-first word through U" {
+      high:u8 := source "pop byte through U" {
+        address:u16 := read U
+        byte:u8 := read memory[address]
+        pointer:u16 := read U
+        write U:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      low:u8 := source "pop byte through U" {
+        address:u16 := read U
+        byte:u8 := read memory[address]
+        pointer:u16 := read U
+        write U:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      yield concatHighLow(high, low)
+    }
+    perform "write S and arm NMI" {
+      pointer:u16 := contents
+      write S:u16 := pointer
+      write nmiArmed:boolean := true
+    }
+  }
+  when not(isZero(bitAnd(mask, 80:u8))) {
+    contents:u16 := source "pop high-first word through U" {
+      high:u8 := source "pop byte through U" {
+        address:u16 := read U
+        byte:u8 := read memory[address]
+        pointer:u16 := read U
+        write U:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      low:u8 := source "pop byte through U" {
+        address:u16 := read U
+        byte:u8 := read memory[address]
+        pointer:u16 := read U
+        write U:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      yield concatHighLow(high, low)
+    }
+    write PC:u16 := contents
+  }
+}
+```
+
+Flags preserved throughout: none.
+
 ### 6809 RTS
 
 RTS (`$39`) pulls a complete high-first return address and writes PC without incrementing that address. Preserve flags, other registers, and NMI arming. A failed second read retains the first successful S increment and prevents PC replacement; a failed first read makes no stack adjustment.
@@ -329959,6 +332203,489 @@ write X:u16 := addWrap(index, zeroExtend16(byte))
 
 Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
+### 6809 RTI
+
+RTI (`$3B`) restores CC first. The captured restored E then selects the remaining full frame or PC alone. A full return pulls A/B/DP/X/Y/U/PC; a short return pulls only PC. Arm NMI after the complete return succeeds. Failed reads preserve all earlier restored fields and successful stack increments.
+
+```text
+status:u8 := source "pop byte through S" {
+  address:u16 := read S
+  byte:u8 := read memory[address]
+  pointer:u16 := read S
+  write S:u16 := addWrap(pointer, 0001:u16)
+  yield byte
+}
+perform "replace packed CC" {
+  status:u8 := status
+  replace flags "restore all condition codes" simultaneously {
+    E := not(isZero(bitAnd(status, 80:u8)))
+    F := not(isZero(bitAnd(status, 40:u8)))
+    H := not(isZero(bitAnd(status, 20:u8)))
+    I := not(isZero(bitAnd(status, 10:u8)))
+    N := not(isZero(bitAnd(status, 08:u8)))
+    Z := not(isZero(bitAnd(status, 04:u8)))
+    V := not(isZero(bitAnd(status, 02:u8)))
+    C := not(isZero(bitAnd(status, 01:u8)))
+  } // Replace the complete flag object.
+}
+entire:flag := read E
+when entire {
+  perform "pullSystemRegisters" {
+    mask:u8 := FE:u8
+    when not(isZero(bitAnd(mask, 01:u8))) {
+      contents:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      perform "replace packed CC" {
+        status:u8 := contents
+        replace flags "restore all condition codes" simultaneously {
+          E := not(isZero(bitAnd(status, 80:u8)))
+          F := not(isZero(bitAnd(status, 40:u8)))
+          H := not(isZero(bitAnd(status, 20:u8)))
+          I := not(isZero(bitAnd(status, 10:u8)))
+          N := not(isZero(bitAnd(status, 08:u8)))
+          Z := not(isZero(bitAnd(status, 04:u8)))
+          V := not(isZero(bitAnd(status, 02:u8)))
+          C := not(isZero(bitAnd(status, 01:u8)))
+        } // Replace the complete flag object.
+      }
+    }
+    when not(isZero(bitAnd(mask, 02:u8))) {
+      contents:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      write A:u8 := contents
+    }
+    when not(isZero(bitAnd(mask, 04:u8))) {
+      contents:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      write B:u8 := contents
+    }
+    when not(isZero(bitAnd(mask, 08:u8))) {
+      contents:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      write DP:u8 := contents
+    }
+    when not(isZero(bitAnd(mask, 10:u8))) {
+      contents:u16 := source "pop high-first word through S" {
+        high:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        low:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        yield concatHighLow(high, low)
+      }
+      write X:u16 := contents
+    }
+    when not(isZero(bitAnd(mask, 20:u8))) {
+      contents:u16 := source "pop high-first word through S" {
+        high:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        low:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        yield concatHighLow(high, low)
+      }
+      write Y:u16 := contents
+    }
+    when not(isZero(bitAnd(mask, 40:u8))) {
+      contents:u16 := source "pop high-first word through S" {
+        high:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        low:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        yield concatHighLow(high, low)
+      }
+      write U:u16 := contents
+    }
+    when not(isZero(bitAnd(mask, 80:u8))) {
+      contents:u16 := source "pop high-first word through S" {
+        high:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        low:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        yield concatHighLow(high, low)
+      }
+      write PC:u16 := contents
+    }
+  }
+}
+when not(entire) {
+  perform "pullSystemRegisters" {
+    mask:u8 := 80:u8
+    when not(isZero(bitAnd(mask, 01:u8))) {
+      contents:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      perform "replace packed CC" {
+        status:u8 := contents
+        replace flags "restore all condition codes" simultaneously {
+          E := not(isZero(bitAnd(status, 80:u8)))
+          F := not(isZero(bitAnd(status, 40:u8)))
+          H := not(isZero(bitAnd(status, 20:u8)))
+          I := not(isZero(bitAnd(status, 10:u8)))
+          N := not(isZero(bitAnd(status, 08:u8)))
+          Z := not(isZero(bitAnd(status, 04:u8)))
+          V := not(isZero(bitAnd(status, 02:u8)))
+          C := not(isZero(bitAnd(status, 01:u8)))
+        } // Replace the complete flag object.
+      }
+    }
+    when not(isZero(bitAnd(mask, 02:u8))) {
+      contents:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      write A:u8 := contents
+    }
+    when not(isZero(bitAnd(mask, 04:u8))) {
+      contents:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      write B:u8 := contents
+    }
+    when not(isZero(bitAnd(mask, 08:u8))) {
+      contents:u8 := source "pop byte through S" {
+        address:u16 := read S
+        byte:u8 := read memory[address]
+        pointer:u16 := read S
+        write S:u16 := addWrap(pointer, 0001:u16)
+        yield byte
+      }
+      write DP:u8 := contents
+    }
+    when not(isZero(bitAnd(mask, 10:u8))) {
+      contents:u16 := source "pop high-first word through S" {
+        high:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        low:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        yield concatHighLow(high, low)
+      }
+      write X:u16 := contents
+    }
+    when not(isZero(bitAnd(mask, 20:u8))) {
+      contents:u16 := source "pop high-first word through S" {
+        high:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        low:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        yield concatHighLow(high, low)
+      }
+      write Y:u16 := contents
+    }
+    when not(isZero(bitAnd(mask, 40:u8))) {
+      contents:u16 := source "pop high-first word through S" {
+        high:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        low:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        yield concatHighLow(high, low)
+      }
+      write U:u16 := contents
+    }
+    when not(isZero(bitAnd(mask, 80:u8))) {
+      contents:u16 := source "pop high-first word through S" {
+        high:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        low:u8 := source "pop byte through S" {
+          address:u16 := read S
+          byte:u8 := read memory[address]
+          pointer:u16 := read S
+          write S:u16 := addWrap(pointer, 0001:u16)
+          yield byte
+        }
+        yield concatHighLow(high, low)
+      }
+      write PC:u16 := contents
+    }
+  }
+}
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: none.
+
+### 6809 CWAI
+
+A full frame sets E before saving PC/U/Y/X/DP/B/A/CC. Its action is shared by CWAI and software entry. The lower-level masked action also serves external FIRQ's short PC/CC frame. Neither action implicitly arms NMI.
+
+```text
+status:u8 := source "packed condition codes" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+}
+mask:u8 := fetch byte
+replace flags "restore all condition codes" simultaneously {
+  E := not(isZero(bitAnd(bitAnd(status, mask), 80:u8)))
+  F := not(isZero(bitAnd(bitAnd(status, mask), 40:u8)))
+  H := not(isZero(bitAnd(bitAnd(status, mask), 20:u8)))
+  I := not(isZero(bitAnd(bitAnd(status, mask), 10:u8)))
+  N := not(isZero(bitAnd(bitAnd(status, mask), 08:u8)))
+  Z := not(isZero(bitAnd(bitAnd(status, mask), 04:u8)))
+  V := not(isZero(bitAnd(bitAnd(status, mask), 02:u8)))
+  C := not(isZero(bitAnd(bitAnd(status, mask), 01:u8)))
+} // Replace the complete flag object.
+perform "set E and save all interrupt registers" {
+  flags "save an entire interrupt frame" simultaneously {
+    E := 1:flag
+  } // Preserve unlisted flags.
+  perform "pushSystemRegisters" {
+    mask:u8 := FF:u8
+    when not(isZero(bitAnd(mask, 80:u8))) {
+      contents:u16 := read PC
+      perform "push high-first word through S" {
+        word:u16 := contents
+        perform "push byte through S" {
+          byte:u8 := lowByte(word)
+          pointer:u16 := read S
+          write S:u16 := subtract(pointer, 0001:u16)
+          address:u16 := read S
+          write memory[address] := byte
+        }
+        perform "push byte through S" {
+          byte:u8 := highByte(word)
+          pointer:u16 := read S
+          write S:u16 := subtract(pointer, 0001:u16)
+          address:u16 := read S
+          write memory[address] := byte
+        }
+      }
+    }
+    when not(isZero(bitAnd(mask, 40:u8))) {
+      contents:u16 := read U
+      perform "push high-first word through S" {
+        word:u16 := contents
+        perform "push byte through S" {
+          byte:u8 := lowByte(word)
+          pointer:u16 := read S
+          write S:u16 := subtract(pointer, 0001:u16)
+          address:u16 := read S
+          write memory[address] := byte
+        }
+        perform "push byte through S" {
+          byte:u8 := highByte(word)
+          pointer:u16 := read S
+          write S:u16 := subtract(pointer, 0001:u16)
+          address:u16 := read S
+          write memory[address] := byte
+        }
+      }
+    }
+    when not(isZero(bitAnd(mask, 20:u8))) {
+      contents:u16 := read Y
+      perform "push high-first word through S" {
+        word:u16 := contents
+        perform "push byte through S" {
+          byte:u8 := lowByte(word)
+          pointer:u16 := read S
+          write S:u16 := subtract(pointer, 0001:u16)
+          address:u16 := read S
+          write memory[address] := byte
+        }
+        perform "push byte through S" {
+          byte:u8 := highByte(word)
+          pointer:u16 := read S
+          write S:u16 := subtract(pointer, 0001:u16)
+          address:u16 := read S
+          write memory[address] := byte
+        }
+      }
+    }
+    when not(isZero(bitAnd(mask, 10:u8))) {
+      contents:u16 := read X
+      perform "push high-first word through S" {
+        word:u16 := contents
+        perform "push byte through S" {
+          byte:u8 := lowByte(word)
+          pointer:u16 := read S
+          write S:u16 := subtract(pointer, 0001:u16)
+          address:u16 := read S
+          write memory[address] := byte
+        }
+        perform "push byte through S" {
+          byte:u8 := highByte(word)
+          pointer:u16 := read S
+          write S:u16 := subtract(pointer, 0001:u16)
+          address:u16 := read S
+          write memory[address] := byte
+        }
+      }
+    }
+    when not(isZero(bitAnd(mask, 08:u8))) {
+      contents:u8 := read DP
+      perform "push byte through S" {
+        byte:u8 := contents
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+    }
+    when not(isZero(bitAnd(mask, 04:u8))) {
+      contents:u8 := read B
+      perform "push byte through S" {
+        byte:u8 := contents
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+    }
+    when not(isZero(bitAnd(mask, 02:u8))) {
+      contents:u8 := read A
+      perform "push byte through S" {
+        byte:u8 := contents
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+    }
+    when not(isZero(bitAnd(mask, 01:u8))) {
+      contents:u8 := source "packed condition codes" {
+        e:flag := read E
+        f:flag := read F
+        h:flag := read H
+        i:flag := read I
+        n:flag := read N
+        z:flag := read Z
+        v:flag := read V
+        c:flag := read C
+        ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+        hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+        nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+        vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+        yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+      }
+      perform "push byte through S" {
+        byte:u8 := contents
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+    }
+  }
+}
+write control waitMode := "cwai"
+```
+
+Flags preserved throughout: none.
+
 ### 6809 MUL
 
 Read A then B and multiply their captured unsigned bytes. Write the complete product into D as A then B, then apply Z and C. Preserve E/F/H/I/N/V and all pointers and control state; no memory access occurs.
@@ -329979,6 +332706,196 @@ flags "MUL Z/C" simultaneously {
 ```
 
 Flags preserved throughout: E, F, H, I, N, V.
+
+### 6809 SWI
+
+SWI is base-page `$3F`, SWI2 is `$10 $3F`, and SWI3 is `$11 $3F`. All use a full frame unless CWAI already saved one. SWI sets I/F **after** saving the original CC; SWI2/SWI3 preserve them. Replace CC and leave waiting before reading the vector high then low; write PC only after both reads succeed. The vectors are `$FFFA`, `$FFF4`, and `$FFF2` respectively.
+
+```text
+perform "save frame and read software vector" {
+  vector:u16 := FFFA:u16
+  masks:u8 := 50:u8
+  waiting:flag := test control waitMode equals "cwai"
+  when not(waiting) {
+    perform "set E and save all interrupt registers" {
+      flags "save an entire interrupt frame" simultaneously {
+        E := 1:flag
+      } // Preserve unlisted flags.
+      perform "pushSystemRegisters" {
+        mask:u8 := FF:u8
+        when not(isZero(bitAnd(mask, 80:u8))) {
+          contents:u16 := read PC
+          perform "push high-first word through S" {
+            word:u16 := contents
+            perform "push byte through S" {
+              byte:u8 := lowByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+            perform "push byte through S" {
+              byte:u8 := highByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+          }
+        }
+        when not(isZero(bitAnd(mask, 40:u8))) {
+          contents:u16 := read U
+          perform "push high-first word through S" {
+            word:u16 := contents
+            perform "push byte through S" {
+              byte:u8 := lowByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+            perform "push byte through S" {
+              byte:u8 := highByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+          }
+        }
+        when not(isZero(bitAnd(mask, 20:u8))) {
+          contents:u16 := read Y
+          perform "push high-first word through S" {
+            word:u16 := contents
+            perform "push byte through S" {
+              byte:u8 := lowByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+            perform "push byte through S" {
+              byte:u8 := highByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+          }
+        }
+        when not(isZero(bitAnd(mask, 10:u8))) {
+          contents:u16 := read X
+          perform "push high-first word through S" {
+            word:u16 := contents
+            perform "push byte through S" {
+              byte:u8 := lowByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+            perform "push byte through S" {
+              byte:u8 := highByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+          }
+        }
+        when not(isZero(bitAnd(mask, 08:u8))) {
+          contents:u8 := read DP
+          perform "push byte through S" {
+            byte:u8 := contents
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+        when not(isZero(bitAnd(mask, 04:u8))) {
+          contents:u8 := read B
+          perform "push byte through S" {
+            byte:u8 := contents
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+        when not(isZero(bitAnd(mask, 02:u8))) {
+          contents:u8 := read A
+          perform "push byte through S" {
+            byte:u8 := contents
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+        when not(isZero(bitAnd(mask, 01:u8))) {
+          contents:u8 := source "packed condition codes" {
+            e:flag := read E
+            f:flag := read F
+            h:flag := read H
+            i:flag := read I
+            n:flag := read N
+            z:flag := read Z
+            v:flag := read V
+            c:flag := read C
+            ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+            hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+            nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+            vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+            yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+          }
+          perform "push byte through S" {
+            byte:u8 := contents
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+      }
+    }
+  }
+  perform "set interrupt masks in CC" {
+    mask:u8 := masks
+    status:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    replace flags "restore all condition codes" simultaneously {
+      E := not(isZero(bitAnd(bitOr(status, mask), 80:u8)))
+      F := not(isZero(bitAnd(bitOr(status, mask), 40:u8)))
+      H := not(isZero(bitAnd(bitOr(status, mask), 20:u8)))
+      I := not(isZero(bitAnd(bitOr(status, mask), 10:u8)))
+      N := not(isZero(bitAnd(bitOr(status, mask), 08:u8)))
+      Z := not(isZero(bitAnd(bitOr(status, mask), 04:u8)))
+      V := not(isZero(bitAnd(bitOr(status, mask), 02:u8)))
+      C := not(isZero(bitAnd(bitOr(status, mask), 01:u8)))
+    } // Replace the complete flag object.
+  }
+  write control waitMode := "none"
+  high:u8 := read memory[vector]
+  low:u8 := read memory[addWrap(vector, 0001:u16)]
+  write PC:u16 := concatHighLow(high, low)
+}
+```
+
+Flags preserved throughout: none.
 
 ### 6809 NEGA
 
@@ -355792,6 +358709,196 @@ when xor(and(not(z), not(xor(n, v))), lowBit(inverse)) {
 
 Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
+### 6809 SWI2
+
+SWI is base-page `$3F`, SWI2 is `$10 $3F`, and SWI3 is `$11 $3F`. All use a full frame unless CWAI already saved one. SWI sets I/F **after** saving the original CC; SWI2/SWI3 preserve them. Replace CC and leave waiting before reading the vector high then low; write PC only after both reads succeed. The vectors are `$FFFA`, `$FFF4`, and `$FFF2` respectively.
+
+```text
+perform "save frame and read software vector" {
+  vector:u16 := FFF4:u16
+  masks:u8 := 00:u8
+  waiting:flag := test control waitMode equals "cwai"
+  when not(waiting) {
+    perform "set E and save all interrupt registers" {
+      flags "save an entire interrupt frame" simultaneously {
+        E := 1:flag
+      } // Preserve unlisted flags.
+      perform "pushSystemRegisters" {
+        mask:u8 := FF:u8
+        when not(isZero(bitAnd(mask, 80:u8))) {
+          contents:u16 := read PC
+          perform "push high-first word through S" {
+            word:u16 := contents
+            perform "push byte through S" {
+              byte:u8 := lowByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+            perform "push byte through S" {
+              byte:u8 := highByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+          }
+        }
+        when not(isZero(bitAnd(mask, 40:u8))) {
+          contents:u16 := read U
+          perform "push high-first word through S" {
+            word:u16 := contents
+            perform "push byte through S" {
+              byte:u8 := lowByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+            perform "push byte through S" {
+              byte:u8 := highByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+          }
+        }
+        when not(isZero(bitAnd(mask, 20:u8))) {
+          contents:u16 := read Y
+          perform "push high-first word through S" {
+            word:u16 := contents
+            perform "push byte through S" {
+              byte:u8 := lowByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+            perform "push byte through S" {
+              byte:u8 := highByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+          }
+        }
+        when not(isZero(bitAnd(mask, 10:u8))) {
+          contents:u16 := read X
+          perform "push high-first word through S" {
+            word:u16 := contents
+            perform "push byte through S" {
+              byte:u8 := lowByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+            perform "push byte through S" {
+              byte:u8 := highByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+          }
+        }
+        when not(isZero(bitAnd(mask, 08:u8))) {
+          contents:u8 := read DP
+          perform "push byte through S" {
+            byte:u8 := contents
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+        when not(isZero(bitAnd(mask, 04:u8))) {
+          contents:u8 := read B
+          perform "push byte through S" {
+            byte:u8 := contents
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+        when not(isZero(bitAnd(mask, 02:u8))) {
+          contents:u8 := read A
+          perform "push byte through S" {
+            byte:u8 := contents
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+        when not(isZero(bitAnd(mask, 01:u8))) {
+          contents:u8 := source "packed condition codes" {
+            e:flag := read E
+            f:flag := read F
+            h:flag := read H
+            i:flag := read I
+            n:flag := read N
+            z:flag := read Z
+            v:flag := read V
+            c:flag := read C
+            ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+            hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+            nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+            vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+            yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+          }
+          perform "push byte through S" {
+            byte:u8 := contents
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+      }
+    }
+  }
+  perform "set interrupt masks in CC" {
+    mask:u8 := masks
+    status:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    replace flags "restore all condition codes" simultaneously {
+      E := not(isZero(bitAnd(bitOr(status, mask), 80:u8)))
+      F := not(isZero(bitAnd(bitOr(status, mask), 40:u8)))
+      H := not(isZero(bitAnd(bitOr(status, mask), 20:u8)))
+      I := not(isZero(bitAnd(bitOr(status, mask), 10:u8)))
+      N := not(isZero(bitAnd(bitOr(status, mask), 08:u8)))
+      Z := not(isZero(bitAnd(bitOr(status, mask), 04:u8)))
+      V := not(isZero(bitAnd(bitOr(status, mask), 02:u8)))
+      C := not(isZero(bitAnd(bitOr(status, mask), 01:u8)))
+    } // Replace the complete flag object.
+  }
+  write control waitMode := "none"
+  high:u8 := read memory[vector]
+  low:u8 := read memory[addWrap(vector, 0001:u16)]
+  write PC:u16 := concatHighLow(high, low)
+}
+```
+
+Flags preserved throughout: none.
+
 ### 6809 CMPD #word
 
 CMPD reads its complete operand before D. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
@@ -359256,6 +362363,196 @@ flags "word result" simultaneously {
 
 Flags preserved throughout: E, F, H, I, C.
 
+### 6809 SWI3
+
+SWI is base-page `$3F`, SWI2 is `$10 $3F`, and SWI3 is `$11 $3F`. All use a full frame unless CWAI already saved one. SWI sets I/F **after** saving the original CC; SWI2/SWI3 preserve them. Replace CC and leave waiting before reading the vector high then low; write PC only after both reads succeed. The vectors are `$FFFA`, `$FFF4`, and `$FFF2` respectively.
+
+```text
+perform "save frame and read software vector" {
+  vector:u16 := FFF2:u16
+  masks:u8 := 00:u8
+  waiting:flag := test control waitMode equals "cwai"
+  when not(waiting) {
+    perform "set E and save all interrupt registers" {
+      flags "save an entire interrupt frame" simultaneously {
+        E := 1:flag
+      } // Preserve unlisted flags.
+      perform "pushSystemRegisters" {
+        mask:u8 := FF:u8
+        when not(isZero(bitAnd(mask, 80:u8))) {
+          contents:u16 := read PC
+          perform "push high-first word through S" {
+            word:u16 := contents
+            perform "push byte through S" {
+              byte:u8 := lowByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+            perform "push byte through S" {
+              byte:u8 := highByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+          }
+        }
+        when not(isZero(bitAnd(mask, 40:u8))) {
+          contents:u16 := read U
+          perform "push high-first word through S" {
+            word:u16 := contents
+            perform "push byte through S" {
+              byte:u8 := lowByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+            perform "push byte through S" {
+              byte:u8 := highByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+          }
+        }
+        when not(isZero(bitAnd(mask, 20:u8))) {
+          contents:u16 := read Y
+          perform "push high-first word through S" {
+            word:u16 := contents
+            perform "push byte through S" {
+              byte:u8 := lowByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+            perform "push byte through S" {
+              byte:u8 := highByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+          }
+        }
+        when not(isZero(bitAnd(mask, 10:u8))) {
+          contents:u16 := read X
+          perform "push high-first word through S" {
+            word:u16 := contents
+            perform "push byte through S" {
+              byte:u8 := lowByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+            perform "push byte through S" {
+              byte:u8 := highByte(word)
+              pointer:u16 := read S
+              write S:u16 := subtract(pointer, 0001:u16)
+              address:u16 := read S
+              write memory[address] := byte
+            }
+          }
+        }
+        when not(isZero(bitAnd(mask, 08:u8))) {
+          contents:u8 := read DP
+          perform "push byte through S" {
+            byte:u8 := contents
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+        when not(isZero(bitAnd(mask, 04:u8))) {
+          contents:u8 := read B
+          perform "push byte through S" {
+            byte:u8 := contents
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+        when not(isZero(bitAnd(mask, 02:u8))) {
+          contents:u8 := read A
+          perform "push byte through S" {
+            byte:u8 := contents
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+        when not(isZero(bitAnd(mask, 01:u8))) {
+          contents:u8 := source "packed condition codes" {
+            e:flag := read E
+            f:flag := read F
+            h:flag := read H
+            i:flag := read I
+            n:flag := read N
+            z:flag := read Z
+            v:flag := read V
+            c:flag := read C
+            ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+            hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+            nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+            vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+            yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+          }
+          perform "push byte through S" {
+            byte:u8 := contents
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+      }
+    }
+  }
+  perform "set interrupt masks in CC" {
+    mask:u8 := masks
+    status:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    replace flags "restore all condition codes" simultaneously {
+      E := not(isZero(bitAnd(bitOr(status, mask), 80:u8)))
+      F := not(isZero(bitAnd(bitOr(status, mask), 40:u8)))
+      H := not(isZero(bitAnd(bitOr(status, mask), 20:u8)))
+      I := not(isZero(bitAnd(bitOr(status, mask), 10:u8)))
+      N := not(isZero(bitAnd(bitOr(status, mask), 08:u8)))
+      Z := not(isZero(bitAnd(bitOr(status, mask), 04:u8)))
+      V := not(isZero(bitAnd(bitOr(status, mask), 02:u8)))
+      C := not(isZero(bitAnd(bitOr(status, mask), 01:u8)))
+    } // Replace the complete flag object.
+  }
+  write control waitMode := "none"
+  high:u8 := read memory[vector]
+  low:u8 := read memory[addWrap(vector, 0001:u16)]
+  write PC:u16 := concatHighLow(high, low)
+}
+```
+
+Flags preserved throughout: none.
+
 ### 6809 CMPU #word
 
 CMPU reads its complete operand before U. Apply full-word N/Z/V/C from subtraction, with C meaning borrow, preserving E/F/H/I. Do not write a result; completed addressing effects remain if an operand access fails.
@@ -360481,6 +363778,38 @@ replace flags "restore all condition codes" simultaneously {
 
 Flags preserved throughout: none.
 
+### 6809 replace packed CC
+
+Writable views keep the special register rules beside their definitions. D splits A then B; CC replaces all flags; an explicit S write arms NMI. Even TFR reads both originals before its first write. EXG writes the destination first, then the original destination to the source. This matters for aliases and for observing a partial write failure.
+
+```text
+status:u8 := input
+replace flags "restore all condition codes" simultaneously {
+  E := not(isZero(bitAnd(status, 80:u8)))
+  F := not(isZero(bitAnd(status, 40:u8)))
+  H := not(isZero(bitAnd(status, 20:u8)))
+  I := not(isZero(bitAnd(status, 10:u8)))
+  N := not(isZero(bitAnd(status, 08:u8)))
+  Z := not(isZero(bitAnd(status, 04:u8)))
+  V := not(isZero(bitAnd(status, 02:u8)))
+  C := not(isZero(bitAnd(status, 01:u8)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### 6809 write S and arm NMI
+
+Writable views keep the special register rules beside their definitions. D splits A then B; CC replaces all flags; an explicit S write arms NMI. Even TFR reads both originals before its first write. EXG writes the destination first, then the original destination to the source. This matters for aliases and for observing a partial write failure.
+
+```text
+pointer:u16 := input
+write S:u16 := pointer
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
 ### 6809 arm NMI after indexed S update
 
 The outer match captures the selected base before decoding the mode, including PC-relative and invalid forms. Auto-updates use that captured base. Updating S arms NMI before any later indirect read; an ordinary offset does not. The five-bit offset is extended with `$FFE0` when bit four is set. Byte offsets use signed extension; adding an entire word modulo 65536 also gives its signed interpretation. Every addition and pointer read wraps at sixteen bits.
@@ -360543,6 +363872,44 @@ perform "push byte through S" {
 
 Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
+### 6809 push byte through U
+
+Words occupy high/low order at ascending addresses. A descending stack therefore pushes low then high and pulls high then low. Ordinary calls and RTS preserve the NMI-arming latch, even though they adjust S. Explicit S-register writes and indexed auto-updates have their separate arming policies.
+
+```text
+byte:u8 := input
+pointer:u16 := read U
+write U:u16 := subtract(pointer, 0001:u16)
+address:u16 := read U
+write memory[address] := byte
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 push high-first word through U
+
+Words occupy high/low order at ascending addresses. A descending stack therefore pushes low then high and pulls high then low. Ordinary calls and RTS preserve the NMI-arming latch, even though they adjust S. Explicit S-register writes and indexed auto-updates have their separate arming policies.
+
+```text
+word:u16 := input
+perform "push byte through U" {
+  byte:u8 := lowByte(word)
+  pointer:u16 := read U
+  write U:u16 := subtract(pointer, 0001:u16)
+  address:u16 := read U
+  write memory[address] := byte
+}
+perform "push byte through U" {
+  byte:u8 := highByte(word)
+  pointer:u16 := read U
+  write U:u16 := subtract(pointer, 0001:u16)
+  address:u16 := read U
+  write memory[address] := byte
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
 ### 6809 save return address and call
 
 Words occupy high/low order at ascending addresses. A descending stack therefore pushes low then high and pulls high then low. Ordinary calls and RTS preserve the NMI-arming latch, even though they adjust S. Explicit S-register writes and indexed auto-updates have their separate arming policies.
@@ -360572,3110 +363939,121 @@ write PC:u16 := target
 
 Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
-### 6809 SWI
+### 6809 pushSystemRegisters
 
-Unless CWAI already saved a frame, set E and push the full frame in PC/U/Y/X/DP/B/A/CC order. Then repack and replace CC with the instruction's interrupt masks, leave waiting, and fetch the complete high-first vector. S wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+The four actions spell out that order using the byte/word primitives above. An empty mask does nothing. Ordinary PSHS/PULS arm NMI after a nonempty mask completes; a PULU write to S arms it immediately at that field's turn. Saving an interrupt frame uses the same S push action without ordinary PSHS arming.
 
 ```text
-waiting:flag := test control waitMode equals "cwai"
-when not(waiting) {
-  flags "entire interrupt frame" simultaneously {
-    E := 1:flag
-  } // Preserve unlisted flags.
-  frame7:u16 := source "register PC" {
-    contents:u16 := read PC
-    yield contents
-  }
-  frame7FirstPointer:u16 := read S
-  write S:u16 := subtract(frame7FirstPointer, 0001:u16)
-  frame7FirstAddress:u16 := read S
-  write memory[frame7FirstAddress] := lowByte(frame7)
-  frame7SecondPointer:u16 := read S
-  write S:u16 := subtract(frame7SecondPointer, 0001:u16)
-  frame7SecondAddress:u16 := read S
-  write memory[frame7SecondAddress] := highByte(frame7)
-  frame6:u16 := source "register U" {
-    contents:u16 := read U
-    yield contents
-  }
-  frame6FirstPointer:u16 := read S
-  write S:u16 := subtract(frame6FirstPointer, 0001:u16)
-  frame6FirstAddress:u16 := read S
-  write memory[frame6FirstAddress] := lowByte(frame6)
-  frame6SecondPointer:u16 := read S
-  write S:u16 := subtract(frame6SecondPointer, 0001:u16)
-  frame6SecondAddress:u16 := read S
-  write memory[frame6SecondAddress] := highByte(frame6)
-  frame5:u16 := source "register Y" {
-    contents:u16 := read Y
-    yield contents
-  }
-  frame5FirstPointer:u16 := read S
-  write S:u16 := subtract(frame5FirstPointer, 0001:u16)
-  frame5FirstAddress:u16 := read S
-  write memory[frame5FirstAddress] := lowByte(frame5)
-  frame5SecondPointer:u16 := read S
-  write S:u16 := subtract(frame5SecondPointer, 0001:u16)
-  frame5SecondAddress:u16 := read S
-  write memory[frame5SecondAddress] := highByte(frame5)
-  frame4:u16 := source "register X" {
-    contents:u16 := read X
-    yield contents
-  }
-  frame4FirstPointer:u16 := read S
-  write S:u16 := subtract(frame4FirstPointer, 0001:u16)
-  frame4FirstAddress:u16 := read S
-  write memory[frame4FirstAddress] := lowByte(frame4)
-  frame4SecondPointer:u16 := read S
-  write S:u16 := subtract(frame4SecondPointer, 0001:u16)
-  frame4SecondAddress:u16 := read S
-  write memory[frame4SecondAddress] := highByte(frame4)
-  frame3:u8 := source "register DP" {
-    contents:u8 := read DP
-    yield contents
-  }
-  frame3Pointer:u16 := read S
-  write S:u16 := subtract(frame3Pointer, 0001:u16)
-  frame3Address:u16 := read S
-  write memory[frame3Address] := frame3
-  frame2:u8 := source "register B" {
-    contents:u8 := read B
-    yield contents
-  }
-  frame2Pointer:u16 := read S
-  write S:u16 := subtract(frame2Pointer, 0001:u16)
-  frame2Address:u16 := read S
-  write memory[frame2Address] := frame2
-  frame1:u8 := source "register A" {
-    contents:u8 := read A
-    yield contents
-  }
-  frame1Pointer:u16 := read S
-  write S:u16 := subtract(frame1Pointer, 0001:u16)
-  frame1Address:u16 := read S
-  write memory[frame1Address] := frame1
-  frame0:u8 := source "packed condition codes" {
-    e:flag := read E
-    f:flag := read F
-    h:flag := read H
-    i:flag := read I
-    n:flag := read N
-    z:flag := read Z
-    v:flag := read V
-    c:flag := read C
-    ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-    hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-    nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-    vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-    yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-  }
-  frame0Pointer:u16 := read S
-  write S:u16 := subtract(frame0Pointer, 0001:u16)
-  frame0Address:u16 := read S
-  write memory[frame0Address] := frame0
-}
-status:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(bitOr(status, 50:u8), 80:u8)))
-  F := not(isZero(bitAnd(bitOr(status, 50:u8), 40:u8)))
-  H := not(isZero(bitAnd(bitOr(status, 50:u8), 20:u8)))
-  I := not(isZero(bitAnd(bitOr(status, 50:u8), 10:u8)))
-  N := not(isZero(bitAnd(bitOr(status, 50:u8), 08:u8)))
-  Z := not(isZero(bitAnd(bitOr(status, 50:u8), 04:u8)))
-  V := not(isZero(bitAnd(bitOr(status, 50:u8), 02:u8)))
-  C := not(isZero(bitAnd(bitOr(status, 50:u8), 01:u8)))
-} // Replace the complete flag object.
-write control waitMode := "none"
-vectorHigh:u8 := read memory[FFFA:u16]
-vectorLow:u8 := read memory[addWrap(FFFA:u16, 0001:u16)]
-write PC:u16 := concatHighLow(vectorHigh, vectorLow)
-```
-
-Flags preserved throughout: none.
-
-### 6809 SWI2
-
-Unless CWAI already saved a frame, set E and push the full frame in PC/U/Y/X/DP/B/A/CC order. Then repack and replace CC with the instruction's interrupt masks, leave waiting, and fetch the complete high-first vector. S wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
-
-```text
-waiting:flag := test control waitMode equals "cwai"
-when not(waiting) {
-  flags "entire interrupt frame" simultaneously {
-    E := 1:flag
-  } // Preserve unlisted flags.
-  frame7:u16 := source "register PC" {
-    contents:u16 := read PC
-    yield contents
-  }
-  frame7FirstPointer:u16 := read S
-  write S:u16 := subtract(frame7FirstPointer, 0001:u16)
-  frame7FirstAddress:u16 := read S
-  write memory[frame7FirstAddress] := lowByte(frame7)
-  frame7SecondPointer:u16 := read S
-  write S:u16 := subtract(frame7SecondPointer, 0001:u16)
-  frame7SecondAddress:u16 := read S
-  write memory[frame7SecondAddress] := highByte(frame7)
-  frame6:u16 := source "register U" {
-    contents:u16 := read U
-    yield contents
-  }
-  frame6FirstPointer:u16 := read S
-  write S:u16 := subtract(frame6FirstPointer, 0001:u16)
-  frame6FirstAddress:u16 := read S
-  write memory[frame6FirstAddress] := lowByte(frame6)
-  frame6SecondPointer:u16 := read S
-  write S:u16 := subtract(frame6SecondPointer, 0001:u16)
-  frame6SecondAddress:u16 := read S
-  write memory[frame6SecondAddress] := highByte(frame6)
-  frame5:u16 := source "register Y" {
-    contents:u16 := read Y
-    yield contents
-  }
-  frame5FirstPointer:u16 := read S
-  write S:u16 := subtract(frame5FirstPointer, 0001:u16)
-  frame5FirstAddress:u16 := read S
-  write memory[frame5FirstAddress] := lowByte(frame5)
-  frame5SecondPointer:u16 := read S
-  write S:u16 := subtract(frame5SecondPointer, 0001:u16)
-  frame5SecondAddress:u16 := read S
-  write memory[frame5SecondAddress] := highByte(frame5)
-  frame4:u16 := source "register X" {
-    contents:u16 := read X
-    yield contents
-  }
-  frame4FirstPointer:u16 := read S
-  write S:u16 := subtract(frame4FirstPointer, 0001:u16)
-  frame4FirstAddress:u16 := read S
-  write memory[frame4FirstAddress] := lowByte(frame4)
-  frame4SecondPointer:u16 := read S
-  write S:u16 := subtract(frame4SecondPointer, 0001:u16)
-  frame4SecondAddress:u16 := read S
-  write memory[frame4SecondAddress] := highByte(frame4)
-  frame3:u8 := source "register DP" {
-    contents:u8 := read DP
-    yield contents
-  }
-  frame3Pointer:u16 := read S
-  write S:u16 := subtract(frame3Pointer, 0001:u16)
-  frame3Address:u16 := read S
-  write memory[frame3Address] := frame3
-  frame2:u8 := source "register B" {
-    contents:u8 := read B
-    yield contents
-  }
-  frame2Pointer:u16 := read S
-  write S:u16 := subtract(frame2Pointer, 0001:u16)
-  frame2Address:u16 := read S
-  write memory[frame2Address] := frame2
-  frame1:u8 := source "register A" {
-    contents:u8 := read A
-    yield contents
-  }
-  frame1Pointer:u16 := read S
-  write S:u16 := subtract(frame1Pointer, 0001:u16)
-  frame1Address:u16 := read S
-  write memory[frame1Address] := frame1
-  frame0:u8 := source "packed condition codes" {
-    e:flag := read E
-    f:flag := read F
-    h:flag := read H
-    i:flag := read I
-    n:flag := read N
-    z:flag := read Z
-    v:flag := read V
-    c:flag := read C
-    ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-    hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-    nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-    vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-    yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-  }
-  frame0Pointer:u16 := read S
-  write S:u16 := subtract(frame0Pointer, 0001:u16)
-  frame0Address:u16 := read S
-  write memory[frame0Address] := frame0
-}
-status:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(bitOr(status, 00:u8), 80:u8)))
-  F := not(isZero(bitAnd(bitOr(status, 00:u8), 40:u8)))
-  H := not(isZero(bitAnd(bitOr(status, 00:u8), 20:u8)))
-  I := not(isZero(bitAnd(bitOr(status, 00:u8), 10:u8)))
-  N := not(isZero(bitAnd(bitOr(status, 00:u8), 08:u8)))
-  Z := not(isZero(bitAnd(bitOr(status, 00:u8), 04:u8)))
-  V := not(isZero(bitAnd(bitOr(status, 00:u8), 02:u8)))
-  C := not(isZero(bitAnd(bitOr(status, 00:u8), 01:u8)))
-} // Replace the complete flag object.
-write control waitMode := "none"
-vectorHigh:u8 := read memory[FFF4:u16]
-vectorLow:u8 := read memory[addWrap(FFF4:u16, 0001:u16)]
-write PC:u16 := concatHighLow(vectorHigh, vectorLow)
-```
-
-Flags preserved throughout: none.
-
-### 6809 SWI3
-
-Unless CWAI already saved a frame, set E and push the full frame in PC/U/Y/X/DP/B/A/CC order. Then repack and replace CC with the instruction's interrupt masks, leave waiting, and fetch the complete high-first vector. S wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
-
-```text
-waiting:flag := test control waitMode equals "cwai"
-when not(waiting) {
-  flags "entire interrupt frame" simultaneously {
-    E := 1:flag
-  } // Preserve unlisted flags.
-  frame7:u16 := source "register PC" {
-    contents:u16 := read PC
-    yield contents
-  }
-  frame7FirstPointer:u16 := read S
-  write S:u16 := subtract(frame7FirstPointer, 0001:u16)
-  frame7FirstAddress:u16 := read S
-  write memory[frame7FirstAddress] := lowByte(frame7)
-  frame7SecondPointer:u16 := read S
-  write S:u16 := subtract(frame7SecondPointer, 0001:u16)
-  frame7SecondAddress:u16 := read S
-  write memory[frame7SecondAddress] := highByte(frame7)
-  frame6:u16 := source "register U" {
-    contents:u16 := read U
-    yield contents
-  }
-  frame6FirstPointer:u16 := read S
-  write S:u16 := subtract(frame6FirstPointer, 0001:u16)
-  frame6FirstAddress:u16 := read S
-  write memory[frame6FirstAddress] := lowByte(frame6)
-  frame6SecondPointer:u16 := read S
-  write S:u16 := subtract(frame6SecondPointer, 0001:u16)
-  frame6SecondAddress:u16 := read S
-  write memory[frame6SecondAddress] := highByte(frame6)
-  frame5:u16 := source "register Y" {
-    contents:u16 := read Y
-    yield contents
-  }
-  frame5FirstPointer:u16 := read S
-  write S:u16 := subtract(frame5FirstPointer, 0001:u16)
-  frame5FirstAddress:u16 := read S
-  write memory[frame5FirstAddress] := lowByte(frame5)
-  frame5SecondPointer:u16 := read S
-  write S:u16 := subtract(frame5SecondPointer, 0001:u16)
-  frame5SecondAddress:u16 := read S
-  write memory[frame5SecondAddress] := highByte(frame5)
-  frame4:u16 := source "register X" {
-    contents:u16 := read X
-    yield contents
-  }
-  frame4FirstPointer:u16 := read S
-  write S:u16 := subtract(frame4FirstPointer, 0001:u16)
-  frame4FirstAddress:u16 := read S
-  write memory[frame4FirstAddress] := lowByte(frame4)
-  frame4SecondPointer:u16 := read S
-  write S:u16 := subtract(frame4SecondPointer, 0001:u16)
-  frame4SecondAddress:u16 := read S
-  write memory[frame4SecondAddress] := highByte(frame4)
-  frame3:u8 := source "register DP" {
-    contents:u8 := read DP
-    yield contents
-  }
-  frame3Pointer:u16 := read S
-  write S:u16 := subtract(frame3Pointer, 0001:u16)
-  frame3Address:u16 := read S
-  write memory[frame3Address] := frame3
-  frame2:u8 := source "register B" {
-    contents:u8 := read B
-    yield contents
-  }
-  frame2Pointer:u16 := read S
-  write S:u16 := subtract(frame2Pointer, 0001:u16)
-  frame2Address:u16 := read S
-  write memory[frame2Address] := frame2
-  frame1:u8 := source "register A" {
-    contents:u8 := read A
-    yield contents
-  }
-  frame1Pointer:u16 := read S
-  write S:u16 := subtract(frame1Pointer, 0001:u16)
-  frame1Address:u16 := read S
-  write memory[frame1Address] := frame1
-  frame0:u8 := source "packed condition codes" {
-    e:flag := read E
-    f:flag := read F
-    h:flag := read H
-    i:flag := read I
-    n:flag := read N
-    z:flag := read Z
-    v:flag := read V
-    c:flag := read C
-    ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-    hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-    nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-    vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-    yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-  }
-  frame0Pointer:u16 := read S
-  write S:u16 := subtract(frame0Pointer, 0001:u16)
-  frame0Address:u16 := read S
-  write memory[frame0Address] := frame0
-}
-status:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(bitOr(status, 00:u8), 80:u8)))
-  F := not(isZero(bitAnd(bitOr(status, 00:u8), 40:u8)))
-  H := not(isZero(bitAnd(bitOr(status, 00:u8), 20:u8)))
-  I := not(isZero(bitAnd(bitOr(status, 00:u8), 10:u8)))
-  N := not(isZero(bitAnd(bitOr(status, 00:u8), 08:u8)))
-  Z := not(isZero(bitAnd(bitOr(status, 00:u8), 04:u8)))
-  V := not(isZero(bitAnd(bitOr(status, 00:u8), 02:u8)))
-  C := not(isZero(bitAnd(bitOr(status, 00:u8), 01:u8)))
-} // Replace the complete flag object.
-write control waitMode := "none"
-vectorHigh:u8 := read memory[FFF2:u16]
-vectorLow:u8 := read memory[addWrap(FFF2:u16, 0001:u16)]
-write PC:u16 := concatHighLow(vectorHigh, vectorLow)
-```
-
-Flags preserved throughout: none.
-
-### 6809 SYNC
-
-Enter SYNC without accessing registers, flags, or memory.
-
-```text
-write control waitMode := "sync"
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 CWAI
-
-Capture CC before fetching the mask, replace flags with their masked values, set E, and save the complete frame. Enter CWAI only after every push succeeds. S wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
-
-```text
-status:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-mask:u8 := fetch byte
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(bitAnd(status, mask), 80:u8)))
-  F := not(isZero(bitAnd(bitAnd(status, mask), 40:u8)))
-  H := not(isZero(bitAnd(bitAnd(status, mask), 20:u8)))
-  I := not(isZero(bitAnd(bitAnd(status, mask), 10:u8)))
-  N := not(isZero(bitAnd(bitAnd(status, mask), 08:u8)))
-  Z := not(isZero(bitAnd(bitAnd(status, mask), 04:u8)))
-  V := not(isZero(bitAnd(bitAnd(status, mask), 02:u8)))
-  C := not(isZero(bitAnd(bitAnd(status, mask), 01:u8)))
-} // Replace the complete flag object.
-flags "entire interrupt frame" simultaneously {
-  E := 1:flag
-} // Preserve unlisted flags.
-frame7:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-frame7FirstPointer:u16 := read S
-write S:u16 := subtract(frame7FirstPointer, 0001:u16)
-frame7FirstAddress:u16 := read S
-write memory[frame7FirstAddress] := lowByte(frame7)
-frame7SecondPointer:u16 := read S
-write S:u16 := subtract(frame7SecondPointer, 0001:u16)
-frame7SecondAddress:u16 := read S
-write memory[frame7SecondAddress] := highByte(frame7)
-frame6:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-frame6FirstPointer:u16 := read S
-write S:u16 := subtract(frame6FirstPointer, 0001:u16)
-frame6FirstAddress:u16 := read S
-write memory[frame6FirstAddress] := lowByte(frame6)
-frame6SecondPointer:u16 := read S
-write S:u16 := subtract(frame6SecondPointer, 0001:u16)
-frame6SecondAddress:u16 := read S
-write memory[frame6SecondAddress] := highByte(frame6)
-frame5:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-frame5FirstPointer:u16 := read S
-write S:u16 := subtract(frame5FirstPointer, 0001:u16)
-frame5FirstAddress:u16 := read S
-write memory[frame5FirstAddress] := lowByte(frame5)
-frame5SecondPointer:u16 := read S
-write S:u16 := subtract(frame5SecondPointer, 0001:u16)
-frame5SecondAddress:u16 := read S
-write memory[frame5SecondAddress] := highByte(frame5)
-frame4:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-frame4FirstPointer:u16 := read S
-write S:u16 := subtract(frame4FirstPointer, 0001:u16)
-frame4FirstAddress:u16 := read S
-write memory[frame4FirstAddress] := lowByte(frame4)
-frame4SecondPointer:u16 := read S
-write S:u16 := subtract(frame4SecondPointer, 0001:u16)
-frame4SecondAddress:u16 := read S
-write memory[frame4SecondAddress] := highByte(frame4)
-frame3:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-frame3Pointer:u16 := read S
-write S:u16 := subtract(frame3Pointer, 0001:u16)
-frame3Address:u16 := read S
-write memory[frame3Address] := frame3
-frame2:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-frame2Pointer:u16 := read S
-write S:u16 := subtract(frame2Pointer, 0001:u16)
-frame2Address:u16 := read S
-write memory[frame2Address] := frame2
-frame1:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-frame1Pointer:u16 := read S
-write S:u16 := subtract(frame1Pointer, 0001:u16)
-frame1Address:u16 := read S
-write memory[frame1Address] := frame1
-frame0:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-frame0Pointer:u16 := read S
-write S:u16 := subtract(frame0Pointer, 0001:u16)
-frame0Address:u16 := read S
-write memory[frame0Address] := frame0
-write control waitMode := "cwai"
-```
-
-Flags preserved throughout: none.
-
-### 6809 RTI
-
-Pull and replace CC first. Restored E selects the remaining full frame or PC alone; only complete each field after all its reads. Arm NMI after all transfers succeed. S wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
-
-```text
-frame0:u8 := source "pop byte through S" {
-  address:u16 := read S
-  byte:u8 := read memory[address]
-  pointer:u16 := read S
-  write S:u16 := addWrap(pointer, 0001:u16)
-  yield byte
-}
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(frame0, 80:u8)))
-  F := not(isZero(bitAnd(frame0, 40:u8)))
-  H := not(isZero(bitAnd(frame0, 20:u8)))
-  I := not(isZero(bitAnd(frame0, 10:u8)))
-  N := not(isZero(bitAnd(frame0, 08:u8)))
-  Z := not(isZero(bitAnd(frame0, 04:u8)))
-  V := not(isZero(bitAnd(frame0, 02:u8)))
-  C := not(isZero(bitAnd(frame0, 01:u8)))
-} // Replace the complete flag object.
-condition:flag := read E
-when condition {
-  rest0:u8 := source "pop byte through S" {
-    address:u16 := read S
-    byte:u8 := read memory[address]
-    pointer:u16 := read S
-    write S:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  write A:u8 := rest0
-  rest1:u8 := source "pop byte through S" {
-    address:u16 := read S
-    byte:u8 := read memory[address]
-    pointer:u16 := read S
-    write S:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  write B:u8 := rest1
-  rest2:u8 := source "pop byte through S" {
-    address:u16 := read S
-    byte:u8 := read memory[address]
-    pointer:u16 := read S
-    write S:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  write DP:u8 := rest2
-  rest3:u16 := source "pop big-endian word" {
-    high:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    low:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write X:u16 := rest3
-  rest4:u16 := source "pop big-endian word" {
-    high:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    low:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write Y:u16 := rest4
-  rest5:u16 := source "pop big-endian word" {
-    high:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    low:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write U:u16 := rest5
-  rest6:u16 := source "pop big-endian word" {
-    high:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    low:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write PC:u16 := rest6
-}
-when not(condition) {
-  rest0:u16 := source "pop big-endian word" {
-    high:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    low:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write PC:u16 := rest0
-}
-write nmiArmed:boolean := true
-```
-
-Flags preserved throughout: none.
-
-### 6809 TFR D,D
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-target:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-perform "write D as A then B" {
-  word:u16 := source
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR D,X
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-target:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-write X:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR D,Y
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-target:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-write Y:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR D,U
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-target:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-write U:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR D,S
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-target:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-write S:u16 := source
-write nmiArmed:boolean := true
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR D,PC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-target:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-write PC:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR X,D
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-target:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-perform "write D as A then B" {
-  word:u16 := source
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR X,X
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-target:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-write X:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR X,Y
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-target:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-write Y:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR X,U
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-target:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-write U:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR X,S
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-target:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-write S:u16 := source
-write nmiArmed:boolean := true
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR X,PC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-target:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-write PC:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR Y,D
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-target:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-perform "write D as A then B" {
-  word:u16 := source
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR Y,X
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-target:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-write X:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR Y,Y
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-target:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-write Y:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR Y,U
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-target:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-write U:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR Y,S
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-target:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-write S:u16 := source
-write nmiArmed:boolean := true
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR Y,PC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-target:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-write PC:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR U,D
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-target:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-perform "write D as A then B" {
-  word:u16 := source
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR U,X
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-target:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-write X:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR U,Y
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-target:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-write Y:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR U,U
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-target:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-write U:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR U,S
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-target:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-write S:u16 := source
-write nmiArmed:boolean := true
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR U,PC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-target:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-write PC:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR S,D
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-target:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-perform "write D as A then B" {
-  word:u16 := source
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR S,X
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-target:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-write X:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR S,Y
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-target:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-write Y:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR S,U
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-target:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-write U:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR S,S
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-target:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-write S:u16 := source
-write nmiArmed:boolean := true
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR S,PC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-target:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-write PC:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR PC,D
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-target:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-perform "write D as A then B" {
-  word:u16 := source
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR PC,X
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-target:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-write X:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR PC,Y
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-target:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-write Y:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR PC,U
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-target:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-write U:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR PC,S
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-target:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-write S:u16 := source
-write nmiArmed:boolean := true
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR PC,PC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-target:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-write PC:u16 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR A,A
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-target:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write A:u8 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR A,B
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-target:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-write B:u8 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR A,CC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-target:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(source, 80:u8)))
-  F := not(isZero(bitAnd(source, 40:u8)))
-  H := not(isZero(bitAnd(source, 20:u8)))
-  I := not(isZero(bitAnd(source, 10:u8)))
-  N := not(isZero(bitAnd(source, 08:u8)))
-  Z := not(isZero(bitAnd(source, 04:u8)))
-  V := not(isZero(bitAnd(source, 02:u8)))
-  C := not(isZero(bitAnd(source, 01:u8)))
-} // Replace the complete flag object.
-```
-
-Flags preserved throughout: none.
-
-### 6809 TFR A,DP
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-target:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-write DP:u8 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR B,A
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-target:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write A:u8 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR B,B
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-target:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-write B:u8 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR B,CC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-target:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(source, 80:u8)))
-  F := not(isZero(bitAnd(source, 40:u8)))
-  H := not(isZero(bitAnd(source, 20:u8)))
-  I := not(isZero(bitAnd(source, 10:u8)))
-  N := not(isZero(bitAnd(source, 08:u8)))
-  Z := not(isZero(bitAnd(source, 04:u8)))
-  V := not(isZero(bitAnd(source, 02:u8)))
-  C := not(isZero(bitAnd(source, 01:u8)))
-} // Replace the complete flag object.
-```
-
-Flags preserved throughout: none.
-
-### 6809 TFR B,DP
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-target:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-write DP:u8 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR CC,A
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-target:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write A:u8 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR CC,B
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-target:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-write B:u8 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR CC,CC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-target:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(source, 80:u8)))
-  F := not(isZero(bitAnd(source, 40:u8)))
-  H := not(isZero(bitAnd(source, 20:u8)))
-  I := not(isZero(bitAnd(source, 10:u8)))
-  N := not(isZero(bitAnd(source, 08:u8)))
-  Z := not(isZero(bitAnd(source, 04:u8)))
-  V := not(isZero(bitAnd(source, 02:u8)))
-  C := not(isZero(bitAnd(source, 01:u8)))
-} // Replace the complete flag object.
-```
-
-Flags preserved throughout: none.
-
-### 6809 TFR CC,DP
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-target:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-write DP:u8 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR DP,A
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-target:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write A:u8 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR DP,B
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-target:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-write B:u8 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 TFR DP,CC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-target:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(source, 80:u8)))
-  F := not(isZero(bitAnd(source, 40:u8)))
-  H := not(isZero(bitAnd(source, 20:u8)))
-  I := not(isZero(bitAnd(source, 10:u8)))
-  N := not(isZero(bitAnd(source, 08:u8)))
-  Z := not(isZero(bitAnd(source, 04:u8)))
-  V := not(isZero(bitAnd(source, 02:u8)))
-  C := not(isZero(bitAnd(source, 01:u8)))
-} // Replace the complete flag object.
-```
-
-Flags preserved throughout: none.
-
-### 6809 TFR DP,DP
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-target:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-write DP:u8 := source
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG D,D
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-target:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-perform "write D as A then B" {
-  word:u16 := source
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-perform "write D as A then B" {
-  word:u16 := target
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG D,X
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-target:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-write X:u16 := source
-perform "write D as A then B" {
-  word:u16 := target
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG D,Y
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-target:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-write Y:u16 := source
-perform "write D as A then B" {
-  word:u16 := target
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG D,U
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-target:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-write U:u16 := source
-perform "write D as A then B" {
-  word:u16 := target
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG D,S
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-target:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-write S:u16 := source
-write nmiArmed:boolean := true
-perform "write D as A then B" {
-  word:u16 := target
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG D,PC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-target:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-write PC:u16 := source
-perform "write D as A then B" {
-  word:u16 := target
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG X,D
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-target:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-perform "write D as A then B" {
-  word:u16 := source
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-write X:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG X,X
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-target:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-write X:u16 := source
-write X:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG X,Y
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-target:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-write Y:u16 := source
-write X:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG X,U
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-target:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-write U:u16 := source
-write X:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG X,S
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-target:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-write S:u16 := source
-write nmiArmed:boolean := true
-write X:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG X,PC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-target:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-write PC:u16 := source
-write X:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG Y,D
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-target:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-perform "write D as A then B" {
-  word:u16 := source
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-write Y:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG Y,X
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-target:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-write X:u16 := source
-write Y:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG Y,Y
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-target:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-write Y:u16 := source
-write Y:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG Y,U
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-target:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-write U:u16 := source
-write Y:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG Y,S
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-target:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-write S:u16 := source
-write nmiArmed:boolean := true
-write Y:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG Y,PC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-target:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-write PC:u16 := source
-write Y:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG U,D
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-target:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-perform "write D as A then B" {
-  word:u16 := source
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-write U:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG U,X
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-target:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-write X:u16 := source
-write U:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG U,Y
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-target:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-write Y:u16 := source
-write U:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG U,U
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-target:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-write U:u16 := source
-write U:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG U,S
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-target:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-write S:u16 := source
-write nmiArmed:boolean := true
-write U:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG U,PC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-target:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-write PC:u16 := source
-write U:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG S,D
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-target:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-perform "write D as A then B" {
-  word:u16 := source
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-write S:u16 := target
-write nmiArmed:boolean := true
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG S,X
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-target:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-write X:u16 := source
-write S:u16 := target
-write nmiArmed:boolean := true
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG S,Y
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-target:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-write Y:u16 := source
-write S:u16 := target
-write nmiArmed:boolean := true
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG S,U
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-target:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-write U:u16 := source
-write S:u16 := target
-write nmiArmed:boolean := true
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG S,S
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-target:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-write S:u16 := source
-write nmiArmed:boolean := true
-write S:u16 := target
-write nmiArmed:boolean := true
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG S,PC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-target:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-write PC:u16 := source
-write S:u16 := target
-write nmiArmed:boolean := true
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG PC,D
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-target:u16 := source "D from A:B" {
-  high:u8 := read A
-  low:u8 := read B
-  yield concatHighLow(high, low)
-}
-perform "write D as A then B" {
-  word:u16 := source
-  write A:u8 := highByte(word)
-  write B:u8 := lowByte(word)
-}
-write PC:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG PC,X
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-target:u16 := source "register X" {
-  contents:u16 := read X
-  yield contents
-}
-write X:u16 := source
-write PC:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG PC,Y
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-target:u16 := source "register Y" {
-  contents:u16 := read Y
-  yield contents
-}
-write Y:u16 := source
-write PC:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG PC,U
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-target:u16 := source "register U" {
-  contents:u16 := read U
-  yield contents
-}
-write U:u16 := source
-write PC:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG PC,S
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-target:u16 := source "register S" {
-  contents:u16 := read S
-  yield contents
-}
-write S:u16 := source
-write nmiArmed:boolean := true
-write PC:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG PC,PC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-target:u16 := source "register PC" {
-  contents:u16 := read PC
-  yield contents
-}
-write PC:u16 := source
-write PC:u16 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG A,A
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-target:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write A:u8 := source
-write A:u8 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG A,B
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-target:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-write B:u8 := source
-write A:u8 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG A,CC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-target:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(source, 80:u8)))
-  F := not(isZero(bitAnd(source, 40:u8)))
-  H := not(isZero(bitAnd(source, 20:u8)))
-  I := not(isZero(bitAnd(source, 10:u8)))
-  N := not(isZero(bitAnd(source, 08:u8)))
-  Z := not(isZero(bitAnd(source, 04:u8)))
-  V := not(isZero(bitAnd(source, 02:u8)))
-  C := not(isZero(bitAnd(source, 01:u8)))
-} // Replace the complete flag object.
-write A:u8 := target
-```
-
-Flags preserved throughout: none.
-
-### 6809 EXG A,DP
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-target:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-write DP:u8 := source
-write A:u8 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG B,A
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-target:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write A:u8 := source
-write B:u8 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG B,B
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-target:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-write B:u8 := source
-write B:u8 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG B,CC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-target:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(source, 80:u8)))
-  F := not(isZero(bitAnd(source, 40:u8)))
-  H := not(isZero(bitAnd(source, 20:u8)))
-  I := not(isZero(bitAnd(source, 10:u8)))
-  N := not(isZero(bitAnd(source, 08:u8)))
-  Z := not(isZero(bitAnd(source, 04:u8)))
-  V := not(isZero(bitAnd(source, 02:u8)))
-  C := not(isZero(bitAnd(source, 01:u8)))
-} // Replace the complete flag object.
-write B:u8 := target
-```
-
-Flags preserved throughout: none.
-
-### 6809 EXG B,DP
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-target:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-write DP:u8 := source
-write B:u8 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG CC,A
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-target:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write A:u8 := source
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(target, 80:u8)))
-  F := not(isZero(bitAnd(target, 40:u8)))
-  H := not(isZero(bitAnd(target, 20:u8)))
-  I := not(isZero(bitAnd(target, 10:u8)))
-  N := not(isZero(bitAnd(target, 08:u8)))
-  Z := not(isZero(bitAnd(target, 04:u8)))
-  V := not(isZero(bitAnd(target, 02:u8)))
-  C := not(isZero(bitAnd(target, 01:u8)))
-} // Replace the complete flag object.
-```
-
-Flags preserved throughout: none.
-
-### 6809 EXG CC,B
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-target:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-write B:u8 := source
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(target, 80:u8)))
-  F := not(isZero(bitAnd(target, 40:u8)))
-  H := not(isZero(bitAnd(target, 20:u8)))
-  I := not(isZero(bitAnd(target, 10:u8)))
-  N := not(isZero(bitAnd(target, 08:u8)))
-  Z := not(isZero(bitAnd(target, 04:u8)))
-  V := not(isZero(bitAnd(target, 02:u8)))
-  C := not(isZero(bitAnd(target, 01:u8)))
-} // Replace the complete flag object.
-```
-
-Flags preserved throughout: none.
-
-### 6809 EXG CC,CC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-target:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(source, 80:u8)))
-  F := not(isZero(bitAnd(source, 40:u8)))
-  H := not(isZero(bitAnd(source, 20:u8)))
-  I := not(isZero(bitAnd(source, 10:u8)))
-  N := not(isZero(bitAnd(source, 08:u8)))
-  Z := not(isZero(bitAnd(source, 04:u8)))
-  V := not(isZero(bitAnd(source, 02:u8)))
-  C := not(isZero(bitAnd(source, 01:u8)))
-} // Replace the complete flag object.
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(target, 80:u8)))
-  F := not(isZero(bitAnd(target, 40:u8)))
-  H := not(isZero(bitAnd(target, 20:u8)))
-  I := not(isZero(bitAnd(target, 10:u8)))
-  N := not(isZero(bitAnd(target, 08:u8)))
-  Z := not(isZero(bitAnd(target, 04:u8)))
-  V := not(isZero(bitAnd(target, 02:u8)))
-  C := not(isZero(bitAnd(target, 01:u8)))
-} // Replace the complete flag object.
-```
-
-Flags preserved throughout: none.
-
-### 6809 EXG CC,DP
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-target:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-write DP:u8 := source
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(target, 80:u8)))
-  F := not(isZero(bitAnd(target, 40:u8)))
-  H := not(isZero(bitAnd(target, 20:u8)))
-  I := not(isZero(bitAnd(target, 10:u8)))
-  N := not(isZero(bitAnd(target, 08:u8)))
-  Z := not(isZero(bitAnd(target, 04:u8)))
-  V := not(isZero(bitAnd(target, 02:u8)))
-  C := not(isZero(bitAnd(target, 01:u8)))
-} // Replace the complete flag object.
-```
-
-Flags preserved throughout: none.
-
-### 6809 EXG DP,A
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-target:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write A:u8 := source
-write DP:u8 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG DP,B
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-target:u8 := source "register B" {
-  contents:u8 := read B
-  yield contents
-}
-write B:u8 := source
-write DP:u8 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 EXG DP,CC
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-target:u8 := source "packed condition codes" {
-  e:flag := read E
-  f:flag := read F
-  h:flag := read H
-  i:flag := read I
-  n:flag := read N
-  z:flag := read Z
-  v:flag := read V
-  c:flag := read C
-  ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
-  hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
-  nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
-  vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
-  yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
-}
-replace flags "restore all condition codes" simultaneously {
-  E := not(isZero(bitAnd(source, 80:u8)))
-  F := not(isZero(bitAnd(source, 40:u8)))
-  H := not(isZero(bitAnd(source, 20:u8)))
-  I := not(isZero(bitAnd(source, 10:u8)))
-  N := not(isZero(bitAnd(source, 08:u8)))
-  Z := not(isZero(bitAnd(source, 04:u8)))
-  V := not(isZero(bitAnd(source, 02:u8)))
-  C := not(isZero(bitAnd(source, 01:u8)))
-} // Replace the complete flag object.
-write DP:u8 := target
-```
-
-Flags preserved throughout: none.
-
-### 6809 EXG DP,DP
-
-Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
-
-```text
-source:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-target:u8 := source "register DP" {
-  contents:u8 := read DP
-  yield contents
-}
-write DP:u8 := source
-write DP:u8 := target
-```
-
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 PSHS
-
-Fetch the register mask before any stack effects. Bits 7..0 select PC, the other stack pointer, Y, X, DP, B, A, CC. Push in descending bit order; capture each selected register at its turn, then write words low then high. The selected pointer wraps at 16 bits, decrements before each write, and increments after each successful read. CC pulls replace the flag object; pulling S through U arms NMI immediately. A nonempty mask arms NMI only after the whole instruction succeeds. An empty mask has no stack effects. A failed access retains completed transfers and pointer updates; later effects do not run.
-
-```text
-mask:u8 := fetch byte
+mask:u8 := input
 when not(isZero(bitAnd(mask, 80:u8))) {
-  contents:u16 := source "register PC" {
-    contents:u16 := read PC
-    yield contents
+  contents:u16 := read PC
+  perform "push high-first word through S" {
+    word:u16 := contents
+    perform "push byte through S" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
+    perform "push byte through S" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
   }
-  firstPointer:u16 := read S
-  write S:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read S
-  write memory[firstAddress] := lowByte(contents)
-  secondPointer:u16 := read S
-  write S:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read S
-  write memory[secondAddress] := highByte(contents)
 }
 when not(isZero(bitAnd(mask, 40:u8))) {
-  contents:u16 := source "register U" {
-    contents:u16 := read U
-    yield contents
+  contents:u16 := read U
+  perform "push high-first word through S" {
+    word:u16 := contents
+    perform "push byte through S" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
+    perform "push byte through S" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
   }
-  firstPointer:u16 := read S
-  write S:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read S
-  write memory[firstAddress] := lowByte(contents)
-  secondPointer:u16 := read S
-  write S:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read S
-  write memory[secondAddress] := highByte(contents)
 }
 when not(isZero(bitAnd(mask, 20:u8))) {
-  contents:u16 := source "register Y" {
-    contents:u16 := read Y
-    yield contents
+  contents:u16 := read Y
+  perform "push high-first word through S" {
+    word:u16 := contents
+    perform "push byte through S" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
+    perform "push byte through S" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
   }
-  firstPointer:u16 := read S
-  write S:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read S
-  write memory[firstAddress] := lowByte(contents)
-  secondPointer:u16 := read S
-  write S:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read S
-  write memory[secondAddress] := highByte(contents)
 }
 when not(isZero(bitAnd(mask, 10:u8))) {
-  contents:u16 := source "register X" {
-    contents:u16 := read X
-    yield contents
+  contents:u16 := read X
+  perform "push high-first word through S" {
+    word:u16 := contents
+    perform "push byte through S" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
+    perform "push byte through S" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
   }
-  firstPointer:u16 := read S
-  write S:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read S
-  write memory[firstAddress] := lowByte(contents)
-  secondPointer:u16 := read S
-  write S:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read S
-  write memory[secondAddress] := highByte(contents)
 }
 when not(isZero(bitAnd(mask, 08:u8))) {
-  contents:u8 := source "register DP" {
-    contents:u8 := read DP
-    yield contents
+  contents:u8 := read DP
+  perform "push byte through S" {
+    byte:u8 := contents
+    pointer:u16 := read S
+    write S:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read S
+    write memory[address] := byte
   }
-  bytePointer:u16 := read S
-  write S:u16 := subtract(bytePointer, 0001:u16)
-  byteAddress:u16 := read S
-  write memory[byteAddress] := contents
 }
 when not(isZero(bitAnd(mask, 04:u8))) {
-  contents:u8 := source "register B" {
-    contents:u8 := read B
-    yield contents
+  contents:u8 := read B
+  perform "push byte through S" {
+    byte:u8 := contents
+    pointer:u16 := read S
+    write S:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read S
+    write memory[address] := byte
   }
-  bytePointer:u16 := read S
-  write S:u16 := subtract(bytePointer, 0001:u16)
-  byteAddress:u16 := read S
-  write memory[byteAddress] := contents
 }
 when not(isZero(bitAnd(mask, 02:u8))) {
-  contents:u8 := source "register A" {
-    contents:u8 := read A
-    yield contents
+  contents:u8 := read A
+  perform "push byte through S" {
+    byte:u8 := contents
+    pointer:u16 := read S
+    write S:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read S
+    write memory[address] := byte
   }
-  bytePointer:u16 := read S
-  write S:u16 := subtract(bytePointer, 0001:u16)
-  byteAddress:u16 := read S
-  write memory[byteAddress] := contents
 }
 when not(isZero(bitAnd(mask, 01:u8))) {
   contents:u8 := source "packed condition codes" {
@@ -363693,24 +364071,24 @@ when not(isZero(bitAnd(mask, 01:u8))) {
     vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
     yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
   }
-  bytePointer:u16 := read S
-  write S:u16 := subtract(bytePointer, 0001:u16)
-  byteAddress:u16 := read S
-  write memory[byteAddress] := contents
-}
-when not(isZero(mask)) {
-  write nmiArmed:boolean := true
+  perform "push byte through S" {
+    byte:u8 := contents
+    pointer:u16 := read S
+    write S:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read S
+    write memory[address] := byte
+  }
 }
 ```
 
 Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
-### 6809 PULS
+### 6809 pullSystemRegisters
 
-Fetch the register mask before any stack effects. Bits 7..0 select PC, the other stack pointer, Y, X, DP, B, A, CC. Pull in ascending bit order; read words high then low and commit each register only after its complete read. The selected pointer wraps at 16 bits, decrements before each write, and increments after each successful read. CC pulls replace the flag object; pulling S through U arms NMI immediately. A nonempty mask arms NMI only after the whole instruction succeeds. An empty mask has no stack effects. A failed access retains completed transfers and pointer updates; later effects do not run.
+The four actions spell out that order using the byte/word primitives above. An empty mask does nothing. Ordinary PSHS/PULS arm NMI after a nonempty mask completes; a PULU write to S arms it immediately at that field's turn. Saving an interrupt frame uses the same S push action without ordinary PSHS arming.
 
 ```text
-mask:u8 := fetch byte
+mask:u8 := input
 when not(isZero(bitAnd(mask, 01:u8))) {
   contents:u8 := source "pop byte through S" {
     address:u16 := read S
@@ -363719,16 +364097,19 @@ when not(isZero(bitAnd(mask, 01:u8))) {
     write S:u16 := addWrap(pointer, 0001:u16)
     yield byte
   }
-  replace flags "restore all condition codes" simultaneously {
-    E := not(isZero(bitAnd(contents, 80:u8)))
-    F := not(isZero(bitAnd(contents, 40:u8)))
-    H := not(isZero(bitAnd(contents, 20:u8)))
-    I := not(isZero(bitAnd(contents, 10:u8)))
-    N := not(isZero(bitAnd(contents, 08:u8)))
-    Z := not(isZero(bitAnd(contents, 04:u8)))
-    V := not(isZero(bitAnd(contents, 02:u8)))
-    C := not(isZero(bitAnd(contents, 01:u8)))
-  } // Replace the complete flag object.
+  perform "replace packed CC" {
+    status:u8 := contents
+    replace flags "restore all condition codes" simultaneously {
+      E := not(isZero(bitAnd(status, 80:u8)))
+      F := not(isZero(bitAnd(status, 40:u8)))
+      H := not(isZero(bitAnd(status, 20:u8)))
+      I := not(isZero(bitAnd(status, 10:u8)))
+      N := not(isZero(bitAnd(status, 08:u8)))
+      Z := not(isZero(bitAnd(status, 04:u8)))
+      V := not(isZero(bitAnd(status, 02:u8)))
+      C := not(isZero(bitAnd(status, 01:u8)))
+    } // Replace the complete flag object.
+  }
 }
 when not(isZero(bitAnd(mask, 02:u8))) {
   contents:u8 := source "pop byte through S" {
@@ -363761,7 +364142,7 @@ when not(isZero(bitAnd(mask, 08:u8))) {
   write DP:u8 := contents
 }
 when not(isZero(bitAnd(mask, 10:u8))) {
-  contents:u16 := source "pop big-endian word" {
+  contents:u16 := source "pop high-first word through S" {
     high:u8 := source "pop byte through S" {
       address:u16 := read S
       byte:u8 := read memory[address]
@@ -363781,7 +364162,7 @@ when not(isZero(bitAnd(mask, 10:u8))) {
   write X:u16 := contents
 }
 when not(isZero(bitAnd(mask, 20:u8))) {
-  contents:u16 := source "pop big-endian word" {
+  contents:u16 := source "pop high-first word through S" {
     high:u8 := source "pop byte through S" {
       address:u16 := read S
       byte:u8 := read memory[address]
@@ -363801,7 +364182,7 @@ when not(isZero(bitAnd(mask, 20:u8))) {
   write Y:u16 := contents
 }
 when not(isZero(bitAnd(mask, 40:u8))) {
-  contents:u16 := source "pop big-endian word" {
+  contents:u16 := source "pop high-first word through S" {
     high:u8 := source "pop byte through S" {
       address:u16 := read S
       byte:u8 := read memory[address]
@@ -363821,7 +364202,7 @@ when not(isZero(bitAnd(mask, 40:u8))) {
   write U:u16 := contents
 }
 when not(isZero(bitAnd(mask, 80:u8))) {
-  contents:u16 := source "pop big-endian word" {
+  contents:u16 := source "pop high-first word through S" {
     high:u8 := source "pop byte through S" {
       address:u16 := read S
       byte:u8 := read memory[address]
@@ -363840,104 +364221,125 @@ when not(isZero(bitAnd(mask, 80:u8))) {
   }
   write PC:u16 := contents
 }
-when not(isZero(mask)) {
-  write nmiArmed:boolean := true
-}
 ```
 
 Flags preserved throughout: none.
 
-### 6809 PSHU
+### 6809 pushUserRegisters
 
-Fetch the register mask before any stack effects. Bits 7..0 select PC, the other stack pointer, Y, X, DP, B, A, CC. Push in descending bit order; capture each selected register at its turn, then write words low then high. The selected pointer wraps at 16 bits, decrements before each write, and increments after each successful read. CC pulls replace the flag object; pulling S through U arms NMI immediately. Do not otherwise change NMI arming. An empty mask has no stack effects. A failed access retains completed transfers and pointer updates; later effects do not run.
+The four actions spell out that order using the byte/word primitives above. An empty mask does nothing. Ordinary PSHS/PULS arm NMI after a nonempty mask completes; a PULU write to S arms it immediately at that field's turn. Saving an interrupt frame uses the same S push action without ordinary PSHS arming.
 
 ```text
-mask:u8 := fetch byte
+mask:u8 := input
 when not(isZero(bitAnd(mask, 80:u8))) {
-  contents:u16 := source "register PC" {
-    contents:u16 := read PC
-    yield contents
+  contents:u16 := read PC
+  perform "push high-first word through U" {
+    word:u16 := contents
+    perform "push byte through U" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read U
+      write U:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read U
+      write memory[address] := byte
+    }
+    perform "push byte through U" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read U
+      write U:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read U
+      write memory[address] := byte
+    }
   }
-  firstPointer:u16 := read U
-  write U:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read U
-  write memory[firstAddress] := lowByte(contents)
-  secondPointer:u16 := read U
-  write U:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read U
-  write memory[secondAddress] := highByte(contents)
 }
 when not(isZero(bitAnd(mask, 40:u8))) {
-  contents:u16 := source "register S" {
-    contents:u16 := read S
-    yield contents
+  contents:u16 := read S
+  perform "push high-first word through U" {
+    word:u16 := contents
+    perform "push byte through U" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read U
+      write U:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read U
+      write memory[address] := byte
+    }
+    perform "push byte through U" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read U
+      write U:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read U
+      write memory[address] := byte
+    }
   }
-  firstPointer:u16 := read U
-  write U:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read U
-  write memory[firstAddress] := lowByte(contents)
-  secondPointer:u16 := read U
-  write U:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read U
-  write memory[secondAddress] := highByte(contents)
 }
 when not(isZero(bitAnd(mask, 20:u8))) {
-  contents:u16 := source "register Y" {
-    contents:u16 := read Y
-    yield contents
+  contents:u16 := read Y
+  perform "push high-first word through U" {
+    word:u16 := contents
+    perform "push byte through U" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read U
+      write U:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read U
+      write memory[address] := byte
+    }
+    perform "push byte through U" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read U
+      write U:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read U
+      write memory[address] := byte
+    }
   }
-  firstPointer:u16 := read U
-  write U:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read U
-  write memory[firstAddress] := lowByte(contents)
-  secondPointer:u16 := read U
-  write U:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read U
-  write memory[secondAddress] := highByte(contents)
 }
 when not(isZero(bitAnd(mask, 10:u8))) {
-  contents:u16 := source "register X" {
-    contents:u16 := read X
-    yield contents
+  contents:u16 := read X
+  perform "push high-first word through U" {
+    word:u16 := contents
+    perform "push byte through U" {
+      byte:u8 := lowByte(word)
+      pointer:u16 := read U
+      write U:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read U
+      write memory[address] := byte
+    }
+    perform "push byte through U" {
+      byte:u8 := highByte(word)
+      pointer:u16 := read U
+      write U:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read U
+      write memory[address] := byte
+    }
   }
-  firstPointer:u16 := read U
-  write U:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read U
-  write memory[firstAddress] := lowByte(contents)
-  secondPointer:u16 := read U
-  write U:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read U
-  write memory[secondAddress] := highByte(contents)
 }
 when not(isZero(bitAnd(mask, 08:u8))) {
-  contents:u8 := source "register DP" {
-    contents:u8 := read DP
-    yield contents
+  contents:u8 := read DP
+  perform "push byte through U" {
+    byte:u8 := contents
+    pointer:u16 := read U
+    write U:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read U
+    write memory[address] := byte
   }
-  bytePointer:u16 := read U
-  write U:u16 := subtract(bytePointer, 0001:u16)
-  byteAddress:u16 := read U
-  write memory[byteAddress] := contents
 }
 when not(isZero(bitAnd(mask, 04:u8))) {
-  contents:u8 := source "register B" {
-    contents:u8 := read B
-    yield contents
+  contents:u8 := read B
+  perform "push byte through U" {
+    byte:u8 := contents
+    pointer:u16 := read U
+    write U:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read U
+    write memory[address] := byte
   }
-  bytePointer:u16 := read U
-  write U:u16 := subtract(bytePointer, 0001:u16)
-  byteAddress:u16 := read U
-  write memory[byteAddress] := contents
 }
 when not(isZero(bitAnd(mask, 02:u8))) {
-  contents:u8 := source "register A" {
-    contents:u8 := read A
-    yield contents
+  contents:u8 := read A
+  perform "push byte through U" {
+    byte:u8 := contents
+    pointer:u16 := read U
+    write U:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read U
+    write memory[address] := byte
   }
-  bytePointer:u16 := read U
-  write U:u16 := subtract(bytePointer, 0001:u16)
-  byteAddress:u16 := read U
-  write memory[byteAddress] := contents
 }
 when not(isZero(bitAnd(mask, 01:u8))) {
   contents:u8 := source "packed condition codes" {
@@ -363955,21 +364357,24 @@ when not(isZero(bitAnd(mask, 01:u8))) {
     vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
     yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
   }
-  bytePointer:u16 := read U
-  write U:u16 := subtract(bytePointer, 0001:u16)
-  byteAddress:u16 := read U
-  write memory[byteAddress] := contents
+  perform "push byte through U" {
+    byte:u8 := contents
+    pointer:u16 := read U
+    write U:u16 := subtract(pointer, 0001:u16)
+    address:u16 := read U
+    write memory[address] := byte
+  }
 }
 ```
 
 Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
-### 6809 PULU
+### 6809 pullUserRegisters
 
-Fetch the register mask before any stack effects. Bits 7..0 select PC, the other stack pointer, Y, X, DP, B, A, CC. Pull in ascending bit order; read words high then low and commit each register only after its complete read. The selected pointer wraps at 16 bits, decrements before each write, and increments after each successful read. CC pulls replace the flag object; pulling S through U arms NMI immediately. Do not otherwise change NMI arming. An empty mask has no stack effects. A failed access retains completed transfers and pointer updates; later effects do not run.
+The four actions spell out that order using the byte/word primitives above. An empty mask does nothing. Ordinary PSHS/PULS arm NMI after a nonempty mask completes; a PULU write to S arms it immediately at that field's turn. Saving an interrupt frame uses the same S push action without ordinary PSHS arming.
 
 ```text
-mask:u8 := fetch byte
+mask:u8 := input
 when not(isZero(bitAnd(mask, 01:u8))) {
   contents:u8 := source "pop byte through U" {
     address:u16 := read U
@@ -363978,16 +364383,19 @@ when not(isZero(bitAnd(mask, 01:u8))) {
     write U:u16 := addWrap(pointer, 0001:u16)
     yield byte
   }
-  replace flags "restore all condition codes" simultaneously {
-    E := not(isZero(bitAnd(contents, 80:u8)))
-    F := not(isZero(bitAnd(contents, 40:u8)))
-    H := not(isZero(bitAnd(contents, 20:u8)))
-    I := not(isZero(bitAnd(contents, 10:u8)))
-    N := not(isZero(bitAnd(contents, 08:u8)))
-    Z := not(isZero(bitAnd(contents, 04:u8)))
-    V := not(isZero(bitAnd(contents, 02:u8)))
-    C := not(isZero(bitAnd(contents, 01:u8)))
-  } // Replace the complete flag object.
+  perform "replace packed CC" {
+    status:u8 := contents
+    replace flags "restore all condition codes" simultaneously {
+      E := not(isZero(bitAnd(status, 80:u8)))
+      F := not(isZero(bitAnd(status, 40:u8)))
+      H := not(isZero(bitAnd(status, 20:u8)))
+      I := not(isZero(bitAnd(status, 10:u8)))
+      N := not(isZero(bitAnd(status, 08:u8)))
+      Z := not(isZero(bitAnd(status, 04:u8)))
+      V := not(isZero(bitAnd(status, 02:u8)))
+      C := not(isZero(bitAnd(status, 01:u8)))
+    } // Replace the complete flag object.
+  }
 }
 when not(isZero(bitAnd(mask, 02:u8))) {
   contents:u8 := source "pop byte through U" {
@@ -364020,7 +364428,7 @@ when not(isZero(bitAnd(mask, 08:u8))) {
   write DP:u8 := contents
 }
 when not(isZero(bitAnd(mask, 10:u8))) {
-  contents:u16 := source "pop big-endian word" {
+  contents:u16 := source "pop high-first word through U" {
     high:u8 := source "pop byte through U" {
       address:u16 := read U
       byte:u8 := read memory[address]
@@ -364040,7 +364448,7 @@ when not(isZero(bitAnd(mask, 10:u8))) {
   write X:u16 := contents
 }
 when not(isZero(bitAnd(mask, 20:u8))) {
-  contents:u16 := source "pop big-endian word" {
+  contents:u16 := source "pop high-first word through U" {
     high:u8 := source "pop byte through U" {
       address:u16 := read U
       byte:u8 := read memory[address]
@@ -364060,7 +364468,7 @@ when not(isZero(bitAnd(mask, 20:u8))) {
   write Y:u16 := contents
 }
 when not(isZero(bitAnd(mask, 40:u8))) {
-  contents:u16 := source "pop big-endian word" {
+  contents:u16 := source "pop high-first word through U" {
     high:u8 := source "pop byte through U" {
       address:u16 := read U
       byte:u8 := read memory[address]
@@ -364077,11 +364485,14 @@ when not(isZero(bitAnd(mask, 40:u8))) {
     }
     yield concatHighLow(high, low)
   }
-  write S:u16 := contents
-  write nmiArmed:boolean := true
+  perform "write S and arm NMI" {
+    pointer:u16 := contents
+    write S:u16 := pointer
+    write nmiArmed:boolean := true
+  }
 }
 when not(isZero(bitAnd(mask, 80:u8))) {
-  contents:u16 := source "pop big-endian word" {
+  contents:u16 := source "pop high-first word through U" {
     high:u8 := source "pop byte through U" {
       address:u16 := read U
       byte:u8 := read memory[address]
@@ -364104,100 +364515,310 @@ when not(isZero(bitAnd(mask, 80:u8))) {
 
 Flags preserved throughout: none.
 
-### 6809 PSHS supplied frame mask
+### 6809 set E and save all interrupt registers
 
-Use the captured frame mask without fetching. Bits 7..0 select PC, the other stack pointer, Y, X, DP, B, A, CC. Push in descending bit order; capture each selected register at its turn, then write words low then high. The selected pointer wraps at 16 bits, decrements before each write, and increments after each successful read. CC pulls replace the flag object; pulling S through U arms NMI immediately. Do not otherwise change NMI arming. An empty mask has no stack effects. A failed access retains completed transfers and pointer updates; later effects do not run.
+A full frame sets E before saving PC/U/Y/X/DP/B/A/CC. Its action is shared by CWAI and software entry. The lower-level masked action also serves external FIRQ's short PC/CC frame. Neither action implicitly arms NMI.
 
 ```text
-mask:u8 := input
-when not(isZero(bitAnd(mask, 80:u8))) {
-  contents:u16 := source "register PC" {
+flags "save an entire interrupt frame" simultaneously {
+  E := 1:flag
+} // Preserve unlisted flags.
+perform "pushSystemRegisters" {
+  mask:u8 := FF:u8
+  when not(isZero(bitAnd(mask, 80:u8))) {
     contents:u16 := read PC
-    yield contents
+    perform "push high-first word through S" {
+      word:u16 := contents
+      perform "push byte through S" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+      perform "push byte through S" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+    }
   }
-  firstPointer:u16 := read S
-  write S:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read S
-  write memory[firstAddress] := lowByte(contents)
-  secondPointer:u16 := read S
-  write S:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read S
-  write memory[secondAddress] := highByte(contents)
-}
-when not(isZero(bitAnd(mask, 40:u8))) {
-  contents:u16 := source "register U" {
+  when not(isZero(bitAnd(mask, 40:u8))) {
     contents:u16 := read U
-    yield contents
+    perform "push high-first word through S" {
+      word:u16 := contents
+      perform "push byte through S" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+      perform "push byte through S" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+    }
   }
-  firstPointer:u16 := read S
-  write S:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read S
-  write memory[firstAddress] := lowByte(contents)
-  secondPointer:u16 := read S
-  write S:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read S
-  write memory[secondAddress] := highByte(contents)
-}
-when not(isZero(bitAnd(mask, 20:u8))) {
-  contents:u16 := source "register Y" {
+  when not(isZero(bitAnd(mask, 20:u8))) {
     contents:u16 := read Y
-    yield contents
+    perform "push high-first word through S" {
+      word:u16 := contents
+      perform "push byte through S" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+      perform "push byte through S" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+    }
   }
-  firstPointer:u16 := read S
-  write S:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read S
-  write memory[firstAddress] := lowByte(contents)
-  secondPointer:u16 := read S
-  write S:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read S
-  write memory[secondAddress] := highByte(contents)
-}
-when not(isZero(bitAnd(mask, 10:u8))) {
-  contents:u16 := source "register X" {
+  when not(isZero(bitAnd(mask, 10:u8))) {
     contents:u16 := read X
-    yield contents
+    perform "push high-first word through S" {
+      word:u16 := contents
+      perform "push byte through S" {
+        byte:u8 := lowByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+      perform "push byte through S" {
+        byte:u8 := highByte(word)
+        pointer:u16 := read S
+        write S:u16 := subtract(pointer, 0001:u16)
+        address:u16 := read S
+        write memory[address] := byte
+      }
+    }
   }
-  firstPointer:u16 := read S
-  write S:u16 := subtract(firstPointer, 0001:u16)
-  firstAddress:u16 := read S
-  write memory[firstAddress] := lowByte(contents)
-  secondPointer:u16 := read S
-  write S:u16 := subtract(secondPointer, 0001:u16)
-  secondAddress:u16 := read S
-  write memory[secondAddress] := highByte(contents)
-}
-when not(isZero(bitAnd(mask, 08:u8))) {
-  contents:u8 := source "register DP" {
+  when not(isZero(bitAnd(mask, 08:u8))) {
     contents:u8 := read DP
-    yield contents
+    perform "push byte through S" {
+      byte:u8 := contents
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
   }
-  bytePointer:u16 := read S
-  write S:u16 := subtract(bytePointer, 0001:u16)
-  byteAddress:u16 := read S
-  write memory[byteAddress] := contents
-}
-when not(isZero(bitAnd(mask, 04:u8))) {
-  contents:u8 := source "register B" {
+  when not(isZero(bitAnd(mask, 04:u8))) {
     contents:u8 := read B
-    yield contents
+    perform "push byte through S" {
+      byte:u8 := contents
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
   }
-  bytePointer:u16 := read S
-  write S:u16 := subtract(bytePointer, 0001:u16)
-  byteAddress:u16 := read S
-  write memory[byteAddress] := contents
-}
-when not(isZero(bitAnd(mask, 02:u8))) {
-  contents:u8 := source "register A" {
+  when not(isZero(bitAnd(mask, 02:u8))) {
     contents:u8 := read A
-    yield contents
+    perform "push byte through S" {
+      byte:u8 := contents
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
   }
-  bytePointer:u16 := read S
-  write S:u16 := subtract(bytePointer, 0001:u16)
-  byteAddress:u16 := read S
-  write memory[byteAddress] := contents
+  when not(isZero(bitAnd(mask, 01:u8))) {
+    contents:u8 := source "packed condition codes" {
+      e:flag := read E
+      f:flag := read F
+      h:flag := read H
+      i:flag := read I
+      n:flag := read N
+      z:flag := read Z
+      v:flag := read V
+      c:flag := read C
+      ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+      hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+      nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+      vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+      yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+    }
+    perform "push byte through S" {
+      byte:u8 := contents
+      pointer:u16 := read S
+      write S:u16 := subtract(pointer, 0001:u16)
+      address:u16 := read S
+      write memory[address] := byte
+    }
+  }
 }
-when not(isZero(bitAnd(mask, 01:u8))) {
-  contents:u8 := source "packed condition codes" {
+```
+
+Flags preserved throughout: F, H, I, N, Z, V, C.
+
+### 6809 save frame and read software vector
+
+A full frame sets E before saving PC/U/Y/X/DP/B/A/CC. Its action is shared by CWAI and software entry. The lower-level masked action also serves external FIRQ's short PC/CC frame. Neither action implicitly arms NMI.
+
+```text
+vector:u16 := input
+masks:u8 := input
+waiting:flag := test control waitMode equals "cwai"
+when not(waiting) {
+  perform "set E and save all interrupt registers" {
+    flags "save an entire interrupt frame" simultaneously {
+      E := 1:flag
+    } // Preserve unlisted flags.
+    perform "pushSystemRegisters" {
+      mask:u8 := FF:u8
+      when not(isZero(bitAnd(mask, 80:u8))) {
+        contents:u16 := read PC
+        perform "push high-first word through S" {
+          word:u16 := contents
+          perform "push byte through S" {
+            byte:u8 := lowByte(word)
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+          perform "push byte through S" {
+            byte:u8 := highByte(word)
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+      }
+      when not(isZero(bitAnd(mask, 40:u8))) {
+        contents:u16 := read U
+        perform "push high-first word through S" {
+          word:u16 := contents
+          perform "push byte through S" {
+            byte:u8 := lowByte(word)
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+          perform "push byte through S" {
+            byte:u8 := highByte(word)
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+      }
+      when not(isZero(bitAnd(mask, 20:u8))) {
+        contents:u16 := read Y
+        perform "push high-first word through S" {
+          word:u16 := contents
+          perform "push byte through S" {
+            byte:u8 := lowByte(word)
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+          perform "push byte through S" {
+            byte:u8 := highByte(word)
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+      }
+      when not(isZero(bitAnd(mask, 10:u8))) {
+        contents:u16 := read X
+        perform "push high-first word through S" {
+          word:u16 := contents
+          perform "push byte through S" {
+            byte:u8 := lowByte(word)
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+          perform "push byte through S" {
+            byte:u8 := highByte(word)
+            pointer:u16 := read S
+            write S:u16 := subtract(pointer, 0001:u16)
+            address:u16 := read S
+            write memory[address] := byte
+          }
+        }
+      }
+      when not(isZero(bitAnd(mask, 08:u8))) {
+        contents:u8 := read DP
+        perform "push byte through S" {
+          byte:u8 := contents
+          pointer:u16 := read S
+          write S:u16 := subtract(pointer, 0001:u16)
+          address:u16 := read S
+          write memory[address] := byte
+        }
+      }
+      when not(isZero(bitAnd(mask, 04:u8))) {
+        contents:u8 := read B
+        perform "push byte through S" {
+          byte:u8 := contents
+          pointer:u16 := read S
+          write S:u16 := subtract(pointer, 0001:u16)
+          address:u16 := read S
+          write memory[address] := byte
+        }
+      }
+      when not(isZero(bitAnd(mask, 02:u8))) {
+        contents:u8 := read A
+        perform "push byte through S" {
+          byte:u8 := contents
+          pointer:u16 := read S
+          write S:u16 := subtract(pointer, 0001:u16)
+          address:u16 := read S
+          write memory[address] := byte
+        }
+      }
+      when not(isZero(bitAnd(mask, 01:u8))) {
+        contents:u8 := source "packed condition codes" {
+          e:flag := read E
+          f:flag := read F
+          h:flag := read H
+          i:flag := read I
+          n:flag := read N
+          z:flag := read Z
+          v:flag := read V
+          c:flag := read C
+          ef := bitOr(select(e, 80:u8, 00:u8), select(f, 40:u8, 00:u8))
+          hi := bitOr(select(h, 20:u8, 00:u8), select(i, 10:u8, 00:u8))
+          nz := bitOr(select(n, 08:u8, 00:u8), select(z, 04:u8, 00:u8))
+          vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
+          yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
+        }
+        perform "push byte through S" {
+          byte:u8 := contents
+          pointer:u16 := read S
+          write S:u16 := subtract(pointer, 0001:u16)
+          address:u16 := read S
+          write memory[address] := byte
+        }
+      }
+    }
+  }
+}
+perform "set interrupt masks in CC" {
+  mask:u8 := masks
+  status:u8 := source "packed condition codes" {
     e:flag := read E
     f:flag := read F
     h:flag := read H
@@ -364212,14 +364833,24 @@ when not(isZero(bitAnd(mask, 01:u8))) {
     vc := bitOr(select(v, 02:u8, 00:u8), select(c, 01:u8, 00:u8))
     yield bitOr(bitOr(ef, hi), bitOr(nz, vc))
   }
-  bytePointer:u16 := read S
-  write S:u16 := subtract(bytePointer, 0001:u16)
-  byteAddress:u16 := read S
-  write memory[byteAddress] := contents
+  replace flags "restore all condition codes" simultaneously {
+    E := not(isZero(bitAnd(bitOr(status, mask), 80:u8)))
+    F := not(isZero(bitAnd(bitOr(status, mask), 40:u8)))
+    H := not(isZero(bitAnd(bitOr(status, mask), 20:u8)))
+    I := not(isZero(bitAnd(bitOr(status, mask), 10:u8)))
+    N := not(isZero(bitAnd(bitOr(status, mask), 08:u8)))
+    Z := not(isZero(bitAnd(bitOr(status, mask), 04:u8)))
+    V := not(isZero(bitAnd(bitOr(status, mask), 02:u8)))
+    C := not(isZero(bitAnd(bitOr(status, mask), 01:u8)))
+  } // Replace the complete flag object.
 }
+write control waitMode := "none"
+high:u8 := read memory[vector]
+low:u8 := read memory[addWrap(vector, 0001:u16)]
+write PC:u16 := concatHighLow(high, low)
 ```
 
-Flags preserved throughout: E, F, H, I, N, Z, V, C.
+Flags preserved throughout: none.
 
 ### z80 NOP
 

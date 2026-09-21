@@ -3,7 +3,7 @@ import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
 import type { OpcodeEntry } from "../../opcodes.ts";
 import { memorySource, registerSource } from "../builders.ts";
 import { concat, isWidth, literal, readRegister, readSource, value } from "../model.ts";
-import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Latch, Register, RegisterArray, ValueSource, ValueType, Width } from "../model.ts";
+import type { Choice, CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Latch, Register, RegisterArray, ValueSource, ValueType, Width } from "../model.ts";
 import { defineInstruction, validateFlagPolicy, validateInstruction } from "../validate.ts";
 import { chapterBlocks, chapterBody, ChapterError, ChapterTokens } from "./document.ts";
 import { expression, flagExpression, width } from "./expressions.ts";
@@ -38,7 +38,7 @@ export interface CpuChapter {
 /** Compile a bounded literate language to the existing IR, without evaluating host-language code. */
 export function compileCpuChapter(markdown: string, target: { readonly name?: string; readonly state?: StateFields } = {}, file = "<chapter>"): CpuChapter {
   const registers = new Map<string, Register>(), flags = new Map<string, Flag>();
-  const arrays = new Map<string, RegisterArray>(), latches = new Map<string, Latch>();
+  const arrays = new Map<string, RegisterArray>(), latches = new Map<string, Latch>(), choices = new Map<string, Choice<string>>();
   const sources = new Map<string, ValueSource>(), policies = new Map<string, FlagPolicy>();
   const catalogues = new Map<string, readonly ChapterOperand[]>(), families = new Map<string, readonly OpcodeEntry<InstructionDefinition>[]>();
   const conditions = new Map<string, readonly ChapterCondition[]>();
@@ -68,6 +68,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
       case "flag": flags.set(name, symbol); break;
       case "register-array": arrays.set(name, symbol); break;
       case "latch": latches.set(name, symbol); break;
+      case "choice": choices.set(name, symbol); break;
     }
     return symbol;
   }
@@ -76,7 +77,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
     readonly operands?: ReadonlyMap<string, ChapterOperand>;
     readonly conditions?: ReadonlyMap<string, ChapterCondition>;
   } = {}) {
-    return chapterStatements(lines, { cpu, registers, arrays, latches, flags, policies, actions, catalogues,
+    return chapterStatements(lines, { cpu, registers, arrays, latches, choices, flags, policies, actions, catalogues,
       sources: options.bindings ?? sources, operands: options.operands ?? new Map(), conditions: options.conditions ?? new Map() }, options);
   }
 
@@ -208,7 +209,14 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
             tests.push({ kind: "condition", name: description, flag, set: expected.value });
           } else {
             tokens.expect("="); const operandKind = tokens.word();
-            if (operandKind === "register") {
+            if (operandKind === "unsupported") entries.push({ kind: "unsupported", name: description });
+            else if (operandKind === "view") {
+              const read = tokens.lookup(views); tokens.expect("write"); const write = tokens.lookup(actions);
+              if (Object.values(write.inputs ?? {}).length !== 1 || Object.values(write.inputs!)[0] !== read.width) {
+                tokens.fail("A writable view needs an action with one input matching its width.");
+              }
+              entries.push({ kind: "view", name: description, read, write });
+            } else if (operandKind === "register") {
               const register = tokens.lookup(registers);
               entries.push({ kind: "register", name: description, register, read: registerSource(register) });
             } else if (operandKind === "pair") {
@@ -217,7 +225,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
               entries.push({ kind: "pair", name: description, high, low,
                 read: { name: description, width: 16, steps: [readRegister("high", high), readRegister("low", low)], result: concat(value("high"), value("low")) } });
             } else {
-              if (operandKind !== "memory" && operandKind !== "value") tokens.fail("Expected register, pair, memory, or value operand.");
+              if (operandKind !== "memory" && operandKind !== "value") tokens.fail("Expected register, pair, view, memory, value, or unsupported operand.");
               const source = tokens.lookup(sources);
               if (operandKind === "memory" && source.width !== 16) tokens.fail("Memory operands require a 16-bit address source.");
               entries.push(operandKind === "memory" ? { kind: "memory", name: description, address: source, read: memorySource(source) }
@@ -288,6 +296,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
             let available = true;
             for (const [selector, { view }] of selectors) {
               const operand = selected[selector]!;
+              if (operand.kind === "unsupported") { available = false; break; }
               if (operand.kind === "condition") selectedConditions.set(selector, operand);
               else if (view === "operand") operands.set(selector, operand);
               else if (view === "read") bindings.set(selector, operand.read);

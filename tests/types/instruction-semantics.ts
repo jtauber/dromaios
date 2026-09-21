@@ -1,5 +1,5 @@
 import { instructions as actions6809 } from "../../src/components/cpus/generated/6809-state.js";
-import { instructions as base6809 } from "../../src/components/cpus/generated/6809-base.js";
+import { instructions as base6809 } from "../../src/components/cpus/generated/6809.js";
 import { instructions as system68000 } from "../../src/components/cpus/generated/68000-system.js";
 import { instructions as transfers68000 } from "../../src/components/cpus/generated/68000-transfers.js";
 import { instructions as control68000 } from "../../src/components/cpus/generated/68000-control.js";
@@ -41,7 +41,6 @@ import { instructions as generated8008 } from "../../src/components/cpus/generat
 import { cpu8008StateDescription } from "../../src/components/cpus/semantics/generated/state/8008.js";
 import type { Cpu8008State, Cpu8008StoredState } from "../../src/components/cpus/semantics/generated/state/8008.js";
 import { instructions as generated8080 } from "../../src/components/cpus/generated/8080.js";
-import { instructions as generated6809 } from "../../src/components/cpus/generated/6809.js";
 import { instructions as generated6800 } from "../../src/components/cpus/generated/6800.js";
 import type { Cpu6800State } from "../../src/components/cpus/generated/6800-cpu.js";
 import type { Cpu6502State } from "../../src/components/cpus/generated/6502-cpu.js";
@@ -528,29 +527,29 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   base6809[0x7f](motorola, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
   base6809[0x40](motorola);
   base6809[0xb1](motorola, { fetchByte: () => 0, readByte: () => 0 });
-  generated6809.exg_d_s(motorola);
+  base6809[0x1e](motorola, { fetchByte: () => 0x04 });
   base6809[0x3d](motorola);
   base6809[0x30](motorola, { fetchByte: () => 0, readByte: () => 0 });
-  generated6809.pshs(motorola, { fetchByte: () => 0xff, writeByte: () => {} });
-  generated6809.pulu(motorola, { fetchByte: () => 0xff, readByte: () => 0 });
-  generated6809.pushFrame(motorola, 0xff, { writeByte: () => {} });
-  generated6809.rti(motorola, { readByte: () => 0 });
-  // @ts-expect-error Transfers enter after the CPU fetches and validates their postbyte.
-  generated6809.tfr_pc_x(motorola, { fetchByte: () => 0 });
+  base6809[0x34](motorola, { fetchByte: () => 0xff, writeByte: () => {} });
+  base6809[0x37](motorola, { fetchByte: () => 0xff, readByte: () => 0 });
+  actions6809.pushSystemRegisters(motorola, 0xff, { writeByte: () => {} });
+  base6809[0x3b](motorola, { readByte: () => 0 });
+  // @ts-expect-error Transfers require a context to fetch their postbyte.
+  base6809[0x1f](motorola);
   // @ts-expect-error LEA requires byte fetching and pointer reads, not an opaque resolver.
   base6809[0x32](motorola, () => 0xffff);
   // @ts-expect-error LEA now decodes its own address; no separate numeric address is accepted.
   base6809[0x30](motorola, 0xffff, { readByte: () => 0 });
   // @ts-expect-error Register-mask pushes cannot read memory.
-  generated6809.pshu(motorola, { fetchByte: () => 0, writeByte: () => {}, readByte: () => 0 });
+  base6809[0x36](motorola, { fetchByte: () => 0, writeByte: () => {}, readByte: () => 0 });
   // @ts-expect-error Register-mask pulls cannot write memory.
-  generated6809.puls(motorola, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
+  base6809[0x35](motorola, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Ordinary register-mask instructions fetch their mask.
-  generated6809.pshs(motorola, { writeByte: () => {} });
+  base6809[0x34](motorola, { writeByte: () => {} });
   // @ts-expect-error Frame helpers take a supplied mask and never fetch.
-  generated6809.pushFrame(motorola, 0xff, { writeByte: () => {}, fetchByte: () => 0 });
+  actions6809.pushSystemRegisters(motorola, 0xff, { writeByte: () => {}, fetchByte: () => 0 });
   // @ts-expect-error Transfer bodies require the concrete 6809 state.
-  generated6809.tfr_a_b(m6800);
+  base6809[0x1f](m6800, { fetchByte: () => 0x89 });
   base6809[0x10b3](motorola, { fetchByte: () => 0, readByte: () => 0 });
   base6809[0x118c](motorola, { fetchByte: () => 0 });
   // @ts-expect-error Extended comparisons fetch individual bytes, not words.

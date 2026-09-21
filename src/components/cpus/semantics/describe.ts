@@ -58,12 +58,13 @@ export function describeInstruction(definition: InstructionDefinition): string {
     const emit = (line: string): void => { lines.push(indent + line); };
     for (const step of steps) {
       switch (step.kind) {
-        case "match":
-          emit(`${step.name}:u${step.width} := match byte ${number(step.selector)} {`);
-          for (const branch of step.cases) {
+        case "dispatch": case "match":
+          emit(`${step.kind === "match" ? `${step.name}:u${step.width} := ` : ""}match byte ${number(step.selector)} {`);
+          for (const [index, branch] of step.cases.entries()) {
             emit(`  case (byte & ${branch.mask.toString(16).toUpperCase().padStart(2, "0")}) = ${branch.value.toString(16).toUpperCase().padStart(2, "0")} {`);
             body(branch.steps, indent + "    ");
-            emit(`    yield ${number(branch.result)}`); emit("  }");
+            if (step.kind === "match") emit(`    yield ${number(step.cases[index]!.result)}`);
+            emit("  }");
           }
           emit('  otherwise return outcome "unsupported"; no later effects'); emit("}");
           break;

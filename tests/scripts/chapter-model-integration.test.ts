@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 
-test("6809 chapter state, view, and call edits reach native instructions, indexed decoding, and interrupt frames", t => {
+test("6809 chapter state, view, and stack edits reach public instructions, indexed decoding, and interrupt frames", t => {
   const directory = mkdtempSync(join(tmpdir(), "dromaios-6809-chapter-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
@@ -69,7 +69,10 @@ test("6809 chapter state, view, and call edits reach native instructions, indexe
         assert.deepEqual(after.flags, initial.flags); assert.equal(after.nmiArmed, true);
       }
       else {
-        assert.equal(bytes[operation === "firq" ? 0xfc : 0xf3], operation === "firq" ? 2 : 0x82);
+        // The edited push primitive now serves calls and every interrupt frame.
+        const frameEnd = operation === "firq" ? 0xf9 : 0xe7;
+        assert.equal(after.s, frameEnd);
+        assert.equal(bytes[frameEnd], operation === "firq" ? 2 : 0x82);
         assert.equal(after.flags.i, operation === "SWI2" || operation === "SWI3", "entry must restore through the edited CC policy");
       }
     }

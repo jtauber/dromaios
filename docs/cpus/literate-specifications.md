@@ -27,13 +27,11 @@ Executable chapters are maintained CPU sources:
   WAI suspension and wake-up, and the public interface are chapter-owned too.
   Its model contracts and hardware guide live beside the formal definitions;
   no handwritten 6800 implementation remains.
-- [Motorola 6809: state, addressing, and opcode pages](../../src/components/cpus/specifications/6809.md)
-  owns all stored fields, D/CC views and writes, indexed-postbyte decoding, and
-  base-page loads, stores, arithmetic, logic, comparisons, unary and register/flag
-  operations, branches, LEA, and calls/jumps/returns. It also owns the ordinary
-  prefixed word families and long branches. Named pages generate prefix dispatch,
-  including the remaining native SWI2/SWI3 bindings. Register transfers, masked
-  stacks, remaining instructions, and lifecycle policies stay in TypeScript.
+- [Motorola 6809: complete instruction definitions and stored state](../../src/components/cpus/specifications/6809.md)
+  owns all 268 instruction forms, stored fields, and D/CC views and writes.
+  Named pages and byte matches own prefix/indexed/transfer decoding. Writable
+  views preserve D/CC/S write rules; chapter actions share stack and interrupt-frame
+  effects. Reset, execution, and external-event policies stay in TypeScript.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -149,6 +147,7 @@ Quoted descriptions use JSON string escaping.
 | `register SELECTOR: 3 = stackIndex`, `array ADDRESS: 14[8] = addressStack` | Name stored fields explicitly; widths and array lengths define storage inside `state` and must match the external schema otherwise. |
 | `latch STOPPED = halted` | Declare a Boolean control latch, distinct from an architectural flag. |
 | `choice WAIT: "none", "sync", "cwai" = waitMode` | Declare a stored field with an exact set of named alternatives. |
+| `waiting = choice WAIT = "cwai"`, `WAIT <- "none"` | Capture a Boolean comparison or write one declared alternative; unknown choices are errors. |
 | `source zeroPage "zero page": 16 { … }` | Ordered steps ending in a numeric `return`; each use has its own capture scope. |
 | `view PC "selected PC": 14 { … }` | A named read-only state source, ending in a numeric `return`; it cannot access external devices. |
 | `action setPC "set selected PC" (address: 16) { … }` | Ordered state effects with optional numeric inputs; no instruction fetching, memory, port, or boundary effects. |
@@ -164,7 +163,7 @@ Quoted descriptions use JSON string escaping.
 | `A <- result`, `memory(address) <- byte`, `port(selector) <- byte` | Write to a register, byte memory location, or port. |
 | `ADDRESS[slot] <- target`, `STOPPED <- 1` | Write an indexed stored register or a Boolean control latch; latch writes also accept captured flag expressions. |
 | `ADDRESS[] <- u14($0000)` | Fill every physical array slot with the same width-checked value, without reading previous elements. |
-| `result = operand s`, `operand d <- result` | Read or write a selected register, pair, or memory operand at this point. |
+| `result = operand s`, `operand d <- result` | Read or write a selected register, pair, writable view, or memory operand at this point. |
 | `defer irq` | Request one-boundary IRQ deferral on successful retirement; requires `retire irq into LATCH`. This does not immediately write stored state. |
 | `replace PSW(status)` | Replace the complete flag object; the policy must define every stored flag. |
 | `apply NZ(result)`, `apply ALU(result, carry(left, right))` | Apply a declared flag policy to typed numeric and flag expressions. |
@@ -476,8 +475,14 @@ in numeric order, each with a quoted operand label and `register A`,
 `pair B C`, `memory sourceName`, or `value sourceName`. A pair requires two byte
 registers, high then low: reads capture both in order, and writes split a
 sixteen-bit value in that same order. This is an operand rule, not additional
-storage. Value-only operands cannot be written. For this slice, memory sources return
-sixteen-bit addresses and memory accesses transfer one byte. Every operand
+storage. A `view CC write writeCC` operand pairs an earlier pure view with an
+action taking exactly one numeric input of the same width. Reads evaluate the
+view; writes capture their value and perform that action. This keeps complete
+flag replacement and S-write NMI arming beside their declared behavior.
+An `unsupported` entry marks a reserved selector slot; family and match expansion
+omit combinations selecting that slot. No dummy source or write is generated.
+Value-only operands cannot be written. For this slice, memory sources return
+sixteen-bit addresses and memory accesses transfer one byte. Every supported operand
 supplies `.read`; only a memory operand supplies `.address`. A family can select
 a source view from a catalogue:
 
@@ -696,15 +701,17 @@ decoder as base-page bodies. Complete byte-execution chapters use these bindings
 automatically, without a CPU-name branch in the runtime.
 
 During partial migration, `opcodeEntries(state, additional)` accepts additional
-bodies under declared page names. The 6809 uses this for SWI2/SWI3; changing a
-chapter's prefix also moves those bodies. Additions cannot replace generated
+bodies under declared page names; changing a
+chapter's prefix also moves those bodies. The complete 6809 instruction chapter
+no longer needs native additions. Additions cannot replace generated
 entries: duplicate or out-of-range opcodes are rejected during binding. Native
 base-page collisions remain checked by the CPU's final opcode table.
 
 ## Byte-pattern matches
 
-A `match` captures an eight-bit selector once and yields a numeric value. It
-uses the same bit vocabulary as opcode families: `0`/`1` fix bits, `x` ignores
+A `match` captures an eight-bit selector once and selects a disjoint case. Its
+value form yields a numeric result; its statement form performs effects. Both
+use the same bit vocabulary as opcode families: `0`/`1` fix bits, `x` ignores
 bits, and lowercase selector fields expand an operand catalogue. For example,
 a source can select X/Y/U/S while retaining the complete captured postbyte:
 
@@ -720,12 +727,29 @@ result = match postbyte: 16 {
 }
 ```
 
-Every pattern has eight bits, ignoring spaces and underscores. Each case must
-end in `return` with the declared result width; there must be at least one case.
+Every pattern has eight bits, ignoring spaces and underscores. In the value
+form, each case must end in `return` with the declared result width. There must
+be at least one case.
 Cases must be disjoint after selector expansion. Ignored bits remain masks,
 rather than expanding to duplicate bodies. A case inherits outer captures and
 selected operands, but its local captures and new selectors cannot escape.
 Nested matches can further decode the same captured byte.
+
+An effect match has no result capture, width, or `return`:
+
+```cpu
+match postbyte {
+  case "10 ss 10 dd" for s in transferBytes, d in transferBytes {
+    original = operand s
+    operand d <- original
+  }
+  otherwise unsupported
+}
+```
+
+After a supported case, execution continues after the match. Unsupported
+selector entries are omitted before case expansion. The 6809 uses effect matches
+to validate same-width EXG/TFR pairs before either register is read.
 
 The last line is always `otherwise unsupported`. If no case matches, the
 containing source or instruction returns that outcome immediately, retaining
@@ -827,10 +851,12 @@ unary operations, register/flag operations, every branch, LEA, and
 calls/jumps/returns, plus prefixed word comparisons and transfers. Byte-pattern matches now describe its indexed decoder,
 including unsupported postbytes, auto-updates, and indirect pointer reads.
 Unsigned `multiply` exposes the existing full-width multiplication expression.
-Remaining TypeScript instructions and external entry consume the same views,
-writes. Named opcode pages now supply prefix dispatch and ordinary prefixed
-bodies; register transfers, masked stacks, interrupt instructions, and lifecycle
-policies remain native.
+Named pages supply prefix dispatch, including SWI2/SWI3. Effect matches and
+writable view operands describe transfer postbytes and their special writes.
+Chapter actions now express all masked stacks and software frames, and named
+choice reads/writes express SYNC/CWAI waiting. All 268 instruction forms are
+chapter-owned; only reset, execution, and external-event policies remain native.
+External entry consumes the same chapter frame action.
 Its model document still owns the wider execution contract.
 A differently named test CPU already exercises different storage, address width, views, and
 actions through the same compiler and runtime. This is evidence for the current

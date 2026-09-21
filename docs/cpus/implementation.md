@@ -78,13 +78,14 @@ Its actions define WAI frame reuse and release; no handwritten 6800 core or
 adapters remain. Both runtimes use the shared byte dispatcher.
 
 The [6809 chapter](../../src/components/cpus/specifications/6809.md) is partially
-migrated. Its state adapter re-exports the generated schema. `generated/6809-base.ts`
+migrated. Its state adapter re-exports the generated schema. `generated/6809.ts`
 contains complete chapter-owned opcode bodies, and `generated/6809-state.ts`
 supplies D/CC views, writes, and stack/control actions. The handwritten core
-combines chapter bindings with remaining transfer, stack, and interrupt bodies
-from `generated/6809.ts`. Named chapter pages generate prefix dispatch, including
-native SWI2/SWI3 additions. `6809-base.ts` contains both base-page and ordinary
-prefixed bodies, sharing one indexed decoder.
+binds the chapter's complete 268-form inventory. Named pages and effect matches
+own prefix and register-postbyte dispatch; one indexed decoder serves base and
+prefixed bodies. External interrupt entry reuses the chapter's masked frame action.
+Reset, execution boundaries, external recognition, and public-class generation
+are the remaining model migration.
 
 ## Reading order
 
@@ -126,7 +127,8 @@ CPU-owned modules under [`state/`](../../src/components/cpus/state), or generate
 schema modules for complete chapters, and are re-exported by the public CPU
 module. The 8008, 8080, 6502, and 6800 schemas and public types are generated from their
 chapters, without handwritten state adapters.
-The other four schemas remain authored TypeScript.
+The 6809 re-exports its chapter-generated schema; the other three schemas remain
+authored TypeScript.
 This lets instruction generation load schemas without loading execution. The description
 owns stored field names, types, and constraints. The
 [shared state helpers](../../src/components/cpus/state.ts) provide:
@@ -789,11 +791,10 @@ the popped address. Motorola JSR receives the decoder's resolved target, retaini
 indexed S updates and NMI arming. Packed-status bodies add explicit packing and
 complete flag replacement around the shared stack effects.
 
-For masked stacks, supply register views in mask-bit order to `maskedStack`.
-It expands conditional transfers, visits pushes in descending order and pulls
-in ascending order, captures each source at its turn, and writes each pulled
-register only after its complete read. The 6809 uses this recipe for S/U
-instructions and supplied-mask frame helpers. Ordinary nonempty S-stack
+For masked stacks, the 6809 chapter actions list conditional transfers in
+physical order: pushes descend through mask bits, pulls ascend. Each source is
+captured at its turn; each pulled register is written only after its complete
+read. S/U instructions and supplied-mask frames reuse these actions. Ordinary nonempty S-stack
 instructions arm NMI at successful completion; interrupt frame helpers preserve
 arming. PULU's S write arms before a subsequent PC pull. The CPU retains interrupt
 recognition, frame selection, and vector delivery. The 6502, 6800, and 8088 use

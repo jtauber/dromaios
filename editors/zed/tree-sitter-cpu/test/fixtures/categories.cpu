@@ -141,3 +141,20 @@ page secondary = $10
 family prefixed "0010 0001" on secondary {
   byte = fetch
 }
+
+operands statusViews {
+  0 "status" = view CC write restoreCC
+  1 "reserved" = unsupported
+}
+family choiceProbe "1111 1111" {
+  waiting = choice WAIT = "sync"
+  WAIT <- "none"
+  postbyte = fetch
+  match postbyte {
+    case "0000 000 r" for r in statusViews {
+      value = operand r
+      operand r <- value
+    }
+    otherwise unsupported
+  }
+}
