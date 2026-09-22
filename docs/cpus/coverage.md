@@ -25,7 +25,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,900](../../src/components/cpus/specifications/z80.md) | 1,509 | 698 / 698 | 100% | 6 / 6 |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,566](../../src/components/cpus/specifications/6809.md) | 1,322 | 268 / 268 | 100% | 6 / 6 |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,115](../../src/components/cpus/specifications/8088.md) | 2,714 | 291 / 291 | 100% | 6 / 6 |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [617](../../src/components/cpus/68000.ts) | [2,183](../../src/components/cpus/specifications/68000.md) | 1,263 | 16,610 / 36,029 | 46.1% | 1 / 6 |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [625](../../src/components/cpus/68000.ts) | [4,090](../../src/components/cpus/specifications/68000.md) | 2,427 | 27,796 / 36,029 | 77.1% | 1 / 6 |
 
 **Literate instruction coverage** measures documented opcode forms authored in
 executable chapters. This percentage alone does not measure the wider CPU
@@ -219,10 +219,11 @@ verify chapter edits through generation, construction, machine parsing, memory
 bounds, and execution.
 
 The [68000 chapter](../../src/components/cpus/specifications/68000.md) owns
-**16,610 of 36,029 documented forms (46.1%)**: all 9,726 MOVE/MOVEA forms,
-6,660 ordinary logical/immediate and CLR/NOT/TST forms, eight MOVEQ destinations,
-sixteen EXT forms, eight SWAP forms, and 192 EXG pairs. These cover 18,650 operation
-words, but MOVEQ's immediate values do not multiply forms under the existing
+**27,796 of 36,029 documented forms (77.1%)**: all 9,726 MOVE/MOVEA forms,
+6,660 ordinary logical/immediate and CLR/NOT/TST forms, 11,186 binary arithmetic
+forms, eight MOVEQ destinations, sixteen EXT forms, eight SWAP forms, and 192 EXG
+pairs. These cover 32,160 operation words, but MOVEQ immediates and quick amounts
+do not multiply forms under the existing
 [counting rules](68000/opcode-count.md).
 The full stored-state schema earns **1 / 6 model milestones**. A7 selection,
 physical-PC and packed-status views, CCR/SR actions, and byte/word/long result
@@ -622,10 +623,11 @@ family inventory is:
   ADD/SUB/CMP, their immediate/quick/address-register forms, ADDX/SUBX,
   NEG/NEGX, and CMPM add **11,186 forms** through **2,678 shared bodies**.
   Quick constants remain decoded parameters, so these forms cover **13,510
-  operation words**. Arithmetic retains the native destination
-  read/modify/write recipe; logic now authors its ordering in the chapter. Arithmetic reuses the shared calculation recipe
-  with 68000 flag policies: comparisons preserve X and never write a result;
-  other data arithmetic copies carry/borrow to X. Extended operations capture
+  operation words**. These encodings and their ordered bodies now live in the
+  chapter. The native adapter supplies raw `mode/code/upperCode`; chapter families
+  select register roles, paired modes, and quick amounts. Named result sources
+  share calculation and 68000 flag policies: comparisons preserve X and never
+  write a result; other data arithmetic copies carry/borrow to X. Extended operations capture
   Z then X after the operand reads and accumulate zero across results. Address
   arithmetic uses all 32 destination bits, sign-extends word EA sources, keeps
   quick constants positive, and preserves flags except for CMPA. Resolve A7's
@@ -716,14 +718,14 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Remaining handwritten CPU core (68000) | 617 |
-| CPU-specific instruction definition files | 513 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,616 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,746** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 18,312 |
+| Remaining handwritten CPU core (68000) | 625 |
+| CPU-specific instruction definition files | 467 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,538 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,630** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 20,219 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
-| Generated executable CPU output, counted separately | 359,971 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 3,218,442 |
+| Generated executable CPU output, counted separately | 473,997 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 5,655,300 |
 | Generated state schemas/types, counted separately | 207 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
@@ -1121,6 +1123,30 @@ table. Chapter tests change calculation expressions and opcode register fields,
 verify immediate aliases, and reject invalid calculation arguments. The saved
 build comparison matches **131,072 instruction cases**, **256 reset/interrupt
 cases**, and **8,232 injected failures**.
+
+The binary-arithmetic migration adds **11,186 documented forms**, bringing
+68000 literate coverage to **27,796 / 36,029 (77.1%)**. All **13,510 operation
+words** select **2,678 shared chapter bodies**. ADD/SUB/CMP, their immediate,
+quick and address forms, ADDX/SUBX, NEG/NEGX, and CMPM now own their encodings,
+calculation/flag sources, and access/writeback sequences in the chapter. The
+native adapter supplies raw fields; the chapter determines quick amounts and
+paired-memory modes. No language or compiler extension was needed.
+
+The chapter is **4,090 lines**, including **2,427 formal lines**.
+CPU definition files shrink from **513 to 467 lines**. Removing the binary
+arithmetic catalogue, its classifier, and its builder reduces authored CPU
+TypeScript from **6,746 to 6,630 lines**, a net reduction of **116**.
+The native core is **625 lines** and total maintained CPU source, including
+chapters and generation scripts, is **26,997 lines**. Generated
+execution and chapter data are counted separately above. Model milestones
+remain **1 / 6**; reset, execution boundaries, effective-address decoding, and
+the remaining instruction families still await migration.
+
+Independent arithmetic tests retain every binding, signed/unsigned range
+calculation, flag effect, alias, and injected failure boundary. Chapter edits
+change calculation expressions, X and cumulative-zero policies, quick amounts,
+and paired-register selection. The saved-build comparison matches **131,072
+instruction cases**, **256 reset/interrupt cases**, and **8,804 injected failures**.
 
 Generated chapter data shares identical instruction definitions across opcode
 aliases; distinct definitions still repeat their validated CPU schema. This is a

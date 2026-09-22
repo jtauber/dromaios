@@ -38,13 +38,15 @@ for (const [kind, base] of [["copy", 0x3000], ["load", 0x3010], ["store", 0x3080
     name: `MOVE.W ${kind === "load" ? `(A${r})` : `D${r}`},${kind === "store" ? `(A${d})` : `D${d}`}` });
 }
 
-test("the 68000 chapter owns its state and 16,610 forms across 18,650 operation words", () => {
+test("the 68000 chapter owns its state and 27,796 forms across 32,160 operation words", () => {
   const chapter = compile();
   assert.deepEqual(chapter.state, cpu68000StateDescription);
   const definitions = Object.fromEntries(Object.values(chapter.families).flat());
-  assert.equal(Object.keys(definitions).length, 18650);
-  // MOVEQ's 256 immediate values count as one form per data register.
-  assert.equal(Object.keys(definitions).length - chapter.families.moveQuick!.length + 8, 16610);
+  assert.equal(Object.keys(definitions).length, 32160);
+  // MOVEQ and quick arithmetic literal amounts do not multiply forms.
+  const counted = new Set(Object.keys(definitions).map(Number).map(opcode =>
+    opcode >>> 12 === 7 ? opcode & 0xff00 : opcode >>> 12 === 5 ? opcode & ~0x0e00 : opcode));
+  assert.equal(counted.size, 27796);
   assert.equal(Object.keys(memoryBodies).length, 9150);
   for (const form of forms) {
     const expectedName = form.kind === "copy" ? form.name

@@ -16,7 +16,7 @@ import { instructions as generated } from "./generated/68000.ts";
 import { instructions as quick } from "./generated/68000-quick.ts";
 import { opcodeInstructions as moves } from "./generated/68000-moves.ts";
 import { opcodeInstructions as logic } from "./generated/68000-logic.ts";
-import { instructions as arithmeticBodies } from "./generated/68000-arithmetic.ts";
+import { opcodeInstructions as arithmetic } from "./generated/68000-arithmetic.ts";
 import { instructions as bitBodies } from "./generated/68000-bits.ts";
 import { bitForms68000 } from "./68000-bits.ts";
 import { instructions as wordArithmeticBodies } from "./generated/68000-word-arithmetic.ts";
@@ -27,7 +27,7 @@ import { instructions as transferBodies } from "./generated/68000-transfers.ts";
 import { transferForms68000 } from "./68000-transfers.ts";
 import { controlForms68000 } from "./68000-control.ts";
 import { instructions as decimalBodies } from "./generated/68000-decimal.ts";
-import { arithmeticForms68000, wordArithmeticForms68000, decimalForms68000 } from "./68000-arithmetic.ts";
+import { wordArithmeticForms68000, decimalForms68000 } from "./68000-arithmetic.ts";
 import type { Cpu68000AddressContext, Cpu68000ControlContext, Cpu68000ResetContext } from "./68000-context.ts";
 import { opcodeFamily, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
@@ -150,7 +150,7 @@ interface InstructionContext extends MemoryContext, Cpu68000ControlContext, Cpu6
 
 // Shared bodies receive decoded selectors and only the context capabilities their stages require.
 const operandBodies: Readonly<Record<string, (state: Cpu68000State, sourceMode: number, sourceCode: number,
-  destinationMode: number, destinationCode: number, instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = { ...arithmeticBodies, ...bitBodies, ...wordArithmeticBodies, ...decimalBodies };
+  destinationMode: number, destinationCode: number, instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = { ...bitBodies, ...wordArithmeticBodies, ...decimalBodies };
 
 const controlInstructions: Readonly<Record<string, (state: Cpu68000State, mode: number, code: number, displacement: number,
   instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = controlBodies;
@@ -391,8 +391,16 @@ export class Cpu68000 {
         return fault === "unsupported" ? "illegal-instruction" : fault;
       }];
     }),
+    // Arithmetic receives raw mmm/eee and rrr/qqq; the chapter assigns operand roles.
+    ...Object.entries(arithmetic).map(([word, execute]): OpcodeEntry<OpcodeHandler> => {
+      const opcode = Number(word), mode = (opcode >>> 3) & 7, code = opcode & 7, upperCode = (opcode >>> 9) & 7;
+      return [opcode, (cpu, instruction) => {
+        const fault = execute(cpu.#state, mode, code, upperCode, cpu.#addressContext(instruction));
+        return fault === "unsupported" ? "illegal-instruction" : fault;
+      }];
+    }),
     ...[
-      ...arithmeticForms68000, ...bitForms68000,
+      ...bitForms68000,
       ...wordArithmeticForms68000, ...decimalForms68000,
     ].map(({ opcode, body, sourceMode, sourceCode, destinationMode, destinationCode }): OpcodeEntry<OpcodeHandler> =>
       [opcode, (cpu, instruction) => operandBodies[body]!(cpu.#state, sourceMode, sourceCode, destinationMode, destinationCode, cpu.#addressContext(instruction))]),

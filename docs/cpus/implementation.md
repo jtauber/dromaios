@@ -274,25 +274,23 @@ including CLR's real memory read. Logical flags precede writeback, while TST
 omits writeback altogether. Keep these stages explicit beside MOVE's distinct
 order when sharing the underlying operand helpers.
 
-The [arithmetic inventory](../../src/components/cpus/68000-arithmetic.ts) supplies
-the same decoded operand inputs; quick constants reuse the source selector
-field instead of multiplying bodies. This remaining native inventory uses
-[`aluForms68000`](../../src/components/cpus/68000-alu.ts) to classify encoded
-`[mode, register]` operand pairs and name their shared bodies. An omitted source
-denotes a unary operation; a third source item gives quick constants their own
-operand identity while retaining the encoded amount. The builder excludes unused
-sizes and invalid source/destination EAs. Each family keeps its narrower rules
-beside its bit patterns, including memory-only destinations in the Dn-to-EA
-direction. Arithmetic retains its ALU destination recipe, with calculation and
-optional writeback kept explicit; logic now authors this ordering in the chapter.
+The [arithmetic chapter families](../../src/components/cpus/specifications/68000.md#addition-subtraction-and-comparison)
+own ADD/SUB/CMP, their immediate/quick/address forms, ADDX/SUBX, NEG/NEGX, and
+CMPM. The native adapter extracts raw `mode/code/upperCode`; the chapter assigns
+roles, fixes paired predecrement/postincrement modes, and decodes quick zero as
+eight. Encodings with the same operand effects share one generated body. The
+former arithmetic catalogue and `aluForms68000` classifier are removed.
+
+Arithmetic sources calculate from captured operands and apply flags before
+returning a result for writeback. Comparisons preserve X and omit writeback;
+extended arithmetic reads Z then X and applies cumulative zero separately.
 Address-register destinations select their A7 bank before committing pending
 updates and read the updated register afterward. Their arithmetic width is
 always 32 bits; word EA sources sign-extend, while quick values remain positive.
-Comparisons omit writeback. Extended arithmetic captures Z then X after operand
-reads and applies cumulative zero separately from ordinary result flags.
+ADDA/SUBA and address quick operations preserve flags; CMPA changes N/Z/V/C.
 
-The [bit/shift inventory](../../src/components/cpus/68000-bits.ts) uses the same
-binding and destination stages. Capture bit numbers and shift counts before
+The [bit/shift inventory](../../src/components/cpus/68000-bits.ts) retains the four source/destination
+selectors and native ALU destination stages. Capture bit numbers and shift counts before
 reading the target; keep BTST's program-space and immediate reads distinct from
 writable operands. Shifts share one-bit construction with the other CPUs.
 Use named local iteration values for the result, extend, carry, and accumulated

@@ -1149,11 +1149,20 @@ operand fetch with pushes, and RTI restores flags before PC. The chapter also
 owns reset bus effects, ordinary execution, named IRQ/NMI entry, and its public
 interface. No handwritten 6502 implementation remains.
 The 8008 now expresses its address-stack selector, array, and port effects;
-the 68000 now owns its schema, transfers, logical/unary operations, A7 selection,
-and status packing/restoration. Its native effective-address decoder consumes
+the 68000 now owns its schema, transfers, logical/unary and binary arithmetic
+operations, A7 selection, and status packing/restoration. Its native effective-address decoder consumes
 the chapter selection source and retains pending auto-updates. Shared TypeScript
 bodies still serve the remaining instruction families. Only complete chapter-owned
 forms earn literate coverage.
+
+The 68000 arithmetic families reuse source bindings for calculations that return
+a result after applying flags. This differs from the pure logical calculations:
+comparisons preserve X, extended operations capture Z then X and apply a separate
+cumulative-zero stage, and address addition/subtraction preserves all flags.
+Families expose operand reads, alignment checks, pending commits, and writeback;
+raw `mode/code/upperCode` inputs keep paired modes and quick amounts in the chapter.
+[Arithmetic chapter tests](../../tests/components/cpus/semantics/literate-68000-arithmetic.test.ts)
+verify production ownership and executable edits to each of those rules.
 
 The 8008 supplies the first whole-CPU description at its declared instruction-level
 fidelity. The 8080 now reuses its execution services with chapter-defined

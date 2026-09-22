@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { initialState } from "../../../helpers/68000-state.js";
-import { instructions } from "../../../../src/components/cpus/generated/68000-arithmetic.js";
-import { arithmeticForms68000 } from "../../../../src/components/cpus/68000-arithmetic.js";
+import { instructions, opcodeInstructions } from "../../../../src/components/cpus/generated/68000-arithmetic.js";
 import { arithmetic68000 } from "../../../../src/components/cpus/semantics/definitions.js";
 import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
 import type { WordInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
@@ -10,8 +9,8 @@ import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 
 type Context = Cpu68000AddressContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
-type Body = (state: Cpu68000State, sm: number, sc: number, dm: number, dc: number, context: Context) => OperandAlignmentFault | void;
-const bodies: Readonly<Record<string, Body>> = instructions;
+type Body = (state: Cpu68000State, mode: number, code: number, upperCode: number, context: Context) => OperandAlignmentFault | "unsupported" | void;
+const bodies: Readonly<Record<number, Body>> = opcodeInstructions;
 const data = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
 const address = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
 type Stored = typeof data[number] | typeof address[number] | "usp" | "ssp";
@@ -120,7 +119,7 @@ interface Scenario { bits: number; source: number; destination: number; left: nu
 function observe(f: Form, scenario: Scenario, failAt: number, generated: boolean) {
   const state = initialState(scenario.bits), events: unknown[][] = [], memory = new Map<number, number>(), pending = new Map<Stored, number>();
   const failure = Error("injected arithmetic effect failure");
-  let failed = false, outcome: OperandAlignmentFault | void, fetches = 0, resolutions = 0;
+  let failed = false, outcome: OperandAlignmentFault | "unsupported" | void, fetches = 0, resolutions = 0;
   if (f.dm < 2) state[stored(state, f.dm, f.dc)] = scenario.left;
   if (!unary(f) && !f.quick && f.sm < 2) state[stored(state, f.sm, f.sc)] = scenario.right;
   const load = (a: number, value: number) => {
@@ -157,7 +156,13 @@ function observe(f: Form, scenario: Scenario, failAt: number, generated: boolean
     readByte: a => read("data", a), readProgramByte: a => read("program", a),
     writeByte(a, byte) { effect("memory write", a, byte); mutate(); memory.set(a, byte); },
   };
-  try { outcome = generated ? bodies[f.key]!(observed, f.sm, f.sc, f.dm, f.dc, context) : reference(observed, f, context); }
+  // The chapter receives raw fields. Only memory EAs vary in the failure probes;
+  // paired memory modes are fixed by the opcode and both register codes are supplied.
+  const paired = sourceMemory(f) && f.dm >= 2;
+  const mode = sourceMemory(f) ? paired ? 1 : f.sm : f.dm;
+  const code = sourceMemory(f) ? f.sc : f.dc;
+  const upperCode = paired ? f.dc : f.quick ? f.sc : (f.opcode >>> 9) & 7;
+  try { outcome = generated ? bodies[f.opcode]!(observed, mode, code, upperCode, context) : reference(observed, f, context); }
   catch (error) { if (error !== failure) throw error; failed = true; }
   return { state, events, memory: [...memory], failed, outcome: outcome! };
 }
@@ -166,13 +171,10 @@ const scenario: Scenario = { bits: 127, source: 0xfffffffe, destination: 0x12345
 test("68000 arithmetic covers 11,186 forms, 13,510 operation words, and 2,678 shared bodies", () => {
   assert.equal(forms.length, 13510); assert.equal(representatives.length, 2678);
   assert.equal(new Set(forms.map(f => f.quick ? f.opcode - f.sc * 512 : f.opcode)).size, 11186);
-  assert.equal(arithmeticForms68000.length, forms.length);
-  assert.equal(new Set(arithmeticForms68000.map(f => f.opcode)).size, forms.length);
-  const expected = new Map(forms.map(f => [f.opcode, f]));
-  for (const f of arithmeticForms68000) assert.deepEqual({ opcode: f.opcode, op: f.operation, size: f.size, sm: f.sourceMode, sc: f.sourceCode,
-    dm: f.destinationMode, dc: f.destinationCode, quick: f.source?.kind === "quick", key: f.body }, expected.get(f.opcode));
-  const keys = representatives.map(f => f.key).sort();
-  assert.deepEqual(Object.keys(arithmetic68000).sort(), keys); assert.deepEqual(Object.keys(bodies).sort(), keys);
+  assert.deepEqual(Object.keys(bodies).map(Number), forms.map(f => f.opcode));
+  assert.equal(new Set(Object.values(bodies)).size, 2678);
+  assert.equal(Object.keys(arithmetic68000).length, 2678);
+  assert.deepEqual(Object.keys(instructions).sort(), Object.keys(arithmetic68000).sort());
 });
 
 test("every arithmetic binding retains operands, active stack bank, access space, and quick amount", () => {
@@ -215,12 +217,12 @@ test("address arithmetic sign-extends word sources, keeps quick constants positi
 });
 
 test("arithmetic explanations retain paired access order, flags before writeback, and comparison without writes", () => {
-  const addx = describeInstruction(arithmetic68000.ADDX_32_memory_memory!);
-  assert.ok(addx.indexOf("sourceByte3:u8 := read memory") < addx.indexOf("destinationAddress:u32 := resolve"));
-  assert.ok(addx.indexOf("commit staged") < addx.indexOf("destinationByte0:u8 := read memory"));
-  assert.ok(addx.indexOf("destinationByte3:u8 := read memory") < addx.indexOf("previousZero:flag := read Z"));
+  const addx = describeInstruction(arithmetic68000["ADDX.L MEMORY,MEMORY"]!);
+  assert.ok(addx.indexOf("byte3:u8 := read memory") < addx.indexOf("destinationAddress:u32 := resolve"));
+  assert.ok(addx.indexOf("commit staged") < addx.indexOf("byte0:u8 := read memory", addx.indexOf("destinationAddress:u32 := resolve")));
+  assert.ok(addx.indexOf("byte3:u8 := read memory", addx.indexOf("destinationAddress:u32 := resolve")) < addx.indexOf("previousZero:flag := read Z"));
   assert.match(addx, /68000 cumulative zero/);
   assert.ok(addx.indexOf('flags "68000 cumulative zero"') < addx.indexOf("write memory"));
-  const compare = describeInstruction(arithmetic68000.CMP_16_memory_memory!);
+  const compare = describeInstruction(arithmetic68000["CMPM.W MEMORY,MEMORY"]!);
   assert.doesNotMatch(compare, /write memory|read X|read Z/);
 });

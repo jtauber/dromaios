@@ -7,16 +7,16 @@ import type { ControlForm68000 } from "../../68000-control.ts";
 import { motorolaBranchNames } from "../../motorola.ts";
 import { motorolaCondition } from "../motorola.ts";
 import { cpu68000StateDescription } from "../../state/68000.ts";
-import { arithmeticForms68000, wordArithmeticForms68000, decimalForms68000 } from "../../68000-arithmetic.ts";
-import type { ArithmeticOperation68000, ArithmeticSource68000, WordArithmeticForm68000, DecimalForm68000 } from "../../68000-arithmetic.ts";
+import { wordArithmeticForms68000, decimalForms68000 } from "../../68000-arithmetic.ts";
+import type { WordArithmeticForm68000, DecimalForm68000 } from "../../68000-arithmetic.ts";
 import { bitForms68000 } from "../../68000-bits.ts";
 import type { BitForm68000, ShiftKind68000 } from "../../68000-bits.ts";
 import { dataRegisters68000 as dataRegisters, addressRegisters68000 as addressRegisters } from "../../68000-operands.ts";
 import type { Operand68000, OperandSize68000 as Size, OperandRegister68000 as RegisterName } from "../../68000-operands.ts";
-import { perform, readSource, resetDevices, writeLatch, addOverflow, addWrap, alignmentFault, and, borrow, carry, overflow, select, subtract, bitAnd, bitOr, bitXor, capture, commitAddressUpdates, concat, cpuSymbols, extend, fetchWord, flagLiteral, flagValue, literal, lowBit, negative, readFlag, readMemory, readProgramMemory, readRegister,
+import { perform, readSource, resetDevices, writeLatch, addWrap, alignmentFault, and, borrow, select, subtract, bitAnd, bitOr, bitXor, capture, commitAddressUpdates, concat, cpuSymbols, extend, fetchWord, flagLiteral, flagValue, literal, lowBit, negative, readFlag, readMemory, readProgramMemory, readRegister,
   readNextAddress, selectTarget, divide, multiply, not, reject, iterate, iterateTogether, or, xor, shiftLeft, resolveAddress, shiftBits, signExtend, truncate, updateFlags, value, when, writeMemory, writeRegister, zero } from "../model.ts";
 import type { FlagExpression, InstructionDefinition, NumberExpression, Register, Statement } from "../model.ts";
-import { arithmetic, instructionAliases, instructionBodies, instructionSet, shift } from "../builders.ts";
+import { instructionAliases, instructionBodies, instructionSet, shift } from "../builders.ts";
 import { choose } from "../control-flow.ts";
 import { flagPolicy } from "../status.ts";
 import { defineInstruction } from "../validate.ts";
@@ -159,55 +159,9 @@ export const transfers68000 = instructionBodies(transferForms68000, form => form
 const logicFamilies = Object.entries(families).filter(([name]) => name.startsWith("operandLogic")).flatMap(([, entries]) => entries);
 export const { definitions: logic68000, opcodeAliases: logicOpcodes68000 } = instructionAliases(logicFamilies);
 
-/** Calculation is shared; the 68000 supplies its X policy and cumulative-zero stage. */
-function arithmeticSteps(operation: ArithmeticOperation68000, size: Size, address: boolean): readonly Statement[] {
-  const adding = operation === "ADD" || operation === "ADDX", compare = operation === "CMP";
-  const extended = operation === "ADDX" || operation === "SUBX" || operation === "NEGX";
-  const negate = operation === "NEG" || operation === "NEGX";
-  const left = value("left"), right = value("right"), incoming = extended ? flagValue("extend") : undefined;
-  const flags = flagPolicy(cpu, `68000 ${operation}`, { left: size, right: size, result: size, ...(extended ? { carry: "flag" } as const : {}) }, {
-    n: negative(value("result")), z: zero(value("result")),
-    v: (adding ? addOverflow : overflow)(left, right, extended ? flagValue("carry") : undefined),
-    c: (adding ? carry : borrow)(left, right, extended ? flagValue("carry") : undefined),
-    ...(compare ? {} : { x: (adding ? carry : borrow)(left, right, extended ? flagValue("carry") : undefined) }),
-  });
-  return [capture("left", negate ? literal(size, 0) : value("destination")), capture("right", negate ? value("destination") : value("source")),
-    ...(extended ? [readFlag("previousZero", cpu.flag("z")), readFlag("extend", cpu.flag("x"))] : []),
-    ...(address && !compare ? [capture("result", (adding ? addWrap : subtract)(left, right))]
-      : arithmetic(adding ? "add" : "subtract", flags, incoming)),
-    ...(extended ? [updateFlags(flagPolicy(cpu, "68000 cumulative zero", { previous: "flag", result: size }, {
-      z: and(flagValue("previous"), zero(value("result"))),
-    }), { previous: flagValue("previousZero"), result: value("result") })] : [])];
-}
-
-function operandArithmetic(operation: ArithmeticOperation68000, size: Size, source: ArithmeticSource68000 | undefined,
-  destination: Exclude<Operand68000, { kind: "immediate" }>) {
-  const address = destination.kind === "register" && destination.name.startsWith("a");
-  const width = address ? 32 : size, quick = source?.kind === "quick", compare = operation === "CMP";
-  const apply = arithmeticSteps(operation, width, address);
-  const finish = aluDestination(width, destination, source?.kind === "memory" || destination.kind === "memory", apply, !compare);
-  // A word EA is signed for address arithmetic; a quick constant is always the positive value 1..8.
-  const converted = address && size === 16 && !quick ? [capture("source", signExtend(value("wordSource"), 32)), ...finish] : finish;
-  const steps = !source ? finish : quick
-    ? [capture("source", select(zero(value("sourceCode")), literal(width, 8), extend(value("sourceCode"), width))), ...finish]
-    : withSource(size, source, address && size === 16 ? "wordSource" : "source", converted);
-  const mnemonic = quick ? `${operation}Q` : address ? `${operation}A` : source?.kind === "immediate" ? `${operation}I`
-    : compare && destination.kind === "memory" ? "CMPM" : operation;
-  return defineInstruction({ cpu: cpu.declaration, name: `${mnemonic}.${sizes[size]} ${source ? `${source.name.toUpperCase()},` : ""}${destination.name.toUpperCase()}`,
-    inputs: { sourceMode: 3, sourceCode: 3, destinationMode: 3, destinationCode: 3 },
-    explanation: "Read the complete source before resolving the destination. Stage both operands' auto-updates, including successive uses of the same An. "
-      + "Reject odd word/long addresses before committing updates. Commit before reading the destination: source failures discard updates; destination failures retain them. "
-      + "Transfers are high byte first with 32-bit logical wrap and distinct program-space reads. "
-      + (address ? "Operate on all 32 destination bits; sign-extend word EA sources and keep quick constants positive. " : "Preserve live upper Dn bits on byte/word writeback. ")
-      + (address && !compare ? "Preserve every flag. " : "Apply N/Z/V/C before writeback. " + (compare ? "Preserve X. " : "Copy carry/borrow into X. "))
-      + (["ADDX", "SUBX", "NEGX"].includes(operation) ? "After the operand reads, capture Z then X; consume X and set final Z only when old Z was set and the result is zero. " : "")
-      + (compare ? "Do not write a result." : "Failed writes retain computed flags, committed updates, and completed bytes."),
-    steps,
-  });
-}
-
-// Literal quick values select bindings, while operand roles select shared bodies.
-export const arithmetic68000 = instructionBodies(arithmeticForms68000, ({ operation, size, source, destination }) => operandArithmetic(operation, size, source, destination));
+// Arithmetic families also own quick constants, paired modes, and their register fields.
+const arithmeticFamilies = Object.entries(families).filter(([name]) => name.startsWith("operandArithmetic")).flatMap(([, entries]) => entries);
+export const { definitions: arithmetic68000, opcodeAliases: arithmeticOpcodes68000 } = instructionAliases(arithmeticFamilies);
 
 /** Fold the result and shift flags together; no architectural flags change during the calculation. */
 function shiftSteps(kind: ShiftKind68000, direction: "L" | "R", size: Size): readonly Statement[] {

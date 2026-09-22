@@ -1678,31 +1678,31 @@ so a failed write retains the computed flags and earlier bytes. Keep this
 ordering distinct from MOVE's write-before-flags sequence. CCR/SR immediate
 logic remains in its separate status path.
 
-The addition/subtraction/comparison families add 2,678 bodies for 11,186 forms.
-Their [encoding inventory](../../src/components/cpus/68000-arithmetic.ts) supplies
-four source/destination mode and register selectors through its native binding. Quick constants
-use the source selector input: zero means eight; other codes mean one through
-seven. Literal values do not add coverage or bodies. Ordinary immediate and
+The [addition/subtraction/comparison chapter families](../../src/components/cpus/specifications/68000.md#addition-subtraction-and-comparison)
+own 2,678 bodies for 11,186 forms. The native binding supplies only raw
+`mode/code/upperCode` fields. The chapter selects register roles, interprets
+quick zero as eight, and assigns paired predecrement/postincrement modes. Quick
+literal values do not multiply bodies or coverage. Ordinary immediate and
 source-EA encodings share bodies where their data flow matches.
 
-The remaining native arithmetic builders share an ALU destination recipe. It
-resolves the destination, checks alignment, commits pending updates, reads the value,
-applies the calculation, and optionally writes back. A7's bank is selected
-before committing updates, while its value is read afterward. ADDA/SUBA/CMPA
-sign-extend a word source and operate on all 32 destination bits. Quick
-address-register operations use positive constants and also operate at 32 bits.
-Only CMPA changes flags for these address destinations.
+Named result sources take captured numbers, calculate, apply flags, and return
+the result for writeback. Ordinary data arithmetic sets X from carry/borrow;
+comparisons preserve X and never write a result. ADDX/SUBX/NEGX capture Z then X
+after all operand reads and apply cumulative zero as a separate stage. Pure
+address addition/subtraction sources preserve every flag. ADDA/SUBA/CMPA
+sign-extend word EA sources and operate on all 32 destination bits; quick
+address-register operations keep their amounts positive. Only CMPA changes
+flags for these address destinations.
 
-Shared arithmetic construction applies the 68000 N/Z/V/C policy; ordinary data
-arithmetic also sets X from carry/borrow, while comparisons preserve X and
-never write a result. ADDX/SUBX/NEGX capture Z then X after all operand reads;
-a separate cumulative-zero stage combines the captured Z with the result.
-Paired memory operands preserve source-before-destination resolution and
-successive updates to the same An. A source or alignment failure discards
-pending updates. A failed destination read retains committed updates, and a
-failed write also retains calculated flags and earlier bytes. These definitions
-use the existing vocabulary and compiler; earlier definitions and generated
-modules are unchanged.
+The families reuse chapter memory sources, register selection, and write actions.
+Select the destination A7 bank before committing updates, then read its current
+value. Paired memory operands retain source-before-destination resolution and
+successive updates to the same An. Source or alignment failures discard pending
+updates. A failed destination read retains committed updates; a failed write
+also retains calculated flags and earlier bytes. The native arithmetic builder
+and its encoding classifier are removed without a language or compiler change.
+The native ALU destination recipe remains in use for bits, shifts, and decimal
+operations until their own chapter migration.
 
 The [bit/shift inventory](../../src/components/cpus/68000-bits.ts) adds 2,086
 bodies for 3,940 documented forms. All families reuse the ALU destination
@@ -1735,7 +1735,7 @@ failure, and use a bit-array oracle for all six-bit counts and sign boundaries.
 CPU bus tests retain byte failures, A7 updates in both banks, and program-space
 function codes. Earlier definitions and generated modules remain unchanged.
 
-The [arithmetic inventory](../../src/components/cpus/68000-arithmetic.ts) also
+The remaining [word and decimal inventory](../../src/components/cpus/68000-arithmetic.ts)
 binds 2,120 MULU/MULS/DIVU/DIVS/CHK forms to 440 word-source bodies and 306
 ABCD/SBCD/NBCD forms to 139 decimal bodies. These reuse the source reader and
 ALU destination construction, with distinct commit schedules.
