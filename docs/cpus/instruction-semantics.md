@@ -14,8 +14,8 @@ and document format used to author a CPU.
 
 The [literate specification prototype](literate-specifications.md) now provides
 an external authoring path into this representation. The language guide records
-the executable chapters and their shared addressing rules; other definitions
-remain TypeScript-authored.
+the executable chapters and their shared addressing rules. Shared TypeScript
+builders remain available for probes and reusable construction.
 
 The complete 8008, 8080, 6502, 6800, 6809, Z80, and 8088 models are authored in their
 [executable chapters](literate-specifications.md). The shared construction
@@ -26,9 +26,9 @@ family, including addressing, encodings, and reusable stack/frame actions. Its
 reset, waiting, execution, IRQ/NMI recognition, and public interface also come
 from the chapter, with memory-only vector execution shared with the 6502.
 The construction history below describes the earlier shared-builder migration;
-the 68000 retains TypeScript builders for control, multiple/peripheral
-transfers, and status/system families. Its chapter now owns stored state,
-register operations, A7/status sources, and result policies; the generated catalogue groups 8088 families.
+the 68000 now authors every instruction, stored state, register view/write, and
+effective-address rule in its chapter. Its remaining native core supplies
+execution and exception orchestration; the generated catalogue groups 8088 families.
 
 ## The review slice
 
@@ -39,7 +39,7 @@ register operations, A7/status sources, and result policies; the generated catal
 | 68000 ADD/SUB/CMP, immediate/quick/address forms, ADDX/SUBX, NEG/NEGX, CMPM | Shared destination stages and arithmetic; X and cumulative Z; signed word sources for 32-bit address arithmetic; repeated An operands and fault commit points |
 | 68000 BTST/BCHG/BCLR/BSET, shifts/rotates, and TAS | Modulo bit numbers; aliased count registers; zero-count flags; named local iteration for result/X/C/overflow; flags before partial writes |
 | 68000 MULU/MULS/DIVU/DIVS, CHK, ABCD/SBCD/NBCD | Source updates after word results and before exceptions; separate quotient-overflow capture; signed bounds; explicit digit correction and cumulative decimal flags |
-| 68000 Scc/DBcc, BRA/Bcc/BSR, LEA/PEA/JMP/JSR, LINK/UNLK/RTS | Shared native condition captures; separate sequential cursor and target selection; stack-before-target validation; delayed stack/counter commits and A7 aliases |
+| 68000 Scc/DBcc, BRA/Bcc/BSR, LEA/PEA/JMP/JSR, LINK/UNLK/RTS | Chapter-owned condition captures; separate sequential cursor and target selection; stack-before-target validation; delayed stack/counter commits and A7 aliases |
 | 68000 MOVEP and MOVEM, both widths and directions | Alternate-byte transfers; explicit mask order, complete-register loads, captured base bank, and final pointer commit; preserve earlier transfers on failure |
 | 68000 CCR/SR, USP, system operations, and RTE/RTR | Privilege before operand effects; captured status before immediate fetching; status before pending updates; explicit return-frame reads and target validation; device reset signal |
 | 8088 immediate MOV and accumulator ALU/TEST, word INC/DEC, AX/register exchanges | Low/high byte views with live preservation of the other half; operand-before-CF capture; low-byte parity for words; explicit flag/write ordering; generated encoding bindings |
@@ -1603,7 +1603,18 @@ word-load/store module is removed. Reusable memory sources, data-register write
 actions, and result policies preserve ordered reads, pending-update commits,
 writeback, and fault behavior. All remaining 68000 instruction families now
 also come from the chapter; the native adapter only groups their calling
-conventions. Address decoding and lifecycle handling remain in the core.
+conventions. Address decoding also comes from the chapter; lifecycle handling
+remains in the core.
+The 68000's generated state module also exposes its effective-address source.
+`read-pending-register` and `stage-register` are schema-checked register effects:
+generation supplies a lazy stored read or a deferred write callback identified
+by its register path. The [shared pending set](../../src/components/cpus/register-updates.ts)
+knows no processor names, widths, modes, or bank choices. Its first-stage order,
+latest-value replacement, retained entries, and partial-commit behavior are
+checked independently. Sources author mode/index decoding and address arithmetic;
+instruction bodies author alignment and commit timing. The native address context
+only connects this generated source to word fetching and the pending set.
+
 The script first compiles literate chapters to `semantics/generated/`, then
 loads the definition registry. Both output directories are ignored and removed
 by `npm run clean`.
@@ -2107,13 +2118,14 @@ path into those definitions. Continue checking total authored source in the
 [footprint report](coverage.md#source-footprint), including the chapters and their
 compiler. Seven CPUs now have complete chapter-authored models, including the
 8088's segmented execution, external vector offers, and generated public
-interface. The 68000 owns all instructions and stored state; its chapter still
-delegates effective-address decoding, reset, execution, and external events
-to the native core.
+interface. The 68000 owns all instructions, stored state, register views/writes,
+and effective-address decoding; reset, execution, and external events still use
+the native core.
 
 Unbounded loops and CPU-boundary exception delivery remain outside semantic
-bodies; the 6809’s full postbyte decoder already belongs to its chapter. Pending 68000 address updates now have an explicit commit
-stage while the decoder still owns their calculation. Bounded numeric iteration and named instruction outcomes now
+bodies; both the 6809 postbyte decoder and the 68000 effective-address decoder
+belong to their chapters. Pending 68000 address updates have an explicit commit
+stage and chapter-owned calculations. Bounded numeric iteration and named instruction outcomes now
 serve 8088 arithmetic without moving CPU boundaries into the language. Register views and byte-mask stacks now have
 construction recipes, but no new runtime or primitive representation. The 68000
 MOVE and logical traces exercise distinct schedules with the same staged address

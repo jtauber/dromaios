@@ -104,6 +104,8 @@ export type Statement =
   | { readonly kind: "divide"; readonly quotient: string; readonly remainder: string; readonly dividend: NumberExpression; readonly divisor: NumberExpression; readonly signed: boolean; readonly onError: string; readonly overflow?: string }
   | { readonly kind: "capture"; readonly name: string; readonly value: NumberExpression }
   | { readonly kind: "read-register"; readonly name: string; readonly register: Register }
+  | { readonly kind: "read-pending-register"; readonly name: string; readonly register: Register }
+  | { readonly kind: "stage-register"; readonly register: Register; readonly value: NumberExpression }
   | { readonly kind: "read-element"; readonly name: string; readonly array: RegisterArray; readonly index: NumberExpression }
   | { readonly kind: "read-flag"; readonly name: string; readonly flag: Flag }
   | { readonly kind: "test-choice"; readonly name: string; readonly choice: Choice; readonly value: string | number }
@@ -274,6 +276,10 @@ export const resetDevices = (): Statement => ({ kind: "reset-devices" });
 export const alignmentFault = (operation: "read" | "write" | "fetch", address: NumberExpression, space: "data" | "program" = operation === "fetch" ? "program" : "data"): Statement => ({ kind: "alignment-fault", operation, address, space });
 export const readProgramMemory = (name: string, address: NumberExpression): Statement => ({ kind: "read-program-memory", name, address });
 export const readRegister = (name: string, register: Register): Statement => ({ kind: "read-register", name, register });
+/** Read an earlier staged value if present, otherwise read this stored register now. */
+export const readPendingRegister = (name: string, register: Register): Statement => ({ kind: "read-pending-register", name, register });
+/** Capture a pending value without changing stored state; the caller chooses when to commit. */
+export const stageRegister = (register: Register, value: NumberExpression): Statement => ({ kind: "stage-register", register, value });
 export const readElement = (name: string, array: RegisterArray, index: NumberExpression): Statement => ({ kind: "read-element", name, array, index });
 export const readFlag = (name: string, flag: Flag): Statement => ({ kind: "read-flag", name, flag });
 export const readLatch = (name: string, latch: Latch): Statement => ({ kind: "read-latch", name, latch });

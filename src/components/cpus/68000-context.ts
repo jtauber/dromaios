@@ -1,4 +1,4 @@
-/** Address decoding stages auto-updates locally; instruction definitions choose when to commit them. */
+/** Chapter-generated address decoding stages updates locally; instruction definitions choose when to commit. */
 export interface Cpu68000AddressContext {
   readonly resolveAddress: (size: 8 | 16 | 32, mode: number, code: number) => number;
   readonly commitAddressUpdates: () => void;

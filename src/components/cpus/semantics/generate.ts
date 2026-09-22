@@ -11,7 +11,7 @@ interface CapturedValue { readonly code: string; readonly type: ValueType }
 type CapturedNumber = CapturedValue & { readonly type: Width };
 type Scope = ReadonlyMap<string, CapturedValue>;
 type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePort" | "deferInterrupt" | "notifyReti" | "reportInterrupt" | "readTest" | "sendEscape"
-  | "fetchWord" | "resolveAddress" | "commitAddressUpdates" | "readProgramByte" | "nextAddress" | "jump" | "resetDevices";
+  | "fetchWord" | "resolveAddress" | "commitAddressUpdates" | "readProgramByte" | "nextAddress" | "jump" | "resetDevices" | "readPendingRegister" | "stageRegister";
 
 /** Compile the bounded experiment to ordinary typed statements, without executing any effects. */
 export function generateInstructions(cpu: string, definitions: Readonly<Record<string, InstructionDefinition>>,
@@ -53,6 +53,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     { name: "Cpu68000AddressContext", file: "68000-context", capabilities: ["resolveAddress", "commitAddressUpdates", "readProgramByte"] },
     { name: "Cpu68000ControlContext", file: "68000-context", capabilities: ["nextAddress", "jump"] },
     { name: "Cpu68000ResetContext", file: "68000-context", capabilities: ["resetDevices"] },
+    { name: "RegisterUpdateContext", file: "register-updates", capabilities: ["readPendingRegister", "stageRegister"] },
   ];
   const extensions = (capabilities: ReadonlySet<Capability>) => contextExtensions.filter(extension => extension.capabilities.some(name => capabilities.has(name)));
   const contextType = (capabilities: ReadonlySet<Capability>) => "ByteInstructionContext" + extensions(capabilities).map(extension => " & " + (extension.type ?? extension.name)).join("");
@@ -73,6 +74,8 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     const access = (name: Capability): string => { capabilities.add(name); return `instruction.${name}`; };
     const field = (name: string): string => /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name) ? `.${name}` : `[${JSON.stringify(name)}]`;
     const bank = (ref: { readonly bank?: string }): string => `state${ref.bank === undefined ? "" : field(ref.bank)}`;
+    // The encoded path distinguishes root fields from equally named fields in groups.
+    const registerKeyLiteral = (ref: { readonly bank?: string; readonly field: string }): string => JSON.stringify(JSON.stringify([ref.bank ?? null, ref.field]));
     const comment = (text: string): void => { emit(`// ${JSON.stringify(text)}`); };
     const reject = (reason: string): string => { rejections.add(reason); outcomes.add(reason); return `return ${JSON.stringify(reason)};`; };
     const signed = (operand: CapturedNumber): string => `((${operand.code} ^ ${2 ** (operand.type - 1)}) - ${2 ** (operand.type - 1)})`;
@@ -278,6 +281,9 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           }
           case "capture": captured = number(step.value, scope); break;
           case "read-register": captured = { code: `${bank(step.register)}${field(step.register.field)}`, type: step.register.width }; break;
+          case "read-pending-register": captured = { code: `${access("readPendingRegister")}(${registerKeyLiteral(step.register)}, () => ${bank(step.register)}${field(step.register.field)})`, type: step.register.width }; break;
+          case "stage-register":
+            emit(`${access("stageRegister")}(${registerKeyLiteral(step.register)}, ${number(step.value, scope).code}, value => { ${bank(step.register)}${field(step.register.field)} = value; });`); continue;
           case "read-element": captured = { code: `${bank(step.array)}${field(step.array.field)}[${number(step.index, scope).code}]!`, type: step.array.width }; break;
           case "read-flag": captured = { code: `${bank(step.flag)}.flags${field(step.flag.field)}`, type: "flag" }; break;
           case "test-choice": captured = { code: `${bank(step.choice)}${field(step.choice.field)} === ${JSON.stringify(step.value)}`, type: "flag" }; break;

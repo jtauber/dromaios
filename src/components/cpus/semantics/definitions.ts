@@ -18,7 +18,7 @@ interface InstructionModule {
 
 /** One catalogue for generation, explanations, and reproducibility checks, in explanation order. */
 export const instructionModules: readonly InstructionModule[] = Object.freeze<readonly InstructionModule[]>([
-  { name: "68000-state", cpu: "68000", definitions: state68000, options: { sources: { cpu: { name: "68000", state: schema68000 }, groups: { views: views68000, sources: { selectAddressRegister: sources68000.selectAddressRegister } } } } },
+  { name: "68000-state", cpu: "68000", definitions: state68000, options: { sources: { cpu: { name: "68000", state: schema68000 }, groups: { views: views68000, sources: { selectAddressRegister: sources68000.selectAddressRegister, effectiveAddress: sources68000.effectiveAddress } } } } },
   { name: "68000", cpu: "68000", definitions: instructions68000 },
   { name: "68000-quick", cpu: "68000", definitions: quick68000, options: { opcodeAliases: quickOpcodes68000, origin: "specifications/68000.md" } },
   { name: "68000-moves", cpu: "68000", definitions: moves68000, options: { opcodeAliases: moveOpcodes68000, origin: "specifications/68000.md" } },

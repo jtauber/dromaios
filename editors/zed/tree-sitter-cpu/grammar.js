@@ -6,6 +6,8 @@ module.exports = grammar({
   name: 'dromaios_cpu',
   extras: $ => [/\s/, $.comment],
   word: $ => $.identifier,
+  // A local named pending can precede an operand write on the next line.
+  conflicts: $ => [[$.pending_read, $._local_name]],
 
   rules: {
     source_file: $ => repeat(choice(
@@ -27,7 +29,7 @@ module.exports = grammar({
     field_mapping: $ => seq('=', $.identifier),
 
     source_declaration: $ => seq(choice('source', 'view'), field('name', $.identifier), $.string, optional($.parameters), ':', $.number, $.body),
-    action_declaration: $ => seq('action', field('name', $.identifier), $.string, optional($.parameters), optional(seq('using', commaSeparated(choice('memory', 'boundary')))), $.body),
+    action_declaration: $ => seq('action', field('name', $.identifier), $.string, optional($.parameters), optional(seq('using', commaSeparated(choice('memory', 'boundary', 'staging')))), $.body),
     policy_declaration: $ => seq('policy', field('name', $.identifier), $.string, $.parameters,
       '{', repeat($.flag_update), '}'),
     parameters: $ => seq('(', optional(commaSeparated($.parameter)), ')'),
@@ -67,7 +69,7 @@ module.exports = grammar({
     body: $ => seq('{', repeat($._statement), '}'),
     _statement: $ => choice(
       $.choose_capture, $.match_capture, $.match_statement, $.capture, $.write, $.apply_statement, $.exchange_statement, $.perform_statement, $.when_statement,
-      $.iterate_capture, $.iterate_statement, $.divide_capture, $.reject_statement, $.return_statement, $.fault_statement, $.commit_statement, $.defer_statement, $.notify_statement, $.report_statement, $.escape_statement, $.target_statement, $.reset_statement,
+      $.iterate_capture, $.iterate_statement, $.divide_capture, $.reject_statement, $.return_statement, $.fault_statement, $.commit_statement, $.defer_statement, $.notify_statement, $.report_statement, $.escape_statement, $.target_statement, $.reset_statement, $.stage_statement,
     ),
     choose_capture: $ => seq(field('name', $._local_name), '=', 'choose', $._expression, ':', $.number,
       '{', 'then', $.body, 'else', $.body, '}'),
@@ -85,8 +87,9 @@ module.exports = grammar({
     reject_statement: $ => seq('reject', $.string, optional(seq('if', $._expression))),
     capture: $ => seq(field('name', $._local_name), '=', choice($._read, $._expression)),
     _read: $ => choice(
-      seq('fetch', optional('word')), seq('next', 'address'), seq('program', 'memory', $.arguments), seq('sample', 'test'), $.choice_read, $.state_read, $.array_read, $.source_read, $.operand_read,
+      seq('fetch', optional('word')), seq('next', 'address'), $.pending_read, seq('program', 'memory', $.arguments), seq('sample', 'test'), $.choice_read, $.state_read, $.array_read, $.source_read, $.operand_read,
     ),
+    pending_read: $ => seq('pending', choice(seq('register', $._state_name), $.operand_read)),
     choice_read: $ => seq('choice', $._state_name, '=', choice($.string, $.number)),
     state_read: $ => seq(choice('register', 'flag', 'latch'), $._state_name),
     array_read: $ => seq('array', $._state_name, '[', $._expression, ']'),
@@ -105,12 +108,13 @@ module.exports = grammar({
       '(', $._expression, ')', 'if', $._expression),
     target_statement: $ => seq('select', 'target', '(', $._expression, ')'),
     reset_statement: _ => seq('reset', 'devices'),
+    stage_statement: $ => seq('stage', choice($._state_name, seq('operand', $.identifier)), '<-', $._expression),
     commit_statement: _ => seq('commit', 'addresses'),
     defer_statement: _ => seq('defer', choice('irq', 'intr', 'all')),
     notify_statement: _ => seq('notify', 'reti'),
     report_statement: $ => seq('report', 'interrupt', $.arguments),
     escape_statement: $ => seq('send', 'escape', $.arguments, optional(seq('with', 'memory', $.arguments))),
-    _local_name: $ => choice($.identifier, ...['exchange', 'port', 'next', 'reset', 'select', 'target'].map(word => alias(word, $.identifier))),
+    _local_name: $ => choice($.identifier, ...['exchange', 'port', 'next', 'reset', 'select', 'target', 'stage', 'pending', 'staging'].map(word => alias(word, $.identifier))),
     _expression: $ => choice($._local_name, $.number, $.call),
     call: $ => seq(field('function', $._local_name), $.arguments),
     arguments: $ => seq('(', optional(commaSeparated($._expression)), ')'),

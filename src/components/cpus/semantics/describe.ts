@@ -117,6 +117,8 @@ export function describeInstruction(definition: InstructionDefinition): string {
           break;
         case "capture": emit(`${step.name} := ${number(step.value)}`); break;
         case "read-register": emit(`${step.name}:u${step.register.width} := read ${bank(step.register)}${step.register.field.toUpperCase()}`); break;
+        case "read-pending-register": emit(`${step.name}:u${step.register.width} := pending ${bank(step.register)}${step.register.field.toUpperCase()}, or read stored register if unstaged`); break;
+        case "stage-register": emit(`stage ${bank(step.register)}${step.register.field.toUpperCase()}:u${step.register.width} := ${number(step.value)}; preserve stored state until commit`); break;
         case "read-element": emit(`${step.name}:u${step.array.width} := read ${bank(step.array)}${step.array.field.toUpperCase()}[${number(step.index)}]`); break;
         case "read-flag": emit(`${step.name}:flag := read ${bank(step.flag)}${step.flag.field.toUpperCase()}`); break;
         case "test-choice": emit(`${step.name}:flag := test control ${bank(step.choice)}${step.choice.field} equals ${JSON.stringify(step.value)}`); break;

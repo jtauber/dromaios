@@ -181,7 +181,7 @@ const invalid: readonly [string, string, string, RegExp][] = [
   ["short logical address", "read(sourceAddress) if", "read(truncate(sourceAddress, 16)) if", /32-bit/],
   ["unknown alignment operation", "alignment read(sourceAddress)", "alignment execute(sourceAddress)", /read, write, or fetch/],
   ["unknown predicate", "if lowBit(sourceAddress)", "if odd(sourceAddress)", /Unknown flag operation/],
-  ["misspelled commit", "commit addresses", "commit registers", /Expected "addresses"/],
+  ["misspelled commit", "  commit addresses", "  commit registers", /Expected "addresses"/],
   ["spelled-out flag literal", "V = 0", "V = false", /flag literals as 0 or 1/],
   ["duplicate code", '001 "A1"', '000 "A1"', /consecutive binary/],
   ["missing code", '  111 "A7"\n', "", /every value/],

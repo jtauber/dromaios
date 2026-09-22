@@ -254,9 +254,12 @@ its captured original. Keep SWAP's flags-before-write order distinct from
 MOVE/MOVEQ/EXT's write-before-flags order.
 
 For memory/immediate MOVE forms, the definition requests EA resolution at the
-source and destination stages separately. Keep the existing decoder behind
-`Cpu68000AddressContext`; it owns extension decoding and an instruction-local
-map of pending auto-updates. The [logical/unary chapter families](../../src/components/cpus/specifications/68000.md#logical-operations-and-readmodifywrite)
+source and destination stages separately. The [chapter decoder](../../src/components/cpus/specifications/68000.md#effective-address-decoding)
+implements `Cpu68000AddressContext` through generated source readers. It owns
+register selection, extension decoding, and pending-value calculations. The
+shared [register-update helper](../../src/components/cpus/register-updates.ts)
+only stores pending values and their generated write callbacks; commit preserves
+first-stage order and the latest value for each register. The [logical/unary chapter families](../../src/components/cpus/specifications/68000.md#logical-operations-and-readmodifywrite)
 use the same context, but their native binding supplies only the one encoded
 EA (`mode/code`); the chapter binds other registers and the calculation.
 MOVE and logic share chapter-owned memory sources, immediate fetches,
@@ -665,7 +668,7 @@ The [binary helpers](../../src/components/cpus/binary.ts) interpret byte values
 without owning CPU state:
 
 - `signed8(byte)` interprets an unsigned byte as a signed integer in `-128–127`.
-  The 68000 uses it for byte displacements in native address decoding. Generated sign extension is expressed in the definitions.
+  Generated sign extension is expressed in the definitions, including the 68000's chapter-owned byte displacements.
 - `readWordLE(nextByte)` reads two bytes, low first; `readWordBE(nextByte)` reads
   high first. Both return an unsigned 16-bit value. Each calls `nextByte`
   exactly twice on success and propagates a callback failure without further reads.

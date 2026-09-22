@@ -30,6 +30,8 @@ import { readTest, reportInterrupt, sendEscape, testChoice, writeChoice, readPor
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502 } from "../../src/components/cpus/generated/6502.js";
 import { sourceReaders } from "../../src/components/cpus/generated/6502-state.js";
+import { sourceReaders as addressReaders, instructions as state68000 } from "../../src/components/cpus/generated/68000-state.js";
+import { registerUpdates } from "../../src/components/cpus/register-updates.js";
 import { bodiesZ80 as generatedZ80 } from "../helpers/z80-bodies.js";
 import type { CpuZ80State } from "../../src/components/cpus/generated/z80-cpu.js";
 import { instructions as generated8008 } from "../../src/components/cpus/generated/8008.js";
@@ -1059,4 +1061,19 @@ export function check68000SystemTypes(state: Cpu68000State): void {
   system68000["MOVE MEMORY,CCR"](state, 3, 7, { resolveAddress: () => 0, readByte: () => 0 });
   // @ts-expect-error Returns select a target only after complete reads and alignment validation.
   system68000.RTR(state, 0, 0, { readByte: () => 0 });
+}
+
+export function check68000DecoderTypes(state: Cpu68000State): void {
+  const resolve = addressReaders(state).sources.effectiveAddress, updates = registerUpdates();
+  const context = { ...updates, fetchWord: () => 0, nextAddress: () => 0 };
+  const address: number | "unsupported" = resolve(32, 6, 7, context);
+  state68000.stageAddressRegister(state, 7, 0x100, { stageRegister: updates.stageRegister });
+  // @ts-expect-error Decoding may fetch extensions and needs an explicit fetch cursor.
+  resolve(32, 2, 0, updates);
+  // @ts-expect-error A decoder needs both pending reads and staged writes.
+  resolve(32, 3, 0, { fetchWord: () => 0, nextAddress: () => 0 });
+  // @ts-expect-error A staging action does not require instruction fetching.
+  state68000.stageAddressRegister(state, 7, 0x100, { stageRegister: updates.stageRegister, fetchWord: () => 0 });
+  // @ts-expect-error Unsupported selections are not silently numeric addresses.
+  const unchecked: number = address;
 }

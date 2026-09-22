@@ -321,3 +321,19 @@ family control "0100 1110 0111 0000" {
   select = reset
   reset devices
 }
+
+// Pending values are instruction-local; these words also remain local names.
+action stagePointer "defer pointer write" using staging {
+  original = pending register PC
+  stage PC <- add(original, u16(1))
+  pending = u16(2)
+  stage = pending
+  staging = stage
+}
+family stagedOperand "0000000r" for r in registers {
+  original = pending operand r
+  stage operand r <- original
+  pending = original
+  final = pending
+  operand r <- final
+}

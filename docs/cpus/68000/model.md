@@ -67,44 +67,11 @@ addresses. Machine images must fit RAM; loading an image never wraps.
 
 ## Effective addresses
 
-MOVE encodes `00 zz ddd mmm sss rrr`: size `zz` is `01` byte, `10` long,
-`11` word. The destination encodes register before mode; the source encodes
-mode before register. Both use this effective-address vocabulary:
-
-| Mode | Register field | Operand | Extension |
-| --- | --- | --- | --- |
-| `000` | D0–D7 | Data register | None |
-| `001` | A0–A7 | Address register | None |
-| `010` | A0–A7 | `(An)` | None |
-| `011` | A0–A7 | `(An)+` | None |
-| `100` | A0–A7 | `-(An)` | None |
-| `101` | A0–A7 | `(d16,An)` | Signed word displacement |
-| `110` | A0–A7 | `(d8,An,Xn)` | Brief index word |
-| `111` | `000` | `(xxx).W` | Sign-extended absolute word |
-| `111` | `001` | `(xxx).L` | Absolute long |
-| `111` | `010` | `(d16,PC)` | Signed word displacement |
-| `111` | `011` | `(d8,PC,Xn)` | Brief index word |
-| `111` | `100` | Immediate | Word for byte/word; long for long |
-
-Byte transfers cannot use address-register direct. In MOVE, PC-relative and
-immediate operands are source-only. Other mode-`111` selectors are invalid
-and deliver an illegal-instruction exception.
-Immediate bytes use the low byte of their extension word; its high byte is ignored.
-
-All address arithmetic wraps at 32 bits before bus mapping. PC-relative modes
-use the address of their own extension word as the base. A brief index word is
-`t rrr w 000 dddddddd`: `t` selects Dn/An, `rrr` selects the register, `w`
-selects sign-extended word/full long, and `d` is a signed byte displacement.
-The original chip ignores bits 10–8; they do not enable scaling, full extensions,
-or later-family memory-indirect modes.
-
-Postincrement and predecrement change An by the operand size in bytes. For
-byte operations A7 instead changes by two. A7 always selects the active stored
-USP/SSP. The source is resolved and read before the destination is resolved;
-a source auto-update is visible in destination base/index calculations. Both
-updates are held locally until alignment checks pass. The destination register
-write then wins over any auto-update to the same register, as in
-`MOVEA.W (A0)+,A0`.
+The executable chapter owns [effective-address decoding](../../../src/components/cpus/specifications/68000.md#effective-address-decoding),
+including mode and extension formats, bank selection, signed offsets, and staged
+register updates. Its [MOVE/MOVEA families](../../../src/components/cpus/specifications/68000.md#move-and-movea-families)
+state operand legality, source/destination ordering, alignment checks, and commit
+points alongside the definitions used by execution.
 
 ## Transfer behavior
 
@@ -127,7 +94,7 @@ compares partial-register writes, MOVEA, auto-updates, and memory/stack transfer
 The six immediate families encode `0000 ooo 0 ss mmm rrr`. Operation `ooo`
 selects ORI (`000`), ANDI (`001`), SUBI (`010`), ADDI (`011`), EORI (`101`),
 or CMPI (`110`). Size `ss` is `00` byte, `01` word, `10` long; `11` is reserved.
-The destination uses the effective-address vocabulary above, restricted to
+The destination uses the effective-address vocabulary linked above, restricted to
 **data-alterable** operands: Dn, `(An)`, `(An)+`, `-(An)`, displacement/index,
 or absolute word/long. An direct, PC-relative, and immediate destinations are
 excluded. Later chips add CMPI modes; this model follows the original 68000.

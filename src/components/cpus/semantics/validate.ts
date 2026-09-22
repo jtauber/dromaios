@@ -299,7 +299,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
           return;
         }
         case "capture": captured = number(step.value); break;
-        case "read-register": captured = register(step.register, where); break;
+        case "read-register": case "read-pending-register": captured = register(step.register, where); break;
         case "read-element": captured = element(step.array, step.index, scope, where); break;
         case "read-flag": flag(step.flag, where); captured = "flag"; break;
         case "test-choice": choice(step.choice, step.value, where); captured = "flag"; break;
@@ -348,7 +348,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
           if (captured !== width(step.source.width, where)) fail(where, "source result width does not match its declaration");
           break;
         }
-        case "write-register": expect(step.value, register(step.register, where)); return;
+        case "write-register": case "stage-register": expect(step.value, register(step.register, where)); return;
         case "write-element": expect(step.value, element(step.array, step.index, scope, where)); return;
         case "fill-array": expect(step.value, registerArray(step.array, where)); return;
         case "defer-interrupt":

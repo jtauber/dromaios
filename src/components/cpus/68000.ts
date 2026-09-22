@@ -2,7 +2,7 @@ import { sourceReaders } from "./generated/68000-state.ts";
 import type { MemoryConnection } from "../memory/connection.ts";
 import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
 import { checkUnsigned } from "../validation.ts";
-import { signed8 } from "./binary.ts";
+import { registerUpdates } from "./register-updates.ts";
 import { executionBoundary } from "./execution-boundary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess, RecordedMemory } from "./memory-access.ts";
@@ -140,7 +140,6 @@ interface MemoryContext extends ByteMemory {
 
 interface InstructionContext extends MemoryContext, Cpu68000ControlContext, Cpu68000ResetContext {
   readonly fetchWord: () => number;
-  readonly fetchLong: () => number;
 }
 
 // A common raw-field boundary preserves each generated body's own narrower capabilities.
@@ -151,10 +150,7 @@ const operandTables: readonly Readonly<Record<number, (state: Cpu68000State, mod
   instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | "unsupported" | void>>[] = [logic, transfers, system];
 
 type OpcodeHandler = (cpu: Cpu68000, instruction: InstructionContext) => InstructionFault | void;
-type AddressRegister = `a${0 | 1 | 2 | 3 | 4 | 5 | 6}` | "usp" | "ssp";
 type OperandSize = 8 | 16 | 32;
-// Pending auto-updates are visible to the destination but commit only after alignment checks.
-type AddressUpdates = Map<AddressRegister, number>;
 interface ExceptionFrame { readonly stack: number; readonly status: number }
 
 /** Instruction-level Motorola 68000 with 32-bit registers and a 24-bit memory connection. */
@@ -251,10 +247,6 @@ export class Cpu68000 {
             accesses.push({ kind: "reset" });
           },
           jump: address => { target = address; },
-          fetchLong: () => {
-            const high = fetchWord();
-            return ((high << 16) | fetchWord()) >>> 0;
-          },
         }) : "illegal-instruction";
         if (typeof fault === "string") {
           const { vector, instructionCompleted } = Cpu68000.#exceptions[fault];
@@ -332,10 +324,6 @@ export class Cpu68000 {
 
   // Register views. A7 selects the active stack; packed status derives from stored fields.
 
-  #addressRegister(code: number): AddressRegister {
-    return Cpu68000.#addressRegisters[this.#readers.sources.selectAddressRegister(code)]!;
-  }
-
   get #status(): number {
     return this.#readers.views.SR();
   }
@@ -353,9 +341,6 @@ export class Cpu68000 {
     "line-f": { vector: 11, instructionCompleted: false },
     "trap": { vector: 32, instructionCompleted: true },
   } as const satisfies Record<Cpu68000Exception, { readonly vector: number; readonly instructionCompleted: boolean }>;
-
-  static readonly #dataRegisters = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
-  static readonly #addressRegisters = ["a0", "a1", "a2", "a3", "a4", "a5", "a6", "usp", "ssp"] as const;
 
   // Bind encodings once per model; handlers receive the executing CPU and capture no instance state.
   static readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
@@ -503,55 +488,16 @@ export class Cpu68000 {
     return { source: "bus-error", operation, address };
   }
 
-  // Effective addresses. Resolve each operand once, source before destination.
-
-  #resolveAddress(size: OperandSize, mode: number, code: number, instruction: InstructionContext, updates: AddressUpdates): number {
-    const { fetchWord, fetchLong, nextAddress } = instruction;
-    const register = this.#addressRegister(code);
-    const base = updates.get(register) ?? this.#state[register];
-    let address: number;
-    switch (mode) {
-      case 0b010: address = base; break; // (An)
-      case 0b011: // (An)+; A7 steps by two even for bytes.
-        address = base;
-        updates.set(register, (base + (size === 8 && code === 7 ? 2 : size / 8)) >>> 0);
-        break;
-      case 0b100: // -(An)
-        address = (base - (size === 8 && code === 7 ? 2 : size / 8)) >>> 0;
-        updates.set(register, address);
-        break;
-      case 0b101: address = base + (fetchWord() << 16 >> 16); break; // (d16,An)
-      case 0b110: address = base + this.#indexOffset(fetchWord(), updates); break; // (d8,An,Xn)
-      case 0b111:
-        switch (code) {
-          case 0b000: address = fetchWord() << 16 >> 16; break; // (xxx).W, sign-extended
-          case 0b001: address = fetchLong(); break; // (xxx).L
-          // PC-relative bases are the extension word's address, before fetching it.
-          case 0b010: address = nextAddress() + (fetchWord() << 16 >> 16); break; // (d16,PC)
-          case 0b011: address = nextAddress() + this.#indexOffset(fetchWord(), updates); break; // (d8,PC,Xn)
-          default: throw new Error("Unsupported effective address reached execution.");
-        }
-        break;
-      default: throw new Error("Invalid effective-address mode.");
-    }
-    return address >>> 0;
-  }
-
-  #indexOffset(extension: number, updates: AddressUpdates): number {
-    // t rrr w 000 dddddddd: t=0 Dn / 1 An; w=0 signed word / 1 long; d is signed byte.
-    // The original 68000 ignores bits 10–8: no scaling or full extension words.
-    const code = (extension >>> 12) & 7;
-    const addressRegister = this.#addressRegister(code);
-    const index = extension & 0x8000 ? (updates.get(addressRegister) ?? this.#state[addressRegister])
-      : this.#state[Cpu68000.#dataRegisters[code]!];
-    return (extension & 0x0800 ? index : (index << 16 >> 16)) + signed8(extension & 0xff);
-  }
-
+  // Each instruction owns an update set; the chapter selects storage and commit points.
   #addressContext(instruction: InstructionContext): InstructionContext & Cpu68000AddressContext {
-    const updates: AddressUpdates = new Map();
+    const updates = registerUpdates(), context = { ...instruction, ...updates };
     return { ...instruction,
-      resolveAddress: (size, mode, code) => this.#resolveAddress(size, mode, code, instruction, updates),
-      commitAddressUpdates: () => { for (const [register, address] of updates) this.#state[register] = address; },
+      resolveAddress: (size, mode, code) => {
+        const address = this.#readers.sources.effectiveAddress(size, mode, code, context);
+        if (address === "unsupported") throw new Error("Unsupported effective address reached execution.");
+        return address;
+      },
+      commitAddressUpdates: updates.commit,
     };
   }
 

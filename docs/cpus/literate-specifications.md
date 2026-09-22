@@ -50,8 +50,9 @@ Executable chapters are maintained CPU sources:
   owns all 36,029 documented instruction forms, their encodings, stored state,
   and A7/status views and writes. Sources, actions, and bounded iteration keep
   control-flow ordering, register-mask transfers, and status/system effects
-  explicit. Effective-address decoding, reset, execution, and exception delivery
-  remain native; the TypeScript definition adapter only groups chapter families.
+  explicit. Its effective-address sources own mode and index decoding, register
+  selection, and staged updates. Reset, execution, and exception delivery remain
+  native; the TypeScript definition adapter only groups chapter families.
 
 This is an authoring-language prototype over the existing
 [instruction representation](instruction-semantics.md), with a deliberately
@@ -203,6 +204,8 @@ Quoted descriptions use JSON string escaping.
 | `fault alignment read(address) if lowBit(address)` | Return an alignment fault when the captured predicate is true, before subsequent effects. `write` identifies a failed destination access. |
 | `fault alignment program read(address) if lowBit(address)` | Return a program-space alignment fault; writes cannot use program space. |
 | `commit addresses` | Commit register updates staged by the existing address decoder. |
+| `value = pending register A0` | Read a pending value, or the live stored register if none is staged; `pending operand r` requires a stored register operand. |
+| `stage A0 <- value` | Defer a register write until commit; `stage operand r <- value` selects a stored register, and actions require `using staging`. |
 | `cursor = next address` | Capture the 68000's 32-bit sequential fetch cursor, independently of stored PC and any selected target. |
 | `select target(address)` | Select a 32-bit retirement target without moving the fetch cursor; the instruction checks alignment explicitly first. |
 | `fault alignment fetch(address) if lowBit(address)` | Return a target-alignment fault; fetch faults always name program space. |
@@ -450,6 +453,8 @@ An action can separately declare `using boundary` for TEST sampling, ESC deliver
 software-delivery reporting, interrupt deferral, or RETI notification. Combine
 capabilities explicitly as `using memory, boundary` when both are needed; the
 order does not matter, and duplicates or unknown capabilities are errors.
+`using staging` permits [pending register reads and writes](#pending-register-reads-and-writes)
+and can be combined with the other capabilities.
 Capabilities permit only effects valid for the CPU's instruction context. No
 action may fetch instruction bytes, access ports, or resolve native addresses.
 
@@ -898,9 +903,10 @@ width come from the binary codes. Every code must appear in order, and the
 result width must be supported by the instruction representation. Labels supply instruction
 names; they do not declare or read stored registers. The 68000 reads the selected
 three-bit value with `code = operand r`, then uses `resolve(16, u3(2), code)`
-for address-register indirect mode. The native decoder now consumes the
-chapter's address-register selection source, including A7 banking. Word size, address checks, byte order, destination preservation, and
-flag timing remain explicit in the chapter.
+for address-register indirect mode. That boundary now calls the chapter's
+generated effective-address source, including A7 banking and staged updates.
+Word size, address checks, byte order, destination preservation, and flag timing
+remain explicit in the chapter.
 
 A code catalogue can declare a different result width and explicit values:
 
@@ -1141,12 +1147,13 @@ Instruction callers and any exported source readers reuse that function. Ordinar
 straight-line sources still inline; this is generated-code sharing, with no
 CPU-specific decoder built into the language.
 
-## Native address-decoder boundary
+## Address-decoder and execution boundaries
 
 `resolve`, `commit addresses`, alignment faults, `next address`,
 `select target(...)`, and `reset devices` lower to existing IR effects,
 whose validator currently requires the 68000 address/exception boundary.
-They add no decoder or exception-delivery implementation to the compiler.
+The context calls the chapter-generated address source; exception delivery
+remains native. The compiler contains no processor-specific addressing rules.
 Ordinary `memory` reads and writes still transfer one byte, including at 32-bit
 logical addresses on the 68000. Its core projects them onto the physical bus.
 Word transfers explicitly combine or split those bytes. A false fault condition
@@ -1165,6 +1172,29 @@ This retains the native word-execution boundary pending its later migration.
 [Boundary-language tests](../../tests/components/cpus/semantics/literate-control-boundary.test.ts)
 check callback ordering, partial failures, widths, CPU ownership, transitive
 restrictions, and document-located errors.
+
+### Pending register reads and writes
+
+`value = pending register A0` reads a staged value if present, otherwise the
+live stored register. `stage A0 <- value` captures a pending value and its
+register identity without writing state. Within a register-operand match,
+`pending operand r` and `stage operand r <- value` select the same effects.
+Other operand kinds cannot be staged; value widths must match stored widths.
+The keys include state-group identity, so root and nested fields remain distinct.
+
+Actions must declare `using staging` to read or write pending values. Checks
+follow nested sources and actions; views and existing reset/retirement hooks
+cannot hide these effects. The generated signature requests only the used
+`RegisterUpdateContext` callbacks. `pending`, `stage`, and `staging` remain valid
+local capture names. No CPU name is built into this mechanism.
+
+The shared helper creates one pending set per instruction. Commit writes the
+latest value of each register in first-stage order, stopping at a thrown write;
+completed writes remain. Entries survive commit, so later pending reads and
+repeated commits retain the established behavior. The 68000's existing
+`commit addresses` boundary invokes this helper. Its chapter supplies all bank,
+width, step, extension, and address-wrap rules; the native word-fetch boundary
+still records complete words and advances the cursor only after both bytes.
 
 ## Review of the three chapters
 
@@ -1186,9 +1216,9 @@ The 68000 uses named data-register write actions for memory/immediate MOVE
 and logical/unary forms. Their calls occur at writeback, after pending address updates commit;
 logical operations apply flags before that preserved-bit read, while MOVE
 applies flags afterward. The actions explicitly read the live upper bits. Ordered memory
-sources/actions expose every transferred byte. Keep the native address resolver,
-pending-update commit, and fault return visible until a chapter owns their
-definitions. Alignment faults stay at instruction level because sources and
+sources/actions expose every transferred byte. The chapter now owns address
+resolution and pending-value calculations; commit and fault returns remain
+explicit at each instruction stage. Alignment faults stay at instruction level because sources and
 composed actions cannot return these faults.
 
 When multiple encodings have identical named definitions, chapter generation
@@ -1212,9 +1242,9 @@ execution, plus its public class, snapshot assembly, state aliases, and
 instruction catalogue bindings. No processor-specific TypeScript implementation
 remains; the chapter supplies all of its model and public-interface choices.
 Shared runtime services enforce the declared execution contract. Chapters
-without owned state validate declarations against an external schema; the
-68000 retains its control, multiple/peripheral transfer, and system instruction
-definitions in TypeScript.
+without owned state validate declarations against an external schema. The
+68000 owns all instructions, stored state, views/writes, and effective-address
+decoding; its lifecycle still uses native orchestration.
 
 The eight chapters now exercise contrasting widths, ordered effects, and
 interrupt-recognition policies. The 6502 now owns its complete state, status
@@ -1229,9 +1259,8 @@ The 8008 now expresses its address-stack selector, array, and port effects;
 the 68000 now owns its schema, transfers, logical/unary and binary arithmetic
 operations, bit/shift/rotate/TAS families, word products/division, signed bounds,
 packed decimal arithmetic, control flow, MOVEP/MOVEM, and status/system instructions.
-A7 selection and status packing/restoration are chapter-owned too. Its native
-effective-address decoder consumes the chapter selection source and retains
-pending auto-updates. All documented instruction bodies are chapter-owned;
+A7 selection, status packing/restoration, effective-address decoding, and staged
+auto-updates are chapter-owned too. All documented instruction bodies are chapter-owned;
 reset, execution, and exception delivery remain native.
 
 The 68000 arithmetic families reuse source bindings for calculations that return

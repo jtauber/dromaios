@@ -1,5 +1,5 @@
 import { divide, iterate, reject, alignmentFault, capture, commitAddressUpdates, deferInterrupt, notifyReti, exchangeFlags, fetchByte, fetchWord, fillArray, flagValue, highByte, lowByte, replaceFlags, not, perform, readElement,
-  readFlag, readLatch, readMemory, readProgramMemory, readPort, readRegister, readSource, readTest, reportInterrupt, sendEscape, resolveAddress, readNextAddress, selectTarget, resetDevices, updateFlags,
+  readFlag, readLatch, readMemory, readProgramMemory, readPort, readRegister, readPendingRegister, stageRegister, readSource, readTest, reportInterrupt, sendEscape, resolveAddress, readNextAddress, selectTarget, resetDevices, updateFlags,
   testChoice, value, when, writeChoice, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
 import type { Choice, CpuDeclaration, Expression, Flag, FlagGroup, FlagExpression, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
 import { validateInstruction } from "../validate.ts";
@@ -39,7 +39,7 @@ interface Symbols {
   readonly catalogues: ReadonlyMap<string, readonly ChapterOperand[]>;
 }
 
-export type ActionCapability = "memory" | "boundary";
+export type ActionCapability = "memory" | "boundary" | "staging";
 type Effects = "view" | "state" | ActionCapability | readonly ActionCapability[];
 export interface StatementOptions {
   readonly inputs?: Readonly<Record<string, Width>>;
@@ -67,6 +67,9 @@ export function checkStateEffects(steps: readonly Statement[], effects: Effects,
       case "read-memory": case "write-memory":
         if (permits("memory")) break;
         throw new Error("Views and state actions cannot fetch instructions or access memory without using memory.");
+      case "read-pending-register": case "stage-register":
+        if (permits("staging")) break;
+        throw new Error("Pending register reads and writes need using staging; views only read stored state.");
       case "read-test": case "send-escape": case "report-interrupt": case "defer-interrupt": case "notify-reti":
         if (permits("boundary")) break;
         throw new Error("Actions need using boundary for CPU boundaries; views cannot access CPU boundaries.");
@@ -89,6 +92,11 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
   };
   function parse(lines: readonly ChapterTokens[], validate: (steps: readonly Statement[]) => void,
     selectedOperands: ReadonlyMap<string, ChapterOperand> = operands): Statement[] {
+    const storedOperand = (tokens: ChapterTokens): Register => {
+      const operand = tokens.lookup(selectedOperands);
+      if (operand.kind !== "register") return tokens.fail("Staging requires a stored register operand.");
+      return operand.register;
+    };
     const result: Statement[] = [];
     for (let index = 0; index < lines.length; index++) {
       const tokens = lines[index]!;
@@ -157,6 +165,10 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         } else result.push(sendEscape({ opcode, modRM }));
       } else if (tokens.take("commit")) {
         tokens.expect("addresses"); result.push(commitAddressUpdates());
+      } else if (tokens.next === "stage" && tokens.peek(1) !== "=") {
+        tokens.expect("stage");
+        const register = tokens.take("operand") ? storedOperand(tokens) : tokens.lookup(registers, true);
+        tokens.expect("<-"); result.push(stageRegister(register, expression(tokens)));
       } else if (tokens.next === "apply" || tokens.next === "replace") {
         const effect = tokens.word() === "apply" ? updateFlags : replaceFlags;
         const policy = tokens.lookup(policies); tokens.expect("(");
@@ -240,6 +252,10 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
             result.push(resolveAddress(name, size, mode, code));
           } else if (tokens.next === "next" && tokens.peek(1) === "address") {
             tokens.expect("next"); tokens.expect("address"); result.push(readNextAddress(name));
+          } else if (tokens.next === "pending" && (tokens.peek(1) === "register" || tokens.peek(1) === "operand")) {
+            tokens.expect("pending");
+            if (tokens.take("operand")) result.push(readPendingRegister(name, storedOperand(tokens)));
+            else { tokens.expect("register"); result.push(readPendingRegister(name, tokens.lookup(registers, true))); }
           } else if (tokens.take("fetch")) result.push(tokens.take("word") ? fetchWord(name) : fetchByte(name));
           else if (tokens.next === "sample" && tokens.peek(1) === "test") {
             tokens.expect("sample"); tokens.expect("test"); result.push(readTest(name));

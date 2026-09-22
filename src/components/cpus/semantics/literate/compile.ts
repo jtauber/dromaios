@@ -205,7 +205,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         const capabilities: ActionCapability[] = [];
         if (header.take("using")) do {
           const capability = header.word();
-          if (capability !== "memory" && capability !== "boundary") return header.fail("Expected memory or boundary capability.");
+          if (capability !== "memory" && capability !== "boundary" && capability !== "staging") return header.fail("Expected memory, boundary, or staging capability.");
           if (capabilities.includes(capability)) header.fail(`Duplicate action capability ${capability}.`);
           capabilities.push(capability);
         } while (header.take(","));
