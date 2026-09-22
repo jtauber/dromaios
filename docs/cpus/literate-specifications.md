@@ -51,7 +51,8 @@ Executable chapters are maintained CPU sources:
   and A7/status views and writes. Sources, actions, and bounded iteration keep
   control-flow ordering, register-mask transfers, and status/system effects
   explicit. Its effective-address sources own mode and index decoding, register
-  selection, and staged updates. Reset, execution, and exception delivery remain
+  selection, and staged updates. A standalone reset contract owns vector reads,
+  fault completion, and preserved state. Execution and exception delivery remain
   native; the TypeScript definition adapter only groups chapter families.
 
 This is an authoring-language prototype over the existing
@@ -439,7 +440,10 @@ generated helpers, rather than new runtime argument validation.
 
 Views and plain state actions reject instruction fetching, memory, ports,
 address decoding, and CPU-boundary effects. An action can explicitly add
-`using memory` after its parameters (or description if it has no parameters):
+`using memory` after its parameters (or description if it has no parameters).
+This includes program-space reads where the CPU context supports them; existing
+byte and segmented lifecycle bindings supply data memory only and reject
+program-space reads transitively:
 
 ```text
 action reset "read the reset vector" using memory {
@@ -454,7 +458,10 @@ software-delivery reporting, interrupt deferral, or RETI notification. Combine
 capabilities explicitly as `using memory, boundary` when both are needed; the
 order does not matter, and duplicates or unknown capabilities are errors.
 `using staging` permits [pending register reads and writes](#pending-register-reads-and-writes)
-and can be combined with the other capabilities.
+and can be combined with the other capabilities. `using alignment` permits
+explicit alignment-fault returns in a standalone action; reset attempts can use
+this capability. Such fault-returning actions cannot be composed into sources
+or other actions, because their return would exit the enclosing body.
 Capabilities permit only effects valid for the CPU's instruction context. No
 action may fetch instruction bytes, access ports, or resolve native addresses.
 
@@ -504,6 +511,46 @@ zero, and sets STOPPED; its omitted flags retain their values under the declared
 model policy. Shared runtime services guard reset and record before/after snapshots.
 These helpers use the existing instruction generator in `generated/8008-state.ts`;
 they have no opcode bindings and earn no instruction-coverage credit.
+
+### Reset sequences with modeled faults
+
+A chapter without a complete execution contract can separately own reset:
+
+```text
+reset {
+  attempt action loadResetVectors
+  complete action finishReset with failure
+}
+```
+
+`attempt` names an earlier, input-free action with state/memory effects and
+optional alignment-fault returns. It may use program-space memory when its CPU
+context supplies it. Fetches, ports, address decoding, staged updates, byte-match
+rejections, and other boundary effects are rejected transitively. The attempt
+retains all completed effects on failure. `complete` names a state-only action
+with one eight-bit input: zero for success, one for a modeled fault. It runs once
+after normal return, an explicit alignment fault, or a classified bus failure.
+The original fault is returned after completion; the completion action cannot
+perform memory effects or return another fault.
+
+The generated `<cpu>-reset.ts` module binds those actions to the shared
+[reset sequence](../../src/components/cpus/reset-sequence.ts). The native memory
+boundary recognizes its private bus-failure signal; unrelated thrown values
+propagate unchanged and skip completion. Completion errors also propagate,
+without classification or a second completion attempt. Snapshot assembly,
+recording, and the shared reentrancy guard remain boundary services. No register
+names, vectors, masks, or CPU-name branches live in the runner.
+
+The [68000 reset section](../../src/components/cpus/specifications/68000.md#external-reset)
+uses the existing program-long source, commits SSP and PC independently, and
+rejects an odd PC before completion. Its chapter defines every reset-specific
+state change and preservation rule. A standalone reset cannot coexist with an
+execution contract that already owns reset. Missing/duplicate fields, wrong
+action inputs, and unsupported effects are source-located errors.
+[Language tests](../../tests/components/cpus/semantics/literate-reset.test.ts)
+exercise another CPU/schema, state-only attempts, invalid contracts, and edits
+that change the public 68000's vectors, masks, alignment, fault completion, and
+vector commit timing.
 
 ### Execution contracts
 
@@ -1243,8 +1290,8 @@ instruction catalogue bindings. No processor-specific TypeScript implementation
 remains; the chapter supplies all of its model and public-interface choices.
 Shared runtime services enforce the declared execution contract. Chapters
 without owned state validate declarations against an external schema. The
-68000 owns all instructions, stored state, views/writes, and effective-address
-decoding; its lifecycle still uses native orchestration.
+68000 owns all instructions, stored state, views/writes, effective-address
+decoding, and reset; execution and exception delivery still use native orchestration.
 
 The eight chapters now exercise contrasting widths, ordered effects, and
 interrupt-recognition policies. The 6502 now owns its complete state, status
@@ -1261,7 +1308,7 @@ operations, bit/shift/rotate/TAS families, word products/division, signed bounds
 packed decimal arithmetic, control flow, MOVEP/MOVEM, and status/system instructions.
 A7 selection, status packing/restoration, effective-address decoding, and staged
 auto-updates are chapter-owned too. All documented instruction bodies are chapter-owned;
-reset, execution, and exception delivery remain native.
+reset is chapter-owned too. Execution and exception delivery remain native.
 
 The 68000 arithmetic families reuse source bindings for calculations that return
 a result after applying flags. This differs from the pure logical calculations:

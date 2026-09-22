@@ -89,7 +89,7 @@ test("action capabilities compose transitively without granting wider lifecycle 
 test("boundary syntax rejects invalid capabilities, CPU contexts, and operand widths", () => {
   for (const [from, to, message] of [
     ["memory, boundary", "memory, memory", /Duplicate action capability/],
-    ["memory, boundary", "devices", /Expected memory, boundary, or staging/],
+    ["memory, boundary", "devices", /Expected memory, boundary, staging, or alignment/],
     ["byte = memory(u16($FFFF))", "byte = fetch", /cannot fetch/],
     ["byte = memory(u16($FFFF))", "byte = port(u16(0))", /cannot fetch/],
     ["report interrupt(vector)", "report interrupt(u16(3))", /expected 8-bit/],

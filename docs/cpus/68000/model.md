@@ -19,7 +19,7 @@ of completed byte accesses. Plain `Ram` remains a valid connection. Later 680x0 
 The chapter owns the [stored schema](../../../src/components/cpus/specifications/68000.md#stored-state),
 [construction and inspection contract](../../../src/components/cpus/specifications/68000.md#construction-and-inspection),
 and [A7/status views](../../../src/components/cpus/specifications/68000.md#a7-and-physical-addresses).
-This document retains the native memory, execution, reset, and exception contracts
+This document retains the native memory, execution, and exception contracts
 while those parts of the model are migrated.
 
 ## Memory connection
@@ -887,32 +887,11 @@ events and interrupt acknowledgements represent the explicit connections above.
 
 ## External reset
 
-`reset()` models external reset, independently of stepping:
-
-1. Read bytes `000000`–`000003` into SSP, high byte first.
-2. Read bytes `000004`–`000007` into PC, high byte first.
-3. Set S, clear T, set `interruptMask` to 7, and clear `halted` and `tracePending`.
-4. Set `entry` to `reset`, vector 0. Clear `faulted` only when both vectors
-   succeeded and the new PC is even.
-
-Both vectors retain all 32 bits. A7 now exposes the new SSP. D0–D7, A0–A6,
-USP, IR, X/N/Z/V/C, and RAM are preserved. Preserving registers and condition codes
-whose reset values are unspecified is a deterministic model policy, not a
-hardware guarantee.
-
-A successful reset record has detached `before`/`after` snapshots and exactly
-eight reads, with no instruction or step outcome. A reported bus fault stops
-further reads, preserves any complete SSP vector, applies the reset control
-flags, and sets `faulted`. It records the failed byte in top-level `fault`;
-no exception frame is created. Reset vector reads use supervisor program space. Reset does not fetch the next
-instruction. An odd vector PC is retained and terminally halts the CPU during reset.
-The rejected fetch makes no memory call, is recorded in `fault`, and creates
-no exception frame. Reset differs from restarting an example,
-which creates fresh CPU state and RAM.
-
-The **RESET instruction** resets external devices without reinitializing the
-CPU; it invokes the connection above. `reset()` neither implements that
-instruction nor calls the device connection.
+The [executable chapter](../../../src/components/cpus/specifications/68000.md#external-reset)
+owns the complete reset contract: ordered supervisor-program vector reads,
+independent long commits, alignment and bus-fault completion, preserved state,
+records, and host-failure behavior. Its generated reset binding runs between
+the native boundary's guarded snapshots and recorded accesses.
 
 ## References and checks
 

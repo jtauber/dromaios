@@ -25,7 +25,7 @@ export function chapterVectorEntries(header: ChapterTokens, lines: readonly Chap
   if (!lines.length) header.fail("Vector interrupts need at least one source.");
   const action = (tokens: ChapterTokens, effects: "memory" | "state"): EntryAction => {
     const name = tokens.word(), definition = symbols.actions.get(name) ?? tokens.fail(`Unknown entry action ${name}.`);
-    tokens.checked(() => checkStateEffects(definition.steps, effects));
+    tokens.checked(() => checkStateEffects(definition.steps, effects === "memory" ? "data-memory" : effects));
     const inputs = Object.values(definition.inputs ?? {});
     if (effects === "state" && inputs.length) tokens.fail("Resume actions must have no inputs.");
     tokens.expect("(");

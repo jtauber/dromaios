@@ -14,7 +14,7 @@ module.exports = grammar({
       $.cpu_declaration, $.state_declaration, $._state_field,
       $.source_declaration, $.action_declaration, $.policy_declaration,
       $.operands_declaration, $.codes_declaration, $.conditions_declaration,
-      $.family_declaration, $.page_declaration, $.execution_declaration, $.interface_declaration,
+      $.family_declaration, $.page_declaration, $.execution_declaration, $.reset_declaration, $.interface_declaration,
     )),
 
     cpu_declaration: $ => seq('cpu', field('model', $.string), optional(seq('boundary', 'segmented'))),
@@ -29,7 +29,7 @@ module.exports = grammar({
     field_mapping: $ => seq('=', $.identifier),
 
     source_declaration: $ => seq(choice('source', 'view'), field('name', $.identifier), $.string, optional($.parameters), ':', $.number, $.body),
-    action_declaration: $ => seq('action', field('name', $.identifier), $.string, optional($.parameters), optional(seq('using', commaSeparated(choice('memory', 'boundary', 'staging')))), $.body),
+    action_declaration: $ => seq('action', field('name', $.identifier), $.string, optional($.parameters), optional(seq('using', commaSeparated(choice('memory', 'boundary', 'staging', 'alignment')))), $.body),
     policy_declaration: $ => seq('policy', field('name', $.identifier), $.string, $.parameters,
       '{', repeat($.flag_update), '}'),
     parameters: $ => seq('(', optional(commaSeparated($.parameter)), ')'),
@@ -119,6 +119,9 @@ module.exports = grammar({
     call: $ => seq(field('function', $._local_name), $.arguments),
     arguments: $ => seq('(', optional(commaSeparated($._expression)), ')'),
 
+    reset_declaration: $ => seq('reset', '{', repeat(choice(
+      seq('attempt', 'action', $.identifier), seq('complete', 'action', $.identifier, 'with', 'failure'),
+    )), '}'),
     execution_declaration: $ => seq('execution', optional('segmented'), '{', repeat(choice(
       $.memory_policy, $.counter_policy, $.stopped_policy, $.word_policy,
       $.segmentation_policy, $.prefix_policy, $.waiting_policy, $.pending_policy, $.fault_delivery_policy, $.unsupported_policy,

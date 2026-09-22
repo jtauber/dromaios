@@ -1194,7 +1194,7 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `resolve-address` | Ask the 68000 decoder for a logical memory EA from explicit size/mode/register inputs; stage auto-updates for later address calculations |
 | `commit-address-updates` | Commit the decoder's pending registers in first-use order, with each register's final staged value |
 | `read-program-memory` | Read one byte through the 68000 program-space connection at an explicit logical address |
-| `alignment-fault` | Return a rejected logical read, write, or target-fetch access immediately; program/data space is explicit for reads, writes are data, and fetches are program; the CPU delivers the error |
+| `alignment-fault` | Return a rejected logical read, write, or target-fetch access immediately; program/data space is explicit for reads, writes are data, and fetches are program; the boundary records or delivers the error according to its contract |
 | `read-port` | Read one byte from a captured 16-bit port address, separately from memory; capture it after success |
 | `read-memory` | Read one byte at an explicit 16-bit address, or a 32-bit logical address on the 68000; capture it after success |
 | `write-register` | Replace the stored register with an equal-width unsigned value |
@@ -1896,6 +1896,11 @@ effect and invokes the RESET connection;
 validation restricts it to the 68000, generated types require only that callback,
 and the CPU records reset only after callback success. It does not reset CPU state.
 
+External CPU reset is separately defined by the [chapter reset contract](../../src/components/cpus/specifications/68000.md#external-reset).
+Its memory/alignment attempt and state-only completion use the same generated
+actions, retaining complete vector writes across faults. The shared sequence
+classifies modeled bus failures while allowing host exceptions to escape.
+
 The [system probes](../../tests/components/cpus/semantics/68000-system.test.ts)
 independently scan all 8,393 encodings, check every status word and packed flag/mask
 combination, and compare capture order and each failed effect with live callback
@@ -2119,7 +2124,7 @@ path into those definitions. Continue checking total authored source in the
 compiler. Seven CPUs now have complete chapter-authored models, including the
 8088's segmented execution, external vector offers, and generated public
 interface. The 68000 owns all instructions, stored state, register views/writes,
-and effective-address decoding; reset, execution, and external events still use
+effective-address decoding, and reset; execution and external events still use
 the native core.
 
 Unbounded loops and CPU-boundary exception delivery remain outside semantic

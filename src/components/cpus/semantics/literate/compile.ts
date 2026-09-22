@@ -12,6 +12,8 @@ import { expression, flagExpression, parameters, width } from "./expressions.ts"
 import { chapterSegmentedExecution, checkSegmentedEffects } from "./segmented-execution.ts";
 import { chapterExecution, checkByteExecution } from "./execution.ts";
 import type { ChapterExecution } from "./execution.ts";
+import { chapterReset } from "./reset.ts";
+import type { ChapterReset } from "./reset.ts";
 import { chapterInterface } from "./interface.ts";
 import type { ChapterInterface } from "./interface.ts";
 import { chapterState, checkStateSymbol, stateSymbol } from "./state.ts";
@@ -26,6 +28,7 @@ export interface CpuChapter {
   /** Present only when the chapter owns its complete stored-state schema. */
   readonly state?: StateFields;
   readonly execution?: ChapterExecution;
+  readonly reset?: ChapterReset;
   readonly interface?: ChapterInterface;
   readonly sources: Readonly<Record<string, ValueSource>>;
   readonly views: Readonly<Record<string, ValueSource>>;
@@ -52,6 +55,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
   const wordPatterns: ChapterTokens[] = [];
   let declared = false, ownsState = false;
   let execution: ChapterExecution | undefined;
+  let reset: ChapterReset | undefined;
   let publicInterface: ChapterInterface | undefined;
   let cpu: CpuDeclaration = { name: target.name ?? "", state: target.state ?? {} };
 
@@ -105,7 +109,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         declared = true; header.end(); continue;
       }
       if (!declared) header.fail("Declare the CPU before its contents.");
-      if (!["state", "execution", "interface", "register", "flag", "array", "latch", "choice", "source", "view", "action", "policy", "operands", "codes", "conditions", "page", "family"].includes(kind)) {
+      if (!["state", "reset", "execution", "interface", "register", "flag", "array", "latch", "choice", "source", "view", "action", "policy", "operands", "codes", "conditions", "page", "family"].includes(kind)) {
         header.fail(`Unknown declaration ${kind}.`, 1);
       }
       if (kind === "state") {
@@ -136,6 +140,13 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         continue;
       }
       if (!ownsState && target.state === undefined) header.fail("Define state before other declarations.");
+      if (kind === "reset") {
+        if (reset) header.fail("Reset is already declared.");
+        header.expect("{"); header.end();
+        const { body, end } = chapterBody(lines, index); index = end;
+        reset = chapterReset(header, body, actions);
+        continue;
+      }
       if (kind === "interface") {
         if (publicInterface) header.fail("Public interface is already declared.");
         if (!ownsState || !execution) header.fail("A public interface requires chapter-owned state and an earlier execution contract.");
@@ -205,7 +216,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         const capabilities: ActionCapability[] = [];
         if (header.take("using")) do {
           const capability = header.word();
-          if (capability !== "memory" && capability !== "boundary" && capability !== "staging") return header.fail("Expected memory, boundary, or staging capability.");
+          if (capability !== "memory" && capability !== "boundary" && capability !== "staging" && capability !== "alignment") return header.fail("Expected memory, boundary, staging, or alignment capability.");
           if (capabilities.includes(capability)) header.fail(`Duplicate action capability ${capability}.`);
           capabilities.push(capability);
         } while (header.take(","));
@@ -389,6 +400,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
   if (pages.size) for (const [opcode, tokens] of opcodes) {
     if (opcode > 255 && !pageTokens.has(opcode >>> 8)) tokens.fail("A word opcode cannot be mixed with byte opcode pages.");
   }
+  if (execution && reset) throw new ChapterError(file, 1, 1, "Standalone reset cannot duplicate an execution contract’s reset.");
   if (execution?.mode === "segmented") for (const tokens of pageTokens.values()) tokens.fail("Segmented execution uses replaceable prefixes, not opcode pages.");
   if (execution) for (const entries of families.values()) for (const [opcode, definition] of entries) {
     const tokens = opcodes.get(opcode)!;
@@ -404,5 +416,5 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
     } else tokens.checked(() => checkByteExecution(definition.steps, execution.retireDeferral !== undefined, execution.interrupt === "vectors",
       execution.opcodeAdvance === "decode" ? execution : undefined));
   }
-  return { cpu: cpu.name, pages: Object.fromEntries(pages), ...(ownsState ? { state: cpu.state } : {}), ...(execution ? { execution } : {}), ...(publicInterface ? { interface: publicInterface } : {}), sources: Object.fromEntries(sources), views: Object.fromEntries(views), actions: Object.fromEntries(actions), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), conditions: Object.fromEntries(conditions), families: Object.fromEntries(families) };
+  return { cpu: cpu.name, pages: Object.fromEntries(pages), ...(ownsState ? { state: cpu.state } : {}), ...(execution ? { execution } : {}), ...(reset ? { reset } : {}), ...(publicInterface ? { interface: publicInterface } : {}), sources: Object.fromEntries(sources), views: Object.fromEntries(views), actions: Object.fromEntries(actions), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), conditions: Object.fromEntries(conditions), families: Object.fromEntries(families) };
 }

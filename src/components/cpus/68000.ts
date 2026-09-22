@@ -1,3 +1,4 @@
+import { reset } from "./generated/68000-reset.ts";
 import { sourceReaders } from "./generated/68000-state.ts";
 import type { MemoryConnection } from "../memory/connection.ts";
 import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
@@ -180,24 +181,9 @@ export class Cpu68000 {
   reset(): Cpu68000ResetRecord {
     return this.#atBoundary((): Cpu68000ResetRecord => {
       const before = this.snapshot();
-      const { accesses, readProgramByte } = this.#recordMemory();
-      let fault: Cpu68000AlignmentFault | Cpu68000BusFault | undefined;
-      try {
-        // Reset vectors occupy supervisor program space. Each complete long commits independently.
-        this.#state.ssp = this.#readMemory(32, 0, readProgramByte);
-        this.#state.pc = this.#readMemory(32, 4, readProgramByte);
-        if (this.#state.pc % 2) fault = { operation: "fetch", address: this.#state.pc };
-      } catch (error) {
-        if (!(error instanceof BusFault)) throw error;
-        fault = this.#busFaultRecord(error);
-      }
-      this.#state.flags.s = true;
-      this.#state.flags.t = false;
-      this.#state.interruptMask = 7;
-      this.#state.halted = this.#state.tracePending = false;
-      this.#state.faulted = fault !== undefined;
-      this.#state.entry = { kind: "reset", vector: 0 };
-      // Registers and condition codes not specified by reset retain their supplied values.
+      const memory = this.#recordMemory();
+      const fault = reset(this.#state, memory, error => error instanceof BusFault ? this.#busFaultRecord(error) : undefined);
+      const { accesses } = memory;
       return { before, after: this.snapshot(), accesses, ...(fault ? { fault } : {}) };
     });
   }

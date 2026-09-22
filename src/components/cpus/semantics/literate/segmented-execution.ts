@@ -95,7 +95,7 @@ export function chapterSegmentedExecution(header: ChapterTokens, lines: readonly
     const name = tokens.word(), definition = symbols.actions.get(name) ?? tokens.fail(`Unknown state action ${name}.`);
     if (JSON.stringify(Object.values(definition.inputs ?? {})) !== JSON.stringify(widths)) tokens.fail(`Execution action requires input widths [${widths.join(", ")}].`);
     if (effects === "continuation") tokens.checked(() => checkSegmentedEffects(definition.steps, "", true));
-    else tokens.checked(() => checkStateEffects(definition.steps, effects, false));
+    else tokens.checked(() => checkStateEffects(definition.steps, effects === "memory" ? "data-memory" : effects, false));
     return name;
   };
   const memory = required("memory"), memoryBits = number(memory, 24); memory.end();

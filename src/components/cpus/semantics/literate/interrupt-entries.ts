@@ -27,7 +27,7 @@ export function chapterInterruptEntries(header: ChapterTokens, lines: readonly C
     if (input ? widths.length !== 1 || widths[0] !== 8 : widths.length !== 0) {
       tokens.fail(input ? "Acknowledged entry actions require one 8-bit input." : "Entry actions require no inputs.");
     }
-    tokens.checked(() => checkStateEffects(definition.steps, memory ? "memory" : "state")); tokens.end();
+    tokens.checked(() => checkStateEffects(definition.steps, memory ? "data-memory" : "state")); tokens.end();
     return { action: name, memory: usesMemory(definition.steps) };
   };
   for (let index = 0; index < lines.length; index++) {

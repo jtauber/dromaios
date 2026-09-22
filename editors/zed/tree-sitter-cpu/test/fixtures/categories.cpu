@@ -337,3 +337,12 @@ family stagedOperand "0000000r" for r in registers {
   final = pending
   operand r <- final
 }
+
+reset {
+  attempt action loadVectors
+  complete action finishReset with failure
+}
+action loadVectors "vector reads" using memory, alignment {
+  start = program memory(u32(4))
+  fault alignment fetch(extend(start, 32)) if lowBit(start)
+}

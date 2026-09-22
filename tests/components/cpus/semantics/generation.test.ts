@@ -10,6 +10,7 @@ import { instructions as motorola6800 } from "../../../../src/components/cpus/ge
 import { instructionModules, instructions6502 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
+import { generateChapterReset } from "../../../../src/components/cpus/semantics/literate/reset.js";
 import { generateChapterExecution } from "../../../../src/components/cpus/semantics/literate/execution.js";
 import { generateChapterInterface } from "../../../../src/components/cpus/semantics/literate/interface.js";
 import { instructionAliases, instructionBodies, instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
@@ -68,11 +69,11 @@ test("chapter aliases preserve named bodies, decoded inputs, and explicit opcode
 
 test("the catalogue and chapter bindings name exactly the generated modules, each reproducible without changing its inputs", () => {
   const directory = "src/components/cpus/generated";
-  const chapters = ["6502", "6800", "6809", "8008", "8080", "8088", "z80"].map(cpu => ({ cpu,
+  const chapters = ["6502", "6800", "6809", "8008", "8080", "8088", "z80", "68000"].map(cpu => ({ cpu,
     chapter: compileCpuChapter(readFileSync(`src/components/cpus/specifications/${cpu}.md`, "utf8"), { name: cpu }),
   }));
   const filenames = [...instructionModules.map(({ name }) => `${name}.ts`),
-    ...chapters.flatMap(({ cpu, chapter }) => [`${cpu}-execution.ts`, ...(chapter.interface ? [`${cpu}-cpu.ts`] : [])])];
+    ...chapters.flatMap(({ cpu, chapter }) => [...(chapter.execution ? [`${cpu}-execution.ts`] : []), ...(chapter.reset ? [`${cpu}-reset.ts`] : []), ...(chapter.interface ? [`${cpu}-cpu.ts`] : [])])];
   assert.equal(new Set(filenames).size, filenames.length, "module names must not overwrite one another");
   assert.deepEqual(readdirSync(directory).sort(), filenames.sort());
   for (const module of instructionModules) {
@@ -85,9 +86,16 @@ test("the catalogue and chapter bindings name exactly the generated modules, eac
   }
   for (const { cpu, chapter } of chapters) {
     const before = JSON.stringify(chapter);
-    const source = generateChapterExecution(cpu, cpu, chapter.execution!);
-    assert.equal(source, readFileSync(`${directory}/${cpu}-execution.ts`, "utf8"));
-    assert.equal(generateChapterExecution(cpu, cpu, chapter.execution!), source);
+    if (chapter.execution) {
+      const source = generateChapterExecution(cpu, cpu, chapter.execution);
+      assert.equal(source, readFileSync(`${directory}/${cpu}-execution.ts`, "utf8"));
+      assert.equal(generateChapterExecution(cpu, cpu, chapter.execution), source);
+    }
+    if (chapter.reset) {
+      const source = generateChapterReset(cpu, chapter.reset);
+      assert.equal(source, readFileSync(`${directory}/${cpu}-reset.ts`, "utf8"));
+      assert.equal(generateChapterReset(cpu, chapter.reset), source);
+    }
     if (chapter.interface) {
       const publicSource = generateChapterInterface(cpu, chapter.state!, chapter.interface, chapter.execution!);
       assert.equal(publicSource, readFileSync(`${directory}/${cpu}-cpu.ts`, "utf8"));

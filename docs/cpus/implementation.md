@@ -86,6 +86,14 @@ IRQ/FIRQ masks, NMI arming, and masked SYNC release. Chapter actions select
 full/short frames, reuse CWAI's saved frame, and read vectors. The chapter also
 owns its public contract and hardware references.
 
+The 68000 also generates `generated/68000-reset.ts` from its chapter's standalone
+[reset contract](../../src/components/cpus/specifications/68000.md#external-reset).
+Its attempt action reads and checks vectors; its completion action defines the
+state changes after success or a modeled fault. The shared
+[reset sequence](../../src/components/cpus/reset-sequence.ts) handles that ordering.
+The native reset wrapper supplies guarded snapshots, recorded memory, and its
+private bus-fault classifier. Normal execution and exception delivery remain native.
+
 ## Reading order
 
 Within a CPU core, use this order where the corresponding code exists:
@@ -684,7 +692,8 @@ fetchWord: () => readWordLE(fetchByte),
 Use a word reader when two consecutive byte fetches describe the operation.
 The 6502's JSR retains separate low/high fetches around its stack writes, and
 the 68000 retains its word-based cursor and fault handling. Stack-pointer
-updates and reset-vector addresses remain visible in their CPU implementations.
+updates remain visible in their CPU implementations; reset-vector addresses
+now live in executable chapters.
 
 [Helper tests](../../tests/components/cpus/binary.test.ts) compare every byte
 and byte pair with native signed/unsigned interpretations, and check read

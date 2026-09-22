@@ -39,8 +39,8 @@ interface Symbols {
   readonly catalogues: ReadonlyMap<string, readonly ChapterOperand[]>;
 }
 
-export type ActionCapability = "memory" | "boundary" | "staging";
-type Effects = "view" | "state" | ActionCapability | readonly ActionCapability[];
+export type ActionCapability = "memory" | "boundary" | "staging" | "alignment";
+type Effects = "view" | "state" | "data-memory" | ActionCapability | readonly ActionCapability[];
 export interface StatementOptions {
   readonly inputs?: Readonly<Record<string, Width>>;
   readonly effects?: Effects;
@@ -48,7 +48,7 @@ export interface StatementOptions {
 
 /** Action capabilities are explicit and transitive; lifecycle hooks recheck their narrower contract. */
 export function checkStateEffects(steps: readonly Statement[], effects: Effects, allowMatches = true): void {
-  const permits = (capability: ActionCapability) => effects === capability || (Array.isArray(effects) && effects.includes(capability));
+  const permits = (capability: ActionCapability) => effects === capability || (effects === "data-memory" && capability === "memory") || (Array.isArray(effects) && effects.includes(capability));
   for (const step of steps) {
     switch (step.kind) {
       case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": case "test-choice": break;
@@ -64,9 +64,16 @@ export function checkStateEffects(steps: readonly Statement[], effects: Effects,
       case "write-register": case "write-element": case "fill-array": case "write-latch": case "write-choice": case "update-flags": case "replace-flags": case "exchange-flags":
         if (effects !== "view") break;
         throw new Error("Views may only read stored state.");
+      case "read-program-memory":
+        if (effects === "data-memory") throw new Error("This execution binding does not supply program-space memory.");
+        if (permits("memory")) break;
+        throw new Error("Program-space reads need using memory; views only read stored state.");
       case "read-memory": case "write-memory":
         if (permits("memory")) break;
         throw new Error("Views and state actions cannot fetch instructions or access memory without using memory.");
+      case "alignment-fault":
+        if (permits("alignment")) break;
+        throw new Error("Alignment fault returns need using alignment; views cannot return faults.");
       case "read-pending-register": case "stage-register":
         if (permits("staging")) break;
         throw new Error("Pending register reads and writes need using staging; views only read stored state.");
@@ -306,7 +313,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
 
 /** Whether a lifecycle binding needs byte memory after its effect contract has been checked. */
 export function usesMemory(steps: readonly Statement[]): boolean {
-  return steps.some(step => step.kind === "read-memory" || step.kind === "write-memory"
+  return steps.some(step => step.kind === "read-memory" || step.kind === "read-program-memory" || step.kind === "write-memory"
     || ((step.kind === "match" || step.kind === "dispatch") && step.cases.some(branch => usesMemory(branch.steps)))
     || (step.kind === "choose" && (usesMemory(step.yes.steps) || usesMemory(step.no.steps)))
     || (step.kind === "perform" && usesMemory(step.action.steps))

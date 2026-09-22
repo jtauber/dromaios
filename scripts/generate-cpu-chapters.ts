@@ -116,7 +116,7 @@ export function generateCpuChapters() {
   // The next stage needs model bindings only; release instruction graphs and rendered text
   // before it imports the generated registry's own representation of those instructions.
   return chapters.map(({ name, cpu, chapter }) => ({
-    name, cpu, state: chapter.state, execution: chapter.execution, interface: chapter.interface,
+    name, cpu, state: chapter.state, execution: chapter.execution, reset: chapter.reset, interface: chapter.interface,
   }));
 }
 

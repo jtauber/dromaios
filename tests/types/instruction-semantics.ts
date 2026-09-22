@@ -32,6 +32,7 @@ import { instructions as generated6502 } from "../../src/components/cpus/generat
 import { sourceReaders } from "../../src/components/cpus/generated/6502-state.js";
 import { sourceReaders as addressReaders, instructions as state68000 } from "../../src/components/cpus/generated/68000-state.js";
 import { registerUpdates } from "../../src/components/cpus/register-updates.js";
+import { reset as reset68000 } from "../../src/components/cpus/generated/68000-reset.js";
 import { bodiesZ80 as generatedZ80 } from "../helpers/z80-bodies.js";
 import type { CpuZ80State } from "../../src/components/cpus/generated/z80-cpu.js";
 import { instructions as generated8008 } from "../../src/components/cpus/generated/8008.js";
@@ -1076,4 +1077,18 @@ export function check68000DecoderTypes(state: Cpu68000State): void {
   state68000.stageAddressRegister(state, 7, 0x100, { stageRegister: updates.stageRegister, fetchWord: () => 0 });
   // @ts-expect-error Unsupported selections are not silently numeric addresses.
   const unchecked: number = address;
+}
+
+export function check68000ResetTypes(state: Cpu68000State): void {
+  const memory = { readProgramByte: () => 0 };
+  const fault: void | TargetAlignmentFault | "bus-error" = reset68000(state, memory, () => "bus-error" as const);
+  state68000.finishReset(state, 1);
+  // @ts-expect-error Reset vectors require program-space reads.
+  reset68000(state, { readByte: () => 0 }, () => undefined);
+  // @ts-expect-error Reset does not fetch an instruction or invoke the RESET connection.
+  reset68000(state, { ...memory, fetchWord: () => 0, resetDevices: () => {} }, () => undefined);
+  // @ts-expect-error The completion action is state-only.
+  state68000.finishReset(state, 0, memory);
+  // @ts-expect-error A modeled reset fault is observable, rather than silently discarded.
+  const success: void = fault;
 }
