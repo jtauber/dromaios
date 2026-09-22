@@ -16,59 +16,11 @@ of completed byte accesses. Plain `Ram` remains a valid connection. Later 680x0 
 
 ## Stored state and inspection
 
-`new Cpu68000(memory, initialState, connections?)` requires a 16 MiB address
-space and all these stored fields:
-
-| Fields | Constraint |
-| --- | --- |
-| `d0`–`d7` | Unsigned 32-bit data registers |
-| `a0`–`a6` | Unsigned 32-bit address registers |
-| `usp`, `ssp` | Unsigned 32-bit user and supervisor stack pointers |
-| `pc` | Unsigned 32-bit program counter |
-| `ir` | Unsigned 16-bit last completely fetched operation word |
-| `interruptMask` | Integer from 0 through 7 |
-| `halted` | Boolean STOP latch; required in initial state |
-| `faulted` | Boolean terminal double-fault latch; only external reset releases it |
-| `tracePending` | Boolean owed-trace latch; required independently of T and STOP |
-| `entry.kind` | `none`, `reset`, `fault`, `exception`, or `trap`: phase awaiting its first opcode fetch |
-| `entry.vector` | Unsigned byte identifying that exception vector; ignored for `none` and `reset` |
-| `flags.x/n/z/v/c` | Boolean extend, negative, zero, overflow, and carry |
-| `flags.t/s` | Boolean trace and supervisor bits |
-
-The original status register has X/N/Z/V/C at bits 4–0, interrupt mask at
-10–8, S at 13, and T at 15. There is no master-mode bit or second trace bit.
-Instructions pack and unpack SR/CCR from these fields; snapshots keep no duplicate
-packed register. STOP sets `halted`; completed instructions that began with T
-set owe a trace through `tracePending`. All three latches are stored in snapshots. `faulted` takes priority over STOP,
-trace, and interrupt recognition. `ir` changes as soon as both opcode bytes
-have been read; extension fetches, trace, and interrupt entry preserve it.
-An odd instruction PC therefore stacks the supplied or previously fetched IR.
-Synchronous exceptions and trace ignore the interrupt mask; external requests
-use the level rules below. Entry clears T and selects SSP.
-
-The exported `cpu68000StateDescription` owns field names and constraints.
-Construction reads each declared field once, validates it, and owns a copy.
-Numeric and named-choice errors throw `RangeError`; missing or invalid flag groups and Boolean
-fields throw `TypeError`. Extra metadata and derived views are ignored.
-Construction does not read RAM, reset, or execute.
-
-`snapshot()` owns a detached copy with readonly TypeScript types. It adds:
-
-- `a7`: `ssp` when S is set, otherwise `usp`. The active pointer is a view,
-  so switching modes cannot leave a duplicate A7 value out of sync.
-- `physicalPc`: the low 24 bits of `pc`.
-
-Snapshots can initialize another CPU. Neither inspection nor snapshot copying
-accesses RAM. Mutating caller state or an earlier snapshot cannot alter the CPU.
-
-`entry` preserves the context of the next initial opcode fetch across snapshots.
-Ordinary initial state uses `{ kind: "none", vector: 0 }`. Successful reset
-sets `reset`; bus/address-error entry sets `fault`; group-1 exceptions, trace,
-and interrupts set `exception`; group-2 instruction traps set `trap`.
-The vector distinguishes, for example, TRAP #0 from TRAP #1. A complete opcode
-fetch clears the context to `none`, vector 0; a partial fetch preserves it.
-This records entry sequencing without storing a prefetch queue. The existing
-trace/interrupt boundary priority still applies before that fetch.
+The chapter owns the [stored schema](../../../src/components/cpus/specifications/68000.md#stored-state),
+[construction and inspection contract](../../../src/components/cpus/specifications/68000.md#construction-and-inspection),
+and [A7/status views](../../../src/components/cpus/specifications/68000.md#a7-and-physical-addresses).
+This document retains the native memory, execution, reset, and exception contracts
+while those parts of the model are migrated.
 
 ## Memory connection
 

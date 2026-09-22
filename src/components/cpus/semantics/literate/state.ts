@@ -62,7 +62,7 @@ function choiceField(values: readonly (string | number)[]): StateField {
 }
 
 /** Build immutable storage in declaration order, with architectural flags in their own group. */
-export function chapterState(declarations: readonly { symbol: StateSymbol | { readonly kind: "bank"; readonly field: string; readonly fields: StateFields }; tokens: ChapterTokens }[]): StateFields {
+export function chapterState(declarations: readonly { symbol: StateSymbol | { readonly kind: "bank" | "group"; readonly field: string; readonly fields: StateFields }; tokens: ChapterTokens }[]): StateFields {
   const fields = new Map<string, StateField>(), flags = new Map<string, StateField>();
   for (const { symbol, tokens } of declarations) {
     const { kind, field } = symbol;
@@ -72,7 +72,7 @@ export function chapterState(declarations: readonly { symbol: StateSymbol | { re
       flags.set(field, flag); fields.set("flags", group(Object.fromEntries(flags)));
     } else {
       if (fields.has(field)) tokens.fail(`Duplicate stored field ${field}.`);
-      fields.set(field, kind === "bank" ? group(symbol.fields) : kind === "register" ? unsigned(symbol.width)
+      fields.set(field, (kind === "bank" || kind === "group") ? group(symbol.fields) : kind === "register" ? unsigned(symbol.width)
         : kind === "register-array" ? array(symbol.length, unsigned(symbol.width))
         : kind === "choice" ? choiceField(symbol.values) : boolean);
     }

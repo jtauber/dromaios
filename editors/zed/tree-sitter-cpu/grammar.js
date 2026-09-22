@@ -16,7 +16,8 @@ module.exports = grammar({
     )),
 
     cpu_declaration: $ => seq('cpu', field('model', $.string), optional(seq('boundary', 'segmented'))),
-    state_declaration: $ => seq('state', '{', repeat(choice($._state_field, $.bank_declaration)), '}'),
+    state_declaration: $ => seq('state', '{', repeat(choice($._state_field, $.bank_declaration, $.group_declaration)), '}'),
+    group_declaration: $ => seq('group', $._state_name, optional($.field_mapping), '{', repeat($._state_field), '}'),
     bank_declaration: $ => seq('bank', $._state_name, optional($.field_mapping), '{', repeat(choice($.register_declaration, $.flag_declaration)), '}'),
     _state_field: $ => choice($.register_declaration, $.array_declaration, $.flag_declaration, $.choice_declaration),
     register_declaration: $ => seq('register', $._state_name, ':', $.number, optional($.field_mapping)),
@@ -65,9 +66,11 @@ module.exports = grammar({
 
     body: $ => seq('{', repeat($._statement), '}'),
     _statement: $ => choice(
-      $.match_capture, $.match_statement, $.capture, $.write, $.apply_statement, $.exchange_statement, $.perform_statement, $.when_statement,
+      $.choose_capture, $.match_capture, $.match_statement, $.capture, $.write, $.apply_statement, $.exchange_statement, $.perform_statement, $.when_statement,
       $.iterate_capture, $.divide_capture, $.reject_statement, $.return_statement, $.fault_statement, $.commit_statement, $.defer_statement, $.notify_statement, $.report_statement, $.escape_statement,
     ),
+    choose_capture: $ => seq(field('name', $.identifier), '=', 'choose', $._expression, ':', $.number,
+      '{', 'then', $.body, 'else', $.body, '}'),
     match_capture: $ => seq(field('name', $.identifier), '=', 'match', $._expression, ':', $.number,
       '{', repeat1($.match_case), 'otherwise', 'unsupported', '}'),
     match_statement: $ => seq('match', $._expression, '{', repeat1($.match_case), 'otherwise', 'unsupported', '}'),

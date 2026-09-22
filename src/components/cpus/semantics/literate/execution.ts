@@ -65,6 +65,7 @@ export function checkByteExecution(steps: readonly Statement[], deferral = false
     case "notify-reti":
       if (!decoded?.notifyReti) throw new Error("Byte execution does not support notify-reti without a notification policy.");
       break;
+    case "choose": checkByteExecution(step.yes.steps, deferral, memoryOnly, decoded); checkByteExecution(step.no.steps, deferral, memoryOnly, decoded); break;
     case "when": case "iterate": checkByteExecution(step.steps, deferral, memoryOnly, decoded); break;
     case "dispatch": case "match":
       if (decoded) throw new Error("Decode-before-execution does not support operand rejection after committing the opcode.");

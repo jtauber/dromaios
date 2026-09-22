@@ -15,18 +15,18 @@ test("native CPU generation bootstraps without generated files and removes obsol
   const output = join(directory, "src/components/cpus/generated");
   rmSync(output, { recursive: true, force: true });
   const chapters = join(directory, "src/components/cpus/semantics/generated");
-  const chapterNames = ["6502.ts", "6800.ts", "68000-word-transfers.ts", "6809.ts", "8008.ts", "8080.ts", "8088.ts", "catalogue.ts", "interfaces.ts", "z80.ts"];
-  const chapterFiles = [...chapterNames, "state/6502.ts", "state/6800.ts", "state/6809.ts", "state/8008.ts", "state/8080.ts", "state/8088.ts", "state/z80.ts"];
+  const chapterNames = ["6502.ts", "6800.ts", "68000.ts", "6809.ts", "8008.ts", "8080.ts", "8088.ts", "catalogue.ts", "interfaces.ts", "z80.ts"];
+  const chapterFiles = [...chapterNames, "state/6502.ts", "state/6800.ts", "state/68000.ts", "state/6809.ts", "state/8008.ts", "state/8080.ts", "state/8088.ts", "state/z80.ts"];
   rmSync(chapters, { recursive: true, force: true });
   const run = () => {
     const result = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { cwd: tmpdir(), encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(readdirSync(chapters).sort(), [...chapterNames, "state"].sort());
-    assert.deepEqual(readdirSync(join(chapters, "state")).sort(), ["6502.ts", "6800.ts", "6809.ts", "8008.ts", "8080.ts", "8088.ts", "z80.ts"]);
+    assert.deepEqual(readdirSync(join(chapters, "state")).sort(), ["6502.ts", "6800.ts", "68000.ts", "6809.ts", "8008.ts", "8080.ts", "8088.ts", "z80.ts"]);
     for (const name of chapterFiles) assert.equal(readFileSync(join(chapters, name), "utf8"),
       readFileSync(`src/components/cpus/semantics/generated/${name}`, "utf8"));
-    assert.deepEqual(readdirSync(output).sort(), ["6502-cpu.ts", "6502-execution.ts", "6502-state.ts", "6502.ts", "6800-cpu.ts", "6800-execution.ts", "6800-state.ts", "6800.ts", "68000-arithmetic.ts", "68000-bits.ts", "68000-control.ts", "68000-decimal.ts", "68000-logic.ts", "68000-moves.ts", "68000-quick.ts", "68000-system.ts", "68000-transfers.ts", "68000-word-arithmetic.ts", "68000-word-moves.ts", "68000.ts", "6809-cpu.ts", "6809-execution.ts", "6809-state.ts", "6809.ts", "8008-cpu.ts", "8008-execution.ts", "8008-state.ts", "8008.ts", "8080-cpu.ts", "8080-execution.ts", "8080-state.ts", "8080.ts", "8088-cpu.ts", "8088-execution.ts", "8088-operands.ts", "8088-state.ts", "8088-strings.ts", "8088.ts", "z80-cpu.ts", "z80-execution.ts", "z80-state.ts", "z80.ts"]);
-    for (const cpu of ["6502-cpu", "6502-execution", "6502-state", "6502", "6800-cpu", "6800-execution", "6800-state", "6800", "68000-arithmetic", "68000-bits", "68000-control", "68000-decimal", "68000-logic", "68000-moves", "68000-quick", "68000-system", "68000-transfers", "68000-word-arithmetic", "68000-word-moves", "68000", "6809-cpu", "6809-execution", "6809-state", "6809", "8008-cpu", "8008-execution", "8008-state", "8008", "8080-cpu", "8080-execution", "8080-state", "8080", "8088-cpu", "8088-execution", "8088-operands", "8088-state", "8088-strings", "8088", "z80-cpu", "z80-execution", "z80-state", "z80"]) {
+    assert.deepEqual(readdirSync(output).sort(), ["6502-cpu.ts", "6502-execution.ts", "6502-state.ts", "6502.ts", "6800-cpu.ts", "6800-execution.ts", "6800-state.ts", "6800.ts", "68000-arithmetic.ts", "68000-bits.ts", "68000-control.ts", "68000-decimal.ts", "68000-logic.ts", "68000-moves.ts", "68000-quick.ts", "68000-state.ts", "68000-system.ts", "68000-transfers.ts", "68000-word-arithmetic.ts", "68000-word-moves.ts", "68000.ts", "6809-cpu.ts", "6809-execution.ts", "6809-state.ts", "6809.ts", "8008-cpu.ts", "8008-execution.ts", "8008-state.ts", "8008.ts", "8080-cpu.ts", "8080-execution.ts", "8080-state.ts", "8080.ts", "8088-cpu.ts", "8088-execution.ts", "8088-operands.ts", "8088-state.ts", "8088-strings.ts", "8088.ts", "z80-cpu.ts", "z80-execution.ts", "z80-state.ts", "z80.ts"]);
+    for (const cpu of ["6502-cpu", "6502-execution", "6502-state", "6502", "6800-cpu", "6800-execution", "6800-state", "6800", "68000-arithmetic", "68000-bits", "68000-control", "68000-decimal", "68000-logic", "68000-moves", "68000-quick", "68000-state", "68000-system", "68000-transfers", "68000-word-arithmetic", "68000-word-moves", "68000", "6809-cpu", "6809-execution", "6809-state", "6809", "8008-cpu", "8008-execution", "8008-state", "8008", "8080-cpu", "8080-execution", "8080-state", "8080", "8088-cpu", "8088-execution", "8088-operands", "8088-state", "8088-strings", "8088", "z80-cpu", "z80-execution", "z80-state", "z80"]) {
       assert.equal(readFileSync(join(output, `${cpu}.ts`), "utf8"), readFileSync(`src/components/cpus/generated/${cpu}.ts`, "utf8"));
     }
   };
@@ -56,7 +56,7 @@ test("native CPU generation bootstraps without generated files and removes obsol
     ["8008", "register B: 8", "register B: 8 = a"],
     ["8008", "counter PC write setPC", "counter PC write missing"],
     ["8008", "snapshot pc = PC", "snapshot pc = missing"],
-    ["68000-word-transfers", "result = concat(high, low)", "result = concat(high, missing)"],
+    ["68000", "result = concat(high, low)", "result = concat(high, missing)"],
   ] as const) {
     const source = join(directory, `src/components/cpus/specifications/${name}.md`);
     const original = readFileSync(source, "utf8");

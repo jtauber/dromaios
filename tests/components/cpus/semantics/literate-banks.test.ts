@@ -91,7 +91,7 @@ test("qualified registers and flags preserve independent banks, captured updates
 });
 
 const invalid: readonly [string, string, RegExp][] = [
-  ["lowercase bank", storage.replace("bank OTHER", "bank other"), /Bank names must be uppercase/],
+  ["lowercase bank", storage.replace("bank OTHER", "bank other"), /Group and bank names must be uppercase/],
   ["missing bank flags", storage.replace("    flag C = carry\n", ""), /own flags/],
   ["nested bank", storage.replace("    register A: 8 = accumulator", "    bank INNER {\n      flag C\n    }"), /contain only/],
   ["bank latch", storage.replace("    register A: 8 = accumulator", "    latch WAIT"), /Banks contain only/],
@@ -117,7 +117,7 @@ for (const [name, text, message] of invalid) test(`bank/choice authoring rejects
 
 test("the IR rejects a flag from an undeclared bank rather than treating it as a main flag", () => {
   assert.throws(() => defineInstruction({ cpu: { name: "probe", state: compile(storage).state! }, name: "invalid", explanation: "",
-    steps: [readFlag("carry", { kind: "flag", cpu: "probe", bank: "missing", field: "c" })] }), /unknown register bank/);
+    steps: [readFlag("carry", { kind: "flag", cpu: "probe", bank: "missing", field: "c" })] }), /unknown state group/);
 });
 
 const exchangeStorage = storage.replace("  flag C\n", "  flag C = carry\n");

@@ -274,3 +274,23 @@ execution segmented {
     }
   }
 }
+
+state {
+  group ENTRY {
+    choice KIND: "none", "fault"
+    register VECTOR: 8
+  }
+}
+view SELECTED "selected register" : 8 {
+  selected = flag C
+  contents = choose selected : 8 {
+    then {
+      byte = register A
+      return byte
+    }
+    else {
+      return u8(0)
+    }
+  }
+  return contents
+}

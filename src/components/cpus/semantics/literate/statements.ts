@@ -6,6 +6,7 @@ import { validateInstruction } from "../validate.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
 import { address, expression, flagExpression, signedness } from "./expressions.ts";
+import { chapterChoose } from "./choose.ts";
 import { chapterMatch } from "./matches.ts";
 
 export type ChapterOperand = { readonly name: string; readonly kind: "unsupported" } | { readonly name: string; readonly read: ValueSource } & (
@@ -50,6 +51,8 @@ export function checkStateEffects(steps: readonly Statement[], effects: Effects,
   for (const step of steps) {
     switch (step.kind) {
       case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": case "test-choice": break;
+      case "choose":
+        checkStateEffects(step.yes.steps, effects, allowMatches); checkStateEffects(step.no.steps, effects, allowMatches); break;
       case "when": case "iterate": checkStateEffects(step.steps, effects, allowMatches); break;
       case "match": case "dispatch":
         if (effects === "view") throw new Error("Views may only read stored state; byte matches can reject.");
@@ -198,7 +201,11 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
           }
         } else {
           tokens.expect("=");
-          if (tokens.take("match")) {
+          if (tokens.take("choose")) {
+            const { body, end } = chapterBody(lines, index); index = end;
+            result.push(chapterChoose(tokens, body, name, (body, check) => parse(body, check, selectedOperands),
+              step => validate([...result, step])));
+          } else if (tokens.take("match")) {
             const { body, end } = chapterBody(lines, index); index = end;
             result.push(chapterMatch(tokens, body, name, symbols.catalogues, selectedOperands,
               (body, selected, check) => parse(body, check, selected), step => validate([...result, step])));
@@ -225,13 +232,13 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
             tokens.expect("sample"); tokens.expect("test"); result.push(readTest(name));
           }
           else if (tokens.take("choice")) {
-            const choice = tokens.lookup(choices); tokens.expect("=");
+            const choice = tokens.lookup(choices, true); tokens.expect("=");
             result.push(testChoice(name, choice, tokens.choiceValue()));
           } else if (tokens.take("flag")) result.push(readFlag(name, tokens.lookup(flags, true)));
-          else if (tokens.take("latch")) result.push(readLatch(name, tokens.lookup(latches)));
+          else if (tokens.take("latch")) result.push(readLatch(name, tokens.lookup(latches, true)));
           else if (tokens.take("register")) result.push(readRegister(name, tokens.lookup(registers, true)));
           else if (tokens.take("array")) {
-            const array = tokens.lookup(arrays); tokens.expect("[");
+            const array = tokens.lookup(arrays, true); tokens.expect("[");
             result.push(readElement(name, array, expression(tokens))); tokens.expect("]");
           } else if (tokens.take("source")) {
             const source = tokens.lookup(sources), args: Record<string, NumberExpression> = {};
@@ -269,6 +276,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
 export function usesMemory(steps: readonly Statement[]): boolean {
   return steps.some(step => step.kind === "read-memory" || step.kind === "write-memory"
     || ((step.kind === "match" || step.kind === "dispatch") && step.cases.some(branch => usesMemory(branch.steps)))
+    || (step.kind === "choose" && (usesMemory(step.yes.steps) || usesMemory(step.no.steps)))
     || (step.kind === "perform" && usesMemory(step.action.steps))
     || (step.kind === "read-source" && usesMemory(step.source.steps))
     || ((step.kind === "when" || step.kind === "iterate") && usesMemory(step.steps)));

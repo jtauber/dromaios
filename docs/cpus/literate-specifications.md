@@ -46,9 +46,10 @@ Executable chapters are maintained CPU sources:
   Reset, segmented fetching, prefix choices, trap/fault delivery, retirement,
   and ordered INTR/NMI offers are declared here. The class, connections, records,
   snapshots, and integration metadata are generated; no handwritten adapter remains.
-- [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
-  defines word copies between data registers and word loads/stores through `(An)`.
-  Its word-result flag policy also serves the remaining word definitions.
+- [Motorola 68000: state and register operations](../../src/components/cpus/specifications/68000.md)
+  owns stored state, A7 and status views, register MOVE/MOVEA, MOVEQ, EXT, SWAP,
+  EXG, and word loads/stores through `(An)`. Its bank/status sources and result
+  policies also serve the remaining native core and instruction builders.
 
 This is an authoring-language prototype over the existing
 [instruction representation](instruction-semantics.md), with a deliberately
@@ -160,6 +161,7 @@ Quoted descriptions use JSON string escaping.
 | `register A: 8`, `flag N` | Declare stored fields inside `state`, or reference an external schema in a partial chapter. Uppercase names map to lowercase stored fields unless an explicit `= field` mapping follows. |
 | `register SELECTOR: 3 = stackIndex`, `array ADDRESS: 14[8] = addressStack` | Name stored fields explicitly; widths and array lengths define storage inside `state` and must match the external schema otherwise. |
 | `latch STOPPED = halted` | Declare a Boolean control latch, distinct from an architectural flag. |
+| `group ENTRY = entry { … }` | Declare one nested group of stored fields, including choices and latches; references use `ENTRY.KIND` or `ENTRY.VECTOR`. |
 | `bank ALTERNATE = alternate { … }` | Declare a separately stored bank of registers and flags inside `state`; refer to members as `ALTERNATE.B` or `ALTERNATE.C`. |
 | `choice IM: 0, 1, 2` | Declare an exact set of numeric alternatives; `IM <- 2` writes one and `mode2 = choice IM = 2` tests it. |
 | `choice WAIT: "none", "sync", "cwai" = waitMode` | Declare a stored field with an exact set of named alternatives. |
@@ -247,12 +249,13 @@ check arithmetic, zero/full counts, effects, lexical scopes, and those boundarie
 ### State ownership
 
 A complete state block contains `register`, `flag`, `array`, `latch`, `choice`,
-and `bank` declarations. It must be nonempty, appear once after `cpu` and before other
+`group`, and `bank` declarations. It must be nonempty, appear once after `cpu` and before other
 declarations, and contain every stored field. Instruction bodies use those
 declared names directly; do not redeclare them outside the block. Flags occupy
-a `flags` group; a bank has its own `flags` group and stored byte/word fields.
-Bank members use qualified names and may be registers or flags only. Banks
-cannot nest and must declare their own flags. Register C and flag C may coexist,
+a `flags` group. A named `group` contains any stored field kind, with optional
+flags; a `bank` is a narrower group of registers and flags.
+Bank members use qualified names and may be registers or flags only. Groups and banks
+cannot nest; banks must declare their own flags. Register C and flag C may coexist,
 including inside a bank; their reading context determines the namespace. Two symbols
 cannot declare the same stored field, and a field named `flags` cannot collide
 with the architectural flag group. Arrays have positive safe-integer lengths;
@@ -265,7 +268,9 @@ capture a Boolean; writes select one declared value. Named choices can also
 control vector waiting and masked resume policies. Numeric choices currently
 serve stored state and instruction actions, not those lifecycle clauses.
 
-Register and flag references may select a named bank: `register ALTERNATE.B`,
+Stored references may select a named group, such as `choice ENTRY.KIND = "fault"`,
+`latch ENTRY.VALID`, or `ENTRY.VECTOR <- u8(2)`. Register and flag references
+may also select a named bank: `register ALTERNATE.B`,
 `flag ALTERNATE.C`, and `ALTERNATE.B <- result`. Flag policies may update flags
 in multiple banks using captured values. A `replace` policy must cover every
 flag in one bank and replaces only that bank's flags object; it cannot span banks.
@@ -280,6 +285,34 @@ Chapters without owned state instead receive an external schema and use top-leve
 declarations to name the fields they need. They cannot also define a `state`
 block. The compiler validates their field kinds, widths, and array lengths
 against that schema; it does not emit a replacement schema for them.
+
+### Conditional values
+
+`select(condition, yes, no)` selects between captured numeric expressions.
+When obtaining a value requires conditional reads or other ordered effects,
+`choose` supplies two scoped branches, exactly one of which executes:
+
+```text
+pointer = choose supervisor : 32 {
+  then {
+    stack = register SSP
+    return stack
+  }
+  else {
+    stack = register USP
+    return stack
+  }
+}
+```
+
+The condition is a captured flag expression. Both branches must end with a
+numeric `return` of the declared width. Outer captures are visible inside;
+branch-local captures do not escape. Only `pointer` becomes available afterward.
+Every branch is validated, even when the condition is constant. Views may use
+`choose` for conditional reads; they still cannot hide writes, memory accesses,
+or rejection inside either branch. Actions and execution bindings likewise
+check both branches against their permitted effects. Unlike a byte-pattern
+match, a conditional value has no implicit unsupported outcome.
 
 ### Numeric source and family inputs
 
@@ -798,8 +831,8 @@ width come from the binary codes. Every code must appear in order, and the
 result width must be supported by the instruction representation. Labels supply instruction
 names; they do not declare or read stored registers. The 68000 reads the selected
 three-bit value with `code = operand r`, then uses `resolve(16, u3(2), code)`
-for address-register indirect mode. This keeps A7's bank selection in the existing
-decoder. Word size, address checks, byte order, destination preservation, and
+for address-register indirect mode. The native decoder now consumes the
+chapter's address-register selection source, including A7 banking. Word size, address checks, byte order, destination preservation, and
 flag timing remain explicit in the chapter.
 
 A code catalogue can declare a different result width and explicit values:
@@ -865,7 +898,7 @@ statement's Markdown location.
 
 Register, array, latch, and flag names remain uppercase; `= field` maps them to
 stored fields with exact spelling. Flags refer to the schema's flags
-group; the other declarations name top-level stored fields. Array indices must
+group; other declarations name stored fields, optionally within a named group. Array indices must
 be provably in range: constants name a valid slot, while every value representable
 by a dynamic index's width must fit the array. A three-bit SELECTOR can index
 an eight-element array; an unrestricted byte cannot. Reads and writes retain the
@@ -1104,11 +1137,11 @@ operand fetch with pushes, and RTI restores flags before PC. The chapter also
 owns reset bus effects, ordinary execution, named IRQ/NMI entry, and its public
 interface. No handwritten 6502 implementation remains.
 The 8008 now expresses its address-stack selector, array, and port effects;
-the 68000 still uses its native effective-address decoder, including A7 banking
-and pending auto-updates. Its 192 chapter encodings select generated bodies
-before the broader MOVE catalogue's shared bodies; those shared bodies still
-serve other sizes and addressing modes. Only the chapter-owned forms earn
-literate coverage.
+the 68000 now owns its schema, register operations, A7 selection, and status
+packing/restoration. Its native effective-address decoder consumes the chapter
+selection source and retains pending auto-updates. Shared TypeScript bodies still
+serve the remaining addressing modes and instruction families. Only complete
+chapter-owned forms earn literate coverage.
 
 The 8008 supplies the first whole-CPU description at its declared instruction-level
 fidelity. The 8080 now reuses its execution services with chapter-defined
@@ -1179,7 +1212,9 @@ inventory. Its control/port tests also mutate formal conditions, vectors, ports,
 and latches, and check nested scopes, array bounds, and schema diagnostics.
 The 68000 checks include independent ordered-effect expectations, failure at
 each observable stage, live upper-word preservation, both A7 banks, physical
-projection, and formal edits that change byte order and flag behavior.
+projection, exhaustive status restoration, and formal edits that change bank
+selection, byte order, and flag behavior. Named-group and conditional-value tests
+also check generated storage, isolated captures, and transitive effect limits.
 
 ## Segmented execution
 

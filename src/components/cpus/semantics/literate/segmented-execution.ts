@@ -42,6 +42,7 @@ type Symbols = {
 /** The segmented boundary admits only effects it can supply and fault outcomes it can deliver. */
 export function checkSegmentedEffects(steps: readonly Statement[], fault: string, continuation = false): void {
   for (const step of steps) switch (step.kind) {
+    case "choose": checkSegmentedEffects(step.yes.steps, fault, continuation); checkSegmentedEffects(step.no.steps, fault, continuation); break;
     case "when": case "iterate": checkSegmentedEffects(step.steps, fault, continuation); break;
     case "read-source": checkSegmentedEffects(step.source.steps, fault, continuation); break;
     case "perform": checkSegmentedEffects(step.action.steps, fault, continuation); break;

@@ -1,3 +1,4 @@
+import { sourceReaders } from "./generated/68000-state.ts";
 import type { MemoryConnection } from "../memory/connection.ts";
 import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
 import { checkUnsigned } from "../validation.ts";
@@ -7,7 +8,7 @@ import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess, RecordedMemory } from "./memory-access.ts";
 import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.ts";
-import { cpu68000StateDescription, cpu68000ConditionCode, cpu68000SystemFlags } from "./state/68000.ts";
+import { cpu68000StateDescription } from "./state/68000.ts";
 import type { Cpu68000State, Cpu68000Flags } from "./state/68000.ts";
 export { cpu68000StateDescription } from "./state/68000.ts";
 export type { Cpu68000State, Cpu68000Flags } from "./state/68000.ts";
@@ -174,6 +175,7 @@ interface ExceptionFrame { readonly stack: number; readonly status: number }
 export class Cpu68000 {
   readonly #memory: MemoryConnection;
   readonly #state: Cpu68000State;
+  readonly #readers: ReturnType<typeof sourceReaders>;
   readonly #connections: Cpu68000Connections | undefined;
   readonly #atBoundary = executionBoundary("68000 step, reset, and interrupt calls must not be reentrant.");
 
@@ -181,13 +183,15 @@ export class Cpu68000 {
     if (memory.size !== 0x1000000) throw new RangeError("The 68000 model requires a 16 MiB memory address space.");
     this.#memory = memory;
     this.#state = readState(cpu68000StateDescription, initialState);
+    this.#readers = sourceReaders(this.#state);
     this.#connections = connections;
   }
 
   /** Inspect detached state, the active stack pointer, and the physical PC without RAM access. */
   snapshot(): Cpu68000Snapshot {
     const state = copyState(cpu68000StateDescription, this.#state);
-    return { ...state, a7: state.flags.s ? state.ssp : state.usp, physicalPc: state.pc & 0xffffff };
+    const { views } = sourceReaders(state);
+    return { ...state, a7: views.A7(), physicalPc: views.PHYSICALPC() };
   }
 
   /** Read the external-reset vectors, enter supervisor mode, clear trace, and mask interrupts. */
@@ -343,12 +347,11 @@ export class Cpu68000 {
   // Register views. A7 selects the active stack; packed status derives from stored fields.
 
   #addressRegister(code: number): AddressRegister {
-    return code === 7 ? (this.#state.flags.s ? "ssp" : "usp") : Cpu68000.#addressRegisters[code]!;
+    return Cpu68000.#addressRegisters[this.#readers.sources.selectAddressRegister(code)]!;
   }
 
   get #status(): number {
-    return cpu68000SystemFlags.encode(this.#state.flags) | (this.#state.interruptMask << 8)
-      | cpu68000ConditionCode.encode(this.#state.flags);
+    return this.#readers.views.SR();
   }
 
   // Opcode selectors and construction. Register and mode fields use numeric encoding order.
@@ -366,14 +369,14 @@ export class Cpu68000 {
   } as const satisfies Record<Cpu68000Exception, { readonly vector: number; readonly instructionCompleted: boolean }>;
 
   static readonly #dataRegisters = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
-  static readonly #addressRegisters = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
+  static readonly #addressRegisters = ["a0", "a1", "a2", "a3", "a4", "a5", "a6", "usp", "ssp"] as const;
   static readonly #immediateBytes = Array.from({ length: 0x100 }, (_, value) => value);
 
   // Bind encodings once per model; handlers receive the executing CPU and capture no instance state.
   static readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
-    // Numeric register definitions include the literate MOVE.W copies, plus EXT/SWAP and EXG.
+    // Chapter register families select storage before access; unknown selections are illegal.
     ...Object.entries(generated).map(([opcode, execute]): OpcodeEntry<OpcodeHandler> =>
-      [Number(opcode), cpu => execute(cpu.#state)]),
+      [Number(opcode), cpu => execute(cpu.#state) === "unsupported" ? "illegal-instruction" : undefined]),
     // Literate word loads/stores own these encodings; other addressing forms keep shared bodies.
     ...Object.entries(wordMoves).map(([opcode, execute]): OpcodeEntry<OpcodeHandler> =>
       [Number(opcode), (cpu, instruction) => execute(cpu.#state, cpu.#addressContext(instruction))]),

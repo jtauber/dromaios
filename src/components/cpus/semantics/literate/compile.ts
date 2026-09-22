@@ -64,10 +64,10 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
     if (kind !== "register" && kind !== "flag") names.add(name);
     return name;
   }
-  function declareState(tokens: ChapterTokens, kind: string, check = false, bank?: { name: string; field: string }) {
+  function declareState(tokens: ChapterTokens, kind: string, check = false, bank?: { name: string; field: string; kind: "bank" | "group" }) {
     const prefix = bank ? `${bank.name}.` : "", name = declare(tokens, kind, prefix);
     const declared = stateSymbol(tokens, kind, name.slice(prefix.length), cpu.name);
-    if (bank && declared.kind !== "register" && declared.kind !== "flag") tokens.fail("Banks contain only registers and flags.");
+    if (bank?.kind === "bank" && declared.kind !== "register" && declared.kind !== "flag") tokens.fail("Banks contain only registers and flags.");
     const symbol = bank ? { ...declared, bank: bank.field } : declared;
     if (check) checkStateSymbol(tokens, name, symbol, cpu);
     switch (symbol.kind) {
@@ -116,19 +116,20 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         const declarations: Parameters<typeof chapterState>[0][number][] = [];
         for (let slot = 0; slot < body.length; slot++) {
           const tokens = body[slot]!;
-          if (!tokens.take("bank")) {
+          const grouped = tokens.take("bank") ? "bank" : tokens.take("group") ? "group" : undefined;
+          if (!grouped) {
             declarations.push({ symbol: declareState(tokens, tokens.word()), tokens }); continue;
           }
-          const name = declare(tokens, "bank"), field = tokens.take("=") ? tokens.word() : name.toLowerCase();
-          if (name !== name.toUpperCase()) tokens.fail("Bank names must be uppercase.");
+          const name = declare(tokens, grouped), field = tokens.take("=") ? tokens.word() : name.toLowerCase();
+          if (name !== name.toUpperCase()) tokens.fail("Group and bank names must be uppercase.");
           tokens.expect("{"); tokens.end();
           const nested = chapterBody(body, slot); slot = nested.end;
           const fields = chapterState(nested.body.map(entry => ({
-            symbol: declareState(entry, entry.word(), false, { name, field }), tokens: entry,
+            symbol: declareState(entry, entry.word(), false, { name, field, kind: grouped }), tokens: entry,
           })));
-          if (fields.flags?.kind !== "group") tokens.fail("A register bank needs its own flags.");
-          declarations.push({ symbol: { kind: "bank", field, fields }, tokens });
-          flagGroups.set(`${name}.FLAGS`, { kind: "flag-group", cpu: cpu.name, bank: field });
+          if (grouped === "bank" && fields.flags?.kind !== "group") tokens.fail("A register bank needs its own flags.");
+          declarations.push({ symbol: { kind: grouped, field, fields }, tokens });
+          if (fields.flags?.kind === "group") flagGroups.set(`${name}.FLAGS`, { kind: "flag-group", cpu: cpu.name, bank: field });
         }
         cpu = { ...cpu, state: chapterState(declarations) }; ownsState = true;
         if (cpu.state.flags?.kind === "group") flagGroups.set("FLAGS", { kind: "flag-group", cpu: cpu.name });

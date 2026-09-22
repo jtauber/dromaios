@@ -15,13 +15,13 @@ import { compileCpuChapter } from "../../../../src/components/cpus/semantics/lit
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
 import { initialState } from "../../../helpers/68000-state.js";
 
-const file = "src/components/cpus/specifications/68000-word-transfers.md";
+const file = "src/components/cpus/specifications/68000.md";
 const markdown = readFileSync(file, "utf8");
-const compile = (text = markdown) => compileCpuChapter(text, { name: "68000", state: cpu68000StateDescription }, file);
+const compile = (text = markdown) => compileCpuChapter(text, { name: "68000" }, file);
 const data = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
 const addressRegisters = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
 type Context = ByteMemory & Pick<Cpu68000AddressContext, "resolveAddress" | "commitAddressUpdates">;
-type Body = (state: Cpu68000State, context: Context) => OperandAlignmentFault | void;
+type Body = (state: Cpu68000State, context: Context) => OperandAlignmentFault | "unsupported" | void;
 const bodies: Readonly<Record<number, Body>> = { ...registerBodies, ...memoryBodies };
 interface Form { readonly opcode: number; readonly kind: "copy" | "load" | "store"; readonly d: number; readonly r: number; readonly name: string }
 
@@ -32,9 +32,13 @@ for (const [kind, base] of [["copy", 0x3000], ["load", 0x3010], ["store", 0x3080
     name: `MOVE.W ${kind === "load" ? `(A${r})` : `D${r}`},${kind === "store" ? `(A${d})` : `D${d}`}` });
 }
 
-test("the 68000 chapter owns exactly 192 word encodings and their production definitions", () => {
-  const definitions = Object.fromEntries(Object.values(compile().families).flat());
-  assert.deepEqual(Object.keys(definitions).map(Number), forms.map(form => form.opcode).sort((a, b) => a - b));
+test("the 68000 chapter owns its state and 928 forms across 2,968 operation words", () => {
+  const chapter = compile();
+  assert.deepEqual(chapter.state, cpu68000StateDescription);
+  const definitions = Object.fromEntries(Object.values(chapter.families).flat());
+  assert.equal(Object.keys(definitions).length, 2968);
+  assert.equal(new Set(Object.values(definitions).map(definition => definition.name)).size, 928);
+  assert.deepEqual(Object.keys(Object.fromEntries([...chapter.families.registerCopy!, ...chapter.families.load!, ...chapter.families.store!])).map(Number), forms.map(form => form.opcode).sort((a, b) => a - b));
   assert.deepEqual(Object.keys(memoryBodies), Object.keys(wordMoves68000));
   assert.equal(Object.keys(memoryBodies).length, 128);
   for (const form of forms) {
@@ -88,7 +92,7 @@ function observe(form: Form, word: number, address: number, mutate: boolean, fai
     readByte(location) { effect("read memory", location); liveChange(); return location === address ? Math.floor(word / 256) : word % 256; },
     writeByte(location, contents) { effect("write memory", location, contents); writes.push([location, contents]); liveChange(); },
   };
-  let outcome: OperandAlignmentFault | void = undefined, failed = false;
+  let outcome: OperandAlignmentFault | "unsupported" | void = undefined, failed = false;
   try { outcome = generated ? bodies[form.opcode]!(observed, context) : reference(form, observed, context); }
   catch (error) { assert.equal(error, failure); failed = true; }
   return { state, events, writes, outcome, failed };
@@ -130,10 +134,10 @@ test("all 192 literate encodings execute through the CPU, including both A7 bank
 });
 
 const invalid: readonly [string, string, string, RegExp][] = [
-  ["unknown captured value", "truncate(source, 16)", "truncate(missing, 16)", /not been captured/],
-  ["non-narrowing truncation", "truncate(source, 16)", "truncate(source, 32)", /truncation must narrow/],
+  ["unknown captured value", "truncate(originalSource, 16)", "truncate(missing, 16)", /not been captured/],
+  ["non-narrowing truncation", "truncate(originalSource, 16)", "truncate(originalSource, 32)", /truncation must narrow/],
   ["mixed widths", "u32($FFFF0000)", "u16($FFFF)", /equal widths/],
-  ["wide byte extraction", "highByte(result)", "highByte(source)", /requires a word/],
+  ["wide byte extraction", "highByte(result)", "highByte(originalSource)", /requires a word/],
   ["wide mode selector", "u3(2)", "u8(2)", /3-bit/],
   ["unsupported operand width", "resolve(16,", "resolve(14,", /Operand size/],
   ["short logical address", "read(address) if", "read(truncate(address, 16)) if", /32-bit/],
@@ -147,7 +151,7 @@ const invalid: readonly [string, string, string, RegExp][] = [
 ];
 for (const [name, before, after, message] of invalid) test(`68000 chapter rejects ${name} at its document location`, () => {
   assert.ok(markdown.includes(before)); const changed = markdown.replace(before, after);
-  const expectedLine = changed.split("\n").findIndex(line => line.includes(after)) + 1;
+  const expectedLine = markdown.slice(0, markdown.indexOf(before)).split("\n").length;
   assert.throws(() => compile(changed), (error: unknown) => {
     assert.ok(error instanceof ChapterError); assert.equal(error.file, file); assert.match(error.message, message);
     if (name !== "missing code") assert.equal(error.line, expectedLine);
@@ -156,7 +160,7 @@ for (const [name, before, after, message] of invalid) test(`68000 chapter reject
 });
 
 test("formal edits to byte order and flag constants change the generated word store", async () => {
-  const changed = markdown.replace("highByte(result)", "lowByte(result)").replace("lowByte(result)\n  apply", "highByte(result)\n  apply").replace("C = 0", "C = 1");
+  const changed = markdown.replace("highByte(result)", "lowByte(result)").replace("lowByte(result)\n  apply", "highByte(result)\n  apply").replaceAll("C = 0", "C = 1");
   const definition = compile(changed).families.store![0]![1];
   const alu = new URL("../../../../src/components/cpus/alu.js", import.meta.url).href;
   const javascript = stripTypeScriptTypes(generateInstructions("68000", { probe: definition })).replace('"../alu.ts"', JSON.stringify(alu));
@@ -166,4 +170,47 @@ test("formal edits to byte order and flag constants change the generated word st
     readByte() { throw new Error("A store cannot read destination memory."); }, writeByte(address, byte) { writes.push([address, byte]); } });
   assert.deepEqual(writes, [[0x1000, 0x44], [0x1001, 0x33]]);
   assert.equal(state.flags.c, true);
+});
+
+test("chapter status views preserve reserved bits, every flag/mask combination, and in-place restoration", async () => {
+  const { sourceReaders, instructions } = await import("../../../../src/components/cpus/generated/68000-state.js");
+  for (let bits = 0; bits < 128; bits++) for (let mask = 0; mask < 8; mask++) {
+    const state = initialState(bits); state.interruptMask = mask;
+    const flags = state.flags, readers = sourceReaders(state).views;
+    const ccr = Number(flags.x) * 16 + Number(flags.n) * 8 + Number(flags.z) * 4 + Number(flags.v) * 2 + Number(flags.c);
+    assert.equal(readers.CCR(), ccr);
+    assert.equal(readers.SR(), Number(flags.t) * 32768 + Number(flags.s) * 8192 + mask * 256 + ccr);
+    assert.equal(readers.A7(), flags.s ? state.ssp : state.usp);
+    assert.equal(readers.PHYSICALPC(), state.pc % 16777216);
+  }
+  for (let status = 0; status < 65536; status++) {
+    const state = initialState(127), flags = state.flags;
+    state.interruptMask = 5;
+    instructions.writeCCR(state, status);
+    assert.equal(state.flags, flags);
+    assert.deepEqual(flags, { x: Boolean(status & 16), n: Boolean(status & 8), z: Boolean(status & 4), v: Boolean(status & 2), c: Boolean(status & 1), t: true, s: true });
+    assert.equal(state.interruptMask, 5);
+    instructions.writeSR(state, status);
+    assert.equal(state.flags, flags);
+    assert.equal(sourceReaders(state).views.SR(), status & 0xa71f);
+  }
+});
+
+test("formal edits change bank selection, register execution, and status views without native definitions", async () => {
+  const changed = markdown.replace('return select(supervisor, u8(1), u8(0))', 'return select(supervisor, u8(0), u8(1))')
+    .replaceAll('C = 0', 'C = 1').replace('u16($8000)', 'u16($4000)');
+  const chapter = compile(changed), definitions = Object.fromEntries(Object.values(chapter.families).flat());
+  const source = generateInstructions("68000", { move: definitions[0x300f]!, exchange: definitions[0xcf4f]! }, {
+    sources: { cpu: { name: "68000", state: chapter.state! }, groups: { views: chapter.views } },
+  });
+  const alu = new URL("../../../../src/components/cpus/alu.js", import.meta.url).href;
+  const javascript = stripTypeScriptTypes(source).replace('"../alu.ts"', JSON.stringify(alu));
+  const compiled: { instructions: { move(state: Cpu68000State): void; exchange(state: Cpu68000State): void }; sourceReaders(state: Cpu68000State): { views: { A7(): number; SR(): number } } } =
+    await import(`data:text/javascript,${encodeURIComponent(javascript)}`);
+  const state = initialState(127); state.ssp = 0x8001; state.usp = 0x1234;
+  compiled.instructions.move(state);
+  assert.equal(state.d0 % 65536, 0x1234); assert.equal(state.flags.c, true);
+  assert.equal(compiled.sourceReaders(state).views.A7(), state.usp);
+  assert.equal(compiled.sourceReaders(state).views.SR() & 0xc000, 0x4000);
+  const before = structuredClone(state); compiled.instructions.exchange(state); assert.deepEqual(state, before);
 });

@@ -26,7 +26,9 @@ family, including addressing, encodings, and reusable stack/frame actions. Its
 reset, waiting, execution, IRQ/NMI recognition, and public interface also come
 from the chapter, with memory-only vector execution shared with the 6502.
 The construction history below describes the earlier shared-builder migration;
-the 68000 retains TypeScript builders; the generated catalogue groups 8088 chapter families.
+the 68000 retains TypeScript builders for the remaining memory, arithmetic, and
+control families. Its chapter now owns stored state, register operations,
+A7/status sources, and result policies; the generated catalogue groups 8088 families.
 
 ## The review slice
 

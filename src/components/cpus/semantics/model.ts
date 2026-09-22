@@ -6,10 +6,10 @@ export const isWidth = (bits: number): bits is Width => bits === 3 || bits === 8
 export type ValueType = Width | "flag";
 export interface Register { readonly kind: "register"; readonly cpu: string; readonly field: string; readonly width: Width; readonly bank?: string }
 export interface FlagGroup { readonly kind: "flag-group"; readonly cpu: string; readonly bank?: string }
-export interface RegisterArray { readonly kind: "register-array"; readonly cpu: string; readonly field: string; readonly width: Width; readonly length: number }
+export interface RegisterArray { readonly kind: "register-array"; readonly cpu: string; readonly field: string; readonly width: Width; readonly length: number; readonly bank?: string }
 export interface Flag { readonly kind: "flag"; readonly cpu: string; readonly field: string; readonly bank?: string }
-export interface Latch { readonly kind: "latch"; readonly cpu: string; readonly field: string }
-export interface Choice<Value extends string | number = string | number> { readonly kind: "choice"; readonly cpu: string; readonly field: string; readonly values: readonly Value[] }
+export interface Latch { readonly kind: "latch"; readonly cpu: string; readonly field: string; readonly bank?: string }
+export interface Choice<Value extends string | number = string | number> { readonly kind: "choice"; readonly cpu: string; readonly field: string; readonly values: readonly Value[]; readonly bank?: string }
 export interface CpuDeclaration {
   readonly name: string;
   readonly state: StateFields;
@@ -91,7 +91,9 @@ export interface EscapeRequest {
   readonly modRM: NumberExpression;
   readonly memory?: { readonly segment: NumberExpression; readonly offset: NumberExpression; readonly address: AddressExpression; readonly value: NumberExpression };
 }
+export interface ValueBranch { readonly steps: readonly Statement[]; readonly result: NumberExpression }
 export type Statement =
+  | { readonly kind: "choose"; readonly name: string; readonly condition: FlagExpression; readonly width: Width; readonly yes: ValueBranch; readonly no: ValueBranch }
   | { readonly kind: "dispatch"; readonly selector: NumberExpression; readonly cases: readonly DispatchCase[] }
   | { readonly kind: "match"; readonly name: string; readonly selector: NumberExpression; readonly width: Width; readonly cases: readonly MatchCase[] }
   | { readonly kind: "perform"; readonly action: Action; readonly arguments: Readonly<Record<string, NumberExpression>> }

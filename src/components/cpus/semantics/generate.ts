@@ -187,6 +187,22 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
             body(step.action.steps, actionScope);
             continue;
           }
+          case "choose": {
+            const result = local(step.name);
+            emit(`let ${result}: number;`);
+            emit(`if (${flag(step.condition, scope)}) {`);
+            for (const [index, branch] of [step.yes, step.no].entries()) {
+              if (index) emit("} else {");
+              depth += "  ";
+              const inner = new Map(scope);
+              body(branch.steps, inner);
+              emit(`${result} = ${number(branch.result, inner).code};`);
+              depth = depth.slice(0, -2);
+            }
+            emit("}");
+            scope.set(step.name, { code: result, type: step.width });
+            continue;
+          }
           case "when":
             emit(`if (${flag(step.condition, scope)}) {`);
             depth += "  ";
@@ -257,10 +273,10 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           }
           case "capture": captured = number(step.value, scope); break;
           case "read-register": captured = { code: `${bank(step.register)}${field(step.register.field)}`, type: step.register.width }; break;
-          case "read-element": captured = { code: `state${field(step.array.field)}[${number(step.index, scope).code}]!`, type: step.array.width }; break;
+          case "read-element": captured = { code: `${bank(step.array)}${field(step.array.field)}[${number(step.index, scope).code}]!`, type: step.array.width }; break;
           case "read-flag": captured = { code: `${bank(step.flag)}.flags${field(step.flag.field)}`, type: "flag" }; break;
-          case "test-choice": captured = { code: `state${field(step.choice.field)} === ${JSON.stringify(step.value)}`, type: "flag" }; break;
-          case "read-latch": captured = { code: `state${field(step.latch.field)}`, type: "flag" }; break;
+          case "test-choice": captured = { code: `${bank(step.choice)}${field(step.choice.field)} === ${JSON.stringify(step.value)}`, type: "flag" }; break;
+          case "read-latch": captured = { code: `${bank(step.latch)}${field(step.latch.field)}`, type: "flag" }; break;
           case "exchange-flags": {
             const right = local("rightFlags"), left = local("leftFlags");
             emit(`const ${right} = ${bank(step.right)}.flags;`);
@@ -314,9 +330,9 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
             break;
           }
           case "write-register": emit(`${bank(step.register)}${field(step.register.field)} = ${number(step.value, scope).code};`); continue;
-          case "write-element": emit(`state${field(step.array.field)}[${number(step.index, scope).code}] = ${number(step.value, scope).code};`); continue;
-          case "fill-array": emit(`state${field(step.array.field)}.fill(${number(step.value, scope).code});`); continue;
-          case "write-latch": emit(`state${field(step.latch.field)} = ${typeof step.value === "boolean" ? step.value : flag(step.value, scope)};`); continue;
+          case "write-element": emit(`${bank(step.array)}${field(step.array.field)}[${number(step.index, scope).code}] = ${number(step.value, scope).code};`); continue;
+          case "fill-array": emit(`${bank(step.array)}${field(step.array.field)}.fill(${number(step.value, scope).code});`); continue;
+          case "write-latch": emit(`${bank(step.latch)}${field(step.latch.field)} = ${typeof step.value === "boolean" ? step.value : flag(step.value, scope)};`); continue;
           case "read-test": captured = { code: `${access("readTest")}()`, type: "flag" }; break;
           case "report-interrupt": emit(`${access("reportInterrupt")}(${number(step.vector, scope).code});`); continue;
           case "send-escape": {
@@ -327,7 +343,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           }
           case "notify-reti": emit(`${access("notifyReti")}();`); continue;
           case "reset-devices": emit(`${access("resetDevices")}();`); continue;
-          case "write-choice": emit(`state${field(step.choice.field)} = ${JSON.stringify(step.value)};`); continue;
+          case "write-choice": emit(`${bank(step.choice)}${field(step.choice.field)} = ${JSON.stringify(step.value)};`); continue;
           case "defer-interrupt": emit(`${access("deferInterrupt")}(${JSON.stringify(step.scope)});`); continue;
           case "write-port": emit(`${access("writePort")}(${number(step.port, scope).code}, ${number(step.value, scope).code});`); continue;
           case "write-memory": emit(`${access("writeByte")}(${address(step.address, scope)}, ${number(step.value, scope).code});`); continue;

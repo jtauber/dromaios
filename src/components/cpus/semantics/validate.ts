@@ -37,7 +37,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
     if (ref.cpu !== cpu.name) return fail(where, `reference does not match the CPU schema`);
     if (ref.bank === undefined) return cpu.state;
     const field = cpu.state[ref.bank];
-    if (field?.kind !== "group" || field.fields.flags?.kind !== "group") return fail(where, `unknown register bank ${ref.bank}`);
+    if (field?.kind !== "group") return fail(where, `unknown state group ${ref.bank}`);
     return field.fields;
   }
   function register(ref: Register, where: string): Width {
@@ -52,10 +52,10 @@ function validation(cpu: CpuDeclaration, prefix: string) {
     if (flags?.kind !== "group" || flags.fields[ref.field]?.kind !== "flag") fail(where, `unknown flag ${ref.cpu}.${ref.field}`);
   }
   function latch(ref: Latch, where: string): void {
-    if (ref.cpu !== cpu.name || cpu.state[ref.field]?.kind !== "boolean") fail(where, `unknown control latch ${ref.cpu}.${ref.field}`);
+    if (ref.cpu !== cpu.name || bank(ref, where)[ref.field]?.kind !== "boolean") fail(where, `unknown control latch ${ref.cpu}.${ref.field}`);
   }
   function choice(ref: Choice, value: string | number, where: string): void {
-    const field = cpu.state[ref.field];
+    const field = ref.cpu === cpu.name ? bank(ref, where)[ref.field] : undefined;
     if (ref.cpu !== cpu.name || (field?.kind !== "choice" && field?.kind !== "named-choice")
       || ref.values.length !== field.values.length || ref.values.some((v, i) => v !== field.values[i])) fail(where, "control choices do not match the CPU schema");
     if (!ref.values.includes(value)) fail(where, "value is not a declared control choice");
@@ -68,7 +68,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
     return Object.keys(flags.fields).sort();
   }
   function registerArray(ref: RegisterArray, where: string): Width {
-    const field = cpu.state[ref.field];
+    const field = bank(ref, where)[ref.field];
     if (ref.cpu !== cpu.name || field?.kind !== "array" || field.element.bits !== ref.width || field.length !== ref.length) {
       return fail(where, `register array ${ref.cpu}.${ref.field} does not match the CPU schema`);
     }
@@ -237,6 +237,17 @@ function validation(cpu: CpuDeclaration, prefix: string) {
             identifier(name, where); expect(step.arguments[name]!, width(bits, where)); local.set(name, bits);
           }
           steps(step.action.steps, local, `${where} / action ${step.action.name}`, "match");
+          return;
+        }
+        case "choose": {
+          flagExpression(step.condition, scope, where);
+          const bits = width(step.width, where);
+          for (const branch of [step.yes, step.no]) {
+            const local = new Map(scope);
+            steps(branch.steps, local, where, allowRejection);
+            if (expression(branch.result, local, where) !== bits) fail(where, "conditional result width does not match its declaration");
+          }
+          bind(step.name, bits);
           return;
         }
         case "when":

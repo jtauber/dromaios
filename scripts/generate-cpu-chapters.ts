@@ -1,12 +1,10 @@
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { cpu68000StateDescription } from "../src/components/cpus/state/68000.ts";
 import { generateChapterState } from "../src/components/cpus/semantics/literate/state.ts";
 import { generatePublicState } from "../src/components/cpus/semantics/literate/interface.ts";
 import { compileCpuChapter } from "../src/components/cpus/semantics/literate/compile.ts";
 import { opcodePageLayouts } from "../src/components/cpus/semantics/opcode-pages.ts";
 import type { CpuChapter } from "../src/components/cpus/semantics/literate/compile.ts";
-import type { StateFields } from "../src/components/cpus/state.ts";
 
 /** Keep exported names precise, while exposing ordinary IR types to the remaining TS definitions. */
 function chapterModule(chapter: CpuChapter, name: string, cpu: string): string {
@@ -53,17 +51,13 @@ function chapterModule(chapter: CpuChapter, name: string, cpu: string): string {
 /** Bootstrap chapter data before loading the registry that consumes it; paths are independent of cwd. */
 export function generateCpuChapters() {
   const root = new URL("../src/components/cpus/", import.meta.url);
-  // Only chapters without owned state need external schemas.
-  const externalStates = new Map<string, StateFields>([
-    ["68000-word-transfers", cpu68000StateDescription],
-  ]);
   const chapters = readdirSync(new URL("specifications/", root)).filter(file => file.endsWith(".md")).sort().map(file => {
     const name = file.slice(0, -3);
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) || ["catalogue", "interfaces", "state"].includes(name)) {
       throw new Error(`Invalid or reserved chapter filename: ${file}`);
     }
     const source = new URL(`specifications/${name}.md`, root);
-    const chapter = compileCpuChapter(readFileSync(source, "utf8"), { state: externalStates.get(name) }, fileURLToPath(source));
+    const chapter = compileCpuChapter(readFileSync(source, "utf8"), {}, fileURLToPath(source));
     const cpu = chapter.cpu;
     return { name, cpu, chapter, module: chapterModule(chapter, name, cpu), state: chapter.state &&
       generateChapterState(chapter.state) + (chapter.interface ? generatePublicState(chapter.state, chapter.interface) : "") };
