@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Cpu8088 } from "../../../../src/components/cpus/8088.js";
-import type { Cpu8088Access } from "../../../../src/components/cpus/8088.js";
+import { Cpu8088 } from "../../../../src/components/cpus/generated/8088-cpu.js";
+import type { Cpu8088Access } from "../../../../src/components/cpus/generated/8088-cpu.js";
 import { Ram } from "../../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../../helpers/observed-ram.js";
 import { initialState, flags, snapshot, address, put, dataReads, reject } from "./helpers.js";

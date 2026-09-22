@@ -43,7 +43,7 @@ will be organized for learning, exploration, and reference as support develops.
   and [arithmetic example](6800/examples/arithmetic.md). It shares instruction
   representation with the 6809 while their chapters retain distinct addressing
   and stack rules.
-- The **8088 was the seventh CPU**. Its [model contract](8088/model.md) separates
+- The **8088 was the seventh CPU**. Its [model contract](../../src/components/cpus/specifications/8088.md) separates
   logical segment:offset addresses from physical RAM addresses, and derives
   byte-register views from stored words. Its [arithmetic example](8088/examples/arithmetic.md)
   exercises the shared runner without changes. The [PC reference review](8088/reference-notes.md)

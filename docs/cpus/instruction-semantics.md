@@ -17,7 +17,7 @@ an external authoring path into this representation. The language guide records
 the executable chapters and their shared addressing rules; other definitions
 remain TypeScript-authored.
 
-The complete 8008, 8080, 6502, 6800, and 6809 models are now authored in their
+The complete 8008, 8080, 6502, 6800, 6809, Z80, and 8088 models are authored in their
 [executable chapters](literate-specifications.md). The shared construction
 patterns described below still explain the representation; for current 8080
 behavior and encoding ownership, read its [chapter](../../src/components/cpus/specifications/8080.md).
@@ -26,7 +26,7 @@ family, including addressing, encodings, and reusable stack/frame actions. Its
 reset, waiting, execution, IRQ/NMI recognition, and public interface also come
 from the chapter, with memory-only vector execution shared with the 6502.
 The construction history below describes the earlier shared-builder migration;
-the 68000 retains TypeScript builders; the 8088 adapter only groups chapter families.
+the 68000 retains TypeScript builders; the generated catalogue groups 8088 chapter families.
 
 ## The review slice
 
@@ -216,14 +216,14 @@ ESC's memory body reads a complete low-first dummy word through a captured
 segment/offset, even when no device is connected. The register body inspects
 no CPU register. Both construct the external opcode from the captured primary
 and ModR/M fields, then use `sendEscape` with explicit captured request data.
-The [device adapter](../../src/components/cpus/8088-external.ts) gives the device
+The [device adapter](../../src/components/cpus/coprocessor-access.ts) gives the device
 a detached request and records only after callback success. Its TEST adapter
 validates a Boolean physical level before recording or returning it. Neither
 adapter performs instruction state transitions, memory reads, or interrupt entry.
 The public connection and execution-record types remain compatible.
 
 The effects `read-test`, `send-escape`, and `report-interrupt` are
-validated against the 8088 context, with explicit Boolean/byte/word/address
+validated against a declared segmented boundary, with explicit Boolean/byte/word/address
 requirements and ordinary lexical scope checks. A shared capability mapping
 selects context types and imports for all CPUs, including effects in conditional
 bodies; ordinary instructions gain no device or reporting capability.
@@ -653,10 +653,9 @@ stored schema, writable byte aliases, physical PC, packed FLAGS, register
 selectors, and all 291 documented instruction forms. Its shared sources,
 actions, and policies also serve interrupt entry and WAIT continuation. The
 chapter now declares reset, segmented fetching, prefix replacement, waiting,
-trap/fault delivery, and retirement samples; only external acceptance and the
-public adapter remain native.
-The [definition adapter](../../src/components/cpus/semantics/definitions/8088.ts)
-only groups chapter families by their captured prefix inputs; it defines no
+trap/fault delivery, retirement samples, external offers, and the public interface.
+The [chapter catalogue generator](../../scripts/generate-cpu-chapters.ts)
+groups chapter families by their captured prefix inputs; it defines no
 instruction behavior.
 
 Each byte source reads its stored word once. A write action captures the live
@@ -843,7 +842,7 @@ transition, then replaces the entire flag object. Segment pops write their
 register before requesting inhibition of all interrupt recognition.
 
 `defer intr` and `defer all` lower to the explicit, validated
-`deferInterrupt("intr" | "all")` boundary effect, allowed only for the 8088.
+`deferInterrupt("intr" | "all")` effect, enabled by a declared segmented boundary.
 It calls the instruction context's
 `InterruptDeferralContext` capability at that point in the sequence. The
 callback queues the request; only successful retirement commits the stored
@@ -2082,10 +2081,9 @@ All eight documented instruction inventories now use generated definitions.
 The [literate prototype](literate-specifications.md) now tests an external authoring
 path into those definitions. Continue checking total authored source in the
 [footprint report](coverage.md#source-footprint), including the chapters and their
-compiler. Six CPUs now have complete chapter-authored models. The 8088 has
-complete instruction authoring but still needs chapter-owned reset, prefix and
-execution contracts, event recognition, and its public interface. The 68000
-still has a partial chapter.
+compiler. Seven CPUs now have complete chapter-authored models, including the
+8088's segmented execution, external vector offers, and generated public
+interface. The 68000 still has a partial chapter.
 
 Unbounded loops and CPU-boundary exception delivery remain outside semantic
 bodies; the 6809’s full postbyte decoder already belongs to its chapter. Pending 68000 address updates now have an explicit commit

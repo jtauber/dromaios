@@ -39,7 +39,7 @@ export function chapterInterface(header: ChapterTokens, lines: readonly ChapterT
   }
   // Array/group aliases share the public namespace with standard record and state types.
   const types = new Set(["State", "StoredState", "Snapshot", "MemoryAccess", "Access", "Instruction", "StepRecord", "ResetRecord",
-    "InterruptAccess", "InterruptInstruction", "InterruptRecord", "InterruptSource"]);
+    "InterruptAccess", "InterruptInstruction", "InterruptRecord", "InterruptSource", "Connections", "Delivery", "Escape"]);
   for (const alias of [...stateAliases(state).map(alias => alias.name), ...banks.flatMap(bank => [bank.name, bank.snapshot])]) {
     if (types.has(alias)) header.fail(`Public state alias ${name}${alias} conflicts with another type.`);
     types.add(alias);
@@ -66,21 +66,21 @@ ${[...stateAliases(state), ...(api.banks ?? [])].map(alias => `export type ${nam
 /** Emit the conventional public adapter, with every processor-specific choice supplied by the chapter. */
 export function generateChapterInterface(module: string, state: StateFields, api: ChapterInterface, execution: ChapterExecution): string {
   if (execution.interrupt === "external") throw new Error("A public interface requires chapter-owned interrupt entry.");
-  const vectors = execution.interrupt === "vectors";
+  const vectors = execution.interrupt === "vectors", segmented = execution.mode === "segmented";
   const stoppedStep = vectors ? execution.waiting === undefined ? undefined : "WaitingStep" : "HaltedStep";
   const name = api.name, schema = `${name[0]!.toLowerCase() + name.slice(1)}StateDescription`, quoted = JSON.stringify;
   const comment = (text: string) => `/** ${text.replace(/\*\//g, "* /").replace(/[\r\n\u2028\u2029]/g, " ")} */`;
   const aliases = [...stateAliases(state), ...(api.banks ?? [])].map(alias => `${name}${alias.name}`);
   const named = execution.interrupt === "entries";
-  const notification = execution.opcodeAdvance === "decode" && execution.notifyReti;
-  const sourceNames = vectors || named ? execution.entries.map(entry => quoted(entry.source)) : [];
-  const interruptParameter = vectors ? `source: ${name}InterruptSource` : named ? `source: ${name}InterruptSource, acknowledge?: () => number` : "acknowledge: () => number";
+  const notification = execution.mode === "byte" && execution.opcodeAdvance === "decode" && execution.notifyReti;
+  const sourceNames = vectors || named || segmented ? execution.entries.map(entry => quoted(entry.source)) : [];
+  const interruptParameter = vectors ? `source: ${name}InterruptSource` : named || segmented ? `source: ${name}InterruptSource, acknowledge?: () => number` : "acknowledge: () => number";
   const interruptTypes = [
     ...(sourceNames.length ? [`export type ${name}InterruptSource = ${sourceNames.join(" | ")};`] : []),
-    ...(vectors ? [] : [`export type ${name}InterruptAccess = ${name}Access | InterruptAcknowledge;`, `export type ${name}InterruptInstruction = InterruptInstruction;`]),
+    ...(segmented ? [`export type ${name}InterruptAccess = MemoryAccess | InterruptAcknowledge;`] : vectors ? [] : [`export type ${name}InterruptAccess = ${name}Access | InterruptAcknowledge;`, `export type ${name}InterruptInstruction = InterruptInstruction;`]),
   ].join("\n");
-  const overloads = named ? execution.entries.map(entry =>
-    `  interrupt(source: ${quoted(entry.source)}${entry.delivery.kind === "acknowledged" ? ", acknowledge: () => number" : ""}): ${name}InterruptRecord;`).join("\n") + "\n" : "";
+  const overloads = named || segmented ? execution.entries.map(entry =>
+    `  interrupt(source: ${quoted(entry.source)}${("vector" in entry ? entry.vector === "acknowledge" : entry.delivery.kind === "acknowledged") ? ", acknowledge: () => number" : ""}): ${name}InterruptRecord;`).join("\n") + "\n" : "";
   const initialState = vectors ? `ReadonlyState<${name}State>` : `${name}State`;
   const nested = [...new Set(api.snapshots.filter(({ field }) => field.includes(".")).map(({ field }) => field.split(".")[0]!))];
   const at = (parent?: string) => api.snapshots.filter(({ field }) => parent === undefined ? !field.includes(".") : field.startsWith(parent + "."));
@@ -92,14 +92,15 @@ export function generateChapterInterface(module: string, state: StateFields, api
   const snapshotValues = [...derived(), ...nested.map(field => `${quoted(field)}: { ...state[${quoted(field)}], ${derived(field).join(", ")} }`)];
   return `// Generated from the chapter's public interface. Do not edit.
 import { sourceReaders } from "./${module}-state.ts";
-import { checkMemory, createExecution } from "./${module}-execution.ts";
+import { checkMemory, createExecution${segmented ? ", recordDevices" : ""} } from "./${module}-execution.ts";
 import { ${schema} } from "../semantics/generated/state/${module}.ts";
 import type { ${name}State, ${name}StoredState } from "../semantics/generated/state/${module}.ts";
 import type { Ram } from "../../memory/ram.ts";
-import type { FetchedInstruction, StateTransition, InstructionStep${stoppedStep ? `, ${stoppedStep}` : ""} } from "../execution-records.ts";
-${vectors ? "" : 'import type { InterruptInstruction, InterruptAcknowledge } from "../interrupt-instruction.ts";'}
+import type { FetchedInstruction, StateTransition${segmented ? "" : `, InstructionStep${stoppedStep ? `, ${stoppedStep}` : ""}`} } from "../execution-records.ts";
+${vectors ? "" : `import type { ${segmented ? "" : "InterruptInstruction, "}InterruptAcknowledge } from "../interrupt-instruction.ts";`}
 import type { MemoryAccess } from "../memory-access.ts";
 ${vectors ? "" : 'import type { BytePorts, PortAccess } from "../port-access.ts";'}
+${segmented ? 'import type { CoprocessorConnections, CoprocessorAccess, CoprocessorEscape } from "../coprocessor-access.ts";' : ""}
 import { copyState, readState } from "../state.ts";
 import type { ReadonlyState } from "../state.ts";
 
@@ -115,9 +116,12 @@ ${nested.map(field => {
 }).join("\n")}
 };
 export type ${name}MemoryAccess = MemoryAccess;
-export type ${name}Access = MemoryAccess${vectors ? "" : " | PortAccess"};
+export type ${name}Access = MemoryAccess${vectors ? "" : " | PortAccess"}${segmented ? " | CoprocessorAccess" : ""};
+${segmented ? `export interface ${name}Connections extends CoprocessorConnections { readonly ports?: BytePorts }
+export type ${name}Escape = CoprocessorEscape;
+export interface ${name}Delivery { readonly source: "software" | ${quoted(execution.pending.source)} | ${quoted(execution.fault.source)}; readonly vector: number }` : ""}
 export type ${name}Instruction = FetchedInstruction;
-export type ${name}StepRecord = InstructionStep<${name}Snapshot, ${name}Access>${stoppedStep ? ` | ${stoppedStep}<${name}Snapshot, ${name}Access>` : ""};
+export type ${name}StepRecord = ${segmented ? `ReturnType<ReturnType<typeof createExecution<${name}Snapshot>>["step"]>` : `InstructionStep<${name}Snapshot, ${name}Access>${stoppedStep ? ` | ${stoppedStep}<${name}Snapshot, ${name}Access>` : ""}`};
 export type ${name}ResetRecord = StateTransition<${name}Snapshot>;
 ${interruptTypes}
 export type ${name}InterruptRecord = ReturnType<ReturnType<typeof createExecution<${name}Snapshot>>["interrupt"]>;
@@ -127,10 +131,10 @@ export class ${name} {
   readonly #state: ${name}StoredState;
   readonly #execution: ReturnType<typeof createExecution<${name}Snapshot>>;
 
-  constructor(ram: Ram, initialState: ${initialState}${vectors ? "" : ", ports?: BytePorts"}${notification ? ", onReti?: () => void" : ""}) {
+  constructor(ram: Ram, initialState: ${initialState}${segmented ? `, connections?: ${name}Connections` : vectors ? "" : ", ports?: BytePorts"}${notification ? ", onReti?: () => void" : ""}) {
     checkMemory(ram);
     this.#state = readState(${schema}, initialState);
-    this.#execution = createExecution(this.#state, ram, () => this.snapshot()${vectors ? "" : ", ports"}${notification ? ", onReti" : ""});
+    this.#execution = createExecution(this.#state, ram, () => this.snapshot()${segmented ? ", () => connections?.ports, record => recordDevices(connections, record)" : vectors ? "" : ", ports"}${notification ? ", onReti" : ""});
   }
 
   snapshot(): ${name}Snapshot {
@@ -140,7 +144,7 @@ export class ${name} {
 
   reset(): ${name}ResetRecord { return this.#execution.reset(); }
   step(): ${name}StepRecord { return this.#execution.step(); }
-${overloads}  interrupt(${interruptParameter}): ${name}InterruptRecord { return this.#execution.interrupt(${vectors ? "source" : named ? "source, acknowledge" : "acknowledge"}); }
+${overloads}  interrupt(${interruptParameter}): ${name}InterruptRecord { return this.#execution.interrupt(${vectors ? "source" : named || segmented ? "source, acknowledge" : "acknowledge"}); }
 }
 `;
 }

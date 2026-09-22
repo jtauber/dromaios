@@ -4,7 +4,7 @@ import { families, sources } from "../../src/components/cpus/semantics/generated
 import { generateInstructions } from "../../src/components/cpus/semantics/generate.js";
 import { capture, concat, literal, value } from "../../src/components/cpus/semantics/model.js";
 import type { InstructionDefinition } from "../../src/components/cpus/semantics/model.js";
-import type { Cpu8088State } from "../../src/components/cpus/state/8088.js";
+import type { Cpu8088State } from "../../src/components/cpus/semantics/generated/state/8088.js";
 
 // These probes bypass fetch/address resolution so independent effect oracles can
 // interrupt every arithmetic/stack effect. They retain the chapter's entire case

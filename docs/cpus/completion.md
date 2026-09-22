@@ -84,11 +84,11 @@ with SYNC/CWAI, full/short frames, RTI, software vectors, and NMI arming.
 The Z80 now completes its [port families](../../src/components/cpus/specifications/z80.md#port-input-and-output)
 and [interrupt behavior](../../src/components/cpus/specifications/z80.md#external-interrupt-delivery), including
 all modes, native entries/returns, HALT release, and snapshot-preserved inhibition.
-The 8088 now implements all eight [IN/OUT forms](8088/model.md#port-input-and-output),
+The 8088 now implements all eight [IN/OUT forms](../../src/components/cpus/specifications/8088.md#port-input-and-output),
 including byte/word device transfers and snapshot-based program resumption.
-It also implements [native interrupt entry/return](8088/model.md#interrupt-entry-and-return),
+It also implements [native interrupt entry/return](../../src/components/cpus/specifications/8088.md#interrupt-instructions-and-shared-entry),
 INTR/NMI offers, divide-error delivery, and single stepping. It completes its inventory with
-[ESC and TEST/WAIT connections](8088/model.md#esc-and-testwait-connections), including
+[ESC and TEST/WAIT connections](../../src/components/cpus/specifications/8088.md#wait-and-coprocessor-escape), including
 resumable waiting and interrupt/trap restart.
 The 68000 now completes its documented opcode inventory, including
 [synchronous entry/RTE](68000/model.md#synchronous-exception-entry-and-return),

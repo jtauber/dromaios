@@ -45,7 +45,7 @@ see the [development instructions](../README.md#development).
 - [Motorola 6800](../src/components/cpus/specifications/6800.md) — complete executable chapter
 - [Motorola 6809](../src/components/cpus/specifications/6809.md)
 - [Zilog Z80](../src/components/cpus/specifications/z80.md) — complete executable chapter
-- [Intel 8088](cpus/8088/model.md)
+- [Intel 8088](../src/components/cpus/specifications/8088.md)
 - [Motorola 68000](cpus/68000/model.md)
 
 Each model contract defines stored state, initialization, snapshots, execution

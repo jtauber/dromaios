@@ -7,7 +7,7 @@ import { instructions, opcodeEntries } from "../../../../src/components/cpus/gen
 import { compileResolved, unary8088 } from "../../../helpers/8088-resolved.js";
 import { instructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
-import type { Cpu8088State } from "../../../../src/components/cpus/state/8088.js";
+import type { Cpu8088State } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
 import { address, aluResult, byteMoves, flags, initialState, registerValue, replaceRegister, unaryForms, words } from "../8088/helpers.js";
 
 const unary = await compileResolved(unary8088);

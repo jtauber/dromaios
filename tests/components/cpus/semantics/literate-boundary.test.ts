@@ -5,12 +5,12 @@ import { checkStateEffects } from "../../../../src/components/cpus/semantics/lit
 import { checkByteExecution } from "../../../../src/components/cpus/semantics/literate/execution.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { compileResolved } from "../../../helpers/8088-resolved.js";
-import type { Cpu8088Escape } from "../../../../src/components/cpus/8088-external.js";
+import type { CoprocessorEscape as Cpu8088Escape } from "../../../../src/components/cpus/coprocessor-access.js";
 
 const compile = (body: string, cpu = "8088") => compileCpuChapter(`Ordered boundary effects remain explicit.
 
 \`\`\`cpu
-cpu "${cpu}"
+cpu "${cpu}"${cpu === "8088" ? " boundary segmented" : ""}
 state {
   register A: 8
   latch WAIT
@@ -97,7 +97,7 @@ test("boundary syntax rejects invalid capabilities, CPU contexts, and operand wi
     ["u16($ABCD)", "u8($AB)", /expected 16-bit/],
   ] as const) assert.throws(() => compile(effects.replace(from, to)), message);
   for (const body of ["high = sample test", "send escape(u8(0), u8(0))", "report interrupt(u8(0))"]) {
-    assert.throws(() => compile(`family probe "00000000" {\n  ${body}\n}`, "probe"), /8088/);
+    assert.throws(() => compile(`family probe "00000000" {\n  ${body}\n}`, "probe"), /segmented/);
   }
 });
 

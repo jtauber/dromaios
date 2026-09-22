@@ -317483,7 +317483,7 @@ Flags preserved throughout: TF, IF, DF.
 
 ### 8088 shift or rotate a resolved 8-bit operand
 
-Each bounded iteration writes CF. RCL/RCR read live CF on every iteration. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and deterministically clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags.
+Memory forms fetch the complete encoding, read the operand once, perform all movements internally, then write it once. A zero count also records a read and unchanged write. Word accesses retain the segment-offset wrapping policy. These are explicit instruction-level access rules, without cycle counts or prefetch effects. The chapter describes each movement and its ordered flag updates.
 
 ```text
 postbyte:u8 := input
@@ -317734,7 +317734,7 @@ Flags preserved throughout: TF, IF, DF.
 
 ### 8088 shift or rotate a resolved 16-bit operand
 
-Each bounded iteration writes CF. RCL/RCR read live CF on every iteration. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and deterministically clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags.
+Memory forms fetch the complete encoding, read the operand once, perform all movements internally, then write it once. A zero count also records a read and unchanged write. Word accesses retain the segment-offset wrapping policy. These are explicit instruction-level access rules, without cycle counts or prefetch effects. The chapter describes each movement and its ordered flag updates.
 
 ```text
 postbyte:u8 := input
@@ -318145,7 +318145,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 store byte or word string operand
 
-A plain operation never reads CX. A repeated operation reads CX first and skips every operand, flag, and index effect if it is zero. Nonempty operations capture source segment/SI and fixed destination ES/DI before any data access, even if the selected operation uses only one side. This retains the declared model's observable access schedule. Word reads/writes use the same low-first, offset-wrapping memory rules as other instructions.
+Nonempty operations capture source segment/SI and fixed destination ES/DI before any data access, even if the selected operation uses only one side. This retains the declared model's observable access schedule. Word reads/writes use the same low-first, offset-wrapping memory rules as other instructions.
 
 ```text
 pointer:u32 := input
@@ -318179,7 +318179,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 load AL or AX from a captured string operand
 
-A plain operation never reads CX. A repeated operation reads CX first and skips every operand, flag, and index effect if it is zero. Nonempty operations capture source segment/SI and fixed destination ES/DI before any data access, even if the selected operation uses only one side. This retains the declared model's observable access schedule. Word reads/writes use the same low-first, offset-wrapping memory rules as other instructions.
+Nonempty operations capture source segment/SI and fixed destination ES/DI before any data access, even if the selected operation uses only one side. This retains the declared model's observable access schedule. Word reads/writes use the same low-first, offset-wrapping memory rules as other instructions.
 
 ```text
 width:u8 := input
@@ -318203,7 +318203,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 subtraction flags without operand writeback
 
-A plain operation never reads CX. A repeated operation reads CX first and skips every operand, flag, and index effect if it is zero. Nonempty operations capture source segment/SI and fixed destination ES/DI before any data access, even if the selected operation uses only one side. This retains the declared model's observable access schedule. Word reads/writes use the same low-first, offset-wrapping memory rules as other instructions.
+Nonempty operations capture source segment/SI and fixed destination ES/DI before any data access, even if the selected operation uses only one side. This retains the declared model's observable access schedule. Word reads/writes use the same low-first, offset-wrapping memory rules as other instructions.
 
 ```text
 width:u8 := input
@@ -318282,7 +318282,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 interrupt entry
 
-The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The execution contract below uses the same action for traps and divide errors; the native external adapter uses it for accepted INTR/NMI offers. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
+The formal entry action clears TF then IF and the recognition/wait/halt latches. It pushes FLAGS, live CS, and live IP, then commits target CS and IP after the complete frame succeeds. Software forms use `1100 11 tt`: INT3 (`tt=00`), INT with a fetched type byte (`01`), INTO (`10`), and IRET (`11`). `report interrupt` records completed software delivery; it performs no vector or stack effects itself.
 
 ```text
 vector:u8 := input
@@ -318389,7 +318389,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
 
 ### 8088 sample TEST for initial WAIT or continuation
 
-WAIT (`1001 1011`) samples the physical TEST level once, then writes WAITING. A high level means busy: initial execution backs IP up to the WAIT opcode, after any prefixes. A busy continuation leaves IP alone and does not refetch. A low level releases waiting; continuation advances live IP past WAIT and requests all-interrupt recognition delay. Initial release leaves IP alone. Failed sampling writes no CPU state. The boundary records the sample and owns waiting records, reentrancy, and pending trap handling.
+Missing/malformed TEST callbacks and thrown device errors propagate without a record. TEST must return a Boolean without coercion. Initial instruction fetches remain reflected in IP; a failed continuation leaves its waiting state and IP unchanged. No recognition latch changes until the sample succeeds. If an ESC operand read fails, no external request is issued. If the ESC callback fails, completed reads, fetched IP, and device effects remain; no rollback is attempted. Callbacks preserve their receiver and may inspect snapshots but cannot reenter `step`, `reset`, or `interrupt`. Reset clears waiting and recognition state while preserving connections and devices; it neither samples TEST nor issues ESC.
 
 ```text
 resuming:u8 := input
@@ -318511,6 +318511,17 @@ owedTrap:u8 := input
 write interruptDeferred:boolean := not(isZero(intr))
 write recognitionDeferred:boolean := not(isZero(all))
 write trapPending:boolean := or(not(isZero(owedTrap)), not(isZero(sampledTF)))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 release WAIT and HLT before acknowledgement or entry
+
+Unsupported encodings restore the original IP and skip retirement; failed host callbacks retain completed effects and propagate without a record. A divide error enters type 0 from the **following** IP, as on the original 8088, then retires with the original trap sample. Software entry reports its own vector after its explicit effects. Neither kind cancels an owed trap. External INTR/NMI offers share the same reentrancy guard. Their ordered gates below preserve deferral-before-masking and reject without acknowledgement or wake-up. Eligible INTR validates callback presence before releasing WAIT/HLT, then obtains its vector. Both sources use the chapter's shared entry action.
+
+```text
+write waiting:boolean := false
+write halted:boolean := false
 ```
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
@@ -318979,7 +318990,7 @@ Flags preserved throughout: TF, IF, DF.
 
 ### 8088 DAA
 
-Packed correction sets AF then CF, writes AL preserving live AH, then sets ZF/SF/PF. Unpacked correction adjusts the captured AH and AL independently, masks AL to four bits, writes AX, then CF and AF. Undefined flags stay intact.
+AAA/AAS adjust unpacked AL and AH independently, then mask AL to its low nibble. A carry/borrow from AL's byte adjustment does not adjust AH a second time. AF/CF report adjustment; undefined OF/SF/ZF/PF are preserved. AAM splits AL into decimal quotient AH and remainder AL; AAD combines AH×10+AL into AL modulo 256 and clears AH. Only the documented fixed second byte `0A` is supported. AAM/AAD set SF/ZF/PF from AL and preserve undefined CF/AF/OF. CBW and CWD sign-extend the accumulator without changing flags.
 
 ```text
 original:u8 := source "low byte of AX" {
@@ -319092,7 +319103,7 @@ Flags preserved throughout: TF, IF, DF.
 
 ### 8088 DAS
 
-Packed correction sets AF then CF, writes AL preserving live AH, then sets ZF/SF/PF. Unpacked correction adjusts the captured AH and AL independently, masks AL to four bits, writes AX, then CF and AF. Undefined flags stay intact.
+AAA/AAS adjust unpacked AL and AH independently, then mask AL to its low nibble. A carry/borrow from AL's byte adjustment does not adjust AH a second time. AF/CF report adjustment; undefined OF/SF/ZF/PF are preserved. AAM splits AL into decimal quotient AH and remainder AL; AAD combines AH×10+AL into AL modulo 256 and clears AH. Only the documented fixed second byte `0A` is supported. AAM/AAD set SF/ZF/PF from AL and preserve undefined CF/AF/OF. CBW and CWD sign-extend the accumulator without changing flags.
 
 ```text
 original:u8 := source "low byte of AX" {
@@ -319205,7 +319216,7 @@ Flags preserved throughout: TF, IF, DF.
 
 ### 8088 AAA
 
-Packed correction sets AF then CF, writes AL preserving live AH, then sets ZF/SF/PF. Unpacked correction adjusts the captured AH and AL independently, masks AL to four bits, writes AX, then CF and AF. Undefined flags stay intact.
+AAA/AAS adjust unpacked AL and AH independently, then mask AL to its low nibble. A carry/borrow from AL's byte adjustment does not adjust AH a second time. AF/CF report adjustment; undefined OF/SF/ZF/PF are preserved. AAM splits AL into decimal quotient AH and remainder AL; AAD combines AH×10+AL into AL modulo 256 and clears AH. Only the documented fixed second byte `0A` is supported. AAM/AAD set SF/ZF/PF from AL and preserve undefined CF/AF/OF. CBW and CWD sign-extend the accumulator without changing flags.
 
 ```text
 original:u8 := source "low byte of AX" {
@@ -319291,7 +319302,7 @@ Flags preserved throughout: TF, IF, DF.
 
 ### 8088 AAS
 
-Packed correction sets AF then CF, writes AL preserving live AH, then sets ZF/SF/PF. Unpacked correction adjusts the captured AH and AL independently, masks AL to four bits, writes AX, then CF and AF. Undefined flags stay intact.
+AAA/AAS adjust unpacked AL and AH independently, then mask AL to its low nibble. A carry/borrow from AL's byte adjustment does not adjust AH a second time. AF/CF report adjustment; undefined OF/SF/ZF/PF are preserved. AAM splits AL into decimal quotient AH and remainder AL; AAD combines AH×10+AL into AL modulo 256 and clears AH. Only the documented fixed second byte `0A` is supported. AAM/AAD set SF/ZF/PF from AL and preserve undefined CF/AF/OF. CBW and CWD sign-extend the accumulator without changing flags.
 
 ```text
 original:u8 := source "low byte of AX" {
@@ -321661,7 +321672,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 WAIT
 
-WAIT (`1001 1011`) samples the physical TEST level once, then writes WAITING. A high level means busy: initial execution backs IP up to the WAIT opcode, after any prefixes. A busy continuation leaves IP alone and does not refetch. A low level releases waiting; continuation advances live IP past WAIT and requests all-interrupt recognition delay. Initial release leaves IP alone. Failed sampling writes no CPU state. The boundary records the sample and owns waiting records, reentrancy, and pending trap handling.
+Missing/malformed TEST callbacks and thrown device errors propagate without a record. TEST must return a Boolean without coercion. Initial instruction fetches remain reflected in IP; a failed continuation leaves its waiting state and IP unchanged. No recognition latch changes until the sample succeeds. If an ESC operand read fails, no external request is issued. If the ESC callback fails, completed reads, fetched IP, and device effects remain; no rollback is attempted. Callbacks preserve their receiver and may inspect snapshots but cannot reenter `step`, `reset`, or `interrupt`. Reset clears waiting and recognition state while preserving connections and devices; it neither samples TEST nor issues ESC.
 
 ```text
 perform "sample TEST for initial WAIT or continuation" {
@@ -322306,7 +322317,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 INT3
 
-The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The execution contract below uses the same action for traps and divide errors; the native external adapter uses it for accepted INTR/NMI offers. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
+The formal entry action clears TF then IF and the recognition/wait/halt latches. It pushes FLAGS, live CS, and live IP, then commits target CS and IP after the complete frame succeeds. Software forms use `1100 11 tt`: INT3 (`tt=00`), INT with a fetched type byte (`01`), INTO (`10`), and IRET (`11`). `report interrupt` records completed software delivery; it performs no vector or stack effects itself.
 
 ```text
 perform "interrupt entry" {
@@ -322416,7 +322427,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
 
 ### 8088 INT n
 
-The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The execution contract below uses the same action for traps and divide errors; the native external adapter uses it for accepted INTR/NMI offers. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
+The formal entry action clears TF then IF and the recognition/wait/halt latches. It pushes FLAGS, live CS, and live IP, then commits target CS and IP after the complete frame succeeds. Software forms use `1100 11 tt`: INT3 (`tt=00`), INT with a fetched type byte (`01`), INTO (`10`), and IRET (`11`). `report interrupt` records completed software delivery; it performs no vector or stack effects itself.
 
 ```text
 vector:u8 := fetch byte
@@ -322527,7 +322538,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
 
 ### 8088 INTO
 
-The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The execution contract below uses the same action for traps and divide errors; the native external adapter uses it for accepted INTR/NMI offers. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
+The formal entry action clears TF then IF and the recognition/wait/halt latches. It pushes FLAGS, live CS, and live IP, then commits target CS and IP after the complete frame succeeds. Software forms use `1100 11 tt`: INT3 (`tt=00`), INT with a fetched type byte (`01`), INTO (`10`), and IRET (`11`). `report interrupt` records completed software delivery; it performs no vector or stack effects itself.
 
 ```text
 overflow:flag := read OF
@@ -322640,7 +322651,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
 
 ### 8088 IRET
 
-The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The execution contract below uses the same action for traps and divide errors; the native external adapter uses it for accepted INTR/NMI offers. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
+The formal entry action clears TF then IF and the recognition/wait/halt latches. It pushes FLAGS, live CS, and live IP, then commits target CS and IP after the complete frame succeeds. Software forms use `1100 11 tt`: INT3 (`tt=00`), INT with a fetched type byte (`01`), INTO (`10`), and IRET (`11`). `report interrupt` records completed software delivery; it performs no vector or stack effects itself.
 
 ```text
 perform "return to a saved CS:IP" {
@@ -399688,7 +399699,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 8-bit shifts/rotates by one
 
-Each bounded iteration writes CF. RCL/RCR read live CF on every iteration. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and deterministically clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags.
+Memory forms fetch the complete encoding, read the operand once, perform all movements internally, then write it once. A zero count also records a read and unchanged write. Word accesses retain the segment-offset wrapping policy. These are explicit instruction-level access rules, without cycle counts or prefetch effects. The chapter describes each movement and its ordered flag updates.
 
 ```text
 overridden:u8 := input
@@ -405730,7 +405741,7 @@ Flags preserved throughout: TF, IF, DF.
 
 ### 8088 16-bit shifts/rotates by one
 
-Each bounded iteration writes CF. RCL/RCR read live CF on every iteration. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and deterministically clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags.
+Memory forms fetch the complete encoding, read the operand once, perform all movements internally, then write it once. A zero count also records a read and unchanged write. Word accesses retain the segment-offset wrapping policy. These are explicit instruction-level access rules, without cycle counts or prefetch effects. The chapter describes each movement and its ordered flag updates.
 
 ```text
 overridden:u8 := input
@@ -411408,7 +411419,7 @@ Flags preserved throughout: TF, IF, DF.
 
 ### 8088 8-bit shifts/rotates by CL
 
-Each bounded iteration writes CF. RCL/RCR read live CF on every iteration. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and deterministically clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags.
+Memory forms fetch the complete encoding, read the operand once, perform all movements internally, then write it once. A zero count also records a read and unchanged write. Word accesses retain the segment-offset wrapping policy. These are explicit instruction-level access rules, without cycle counts or prefetch effects. The chapter describes each movement and its ordered flag updates.
 
 ```text
 overridden:u8 := input
@@ -417471,7 +417482,7 @@ Flags preserved throughout: TF, IF, DF.
 
 ### 8088 16-bit shifts/rotates by CL
 
-Each bounded iteration writes CF. RCL/RCR read live CF on every iteration. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and deterministically clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags.
+Memory forms fetch the complete encoding, read the operand once, perform all movements internally, then write it once. A zero count also records a read and unchanged write. Word accesses retain the segment-offset wrapping policy. These are explicit instruction-level access rules, without cycle counts or prefetch effects. The chapter describes each movement and its ordered flag updates.
 
 ```text
 overridden:u8 := input
@@ -428446,7 +428457,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 8-bit TEST, unary, multiply, and divide group
 
-Division reads AX or DX then AX after the divisor. Signed division truncates toward zero; its remainder follows the dividend sign. Zero divisors and quotient overflow return `divide-error` before any register writes. The original signed 8088 also rejects the most negative quotient. Successful byte division writes AL=quotient, AH=remainder; word division writes AX then DX. Every flag is preserved. The native boundary delivers type 0 using the post-instruction IP, retaining the original 8088 convention.
+A zero divisor or out-of-range quotient delivers interrupt type 0 after fetching the instruction and reading the divisor, leaving AX/DX unchanged. The frame saves the **following IP**, as on the original 8088, rather than the faulting instruction's address used by later x86. Arithmetic flags remain unchanged under the model's undefined-flag policy; entry saves them and clears IF/TF.
 
 ```text
 overridden:u8 := input
@@ -433594,7 +433605,7 @@ Flags preserved throughout: TF, IF, DF.
 
 ### 8088 16-bit TEST, unary, multiply, and divide group
 
-Division reads AX or DX then AX after the divisor. Signed division truncates toward zero; its remainder follows the dividend sign. Zero divisors and quotient overflow return `divide-error` before any register writes. The original signed 8088 also rejects the most negative quotient. Successful byte division writes AL=quotient, AH=remainder; word division writes AX then DX. Every flag is preserved. The native boundary delivers type 0 using the post-instruction IP, retaining the original 8088 convention.
+A zero divisor or out-of-range quotient delivers interrupt type 0 after fetching the instruction and reading the divisor, leaving AX/DX unchanged. The frame saves the **following IP**, as on the original 8088, rather than the faulting instruction's address used by later x86. Arithmetic flags remain unchanged under the model's undefined-flag policy; entry saves them and clears IF/TF.
 
 ```text
 overridden:u8 := input

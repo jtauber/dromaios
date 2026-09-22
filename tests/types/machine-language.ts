@@ -1,6 +1,6 @@
 import type { Cpu8008State } from "../../src/components/cpus/generated/8008-cpu.js";
 import type { Cpu8080State } from "../../src/components/cpus/generated/8080-cpu.js";
-import type { Cpu8088State } from "../../src/components/cpus/8088.js";
+import type { Cpu8088State } from "../../src/components/cpus/generated/8088-cpu.js";
 import type { Cpu6502State } from "../../src/components/cpus/generated/6502-cpu.js";
 import type { Cpu6800State } from "../../src/components/cpus/generated/6800-cpu.js";
 import type { Cpu6809State } from "../../src/components/cpus/generated/6809-cpu.js";

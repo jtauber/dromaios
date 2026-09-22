@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
-import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
+import { cpu8088StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
 import { cpuSymbols, flagLiteral, literal, projectAddress, readMemory, value, writeMemory, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
 import type { AddressExpression, NumberExpression } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";

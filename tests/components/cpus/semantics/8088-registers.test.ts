@@ -11,8 +11,8 @@ import { cpuSymbols, extend, literal, perform, readSource, value, writeRegister 
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
-import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
-import type { Cpu8088State } from "../../../../src/components/cpus/state/8088.js";
+import { cpu8088StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
+import type { Cpu8088State } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
 import { aluForms, aluResult, byteMoves, flags, initialState, unaryResult, wordMoves, words } from "../8088/helpers.js";
 
 type Word = typeof words[number];

@@ -172,7 +172,7 @@ by family instead of assuming that the entire middle layer should move into
 a generic framework.
 
 There are also several promising abstractions inside individual CPUs. The
-[8088](../../src/components/cpus/8088.ts) represents resolved operands with
+[8088](../../src/components/cpus/specifications/8088.md) represents resolved operands with
 `read` and `write` callbacks. The [68000](../../src/components/cpus/68000.ts)
 separates operand kinds and holds pending address updates while validating an
 instruction. These offer concrete starting points for testing the vocabulary
@@ -793,7 +793,7 @@ For the 8088, each byte's offset wraps within its segment before translation.
 At `1234:FFFF`, a word uses physical addresses `2233F` and `12340`. A helper
 that translated the first address and then incremented the physical address
 would be wrong. This is part of the existing
-[logical-address contract](8088/model.md#logical-and-physical-addresses).
+[logical-address contract](../../src/components/cpus/specifications/8088.md#logical-and-physical-addresses).
 
 For the 68000, logical registers retain 32 bits and the physical bus uses
 24 bits. Alignment faults report a logical address, whereas memory accesses

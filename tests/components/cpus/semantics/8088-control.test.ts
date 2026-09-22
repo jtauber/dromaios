@@ -5,10 +5,10 @@ import { instructions } from "../../../../src/components/cpus/generated/8088.js"
 import { compileResolved } from "../../../helpers/8088-resolved.js";
 import { control8088 } from "../../../helpers/8088-external.js";
 import { instructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
-import { record8088External } from "../../../../src/components/cpus/8088-external.js";
-import type { Cpu8088Escape } from "../../../../src/components/cpus/8088-external.js";
-import type { Cpu8088State } from "../../../../src/components/cpus/state/8088.js";
-import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
+import { recordCoprocessor } from "../../../../src/components/cpus/coprocessor-access.js";
+import type { CoprocessorEscape as Cpu8088Escape } from "../../../../src/components/cpus/coprocessor-access.js";
+import type { Cpu8088State } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
+import { cpu8088StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
 import { cpuZ80StateDescription } from "../../../../src/components/cpus/semantics/generated/state/z80.js";
 import { cpuSymbols, flagLiteral, flagValue, literal, projectAddress, readTest, reportInterrupt, sendEscape, value, when, writeLatch } from "../../../../src/components/cpus/semantics/model.js";
 import type { Statement } from "../../../../src/components/cpus/semantics/model.js";
@@ -150,31 +150,31 @@ test("8088 device adapters preserve receiver, ownership, and failed-access recor
       Object.assign(value, { opcode: 0 }); Object.assign(value.memory!, { value: 0 });
     },
   };
-  const adapter = record8088External(device, effect => events.push(effect));
+  const adapter = recordCoprocessor("8088", device, effect => events.push(effect));
   assert.equal(adapter.readTest(), true); adapter.sendEscape(request);
   assert.deepEqual(events, [{ kind: "test", high: true }, { kind: "escape", ...original }]);
   assert.deepEqual(request, original);
   for (const high of [false, true, null, 0, 1, undefined, "false"]) {
     events.length = 0;
-    const effect = record8088External({ test: () => high as boolean }, event => events.push(event));
+    const effect = recordCoprocessor("8088", { test: () => high as boolean }, event => events.push(event));
     if (typeof high === "boolean") { assert.equal(effect.readTest(), high); assert.deepEqual(events, [{ kind: "test", high }]); }
     else { assert.throws(effect.readTest, /Boolean pin level/); assert.equal(events.length, 0); }
   }
   events.length = 0;
-  const failed = record8088External({ test() { throw marker; }, escape() { throw marker; } }, event => events.push(event));
+  const failed = recordCoprocessor("8088", { test() { throw marker; }, escape() { throw marker; } }, event => events.push(event));
   assert.throws(failed.readTest, error => error === marker); assert.throws(() => failed.sendEscape(request), error => error === marker);
   assert.equal(events.length, 0);
-  const absent = record8088External(undefined, event => events.push(event));
+  const absent = recordCoprocessor("8088", undefined, event => events.push(event));
   assert.throws(absent.readTest, /TEST input connection/); absent.sendEscape(request);
   assert.deepEqual(events, [{ kind: "escape", ...original }]);
 });
 
 test("8088 control effects validate widths, ownership and scopes, and infer only requested capabilities", async () => {
   const cpu = cpuSymbols("8088", cpu8088StateDescription), other = cpuSymbols("z80", cpuZ80StateDescription);
-  const define = (steps: readonly Statement[]) => defineInstruction({ cpu: cpu.declaration, name: "device probe", explanation: "External effect probe.", steps });
+  const define = (steps: readonly Statement[]) => defineInstruction({ cpu: { ...cpu.declaration, segmentedBoundary: true }, name: "device probe", explanation: "External effect probe.", steps });
   const escape = sendEscape({ opcode: literal(8, 63), modRM: literal(8, 0xc7) });
   for (const step of [readTest("high"), escape, reportInterrupt(literal(8, 255))]) {
-    assert.throws(() => defineInstruction({ ...define([step]), cpu: other.declaration }), /8088/);
+    assert.throws(() => defineInstruction({ ...define([step]), cpu: other.declaration }), /segmented/);
   }
   const memory = { segment: literal(16, 0), offset: literal(16, 0), address: projectAddress(literal(16, 0), literal(16, 0), 4, 20), value: literal(16, 0) };
   for (const steps of [

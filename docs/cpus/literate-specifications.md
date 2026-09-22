@@ -39,19 +39,20 @@ Executable chapters are maintained CPU sources:
   commitment, retirement, and IRQ/NMI entry. Mixed named interrupt entries select
   direct vectors or supplied instructions. Its public class, bank types, and
   nested snapshot views are generated; no handwritten implementation remains.
-- [Intel 8088: instructions, reset, and normal execution](../../src/components/cpus/specifications/8088.md)
+- [Intel 8088: complete model and public interface](../../src/components/cpus/specifications/8088.md)
   owns stored state, writable byte aliases, physical PC and packed FLAGS views,
   and all 291 instruction forms, including strings, ports, WAIT/ESC, and software
-  interrupts/IRET. Shared chapter actions also serve native interrupt entry and
-  WAIT resumption. Reset, segmented fetching, prefix choices, trap/fault delivery,
-  and retirement are chapter-owned. External acceptance and the public class remain native.
+  interrupts/IRET. Chapter actions also serve external entry and WAIT resumption.
+  Reset, segmented fetching, prefix choices, trap/fault delivery, retirement,
+  and ordered INTR/NMI offers are declared here. The class, connections, records,
+  snapshots, and integration metadata are generated; no handwritten adapter remains.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
 
 This is an authoring-language prototype over the existing
 [instruction representation](instruction-semantics.md), with a deliberately
-small vocabulary. It now describes complete instruction-level 8008, 8080, 6502, 6800, 6809, and Z80 models;
+small vocabulary. It now describes complete instruction-level 8008, 8080, 6502, 6800, 6809, Z80, and 8088 models;
 other execution architectures still need language and runtime support.
 Current counts and milestone evidence belong in the
 [coverage report](coverage.md#literate-authoring-milestone).
@@ -182,9 +183,9 @@ Quoted descriptions use JSON string escaping.
 | `ADDRESS[] <- u14($0000)` | Fill every physical array slot with the same width-checked value, without reading previous elements. |
 | `result = operand s`, `operand d <- result` | Read or write a selected register, pair, writable view, or memory operand at this point. |
 | `notify reti` | Request a device notification after successful architectural retirement; requires `notify reti after retire` in a preceding decode-before-execution contract. Actions need `using boundary` to request notification; lifecycle hooks retain their narrower contracts. |
-| `high = sample test` | Capture the Boolean physical TEST level through the 8088 device adapter. |
-| `send escape(opcode, postbyte) with memory(segment, offset, address, contents)` | Send a captured 8088 ESC request; omit `with memory(…)` for a register form. This statement performs no operand read. |
-| `report interrupt(vector)` | Record completed 8088 software interrupt delivery; vector reads and frame writes remain explicit preceding effects. |
+| `high = sample test` | Capture the Boolean physical TEST level through the declared segmented coprocessor connection. |
+| `send escape(opcode, postbyte) with memory(segment, offset, address, contents)` | Send a captured ESC request through the segmented connection; omit `with memory(…)` for a register form. This statement performs no operand read. |
+| `report interrupt(vector)` | Record completed software interrupt delivery at a segmented boundary; vector reads and frame writes remain explicit preceding effects. |
 | `defer irq` | Request one-boundary IRQ deferral on successful retirement; requires `retire irq into LATCH`. This does not immediately write stored state. |
 | `defer intr`, `defer all` | Request INTR-only or all-interrupt recognition delay through the chapter-bound segmented runtime. The request commits only at successful retirement; these scopes are unavailable to other CPUs and views; actions require `using boundary`. |
 | `exchange FLAGS, ALTERNATE.FLAGS` | Exchange complete flag objects with matching stored fields: read right, read left, write left, write right. Preserve identity without reading individual flags; allowed in actions but not views. |
@@ -1090,8 +1091,8 @@ execution, plus its public class, snapshot assembly, state aliases, and
 instruction catalogue bindings. No processor-specific TypeScript implementation
 remains; the chapter supplies all of its model and public-interface choices.
 Shared runtime services enforce the declared execution contract. Chapters
-without owned state validate declarations against an external schema; most
-other instruction families remain authored in TypeScript.
+without owned state validate declarations against an external schema; the
+68000 retains most of its instruction definitions in TypeScript.
 
 The eight chapters now exercise contrasting widths, ordered effects, and
 interrupt-recognition policies. The 6502 now owns its complete state, status
@@ -1141,6 +1142,10 @@ Chapter actions define acceptance, stacking, and mode-specific vector reads;
 mode 0 shares its chapter decoder. Public bank types and nested snapshot views
 are declared alongside the interface, and its complete contract lives in the
 chapter. No handwritten Z80 implementation remains.
+The 8088 also owns its complete model: segmented fetching and prefix captures,
+WAIT and trap/fault boundaries, ordered external vector offers, and its public
+interface. Its chapter now includes the hardware and host contracts, and its
+class, types, state schema, and integration metadata are generated.
 A differently named test CPU already exercises different storage, address width, views, and
 actions through the same compiler and runtime. This is evidence for the current
 contract, not proof that it covers the remaining architectures. Each further
@@ -1182,8 +1187,12 @@ The [8088 lifecycle](../../src/components/cpus/specifications/8088.md#reset-and-
 uses `execution segmented { … }`. It selects the
 [shared segmented runtime](../../src/components/cpus/segmented-execution.ts)
 through [validated bindings](../../src/components/cpus/semantics/literate/segmented-execution.ts).
-The current binding supports the 8088's three family signatures and TEST/ESC
-context; it does not claim to supply an arbitrary processor's device API.
+`cpu "8088" boundary segmented` declares the available instruction effects:
+`intr`/`all` deferral, software delivery reporting, and TEST/ESC connections.
+The subsequent `execution segmented` contract must match that declaration.
+These capabilities depend on the declared boundary, not the CPU name. The
+binding supports three family signatures and this connection shape; arbitrary
+device APIs remain outside its scope.
 
 | Declaration | Meaning |
 | --- | --- |
@@ -1199,7 +1208,7 @@ context; it does not claim to supply an arbitrary processor's device API.
 | `reset action resetState` | Input-free, state-only reset with an empty access list. |
 | `retire action retireInstruction sampling flag TF, latch TRAPPENDING` | Capture the selected flags/latches before instruction or continuation effects. After success, pass two byte values for requested INTR/all deferral, then one byte per sample, to a state-only action. |
 | `unsupported restore counter`, `failure retain` | Skip retirement on rejection or thrown callbacks; restore only the counter on rejection, while throws retain every completed effect and produce no record. |
-| `interrupt external` | External acceptance remains in the native adapter and shares this runtime's reentrancy guard. A public interface cannot yet be generated from this partial contract. |
+| `interrupt offers { … }` | Declare source names, ordered flag/latch gates, acceptance actions, and fixed or acknowledged byte vectors. Entry shares the step/reset guard. |
 
 Lifecycle actions are checked transitively against their narrower role even
 when their declarations permit broader effects. Byte matches cannot hide a
@@ -1213,3 +1222,50 @@ exercise policy edits, live fetch callbacks, delayed samples, retained failures,
 and invalid contracts. [Public integration checks](../../tests/scripts/8088-chapter-integration.test.ts)
 edit a copied chapter and verify that the CPU class follows its reset, fetch,
 prefix, retirement, memory-size, and vector declarations.
+
+### Fixed and acknowledged vector offers
+
+A segmented contract declares every external source explicitly:
+
+```cpu
+interrupt offers {
+  source intr acknowledge {
+    unless latch RECOGNITIONDEFERRED otherwise "deferred"
+    unless latch INTRDEFERRED otherwise "deferred"
+    when flag IF otherwise "masked"
+    accept action acceptInterrupt
+    enter action enterInterrupt
+  }
+  source nmi vector 2 {
+    unless latch RECOGNITIONDEFERRED otherwise "deferred"
+    accept action acceptInterrupt
+    enter action enterInterrupt
+  }
+}
+```
+
+The [offer runtime](../../src/components/cpus/vector-offers.ts) validates the
+source, captures the before snapshot, and evaluates gates in declaration order.
+The first failed gate returns its quoted reason without any effects or callback
+validation. An eligible acknowledged offer requires a callback **before** its
+input-free, state-only acceptance action runs. It then calls the callback once,
+validates and records its byte, and invokes the entry action with that vector.
+A fixed-vector source skips acknowledgement. Entry actions take one byte and
+may access memory; neither action may hide other boundary effects. Errors retain
+completed effects and release the execution guard. Records distinguish accepted
+vectors from ignored reasons and contain no fetched instruction.
+
+This differs from decoded `interrupt entries`: those validate callback presence
+on offer and may select a mode or execute supplied instruction bytes. Keeping
+the contracts distinct preserves their observable ordering.
+
+The ordinary `interface` declaration also generates segmented models. Their
+constructor accepts independently optional ports, TEST, and ESC connections;
+the shared recorder copies outgoing ESC requests and validates TEST samples.
+The chapter's WAIT body chooses the meaning of the sampled level. Ports are
+selected at each active step, after its before snapshot. Snapshots and public
+type names follow the same schema/view rules as other chapters. Integration
+metadata uses the segmented bus width for the physical runner-PC bound.
+[Public mutation tests](../../tests/components/cpus/semantics/literate-vector-offers.test.ts)
+change gates, masks, vectors, acceptance effects, names, and views, including a
+renamed model with the same device contract.

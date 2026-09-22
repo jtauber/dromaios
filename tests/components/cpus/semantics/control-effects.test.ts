@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6809.js";
 import { cpu8080StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
-import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
+import { cpu8088StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
 import { cpuZ80StateDescription } from "../../../../src/components/cpus/semantics/generated/state/z80.js";
 import type { CpuZ80State } from "../../../../src/components/cpus/semantics/generated/state/z80.js";
 import { cpuSymbols, deferInterrupt, flagValue, notifyReti, readLatch, testChoice, when, writeChoice, writeLatch } from "../../../../src/components/cpus/semantics/model.js";
@@ -42,12 +42,12 @@ test("control choices retain schema ownership, exact alternatives, and Boolean c
 });
 
 test("interrupt effects accept only the owning CPU's deferral scopes and RETI notification", () => {
-  const cpus: readonly { declaration: CpuDeclaration }[] = [z80, symbols, { declaration: { name: "chapter", state: cpu8080StateDescription, irqDeferral: true, retiNotification: true } }, cpuSymbols("8088", cpu8088StateDescription),
+  const cpus: readonly { declaration: CpuDeclaration }[] = [z80, symbols, { declaration: { name: "chapter", state: cpu8080StateDescription, irqDeferral: true, retiNotification: true } }, { declaration: { name: "8088", state: cpu8088StateDescription, segmentedBoundary: true } },
     motorola, cpuSymbols("6502", cpu6502StateDescription)];
   for (const cpu of cpus) {
     for (const scope of ["irq", "intr", "all"] as const) {
       const check = () => define(cpu.declaration, [deferInterrupt(scope)]);
-      const allowed = cpu.declaration.name === "8088" ? scope !== "irq"
+      const allowed = cpu.declaration.segmentedBoundary ? scope !== "irq"
         : cpu.declaration.irqDeferral === true && scope === "irq";
       if (allowed) check(); else assert.throws(check, /deferral/);
     }

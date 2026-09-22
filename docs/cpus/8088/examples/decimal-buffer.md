@@ -7,7 +7,7 @@ and HLT without devices or interrupt delivery.
 
 [Machine definition](../../../../src/machines/8088/decimal-buffer-example.machine) ·
 [Acceptance tests](../../../../tests/machines/8088/decimal-buffer-example.test.ts) ·
-[Model contract](../model.md) · [Coverage](../../coverage.md#8088)
+[Model contract](../../../../src/components/cpus/specifications/8088.md) · [Coverage](../../coverage.md#8088)
 
 ## Memory and entry state
 

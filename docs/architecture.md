@@ -235,7 +235,10 @@ NMI vectors, IRQ mode selection, and supplied instructions through that same
 decoder and retirement boundary. Paired programs expose common encodings alongside
 their different flag semantics.
 The [segmented runtime](../src/components/cpus/segmented-execution.ts) advances
-the live word counter after each successful fetch. The 8088 chapter selects
+the live word counter after each successful fetch. External vector offers
+use ordered chapter gates and acceptance actions, then fixed or acknowledged
+vector entry. The shared offer service records accesses; the chapter owns
+masks, delays, wake-up effects, and frame construction. The 8088 chapter selects
 segment projection, replaceable prefix captures, waiting continuations,
 trap/fault entry, and sampled retirement; the runtime supplies guarding and
 records. This preserves byte-by-byte commitment and retained host failures

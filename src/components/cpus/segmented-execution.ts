@@ -20,7 +20,7 @@ export type SegmentPrefix = { readonly kind: "segment"; readonly read: () => num
 
 export type SegmentedStep<S, A, F extends string, P extends Delivery> = (
   (InstructionStep<S, A> | HaltedStep<S, A> | WaitingStep<S, A>) & {
-    readonly interrupt?: P | { readonly source: "software" | F; readonly vector: number };
+    readonly interrupt?: { readonly source: P["source"] | "software" | F; readonly vector: number };
   }
 ) | (StateTransition<S> & { readonly instruction: null; readonly outcome: "executed"; readonly interrupt: P })
   | (StateTransition<S, A> & { readonly instruction: null; readonly outcome: "executed"; readonly continuation: "wait"; readonly interrupt?: never });

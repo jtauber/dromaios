@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { Ram } from "../../../../src/components/memory/ram.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
-import { record8088External } from "../../../../src/components/cpus/8088-external.js";
+import { recordCoprocessor } from "../../../../src/components/cpus/coprocessor-access.js";
 import { generateChapterExecutionModule } from "../../../helpers/literate-model.js";
 import { flags, initialState, snapshot } from "../8088/helpers.js";
 
@@ -16,7 +16,7 @@ const original = generate();
 function fixture(model: Model, code: readonly number[]) {
   const state = initialState({ cs: 0, ds: 0, ss: 0, es: 0, ip: 0, flags: flags(0) }), ram = new Ram(0x100000);
   code.forEach((byte, index) => ram.write(index, byte));
-  const boundary = model.createExecution(state, ram, () => snapshot(state), () => undefined, record => record8088External({ test: () => true }, record));
+  const boundary = model.createExecution(state, ram, () => snapshot(state), () => undefined, record => recordCoprocessor("8088", { test: () => true }, record));
   return { state, ram, boundary };
 }
 
@@ -81,7 +81,7 @@ test("segmented fetches capture overrides after reads, advance live IP, and pres
   }
   const ram = new CallbackRam(0x100000);
   for (const [address, byte] of [[0, 0x26], [0x11, 0xa0], [0x12, 0], [0x13, 1], [0x2100, 0xa5], [0x3100, 0x5a]]) ram.write(address!, byte!);
-  const cpu = model.createExecution(state, ram, () => snapshot(state), () => undefined, record => record8088External(undefined, record));
+  const cpu = model.createExecution(state, ram, () => snapshot(state), () => undefined, record => recordCoprocessor("8088", undefined, record));
   const step = cpu.step(); assert.equal(state.ax & 255, 0xa5); assert.equal(state.ip, 0x14); assert.equal(state.trapPending, true);
   assert.deepEqual(step.instruction?.bytes, [0x26, 0xa0, 0, 1]);
 });
@@ -91,7 +91,7 @@ test("failed fetches and trap entries retain effects without retirement, release
   const error = new Error("read failed"); let count = 0, failure = 2;
   class FailingRam extends Ram { override read(address: number): number { if (++count === failure) throw error; return super.read(address); } }
   const ram = new FailingRam(0x100000); ram.write(0, 0xb8); ram.write(1, 0x34); ram.write(2, 0x12);
-  const cpu = model.createExecution(state, ram, () => snapshot(state), () => undefined, record => record8088External(undefined, record));
+  const cpu = model.createExecution(state, ram, () => snapshot(state), () => undefined, record => recordCoprocessor("8088", undefined, record));
   assert.throws(() => cpu.step(), thrown => thrown === error);
   assert.equal(state.ip, 1); assert.equal(state.interruptDeferred, true); assert.equal(state.trapPending, false);
   state.trapPending = true; failure = count + 1;

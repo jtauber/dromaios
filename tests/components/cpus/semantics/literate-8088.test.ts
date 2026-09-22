@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { boolean, defineState, flag, group, unsigned } from "../../../../src/components/cpus/state.js";
-import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
+import { cpu8088StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
 import { instructions8088, operandInstructions8088, strings8088 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { instructions as actions, sourceReaders } from "../../../../src/components/cpus/generated/8088-state.js";
@@ -47,7 +47,7 @@ test("the 8088 chapter owns the complete stored schema and all 291 forms across 
   assert.equal(entries.length - 4 + 8 + 8 + 5 + 5 - 4 + 4 * 7 - 2 + 2 * 7 - 2 + 2 + 7, 291);
   assert.deepEqual(entries.map(([opcode]) => opcode).sort((a, b) => a - b), opcodes);
   for (const [opcode, definition] of entries) assert.deepEqual(({ ...instructions8088, ...operandInstructions8088, ...strings8088 })[opcode], definition);
-  assert.equal(chapter.execution?.mode, "segmented"); assert.equal(chapter.interface, undefined);
+  assert.equal(chapter.execution?.mode, "segmented"); assert.equal(chapter.interface?.name, "Cpu8088");
 });
 
 test("every chapter byte view and write selects its own word and preserves the live other half", () => {

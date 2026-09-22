@@ -46,7 +46,7 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
   const url = (path: string) => JSON.stringify(pathToFileURL(join(directory, path)).href);
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
-    import { Cpu8088, cpu8088StateDescription } from ${url("src/components/cpus/8088.ts")};
+    import { Cpu8088, cpu8088StateDescription } from ${url("src/components/cpus/generated/8088-cpu.ts")};
     import { parseMachine } from ${url("src/machines/machine-language.ts")};
     const machine = ${JSON.stringify(readFileSync("src/machines/8088/example.machine", "utf8"))};
     assert.equal(cpu8088StateDescription.scratch.bits, 8);
@@ -184,12 +184,18 @@ test("8088 lifecycle chapter edits reach public reset, fetching, prefixes, retir
     .replace('segment CS shift 4', 'segment DS shift 4').replace('IP <- add(offset, u16(1))', 'IP <- add(offset, u16(2))')
     .replace('segment $26 ES', 'segment $26 SS').replace('prefixes limit 65536', 'prefixes limit 2')
     .replace('"trap" vector 1', '"trap" vector 3').replace('"divide-error" vector 0', '"divide-error" vector 4')
-    .replace('sampling flag TF, latch TRAPPENDING', 'sampling flag CF, latch TRAPPENDING'));
+    .replace('sampling flag TF, latch TRAPPENDING', 'sampling flag CF, latch TRAPPENDING')
+    .replace('interface Cpu8088 ', 'interface CpuChanged8088 '));
   const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
   assert.equal(generated.status, 0, generated.stderr);
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
-    import { Cpu8088 } from ${JSON.stringify(pathToFileURL(join(directory, "src/components/cpus/8088.ts")).href)};
+    import { CpuChanged8088 as Cpu8088 } from ${JSON.stringify(pathToFileURL(join(directory, "src/components/cpus/generated/8088-cpu.ts")).href)};
+    import { cpuModels } from ${JSON.stringify(pathToFileURL(join(directory, "src/components/cpus/models.ts")).href)};
+    assert.equal(cpuModels["8088"].name, "CpuChanged8088");
+    assert.equal(cpuModels["8088"].module, "generated/8088-cpu");
+    assert.equal(cpuModels["8088"].ramSize, 0x200000);
+    assert.equal(cpuModels["8088"].maximumPc, 0x1fffff);
     const initial = { ax: 0x1234, bx: 0, cx: 0, dx: 0, sp: 0x8000, bp: 0, si: 0, di: 0,
       cs: 0x100, ds: 0x200, es: 0x300, ss: 0x400, ip: 0, halted: false, waiting: false,
       interruptDeferred: false, recognitionDeferred: false, trapPending: false,

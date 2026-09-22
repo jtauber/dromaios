@@ -11,6 +11,8 @@ import type { StateFields } from "../src/components/cpus/state.ts";
 /** Keep exported names precise, while exposing ordinary IR types to the remaining TS definitions. */
 function chapterModule(chapter: CpuChapter, name: string, cpu: string): string {
   const types = { sources: "ValueSource", views: "ValueSource", actions: "InstructionDefinition", policies: "FlagPolicy", operands: "readonly ChapterOperand[]", conditions: "readonly ChapterCondition[]", families: "readonly OpcodeEntry<InstructionDefinition>[]" };
+  const opcodeModule = `  { name: ${JSON.stringify(name)}, cpu: ${JSON.stringify(cpu)} as const, definitions: instructions, options: { ...options, bindOpcodes: true${Object.keys(chapter.pages).length ? ", pages" : ""} } },`;
+  const stateModule = `  { name: ${JSON.stringify(`${name}-state`)}, cpu: ${JSON.stringify(cpu)} as const, definitions: actions, options: { ...options, sources: { cpu: { name: ${JSON.stringify(cpu)} as const, state }, groups: { views } } } },`;
   return [
     "// Generated from a literate CPU chapter. Do not edit.",
     'import type { ValueSource, FlagPolicy, InstructionDefinition } from "../model.ts";',
@@ -27,14 +29,22 @@ function chapterModule(chapter: CpuChapter, name: string, cpu: string): string {
       return `export const ${group}: {\n${fields}\n} = ${data};\n`;
     }),
     ...(Object.keys(chapter.pages).length ? [`export const pages = ${JSON.stringify(chapter.pages)} as const;`, ""] : []),
-    ...(chapter.execution?.mode === "byte" && chapter.state ? [
+    ...(chapter.execution && chapter.state ? [
       'import { instructionSet } from "../builders.ts";',
       `import { state } from "./state/${name}.ts";`,
-      `export const instructions = instructionSet(Object.values(families).flat()${opcodePageLayouts(chapter.pages).some(page => page.on) ? ", 24" : Object.keys(chapter.pages).length ? ", 16" : ""});`,
+      `const entries = Object.values(families).flat();`,
+      `export const instructions = instructionSet(entries${chapter.execution.mode === "segmented" ? ".filter(([, definition]) => !definition.inputs)" : ""}${opcodePageLayouts(chapter.pages).some(page => page.on) ? ", 24" : Object.keys(chapter.pages).length ? ", 16" : ""});`,
+      ...(chapter.execution.mode === "segmented" ? [
+        'export const operandInstructions = instructionSet(entries.filter(([, definition]) => definition.inputs && !Object.hasOwn(definition.inputs, "repeatMode")));',
+        'export const strings = instructionSet(entries.filter(([, definition]) => definition.inputs && Object.hasOwn(definition.inputs, "repeatMode")));',
+      ] : []),
       `const options = { state: { name: "StoredState", module: "../semantics/generated/state/${name}.ts" }, origin: "specifications/${name}.md" };`,
       'export const instructionModules = [',
-      `  { name: ${JSON.stringify(name)}, cpu: ${JSON.stringify(cpu)} as const, definitions: instructions, options: { ...options, bindOpcodes: true${Object.keys(chapter.pages).length ? ", pages" : ""} } },`,
-      `  { name: ${JSON.stringify(`${name}-state`)}, cpu: ${JSON.stringify(cpu)} as const, definitions: actions, options: { ...options, sources: { cpu: { name: ${JSON.stringify(cpu)} as const, state }, groups: { views } } } },`,
+      ...(chapter.execution.mode === "segmented" ? [stateModule, opcodeModule] : [opcodeModule, stateModule]),
+      ...(chapter.execution.mode === "segmented" ? [
+        `  { name: "${name}-operands", cpu: ${JSON.stringify(cpu)} as const, definitions: operandInstructions, options },`,
+        `  { name: "${name}-strings", cpu: ${JSON.stringify(cpu)} as const, definitions: strings, options },`,
+      ] : []),
       '];', '',
     ] : []),
   ].join("\n");
@@ -58,7 +68,9 @@ export function generateCpuChapters() {
     return { name, cpu, chapter, module: chapterModule(chapter, name, cpu), state: chapter.state &&
       generateChapterState(chapter.state) + (chapter.interface ? generatePublicState(chapter.state, chapter.interface) : "") };
   });
-  const complete = chapters.filter(({ chapter }) => chapter.execution?.mode === "byte" && chapter.state);
+  // Keep the explanation order: flat/decoded byte models, then segmented models.
+  const complete = chapters.filter(({ chapter }) => chapter.execution && chapter.state)
+    .sort((left, right) => Number(left.chapter.execution!.mode === "segmented") - Number(right.chapter.execution!.mode === "segmented"));
   const registered = new Set<string>();
   for (const { name, cpu } of complete) {
     if (registered.has(cpu)) throw new Error(`${name}.md: Duplicate complete CPU chapter for ${cpu}.`);
@@ -66,7 +78,10 @@ export function generateCpuChapters() {
   }
   const catalogue = ["// Generated chapter instruction catalogue. Do not edit.",
     ...complete.map(({ name }, index) => `import { instructionModules as modules${index} } from "./${name}.ts";`),
-    ...complete.map(({ name, cpu }) => `export { instructions as instructions${cpu[0]!.toUpperCase() + cpu.slice(1)} } from "./${name}.ts";`),
+    ...complete.map(({ name, cpu, chapter }) => {
+      const suffix = cpu[0]!.toUpperCase() + cpu.slice(1);
+      return `export { instructions as instructions${suffix}${chapter.execution!.mode === "segmented" ? `, operandInstructions as operandInstructions${suffix}, strings as strings${suffix}` : ""} } from "./${name}.ts";`;
+    }),
     `export const chapterInstructionModules = [${complete.map((_, index) => `...modules${index}`).join(", ")}];`, ""].join("\n");
   const publicChapters = chapters.filter(({ chapter }) => chapter.interface);
   const interfaces = ["// Generated public CPU models. Do not edit.",
@@ -76,7 +91,8 @@ export function generateCpuChapters() {
       const pc = chapter.interface!.snapshots.find(({ field }) => field === "pc");
       const storedPc = chapter.state?.pc;
       const pcBits = pc ? chapter.views[pc.view]!.width : storedPc?.kind === "unsigned" ? storedPc.bits : undefined;
-      const maximumPc = pcBits === undefined ? undefined : 2 ** pcBits - 1;
+      const maximumPc = chapter.execution!.mode === "segmented" ? 2 ** chapter.execution!.memoryBits - 1
+        : pcBits === undefined ? undefined : 2 ** pcBits - 1;
       return `  ${JSON.stringify(cpu)}: { name: ${JSON.stringify(chapter.interface!.name)}, module: "generated/${name}-cpu", state: state${index}, ramSize: ${2 ** chapter.execution!.memoryBits}, maximumPc: ${maximumPc} },`;
     }), "} as const;", "export interface ChapterStates {",
     ...publicChapters.map(({ name, cpu, chapter }) =>

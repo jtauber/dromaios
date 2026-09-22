@@ -1,7 +1,7 @@
 import { stripTypeScriptTypes } from "node:module";
 import { actions, sources } from "../../src/components/cpus/semantics/generated/8088.js";
-import { cpu8088StateDescription } from "../../src/components/cpus/state/8088.js";
-import type { Cpu8088State } from "../../src/components/cpus/state/8088.js";
+import { cpu8088StateDescription } from "../../src/components/cpus/semantics/generated/state/8088.js";
+import type { Cpu8088State } from "../../src/components/cpus/semantics/generated/state/8088.js";
 import { generateInstructions } from "../../src/components/cpus/semantics/generate.js";
 import { capture, perform, readSource, signExtend, value } from "../../src/components/cpus/semantics/model.js";
 import type { InstructionDefinition } from "../../src/components/cpus/semantics/model.js";

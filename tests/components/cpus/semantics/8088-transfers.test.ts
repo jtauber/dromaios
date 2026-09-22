@@ -3,9 +3,9 @@ import { test } from "node:test";
 import { instructions as actions } from "../../../../src/components/cpus/generated/8088-state.js";
 import { probes } from "../../../helpers/8088-operands.js";
 import { actions as definitions } from "../../../../src/components/cpus/semantics/generated/8088.js";
-import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
+import { cpu8088StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
-import type { Cpu8088State } from "../../../../src/components/cpus/state/8088.js";
+import type { Cpu8088State } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
 import { address, byteMoves, initialState, registerValue, replaceRegister, words } from "../8088/helpers.js";
 
 type Context = { fetchByte(): number; readByte(address: number): number; writeByte(address: number, value: number): void };

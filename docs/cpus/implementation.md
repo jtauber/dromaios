@@ -207,7 +207,7 @@ Choose the grouping from the CPU's encoding:
 | [6800](../../src/components/cpus/specifications/6800.md) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; unary forms use `01 tt oooo`, with `tt` selecting A/B/indexed/extended; short branches use `0010 ttt p`, keeping the unused `21` explicit |
 | [6809](../../src/components/cpus/specifications/6809.md) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, `0110 oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte; pages `10`/`11` share chapter word families, with long conditions on page `10` |
 | [Z80](../../src/components/cpus/specifications/z80.md) | Chapter-owned instruction families and prefix layouts; decoded execution commits PC/refresh after complete validation; chapter-defined mixed entries select NMI and IRQ modes; the public interface and both bank snapshots are generated |
-| [8088](../../src/components/cpus/8088.ts) | Family-specific fields: `00 ooo 0 d w` / `00 ooo 10 w` for ALU families, `mm ggg rrr` for ModR/M operands or operation extensions, `0101 p rrr` for register stacks, `0111 ttt p` for conditional jumps, and `1010 00 d w` / `1011 w rrr` for transfers; wrap byte offsets within the selected segment before mapping to the physical bus |
+| [8088](../../src/components/cpus/specifications/8088.md) | Family-specific fields: `00 ooo 0 d w` / `00 ooo 10 w` for ALU families, `mm ggg rrr` for ModR/M operands or operation extensions, `0101 p rrr` for register stacks, `0111 ttt p` for conditional jumps, and `1010 00 d w` / `1011 w rrr` for transfers; wrap byte offsets within the selected segment before mapping to the physical bus |
 | [68000](../../src/components/cpus/68000.ts) | Sixteen-bit operation words; MOVE encodes destination register/mode before source mode/register; immediate ALU families encode operation, size, and a data-alterable effective address |
 
 Keep each encoded subgroup contiguous, including its alternate selector cases
@@ -446,7 +446,7 @@ CPU modules keep their public names as aliases, such as `Cpu6502Instruction`
 and `Cpu6502ResetRecord`. `InstructionStep`, `HaltedStep`, and `WaitingStep` accept the same
 optional access type. The 8008, 8080, Z80, and 8088 supply a union of memory and
 port accesses. The 8088 additionally records ESC delivery and TEST samples through its
-[device adapter](../../src/components/cpus/8088-external.ts); the
+[device adapter](../../src/components/cpus/coprocessor-access.ts); the
 68000 includes a device-reset event. Other CPUs retain the memory-only default.
 Each step type selects its supported outcomes. The 68000 defines its own
 `StateTransition`-based record with `executed` or `halted` outcomes and optional
@@ -799,7 +799,7 @@ writes in an instruction such as XCHG. Chapter operand catalogues supply the
 byte and word selectors shared across its instruction families.
 
 Keep 8088 bit patterns beside their chapter bodies. The
-[definition adapter](../../src/components/cpus/semantics/definitions/8088.ts) only
+[chapter catalogue generator](../../scripts/generate-cpu-chapters.ts)
 groups families by their prefix inputs. Build the combined table after state
 initialization, retaining collision checks across the generated bindings. The
 chapter execution contract owns prefixes, segmented fetching, and retirement;

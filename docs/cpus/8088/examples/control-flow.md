@@ -5,7 +5,7 @@ stack while subroutines use AX for arithmetic. This combines comparison,
 conditional branches, near calls/returns, register saves, and separate
 code, data, and stack segments.
 
-[Model contract](../model.md#control-flow-and-stack) ·
+[Model contract](../../../../src/components/cpus/specifications/8088.md#control-flow-and-stack) ·
 [Machine definition](../../../../src/machines/8088/control-flow-example.machine) ·
 [Example tests](../../../../tests/machines/8088/control-flow-example.test.ts) ·
 [CPU coverage](../../coverage.md#8088)

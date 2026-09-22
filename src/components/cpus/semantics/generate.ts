@@ -43,7 +43,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     { name: "InterruptDeferralContext", type: `InterruptDeferralContext${irqDeferral ? '<"irq">' : ""}`, file: "instruction-context", capabilities: ["deferInterrupt"] },
     { name: "RetiNotificationContext", file: "instruction-context", capabilities: ["notifyReti"] },
     { name: "InterruptReportContext", file: "instruction-context", capabilities: ["reportInterrupt"] },
-    { name: "Cpu8088ExternalContext", file: "8088-external", capabilities: ["readTest", "sendEscape"] },
+    { name: "CoprocessorContext", file: "coprocessor-access", capabilities: ["readTest", "sendEscape"] },
     { name: "WordInstructionContext", file: "instruction-context", capabilities: ["fetchWord"] },
     { name: "Cpu68000AddressContext", file: "68000-context", capabilities: ["resolveAddress", "commitAddressUpdates", "readProgramByte"] },
     { name: "Cpu68000ControlContext", file: "68000-context", capabilities: ["nextAddress", "jump"] },

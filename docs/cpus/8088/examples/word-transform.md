@@ -5,7 +5,7 @@ byte order. The initial input `FFFFFF81` (−127) becomes `FFFFFFC0` (−64),
 then `00000040` (+64). A separate byte records the bit discarded by halving.
 The operation is `−floor(input / 2)`, including for positive inputs.
 
-[Model contract](../model.md#shifts-and-rotates) ·
+[Model contract](../../../../src/components/cpus/specifications/8088.md#one-bit-at-a-time) ·
 [Example definition](../../../../src/machines/8088/word-transform-example.machine) ·
 [Example tests](../../../../tests/machines/8088/word-transform-example.test.ts) ·
 [CPU coverage](../../coverage.md#8088)

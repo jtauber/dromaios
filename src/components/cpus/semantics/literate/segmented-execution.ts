@@ -1,11 +1,14 @@
 import type { Flag, InstructionDefinition, Latch, Register, Statement, ValueSource } from "../model.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
+import { chapterVectorOffers, generateVectorOffers } from "./vector-offers.ts";
+import type { ChapterVectorOffer } from "./vector-offers.ts";
 import { checkStateEffects } from "./statements.ts";
 
 export interface SegmentedExecution {
   readonly mode: "segmented";
-  readonly interrupt: "external";
+  readonly interrupt: "offers";
+  readonly entries: readonly ChapterVectorOffer[];
   readonly memoryBits: number;
   readonly counter: string;
   readonly writeCounter: string;
@@ -65,11 +68,12 @@ export function checkSegmentedEffects(steps: readonly Statement[], fault: string
 /** Keep segmentation, prefix bytes, and lifecycle actions in the chapter, with no implicit CPU defaults. */
 export function chapterSegmentedExecution(header: ChapterTokens, lines: readonly ChapterTokens[], symbols: Symbols): SegmentedExecution {
   const fields = new Map<string, ChapterTokens>();
-  let prefixLines: readonly ChapterTokens[] = [];
+  let prefixLines: readonly ChapterTokens[] = [], offerLines: readonly ChapterTokens[] = [];
   for (let index = 0; index < lines.length; index++) {
     const tokens = lines[index]!, name = tokens.word();
     if (fields.has(name)) tokens.fail(`Duplicate execution field ${name}.`);
     fields.set(name, tokens);
+    if (name === "interrupt") { const { body, end } = chapterBody(lines, index); offerLines = body; index = end; }
     if (name === "prefixes") { const { body, end } = chapterBody(lines, index); prefixLines = body; index = end; }
   }
   const required = (name: string) => {
@@ -145,9 +149,10 @@ export function chapterSegmentedExecution(header: ChapterTokens, lines: readonly
   retireAt.checked(() => checkStateEffects(retireDefinition.steps, "state", false));
   const unsupported = required("unsupported"); unsupported.expect("restore"); unsupported.expect("counter"); unsupported.end();
   const failure = required("failure"); failure.expect("retain"); failure.end();
-  const interrupt = required("interrupt"); interrupt.expect("external"); interrupt.end();
+  const interrupt = required("interrupt"); interrupt.expect("offers"); interrupt.expect("{"); interrupt.end();
+  const entries = chapterVectorOffers(interrupt, offerLines, symbols);
   for (const [name, tokens] of fields) tokens.fail(`Unknown execution field ${name}.`);
-  return { mode: "segmented", interrupt: "external", memoryBits, counter, writeCounter, segment, baseShift, recordAddress,
+  return { mode: "segmented", interrupt: "offers", entries, memoryBits, counter, writeCounter, segment, baseShift, recordAddress,
     fetched, prefixLimit, prefixes, stopped, waiting, resume, resumeArgument,
     pending: { source, vector, owed, inhibited, consume, enter }, fault: { source: faultSource, vector: faultVector, enter: faultEnter }, reset, retire, samples };
 }
@@ -159,24 +164,28 @@ export function generateSegmentedExecution(cpu: string, module: string, policy: 
   const { pending, fault } = policy;
   return `// Generated from the chapter's execution contract. Do not edit.
 import { segmentedExecution } from "../segmented-execution.ts";
+import { vectorOffers } from "../vector-offers.ts";
 import type { SegmentedExecutionPolicy } from "../segmented-execution.ts";
 import { programCounter } from "../execute-byte-instruction.ts";
 import { checkByteMemory } from "../byte-execution.ts";
 import { opcodeTable } from "../opcodes.ts";
 import type { Ram } from "../../memory/ram.ts";
 import type { BytePorts } from "../port-access.ts";
-import type { Cpu8088ExternalAccess, Cpu8088ExternalContext } from "../8088-external.ts";
+import { recordCoprocessor } from "../coprocessor-access.ts";
+import type { CoprocessorAccess, CoprocessorContext, CoprocessorConnections } from "../coprocessor-access.ts";
 import { opcodeEntries } from "./${module}.ts";
 import { instructions as operands } from "./${module}-operands.ts";
 import { instructions as strings } from "./${module}-strings.ts";
 import { instructions as actions, sourceReaders } from "./${module}-state.ts";
 
 export const checkMemory = (ram: Ram): void => checkByteMemory(${q(cpu)}, ram, ${policy.memoryBits});
+export const recordDevices = (connections: CoprocessorConnections | undefined, record: (access: CoprocessorAccess) => void) =>
+  recordCoprocessor(${q(cpu)}, connections, record);
 
 export function createExecution<Snapshot>(state: Parameters<typeof opcodeEntries>[0], ram: Ram, snapshot: () => Snapshot,
-  ports: () => BytePorts | undefined, devices: (record: (access: Cpu8088ExternalAccess) => void) => Cpu8088ExternalContext) {
+  ports: () => BytePorts | undefined, devices: (record: (access: CoprocessorAccess) => void) => CoprocessorContext) {
   const views = sourceReaders(state).views;
-  type Policy = SegmentedExecutionPolicy<Cpu8088ExternalContext, ${q(fault.source)}, { readonly source: ${q(pending.source)}; readonly vector: ${pending.vector} }>;
+  type Policy = SegmentedExecutionPolicy<CoprocessorContext, ${q(fault.source)}, { readonly source: ${q(pending.source)}; readonly vector: ${pending.vector} }>;
   type Handler = NonNullable<Policy["handlers"][number]>;
   const policy: Policy = {
     memoryBits: ${policy.memoryBits}, segment: () => ${field(policy.segment)}, baseShift: ${policy.baseShift},
@@ -203,7 +212,13 @@ ${prefix}
     },
     faults: { [${q(fault.source)}]: { vector: ${fault.vector}, enter: memory => ${call(fault.enter, `, ${fault.vector}, memory`)} } },
   };
-  return segmentedExecution(${q(cpu)}, ram, ports, snapshot, devices, policy);
+  const boundary = segmentedExecution(${q(cpu)}, ram, ports, snapshot, devices, policy);
+  const offer = vectorOffers(${q(cpu)}, ram, snapshot, {
+${generateVectorOffers(policy.entries)}
+  });
+  return { reset: boundary.reset, step: boundary.step,
+    interrupt: (source: ${policy.entries.map(entry => q(entry.source)).join(" | ")}, acknowledge?: () => number) => boundary.atBoundary(() => offer(source, acknowledge)),
+  };
 }
 `;
 }

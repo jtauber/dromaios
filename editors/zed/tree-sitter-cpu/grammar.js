@@ -15,7 +15,7 @@ module.exports = grammar({
       $.family_declaration, $.page_declaration, $.execution_declaration, $.interface_declaration,
     )),
 
-    cpu_declaration: $ => seq('cpu', field('model', $.string)),
+    cpu_declaration: $ => seq('cpu', field('model', $.string), optional(seq('boundary', 'segmented'))),
     state_declaration: $ => seq('state', '{', repeat(choice($._state_field, $.bank_declaration)), '}'),
     bank_declaration: $ => seq('bank', $._state_name, optional($.field_mapping), '{', repeat(choice($.register_declaration, $.flag_declaration)), '}'),
     _state_field: $ => choice($.register_declaration, $.array_declaration, $.flag_declaration, $.choice_declaration),
@@ -131,14 +131,15 @@ module.exports = grammar({
     action_policy: $ => seq(choice('reset', 'retire'), choice('none', seq('action', $.identifier, optional(seq('sampling', commaSeparated(seq(choice('flag', 'latch'), $._state_name))))))),
     retirement_policy: $ => seq('retire', 'irq', 'into', $._state_name, optional(seq('then', 'action', $.identifier))),
     notification_policy: _ => seq('notify', 'reti', 'after', 'retire'),
-    interrupt_policy: $ => seq('interrupt', choice('external', seq('entries', '{', repeat($.interrupt_entry), '}'), seq(optional('vectors'), '{', repeat(choice(
+    interrupt_policy: $ => seq('interrupt', choice('external', seq('offers', '{', repeat($.vector_offer), '}'), seq('entries', '{', repeat($.interrupt_entry), '}'), seq(optional('vectors'), '{', repeat(choice(
       $.vector_entry,
       $.accept_policy, $.bytes_policy, $.callback_policy, $.interrupt_counter_policy, $.unknown_policy,
     )), '}'))),
+    vector_offer: $ => seq('source', $.identifier, choice('acknowledge', seq('vector', $.number)), '{', repeat(choice($.entry_gate, $.entry_action)), '}'),
     interrupt_entry: $ => seq('source', $.identifier, optional('acknowledge'), '{', repeat(choice(
       $.entry_gate, $.entry_action, $.entry_selection,
     )), '}'),
-    entry_gate: $ => seq(choice('when', 'unless'), 'latch', $._state_name, 'otherwise', $.string),
+    entry_gate: $ => seq(choice('when', 'unless'), choice('latch', 'flag'), $._state_name, 'otherwise', $.string),
     entry_action: $ => seq(choice('accept', 'enter'), 'action', $.identifier),
     entry_selection: $ => seq('select', $._state_name, '{', repeat($.entry_case), '}'),
     entry_case: $ => seq('case', choice($.number, $.string), choice('supplied', seq('action', $.identifier, optional(seq('sampling', commaSeparated(seq(choice('flag', 'latch'), $._state_name))))))),

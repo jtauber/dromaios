@@ -257,3 +257,20 @@ execution segmented {
   retire action finish sampling flag TF, latch TRAPPENDING
   unsupported restore counter
 }
+
+// Segmented effects and ordered vector offers are declared independently of CPU names.
+cpu "example" boundary segmented
+execution segmented {
+  interrupt offers {
+    source intr acknowledge {
+      unless latch DEFERRED otherwise "deferred"
+      when flag C otherwise "masked"
+      accept action prepare
+      enter action enter
+    }
+    source nmi vector 2 {
+      accept action prepare
+      enter action enter
+    }
+  }
+}

@@ -7,7 +7,7 @@ import { generateInstructions } from "../../../../src/components/cpus/semantics/
 const compile = (body: string, cpu = "8088") => compileCpuChapter(`Deferral requests stay ordered and retire through the CPU boundary.
 
 \`\`\`cpu
-cpu "${cpu}"
+cpu "${cpu}"${cpu === "8088" ? " boundary segmented" : ""}
 state {
   register A: 8
 }
@@ -42,7 +42,7 @@ test("8088 chapter deferral preserves scope, callback order, and failed partial 
 test("deferral scopes require the matching CPU boundary", () => {
   const family = (scope: string) => `family enable "00000000" {\n  defer ${scope}\n}`;
   assert.throws(() => compile(family("nmi")), /deferral.md.*Expected irq, intr, or all/s);
-  assert.throws(() => compile(family("irq")), /8088 interrupt deferral scope must be intr or all/);
+  assert.throws(() => compile(family("irq")), /Segmented interrupt deferral scope must be intr or all/);
   for (const scope of ["intr", "all"]) for (const cpu of ["8080", "probe"]) {
     assert.throws(() => compile(family(scope), cpu), /IRQ deferral needs a declared retirement destination/);
   }

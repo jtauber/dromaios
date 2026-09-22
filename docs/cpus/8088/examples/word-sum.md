@@ -4,7 +4,7 @@ Mask four input words with F0FF, add them into DX:AX, and mark an odd result
 in RAM. A subroutine preserves BX and BP in a stack frame, loads each input
 through DS:[BX+SI], and restores the array base through SS:[BP-2].
 
-[Model contract](../model.md#modrm-operands) ·
+[Model contract](../../../../src/components/cpus/specifications/8088.md#segmented-memory-and-modrm-operands) ·
 [Machine definition](../../../../src/machines/8088/word-sum-example.machine) ·
 [Example tests](../../../../tests/machines/8088/word-sum-example.test.ts) ·
 [CPU coverage](../../coverage.md#8088) ·

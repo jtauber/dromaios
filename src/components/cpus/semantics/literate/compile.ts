@@ -98,7 +98,9 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         const name = header.quoted();
         if (target.name !== undefined && name !== target.name) header.fail(`Expected CPU ${target.name}.`);
         if (!/^[a-z0-9]+$/.test(name)) header.fail("CPU names must contain lowercase letters or digits.");
-        cpu = { ...cpu, name };
+        const segmentedBoundary = header.take("boundary");
+        if (segmentedBoundary) header.expect("segmented");
+        cpu = { ...cpu, name, ...(segmentedBoundary ? { segmentedBoundary: true } : {}) };
         if (cpu.state.flags?.kind === "group") flagGroups.set("FLAGS", { kind: "flag-group", cpu: name });
         declared = true; header.end(); continue;
       }
@@ -128,7 +130,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
           declarations.push({ symbol: { kind: "bank", field, fields }, tokens });
           flagGroups.set(`${name}.FLAGS`, { kind: "flag-group", cpu: cpu.name, bank: field });
         }
-        cpu = { name: cpu.name, state: chapterState(declarations) }; ownsState = true;
+        cpu = { ...cpu, state: chapterState(declarations) }; ownsState = true;
         if (cpu.state.flags?.kind === "group") flagGroups.set("FLAGS", { kind: "flag-group", cpu: cpu.name });
         continue;
       }
@@ -143,7 +145,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
       }
       if (kind === "execution") {
         const segmented = header.take("segmented");
-        if (segmented && cpu.name !== "8088") header.fail("Segmented execution currently supplies the 8088 device context.");
+        if (segmented !== (cpu.segmentedBoundary === true)) header.fail("Segmented execution requires a matching CPU boundary declaration.");
         if (execution) header.fail("Execution is already declared.");
         header.expect("{"); header.end();
         const { body, end } = chapterBody(lines, index); index = end;

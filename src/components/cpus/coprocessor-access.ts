@@ -1,33 +1,33 @@
 /** ESC carries six external opcode bits; register forms expose the selector, never a CPU register value. */
-export interface Cpu8088Escape {
+export interface CoprocessorEscape {
   readonly opcode: number;
   readonly modRM: number;
   readonly memory: { readonly segment: number; readonly offset: number; readonly address: number; readonly value: number } | null;
 }
 
 /** Device state and TEST pin level belong to the machine, independently of CPU snapshots. */
-export interface Cpu8088ExternalConnections {
-  readonly escape?: (instruction: Cpu8088Escape) => void;
+export interface CoprocessorConnections {
+  readonly escape?: (instruction: CoprocessorEscape) => void;
   /** Physical TEST level: high waits; low permits the next instruction. */
   readonly test?: () => boolean;
 }
 
-export type Cpu8088ExternalAccess = (Cpu8088Escape & { readonly kind: "escape" }) | { readonly kind: "test"; readonly high: boolean };
+export type CoprocessorAccess = (CoprocessorEscape & { readonly kind: "escape" }) | { readonly kind: "test"; readonly high: boolean };
 
 /** External effects available to generated bodies, independently of their CPU and memory effects. */
-export interface Cpu8088ExternalContext {
+export interface CoprocessorContext {
   readonly readTest: () => boolean;
-  readonly sendEscape: (request: Cpu8088Escape) => void;
+  readonly sendEscape: (request: CoprocessorEscape) => void;
 }
 
 /** Validate pin samples and record successful device effects; callbacks never own the recorded request. */
-export function record8088External(connections: Cpu8088ExternalConnections | undefined,
-  record: (access: Cpu8088ExternalAccess) => void): Cpu8088ExternalContext {
+export function recordCoprocessor(cpu: string, connections: CoprocessorConnections | undefined,
+  record: (access: CoprocessorAccess) => void): CoprocessorContext {
   return {
     readTest() {
-      if (!connections?.test) throw new TypeError("8088 WAIT requires a TEST input connection.");
+      if (!connections?.test) throw new TypeError(`${cpu} WAIT requires a TEST input connection.`);
       const high = connections.test();
-      if (typeof high !== "boolean") throw new TypeError("8088 TEST input must return a Boolean pin level.");
+      if (typeof high !== "boolean") throw new TypeError(`${cpu} TEST input must return a Boolean pin level.`);
       record({ kind: "test", high });
       return high;
     },

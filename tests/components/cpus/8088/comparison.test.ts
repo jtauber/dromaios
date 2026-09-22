@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import type { Cpu8088State } from "../../../../src/components/cpus/8088.js";
+import type { Cpu8088State } from "../../../../src/components/cpus/generated/8088-cpu.js";
 import { ObservedRam } from "../../../helpers/observed-ram.js";
 import { initialState, flags, checkStep } from "./helpers.js";
 

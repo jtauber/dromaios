@@ -4,7 +4,7 @@ Load `12FF`, add `0002`, and store `1301` through the data segment. The program
 exposes a carry between AL and AH, little-endian words at an odd address, and
 the distinction between a logical address and its physical RAM location.
 
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/8088.md) ·
 [Machine definition](../../../../src/machines/8088/example.machine) ·
 [Example tests](../../../../tests/machines/8088/example.test.ts) ·
 [CPU tests](../../../../tests/components/cpus/8088) ·
@@ -34,7 +34,7 @@ The destination and completion address `12449` initially contain zero.
 
 These are explicit example choices. AL/AH initially show `22`/`11`; the other
 byte views similarly come from their word registers. Physical PC is `12440`.
-Instruction semantics follow the [model contract](../model.md#instruction-steps)
+Instruction semantics follow the [model contract](../../../../src/components/cpus/specifications/8088.md#instruction-steps)
 and its Intel manual references. No external interrupt is offered in this example.
 
 `create8088Example()` returns fresh `{ cpu, ram, endAddress }` with physical

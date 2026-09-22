@@ -7,7 +7,7 @@ import { create8008ControlFlowExample } from "../../src/machines/generated/8008/
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Cpu8080 } from "../../src/components/cpus/generated/8080-cpu.js";
-import type { Cpu8088 } from "../../src/components/cpus/8088.js";
+import type { Cpu8088 } from "../../src/components/cpus/generated/8088-cpu.js";
 import { create8088Example } from "../../src/machines/generated/8088/example.js";
 import { create8088TransfersExample } from "../../src/machines/generated/8088/transfers-example.js";
 import type { Cpu6502 } from "../../src/components/cpus/generated/6502-cpu.js";

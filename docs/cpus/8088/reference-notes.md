@@ -4,7 +4,7 @@ This records the comparison with `dromaios-pc` at commit
 [`a6fb9d1`](https://github.com/jtauber/dromaios-pc/tree/a6fb9d10f4274dbd8ba40400e0b6761aec1d4b54),
 reviewed on 14 September 2026. The existing emulator is a source of design
 ideas and comparison cases; Intel's manual remains the hardware reference for
-the [new model contract](model.md).
+the [new model contract](../../../src/components/cpus/specifications/8088.md).
 
 ## Useful distinctions
 
@@ -205,7 +205,7 @@ instruction record, both marker paths, signed boundaries, and full RAM images.
 The 15 September 2026 ordinary-instruction expansion added 63 documented forms
 and all seven prefix modifiers. That slice kept interrupt-specific instructions,
 port I/O, ESC, and WAIT deferred, reaching 268 of 291 forms; HLT and its
-stored latch are included. The [model contract](model.md) defines the limits.
+stored latch are included. The [model contract](../../../src/components/cpus/specifications/8088.md) defines the limits.
 
 The same pinned
 [SingleStepTests/8088 V2 suite](https://github.com/SingleStepTests/8088/tree/aea84484abc79d09639d855b7b0ab32bc9e4dbeb)

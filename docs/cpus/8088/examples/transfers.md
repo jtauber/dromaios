@@ -1,6 +1,6 @@
 # 8088 byte and word transfers
 
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/8088.md) ·
 [Machine definition](../../../../src/machines/8088/transfers-example.machine) ·
 [Example tests](../../../../tests/machines/8088/transfers-example.test.ts)
 

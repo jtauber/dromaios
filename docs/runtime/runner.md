@@ -50,10 +50,10 @@ iteration. The runner can pause between iterations without hidden progress.
 Restoring CPU and RAM snapshots also requires restoring the attached device
 state separately; port callbacks belong to the caller's connection.
 
-An [8088 IN/OUT](../cpus/8088/model.md#port-input-and-output) counts as one step,
+An [8088 IN/OUT](../../src/components/cpus/specifications/8088.md#port-input-and-output) counts as one step,
 including both byte transfers of a word. CPU/RAM/device restoration occurs
 between instructions; the runner does not pause inside a port transfer.
-An [8088 pending trap](../cpus/8088/model.md#recognition-delays-and-single-stepping)
+An [8088 pending trap](../../src/components/cpus/specifications/8088.md#recognition-delays-and-single-stepping)
 uses a separate executed step with no instruction fetch. Software interrupts
 and divide errors deliver within their triggering instruction's step. An HLT
 with an owed trap reports `executed`, allowing the following step to enter the

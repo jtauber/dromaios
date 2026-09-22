@@ -20,8 +20,8 @@ import { instructions as strings8088 } from "../../src/components/cpus/generated
 import { instructions as operand8088 } from "../../src/components/cpus/generated/8088-operands.js";
 import { instructions as actions8088 } from "../../src/components/cpus/generated/8088-state.js";
 import { instructions as generated8088, opcodeEntries as opcodeEntries8088 } from "../../src/components/cpus/generated/8088.js";
-import { cpu8088StateDescription } from "../../src/components/cpus/state/8088.js";
-import type { Cpu8088State } from "../../src/components/cpus/8088.js";
+import { cpu8088StateDescription } from "../../src/components/cpus/semantics/generated/state/8088.js";
+import type { Cpu8088State } from "../../src/components/cpus/generated/8088-cpu.js";
 import { cpu6809StateDescription } from "../../src/components/cpus/semantics/generated/state/6809.js";
 import { cpuZ80StateDescription } from "../../src/components/cpus/semantics/generated/state/z80.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/generated/6502-cpu.js";

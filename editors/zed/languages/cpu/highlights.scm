@@ -9,7 +9,7 @@
   "execution" "memory" "port" "counter" "stopped" "word" "opcode" "advance"
   "on" "dispatch" "decode" "then" "external" "after" "failure" "retain" "reset" "retire" "interrupt"
   "accept" "always" "unless" "bytes" "acknowledge" "preserve" "interface" "snapshot" "unknown"
-  "callback" "validate" "offer" "using" "entries" "enter" "select" "supplied" "vectors" "as" "match" "case" "otherwise" "resume"
+  "callback" "validate" "offer" "using" "entries" "offers" "enter" "select" "supplied" "vectors" "as" "match" "case" "otherwise" "resume"
 ] @keyword
 ["little" "big" "none" "waiting" "unsupported"] @constant
 

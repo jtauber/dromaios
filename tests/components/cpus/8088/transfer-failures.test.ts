@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Cpu8088 } from "../../../../src/components/cpus/8088.js";
+import { Cpu8088 } from "../../../../src/components/cpus/generated/8088-cpu.js";
 import { ObservedRam } from "../../../helpers/observed-ram.js";
 import { address, checkStep, flags, initialState, put, snapshot } from "./helpers.js";
 

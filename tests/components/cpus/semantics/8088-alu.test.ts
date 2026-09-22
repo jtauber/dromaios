@@ -3,9 +3,9 @@ import { test } from "node:test";
 import { probes } from "../../../helpers/8088-operands.js";
 import { operandInstructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { actions as definitions } from "../../../../src/components/cpus/semantics/generated/8088.js";
-import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
+import { cpu8088StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
-import type { Cpu8088State } from "../../../../src/components/cpus/state/8088.js";
+import type { Cpu8088State } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
 import { address, aluResult, byteMoves, flags, initialState, registerValue, replaceRegister, words } from "../8088/helpers.js";
 import type { AluName } from "../8088/helpers.js";
 

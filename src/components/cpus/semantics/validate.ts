@@ -336,24 +336,24 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         case "write-element": expect(step.value, element(step.array, step.index, scope, where)); return;
         case "fill-array": expect(step.value, registerArray(step.array, where)); return;
         case "defer-interrupt":
-          if (cpu.name === "8088") {
-            if (step.scope !== "intr" && step.scope !== "all") fail(where, "8088 interrupt deferral scope must be intr or all");
+          if (cpu.segmentedBoundary === true) {
+            if (step.scope !== "intr" && step.scope !== "all") fail(where, "Segmented interrupt deferral scope must be intr or all");
           } else if (cpu.irqDeferral !== true || step.scope !== "irq") fail(where, "IRQ deferral needs a declared retirement destination");
           return;
         case "notify-reti":
           if (cpu.retiNotification !== true) fail(where, "RETI notification requires a declared notification policy");
           return;
         case "report-interrupt":
-          if (cpu.name !== "8088") fail(where, "software delivery reporting requires the 8088 boundary");
+          if (cpu.segmentedBoundary !== true) fail(where, "software delivery reporting requires a segmented boundary");
           expect(step.vector, 8); return;
         case "reset-devices":
           if (cpu.name !== "68000") fail(where, "device reset requires a 68000 connection");
           return;
         case "read-test":
-          if (cpu.name !== "8088") fail(where, "TEST sampling requires an 8088 connection");
+          if (cpu.segmentedBoundary !== true) fail(where, "TEST sampling requires a segmented coprocessor connection");
           captured = "flag"; break;
         case "send-escape":
-          if (cpu.name !== "8088") fail(where, "ESC requests require an 8088 connection");
+          if (cpu.segmentedBoundary !== true) fail(where, "ESC requests require a segmented coprocessor connection");
           expect(step.opcode, 8); expect(step.modRM, 8);
           if (step.memory) {
             expect(step.memory.segment, 16); expect(step.memory.offset, 16); expect(step.memory.value, 16);
