@@ -1,11 +1,11 @@
 import { actions as state68000, sources as sources68000, views as views68000 } from "./generated/68000.ts";
 import { state as schema68000 } from "./generated/state/68000.ts";
-import { instructions68000, quick68000, moves68000, moveOpcodes68000, logic68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000 } from "./definitions/68000.ts";
+import { instructions68000, quick68000, moves68000, moveOpcodes68000, logic68000, logicOpcodes68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000 } from "./definitions/68000.ts";
 import { chapterInstructionModules } from "./generated/catalogue.ts";
 import type { generateInstructions } from "./generate.ts";
 
 export * from "./generated/catalogue.ts";
-export { instructions68000, quick68000, moves68000, moveOpcodes68000, logic68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000 };
+export { instructions68000, quick68000, moves68000, moveOpcodes68000, logic68000, logicOpcodes68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000 };
 
 type GenerationParameters = Parameters<typeof generateInstructions>;
 interface InstructionModule {
@@ -22,7 +22,7 @@ export const instructionModules: readonly InstructionModule[] = Object.freeze<re
   { name: "68000", cpu: "68000", definitions: instructions68000 },
   { name: "68000-quick", cpu: "68000", definitions: quick68000 },
   { name: "68000-moves", cpu: "68000", definitions: moves68000, options: { opcodeAliases: moveOpcodes68000, origin: "specifications/68000.md" } },
-  { name: "68000-logic", cpu: "68000", definitions: logic68000 },
+  { name: "68000-logic", cpu: "68000", definitions: logic68000, options: { opcodeAliases: logicOpcodes68000, origin: "specifications/68000.md" } },
   { name: "68000-arithmetic", cpu: "68000", definitions: arithmetic68000 },
   { name: "68000-bits", cpu: "68000", definitions: bits68000 },
   { name: "68000-word-arithmetic", cpu: "68000", definitions: wordArithmetic68000 },

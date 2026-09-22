@@ -1660,14 +1660,15 @@ pending update to its destination register. The decoder's pending values feed
 later base/index calculations; first-use order governs commits when operands
 share a register. Abandoned bodies discard their pending map automatically.
 
-The data logical families add 906 bodies for 6,660 forms through the same
-binding and address context. Their [encoding inventory](../../src/components/cpus/68000-logic.ts)
-shares [operand classification](../../src/components/cpus/68000-operands.ts)
-with MOVE. The definitions share source reads (including A7's scoped bank
-selection), complete immediate fetching, high-first byte transfers, alignment
-checks, partial data-register writes, and N/Z/V/C policy. No new vocabulary or
-compiler behavior is needed. AND/OR with an immediate source EA share bodies
-with the equivalent ANDI/ORI-to-Dn encodings.
+The [data logical/unary chapter families](../../src/components/cpus/specifications/68000.md#logical-operations-and-readmodifywrite)
+own 906 bodies and all 6,660 encodings. They bind pure calculation sources with
+`with calculation = ...`, sharing operand access and flag/writeback sequencing
+across AND/OR/EOR and across CLR/NOT. TST has an explicit body without a write.
+MOVE and logic share chapter memory sources, immediate fetching, data-register
+write actions, and result policies. The native binding supplies only the encoded
+EA's mode and register code. No handwritten logical catalogue or instruction
+builder remains, and no new language or compiler feature is needed. AND/OR with
+an immediate source EA still share bodies with equivalent ANDI/ORI-to-Dn forms.
 
 The logical sequence commits pending address updates before reading the
 destination. CLR performs that read despite discarding its value; TST reads
@@ -1679,13 +1680,13 @@ logic remains in its separate status path.
 
 The addition/subtraction/comparison families add 2,678 bodies for 11,186 forms.
 Their [encoding inventory](../../src/components/cpus/68000-arithmetic.ts) supplies
-exact source/destination selectors through the same binding. Quick constants
+four source/destination mode and register selectors through its native binding. Quick constants
 use the source selector input: zero means eight; other codes mean one through
 seven. Literal values do not add coverage or bodies. Ordinary immediate and
 source-EA encodings share bodies where their data flow matches.
 
-A shared ALU destination recipe now serves logic and arithmetic. It resolves
-the destination, checks alignment, commits pending updates, reads the value,
+The remaining native arithmetic builders share an ALU destination recipe. It
+resolves the destination, checks alignment, commits pending updates, reads the value,
 applies the calculation, and optionally writes back. A7's bank is selected
 before committing updates, while its value is read afterward. ADDA/SUBA/CMPA
 sign-extend a word source and operate on all 32 destination bits. Quick

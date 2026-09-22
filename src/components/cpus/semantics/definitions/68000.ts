@@ -11,8 +11,6 @@ import { arithmeticForms68000, wordArithmeticForms68000, decimalForms68000 } fro
 import type { ArithmeticOperation68000, ArithmeticSource68000, WordArithmeticForm68000, DecimalForm68000 } from "../../68000-arithmetic.ts";
 import { bitForms68000 } from "../../68000-bits.ts";
 import type { BitForm68000, ShiftKind68000 } from "../../68000-bits.ts";
-import { logicForms68000 } from "../../68000-logic.ts";
-import type { LogicOperation68000 } from "../../68000-logic.ts";
 import { dataRegisters68000 as dataRegisters, addressRegisters68000 as addressRegisters } from "../../68000-operands.ts";
 import type { Operand68000, OperandSize68000 as Size, OperandRegister68000 as RegisterName } from "../../68000-operands.ts";
 import { perform, readSource, resetDevices, writeLatch, addOverflow, addWrap, alignmentFault, and, borrow, carry, overflow, select, subtract, bitAnd, bitOr, bitXor, capture, commitAddressUpdates, concat, cpuSymbols, extend, fetchWord, flagLiteral, flagValue, literal, lowBit, negative, readFlag, readMemory, readProgramMemory, readRegister,
@@ -45,7 +43,7 @@ function writeData(register: Register, size: Size, contents: NumberExpression): 
 const resultFlags = (size: Size) => policies[size === 8 ? "byteResult" : size === 16 ? "wordResult" : "longResult"];
 
 export const instructions68000 = instructionSet(Object.entries(families)
-  .filter(([name]) => name !== "moveQuick" && !name.startsWith("operandMove")).flatMap(([, entries]) => entries), 16);
+  .filter(([name]) => name !== "moveQuick" && !name.startsWith("operand")).flatMap(([, entries]) => entries), 16);
 
 // The native decoder supplies the encoded immediate to one chapter body per Dn.
 const quickForms = new Map(families.moveQuick);
@@ -157,31 +155,9 @@ function multipleTransfer({ size, load, base, predecrement, program }: Extract<T
 
 export const transfers68000 = instructionBodies(transferForms68000, form => form.kind === "peripheral" ? peripheralTransfer(form) : multipleTransfer(form));
 
-/** Logical ALU stages differ from MOVE: commit before reading the destination, flags before writing it. */
-function logic(operation: LogicOperation68000, size: Size, source: Operand68000 | undefined, destination: Exclude<Operand68000, { kind: "immediate" }>) {
-  const result = {
-    AND: bitAnd(value("destination"), value("source")), OR: bitOr(value("destination"), value("source")),
-    EOR: bitXor(value("destination"), value("source")), NOT: bitXor(value("destination"), literal(size, 2 ** size - 1)),
-    CLR: literal(size, 0), TST: value("destination"),
-  }[operation];
-  const steps = aluDestination(size, destination, destination.kind === "memory" || source?.kind === "memory",
-    [capture("result", result), updateFlags(resultFlags(size), { result: value("result") })], operation !== "TST");
-  return defineInstruction({ cpu: cpu.declaration,
-    name: `${source?.kind === "immediate" ? `${operation}I` : operation}.${sizes[size]} ${source ? `${source.name.toUpperCase()},` : ""}${destination.name.toUpperCase()}`,
-    inputs: { sourceMode: 3, sourceCode: 3, destinationMode: 3, destinationCode: 3 },
-    explanation: (source ? "Capture the source before resolving the destination. " : "Resolve the destination once. ")
-      + "Reject odd word/long operands before committing address updates. "
-      + "Commit staged updates before the destination read; a failed source discards them, while a failed destination read retains them. "
-      + "Memory transfers are high byte first with 32-bit logical wrap; PC-relative sources use program space. "
-      + (operation === "CLR" ? "Read the destination even though the result is zero. " : "")
-      + "Set N/Z and clear V/C after the reads; preserve X/T/S. "
-      + (operation === "TST" ? "Do not write the tested operand." : "Write the result after flags, preserving live upper Dn bits on byte/word writes. Failed writes retain flags and completed bytes."),
-    steps: source ? withSource(size, source, "source", steps) : steps,
-  });
-}
-
-// Immediate AND/OR-to-Dn encodings share their bodies with the corresponding data-EA forms.
-export const logic68000 = instructionBodies(logicForms68000, ({ operation, size, source, destination }) => logic(operation, size, source, destination));
+// Calculation bindings and the complete legal encoding inventory come from the chapter.
+const logicFamilies = Object.entries(families).filter(([name]) => name.startsWith("operandLogic")).flatMap(([, entries]) => entries);
+export const { definitions: logic68000, opcodeAliases: logicOpcodes68000 } = instructionAliases(logicFamilies);
 
 /** Calculation is shared; the 68000 supplies its X policy and cumulative-zero stage. */
 function arithmeticSteps(operation: ArithmeticOperation68000, size: Size, address: boolean): readonly Statement[] {

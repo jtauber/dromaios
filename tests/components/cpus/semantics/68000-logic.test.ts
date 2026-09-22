@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { initialState } from "../../../helpers/68000-state.js";
-import { instructions } from "../../../../src/components/cpus/generated/68000-logic.js";
-import { logicForms68000 } from "../../../../src/components/cpus/68000-logic.js";
+import { instructions, opcodeInstructions } from "../../../../src/components/cpus/generated/68000-logic.js";
 import { logic68000 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
@@ -10,8 +9,8 @@ import type { WordInstructionContext } from "../../../../src/components/cpus/ins
 import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
 
 type Context = Cpu68000AddressContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
-type Body = (state: Cpu68000State, sm: number, sc: number, dm: number, dc: number, context: Context) => OperandAlignmentFault | void;
-const bodies: Readonly<Record<string, Body>> = instructions;
+type Body = (state: Cpu68000State, mode: number, code: number, context: Context) => OperandAlignmentFault | "unsupported" | void;
+const bodies: Readonly<Record<number, Body>> = opcodeInstructions;
 const data = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
 const address = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
 type Operation = "AND" | "OR" | "EOR" | "CLR" | "NOT" | "TST";
@@ -96,7 +95,7 @@ interface Scenario { bits: number; address: number; left: number; right: number;
 function observe(f: Form, scenario: Scenario, failAt: number, generated: boolean) {
   const state = initialState(scenario.bits), events: unknown[][] = [], writes: number[][] = [], pending = new Map<string, number>();
   const failure = Error("injected logical effect failure");
-  let failed = false, outcome: OperandAlignmentFault | void, fetches = 0;
+  let failed = false, outcome: OperandAlignmentFault | "unsupported" | void, fetches = 0;
   if (f.dm === 0) state[data[f.dc]!] = scenario.left;
   if (!unary(f) && f.sm === 0) state[data[f.sc]!] = scenario.right;
   const effect = (...event: unknown[]) => { events.push(event); if (events.length - 1 === failAt) throw failure; };
@@ -132,7 +131,7 @@ function observe(f: Form, scenario: Scenario, failAt: number, generated: boolean
     readByte: a => read("data", a), readProgramByte: a => read("program", a),
     writeByte(a, byte) { effect("memory write", a, byte); mutate(); writes.push([a, byte]); },
   };
-  try { outcome = generated ? bodies[f.key]!(observed, f.sm, f.sc, f.dm, f.dc, context) : reference(observed, f, context); }
+  try { outcome = generated ? bodies[f.opcode]!(observed, sourceMemory(f) ? f.sm : f.dm, sourceMemory(f) ? f.sc : f.dc, context) : reference(observed, f, context); }
   catch (error) { if (error !== failure) throw error; failed = true; }
   return { state, events, writes, failed, outcome: outcome! };
 }
@@ -141,13 +140,16 @@ const scenario: Scenario = { bits: 127, address: 0xfffffffe, left: 0x89abcdef, r
 
 test("68000 logical bindings cover exactly 6,660 forms and share 906 bodies without status or illegal slots", () => {
   assert.equal(forms.length, 6660); assert.equal(representatives.length, 906);
-  const expected = new Map(forms.map(f => [f.opcode, f]));
-  assert.equal(logicForms68000.length, forms.length);
-  assert.equal(new Set(logicForms68000.map(f => f.opcode)).size, forms.length);
-  for (const f of logicForms68000) assert.deepEqual({ opcode: f.opcode, operation: f.operation, size: f.size, sm: f.sourceMode, sc: f.sourceCode,
-    dm: f.destinationMode, dc: f.destinationCode, key: f.body }, expected.get(f.opcode));
-  const keys = representatives.map(f => f.key).sort();
-  assert.deepEqual(Object.keys(logic68000).sort(), keys); assert.deepEqual(Object.keys(bodies).sort(), keys);
+  assert.deepEqual(Object.keys(bodies).map(Number), forms.map(f => f.opcode));
+  const names = representatives.map(f => {
+    const [, , from, to] = f.key.split("_");
+    const mnemonic = from === "immediate" ? `${f.operation}I` : f.operation;
+    return `${mnemonic}.${f.size === 8 ? "B" : f.size === 16 ? "W" : "L"} ${from === "none" ? "" : `${from!.toUpperCase()},`}${to!.toUpperCase()}`;
+  }).sort();
+  assert.deepEqual(Object.keys(logic68000).sort(), names);
+  assert.deepEqual(Object.keys(instructions).sort(), names);
+  assert.equal(new Set(Object.values(bodies)).size, 906);
+
 });
 
 test("every logical binding preserves operand identity, width, access space, and both stack banks", () => {
@@ -183,9 +185,9 @@ test("logical truth tables cover every input bit and all incoming flags, retaini
 
 test("logical explanations expose destination reads, commit timing, and flags before writes", () => {
   for (const operation of ["CLR", "NOT", "TST"] as const) {
-    const text = describeInstruction(logic68000[`${operation}_32_none_memory`]!);
+    const text = describeInstruction(logic68000[`${operation}.L MEMORY`]!);
     assert.ok(text.indexOf("commit staged") < text.indexOf("read memory"));
-    assert.match(text, /destinationByte3:u8 := read memory/);
+    assert.match(text, /byte3:u8 := read memory/);
     assert.match(text, /flags "68000 result"/);
     if (operation === "TST") assert.doesNotMatch(text, /write memory/);
     else assert.ok(text.indexOf('flags "68000 result"') < text.indexOf("write memory"));

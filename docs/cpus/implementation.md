@@ -257,10 +257,11 @@ MOVE/MOVEQ/EXT's write-before-flags order.
 For memory/immediate MOVE forms, the definition requests EA resolution at the
 source and destination stages separately. Keep the existing decoder behind
 `Cpu68000AddressContext`; it owns extension decoding and an instruction-local
-map of pending auto-updates. The [logical inventory](../../src/components/cpus/68000-logic.ts)
-uses the same context and binding, with [operand classification](../../src/components/cpus/68000-operands.ts)
-shared across both inventories. Source reads, immediate fetches, byte transfers,
-partial Dn writes, and result flags share construction in the definitions.
+map of pending auto-updates. The [logical/unary chapter families](../../src/components/cpus/specifications/68000.md#logical-operations-and-readmodifywrite)
+use the same context, but their native binding supplies only the one encoded
+EA (`mode/code`); the chapter binds other registers and the calculation.
+MOVE and logic share chapter-owned memory sources, immediate fetches,
+byte transfers, partial Dn writes, and result policies.
 Generated bodies own alignment checks, all operand byte accesses, the explicit
 update-commit point, writeback, and flags. Do not resolve the destination before
 completing the source read. Keep logical
@@ -275,16 +276,15 @@ order when sharing the underlying operand helpers.
 
 The [arithmetic inventory](../../src/components/cpus/68000-arithmetic.ts) supplies
 the same decoded operand inputs; quick constants reuse the source selector
-field instead of multiplying bodies. Both inventories use
+field instead of multiplying bodies. This remaining native inventory uses
 [`aluForms68000`](../../src/components/cpus/68000-alu.ts) to classify encoded
 `[mode, register]` operand pairs and name their shared bodies. An omitted source
 denotes a unary operation; a third source item gives quick constants their own
 operand identity while retaining the encoded amount. The builder excludes unused
 sizes and invalid source/destination EAs. Each family keeps its narrower rules
-beside its bit patterns, including logic's exclusion of An and arithmetic's
-memory-only destinations in the Dn-to-EA direction.
-Logic and arithmetic share an ALU
-destination recipe, with calculation and optional writeback kept explicit.
+beside its bit patterns, including memory-only destinations in the Dn-to-EA
+direction. Arithmetic retains its ALU destination recipe, with calculation and
+optional writeback kept explicit; logic now authors this ordering in the chapter.
 Address-register destinations select their A7 bank before committing pending
 updates and read the updated register afterward. Their arithmetic width is
 always 32 bits; word EA sources sign-extend, while quick values remain positive.

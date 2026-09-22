@@ -46,9 +46,10 @@ Executable chapters are maintained CPU sources:
   Reset, segmented fetching, prefix choices, trap/fault delivery, retirement,
   and ordered INTR/NMI offers are declared here. The class, connections, records,
   snapshots, and integration metadata are generated; no handwritten adapter remains.
-- [Motorola 68000: state and ordinary transfers](../../src/components/cpus/specifications/68000.md)
+- [Motorola 68000: state, transfers, and logic](../../src/components/cpus/specifications/68000.md)
   owns stored state, A7 and status views, every MOVE/MOVEA form, MOVEQ, EXT, SWAP,
-  and EXG. Reusable byte/word/long transfers and data-register writes retain
+  EXG, ordinary logical/immediate forms, and CLR/NOT/TST. Reusable transfers,
+  register reads/writes, and pure calculation bindings retain
   explicit access ordering. Its bank/status sources and result policies also
   serve the remaining native core and instruction builders.
 
@@ -1105,9 +1106,10 @@ A shorter assignment notation that conceals these reads would make those
 differences harder to see. Sized literals and explicit width conversions also
 make wrapping and byte order visible.
 
-The 68000 now uses named data-register write actions for its remaining MOVE
-forms. Their calls occur at writeback, after pending address updates commit;
-the actions explicitly read and preserve the live upper bits. Ordered memory
+The 68000 uses named data-register write actions for memory/immediate MOVE
+and logical/unary forms. Their calls occur at writeback, after pending address updates commit;
+logical operations apply flags before that preserved-bit read, while MOVE
+applies flags afterward. The actions explicitly read the live upper bits. Ordered memory
 sources/actions expose every transferred byte. Keep the native address resolver,
 pending-update commit, and fault return visible until a chapter owns their
 definitions. Alignment faults stay at instruction level because sources and
@@ -1147,11 +1149,11 @@ operand fetch with pushes, and RTI restores flags before PC. The chapter also
 owns reset bus effects, ordinary execution, named IRQ/NMI entry, and its public
 interface. No handwritten 6502 implementation remains.
 The 8008 now expresses its address-stack selector, array, and port effects;
-the 68000 now owns its schema, register operations, A7 selection, and status
-packing/restoration. Its native effective-address decoder consumes the chapter
-selection source and retains pending auto-updates. Shared TypeScript bodies still
-serve the remaining addressing modes and instruction families. Only complete
-chapter-owned forms earn literate coverage.
+the 68000 now owns its schema, transfers, logical/unary operations, A7 selection,
+and status packing/restoration. Its native effective-address decoder consumes
+the chapter selection source and retains pending auto-updates. Shared TypeScript
+bodies still serve the remaining instruction families. Only complete chapter-owned
+forms earn literate coverage.
 
 The 8008 supplies the first whole-CPU description at its declared instruction-level
 fidelity. The 8080 now reuses its execution services with chapter-defined
@@ -1223,7 +1225,9 @@ and latches, and check nested scopes, array bounds, and schema diagnostics.
 The 68000 checks include independent ordered-effect expectations, failure at
 each observable stage, live upper-word preservation, both A7 banks, physical
 projection, exhaustive status restoration, and formal edits that change bank
-selection, byte order, and flag behavior. Named-group and conditional-value tests
+selection, byte order, and flag behavior. Its logical chapter checks also edit
+calculation expressions and opcode register fields, check shared immediate
+aliases, and reject wrong-width or uncaptured arguments. Named-group and conditional-value tests
 also check generated storage, isolated captures, and transitive effect limits.
 
 ## Segmented execution

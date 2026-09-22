@@ -25,7 +25,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,900](../../src/components/cpus/specifications/z80.md) | 1,509 | 698 / 698 | 100% | 6 / 6 |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,566](../../src/components/cpus/specifications/6809.md) | 1,322 | 268 / 268 | 100% | 6 / 6 |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,115](../../src/components/cpus/specifications/8088.md) | 2,714 | 291 / 291 | 100% | 6 / 6 |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [610](../../src/components/cpus/68000.ts) | [1,357](../../src/components/cpus/specifications/68000.md) | 755 | 9,950 / 36,029 | 27.6% | 1 / 6 |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [617](../../src/components/cpus/68000.ts) | [2,183](../../src/components/cpus/specifications/68000.md) | 1,263 | 16,610 / 36,029 | 46.1% | 1 / 6 |
 
 **Literate instruction coverage** measures documented opcode forms authored in
 executable chapters. This percentage alone does not measure the wider CPU
@@ -219,10 +219,11 @@ verify chapter edits through generation, construction, machine parsing, memory
 bounds, and execution.
 
 The [68000 chapter](../../src/components/cpus/specifications/68000.md) owns
-**9,950 of 36,029 documented forms (27.6%)**: all 9,726 MOVE/MOVEA forms,
-eight MOVEQ destinations, sixteen EXT forms, eight SWAP forms, and 192 EXG
-pairs. These cover 11,990 operation words, but MOVEQ's immediate values do not
-multiply forms under the existing [counting rules](68000/opcode-count.md).
+**16,610 of 36,029 documented forms (46.1%)**: all 9,726 MOVE/MOVEA forms,
+6,660 ordinary logical/immediate and CLR/NOT/TST forms, eight MOVEQ destinations,
+sixteen EXT forms, eight SWAP forms, and 192 EXG pairs. These cover 18,650 operation
+words, but MOVEQ's immediate values do not multiply forms under the existing
+[counting rules](68000/opcode-count.md).
 The full stored-state schema earns **1 / 6 model milestones**. A7 selection,
 physical-PC and packed-status views, CCR/SR actions, and byte/word/long result
 policies also come from the chapter. The remaining native definitions consume
@@ -609,10 +610,10 @@ family inventory is:
   sources retain program-space identity in both bus and alignment faults.
   The CPU still owns EA decoding, fetch cursors, exception delivery, and retirement.
   AND/OR/EOR, ordinary ANDI/ORI/EORI, and CLR/NOT/TST add **6,660 forms**
-  through **906 shared bodies**. Logic retains its native operand and transfer
-  builders while sharing the chapter's result policies. MOVE now authors source
-  reads, immediate fetching, byte transfers, alignment checks, and partial Dn
-  writes in its executable chapter. Logical memory destinations commit staged updates
+  through **906 shared chapter bodies**. Their encoding catalogue and instruction
+  builder have migrated into the chapter. MOVE and logic share memory sources,
+  immediate fetches, data-register writes, and result policies; pure calculation
+  bindings reuse logical access sequences without adding compiler features. Logical memory destinations commit staged updates
   before their read, including CLR's otherwise unused read. Source-read failures
   discard updates; destination-read failures retain them. Flags precede writeback,
   so failed writes retain computed flags and completed bytes; TST never writes.
@@ -621,8 +622,8 @@ family inventory is:
   ADD/SUB/CMP, their immediate/quick/address-register forms, ADDX/SUBX,
   NEG/NEGX, and CMPM add **11,186 forms** through **2,678 shared bodies**.
   Quick constants remain decoded parameters, so these forms cover **13,510
-  operation words**. Logic and arithmetic share the complete destination
-  read/modify/write sequence. Arithmetic reuses the shared calculation recipe
+  operation words**. Arithmetic retains the native destination
+  read/modify/write recipe; logic now authors its ordering in the chapter. Arithmetic reuses the shared calculation recipe
   with 68000 flag policies: comparisons preserve X and never write a result;
   other data arithmetic copies carry/borrow to X. Extended operations capture
   Z then X after the operand reads and accumulate zero across results. Address
@@ -715,14 +716,14 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Remaining handwritten CPU core (68000) | 610 |
-| CPU-specific instruction definition files | 537 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,652 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,799** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 17,486 |
+| Remaining handwritten CPU core (68000) | 617 |
+| CPU-specific instruction definition files | 513 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,616 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,746** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 18,312 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
-| Generated executable CPU output, counted separately | 320,016 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 2,474,026 |
+| Generated executable CPU output, counted separately | 359,971 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 3,218,442 |
 | Generated state schemas/types, counted separately | 207 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
@@ -1097,6 +1098,29 @@ representation at **2,474,026 lines**, down from **2,938,084**, despite the larg
 literate inventory. Independent MOVE tests retain their complete effect/failure
 oracle; the before/after comparison matches **131,072 instruction cases**,
 **256 reset/interrupt cases**, and **7,712 injected failures**.
+
+The logical/unary migration raises 68000 literate coverage from **9,950 to
+16,610 documented forms (46.1%)**. All **6,660 ordinary logical/immediate and
+CLR/NOT/TST forms** now select **906 shared chapter bodies**. The handwritten
+logical catalogue and instruction builder are removed. Existing source bindings
+select pure calculations; the families reuse MOVE's memory sources and register
+write actions while retaining explicit read/modify/write order. No language or
+compiler extension was needed.
+
+The chapter is **2,183 lines**, including **1,263 formal lines**. CPU
+definition files shrink from **537 to 513 lines**, and all authored CPU
+TypeScript from **6,799 to 6,746 lines**. The native core is **617 lines**,
+including the remaining two-field EA binding. Total maintained CPU source,
+including chapters and generation scripts, is **25,206 lines**. Generated
+execution and chapter data remain separate footprint counts above. The model
+milestones remain **1 / 6** while the other instruction families and native
+execution boundaries await migration.
+
+Independent tests retain every logical effect/failure boundary and bit truth
+table. Chapter tests change calculation expressions and opcode register fields,
+verify immediate aliases, and reject invalid calculation arguments. The saved
+build comparison matches **131,072 instruction cases**, **256 reset/interrupt
+cases**, and **8,232 injected failures**.
 
 Generated chapter data shares identical instruction definitions across opcode
 aliases; distinct definitions still repeat their validated CPU schema. This is a

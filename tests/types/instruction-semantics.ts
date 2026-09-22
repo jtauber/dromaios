@@ -931,18 +931,18 @@ export function check8088ControlTypes(state: Cpu8088State, other: Cpu8080State):
 
 export function check68000LogicTypes(state: Cpu68000State): void {
   const addressing = { resolveAddress: () => 0, commitAddressUpdates: () => {} };
-  logic68000.AND_32_d0_d1(state, 0, 0, 0, 1);
-  logic68000.TST_16_none_memory(state, 0, 0, 3, 7, { ...addressing, readByte: () => 0 });
-  logic68000.CLR_8_none_memory(state, 0, 0, 3, 7, { ...addressing, readByte: () => 0, writeByte: () => {} });
-  logic68000.OR_32_program_d0(state, 7, 2, 0, 0, { ...addressing, readProgramByte: () => 0 });
+  logic68000["AND.L D0,D1"](state, 0, 0);
+  logic68000["TST.W MEMORY"](state, 3, 7, { ...addressing, readByte: () => 0 });
+  logic68000["CLR.B MEMORY"](state, 3, 7, { ...addressing, readByte: () => 0, writeByte: () => {} });
+  logic68000["OR.L PROGRAM,D0"](state, 7, 2, { ...addressing, readProgramByte: () => 0 });
   // @ts-expect-error CLR requires its original destination read even though the result is zero.
-  logic68000.CLR_8_none_memory(state, 0, 0, 3, 7, { ...addressing, writeByte: () => {} });
+  logic68000["CLR.B MEMORY"](state, 3, 7, { ...addressing, writeByte: () => {} });
   // @ts-expect-error TST never requests a write capability.
-  logic68000.TST_16_none_memory(state, 0, 0, 3, 7, { ...addressing, readByte: () => 0, writeByte: () => {} });
+  logic68000["TST.W MEMORY"](state, 3, 7, { ...addressing, readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error A PC-relative source must retain program-space access.
-  logic68000.OR_32_program_d0(state, 7, 2, 0, 0, { ...addressing, readByte: () => 0 });
+  logic68000["OR.L PROGRAM,D0"](state, 7, 2, { ...addressing, readByte: () => 0 });
   // @ts-expect-error Immediate logical operands require complete native-word fetching.
-  logic68000.EOR_8_immediate_d0(state, 7, 4, 0, 0, { fetchByte: () => 0 });
+  logic68000["EORI.B IMMEDIATE,D0"](state, 0, 0, { fetchByte: () => 0 });
 }
 
 export function check68000ArithmeticTypes(state: Cpu68000State): void {
