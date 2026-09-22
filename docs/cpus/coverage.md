@@ -25,7 +25,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,900](../../src/components/cpus/specifications/z80.md) | 1,509 | 698 / 698 | 100% | 6 / 6 |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,566](../../src/components/cpus/specifications/6809.md) | 1,322 | 268 / 268 | 100% | 6 / 6 |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,115](../../src/components/cpus/specifications/8088.md) | 2,714 | 291 / 291 | 100% | 6 / 6 |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [621](../../src/components/cpus/68000.ts) | [5,220](../../src/components/cpus/specifications/68000.md) | 3,228 | 31,736 / 36,029 | 88.1% | 1 / 6 |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [618](../../src/components/cpus/68000.ts) | [5,787](../../src/components/cpus/specifications/68000.md) | 3,584 | 34,162 / 36,029 | 94.8% | 1 / 6 |
 
 **Literate instruction coverage** measures documented opcode forms authored in
 executable chapters. This percentage alone does not measure the wider CPU
@@ -219,10 +219,11 @@ verify chapter edits through generation, construction, machine parsing, memory
 bounds, and execution.
 
 The [68000 chapter](../../src/components/cpus/specifications/68000.md) owns
-**31,736 of 36,029 documented forms (88.1%)**: all 9,726 MOVE/MOVEA forms,
+**34,162 of 36,029 documented forms (94.8%)**: all 9,726 MOVE/MOVEA forms,
 6,660 ordinary logical/immediate and CLR/NOT/TST forms, 11,186 binary arithmetic
-forms, 3,940 bit/shift/rotate/TAS forms, eight MOVEQ destinations, sixteen EXT
-forms, eight SWAP forms, and 192 EXG pairs. These cover 37,444 operation words,
+forms, 3,940 bit/shift/rotate/TAS forms, 2,120 word product/division/bounds
+forms, 306 packed decimal forms, eight MOVEQ destinations, sixteen EXT forms,
+eight SWAP forms, and 192 EXG pairs. These cover 39,870 operation words,
 but MOVEQ immediates and quick amounts
 do not multiply forms under the existing
 [counting rules](68000/opcode-count.md).
@@ -649,13 +650,15 @@ family inventory is:
   Zero-count shifts still set N/Z, clear V, and preserve X; ROX copies X to C,
   while the other families clear C. Ordinary rotates preserve X for all counts.
   MULU/MULS/DIVU/DIVS and CHK add **2,120 forms** through **440 bodies**;
-  ABCD/SBCD/NBCD add **306 forms** through **139 bodies**. Word-source families
+  ABCD/SBCD/NBCD add **306 forms** through **139 bodies**. Both catalogues
+  and their complete bodies are chapter-owned, with raw three-field bindings
+  and no handwritten arithmetic catalogue. Word-source families
   commit address updates after result/flag effects, including before a zero-divisor
   or bounds-check exception. Division captures quotient overflow separately:
   overflow sets V and preserves Dn/N/Z/X, while success packs remainder:quotient
   into Dn. Multiply writes the full product before flags. CHK preserves flags
-  on success and changes only N on failure. Decimal operations reuse the ALU
-  destination stages, correct low then high digit, set C/X, read cumulative Z,
+  on success and changes only N on failure. Decimal families commit pending
+  destination updates before its read, correct low then high digit, set C/X, read cumulative Z,
   and finally write the byte, retaining deterministic invalid-digit behavior.
   Scc, DBcc, BRA/Bcc/BSR, LEA/PEA/JMP/JSR, LINK/UNLK, and RTS add
   **1,285 forms** through **332 shared bodies** (**5,349 operation words**).
@@ -720,14 +723,14 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Remaining handwritten CPU core (68000) | 621 |
-| CPU-specific instruction definition files | 418 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,536 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,575** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 21,349 |
+| Remaining handwritten CPU core (68000) | 618 |
+| CPU-specific instruction definition files | 343 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,512 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,473** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 21,916 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
-| Generated executable CPU output, counted separately | 557,785 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 7,581,662 |
+| Generated executable CPU output, counted separately | 566,646 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 7,909,247 |
 | Generated state schemas/types, counted separately | 207 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
@@ -741,7 +744,7 @@ migration to zero**. The final public-interface step removes its remaining
 **71 core lines**, **11 state-adapter lines**, and **9 definition-adapter lines**.
 Its generated public class is **52 lines**, its generated state module is
 **24 lines**, and shared generation supplies both. The shared byte runtime
-is now **121 lines**; the literate front end is **2,137 lines**.
+is now **121 lines**; the literate front end is **2,138 lines**.
 
 Across the earlier 8008 execution, public-interface, and machine-integration
 migration, authored CPU TypeScript grew from **9,416 to 9,671 lines**, and CPU
@@ -1175,6 +1178,42 @@ change carry initials, overflow accumulation, count masks, and bit-number
 reduction. Typed-loop tests cover simultaneous updates, scopes, nested effects,
 and early outcomes. The saved-build comparison matches **131,072 instruction
 cases**, **256 reset/interrupt cases**, and **7,252 injected failures**.
+
+The word product/division, signed bounds, and packed decimal migration adds
+**2,426 documented forms**, bringing 68000 literate coverage to **34,162 /
+36,029 (94.8%)**. Its **579 shared bodies** now take their encodings, operand
+roles, calculations, and commit ordering from the chapter. A third division
+capture exposes the existing Boolean overflow result without adding a runtime
+primitive; two-result division retains its previous rejection behavior.
+
+The chapter is **5,787 lines**, including **3,584 formal lines**. Removing the
+word/decimal catalogue and builders, including the language and validation
+changes, reduces authored CPU TypeScript from **6,575 to 6,473 lines**, a net
+reduction of **102**. Definition files are **343 lines** and the core is **618
+lines**. Total maintained CPU source is **28,537 lines**, including chapters
+and generation scripts. Added prose and formal definitions increase that wider
+count. Model milestones remain **1 / 6**.
+
+The independent arithmetic probes retain all encodings, every failed effect,
+signed quotient limits, and exhaustive valid/invalid decimal bytes. Chapter
+mutation tests change signedness, overflow policy, signed bounds, decimal
+correction, cumulative zero, and paired selectors. The saved-build comparison
+matches **131,072 instruction cases**, **256 reset/interrupt cases**, and
+**8,232 injected failures**.
+
+A measured generation change reuses already validated immutable definitions
+and preserves shared nodes within each owned copy. On the pre-migration input,
+isolated generation fell from about **22.8 to 18.1 seconds**, with byte-identical
+executable output. Single-CPU semantic tests now import their own definitions;
+the representative 8008 transfer test fell from **3.23 seconds to 73 ms**.
+Complete-registry reproducibility and expanded-listing tests retain their full
+imports. These are local measurements, not a runtime-emulation speed claim.
+The full integration fixtures still regenerate the complete registry for edits
+to individual chapters. Generation also retains compiled chapters and rendered
+module text while loading that registry. Reducing those duplicated inputs is
+the next performance investigation. The full regression passes **2,849 tests**
+in **24 minutes 20 seconds** for the test phase, or **27 minutes 34 seconds**
+including the clean build; integration generation remains the main cost.
 
 Generated chapter data shares identical instruction definitions across opcode
 aliases; distinct definitions still repeat their validated CPU schema. This is a

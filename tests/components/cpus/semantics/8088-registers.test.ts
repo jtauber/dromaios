@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { instructions, opcodeEntries } from "../../../../src/components/cpus/generated/8088.js";
-import { instructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions as instructions8088 } from "../../../../src/components/cpus/semantics/generated/8088.js";
 import { actions, views } from "../../../../src/components/cpus/semantics/generated/8088.js";
 import { cpuSymbols, extend, literal, perform, readSource, value, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";

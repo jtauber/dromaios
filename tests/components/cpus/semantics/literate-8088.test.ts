@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { boolean, defineState, flag, group, unsigned } from "../../../../src/components/cpus/state.js";
 import { cpu8088StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
-import { instructions8088, operandInstructions8088, strings8088 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions as instructions8088, operandInstructions as operandInstructions8088, strings as strings8088 } from "../../../../src/components/cpus/semantics/generated/8088.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { instructions as actions, sourceReaders } from "../../../../src/components/cpus/generated/8088-state.js";
 import { initialState } from "../8088/helpers.js";

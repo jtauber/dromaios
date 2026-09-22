@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/generated/6502-cpu.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/generated/6809-cpu.js";
-import { addOverflow, borrow, carry, halfBorrow, halfCarry, overflow, subtract, updateFlags, addWrap, bitAnd, bitOr, bitXor, capture, concat, cpuSymbols, evenParity, extend, flagLiteral, flagValue, highByte, lowByte, literal, readFlag, readMemory, shiftLeft, value, writeLatch, xor, zero } from "../../../../src/components/cpus/semantics/model.js";
+import { addOverflow, borrow, carry, halfBorrow, halfCarry, overflow, subtract, updateFlags, addWrap, bitAnd, bitOr, bitXor, capture, concat, cpuSymbols, evenParity, extend, flagLiteral, flagValue, highByte, lowByte, literal, readFlag, readMemory, shiftLeft, value, writeLatch, writeRegister, xor, zero } from "../../../../src/components/cpus/semantics/model.js";
 import type { Expression, FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 
@@ -201,6 +201,27 @@ test("validated descriptions own and freeze their data without freezing caller o
   assert.notEqual(owned.cpu.state, cpu6502StateDescription);
   assert.equal(Object.isFrozen(owned.cpu.state.flags), true);
   assert.throws(() => { Object.assign(owned.steps[0]!, { name: "changed" }); }, TypeError);
+});
+
+test("owned definitions and shared input data avoid repeated copying without trusting caller freezes", () => {
+  const original = define([capture("byte", literal(8, 12))]);
+  assert.equal(defineInstruction(original), original);
+  const extended = defineInstruction({ ...original, name: "extended", steps: [...original.steps, writeRegister(mos.register("a"), value("byte"))] });
+  assert.deepEqual(extended.cpu, original.cpu);
+  assert.deepEqual(extended.steps[0], original.steps[0]);
+  assert.notEqual(extended.steps, original.steps);
+  assert.throws(() => defineInstruction({ ...original, steps: [writeRegister(mos.register("a"), value("byte"))] }), /not been captured/);
+  const shared = literal(8, 12);
+  const dag = define([capture("left", shared), capture("right", shared)]);
+  assert.equal(dag.steps[0]!.kind === "capture" && dag.steps[0].value,
+    dag.steps[1]!.kind === "capture" && dag.steps[1].value);
+  assert.notEqual(dag.steps[0]!.kind === "capture" && dag.steps[0].value, shared);
+  const changed = { kind: "literal" as const, width: 8 as const, value: 12 };
+  const foreign = Object.freeze({ ...original, steps: Object.freeze([capture("byte", changed)]) });
+  const owned = defineInstruction(foreign); changed.value = 13;
+  assert.deepEqual(owned.steps, original.steps);
+  assert.notEqual(owned, foreign);
+  assert.throws(() => defineInstruction(Object.freeze({ ...original, steps: [capture("byte", literal(16, 1)), writeRegister(mos.register("a"), value("byte"))] })), /expected 8-bit value/);
 });
 
 test("definitions reject hidden host behavior, instances, and recursive data", () => {

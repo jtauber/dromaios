@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/68000-transfers.js";
 import { transferForms68000 } from "../../../../src/components/cpus/68000-transfers.js";
-import { transfers68000 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { transfers68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import { initialState } from "../../../helpers/68000-state.js";
 import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";

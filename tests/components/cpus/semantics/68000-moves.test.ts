@@ -8,7 +8,7 @@ import type { WordInstructionContext } from "../../../../src/components/cpus/ins
 import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
 import { cpu68000StateDescription } from "../../../../src/components/cpus/state/68000.js";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
-import { moves68000 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { moves68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
 import { alignmentFault, commitAddressUpdates, cpuSymbols, fetchWord, flagLiteral, literal, lowBit, readMemory, readProgramMemory, readSource, resolveAddress, value, when } from "../../../../src/components/cpus/semantics/model.js";
 import type { Statement } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";

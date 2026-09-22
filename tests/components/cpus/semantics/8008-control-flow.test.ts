@@ -3,7 +3,7 @@ import { noPorts } from "../../../helpers/no-ports.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/8008.js";
-import { instructions8008 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions as instructions8008 } from "../../../../src/components/cpus/semantics/generated/8008.js";
 import type { Cpu8008Flags, Cpu8008StoredState } from "../../../../src/components/cpus/semantics/generated/state/8008.js";
 import type { ByteInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 import type { InstructionDefinition } from "../../../../src/components/cpus/semantics/model.js";

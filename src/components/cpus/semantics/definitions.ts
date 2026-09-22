@@ -1,11 +1,11 @@
 import { actions as state68000, sources as sources68000, views as views68000 } from "./generated/68000.ts";
 import { state as schema68000 } from "./generated/state/68000.ts";
-import { instructions68000, quick68000, moves68000, moveOpcodes68000, logic68000, logicOpcodes68000, arithmetic68000, arithmeticOpcodes68000, bits68000, bitOpcodes68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000 } from "./definitions/68000.ts";
+import { instructions68000, quick68000, moves68000, moveOpcodes68000, logic68000, logicOpcodes68000, arithmetic68000, arithmeticOpcodes68000, bits68000, bitOpcodes68000, wordArithmetic68000, wordArithmeticOpcodes68000, decimal68000, decimalOpcodes68000, control68000, transfers68000, system68000 } from "./definitions/68000.ts";
 import { chapterInstructionModules } from "./generated/catalogue.ts";
 import type { generateInstructions } from "./generate.ts";
 
 export * from "./generated/catalogue.ts";
-export { instructions68000, quick68000, moves68000, moveOpcodes68000, logic68000, logicOpcodes68000, arithmetic68000, arithmeticOpcodes68000, bits68000, bitOpcodes68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000 };
+export { instructions68000, quick68000, moves68000, moveOpcodes68000, logic68000, logicOpcodes68000, arithmetic68000, arithmeticOpcodes68000, bits68000, bitOpcodes68000, wordArithmetic68000, wordArithmeticOpcodes68000, decimal68000, decimalOpcodes68000, control68000, transfers68000, system68000 };
 
 type GenerationParameters = Parameters<typeof generateInstructions>;
 interface InstructionModule {
@@ -25,8 +25,8 @@ export const instructionModules: readonly InstructionModule[] = Object.freeze<re
   { name: "68000-logic", cpu: "68000", definitions: logic68000, options: { opcodeAliases: logicOpcodes68000, origin: "specifications/68000.md" } },
   { name: "68000-arithmetic", cpu: "68000", definitions: arithmetic68000, options: { opcodeAliases: arithmeticOpcodes68000, origin: "specifications/68000.md" } },
   { name: "68000-bits", cpu: "68000", definitions: bits68000, options: { opcodeAliases: bitOpcodes68000, origin: "specifications/68000.md" } },
-  { name: "68000-word-arithmetic", cpu: "68000", definitions: wordArithmetic68000 },
-  { name: "68000-decimal", cpu: "68000", definitions: decimal68000 },
+  { name: "68000-word-arithmetic", cpu: "68000", definitions: wordArithmetic68000, options: { opcodeAliases: wordArithmeticOpcodes68000, origin: "specifications/68000.md" } },
+  { name: "68000-decimal", cpu: "68000", definitions: decimal68000, options: { opcodeAliases: decimalOpcodes68000, origin: "specifications/68000.md" } },
   { name: "68000-control", cpu: "68000", definitions: control68000 },
   { name: "68000-transfers", cpu: "68000", definitions: transfers68000 },
   { name: "68000-system", cpu: "68000", definitions: system68000 },

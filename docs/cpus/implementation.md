@@ -124,10 +124,9 @@ Each CPU module exports a `cpu…StateDescription` beside its public state
 type. For all eight CPUs, the schema and public types are exposed through
 CPU-owned modules under [`state/`](../../src/components/cpus/state), or generated
 schema modules for complete chapters, and are re-exported by the public CPU
-module. The 8008, 8080, 6502, 6800, 6809, and Z80 schemas and public types are generated
-from their chapters, without handwritten state adapters. The 8088 schema is
-also chapter-owned, with a small public-type adapter. Only the 68000 schema
-remains authored TypeScript.
+module. All eight stored-state schemas are generated from their chapters. The 8008,
+8080, 6502, 6800, 6809, Z80, and 8088 also generate their public types without
+handwritten adapters. The 68000 retains a public-state adapter.
 This lets instruction generation load schemas without loading execution. The description
 owns stored field names, types, and constraints. The
 [shared state helpers](../../src/components/cpus/state.ts) provide:
@@ -299,12 +298,14 @@ overflow. Trailing `next` clauses update them together; publish architectural
 flags afterward.
 Keep zero-count flag rules and TAS's original-byte flag calculation explicit.
 
-Word-source MUL/DIV/CHK commit source updates after their result/flag effects,
+The [word and decimal chapter families](../../src/components/cpus/specifications/68000.md#word-products-division-and-bounds)
+share the same raw three-field boundary. MUL/DIV/CHK commit source updates after their result/flag effects,
 including before requesting a synchronous exception. Preserve that stage when
 sharing source readers. Use division's optional overflow capture when quotient
 overflow completes by setting a flag; keep zero-divisor rejection and all flag
-policies explicit. Decimal pairs reuse the ALU destination stages, correct low
-then high digit, and publish C/X before reading cumulative Z. This differs from
+policies explicit. Decimal pairs resolve the two predecrements in order and
+commit updates before reading the destination. Their chapter sources correct
+low then high digit and publish C/X before reading cumulative Z. This differs from
 binary extended arithmetic's earlier Z capture.
 
 The [control inventory](../../src/components/cpus/68000-control.ts) shares

@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { bodiesZ80 as zilog } from "../../../helpers/z80-bodies.js";
-import { instructions8080, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions as instructions8080 } from "../../../../src/components/cpus/semantics/generated/8080.js";
+import { instructions as instructionsZ80 } from "../../../../src/components/cpus/semantics/generated/z80.js";
 import type { ByteInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 import { initialState, flagPattern, transferColumns, transferRows } from "../z80/helpers.js";
 

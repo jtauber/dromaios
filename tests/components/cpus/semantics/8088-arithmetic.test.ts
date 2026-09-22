@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/8088.js";
 import { compileResolved, arithmetic8088 } from "../../../helpers/8088-resolved.js";
-import { instructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions as instructions8088 } from "../../../../src/components/cpus/semantics/generated/8088.js";
 import type { Cpu8088State } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
 import { address, byteMoves, flags, initialState, words } from "../8088/helpers.js";
 

@@ -1,19 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { initialState } from "../../../helpers/68000-state.js";
-import { instructions as words } from "../../../../src/components/cpus/generated/68000-word-arithmetic.js";
-import { instructions as decimals } from "../../../../src/components/cpus/generated/68000-decimal.js";
-import { wordArithmeticForms68000, decimalForms68000 } from "../../../../src/components/cpus/68000-arithmetic.js";
-import { wordArithmetic68000, decimal68000 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { opcodeInstructions as words } from "../../../../src/components/cpus/generated/68000-word-arithmetic.js";
+import { opcodeInstructions as decimals } from "../../../../src/components/cpus/generated/68000-decimal.js";
+import { wordArithmetic68000, decimal68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
 import type { WordInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
 
 type Context = Cpu68000AddressContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
-type Outcome = OperandAlignmentFault | "divide-by-zero" | "bounds-check" | void;
-type Body = (state: Cpu68000State, sm: number, sc: number, dm: number, dc: number, context: Context) => Outcome;
-const bodies: Readonly<Record<string, Body>> = { ...words, ...decimals };
+type Outcome = OperandAlignmentFault | "divide-by-zero" | "bounds-check" | "unsupported" | void;
+type Body = (state: Cpu68000State, mode: number, code: number, upperCode: number, context: Context) => Outcome;
+const bodies: Readonly<Record<number, Body>> = { ...words, ...decimals };
 const data = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
 const address = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
 type Operation = "MULU" | "MULS" | "DIVU" | "DIVS" | "CHK" | "ABCD" | "SBCD" | "NBCD";
@@ -140,7 +139,7 @@ function observe(f: Form, scenario: Scenario, failAt: number, generated: boolean
     readByte: a => read("data", a), readProgramByte: a => read("program", a),
     writeByte(a, v) { effect("memory write", a, v); writes.push([a, v]); mutate(); },
   };
-  try { outcome = generated ? bodies[f.key]!(observed, f.sm, f.sc, f.dm, f.dc, context) : reference(observed, f, context); }
+  try { outcome = generated ? bodies[f.opcode]!(observed, f.operation === "NBCD" ? f.dm : f.sm, f.operation === "NBCD" ? f.dc : f.sc, f.dc, context) : reference(observed, f, context); }
   catch (error) { if (error !== failure) throw error; failed = true; }
   return { state, events, writes, failed, outcome: outcome! };
 }
@@ -148,12 +147,10 @@ const scenario: Scenario = { bits: 127, sourceAddress: 0xfffffffe, destinationAd
 
 test("68000 word arithmetic and decimal cover exactly 2,426 operation words with 579 shared bodies", () => {
   assert.equal(forms.length, 2426); assert.equal(representatives.length, 579);
-  const inventory = [...wordArithmeticForms68000.map(f => ({ ...f, size: 16 })), ...decimalForms68000.map(f => ({ ...f, size: 8 }))];
-  assert.equal(inventory.length, forms.length); assert.equal(new Set(inventory.map(f => f.opcode)).size, forms.length);
-  const expected = new Map(forms.map(f => [f.opcode, f]));
-  for (const f of inventory) assert.deepEqual({ opcode: f.opcode, operation: f.operation, size: f.size, sm: f.sourceMode, sc: f.sourceCode,
-    dm: f.destinationMode, dc: f.destinationCode, key: f.body }, expected.get(f.opcode));
-  assert.deepEqual(Object.keys(bodies).sort(), representatives.map(f => f.key).sort());
+  assert.deepEqual(Object.keys(bodies).map(Number), forms.map(f => f.opcode));
+  assert.equal(new Set(Object.values(bodies)).size, 579);
+  assert.equal(Object.keys(wordArithmetic68000).length, 440);
+  assert.equal(Object.keys(decimal68000).length, 139);
 });
 
 test("every word/decimal binding retains operand roles, aliases, source space, and both stack banks", () => {
@@ -192,11 +189,12 @@ test("word arithmetic covers signed/unsigned limits and quotient boundaries with
 test("decimal arithmetic exhausts valid and invalid packed bytes, incoming X/Z, and preserved flags", () => {
   const state = initialState();
   for (const operation of ["ABCD", "SBCD", "NBCD"] as const) for (const x of [false, true]) for (const z of [false, true]) {
-    const run = bodies[`${operation}_${operation === "NBCD" ? "none" : "d1"}_d0`]!;
+    const form = forms.find(f => f.operation === operation && f.dm === 0 && f.dc === 0 && (operation === "NBCD" || f.sm === 0 && f.sc === 1))!;
+    const run = bodies[form.opcode]!;
     for (let a = 0; a < 256; a++) for (let b = 0; b < (operation === "NBCD" ? 1 : 256); b++) {
       state.d0 = 0x12340000 + a; state.d1 = b; state.flags = { x, z, n: true, v: true, c: true, s: true, t: true };
       const facts = decimal(operation, a, b, x);
-      run(state, 0, 1, 0, 0, {} as Context);
+      run(state, 0, form.sc, 0, {} as Context);
       assert.equal(state.d0, 0x12340000 + facts.result);
       assert.deepEqual(state.flags, { x: facts.carry, z: z && facts.result === 0, c: facts.carry, n: true, v: true, s: true, t: true });
       if (a % 16 < 10 && a < 0xa0 && b % 16 < 10 && b < 0xa0) {
@@ -210,15 +208,15 @@ test("decimal arithmetic exhausts valid and invalid packed bytes, incoming X/Z, 
 });
 
 test("word/decimal explanations expose source commits, overflow decisions, and decimal flag order", () => {
-  const division = describeInstruction(wordArithmetic68000.DIVS_memory_d0!);
+  const division = describeInstruction(wordArithmetic68000["DIVS.W MEMORY,D0"]!);
   assert.ok(division.indexOf('flags "68000 division carry"') < division.indexOf("dividend:u32 := read D0"));
   assert.match(division, /quotientOverflow:flag := quotient does not fit/);
   assert.match(division, /68000 division overflow/);
   const zero = division.indexOf('return outcome "divide-by-zero"');
   assert.ok(division.indexOf("commit staged") < zero && zero < division.indexOf("dividend:u32 := read D0"));
-  const packed = describeInstruction(decimal68000.ABCD_memory_memory!);
-  assert.ok(packed.indexOf("sourceByte0:u8 := read memory") < packed.indexOf("destinationAddress:u32 := resolve"));
-  assert.ok(packed.indexOf("commit staged") < packed.indexOf("destinationByte0:u8 := read memory"));
+  const packed = describeInstruction(decimal68000["ABCD MEMORY,MEMORY"]!);
+  assert.ok(packed.indexOf("sourceValue:u8 := source") < packed.indexOf("destinationAddress:u32 := resolve"));
+  assert.ok(packed.indexOf("commit staged") < packed.indexOf("destination:u8 := source"));
   assert.ok(packed.indexOf('flags "68000 decimal carry"') < packed.indexOf("previousZero:flag := read Z"));
   assert.ok(packed.indexOf('flags "68000 decimal zero"') < packed.indexOf("write memory"));
 });

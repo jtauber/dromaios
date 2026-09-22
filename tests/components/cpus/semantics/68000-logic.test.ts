@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { initialState } from "../../../helpers/68000-state.js";
 import { instructions, opcodeInstructions } from "../../../../src/components/cpus/generated/68000-logic.js";
-import { logic68000 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { logic68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
 import type { WordInstructionContext } from "../../../../src/components/cpus/instruction-context.js";

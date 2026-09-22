@@ -307,3 +307,7 @@ source shifted "typed locals" (original: 8, count: 8): 8 {
   }
   return value
 }
+
+family divideFlags "0000 0010" {
+  quotient, remainder, overflow = divide(u32($10000), u16(1), unsigned) otherwise "zero-divisor"
+}

@@ -182,10 +182,11 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
       } else {
         const name = tokens.reference();
         if (tokens.take(",")) {
-          const remainder = tokens.word(); tokens.expect("="); tokens.expect("divide"); tokens.expect("(");
+          const remainder = tokens.word(), overflow = tokens.take(",") ? tokens.word() : undefined;
+          tokens.expect("="); tokens.expect("divide"); tokens.expect("(");
           const dividend = expression(tokens); tokens.expect(","); const divisor = expression(tokens); tokens.expect(",");
           const signed = signedness(tokens); tokens.expect(")"); tokens.expect("otherwise");
-          result.push(divide({ quotient: name, remainder, dividend, divisor, signed, onError: tokens.quoted() }));
+          result.push(divide({ quotient: name, remainder, dividend, divisor, signed, onError: tokens.quoted(), ...(overflow ? { overflow } : {}) }));
         } else if (tokens.take("[")) {
           const array = arrays.get(name) ?? tokens.fail(`Unknown array ${name}.`);
           if (tokens.take("]")) {

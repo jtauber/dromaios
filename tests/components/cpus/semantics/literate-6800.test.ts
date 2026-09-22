@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { boolean, defineState, flag, group, unsigned } from "../../../../src/components/cpus/state.js";
 import { cpu6800StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
 import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
-import { instructions6800 as chapter6800 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions as chapter6800 } from "../../../../src/components/cpus/semantics/generated/6800.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";

@@ -9,7 +9,7 @@ import { cpu68000StateDescription } from "../../../../src/components/cpus/state/
 import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
 import { instructions as registerBodies } from "../../../../src/components/cpus/generated/68000.js";
 import { opcodeInstructions as memoryBodies } from "../../../../src/components/cpus/generated/68000-moves.js";
-import { instructions68000, moves68000 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions68000, moves68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
@@ -38,15 +38,15 @@ for (const [kind, base] of [["copy", 0x3000], ["load", 0x3010], ["store", 0x3080
     name: `MOVE.W ${kind === "load" ? `(A${r})` : `D${r}`},${kind === "store" ? `(A${d})` : `D${d}`}` });
 }
 
-test("the 68000 chapter owns its state and 31,736 forms across 37,444 operation words", () => {
+test("the 68000 chapter owns its state and 34,162 forms across 39,870 operation words", () => {
   const chapter = compile();
   assert.deepEqual(chapter.state, cpu68000StateDescription);
   const definitions = Object.fromEntries(Object.values(chapter.families).flat());
-  assert.equal(Object.keys(definitions).length, 37444);
+  assert.equal(Object.keys(definitions).length, 39870);
   // MOVEQ, quick arithmetic, and immediate shift counts do not multiply forms.
   const counted = new Set(Object.keys(definitions).map(Number).map(opcode =>
     opcode >>> 12 === 7 ? opcode & 0xff00 : opcode >>> 12 === 5 || opcode >>> 12 === 14 && (opcode & 0xc0) !== 0xc0 && !(opcode & 0x20) ? opcode & ~0x0e00 : opcode));
-  assert.equal(counted.size, 31736);
+  assert.equal(counted.size, 34162);
   assert.equal(Object.keys(memoryBodies).length, 9150);
   for (const form of forms) {
     const expectedName = form.kind === "copy" ? form.name

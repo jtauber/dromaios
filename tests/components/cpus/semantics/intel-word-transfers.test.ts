@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions as instructionsZ80 } from "../../../../src/components/cpus/semantics/generated/z80.js";
 import { wordChanges, wordForms, wordState } from "../../../helpers/intel-words.js";
 
 test("Intel word transfers use seven 8080 bodies and 23 Z80 opcode bodies for all 30 documented forms", () => {

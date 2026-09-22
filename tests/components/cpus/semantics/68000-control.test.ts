@@ -10,7 +10,7 @@ import { generateInstructions } from "../../../../src/components/cpus/semantics/
 import { initialState } from "../../../helpers/68000-state.js";
 import { instructions } from "../../../../src/components/cpus/generated/68000-control.js";
 import { controlForms68000 } from "../../../../src/components/cpus/68000-control.js";
-import { control68000 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { control68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
 import type { Cpu68000AddressContext, Cpu68000ControlContext, OperandAlignmentFault, TargetAlignmentFault } from "../../../../src/components/cpus/68000-context.js";

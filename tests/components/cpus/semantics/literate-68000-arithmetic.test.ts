@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { opcodeInstructions } from "../../../../src/components/cpus/generated/68000-arithmetic.js";
-import { arithmetic68000 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { arithmetic68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";

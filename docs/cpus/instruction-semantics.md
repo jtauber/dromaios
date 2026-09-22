@@ -26,9 +26,9 @@ family, including addressing, encodings, and reusable stack/frame actions. Its
 reset, waiting, execution, IRQ/NMI recognition, and public interface also come
 from the chapter, with memory-only vector execution shared with the 6502.
 The construction history below describes the earlier shared-builder migration;
-the 68000 retains TypeScript builders for the remaining memory, arithmetic, and
-control families. Its chapter now owns stored state, register operations,
-A7/status sources, and result policies; the generated catalogue groups 8088 families.
+the 68000 retains TypeScript builders for control, multiple/peripheral
+transfers, and status/system families. Its chapter now owns stored state,
+register operations, A7/status sources, and result policies; the generated catalogue groups 8088 families.
 
 ## The review slice
 
@@ -1296,9 +1296,12 @@ literate-form credit.
 
 [defineInstruction](../../src/components/cpus/semantics/validate.ts) copies and
 deeply freezes the description, then validates it. It rejects host functions,
-accessor properties, class instances, and cycles without invoking accessors. Reused input objects are copied without freezing
-the caller's objects. Definitions retain neither live CPU state nor an
-instruction's runtime captures.
+accessor properties, class instances, and cycles without invoking accessors.
+A per-copy map preserves shared subexpressions within the owned graph without
+freezing the caller's objects. Passing that same validated, deeply frozen
+definition again reuses it; a changed object is copied and checked anew.
+A caller's own freeze never bypasses validation. Definitions retain neither
+live CPU state nor an instruction's runtime captures.
 
 Validation rejects unknown/cross-CPU symbols, wrong widths, out-of-range
 constants, undeclared or duplicate captures, escaping source locals, missing
@@ -1541,11 +1544,15 @@ of every word value. Existing CPU tests cover ordinary and supplied-byte
 execution, wrapped PCs, nested calls, unbalanced returns, all halt aliases, and
 exact execution records.
 
+Single-CPU semantic tests import that CPU's definitions directly, so a small
+8008 test does not load the much larger 68000 registry. The generation and
+expanded-listing tests still load the complete registry and check every module.
+
 ## Executable generation and integration
 
-[generateInstructions](../../src/components/cpus/semantics/generate.ts) validates
-and freezes its input before emitting code. Generated methods take the concrete
-CPU state type (the 8008 uses `Cpu8008StoredState`, with owned mutable address
+[generateInstructions](../../src/components/cpus/semantics/generate.ts) obtains
+owned, validated definitions through `defineInstruction` before emitting code.
+Generated methods take the concrete CPU state type (the 8008 uses `Cpu8008StoredState`, with owned mutable address
 slots, rather than its readonly constructor-input array), followed by any numeric inputs
 in declaration order, then only the callbacks their statements use, expressed
 as a `Pick<ByteInstructionContext, ...>`, extended with
@@ -1701,7 +1708,7 @@ successive updates to the same An. Source or alignment failures discard pending
 updates. A failed destination read retains committed updates; a failed write
 also retains calculated flags and earlier bytes. The native arithmetic builder
 and its encoding classifier are removed without a language or compiler change.
-The native ALU destination recipe remains in use for decimal operations
+The native ALU destination recipe remains in use for Scc and status transfers
 until their own chapter migration.
 
 The [bit/shift chapter families](../../src/components/cpus/specifications/68000.md#bits-shifts-and-rotates) own
@@ -1740,10 +1747,14 @@ verify shared quick-count aliases and change carry initials, ASL overflow,
 count masks, and bit reduction in the generated execution. The handwritten
 bit catalogue and builder are removed.
 
-The remaining [word and decimal inventory](../../src/components/cpus/68000-arithmetic.ts)
-binds 2,120 MULU/MULS/DIVU/DIVS/CHK forms to 440 word-source bodies and 306
-ABCD/SBCD/NBCD forms to 139 decimal bodies. These reuse the source reader and
-ALU destination construction, with distinct commit schedules.
+The [word families](../../src/components/cpus/specifications/68000.md#word-products-division-and-bounds)
+bind 2,120 MULU/MULS/DIVU/DIVS/CHK forms to 440 bodies, and the
+[decimal families](../../src/components/cpus/specifications/68000.md#packed-decimal-arithmetic)
+bind 306 ABCD/SBCD/NBCD forms to 139 bodies. The chapter owns encodings,
+register roles, explicit paired predecrement modes, and distinct commit schedules.
+Native dispatch supplies only raw `mode/code/upperCode` fields. The handwritten
+word/decimal catalogue and builders are removed; chapter sources and actions
+supply operand reads, calculations, and writeback.
 
 Word operations read the complete source before Dn. Failed reads discard staged
 updates; completed operations commit them after result/flag effects and before
@@ -1769,8 +1780,9 @@ independently scan every operation word, compare each binding and every failed
 effect, and check signed limits with BigInt and every packed-byte input with
 separate digit and valid-decimal oracles. Shared division tests cover both
 outcome modes and capture validation. CPU bus tests check A7 source/destination
-faults and retained flags in both stack banks. Earlier definitions and generated
-modules remain unchanged.
+faults and retained flags in both stack banks. [Chapter mutation tests](../../tests/components/cpus/semantics/literate-68000-word-and-decimal.test.ts)
+change product signedness, overflow handling, signed bounds, decimal correction,
+cumulative zero, and paired destination selection in generated execution.
 
 The [control inventory](../../src/components/cpus/68000-control.ts) binds Scc,
 DBcc, BRA/Bcc/BSR, LEA/PEA/JMP/JSR, LINK/UNLK, and RTS: 1,285 forms through

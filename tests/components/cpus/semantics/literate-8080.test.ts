@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { instructions as actions, sourceReaders } from "../../../../src/components/cpus/generated/8080-state.js";
-import { instructions8080 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions as instructions8080 } from "../../../../src/components/cpus/semantics/generated/8080.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";

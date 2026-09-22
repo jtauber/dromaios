@@ -7,7 +7,11 @@ import { instructions as m6800 } from "../../../../src/components/cpus/generated
 import { bodies6809 as m6809 } from "../../../helpers/6809-bodies.js";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { bodiesZ80 as z80 } from "../../../helpers/z80-bodies.js";
-import { instructions6502, instructions6800, instructions6809, instructions8080, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions as instructions6502 } from "../../../../src/components/cpus/semantics/generated/6502.js";
+import { instructions as instructions6800 } from "../../../../src/components/cpus/semantics/generated/6800.js";
+import { instructions as instructions6809 } from "../../../../src/components/cpus/semantics/generated/6809.js";
+import { instructions as instructions8080 } from "../../../../src/components/cpus/semantics/generated/8080.js";
+import { instructions as instructionsZ80 } from "../../../../src/components/cpus/semantics/generated/z80.js";
 import type { Cpu6502State } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import type { Cpu6800State } from "../../../../src/components/cpus/semantics/generated/state/6800.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/semantics/generated/state/6809.js";

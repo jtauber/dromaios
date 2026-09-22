@@ -1,10 +1,15 @@
 import type { AddressExpression, Choice, CpuDeclaration, Expression, Flag, FlagGroup, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueType, Width } from "./model.ts";
 import { flagValue, isWidth, value } from "./model.ts";
 
+// Only definitions validated here are trusted; caller freezes cannot bypass checking.
+const validatedDefinitions = new WeakSet<InstructionDefinition>();
+
 /** Own and freeze a validated definition. Captures and source scopes are instruction-local. */
 export function defineInstruction(definition: InstructionDefinition): InstructionDefinition {
+  if (validatedDefinitions.has(definition)) return definition;
   const owned = copyData(definition);
   validateInstruction(owned);
+  validatedDefinitions.add(owned);
   return owned;
 }
 
@@ -408,12 +413,15 @@ function validation(cpu: CpuDeclaration, prefix: string) {
 }
 
 /** Plain data only: cloning must neither retain mutable caller objects nor hide host functions. */
-function copyData<Value>(value: Value, ancestors = new Set<object>()): Value {
+function copyData<Value>(value: Value, ancestors = new Set<object>(), copies = new Map<object, object>()): Value {
   if (value === null || ["string", "number", "boolean"].includes(typeof value)) return value;
   const array = Array.isArray(value);
   if (typeof value !== "object" || Object.getPrototypeOf(value) !== (array ? Array.prototype : Object.prototype)) {
     throw new Error("Instruction definitions must contain plain data, without host functions or instances.");
   }
+  // Keep shared subexpressions shared within this owned graph; only completed copies enter the map.
+  const previous = copies.get(value);
+  if (previous) return previous as Value;
   const fields = Object.getOwnPropertyDescriptors(value);
   if (Object.getOwnPropertySymbols(value).length || Object.values(fields).some(field => !("value" in field))) {
     throw new Error("Instruction definitions require data properties, without accessors or symbol properties.");
@@ -424,10 +432,12 @@ function copyData<Value>(value: Value, ancestors = new Set<object>()): Value {
   if (array) {
     const length: number = fields.length!.value;
     if (Object.keys(fields).length !== length + 1) throw new Error("Instruction definition arrays must be dense and contain only indexed data.");
-    copy = Array.from({ length }, (_, index) => copyData(fields[index]?.value, ancestors));
+    copy = Array.from({ length }, (_, index) => copyData(fields[index]?.value, ancestors, copies));
   } else {
-    copy = Object.fromEntries(Object.entries(fields).map(([key, field]) => [key, copyData(field.value, ancestors)]));
+    copy = Object.fromEntries(Object.entries(fields).map(([key, field]) => [key, copyData(field.value, ancestors, copies)]));
   }
   ancestors.delete(value);
-  return Object.freeze(copy) as Value;
+  Object.freeze(copy);
+  copies.set(value, copy);
+  return copy as Value;
 }

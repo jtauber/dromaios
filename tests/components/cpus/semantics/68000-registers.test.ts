@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/68000.js";
 import { instructions as quick } from "../../../../src/components/cpus/generated/68000-quick.js";
-import { instructions68000, quick68000 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions68000, quick68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
 import { instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import { cpu68000StateDescription } from "../../../../src/components/cpus/state/68000.js";

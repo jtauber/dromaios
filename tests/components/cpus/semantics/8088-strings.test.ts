@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/8088.js";
 import { compileResolved, addressing8088 } from "../../../helpers/8088-resolved.js";
 import { instructions as strings } from "../../../../src/components/cpus/generated/8088-strings.js";
-import { strings8088, instructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { strings as strings8088, instructions as instructions8088 } from "../../../../src/components/cpus/semantics/generated/8088.js";
 import type { Cpu8088State, Cpu8088Flags } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
 import { address, aluResult, flags, initialState, words } from "../8088/helpers.js";
 

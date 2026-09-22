@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { boolean, choices, defineState, flag, group, unsigned } from "../../../../src/components/cpus/state.js";
 import { cpuZ80StateDescription } from "../../../../src/components/cpus/semantics/generated/state/z80.js";
-import { instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions as instructionsZ80 } from "../../../../src/components/cpus/semantics/generated/z80.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { instructions } from "../../../../src/components/cpus/generated/z80.js";
 import { instructions as actions, sourceReaders } from "../../../../src/components/cpus/generated/z80-state.js";

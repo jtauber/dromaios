@@ -979,20 +979,20 @@ export function check68000BitTypes(state: Cpu68000State): void {
 
 export function check68000WordAndDecimalTypes(state: Cpu68000State): void {
   const addressing = { resolveAddress: () => 0, commitAddressUpdates: () => {} };
-  wordArithmetic68000.MULS_d0_d1(state, 0, 0, 0, 1);
-  const division: void | "divide-by-zero" = wordArithmetic68000.DIVS_d0_d1(state, 0, 0, 0, 1);
-  const checked: void | OperandAlignmentFault | "bounds-check" = wordArithmetic68000.CHK_program_d0(state, 7, 2, 0, 0,
+  wordArithmetic68000["MULS.W D0,D1"](state, 0, 0, 1);
+  const division: void | "divide-by-zero" = wordArithmetic68000["DIVS.W D0,D1"](state, 0, 0, 1);
+  const checked: void | OperandAlignmentFault | "bounds-check" = wordArithmetic68000["CHK.W PROGRAM,D0"](state, 7, 2, 0,
     { ...addressing, readProgramByte: () => 0 });
-  decimal68000.ABCD_memory_memory(state, 4, 7, 4, 7, { ...addressing, readByte: () => 0, writeByte: () => {} });
-  decimal68000.NBCD_none_d0(state, 0, 0, 0, 0);
+  decimal68000["ABCD MEMORY,MEMORY"](state, 1, 7, 7, { ...addressing, readByte: () => 0, writeByte: () => {} });
+  decimal68000["NBCD D0"](state, 0, 0, 0);
   // @ts-expect-error Quotient overflow completes; divide-by-zero remains a possible outcome.
-  const success: void = wordArithmetic68000.DIVU_d0_d1(state, 0, 0, 0, 1);
+  const success: void = wordArithmetic68000["DIVU.W D0,D1"](state, 0, 0, 1);
   // @ts-expect-error Word-source arithmetic never writes data memory.
-  wordArithmetic68000.MULU_memory_d0(state, 3, 7, 0, 0, { ...addressing, readByte: () => 0, writeByte: () => {} });
+  wordArithmetic68000["MULU.W MEMORY,D0"](state, 3, 7, 0, { ...addressing, readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Immediate sources fetch a complete native word.
-  wordArithmetic68000.CHK_immediate_d0(state, 7, 4, 0, 0, { fetchByte: () => 0 });
+  wordArithmetic68000["CHK.W IMMEDIATE,D0"](state, 7, 4, 0, { fetchByte: () => 0 });
   // @ts-expect-error Decimal paired operands require destination writeback.
-  decimal68000.SBCD_memory_memory(state, 4, 7, 4, 7, { ...addressing, readByte: () => 0 });
+  decimal68000["SBCD MEMORY,MEMORY"](state, 1, 7, 7, { ...addressing, readByte: () => 0 });
 }
 
 

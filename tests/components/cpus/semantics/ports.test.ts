@@ -5,7 +5,10 @@ import { instructions as i8008 } from "../../../../src/components/cpus/generated
 import { instructions as i8080 } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as i8088 } from "../../../../src/components/cpus/generated/8088.js";
 import { bodiesZ80 as iz80 } from "../../../helpers/z80-bodies.js";
-import { instructions8008, instructions8080, instructions8088, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions as instructions8008 } from "../../../../src/components/cpus/semantics/generated/8008.js";
+import { instructions as instructions8080 } from "../../../../src/components/cpus/semantics/generated/8080.js";
+import { instructions as instructions8088 } from "../../../../src/components/cpus/semantics/generated/8088.js";
+import { instructions as instructionsZ80 } from "../../../../src/components/cpus/semantics/generated/z80.js";
 import type { Cpu8008StoredState } from "../../../../src/components/cpus/semantics/generated/state/8008.js";
 import type { Cpu8080State } from "../../../../src/components/cpus/semantics/generated/state/8080.js";
 import { cpu8088StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8088.js";

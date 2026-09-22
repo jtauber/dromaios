@@ -46,9 +46,10 @@ Executable chapters are maintained CPU sources:
   Reset, segmented fetching, prefix choices, trap/fault delivery, retirement,
   and ordered INTR/NMI offers are declared here. The class, connections, records,
   snapshots, and integration metadata are generated; no handwritten adapter remains.
-- [Motorola 68000: state, transfers, and logic](../../src/components/cpus/specifications/68000.md)
+- [Motorola 68000: state and operand instructions](../../src/components/cpus/specifications/68000.md)
   owns stored state, A7 and status views, every MOVE/MOVEA form, MOVEQ, EXT, SWAP,
-  EXG, ordinary logical/immediate forms, and CLR/NOT/TST. Reusable transfers,
+  EXG, logical/immediate forms, unary and binary arithmetic, bits/shifts/rotates,
+  word products/division, signed bounds, and packed decimal arithmetic. Reusable transfers,
   register reads/writes, and pure calculation bindings retain
   explicit access ordering. Its bank/status sources and result policies also
   serve the remaining native core and instruction builders.
@@ -203,6 +204,7 @@ Quoted descriptions use JSON string escaping.
 | `result = iterate(count, initial) { … return next }` | Execute 0–255 ordered iterations, retaining the initial width; the final `return` occupies its own line. |
 | `iterate(count) { … step { … next local = expression } }` | Advance typed numeric and flag locals together; declarations and each trailing `next` occupy separate lines. |
 | `quotient, remainder = divide(dividend, divisor, signed) otherwise "divide-error"` | Divide a double-width dividend by a byte/word; choose `signed` or `unsigned`; return the named outcome on zero or quotient overflow. |
+| `quotient, remainder, overflow = divide(dividend, divisor, unsigned) otherwise "divide-by-zero"` | Capture a Boolean quotient-overflow result; only zero returns the named outcome. |
 | `reject "divide-error" if condition` | Return a named instruction outcome when the flag expression is true; omit `if` for unconditional rejection. |
 | `when not(carry) { … }` | Execute a nested block only when its captured flag expression is true. |
 | `when test c { … }` | Read the flag selected by a condition catalogue at this point, compare it with the required value, and conditionally execute the block. |
@@ -265,14 +267,34 @@ check simultaneous updates, zero/maximum counts, nesting, captured counts,
 ordered failures, declared outcomes, and document-located validation errors.
 
 Division takes a 16-bit dividend and 8-bit divisor, or a 32-bit dividend and
-16-bit divisor. It captures quotient and remainder at the divisor's width only
-on success. Signed division truncates toward zero and gives the remainder the
-dividend's sign. The language allows the full signed quotient range; the 8088
+16-bit divisor. The two-result spelling captures quotient and remainder at the
+divisor's width only on success; zero and overflow return the named outcome.
+Signed division truncates toward zero and gives the remainder the dividend's sign. The language allows the full signed quotient range; the 8088
 chapter explicitly rejects its chip-specific most negative quotient afterward.
 
 ```text
 quotient, remainder = divide(dividend, divisor, signed) otherwise "divide-error"
 reject "divide-error" if zero(xor(quotient, u8($80)))
+```
+
+An optional third capture names a Boolean quotient-overflow result. With this
+spelling, only a zero divisor returns the named outcome. A nonzero divisor
+always captures the low quotient/remainder bits at the divisor's width and
+whether the mathematical quotient fits its signed or unsigned range. The
+caller must decide whether to use those bits or report overflow through flags.
+This permits the [68000 division families](../../src/components/cpus/specifications/68000.md#quotients-and-remainders)
+to preserve Dn and set V on overflow, while divide-by-zero requests an exception.
+The captured Boolean is local, not a stored CPU flag.
+
+```text
+quotient, remainder, quotientOverflow = divide(dividend, divisor, unsigned) otherwise "divide-by-zero"
+when quotientOverflow {
+  apply divisionOverflow()
+}
+when not(quotientOverflow) {
+  D0 <- concat(remainder, quotient)
+  apply wordResult(quotient)
+}
 ```
 
 Named outcomes return from the complete instruction, including inside `when`
@@ -1172,8 +1194,8 @@ instruction catalogue bindings. No processor-specific TypeScript implementation
 remains; the chapter supplies all of its model and public-interface choices.
 Shared runtime services enforce the declared execution contract. Chapters
 without owned state validate declarations against an external schema; the
-68000 retains its remaining word/decimal arithmetic, control, transfer, and
-system instruction definitions in TypeScript.
+68000 retains its control, multiple/peripheral transfer, and system instruction
+definitions in TypeScript.
 
 The eight chapters now exercise contrasting widths, ordered effects, and
 interrupt-recognition policies. The 6502 now owns its complete state, status
@@ -1186,7 +1208,8 @@ owns reset bus effects, ordinary execution, named IRQ/NMI entry, and its public
 interface. No handwritten 6502 implementation remains.
 The 8008 now expresses its address-stack selector, array, and port effects;
 the 68000 now owns its schema, transfers, logical/unary and binary arithmetic
-operations, bit/shift/rotate/TAS families, A7 selection, and status packing/restoration.
+operations, bit/shift/rotate/TAS families, word products/division, signed bounds,
+packed decimal arithmetic, A7 selection, and status packing/restoration.
 Its native effective-address decoder consumes
 the chapter selection source and retains pending auto-updates. Shared TypeScript
 bodies still serve the remaining instruction families. Only complete chapter-owned

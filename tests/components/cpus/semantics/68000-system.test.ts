@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { stripTypeScriptTypes } from "node:module";
 import { instructions } from "../../../../src/components/cpus/generated/68000-system.js";
 import { systemForms68000 } from "../../../../src/components/cpus/68000-system.js";
-import { system68000 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { system68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";

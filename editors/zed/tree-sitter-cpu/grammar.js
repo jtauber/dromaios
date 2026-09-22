@@ -80,7 +80,7 @@ module.exports = grammar({
       'step', '{', repeat($._statement), repeat1($.next_value), '}', '}'),
     iteration_value: $ => seq(field('name', $.identifier), ':', choice($.number, 'flag'), '=', $._expression),
     next_value: $ => seq('next', field('name', $.identifier), '=', $._expression),
-    divide_capture: $ => seq(field('quotient', $.identifier), ',', field('remainder', $.identifier), '=', 'divide',
+    divide_capture: $ => seq(field('quotient', $.identifier), ',', field('remainder', $.identifier), optional(seq(',', field('overflow', $.identifier))), '=', 'divide',
       '(', $._expression, ',', $._expression, ',', choice('signed', 'unsigned'), ')', 'otherwise', $.string),
     reject_statement: $ => seq('reject', $.string, optional(seq('if', $._expression))),
     capture: $ => seq(field('name', choice($.identifier, alias('exchange', $.identifier), alias('port', $.identifier), alias('next', $.identifier))), '=', choice($._read, $._expression)),

@@ -94,6 +94,30 @@ test("chapter multiplication and division distinguish signed values and reject z
   }
 });
 
+test("a third division result reports overflow while zero still returns before subsequent effects", async () => {
+  for (const mode of ["signed", "unsigned"] as const) {
+    const body = division(mode).replace("quotient, remainder =", "quotient, remainder, tooLarge =")
+      .replace("  A <- quotient\n  B <- remainder", `  when not(tooLarge) {
+    A <- quotient
+    B <- remainder
+  }
+  W <- select(tooLarge, u16(1), u16(0))`);
+    const { instructions } = await executable(body);
+    for (const dividend of [0, 1, 127, 128, 255, 256, 32767, 32768, 65535]) for (const divisor of [0, 1, 2, 127, 128, 255]) {
+      const state = { a: 77, b: divisor, w: dividend }, before = { ...state };
+      const result = instructions[0]!(state, { readByte() { assert.fail(); }, writeByte() { assert.fail(); } });
+      if (divisor === 0) { assert.equal(result, "arithmetic"); assert.deepEqual(state, before); continue; }
+      const signed = mode === "signed", left = signed ? BigInt.asIntN(16, BigInt(dividend)) : BigInt(dividend);
+      const right = signed ? BigInt.asIntN(8, BigInt(divisor)) : BigInt(divisor), quotient = left / right;
+      const overflow = quotient < (signed ? -128n : 0n) || quotient > (signed ? 127n : 255n);
+      assert.equal(result, undefined);
+      assert.deepEqual(state, overflow ? { ...before, w: 1 } : {
+        a: Number(BigInt.asUintN(8, quotient)), b: Number(BigInt.asUintN(8, left % right)), w: 0,
+      });
+    }
+  }
+});
+
 test("named rejection exits nested iteration immediately, preserving earlier effects", async () => {
   const { instructions, chapter } = await executable(`family stop "00000000" {
   result = iterate(u8(3), u8(0)) {
@@ -123,6 +147,11 @@ test("bounded operations reject wrong widths, escaped locals, invalid outcomes, 
     division('signed').replace('dividend, divisor, signed', 'divisor, divisor, signed'),
     division('signed').replace('dividend, divisor, signed', 'dividend, divisor, maybe'),
     division('signed').replace('quotient, remainder', 'quotient, quotient'),
+    division('signed').replace('quotient, remainder', 'quotient, remainder, quotient'),
+    division('signed').replace('quotient, remainder', 'quotient, remainder, flag, extra'),
+    division('signed').replace('quotient, remainder', 'quotient, remainder, flag').replace('A <- quotient', 'A <- flag'),
+    division('signed').replace('quotient, remainder', 'quotient, remainder, dividend'),
+    `source invalid "cannot divide with overflow": 8 {\n  q, r, overflow = divide(u16(1), u8(1), unsigned) otherwise "stop"\n  return q\n}`,
     division('signed').replace('"arithmetic"', '"bad outcome"'),
     `action invalid "cannot return named outcomes" {\n  reject "stop"\n}`,
     `source invalid "cannot divide with an outcome": 8 {\n  q, r = divide(u16(1), u8(1), unsigned) otherwise "stop"\n  return q\n}`,

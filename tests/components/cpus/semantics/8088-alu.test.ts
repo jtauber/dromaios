@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { probes } from "../../../helpers/8088-operands.js";
-import { operandInstructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { operandInstructions as operandInstructions8088 } from "../../../../src/components/cpus/semantics/generated/8088.js";
 import { actions as definitions } from "../../../../src/components/cpus/semantics/generated/8088.js";
 import { cpu8088StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
