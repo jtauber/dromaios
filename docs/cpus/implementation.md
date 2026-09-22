@@ -239,13 +239,14 @@ expand them into complete generated bodies. Standalone source generation remains
 a test of the same compiler. Address sources stop before the final data read, allowing stores and memory modifiers to preserve their own access order.
 Keep instruction-specific exceptions, such as indirect JMP's page wrap, explicit.
 
-For 68000 register instructions, patterns likewise live beside their
-[definitions](../../src/components/cpus/semantics/definitions/68000.ts).
+For 68000 register instructions, patterns live in the
+[executable chapter](../../src/components/cpus/specifications/68000.md).
 `instructionSet(entries, 16)` checks the word-sized encoding inventory. The core
 adds generated entries to its shared static table, passing the executing CPU's
-state to each body. Operand MOVE/MOVEA forms use a shared
-[encoding inventory](../../src/components/cpus/68000-moves.ts) to select bodies
-by operand role and supply the exact mode/register selectors.
+state to each body. The same chapter owns every MOVE/MOVEA encoding.
+`instructionAliases` groups identical named definitions and rejects conflicting
+bodies; generation emits an opcode-to-body table. The native binding extracts
+the four mode/register fields, while the chapter determines opcode legality.
 MOVEQ retains its embedded-byte selector and supplies the immediate to one
 parameterized body per destination. Literal values do not multiply coverage.
 A7 selection expands into explicit S tests and SSP/USP branches at each operand's

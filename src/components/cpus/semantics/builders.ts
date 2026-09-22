@@ -21,6 +21,20 @@ export function instructionBodies<Form extends { readonly body: string }>(forms:
   return Object.freeze(Object.fromEntries(bodies));
 }
 
+/** Chapter aliases share a named body only when their complete definitions agree. */
+export function instructionAliases(entries: readonly OpcodeEntry<InstructionDefinition>[]) {
+  const definitions = new Map<string, InstructionDefinition>();
+  const serialized = new Map<string, string>();
+  const opcodeAliases = entries.map(([opcode, definition]): OpcodeEntry<string> => {
+    const text = JSON.stringify(definition), previous = serialized.get(definition.name);
+    if (previous !== undefined && previous !== text) throw new Error(`Conflicting instruction alias ${definition.name}.`);
+    serialized.set(definition.name, text);
+    definitions.set(definition.name, definition);
+    return [opcode, definition.name];
+  });
+  return { definitions: Object.freeze(Object.fromEntries(definitions)), opcodeAliases };
+}
+
 /** Unsigned comparison expressed through the existing subtraction-borrow fact. */
 export const atLeast = (left: NumberExpression, right: NumberExpression): FlagExpression => not(borrow(left, right));
 

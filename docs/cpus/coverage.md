@@ -25,7 +25,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,900](../../src/components/cpus/specifications/z80.md) | 1,509 | 698 / 698 | 100% | 6 / 6 |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,566](../../src/components/cpus/specifications/6809.md) | 1,322 | 268 / 268 | 100% | 6 / 6 |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,115](../../src/components/cpus/specifications/8088.md) | 2,714 | 291 / 291 | 100% | 6 / 6 |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [607](../../src/components/cpus/68000.ts) | [614](../../src/components/cpus/specifications/68000.md) | 317 | 928 / 36,029 | 2.6% | 1 / 6 |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [610](../../src/components/cpus/68000.ts) | [1,357](../../src/components/cpus/specifications/68000.md) | 755 | 9,950 / 36,029 | 27.6% | 1 / 6 |
 
 **Literate instruction coverage** measures documented opcode forms authored in
 executable chapters. This percentage alone does not measure the wider CPU
@@ -219,10 +219,10 @@ verify chapter edits through generation, construction, machine parsing, memory
 bounds, and execution.
 
 The [68000 chapter](../../src/components/cpus/specifications/68000.md) owns
-**928 of 36,029 documented forms (2.6%)**: 792 register MOVE/MOVEA,
-EXT, SWAP, and EXG forms, eight MOVEQ destinations, and 128 indirect word
-loads/stores. These cover 2,968 operation words, but MOVEQ's immediate values
-do not multiply forms under the existing [counting rules](68000/opcode-count.md).
+**9,950 of 36,029 documented forms (27.6%)**: all 9,726 MOVE/MOVEA forms,
+eight MOVEQ destinations, sixteen EXT forms, eight SWAP forms, and 192 EXG
+pairs. These cover 11,990 operation words, but MOVEQ's immediate values do not
+multiply forms under the existing [counting rules](68000/opcode-count.md).
 The full stored-state schema earns **1 / 6 model milestones**. A7 selection,
 physical-PC and packed-status views, CCR/SR actions, and byte/word/long result
 policies also come from the chapter. The remaining native definitions consume
@@ -249,7 +249,7 @@ CPU language or the amount of work remaining. See the
 ## Completed instruction-definition migration
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **10,215 generated bodies** for instructions and reusable actions,
+contains **10,093 generated bodies** for instructions and reusable actions,
 including 6502/6800/8088 entry helpers, 6809 frame/vector helpers, 8088 WAIT
 resumption, and chapter-defined stack, PC-write, reset, and acceptance actions. They cover **38,128 complete opcode
 forms**; helpers do not add opcode credit. All eight CPUs now
@@ -597,9 +597,9 @@ family inventory is:
   write. MOVE/MOVEQ/EXT write before N/Z/V/C; SWAP applies flags first. X/T/S
   remain untouched. The existing conditional, width, transfer, and flag
   vocabulary suffices for these register forms.
-  Of the remaining **9,150 MOVE/MOVEA forms**, **9,022** use **169 shared bodies**
-  and **128** use the chapter's specialized word loads/stores, completing the
-  entire ordinary transfer family. Sources finish before
+  All **9,150 non-register MOVE/MOVEA forms** now use the chapter's **169 shared
+  bodies**, completing literate authorship of the ordinary transfer family. The
+  original specialized word loads/stores have joined these shared definitions. Sources finish before
   destination-address decoding. The decoder stages auto-updates, making them
   visible to later base/index calculations; the body commits them only after
   alignment checks and before writeback. Source/extension failures discard
@@ -609,9 +609,10 @@ family inventory is:
   sources retain program-space identity in both bus and alignment faults.
   The CPU still owns EA decoding, fetch cursors, exception delivery, and retirement.
   AND/OR/EOR, ordinary ANDI/ORI/EORI, and CLR/NOT/TST add **6,660 forms**
-  through **906 shared bodies**. MOVE and logic now share operand classification,
-  source reads, immediate fetching, byte transfers, alignment checks, partial Dn
-  writes, and result flags. Logical memory destinations commit staged updates
+  through **906 shared bodies**. Logic retains its native operand and transfer
+  builders while sharing the chapter's result policies. MOVE now authors source
+  reads, immediate fetching, byte transfers, alignment checks, and partial Dn
+  writes in its executable chapter. Logical memory destinations commit staged updates
   before their read, including CLR's otherwise unused read. Source-read failures
   discard updates; destination-read failures retain them. Flags precede writeback,
   so failed writes retain computed flags and completed bytes; TST never writes.
@@ -714,14 +715,14 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Remaining handwritten CPU core (68000) | 607 |
-| CPU-specific instruction definition files | 564 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,648 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,819** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 16,743 |
-| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 140 |
-| Generated executable CPU output, counted separately | 308,778 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 2,938,084 |
+| Remaining handwritten CPU core (68000) | 610 |
+| CPU-specific instruction definition files | 537 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,652 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,799** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 17,486 |
+| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
+| Generated executable CPU output, counted separately | 320,016 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 2,474,026 |
 | Generated state schemas/types, counted separately | 207 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
@@ -735,7 +736,7 @@ migration to zero**. The final public-interface step removes its remaining
 **71 core lines**, **11 state-adapter lines**, and **9 definition-adapter lines**.
 Its generated public class is **52 lines**, its generated state module is
 **24 lines**, and shared generation supplies both. The shared byte runtime
-is now **121 lines**; the literate front end is **2,085 lines**.
+is now **121 lines**; the literate front end is **2,088 lines**.
 
 Across the earlier 8008 execution, public-interface, and machine-integration
 migration, authored CPU TypeScript grew from **9,416 to 9,671 lines**, and CPU
@@ -1078,8 +1079,28 @@ match **131,072 instruction cases**, **256 reset/interrupt cases**, and **7,712
 injected failures**. Independent register tests retain exact read/write ordering,
 and chapter tests exhaust packed-status restoration and exercise formal edits.
 
-Generated chapter data repeats the validated CPU schema within expanded
-definitions and remains a separate, disposable intermediate representation.
+The complete MOVE/MOVEA migration raises 68000 literate coverage from **928 to
+9,950 documented forms (27.6%)**. All **9,150 non-register encodings** now select
+**169 shared chapter bodies**; the handwritten MOVE catalogue/builder and the
+initial specialized word-transfer module are removed. The chapter is **1,357
+lines**, including **755 formal lines**, with reusable ordered memory transfers
+and data-register write actions. Its model milestones remain **1 / 6**: effective
+address decoding, remaining register adapters/builders, reset, execution, and
+exception delivery still need migration.
+
+CPU definition files shrink from **564 to 537 lines**, and all authored CPU
+TypeScript from **6,819 to 6,799 lines**. The native core is **610 lines**,
+including extraction of the four MOVE fields for generated opcode aliases.
+Maintained CPU source, including chapters and generation scripts, is **24,433
+lines**. Sharing identical chapter definitions keeps the generated intermediate
+representation at **2,474,026 lines**, down from **2,938,084**, despite the larger
+literate inventory. Independent MOVE tests retain their complete effect/failure
+oracle; the before/after comparison matches **131,072 instruction cases**,
+**256 reset/interrupt cases**, and **7,712 injected failures**.
+
+Generated chapter data shares identical instruction definitions across opcode
+aliases; distinct definitions still repeat their validated CPU schema. This is a
+separate, disposable intermediate representation.
 The small generated state modules serve runtime consumers without importing
 that expanded data.
 

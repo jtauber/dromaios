@@ -7,7 +7,6 @@ import type { ControlForm68000 } from "../../68000-control.ts";
 import { motorolaBranchNames } from "../../motorola.ts";
 import { motorolaCondition } from "../motorola.ts";
 import { cpu68000StateDescription } from "../../state/68000.ts";
-import { operandMoveForms68000 } from "../../68000-moves.ts";
 import { arithmeticForms68000, wordArithmeticForms68000, decimalForms68000 } from "../../68000-arithmetic.ts";
 import type { ArithmeticOperation68000, ArithmeticSource68000, WordArithmeticForm68000, DecimalForm68000 } from "../../68000-arithmetic.ts";
 import { bitForms68000 } from "../../68000-bits.ts";
@@ -19,7 +18,7 @@ import type { Operand68000, OperandSize68000 as Size, OperandRegister68000 as Re
 import { perform, readSource, resetDevices, writeLatch, addOverflow, addWrap, alignmentFault, and, borrow, carry, overflow, select, subtract, bitAnd, bitOr, bitXor, capture, commitAddressUpdates, concat, cpuSymbols, extend, fetchWord, flagLiteral, flagValue, literal, lowBit, negative, readFlag, readMemory, readProgramMemory, readRegister,
   readNextAddress, selectTarget, divide, multiply, not, reject, iterate, iterateTogether, or, xor, shiftLeft, resolveAddress, shiftBits, signExtend, truncate, updateFlags, value, when, writeMemory, writeRegister, zero } from "../model.ts";
 import type { FlagExpression, InstructionDefinition, NumberExpression, Register, Statement } from "../model.ts";
-import { arithmetic, instructionBodies, instructionSet, shift } from "../builders.ts";
+import { arithmetic, instructionAliases, instructionBodies, instructionSet, shift } from "../builders.ts";
 import { choose } from "../control-flow.ts";
 import { flagPolicy } from "../status.ts";
 import { defineInstruction } from "../validate.ts";
@@ -45,9 +44,8 @@ function writeData(register: Register, size: Size, contents: NumberExpression): 
 
 const resultFlags = (size: Size) => policies[size === 8 ? "byteResult" : size === 16 ? "wordResult" : "longResult"];
 
-export const wordMoves68000 = instructionSet([...families.load, ...families.store], 16);
 export const instructions68000 = instructionSet(Object.entries(families)
-  .filter(([name]) => !["load", "store", "moveQuick"].includes(name)).flatMap(([, entries]) => entries), 16);
+  .filter(([name]) => name !== "moveQuick" && !name.startsWith("operandMove")).flatMap(([, entries]) => entries), 16);
 
 // The native decoder supplies the encoded immediate to one chapter body per Dn.
 const quickForms = new Map(families.moveQuick);
@@ -107,34 +105,9 @@ function aluDestination(size: Size, destination: Operand68000, pending: boolean,
       ...apply, ...(writeBack ? memoryWrite(size) : [])];
 }
 
-/** Resolve and read the source before any destination extension fetch; only complete writes set flags. */
-function operandMove(size: Size, source: Operand68000, destination: Exclude<Operand68000, { kind: "immediate" }>) {
-  const address = destination.kind === "register" && destination.name.startsWith("a");
-  const pending = source.kind === "memory" || destination.kind === "memory";
-  const commit = pending ? [commitAddressUpdates()] : [];
-  const flags = [updateFlags(resultFlags(size), { result: value("result") })];
-  const write: readonly Statement[] = destination.kind === "register"
-    ? withRegister(destination.name, "destinationSupervisor", to => [...commit, ...(address
-      ? [writeRegister(to, size === 16 ? signExtend(value("result"), 32) : value("result"))]
-      : [...writeData(to, size, value("result")), ...flags])])
-    : [resolveAddress("destinationAddress", size, value("destinationMode"), value("destinationCode")),
-      ...checkAlignment(size, "destinationAddress", "write"), ...commit, ...memoryWrite(size), ...flags];
-  return defineInstruction({ cpu: cpu.declaration,
-    name: `${address ? "MOVEA" : "MOVE"}.${sizes[size]} ${source.name.toUpperCase()},${destination.name.toUpperCase()}`,
-    inputs: { sourceMode: 3, sourceCode: 3, destinationMode: 3, destinationCode: 3 },
-    explanation: "Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; "
-      + "later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. "
-      + "After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; "
-      + "failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. "
-      + (address ? "MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register."
-        : "Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S."),
-    steps: withSource(size, source, "result", write),
-  });
-}
-
-// Addressing modes share a body when their register/memory/space roles match.
-// Decoder inputs retain the exact mode and register selectors for each operation word.
-export const moves68000 = instructionBodies(operandMoveForms68000, ({ size, source, destination }) => operandMove(size, source, destination));
+// Chapter families own legality and roles; encodings with the same body share generated code.
+const moveFamilies = Object.entries(families).filter(([name]) => name.startsWith("operandMove")).flatMap(([, entries]) => entries);
+export const { definitions: moves68000, opcodeAliases: moveOpcodes68000 } = instructionAliases(moveFamilies);
 
 function peripheralTransfer({ size, register, base, store }: Extract<TransferForm68000, { kind: "peripheral" }>) {
   const data = cpu.register(register);

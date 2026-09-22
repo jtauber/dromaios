@@ -12,7 +12,7 @@ import { generateInstructions } from "../../../../src/components/cpus/semantics/
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { generateChapterExecution } from "../../../../src/components/cpus/semantics/literate/execution.js";
 import { generateChapterInterface } from "../../../../src/components/cpus/semantics/literate/interface.js";
-import { instructionBodies, instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
+import { instructionAliases, instructionBodies, instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
 import { cpuSymbols, addWrap, capture, highByte, lowByte, literal, readRegister, value, writeLatch, writeRegister, zero } from "../../../../src/components/cpus/semantics/model.js";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import type { Cpu6502State } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
@@ -47,6 +47,23 @@ test("shared body keys build only their first form and retain encounter order, i
   assert.equal(bodies.second, first);
   assert.equal(bodies.__proto__, first);
   assert.ok(Object.isFrozen(bodies));
+});
+
+test("chapter aliases preserve named bodies, decoded inputs, and explicit opcode legality", async () => {
+  const definition = { ...instructions6502[0xea]!, name: "__proto__", inputs: { contents: 8 as const } };
+  const aliases = instructionAliases([[0xea, definition], [0xeb, structuredClone(definition)]]);
+  assert.deepEqual(Object.keys(aliases.definitions), ["__proto__"]);
+  assert.deepEqual(aliases.opcodeAliases, [[0xea, "__proto__"], [0xeb, "__proto__"]]);
+  assert.throws(() => instructionAliases([[0xea, definition], [0xeb, { ...definition, explanation: "Different definition." }]]), /Conflicting instruction alias/);
+  const source = generateInstructions("6502", aliases.definitions, { opcodeAliases: aliases.opcodeAliases });
+  const generated = await import(`data:text/javascript,${encodeURIComponent(stripTypeScriptTypes(source))}`);
+  assert.deepEqual(Object.keys(generated.opcodeInstructions), ["234", "235"]);
+  assert.equal(generated.opcodeInstructions[0xea], generated.instructions.__proto__);
+  assert.equal(generated.opcodeInstructions[0xeb], generated.instructions.__proto__);
+  generated.opcodeInstructions[0xea](mosState(), 42);
+  assert.throws(() => generateInstructions("6502", aliases.definitions, { opcodeAliases: [[0xea, "missing"]] }), /no definition/);
+  assert.throws(() => generateInstructions("6502", aliases.definitions, { opcodeAliases: [[0xea, "__proto__"], [0xea, "__proto__"]] }), /Duplicate opcode/);
+  assert.throws(() => generateInstructions("6502", aliases.definitions, { opcodeAliases: [[256, "__proto__"]] }), /opcode/);
 });
 
 test("the catalogue and chapter bindings name exactly the generated modules, each reproducible without changing its inputs", () => {

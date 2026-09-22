@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { initialState } from "../../../helpers/68000-state.js";
-import { instructions } from "../../../../src/components/cpus/generated/68000-moves.js";
-import { operandMoveForms68000 } from "../../../../src/components/cpus/68000-moves.js";
+import { instructions, opcodeInstructions } from "../../../../src/components/cpus/generated/68000-moves.js";
 import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
 import type { WordInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
@@ -17,8 +16,8 @@ import { describeInstruction } from "../../../../src/components/cpus/semantics/d
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 
 type Context = Cpu68000AddressContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
-type Body = (state: Cpu68000State, sourceMode: number, sourceCode: number, destinationMode: number, destinationCode: number, context: Context) => OperandAlignmentFault | void;
-const bodies: Readonly<Record<string, Body>> = instructions;
+type Body = (state: Cpu68000State, sourceMode: number, sourceCode: number, destinationMode: number, destinationCode: number, context: Context) => OperandAlignmentFault | "unsupported" | void;
+const bodies: Readonly<Record<number, Body>> = opcodeInstructions;
 const data = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
 const address = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
 type Stored = typeof data[number] | typeof address[number] | "usp" | "ssp";
@@ -68,7 +67,7 @@ interface Scenario { bits: number; source: number; destination: number; seed: nu
 function observe(form: Form, scenario: Scenario, failAt: number, generated: boolean) {
   const state = initialState(scenario.bits), events: unknown[][] = [], memory = new Map<number, number>(), pending = new Map<Stored, number>();
   const flags = state.flags, failure = Error("injected MOVE effect failure");
-  let failed = false, outcome: OperandAlignmentFault | void, resolutions = 0, fetches = 0;
+  let failed = false, outcome: OperandAlignmentFault | "unsupported" | void, resolutions = 0, fetches = 0;
   const effect = (...event: unknown[]) => { events.push(event); if (events.length - 1 === failAt) throw failure; };
   const observed = new Proxy(state, {
     get(target, key, receiver) {
@@ -98,7 +97,7 @@ function observe(form: Form, scenario: Scenario, failAt: number, generated: bool
     readByte: address => read("data", address), readProgramByte: address => read("program", address),
     writeByte(address, byte) { effect("memory write", address, byte); mutate(); memory.set(address, byte); },
   };
-  try { outcome = generated ? bodies[form.key]!(observed, form.sm, form.sc, form.dm, form.dc, context) : reference(observed, form, context); }
+  try { outcome = generated ? bodies[form.opcode]!(observed, form.sm, form.sc, form.dm, form.dc, context) : reference(observed, form, context); }
   catch (error) { if (error !== failure) throw error; failed = true; }
   assert.equal(state.flags, flags);
   return { state, events, memory: [...memory], failed, outcome: outcome! };
@@ -106,13 +105,15 @@ function observe(form: Form, scenario: Scenario, failAt: number, generated: bool
 
 test("68000 remaining MOVE bindings cover exactly 9,150 legal forms with 169 shared bodies", () => {
   assert.equal(forms.length, 9150); assert.equal(representatives.length, 169);
-  assert.equal(operandMoveForms68000.length, 9150);
-  const expected = new Map(forms.map(f => [f.opcode, f]));
-  for (const form of operandMoveForms68000) assert.deepEqual({ opcode: form.opcode, size: form.size, sm: form.sourceMode, sc: form.sourceCode,
-    dm: form.destinationMode, dc: form.destinationCode, key: form.body }, expected.get(form.opcode));
-  assert.equal(new Set(operandMoveForms68000.map(f => f.opcode)).size, forms.length);
-  const keys = representatives.map(f => f.key).sort();
-  assert.deepEqual(Object.keys(moves68000).sort(), keys); assert.deepEqual(Object.keys(bodies).sort(), keys);
+  assert.deepEqual(Object.keys(bodies).map(Number), forms.map(form => form.opcode));
+  const names = representatives.map(form => {
+    const [size, from, to] = form.key.split("_");
+    return `${to!.startsWith("a") ? "MOVEA" : "MOVE"}.${size === "8" ? "B" : size === "16" ? "W" : "L"} ${from!.toUpperCase()},${to!.toUpperCase()}`;
+  }).sort();
+  assert.deepEqual(Object.keys(moves68000).sort(), names);
+  assert.deepEqual(Object.keys(instructions).sort(), names);
+  assert.equal(new Set(Object.values(bodies)).size, 169);
+
 });
 
 test("every MOVE binding preserves its source, destination, space, width, and both active stack banks", () => {
@@ -137,7 +138,7 @@ test("MOVE faults return the rejected logical access before committing updates o
   for (const form of representatives) for (const source of [0xffffffff, 0xfffffffe]) for (const destination of [0x89abcdef, 0x89abcdee]) {
     const scenario = { bits: 127, source, destination, seed: 0x80 }, actual = observe(form, scenario, -1, true);
     assert.deepEqual(actual, observe(form, scenario, -1, false), form.key);
-    if (actual.outcome) {
+    if (actual.outcome && actual.outcome !== "unsupported") {
       assert.ok(!actual.events.some(event => event[0] === "commit" || event[0] === "memory write"));
       if (actual.outcome.operation === "read") assert.ok(!actual.events.some(event => event[0] === "memory read"));
     }
@@ -167,7 +168,7 @@ test("staged address effects validate CPU, selectors, logical width, access spac
   assert.throws(() => defineInstruction({ ...base, steps: [readSource("word", { name: "cannot reject", width: 16,
     steps: [alignmentFault("read", literal(32, 1))], result: literal(16, 0) })] }), /sources and composed actions cannot reject/);
   assert.throws(() => defineInstruction({ ...base, steps: [resolveAddress("address", 16, value("missing"), literal(3, 2))] }), /missing/);
-  const text = describeInstruction(moves68000["32_program_memory"]!);
+  const text = describeInstruction(moves68000["MOVE.L PROGRAM,MEMORY"]!);
   assert.ok(text.indexOf("read program memory") < text.indexOf("destinationAddress:u32 := resolve"));
   assert.ok(text.indexOf("commit staged") < text.indexOf("write memory"));
   assert.match(text, /program-space read alignment fault/); assert.match(text, /data-space write alignment fault/);

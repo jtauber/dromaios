@@ -8,8 +8,8 @@ import type { ByteMemory } from "../../../../src/components/cpus/memory-access.j
 import { cpu68000StateDescription } from "../../../../src/components/cpus/state/68000.js";
 import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
 import { instructions as registerBodies } from "../../../../src/components/cpus/generated/68000.js";
-import { instructions as memoryBodies } from "../../../../src/components/cpus/generated/68000-word-moves.js";
-import { instructions68000, wordMoves68000 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { opcodeInstructions as memoryBodies } from "../../../../src/components/cpus/generated/68000-moves.js";
+import { instructions68000, moves68000 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
@@ -22,7 +22,13 @@ const data = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
 const addressRegisters = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
 type Context = ByteMemory & Pick<Cpu68000AddressContext, "resolveAddress" | "commitAddressUpdates">;
 type Body = (state: Cpu68000State, context: Context) => OperandAlignmentFault | "unsupported" | void;
-const bodies: Readonly<Record<number, Body>> = { ...registerBodies, ...memoryBodies };
+const allMemoryBodies: Readonly<Record<number, (state: Cpu68000State, sm: number, sc: number, dm: number, dc: number,
+  context: Context & Pick<Cpu68000AddressContext, "readProgramByte"> & { fetchWord(): number }) => OperandAlignmentFault | "unsupported" | void>> = memoryBodies;
+const bodies: Readonly<Record<number, Body>> = { ...registerBodies, ...Object.fromEntries(Object.entries(allMemoryBodies).map(([word, execute]) => {
+  const opcode = Number(word);
+  return [opcode, (state: Cpu68000State, context: Context) => execute(state, (opcode >>> 3) & 7, opcode & 7, (opcode >>> 6) & 7, (opcode >>> 9) & 7,
+    { ...context, fetchWord() { throw Error("Indirect MOVE has no extension words."); }, readProgramByte() { throw Error("Indirect MOVE uses data space."); } })];
+})) };
 interface Form { readonly opcode: number; readonly kind: "copy" | "load" | "store"; readonly d: number; readonly r: number; readonly name: string }
 
 // Independent operation-word bases; no production pattern or operand catalogue is used.
@@ -32,18 +38,19 @@ for (const [kind, base] of [["copy", 0x3000], ["load", 0x3010], ["store", 0x3080
     name: `MOVE.W ${kind === "load" ? `(A${r})` : `D${r}`},${kind === "store" ? `(A${d})` : `D${d}`}` });
 }
 
-test("the 68000 chapter owns its state and 928 forms across 2,968 operation words", () => {
+test("the 68000 chapter owns its state and 9,950 forms across 11,990 operation words", () => {
   const chapter = compile();
   assert.deepEqual(chapter.state, cpu68000StateDescription);
   const definitions = Object.fromEntries(Object.values(chapter.families).flat());
-  assert.equal(Object.keys(definitions).length, 2968);
-  assert.equal(new Set(Object.values(definitions).map(definition => definition.name)).size, 928);
-  assert.deepEqual(Object.keys(Object.fromEntries([...chapter.families.registerCopy!, ...chapter.families.load!, ...chapter.families.store!])).map(Number), forms.map(form => form.opcode).sort((a, b) => a - b));
-  assert.deepEqual(Object.keys(memoryBodies), Object.keys(wordMoves68000));
-  assert.equal(Object.keys(memoryBodies).length, 128);
+  assert.equal(Object.keys(definitions).length, 11990);
+  // MOVEQ's 256 immediate values count as one form per data register.
+  assert.equal(Object.keys(definitions).length - chapter.families.moveQuick!.length + 8, 9950);
+  assert.equal(Object.keys(memoryBodies).length, 9150);
   for (const form of forms) {
-    assert.equal(definitions[form.opcode]!.name, form.name);
-    assert.deepEqual(definitions[form.opcode], (form.kind === "copy" ? instructions68000 : wordMoves68000)[form.opcode]);
+    const expectedName = form.kind === "copy" ? form.name
+      : `MOVE.W ${form.kind === "load" ? "MEMORY" : `D${form.r}`},${form.kind === "store" ? "MEMORY" : `D${form.d}`}`;
+    assert.equal(definitions[form.opcode]!.name, expectedName);
+    assert.deepEqual(definitions[form.opcode], form.kind === "copy" ? instructions68000[form.opcode] : moves68000[expectedName]);
   }
 });
 
@@ -137,17 +144,19 @@ const invalid: readonly [string, string, string, RegExp][] = [
   ["unknown captured value", "truncate(originalSource, 16)", "truncate(missing, 16)", /not been captured/],
   ["non-narrowing truncation", "truncate(originalSource, 16)", "truncate(originalSource, 32)", /truncation must narrow/],
   ["mixed widths", "u32($FFFF0000)", "u16($FFFF)", /equal widths/],
-  ["wide byte extraction", "highByte(result)", "highByte(originalSource)", /requires a word/],
-  ["wide mode selector", "u3(2)", "u8(2)", /3-bit/],
+  ["wide byte extraction", "truncate(contents, 8)", "highByte(extend(contents, 32))", /requires a word/],
+  ["short program address", "program memory(address)", "program memory(truncate(address, 16))", /32-bit/],
+  ["program-space alignment write", "alignment program read(sourceAddress)", "alignment program write(sourceAddress)", /access space/],
+  ["wide mode selector", "resolve(16, destinationMode,", "resolve(16, extend(destinationMode, 8),", /3-bit/],
   ["unsupported operand width", "resolve(16,", "resolve(14,", /Operand size/],
-  ["short logical address", "read(address) if", "read(truncate(address, 16)) if", /32-bit/],
-  ["non-data alignment fault", "alignment read(address)", "alignment fetch(address)", /data read or write/],
-  ["unknown predicate", "if lowBit(address)", "if odd(address)", /Unknown flag operation/],
+  ["short logical address", "read(sourceAddress) if", "read(truncate(sourceAddress, 16)) if", /32-bit/],
+  ["non-data alignment fault", "alignment read(sourceAddress)", "alignment fetch(sourceAddress)", /read or write/],
+  ["unknown predicate", "if lowBit(sourceAddress)", "if odd(sourceAddress)", /Unknown flag operation/],
   ["misspelled commit", "commit addresses", "commit registers", /Expected "addresses"/],
   ["spelled-out flag literal", "V = 0", "V = false", /flag literals as 0 or 1/],
   ["duplicate code", '001 "A1"', '000 "A1"', /consecutive binary/],
   ["missing code", '  111 "A7"\n', "", /every value/],
-  ["write to encoded value", "code = operand d", "operand d <- result", /value-only/],
+  ["write to encoded value", "destinationCode = operand d", "operand d <- result", /value-only/],
 ];
 for (const [name, before, after, message] of invalid) test(`68000 chapter rejects ${name} at its document location`, () => {
   assert.ok(markdown.includes(before)); const changed = markdown.replace(before, after);
@@ -160,13 +169,16 @@ for (const [name, before, after, message] of invalid) test(`68000 chapter reject
 });
 
 test("formal edits to byte order and flag constants change the generated word store", async () => {
-  const changed = markdown.replace("highByte(result)", "lowByte(result)").replace("lowByte(result)\n  apply", "highByte(result)\n  apply").replaceAll("C = 0", "C = 1");
-  const definition = compile(changed).families.store![0]![1];
+  const changed = markdown.replace("memory(address) <- truncate(shiftBits(contents, right, 8), 8)", "memory(address) <- truncate(contents, 8)")
+    .replace("memory(add(address, u32(1))) <- truncate(contents, 8)", "memory(add(address, u32(1))) <- truncate(shiftBits(contents, right, 8), 8)")
+    .replaceAll("C = 0", "C = 1");
+  const definition = compile(changed).families.operandMove16DataMemory![0]![1];
   const alu = new URL("../../../../src/components/cpus/alu.js", import.meta.url).href;
   const javascript = stripTypeScriptTypes(generateInstructions("68000", { probe: definition })).replace('"../alu.ts"', JSON.stringify(alu));
-  const compiled: { instructions: { probe: Body } } = await import(`data:text/javascript,${encodeURIComponent(javascript)}`);
+  const compiled: { instructions: { probe: typeof allMemoryBodies[number] } } = await import(`data:text/javascript,${encodeURIComponent(javascript)}`);
   const state = initialState(0), writes: number[][] = [];
-  compiled.instructions.probe(state, { resolveAddress: () => 0x1000, commitAddressUpdates() {},
+  compiled.instructions.probe(state, 0, 0, 2, 0, { resolveAddress: () => 0x1000, commitAddressUpdates() {},
+    fetchWord() { throw Error("No extension expected."); }, readProgramByte() { throw Error("No program read expected."); },
     readByte() { throw new Error("A store cannot read destination memory."); }, writeByte(address, byte) { writes.push([address, byte]); } });
   assert.deepEqual(writes, [[0x1000, 0x44], [0x1001, 0x33]]);
   assert.equal(state.flags.c, true);

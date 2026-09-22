@@ -5,6 +5,7 @@ import { generatePageBindings } from "./generate-pages.ts";
 import { opcodePageLayouts } from "./opcode-pages.ts";
 import type { OpcodePage } from "./opcode-pages.ts";
 import { opcodeTable } from "../opcodes.ts";
+import type { OpcodeEntry } from "../opcodes.ts";
 
 interface CapturedValue { readonly code: string; readonly type: ValueType }
 type CapturedNumber = CapturedValue & { readonly type: Width };
@@ -14,8 +15,8 @@ type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePo
 
 /** Compile the bounded experiment to ordinary typed statements, without executing any effects. */
 export function generateInstructions(cpu: string, definitions: Readonly<Record<string, InstructionDefinition>>,
-  { bindOpcodes = false, pages = {}, sources, state, origin = `semantics/definitions/${cpu}.ts` }: {
-    bindOpcodes?: boolean | readonly number[]; pages?: Readonly<Record<string, OpcodePage>>; sources?: SourceDefinitions;
+  { bindOpcodes = false, opcodeAliases = [], pages = {}, sources, state, origin = `semantics/definitions/${cpu}.ts` }: {
+    bindOpcodes?: boolean | readonly number[]; opcodeAliases?: readonly OpcodeEntry<string>[]; pages?: Readonly<Record<string, OpcodePage>>; sources?: SourceDefinitions;
     state?: { readonly name: string; readonly module: string }; origin?: string;
   } = {}): string {
   // Numeric definition keys are the opcode authority when generating execution bindings.
@@ -30,6 +31,10 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     if (prefixes.length && Number(opcode) > 255 && !prefixBytes.has(Number(opcode) >>> 8)) throw new Error(`Opcode ${opcode} has no declared page.`);
     return [Number(opcode), definition];
   }), prefixes.some(page => page.on) ? 24 : prefixes.length || cpu === "68000" ? 16 : 8);
+  opcodeTable(opcodeAliases.map(([opcode, name]) => {
+    if (!Object.hasOwn(definitions, name)) throw new Error(`Opcode alias ${opcode} has no definition ${name}.`);
+    return [opcode, name];
+  }), cpu === "68000" ? 16 : 8);
   const stateType = state?.name ?? `Cpu${cpu === "z80" ? "Z80" : cpu}State`;
   const helpers = new Set<string>();
   const outcomes = new Set<string>();
@@ -433,6 +438,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     + `${imports.join("\n")}\n\n`
     + (decoders.size ? `const decoders = {\n${[...decoders.values()].map(decoder => decoder.code).join("\n\n")}\n};\n\n` : "")
     + `export const instructions = {\n${methods.join("\n\n")}\n};\n`
+    + (opcodeAliases.length ? `\n/** Chapter encodings select shared bodies; this table performs no instruction effects. */\nexport const opcodeInstructions = {\n${opcodeAliases.map(([opcode, name]) => `  ${opcode}: instructions[${JSON.stringify(name)}],`).join("\n")}\n};\n` : "")
     + (sources ? `\n/** Bind reusable sources; fetching and memory access occur only when a reader is called. */
 export function sourceReaders(state: ${stateType}) {
   return {\n${readers.join("\n")}\n  };

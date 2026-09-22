@@ -104,6 +104,176 @@ write INTERRUPTMASK:u3 := low3(shiftBitsRight(contents, 8))
 
 Flags preserved throughout: none.
 
+### 68000 write 8-bit data memory
+
+
+
+```text
+address:u32 := input
+contents:u8 := input
+write memory[address] := contents
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 write 16-bit data memory
+
+
+
+```text
+address:u32 := input
+contents:u16 := input
+write memory[address] := low8(shiftBitsRight(contents, 8))
+write memory[addWrap(address, 00000001:u32)] := low8(contents)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 write 32-bit data memory
+
+
+
+```text
+address:u32 := input
+contents:u32 := input
+write memory[address] := low8(shiftBitsRight(contents, 24))
+write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+write memory[addWrap(address, 00000003:u32)] := low8(contents)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 write 8-bit data register
+
+
+
+```text
+code:u3 := input
+contents:u8 := input
+match byte zeroExtend8(code) {
+  case (byte & FF) = 00 {
+    preserved:u32 := read D0
+    write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+  }
+  case (byte & FF) = 01 {
+    preserved:u32 := read D1
+    write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+  }
+  case (byte & FF) = 02 {
+    preserved:u32 := read D2
+    write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+  }
+  case (byte & FF) = 03 {
+    preserved:u32 := read D3
+    write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+  }
+  case (byte & FF) = 04 {
+    preserved:u32 := read D4
+    write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+  }
+  case (byte & FF) = 05 {
+    preserved:u32 := read D5
+    write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+  }
+  case (byte & FF) = 06 {
+    preserved:u32 := read D6
+    write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+  }
+  case (byte & FF) = 07 {
+    preserved:u32 := read D7
+    write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 write 16-bit data register
+
+
+
+```text
+code:u3 := input
+contents:u16 := input
+match byte zeroExtend8(code) {
+  case (byte & FF) = 00 {
+    preserved:u32 := read D0
+    write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+  }
+  case (byte & FF) = 01 {
+    preserved:u32 := read D1
+    write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+  }
+  case (byte & FF) = 02 {
+    preserved:u32 := read D2
+    write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+  }
+  case (byte & FF) = 03 {
+    preserved:u32 := read D3
+    write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+  }
+  case (byte & FF) = 04 {
+    preserved:u32 := read D4
+    write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+  }
+  case (byte & FF) = 05 {
+    preserved:u32 := read D5
+    write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+  }
+  case (byte & FF) = 06 {
+    preserved:u32 := read D6
+    write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+  }
+  case (byte & FF) = 07 {
+    preserved:u32 := read D7
+    write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 write 32-bit data register
+
+
+
+```text
+code:u3 := input
+contents:u32 := input
+match byte zeroExtend8(code) {
+  case (byte & FF) = 00 {
+    write D0:u32 := contents
+  }
+  case (byte & FF) = 01 {
+    write D1:u32 := contents
+  }
+  case (byte & FF) = 02 {
+    write D2:u32 := contents
+  }
+  case (byte & FF) = 03 {
+    write D3:u32 := contents
+  }
+  case (byte & FF) = 04 {
+    write D4:u32 := contents
+  }
+  case (byte & FF) = 05 {
+    write D5:u32 := contents
+  }
+  case (byte & FF) = 06 {
+    write D6:u32 := contents
+  }
+  case (byte & FF) = 07 {
+    write D7:u32 := contents
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
 ### 68000 MOVE.B D0,D0
 
 Capture the source before selecting the destination. Write the destination before applying the result flags; preserve its live upper bits for a byte or word.
@@ -59176,93 +59346,24 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.B MEMORY,D0
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read memory[sourceAddress]
-result := resultByte0
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D0
-write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B PROGRAM,D0
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read program memory[sourceAddress]
-result := resultByte0
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D0
-write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B IMMEDIATE,D0
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := low8(resultHigh)
-preserved:u32 := read D0
-write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
 ### 68000 MOVE.B D0,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source byte from Dn before resolving the destination. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D0
-result := low8(sourceRegister)
+originalSource:u32 := read D0
+result := low8(originalSource)
 destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := result
+perform "write 8-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u8 := result
+  write memory[address] := contents
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59275,18 +59376,22 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B D1,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source byte from Dn before resolving the destination. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D1
-result := low8(sourceRegister)
+originalSource:u32 := read D1
+result := low8(originalSource)
 destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := result
+perform "write 8-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u8 := result
+  write memory[address] := contents
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59299,18 +59404,22 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B D2,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source byte from Dn before resolving the destination. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D2
-result := low8(sourceRegister)
+originalSource:u32 := read D2
+result := low8(originalSource)
 destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := result
+perform "write 8-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u8 := result
+  write memory[address] := contents
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59323,18 +59432,22 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B D3,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source byte from Dn before resolving the destination. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D3
-result := low8(sourceRegister)
+originalSource:u32 := read D3
+result := low8(originalSource)
 destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := result
+perform "write 8-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u8 := result
+  write memory[address] := contents
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59347,18 +59460,22 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B D4,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source byte from Dn before resolving the destination. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D4
-result := low8(sourceRegister)
+originalSource:u32 := read D4
+result := low8(originalSource)
 destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := result
+perform "write 8-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u8 := result
+  write memory[address] := contents
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59371,18 +59488,22 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B D5,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source byte from Dn before resolving the destination. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D5
-result := low8(sourceRegister)
+originalSource:u32 := read D5
+result := low8(originalSource)
 destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := result
+perform "write 8-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u8 := result
+  write memory[address] := contents
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59395,18 +59516,22 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B D6,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source byte from Dn before resolving the destination. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D6
-result := low8(sourceRegister)
+originalSource:u32 := read D6
+result := low8(originalSource)
 destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := result
+perform "write 8-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u8 := result
+  write memory[address] := contents
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59419,18 +59544,22 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B D7,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source byte from Dn before resolving the destination. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D7
-result := low8(sourceRegister)
+originalSource:u32 := read D7
+result := low8(originalSource)
 destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := result
+perform "write 8-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u8 := result
+  write memory[address] := contents
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59441,9 +59570,9 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.B MEMORY,MEMORY
+### 68000 MOVE.B MEMORY,D0
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete byte in data space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -59451,60 +59580,54 @@ sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
 sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read memory[sourceAddress]
-result := resultByte0
-destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+result:u8 := source "read 8-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D0" {
+  yield 0:u3
+}
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B PROGRAM,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read program memory[sourceAddress]
-result := resultByte0
-destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B IMMEDIATE,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := low8(resultHigh)
-destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := result
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59517,7 +59640,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B MEMORY,D1
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete byte in data space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -59525,59 +59648,54 @@ sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
 sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read memory[sourceAddress]
-result := resultByte0
+result:u8 := source "read 8-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D1" {
+  yield 1:u3
+}
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D1
-write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B PROGRAM,D1
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read program memory[sourceAddress]
-result := resultByte0
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D1
-write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B IMMEDIATE,D1
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := low8(resultHigh)
-preserved:u32 := read D1
-write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59590,7 +59708,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B MEMORY,D2
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete byte in data space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -59598,59 +59716,54 @@ sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
 sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read memory[sourceAddress]
-result := resultByte0
+result:u8 := source "read 8-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D2" {
+  yield 2:u3
+}
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D2
-write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B PROGRAM,D2
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read program memory[sourceAddress]
-result := resultByte0
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D2
-write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B IMMEDIATE,D2
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := low8(resultHigh)
-preserved:u32 := read D2
-write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59663,7 +59776,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B MEMORY,D3
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete byte in data space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -59671,59 +59784,54 @@ sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
 sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read memory[sourceAddress]
-result := resultByte0
+result:u8 := source "read 8-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D3" {
+  yield 3:u3
+}
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D3
-write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B PROGRAM,D3
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read program memory[sourceAddress]
-result := resultByte0
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D3
-write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B IMMEDIATE,D3
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := low8(resultHigh)
-preserved:u32 := read D3
-write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59736,7 +59844,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B MEMORY,D4
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete byte in data space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -59744,59 +59852,54 @@ sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
 sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read memory[sourceAddress]
-result := resultByte0
+result:u8 := source "read 8-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D4" {
+  yield 4:u3
+}
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D4
-write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B PROGRAM,D4
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read program memory[sourceAddress]
-result := resultByte0
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D4
-write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B IMMEDIATE,D4
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := low8(resultHigh)
-preserved:u32 := read D4
-write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59809,7 +59912,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B MEMORY,D5
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete byte in data space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -59817,59 +59920,54 @@ sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
 sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read memory[sourceAddress]
-result := resultByte0
+result:u8 := source "read 8-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D5" {
+  yield 5:u3
+}
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D5
-write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B PROGRAM,D5
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read program memory[sourceAddress]
-result := resultByte0
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D5
-write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B IMMEDIATE,D5
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := low8(resultHigh)
-preserved:u32 := read D5
-write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59882,7 +59980,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B MEMORY,D6
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete byte in data space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -59890,59 +59988,54 @@ sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
 sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read memory[sourceAddress]
-result := resultByte0
+result:u8 := source "read 8-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D6" {
+  yield 6:u3
+}
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D6
-write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B PROGRAM,D6
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read program memory[sourceAddress]
-result := resultByte0
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D6
-write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.B IMMEDIATE,D6
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := low8(resultHigh)
-preserved:u32 := read D6
-write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59955,7 +60048,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B MEMORY,D7
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete byte in data space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -59963,11 +60056,562 @@ sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
 sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read memory[sourceAddress]
-result := resultByte0
+result:u8 := source "read 8-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D7" {
+  yield 7:u3
+}
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D7
-write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B MEMORY,MEMORY
+
+Resolve and read the complete byte in data space before resolving the destination. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+result:u8 := source "read 8-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  yield byte0
+}
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 8-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u8 := result
+  write memory[address] := contents
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,D0
+
+Resolve and read the complete byte in program space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+result:u8 := source "read 8-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D0" {
+  yield 0:u3
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,D1
+
+Resolve and read the complete byte in program space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+result:u8 := source "read 8-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D1" {
+  yield 1:u3
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,D2
+
+Resolve and read the complete byte in program space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+result:u8 := source "read 8-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D2" {
+  yield 2:u3
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,D3
+
+Resolve and read the complete byte in program space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+result:u8 := source "read 8-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D3" {
+  yield 3:u3
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,D4
+
+Resolve and read the complete byte in program space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+result:u8 := source "read 8-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D4" {
+  yield 4:u3
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,D5
+
+Resolve and read the complete byte in program space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+result:u8 := source "read 8-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D5" {
+  yield 5:u3
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,D6
+
+Resolve and read the complete byte in program space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+result:u8 := source "read 8-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D6" {
+  yield 6:u3
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -59980,7 +60624,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B PROGRAM,D7
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete byte in program space before selecting the destination. Commit pending address updates before writeback. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -59988,11 +60632,541 @@ sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
 sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-resultByte0:u8 := read program memory[sourceAddress]
-result := resultByte0
+result:u8 := source "read 8-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  yield byte0
+}
+registerCode:u3 := source "D7" {
+  yield 7:u3
+}
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D7
-write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,MEMORY
+
+Resolve and read the complete byte in program space before resolving the destination. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+result:u8 := source "read 8-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  yield byte0
+}
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 8-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u8 := result
+  write memory[address] := contents
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,D0
+
+Fetch one extension word; retain its low byte before selecting the destination. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u8 := source "8-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield low8(high)
+}
+registerCode:u3 := source "D0" {
+  yield 0:u3
+}
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,D1
+
+Fetch one extension word; retain its low byte before selecting the destination. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u8 := source "8-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield low8(high)
+}
+registerCode:u3 := source "D1" {
+  yield 1:u3
+}
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,D2
+
+Fetch one extension word; retain its low byte before selecting the destination. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u8 := source "8-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield low8(high)
+}
+registerCode:u3 := source "D2" {
+  yield 2:u3
+}
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,D3
+
+Fetch one extension word; retain its low byte before selecting the destination. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u8 := source "8-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield low8(high)
+}
+registerCode:u3 := source "D3" {
+  yield 3:u3
+}
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,D4
+
+Fetch one extension word; retain its low byte before selecting the destination. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u8 := source "8-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield low8(high)
+}
+registerCode:u3 := source "D4" {
+  yield 4:u3
+}
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,D5
+
+Fetch one extension word; retain its low byte before selecting the destination. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u8 := source "8-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield low8(high)
+}
+registerCode:u3 := source "D5" {
+  yield 5:u3
+}
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,D6
+
+Fetch one extension word; retain its low byte before selecting the destination. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u8 := source "8-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield low8(high)
+}
+registerCode:u3 := source "D6" {
+  yield 6:u3
+}
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -60005,707 +61179,59 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.B IMMEDIATE,D7
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Fetch one extension word; retain its low byte before selecting the destination. Preserve the destination's live upper 24 bits. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := low8(resultHigh)
-preserved:u32 := read D7
-write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L MEMORY,D0
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
+result:u8 := source "8-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield low8(high)
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D0:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L PROGRAM,D0
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
+registerCode:u3 := source "D7" {
+  yield 7:u3
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D0:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L IMMEDIATE,D0
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-write D0:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVEA.L MEMORY,A0
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A0:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L PROGRAM,A0
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A0:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L IMMEDIATE,A0
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-write A0:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVE.L D0,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceRegister:u32 := read D0
-result := sourceRegister
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L D1,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceRegister:u32 := read D1
-result := sourceRegister
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L D2,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceRegister:u32 := read D2
-result := sourceRegister
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L D3,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceRegister:u32 := read D3
-result := sourceRegister
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L D4,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceRegister:u32 := read D4
-result := sourceRegister
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L D5,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceRegister:u32 := read D5
-result := sourceRegister
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L D6,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceRegister:u32 := read D6
-result := sourceRegister
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L D7,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceRegister:u32 := read D7
-result := sourceRegister
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L A0,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceRegister:u32 := read A0
-result := sourceRegister
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L A1,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceRegister:u32 := read A1
-result := sourceRegister
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L A2,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceRegister:u32 := read A2
-result := sourceRegister
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L A3,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceRegister:u32 := read A3
-result := sourceRegister
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L A4,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceRegister:u32 := read A4
-result := sourceRegister
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L A5,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceRegister:u32 := read A5
-result := sourceRegister
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L A6,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceRegister:u32 := read A6
-result := sourceRegister
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L A7,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceSupervisor:u8 := source "active stack bank" {
-  supervisor:flag := read S
-  yield select(supervisor, 01:u8, 00:u8)
-}
-when not(isZero(sourceSupervisor)) {
-  sourceRegister:u32 := read SSP
-  result := sourceRegister
-  destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-  when lowBit(destinationAddress) {
-    return data-space write alignment fault at destinationAddress; no later effects
+perform "write 8-bit data register" {
+  code:u3 := registerCode
+  contents:u8 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
   }
-  commit staged address-register updates in first-use order; repeated registers receive their final staged value
-  write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-  write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-  write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-  write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-  flags "68000 result" simultaneously {
-    N := topBit(result)
-    Z := isZero(result)
-    V := 0:flag
-    C := 0:flag
-  } // Preserve unlisted flags.
 }
-when not(not(isZero(sourceSupervisor))) {
-  sourceRegister:u32 := read USP
-  result := sourceRegister
-  destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-  when lowBit(destinationAddress) {
-    return data-space write alignment fault at destinationAddress; no later effects
-  }
-  commit staged address-register updates in first-use order; repeated registers receive their final staged value
-  write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-  write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-  write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-  write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-  flags "68000 result" simultaneously {
-    N := topBit(result)
-    Z := isZero(result)
-    V := 0:flag
-    C := 0:flag
-  } // Preserve unlisted flags.
-}
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L MEMORY,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -60716,33 +61242,26 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.L PROGRAM,MEMORY
+### 68000 MOVE.B IMMEDIATE,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Fetch one extension word; retain its low byte before resolving the destination. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
+result:u8 := source "8-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield low8(high)
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 8-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u8 := result
+  write memory[address] := contents
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -60752,1262 +61271,29 @@ flags "68000 result" simultaneously {
 ```
 
 Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L IMMEDIATE,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
-write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L MEMORY,D1
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D1:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L PROGRAM,D1
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D1:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L IMMEDIATE,D1
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-write D1:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVEA.L MEMORY,A1
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A1:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L PROGRAM,A1
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A1:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L IMMEDIATE,A1
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-write A1:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVE.L MEMORY,D2
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D2:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L PROGRAM,D2
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D2:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L IMMEDIATE,D2
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-write D2:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVEA.L MEMORY,A2
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A2:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L PROGRAM,A2
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A2:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L IMMEDIATE,A2
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-write A2:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVE.L MEMORY,D3
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D3:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L PROGRAM,D3
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D3:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L IMMEDIATE,D3
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-write D3:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVEA.L MEMORY,A3
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A3:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L PROGRAM,A3
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A3:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L IMMEDIATE,A3
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-write A3:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVE.L MEMORY,D4
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D4:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L PROGRAM,D4
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D4:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L IMMEDIATE,D4
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-write D4:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVEA.L MEMORY,A4
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A4:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L PROGRAM,A4
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A4:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L IMMEDIATE,A4
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-write A4:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVE.L MEMORY,D5
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D5:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L PROGRAM,D5
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D5:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L IMMEDIATE,D5
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-write D5:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVEA.L MEMORY,A5
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A5:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L PROGRAM,A5
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A5:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L IMMEDIATE,A5
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-write A5:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVE.L MEMORY,D6
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D6:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L PROGRAM,D6
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D6:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L IMMEDIATE,D6
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-write D6:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVEA.L MEMORY,A6
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A6:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L PROGRAM,A6
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A6:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L IMMEDIATE,A6
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-write A6:u32 := result
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVE.L MEMORY,D7
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D7:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L PROGRAM,D7
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write D7:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.L IMMEDIATE,D7
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-write D7:u32 := result
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVEA.L MEMORY,A7
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-destinationSupervisor:u8 := source "active stack bank" {
-  supervisor:flag := read S
-  yield select(supervisor, 01:u8, 00:u8)
-}
-when not(isZero(destinationSupervisor)) {
-  commit staged address-register updates in first-use order; repeated registers receive their final staged value
-  write SSP:u32 := result
-}
-when not(not(isZero(destinationSupervisor))) {
-  commit staged address-register updates in first-use order; repeated registers receive their final staged value
-  write USP:u32 := result
-}
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L PROGRAM,A7
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-resultByte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
-resultByte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
-result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
-destinationSupervisor:u8 := source "active stack bank" {
-  supervisor:flag := read S
-  yield select(supervisor, 01:u8, 00:u8)
-}
-when not(isZero(destinationSupervisor)) {
-  commit staged address-register updates in first-use order; repeated registers receive their final staged value
-  write SSP:u32 := result
-}
-when not(not(isZero(destinationSupervisor))) {
-  commit staged address-register updates in first-use order; repeated registers receive their final staged value
-  write USP:u32 := result
-}
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.L IMMEDIATE,A7
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-resultLow:u16 := fetch complete native-order word
-result := concatHighLow(resultHigh, resultLow)
-destinationSupervisor:u8 := source "active stack bank" {
-  supervisor:flag := read S
-  yield select(supervisor, 01:u8, 00:u8)
-}
-when not(isZero(destinationSupervisor)) {
-  write SSP:u32 := result
-}
-when not(not(isZero(destinationSupervisor))) {
-  write USP:u32 := result
-}
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVE.W MEMORY,D0
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D0
-write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W PROGRAM,D0
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D0
-write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W IMMEDIATE,D0
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-preserved:u32 := read D0
-write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVEA.W MEMORY,A0
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A0:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.W PROGRAM,A0
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
-}
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A0:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.W IMMEDIATE,A0
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-write A0:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
 
 ### 68000 MOVE.W D0,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source word from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D0
-result := low16(sourceRegister)
+originalSource:u32 := read D0
+result := low16(originalSource)
 destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 when lowBit(destinationAddress) {
   return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62020,22 +61306,26 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W D1,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source word from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D1
-result := low16(sourceRegister)
+originalSource:u32 := read D1
+result := low16(originalSource)
 destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 when lowBit(destinationAddress) {
   return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62048,22 +61338,26 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W D2,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source word from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D2
-result := low16(sourceRegister)
+originalSource:u32 := read D2
+result := low16(originalSource)
 destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 when lowBit(destinationAddress) {
   return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62076,22 +61370,26 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W D3,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source word from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D3
-result := low16(sourceRegister)
+originalSource:u32 := read D3
+result := low16(originalSource)
 destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 when lowBit(destinationAddress) {
   return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62104,22 +61402,26 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W D4,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source word from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D4
-result := low16(sourceRegister)
+originalSource:u32 := read D4
+result := low16(originalSource)
 destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 when lowBit(destinationAddress) {
   return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62132,22 +61434,26 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W D5,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source word from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D5
-result := low16(sourceRegister)
+originalSource:u32 := read D5
+result := low16(originalSource)
 destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 when lowBit(destinationAddress) {
   return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62160,22 +61466,26 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W D6,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source word from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D6
-result := low16(sourceRegister)
+originalSource:u32 := read D6
+result := low16(originalSource)
 destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 when lowBit(destinationAddress) {
   return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62188,22 +61498,26 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W D7,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Capture the source word from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read D7
-result := low16(sourceRegister)
+originalSource:u32 := read D7
+result := low16(originalSource)
 destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 when lowBit(destinationAddress) {
   return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62216,22 +61530,87 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W A0,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Select the source An bank and capture its word before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read A0
-result := low16(sourceRegister)
+registerCode:u3 := source "A0" {
+  yield 0:u3
+}
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield contents
+}
+result := low16(originalSource)
 destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 when lowBit(destinationAddress) {
   return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62244,22 +61623,87 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W A1,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Select the source An bank and capture its word before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read A1
-result := low16(sourceRegister)
+registerCode:u3 := source "A1" {
+  yield 1:u3
+}
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield contents
+}
+result := low16(originalSource)
 destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 when lowBit(destinationAddress) {
   return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62272,22 +61716,87 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W A2,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Select the source An bank and capture its word before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read A2
-result := low16(sourceRegister)
+registerCode:u3 := source "A2" {
+  yield 2:u3
+}
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield contents
+}
+result := low16(originalSource)
 destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 when lowBit(destinationAddress) {
   return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62300,22 +61809,87 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W A3,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Select the source An bank and capture its word before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read A3
-result := low16(sourceRegister)
+registerCode:u3 := source "A3" {
+  yield 3:u3
+}
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield contents
+}
+result := low16(originalSource)
 destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 when lowBit(destinationAddress) {
   return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62328,22 +61902,87 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W A4,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Select the source An bank and capture its word before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read A4
-result := low16(sourceRegister)
+registerCode:u3 := source "A4" {
+  yield 4:u3
+}
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield contents
+}
+result := low16(originalSource)
 destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 when lowBit(destinationAddress) {
   return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62356,22 +61995,87 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W A5,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Select the source An bank and capture its word before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read A5
-result := low16(sourceRegister)
+registerCode:u3 := source "A5" {
+  yield 5:u3
+}
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield contents
+}
+result := low16(originalSource)
 destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 when lowBit(destinationAddress) {
   return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62384,22 +62088,87 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W A6,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Select the source An bank and capture its word before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceRegister:u32 := read A6
-result := low16(sourceRegister)
+registerCode:u3 := source "A6" {
+  yield 6:u3
+}
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield contents
+}
+result := low16(originalSource)
 destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
 when lowBit(destinationAddress) {
   return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62412,58 +62181,100 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W A7,MEMORY
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Select the source An bank and capture its word before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceSupervisor:u8 := source "active stack bank" {
-  supervisor:flag := read S
-  yield select(supervisor, 01:u8, 00:u8)
+registerCode:u3 := source "A7" {
+  yield 7:u3
 }
-when not(isZero(sourceSupervisor)) {
-  sourceRegister:u32 := read SSP
-  result := low16(sourceRegister)
-  destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-  when lowBit(destinationAddress) {
-    return data-space write alignment fault at destinationAddress; no later effects
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
   }
-  commit staged address-register updates in first-use order; repeated registers receive their final staged value
-  write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-  write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
-  flags "68000 result" simultaneously {
-    N := topBit(result)
-    Z := isZero(result)
-    V := 0:flag
-    C := 0:flag
-  } // Preserve unlisted flags.
+  yield selected
 }
-when not(not(isZero(sourceSupervisor))) {
-  sourceRegister:u32 := read USP
-  result := low16(sourceRegister)
-  destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-  when lowBit(destinationAddress) {
-    return data-space write alignment fault at destinationAddress; no later effects
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
   }
-  commit staged address-register updates in first-use order; repeated registers receive their final staged value
-  write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-  write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
-  flags "68000 result" simultaneously {
-    N := topBit(result)
-    Z := isZero(result)
-    V := 0:flag
-    C := 0:flag
-  } // Preserve unlisted flags.
+  yield contents
 }
+result := low16(originalSource)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
 ```
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W MEMORY,MEMORY
+### 68000 MOVE.W MEMORY,D0
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -62474,77 +62285,55 @@ sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceC
 when lowBit(sourceAddress) {
   return data-space read alignment fault at sourceAddress; no later effects
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "D0" {
+  yield 0:u3
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W PROGRAM,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W IMMEDIATE,MEMORY
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
-when lowBit(destinationAddress) {
-  return data-space write alignment fault at destinationAddress; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
-write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62557,7 +62346,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W MEMORY,D1
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -62568,12 +62357,1215 @@ sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceC
 when lowBit(sourceAddress) {
   return data-space read alignment fault at sourceAddress; no later effects
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "D1" {
+  yield 1:u3
+}
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D1
-write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W MEMORY,D2
+
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "D2" {
+  yield 2:u3
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W MEMORY,D3
+
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "D3" {
+  yield 3:u3
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W MEMORY,D4
+
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "D4" {
+  yield 4:u3
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W MEMORY,D5
+
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "D5" {
+  yield 5:u3
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W MEMORY,D6
+
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "D6" {
+  yield 6:u3
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W MEMORY,D7
+
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "D7" {
+  yield 7:u3
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W MEMORY,A0
+
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A0" {
+  yield 0:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W MEMORY,A1
+
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A1" {
+  yield 1:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W MEMORY,A2
+
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A2" {
+  yield 2:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W MEMORY,A3
+
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A3" {
+  yield 3:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W MEMORY,A4
+
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A4" {
+  yield 4:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W MEMORY,A5
+
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A5" {
+  yield 5:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W MEMORY,A6
+
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A6" {
+  yield 6:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W MEMORY,A7
+
+Resolve and read the complete word in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A7" {
+  yield 7:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W MEMORY,MEMORY
+
+Resolve and read the complete word in data space before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W PROGRAM,D0
+
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "D0" {
+  yield 0:u3
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62586,7 +63578,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W PROGRAM,D1
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -62597,124 +63589,55 @@ sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceC
 when lowBit(sourceAddress) {
   return program-space read alignment fault at sourceAddress; no later effects
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D1
-write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W IMMEDIATE,D1
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-preserved:u32 := read D1
-write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVEA.W MEMORY,A1
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A1:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.W PROGRAM,A1
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
+registerCode:u3 := source "D1" {
+  yield 1:u3
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A1:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.W IMMEDIATE,A1
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-write A1:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVE.W MEMORY,D2
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D2
-write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62727,7 +63650,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W PROGRAM,D2
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -62738,124 +63661,55 @@ sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceC
 when lowBit(sourceAddress) {
   return program-space read alignment fault at sourceAddress; no later effects
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D2
-write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W IMMEDIATE,D2
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-preserved:u32 := read D2
-write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVEA.W MEMORY,A2
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A2:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.W PROGRAM,A2
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
+registerCode:u3 := source "D2" {
+  yield 2:u3
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A2:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.W IMMEDIATE,A2
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-write A2:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVE.W MEMORY,D3
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D3
-write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -62868,7 +63722,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W PROGRAM,D3
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -62879,124 +63733,55 @@ sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceC
 when lowBit(sourceAddress) {
   return program-space read alignment fault at sourceAddress; no later effects
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D3
-write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W IMMEDIATE,D3
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-preserved:u32 := read D3
-write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVEA.W MEMORY,A3
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A3:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.W PROGRAM,A3
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
+registerCode:u3 := source "D3" {
+  yield 3:u3
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A3:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.W IMMEDIATE,A3
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-write A3:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVE.W MEMORY,D4
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D4
-write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -63009,7 +63794,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W PROGRAM,D4
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -63020,124 +63805,55 @@ sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceC
 when lowBit(sourceAddress) {
   return program-space read alignment fault at sourceAddress; no later effects
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D4
-write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W IMMEDIATE,D4
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-preserved:u32 := read D4
-write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVEA.W MEMORY,A4
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A4:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.W PROGRAM,A4
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
+registerCode:u3 := source "D4" {
+  yield 4:u3
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A4:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.W IMMEDIATE,A4
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-write A4:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVE.W MEMORY,D5
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D5
-write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -63150,7 +63866,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W PROGRAM,D5
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -63161,124 +63877,55 @@ sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceC
 when lowBit(sourceAddress) {
   return program-space read alignment fault at sourceAddress; no later effects
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D5
-write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W IMMEDIATE,D5
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-preserved:u32 := read D5
-write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVEA.W MEMORY,A5
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A5:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.W PROGRAM,A5
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
+registerCode:u3 := source "D5" {
+  yield 5:u3
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A5:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.W IMMEDIATE,A5
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-write A5:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVE.W MEMORY,D6
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D6
-write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -63291,7 +63938,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W PROGRAM,D6
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -63302,124 +63949,55 @@ sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceC
 when lowBit(sourceAddress) {
   return program-space read alignment fault at sourceAddress; no later effects
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D6
-write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W IMMEDIATE,D6
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-preserved:u32 := read D6
-write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVEA.W MEMORY,A6
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A6:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.W PROGRAM,A6
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
+registerCode:u3 := source "D6" {
+  yield 6:u3
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write A6:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVEA.W IMMEDIATE,A6
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-write A6:u32 := signExtend32(result)
-```
-
-Flags preserved throughout: X, N, Z, V, C, T, S.
-
-### 68000 MOVE.W MEMORY,D7
-
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
-
-```text
-sourceMode:u3 := input
-sourceCode:u3 := input
-destinationMode:u3 := input
-destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D7
-write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -63432,7 +64010,7 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W PROGRAM,D7
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
@@ -63443,12 +64021,1166 @@ sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceC
 when lowBit(sourceAddress) {
   return program-space read alignment fault at sourceAddress; no later effects
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "D7" {
+  yield 7:u3
+}
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D7
-write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W PROGRAM,A0
+
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A0" {
+  yield 0:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W PROGRAM,A1
+
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A1" {
+  yield 1:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W PROGRAM,A2
+
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A2" {
+  yield 2:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W PROGRAM,A3
+
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A3" {
+  yield 3:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W PROGRAM,A4
+
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A4" {
+  yield 4:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W PROGRAM,A5
+
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A5" {
+  yield 5:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W PROGRAM,A6
+
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A6" {
+  yield 6:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W PROGRAM,A7
+
+Resolve and read the complete word in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+registerCode:u3 := source "A7" {
+  yield 7:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W PROGRAM,MEMORY
+
+Resolve and read the complete word in program space before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u16 := source "read 16-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  yield concatHighLow(byte0, byte1)
+}
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,D0
+
+Fetch one extension word before selecting the destination. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
+}
+registerCode:u3 := source "D0" {
+  yield 0:u3
+}
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,D1
+
+Fetch one extension word before selecting the destination. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
+}
+registerCode:u3 := source "D1" {
+  yield 1:u3
+}
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,D2
+
+Fetch one extension word before selecting the destination. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
+}
+registerCode:u3 := source "D2" {
+  yield 2:u3
+}
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,D3
+
+Fetch one extension word before selecting the destination. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
+}
+registerCode:u3 := source "D3" {
+  yield 3:u3
+}
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,D4
+
+Fetch one extension word before selecting the destination. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
+}
+registerCode:u3 := source "D4" {
+  yield 4:u3
+}
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,D5
+
+Fetch one extension word before selecting the destination. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
+}
+registerCode:u3 := source "D5" {
+  yield 5:u3
+}
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,D6
+
+Fetch one extension word before selecting the destination. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
+}
+registerCode:u3 := source "D6" {
+  yield 6:u3
+}
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -63461,17 +65193,59 @@ Flags preserved throughout: X, T, S.
 
 ### 68000 MOVE.W IMMEDIATE,D7
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+Fetch one extension word before selecting the destination. Preserve the destination's live upper word. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-preserved:u32 := read D7
-write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
+}
+registerCode:u3 := source "D7" {
+  yield 7:u3
+}
+perform "write 16-bit data register" {
+  code:u3 := registerCode
+  contents:u16 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      preserved:u32 := read D0
+      write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 01 {
+      preserved:u32 := read D1
+      write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 02 {
+      preserved:u32 := read D2
+      write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 03 {
+      preserved:u32 := read D3
+      write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 04 {
+      preserved:u32 := read D4
+      write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 05 {
+      preserved:u32 := read D5
+      write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 06 {
+      preserved:u32 := read D6
+      write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    case (byte & FF) = 07 {
+      preserved:u32 := read D7
+      write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(contents))
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -63482,65 +65256,491 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVEA.W MEMORY,A7
+### 68000 MOVEA.W IMMEDIATE,A0
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+Fetch one extension word before selecting the destination. Select the destination A7 bank before any pending-update commit. Sign-extend the word into the complete address register; preserve every flag.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return data-space read alignment fault at sourceAddress; no later effects
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
 }
-resultByte0:u8 := read memory[sourceAddress]
-resultByte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-destinationSupervisor:u8 := source "active stack bank" {
-  supervisor:flag := read S
-  yield select(supervisor, 01:u8, 00:u8)
+registerCode:u3 := source "A0" {
+  yield 0:u3
 }
-when not(isZero(destinationSupervisor)) {
-  commit staged address-register updates in first-use order; repeated registers receive their final staged value
-  write SSP:u32 := signExtend32(result)
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-when not(not(isZero(destinationSupervisor))) {
-  commit staged address-register updates in first-use order; repeated registers receive their final staged value
-  write USP:u32 := signExtend32(result)
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
 ```
 
 Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVEA.W PROGRAM,A7
+### 68000 MOVEA.W IMMEDIATE,A1
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+Fetch one extension word before selecting the destination. Select the destination A7 bank before any pending-update commit. Sign-extend the word into the complete address register; preserve every flag.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
-when lowBit(sourceAddress) {
-  return program-space read alignment fault at sourceAddress; no later effects
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
 }
-resultByte0:u8 := read program memory[sourceAddress]
-resultByte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
-result := concatHighLow(resultByte0, resultByte1)
-destinationSupervisor:u8 := source "active stack bank" {
-  supervisor:flag := read S
-  yield select(supervisor, 01:u8, 00:u8)
+registerCode:u3 := source "A1" {
+  yield 1:u3
 }
-when not(isZero(destinationSupervisor)) {
-  commit staged address-register updates in first-use order; repeated registers receive their final staged value
-  write SSP:u32 := signExtend32(result)
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-when not(not(isZero(destinationSupervisor))) {
-  commit staged address-register updates in first-use order; repeated registers receive their final staged value
-  write USP:u32 := signExtend32(result)
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W IMMEDIATE,A2
+
+Fetch one extension word before selecting the destination. Select the destination A7 bank before any pending-update commit. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
+}
+registerCode:u3 := source "A2" {
+  yield 2:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W IMMEDIATE,A3
+
+Fetch one extension word before selecting the destination. Select the destination A7 bank before any pending-update commit. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
+}
+registerCode:u3 := source "A3" {
+  yield 3:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W IMMEDIATE,A4
+
+Fetch one extension word before selecting the destination. Select the destination A7 bank before any pending-update commit. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
+}
+registerCode:u3 := source "A4" {
+  yield 4:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W IMMEDIATE,A5
+
+Fetch one extension word before selecting the destination. Select the destination A7 bank before any pending-update commit. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
+}
+registerCode:u3 := source "A5" {
+  yield 5:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W IMMEDIATE,A6
+
+Fetch one extension word before selecting the destination. Select the destination A7 bank before any pending-update commit. Sign-extend the word into the complete address register; preserve every flag.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
+}
+registerCode:u3 := source "A6" {
+  yield 6:u3
+}
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
 ```
 
@@ -63548,47 +65748,98 @@ Flags preserved throughout: X, N, Z, V, C, T, S.
 
 ### 68000 MOVEA.W IMMEDIATE,A7
 
-Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+Fetch one extension word before selecting the destination. Select the destination A7 bank before any pending-update commit. Sign-extend the word into the complete address register; preserve every flag.
 
 ```text
 sourceMode:u3 := input
 sourceCode:u3 := input
 destinationMode:u3 := input
 destinationCode:u3 := input
-resultHigh:u16 := fetch complete native-order word
-result := resultHigh
-destinationSupervisor:u8 := source "active stack bank" {
-  supervisor:flag := read S
-  yield select(supervisor, 01:u8, 00:u8)
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
 }
-when not(isZero(destinationSupervisor)) {
-  write SSP:u32 := signExtend32(result)
+registerCode:u3 := source "A7" {
+  yield 7:u3
 }
-when not(not(isZero(destinationSupervisor))) {
-  write USP:u32 := signExtend32(result)
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := signExtend32(result)
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
 ```
 
 Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A0),D0
+### 68000 MOVE.W IMMEDIATE,MEMORY
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Fetch one extension word before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
-code:u3 := source "A0" {
-  yield 0:u3
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u16 := source "16-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  yield high
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D0
-write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 16-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u16 := result
+  write memory[address] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000001:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -63599,219 +65850,30 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A1),D0
+### 68000 MOVE.L D0,MEMORY
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A1" {
-  yield 1:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D0
-write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A2),D0
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Capture the source long from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
-code:u3 := source "A2" {
-  yield 2:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D0
-write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A3),D0
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A3" {
-  yield 3:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D0
-write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A4),D0
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A4" {
-  yield 4:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D0
-write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A5),D0
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A5" {
-  yield 5:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D0
-write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A6),D0
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A6" {
-  yield 6:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D0
-write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A7),D0
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A7" {
-  yield 7:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D0
-write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D0,(A0)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
 originalSource:u32 := read D0
-result := low16(originalSource)
-code:u3 := source "A0" {
-  yield 0:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -63822,23 +65884,30 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W D1,(A0)
+### 68000 MOVE.L D1,MEMORY
 
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
+Capture the source long from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
 originalSource:u32 := read D1
-result := low16(originalSource)
-code:u3 := source "A0" {
-  yield 0:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -63849,23 +65918,30 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W D2,(A0)
+### 68000 MOVE.L D2,MEMORY
 
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
+Capture the source long from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
 originalSource:u32 := read D2
-result := low16(originalSource)
-code:u3 := source "A0" {
-  yield 0:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -63876,23 +65952,30 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W D3,(A0)
+### 68000 MOVE.L D3,MEMORY
 
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
+Capture the source long from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
 originalSource:u32 := read D3
-result := low16(originalSource)
-code:u3 := source "A0" {
-  yield 0:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -63903,23 +65986,30 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W D4,(A0)
+### 68000 MOVE.L D4,MEMORY
 
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
+Capture the source long from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
 originalSource:u32 := read D4
-result := low16(originalSource)
-code:u3 := source "A0" {
-  yield 0:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -63930,23 +66020,30 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W D5,(A0)
+### 68000 MOVE.L D5,MEMORY
 
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
+Capture the source long from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
 originalSource:u32 := read D5
-result := low16(originalSource)
-code:u3 := source "A0" {
-  yield 0:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -63957,23 +66054,30 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W D6,(A0)
+### 68000 MOVE.L D6,MEMORY
 
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
+Capture the source long from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
 originalSource:u32 := read D6
-result := low16(originalSource)
-code:u3 := source "A0" {
-  yield 0:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -63984,23 +66088,125 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W D7,(A0)
+### 68000 MOVE.L D7,MEMORY
 
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
+Capture the source long from Dn before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
 originalSource:u32 := read D7
-result := low16(originalSource)
-code:u3 := source "A0" {
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A0,MEMORY
+
+Select the source An bank and capture its long before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+registerCode:u3 := source "A0" {
   yield 0:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield contents
+}
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -64011,24 +66217,727 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A0),D1
+### 68000 MOVE.L A1,MEMORY
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Select the source An bank and capture its long before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
-code:u3 := source "A0" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+registerCode:u3 := source "A1" {
+  yield 1:u3
+}
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield contents
+}
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A2,MEMORY
+
+Select the source An bank and capture its long before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+registerCode:u3 := source "A2" {
+  yield 2:u3
+}
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield contents
+}
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A3,MEMORY
+
+Select the source An bank and capture its long before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+registerCode:u3 := source "A3" {
+  yield 3:u3
+}
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield contents
+}
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A4,MEMORY
+
+Select the source An bank and capture its long before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+registerCode:u3 := source "A4" {
+  yield 4:u3
+}
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield contents
+}
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A5,MEMORY
+
+Select the source An bank and capture its long before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+registerCode:u3 := source "A5" {
+  yield 5:u3
+}
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield contents
+}
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A6,MEMORY
+
+Select the source An bank and capture its long before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+registerCode:u3 := source "A6" {
+  yield 6:u3
+}
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield contents
+}
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A7,MEMORY
+
+Select the source An bank and capture its long before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+registerCode:u3 := source "A7" {
+  yield 7:u3
+}
+sourceRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
+}
+originalSource:u32 := source "read selected address register" {
+  selected:u8 := sourceRegister
+  contents:u32 := match byte selected {
+    case (byte & FF) = 00 {
+      original:u32 := read A0
+      yield original
+    }
+    case (byte & FF) = 01 {
+      original:u32 := read A1
+      yield original
+    }
+    case (byte & FF) = 02 {
+      original:u32 := read A2
+      yield original
+    }
+    case (byte & FF) = 03 {
+      original:u32 := read A3
+      yield original
+    }
+    case (byte & FF) = 04 {
+      original:u32 := read A4
+      yield original
+    }
+    case (byte & FF) = 05 {
+      original:u32 := read A5
+      yield original
+    }
+    case (byte & FF) = 06 {
+      original:u32 := read A6
+      yield original
+    }
+    case (byte & FF) = 07 {
+      original:u32 := read USP
+      yield original
+    }
+    case (byte & FF) = 08 {
+      original:u32 := read SSP
+      yield original
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield contents
+}
+result := originalSource
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L MEMORY,D0
+
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "D0" {
   yield 0:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D1
-write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -64039,24 +66948,62 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A1),D1
+### 68000 MOVE.L MEMORY,D1
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A1" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "D1" {
   yield 1:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D1
-write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -64067,24 +67014,62 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A2),D1
+### 68000 MOVE.L MEMORY,D2
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A2" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "D2" {
   yield 2:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D1
-write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -64095,24 +67080,62 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A3),D1
+### 68000 MOVE.L MEMORY,D3
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A3" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "D3" {
   yield 3:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D1
-write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -64123,24 +67146,62 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A4),D1
+### 68000 MOVE.L MEMORY,D4
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A4" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "D4" {
   yield 4:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D1
-write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -64151,24 +67212,62 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A5),D1
+### 68000 MOVE.L MEMORY,D5
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A5" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "D5" {
   yield 5:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D1
-write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -64179,24 +67278,62 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A6),D1
+### 68000 MOVE.L MEMORY,D6
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A6" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "D6" {
   yield 6:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D1
-write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -64207,24 +67344,62 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A7),D1
+### 68000 MOVE.L MEMORY,D7
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A7" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "D7" {
   yield 7:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D1
-write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -64235,436 +67410,672 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W D0,(A1)
+### 68000 MOVEA.L MEMORY,A0
 
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D0
-result := low16(originalSource)
-code:u3 := source "A1" {
-  yield 1:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D1,(A1)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-originalSource:u32 := read D1
-result := low16(originalSource)
-code:u3 := source "A1" {
-  yield 1:u3
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
 }
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D2,(A1)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D2
-result := low16(originalSource)
-code:u3 := source "A1" {
-  yield 1:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D3,(A1)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D3
-result := low16(originalSource)
-code:u3 := source "A1" {
-  yield 1:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D4,(A1)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D4
-result := low16(originalSource)
-code:u3 := source "A1" {
-  yield 1:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D5,(A1)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D5
-result := low16(originalSource)
-code:u3 := source "A1" {
-  yield 1:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D6,(A1)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D6
-result := low16(originalSource)
-code:u3 := source "A1" {
-  yield 1:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D7,(A1)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D7
-result := low16(originalSource)
-code:u3 := source "A1" {
-  yield 1:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A0),D2
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A0" {
+registerCode:u3 := source "A0" {
   yield 0:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D2
-write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A1),D2
+### 68000 MOVEA.L MEMORY,A1
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A1" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "A1" {
   yield 1:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D2
-write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A2),D2
+### 68000 MOVEA.L MEMORY,A2
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A2" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "A2" {
   yield 2:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D2
-write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A3),D2
+### 68000 MOVEA.L MEMORY,A3
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A3" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "A3" {
   yield 3:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D2
-write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A4),D2
+### 68000 MOVEA.L MEMORY,A4
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A4" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "A4" {
   yield 4:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D2
-write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A5),D2
+### 68000 MOVEA.L MEMORY,A5
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A5" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "A5" {
   yield 5:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D2
-write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A6),D2
+### 68000 MOVEA.L MEMORY,A6
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A6" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "A6" {
   yield 6:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D2
-write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A7),D2
+### 68000 MOVEA.L MEMORY,A7
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in data space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A7" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "A7" {
   yield 7:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D2
-write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L MEMORY,MEMORY
+
+Resolve and read the complete long in data space before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit data memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read memory[address]
+  byte1:u8 := read memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -64675,240 +68086,62 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W D0,(A2)
+### 68000 MOVE.L PROGRAM,D0
 
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D0
-result := low16(originalSource)
-code:u3 := source "A2" {
-  yield 2:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D1,(A2)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-originalSource:u32 := read D1
-result := low16(originalSource)
-code:u3 := source "A2" {
-  yield 2:u3
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
 }
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D2,(A2)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D2
-result := low16(originalSource)
-code:u3 := source "A2" {
-  yield 2:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D3,(A2)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D3
-result := low16(originalSource)
-code:u3 := source "A2" {
-  yield 2:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D4,(A2)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D4
-result := low16(originalSource)
-code:u3 := source "A2" {
-  yield 2:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D5,(A2)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D5
-result := low16(originalSource)
-code:u3 := source "A2" {
-  yield 2:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D6,(A2)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D6
-result := low16(originalSource)
-code:u3 := source "A2" {
-  yield 2:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D7,(A2)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D7
-result := low16(originalSource)
-code:u3 := source "A2" {
-  yield 2:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A0),D3
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A0" {
+registerCode:u3 := source "D0" {
   yield 0:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D3
-write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -64919,24 +68152,62 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A1),D3
+### 68000 MOVE.L PROGRAM,D1
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A1" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "D1" {
   yield 1:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D3
-write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -64947,24 +68218,62 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A2),D3
+### 68000 MOVE.L PROGRAM,D2
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A2" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "D2" {
   yield 2:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D3
-write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -64975,24 +68284,62 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A3),D3
+### 68000 MOVE.L PROGRAM,D3
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A3" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "D3" {
   yield 3:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D3
-write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -65003,24 +68350,62 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A4),D3
+### 68000 MOVE.L PROGRAM,D4
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A4" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "D4" {
   yield 4:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D3
-write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -65031,24 +68416,62 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A5),D3
+### 68000 MOVE.L PROGRAM,D5
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A5" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "D5" {
   yield 5:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D3
-write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -65059,24 +68482,62 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A6),D3
+### 68000 MOVE.L PROGRAM,D6
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A6" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "D6" {
   yield 6:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D3
-write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -65087,24 +68548,62 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A7),D3
+### 68000 MOVE.L PROGRAM,D7
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A7" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "D7" {
   yield 7:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D3
-write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -65115,436 +68614,672 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W D0,(A3)
+### 68000 MOVEA.L PROGRAM,A0
 
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D0
-result := low16(originalSource)
-code:u3 := source "A3" {
-  yield 3:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D1,(A3)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-originalSource:u32 := read D1
-result := low16(originalSource)
-code:u3 := source "A3" {
-  yield 3:u3
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
 }
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D2,(A3)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D2
-result := low16(originalSource)
-code:u3 := source "A3" {
-  yield 3:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D3,(A3)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D3
-result := low16(originalSource)
-code:u3 := source "A3" {
-  yield 3:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D4,(A3)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D4
-result := low16(originalSource)
-code:u3 := source "A3" {
-  yield 3:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D5,(A3)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D5
-result := low16(originalSource)
-code:u3 := source "A3" {
-  yield 3:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D6,(A3)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D6
-result := low16(originalSource)
-code:u3 := source "A3" {
-  yield 3:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D7,(A3)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D7
-result := low16(originalSource)
-code:u3 := source "A3" {
-  yield 3:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A0),D4
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A0" {
+registerCode:u3 := source "A0" {
   yield 0:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D4
-write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A1),D4
+### 68000 MOVEA.L PROGRAM,A1
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A1" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "A1" {
   yield 1:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D4
-write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A2),D4
+### 68000 MOVEA.L PROGRAM,A2
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A2" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "A2" {
   yield 2:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D4
-write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A3),D4
+### 68000 MOVEA.L PROGRAM,A3
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A3" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "A3" {
   yield 3:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D4
-write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A4),D4
+### 68000 MOVEA.L PROGRAM,A4
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A4" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "A4" {
   yield 4:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D4
-write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A5),D4
+### 68000 MOVEA.L PROGRAM,A5
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A5" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "A5" {
   yield 5:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D4
-write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A6),D4
+### 68000 MOVEA.L PROGRAM,A6
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A6" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "A6" {
   yield 6:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D4
-write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A7),D4
+### 68000 MOVEA.L PROGRAM,A7
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Resolve and read the complete long in program space before selecting the destination. Reject odd memory addresses before their first byte access. Select the destination A7 bank before any pending-update commit. Commit pending address updates before writeback. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A7" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+registerCode:u3 := source "A7" {
   yield 7:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D4
-write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L PROGRAM,MEMORY
+
+Resolve and read the complete long in program space before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+result:u32 := source "read 32-bit program memory" {
+  address:u32 := sourceAddress
+  byte0:u8 := read program memory[address]
+  byte1:u8 := read program memory[addWrap(address, 00000001:u32)]
+  byte2:u8 := read program memory[addWrap(address, 00000002:u32)]
+  byte3:u8 := read program memory[addWrap(address, 00000003:u32)]
+  yield concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+}
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
+}
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -65555,240 +69290,54 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W D0,(A4)
+### 68000 MOVE.L IMMEDIATE,D0
 
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D0
-result := low16(originalSource)
-code:u3 := source "A4" {
-  yield 4:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D1,(A4)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
+Fetch two extension words, high word first before selecting the destination. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-originalSource:u32 := read D1
-result := low16(originalSource)
-code:u3 := source "A4" {
-  yield 4:u3
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D2,(A4)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D2
-result := low16(originalSource)
-code:u3 := source "A4" {
-  yield 4:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D3,(A4)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D3
-result := low16(originalSource)
-code:u3 := source "A4" {
-  yield 4:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D4,(A4)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D4
-result := low16(originalSource)
-code:u3 := source "A4" {
-  yield 4:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D5,(A4)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D5
-result := low16(originalSource)
-code:u3 := source "A4" {
-  yield 4:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D6,(A4)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D6
-result := low16(originalSource)
-code:u3 := source "A4" {
-  yield 4:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D7,(A4)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D7
-result := low16(originalSource)
-code:u3 := source "A4" {
-  yield 4:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A0),D5
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A0" {
+registerCode:u3 := source "D0" {
   yield 0:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D5
-write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -65799,24 +69348,54 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A1),D5
+### 68000 MOVE.L IMMEDIATE,D1
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Fetch two extension words, high word first before selecting the destination. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A1" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
+}
+registerCode:u3 := source "D1" {
   yield 1:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D5
-write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -65827,24 +69406,54 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A2),D5
+### 68000 MOVE.L IMMEDIATE,D2
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Fetch two extension words, high word first before selecting the destination. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A2" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
+}
+registerCode:u3 := source "D2" {
   yield 2:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D5
-write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -65855,24 +69464,54 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A3),D5
+### 68000 MOVE.L IMMEDIATE,D3
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Fetch two extension words, high word first before selecting the destination. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A3" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
+}
+registerCode:u3 := source "D3" {
   yield 3:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D5
-write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -65883,24 +69522,54 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A4),D5
+### 68000 MOVE.L IMMEDIATE,D4
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Fetch two extension words, high word first before selecting the destination. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A4" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
+}
+registerCode:u3 := source "D4" {
   yield 4:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D5
-write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -65911,24 +69580,54 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A5),D5
+### 68000 MOVE.L IMMEDIATE,D5
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Fetch two extension words, high word first before selecting the destination. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A5" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
+}
+registerCode:u3 := source "D5" {
   yield 5:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D5
-write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -65939,24 +69638,54 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A6),D5
+### 68000 MOVE.L IMMEDIATE,D6
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Fetch two extension words, high word first before selecting the destination. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A6" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
+}
+registerCode:u3 := source "D6" {
   yield 6:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D5
-write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -65967,24 +69696,54 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W (A7),D5
+### 68000 MOVE.L IMMEDIATE,D7
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Fetch two extension words, high word first before selecting the destination. Only completed writeback sets N/Z and clears V/C; preserve X/T/S.
 
 ```text
-code:u3 := source "A7" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
+}
+registerCode:u3 := source "D7" {
   yield 7:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+perform "write 32-bit data register" {
+  code:u3 := registerCode
+  contents:u32 := result
+  match byte zeroExtend8(code) {
+    case (byte & FF) = 00 {
+      write D0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write D1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write D2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write D3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write D4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write D5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write D6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write D7:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D5
-write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)
@@ -65995,1092 +69754,601 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
-### 68000 MOVE.W D0,(A5)
+### 68000 MOVEA.L IMMEDIATE,A0
 
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D0
-result := low16(originalSource)
-code:u3 := source "A5" {
-  yield 5:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D1,(A5)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
+Fetch two extension words, high word first before selecting the destination. Select the destination A7 bank before any pending-update commit. Replace the complete address register; preserve every flag.
 
 ```text
-originalSource:u32 := read D1
-result := low16(originalSource)
-code:u3 := source "A5" {
-  yield 5:u3
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D2,(A5)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D2
-result := low16(originalSource)
-code:u3 := source "A5" {
-  yield 5:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D3,(A5)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D3
-result := low16(originalSource)
-code:u3 := source "A5" {
-  yield 5:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D4,(A5)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D4
-result := low16(originalSource)
-code:u3 := source "A5" {
-  yield 5:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D5,(A5)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D5
-result := low16(originalSource)
-code:u3 := source "A5" {
-  yield 5:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D6,(A5)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D6
-result := low16(originalSource)
-code:u3 := source "A5" {
-  yield 5:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D7,(A5)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D7
-result := low16(originalSource)
-code:u3 := source "A5" {
-  yield 5:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A0),D6
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A0" {
+registerCode:u3 := source "A0" {
   yield 0:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D6
-write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A1),D6
+### 68000 MOVEA.L IMMEDIATE,A1
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Fetch two extension words, high word first before selecting the destination. Select the destination A7 bank before any pending-update commit. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A1" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
+}
+registerCode:u3 := source "A1" {
   yield 1:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D6
-write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A2),D6
+### 68000 MOVEA.L IMMEDIATE,A2
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Fetch two extension words, high word first before selecting the destination. Select the destination A7 bank before any pending-update commit. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A2" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
+}
+registerCode:u3 := source "A2" {
   yield 2:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D6
-write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A3),D6
+### 68000 MOVEA.L IMMEDIATE,A3
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Fetch two extension words, high word first before selecting the destination. Select the destination A7 bank before any pending-update commit. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A3" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
+}
+registerCode:u3 := source "A3" {
   yield 3:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D6
-write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A4),D6
+### 68000 MOVEA.L IMMEDIATE,A4
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Fetch two extension words, high word first before selecting the destination. Select the destination A7 bank before any pending-update commit. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A4" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
+}
+registerCode:u3 := source "A4" {
   yield 4:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D6
-write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A5),D6
+### 68000 MOVEA.L IMMEDIATE,A5
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Fetch two extension words, high word first before selecting the destination. Select the destination A7 bank before any pending-update commit. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A5" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
+}
+registerCode:u3 := source "A5" {
   yield 5:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D6
-write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A6),D6
+### 68000 MOVEA.L IMMEDIATE,A6
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Fetch two extension words, high word first before selecting the destination. Select the destination A7 bank before any pending-update commit. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A6" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
+}
+registerCode:u3 := source "A6" {
   yield 6:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D6
-write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W (A7),D6
+### 68000 MOVEA.L IMMEDIATE,A7
 
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
+Fetch two extension words, high word first before selecting the destination. Select the destination A7 bank before any pending-update commit. Replace the complete address register; preserve every flag.
 
 ```text
-code:u3 := source "A7" {
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
+}
+registerCode:u3 := source "A7" {
   yield 7:u3
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
+destinationRegister:u8 := source "select address-register storage" {
+  code:u3 := registerCode
+  selected:u8 := choose isZero(bitXor(code, 7:u3)) {
+    then {
+      bank:u8 := source "active stack bank" {
+        supervisor:flag := read S
+        yield select(supervisor, 01:u8, 00:u8)
+      }
+      yield addWrap(07:u8, bank)
+    }
+    else {
+      yield zeroExtend8(code)
+    }
+  }
+  yield selected
 }
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D6
-write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
+perform "write selected address register" {
+  selected:u8 := destinationRegister
+  contents:u32 := result
+  match byte selected {
+    case (byte & FF) = 00 {
+      write A0:u32 := contents
+    }
+    case (byte & FF) = 01 {
+      write A1:u32 := contents
+    }
+    case (byte & FF) = 02 {
+      write A2:u32 := contents
+    }
+    case (byte & FF) = 03 {
+      write A3:u32 := contents
+    }
+    case (byte & FF) = 04 {
+      write A4:u32 := contents
+    }
+    case (byte & FF) = 05 {
+      write A5:u32 := contents
+    }
+    case (byte & FF) = 06 {
+      write A6:u32 := contents
+    }
+    case (byte & FF) = 07 {
+      write USP:u32 := contents
+    }
+    case (byte & FF) = 08 {
+      write SSP:u32 := contents
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+}
 ```
 
-Flags preserved throughout: X, T, S.
+Flags preserved throughout: X, N, Z, V, C, T, S.
 
-### 68000 MOVE.W D0,(A6)
+### 68000 MOVE.L IMMEDIATE,MEMORY
 
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D0
-result := low16(originalSource)
-code:u3 := source "A6" {
-  yield 6:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D1,(A6)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
+Fetch two extension words, high word first before resolving the destination. Reject odd memory addresses before their first byte access. Commit pending address updates before writeback. Write high byte first. Only completed writeback sets N/Z and clears V/C; preserve X/T/S. Failed writes retain committed updates and earlier bytes with flags unchanged.
 
 ```text
-originalSource:u32 := read D1
-result := low16(originalSource)
-code:u3 := source "A6" {
-  yield 6:u3
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+result:u32 := source "32-bit immediate operand" {
+  high:u16 := fetch complete native-order word
+  low:u16 := fetch complete native-order word
+  yield concatHighLow(high, low)
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D2,(A6)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D2
-result := low16(originalSource)
-code:u3 := source "A6" {
-  yield 6:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
 }
 commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D3,(A6)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D3
-result := low16(originalSource)
-code:u3 := source "A6" {
-  yield 6:u3
+perform "write 32-bit data memory" {
+  address:u32 := destinationAddress
+  contents:u32 := result
+  write memory[address] := low8(shiftBitsRight(contents, 24))
+  write memory[addWrap(address, 00000001:u32)] := low8(shiftBitsRight(contents, 16))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(contents, 8))
+  write memory[addWrap(address, 00000003:u32)] := low8(contents)
 }
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D4,(A6)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D4
-result := low16(originalSource)
-code:u3 := source "A6" {
-  yield 6:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D5,(A6)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D5
-result := low16(originalSource)
-code:u3 := source "A6" {
-  yield 6:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D6,(A6)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D6
-result := low16(originalSource)
-code:u3 := source "A6" {
-  yield 6:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D7,(A6)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D7
-result := low16(originalSource)
-code:u3 := source "A6" {
-  yield 6:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A0),D7
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A0" {
-  yield 0:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D7
-write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A1),D7
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A1" {
-  yield 1:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D7
-write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A2),D7
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A2" {
-  yield 2:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D7
-write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A3),D7
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A3" {
-  yield 3:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D7
-write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A4),D7
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A4" {
-  yield 4:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D7
-write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A5),D7
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A5" {
-  yield 5:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D7
-write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A6),D7
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A6" {
-  yield 6:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D7
-write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W (A7),D7
-
-Resolve the source and reject an odd address before reading its high then low byte. After both reads, commit pending address updates and preserve the live upper word of the destination. Write the complete result before setting N/Z and clearing V/C. A failed read prevents writeback and flag changes.
-
-```text
-code:u3 := source "A7" {
-  yield 7:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space read alignment fault at address; no later effects
-}
-high:u8 := read memory[address]
-low:u8 := read memory[addWrap(address, 00000001:u32)]
-result := concatHighLow(high, low)
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-preserved:u32 := read D7
-write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D0,(A7)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D0
-result := low16(originalSource)
-code:u3 := source "A7" {
-  yield 7:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D1,(A7)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D1
-result := low16(originalSource)
-code:u3 := source "A7" {
-  yield 7:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D2,(A7)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D2
-result := low16(originalSource)
-code:u3 := source "A7" {
-  yield 7:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D3,(A7)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D3
-result := low16(originalSource)
-code:u3 := source "A7" {
-  yield 7:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D4,(A7)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D4
-result := low16(originalSource)
-code:u3 := source "A7" {
-  yield 7:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D5,(A7)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D5
-result := low16(originalSource)
-code:u3 := source "A7" {
-  yield 7:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D6,(A7)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D6
-result := low16(originalSource)
-code:u3 := source "A7" {
-  yield 7:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
-flags "68000 result" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := 0:flag
-  C := 0:flag
-} // Preserve unlisted flags.
-```
-
-Flags preserved throughout: X, T, S.
-
-### 68000 MOVE.W D7,(A7)
-
-Capture the source word before resolving the destination. Reject an odd address before committing pending address updates or writing memory. Write the high byte then the low byte, and only then set N/Z and clear V/C. Never read destination memory; a failed write retains completed bytes and preserves flags.
-
-```text
-originalSource:u32 := read D7
-result := low16(originalSource)
-code:u3 := source "A7" {
-  yield 7:u3
-}
-address:u32 := resolve 16-bit memory EA (mode 2:u3, register code); stage auto-updates for later operands
-when lowBit(address) {
-  return data-space write alignment fault at address; no later effects
-}
-commit staged address-register updates in first-use order; repeated registers receive their final staged value
-write memory[address] := highByte(result)
-write memory[addWrap(address, 00000001:u32)] := lowByte(result)
 flags "68000 result" simultaneously {
   N := topBit(result)
   Z := isZero(result)

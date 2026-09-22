@@ -4,11 +4,18 @@ import { generateChapterState } from "../src/components/cpus/semantics/literate/
 import { generatePublicState } from "../src/components/cpus/semantics/literate/interface.ts";
 import { compileCpuChapter } from "../src/components/cpus/semantics/literate/compile.ts";
 import { opcodePageLayouts } from "../src/components/cpus/semantics/opcode-pages.ts";
+import type { InstructionDefinition } from "../src/components/cpus/semantics/model.ts";
 import type { CpuChapter } from "../src/components/cpus/semantics/literate/compile.ts";
 
 /** Keep exported names precise, while exposing ordinary IR types to the remaining TS definitions. */
 function chapterModule(chapter: CpuChapter, name: string, cpu: string): string {
   const types = { sources: "ValueSource", views: "ValueSource", actions: "InstructionDefinition", policies: "FlagPolicy", operands: "readonly ChapterOperand[]", conditions: "readonly ChapterCondition[]", families: "readonly OpcodeEntry<InstructionDefinition>[]" };
+  // Opcode aliases retain one validated definition; serialize shared bodies once.
+  const definitions = new Map<string, { name: string; definition: InstructionDefinition }>();
+  for (const entries of Object.values(chapter.families)) for (const [, definition] of entries) {
+    const text = JSON.stringify(definition);
+    if (!definitions.has(text)) definitions.set(text, { name: `instruction${definitions.size}`, definition });
+  }
   const opcodeModule = `  { name: ${JSON.stringify(name)}, cpu: ${JSON.stringify(cpu)} as const, definitions: instructions, options: { ...options, bindOpcodes: true${Object.keys(chapter.pages).length ? ", pages" : ""} } },`;
   const stateModule = `  { name: ${JSON.stringify(`${name}-state`)}, cpu: ${JSON.stringify(cpu)} as const, definitions: actions, options: { ...options, sources: { cpu: { name: ${JSON.stringify(cpu)} as const, state }, groups: { views } } } },`;
   return [
@@ -17,13 +24,14 @@ function chapterModule(chapter: CpuChapter, name: string, cpu: string): string {
     'import type { OpcodeEntry } from "../../opcodes.ts";',
     'import type { ChapterOperand, ChapterCondition } from "../literate/compile.ts";', "",
     'import { defineInstruction } from "../validate.ts";', "",
+    ...[...definitions.values()].map(({ definition, name }) => `const ${name} = defineInstruction(${JSON.stringify(definition, null, 2)});\n`),
     ...Object.entries(types).map(([group, type]) => {
-      const definitions = chapter[group as keyof typeof types];
-      const fields = Object.keys(definitions).map(name => `  readonly ${JSON.stringify(name)}: ${type};`).join("\n");
+      const members = chapter[group as keyof typeof types];
+      const fields = Object.keys(members).map(name => `  readonly ${JSON.stringify(name)}: ${type};`).join("\n");
       const data = group === "families" ? `{\n${Object.entries(chapter.families).map(([name, entries]) =>
         `  ${JSON.stringify(name)}: [\n${entries.map(([opcode, definition]) =>
-          `    [${opcode}, defineInstruction(${JSON.stringify(definition, null, 2)})],`).join("\n")}\n  ],`).join("\n")}\n}`
-        : JSON.stringify(definitions, null, 2);
+          `    [${opcode}, ${definitions.get(JSON.stringify(definition))!.name}],`).join("\n")}\n  ],`).join("\n")}\n}`
+        : JSON.stringify(members, null, 2);
       return `export const ${group}: {\n${fields}\n} = ${data};\n`;
     }),
     ...(Object.keys(chapter.pages).length ? [`export const pages = ${JSON.stringify(chapter.pages)} as const;`, ""] : []),

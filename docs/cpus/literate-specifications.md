@@ -46,10 +46,11 @@ Executable chapters are maintained CPU sources:
   Reset, segmented fetching, prefix choices, trap/fault delivery, retirement,
   and ordered INTR/NMI offers are declared here. The class, connections, records,
   snapshots, and integration metadata are generated; no handwritten adapter remains.
-- [Motorola 68000: state and register operations](../../src/components/cpus/specifications/68000.md)
-  owns stored state, A7 and status views, register MOVE/MOVEA, MOVEQ, EXT, SWAP,
-  EXG, and word loads/stores through `(An)`. Its bank/status sources and result
-  policies also serve the remaining native core and instruction builders.
+- [Motorola 68000: state and ordinary transfers](../../src/components/cpus/specifications/68000.md)
+  owns stored state, A7 and status views, every MOVE/MOVEA form, MOVEQ, EXT, SWAP,
+  and EXG. Reusable byte/word/long transfers and data-register writes retain
+  explicit access ordering. Its bank/status sources and result policies also
+  serve the remaining native core and instruction builders.
 
 This is an authoring-language prototype over the existing
 [instruction representation](instruction-semantics.md), with a deliberately
@@ -173,10 +174,11 @@ Quoted descriptions use JSON string escaping.
 | `interface Cpu8008 "description" { … }` | Generate the public class, concrete result types, and state aliases from owned state and an earlier execution contract. |
 | `snapshot pc = PC`, `snapshot alternate.bc = BC_ALT` | Expose an earlier numeric state view under a top-level field or inside a stored group, inside `interface`. |
 | `bank RegisterBank = alternate snapshot BankSnapshot` | Name a stored group type and its readonly snapshot type with derived fields; both names receive the public class prefix. |
-| `offset = fetch` | Fetch and capture the next instruction byte. |
+| `offset = fetch`, `extension = fetch word` | Fetch and capture the next instruction byte or native instruction word. The connection owns word byte order and partial-fetch behavior. |
 | `index = register X`, `carry = flag C` | Read and capture a register or flag at this point; the capture retains its numeric or flag type. |
 | `address = source zeroPage`, `byte = source readAt(segment, offset)` | Evaluate a declared source with numeric arguments in parameter order, capturing its result. |
 | `memory(projectAddress(segment, offset, 4, 20))` | Project a captured word pair onto a physical address bus; available only as a memory address. |
+| `byte = program memory(address)` | Read one program-space byte at a 32-bit logical address, through the existing 68000 connection. |
 | `byte = memory(address)`, `byte = port(selector)` | Read and capture one memory or port byte. Port selectors have sixteen-bit width. |
 | `saved = array ADDRESS[slot]`, `stopped = latch STOPPED` | Capture an array element or latch at this point. |
 | `pointer = add(offset, index)` | Capture a pure numeric expression. Addition wraps at the operands' equal width. |
@@ -195,6 +197,7 @@ Quoted descriptions use JSON string escaping.
 | `apply NZ(result)`, `apply ALU(result, carry(left, right))` | Apply a declared flag policy to typed numeric and flag expressions. |
 | `address = resolve(16, mode, code)` | Ask the existing address decoder to resolve an operand of the stated width; mode and code are captured three-bit values. |
 | `fault alignment read(address) if lowBit(address)` | Return an alignment fault when the captured predicate is true, before subsequent effects. `write` identifies a failed destination access. |
+| `fault alignment program read(address) if lowBit(address)` | Return a program-space alignment fault; writes cannot use program space. |
 | `commit addresses` | Commit register updates staged by the existing address decoder. |
 | `result = iterate(count, initial) { … return next }` | Execute 0–255 ordered iterations, retaining the initial width; the final `return` occupies its own line. |
 | `quotient, remainder = divide(dividend, divisor, signed) otherwise "divide-error"` | Divide a double-width dividend by a byte/word; choose `signed` or `unsigned`; return the named outcome on zero or quotient overflow. |
@@ -1102,12 +1105,19 @@ A shorter assignment notation that conceals these reads would make those
 differences harder to see. Sized literals and explicit width conversions also
 make wrapping and byte order visible.
 
-The 68000's upper-word merge expression repeats twice. Leave it expanded for
-now: a register-view or writeback abstraction could conceal the timing of the
-preserved-bit read. If later arithmetic chapters justify reusable pure
-expressions, their arguments should be captured values, with state reads still
-visible at the call site. Keep the native address resolver, pending-update
-commit, and fault return visible until a chapter owns their definitions.
+The 68000 now uses named data-register write actions for its remaining MOVE
+forms. Their calls occur at writeback, after pending address updates commit;
+the actions explicitly read and preserve the live upper bits. Ordered memory
+sources/actions expose every transferred byte. Keep the native address resolver,
+pending-update commit, and fault return visible until a chapter owns their
+definitions. Alignment faults stay at instruction level because sources and
+composed actions cannot return these faults.
+
+When multiple encodings have identical named definitions, chapter generation
+serializes that definition once. The instruction-alias builder rejects a name
+reused with different behavior. Generated opcode aliases select these shared
+bodies without performing effects; native word decoding still supplies captured
+EA fields. This changes neither instruction coverage nor the authored patterns.
 
 Family explanations should describe their particular operation and stand on
 their own in the expanded listing. The 8008 transfer and immediate-load families

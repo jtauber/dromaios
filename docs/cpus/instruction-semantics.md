@@ -1581,7 +1581,7 @@ optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,68000,8008,8080,8088,6809,z80}.ts`,
-`6502-state.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-word-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, `68000-bits.ts`, `68000-word-arithmetic.ts`,
+`6502-state.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, `68000-bits.ts`, `68000-word-arithmetic.ts`,
 `68000-decimal.ts`, `68000-control.ts`, `68000-transfers.ts`, `68000-system.ts`, and the separate 8088
 operand and string modules. The 8088 operand module
 contains chapter groups with captured segment overrides. The string module
@@ -1589,11 +1589,14 @@ adds repeat mode and prefix-start IP inputs. Its numeric opcode module has
 automatic bindings, and its state module also emits shared entry/WAIT actions.
 The former transfer, ALU, unary, arithmetic, stack, addressing, and control
 modules are removed.
-The 68000 word-transfer chapter owns 64 register-copy definitions in `68000.ts`
-and 128 numeric load/store definitions in `68000-word-moves.ts`. The core selects
-these encodings before the broader MOVE catalogue; other memory forms retain
-their shared parameterized bodies. Its chapter-authored word-result policy
-also serves the remaining word operations.
+The 68000 chapter owns all register and memory MOVE/MOVEA definitions and
+encodings. Register forms remain in `68000.ts`; `68000-moves.ts` exposes 169
+shared bodies and a generated table of their 9,150 non-register operation words.
+The native binding supplies the decoded EA fields. The initial specialized
+word-load/store module is removed. Reusable memory sources, data-register write
+actions, and result policies preserve ordered reads, pending-update commits,
+writeback, and fault behavior. Remaining native builders also consume the
+chapter's result policies and bank/status definitions.
 The script first compiles literate chapters to `semantics/generated/`, then
 loads the definition registry. Both output directories are ignored and removed
 by `npm run clean`.

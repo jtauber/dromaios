@@ -1,5 +1,5 @@
-import { divide, iterate, reject, alignmentFault, capture, commitAddressUpdates, deferInterrupt, notifyReti, exchangeFlags, fetchByte, fillArray, flagValue, highByte, lowByte, replaceFlags, not, perform, readElement,
-  readFlag, readLatch, readMemory, readPort, readRegister, readSource, readTest, reportInterrupt, sendEscape, resolveAddress, updateFlags,
+import { divide, iterate, reject, alignmentFault, capture, commitAddressUpdates, deferInterrupt, notifyReti, exchangeFlags, fetchByte, fetchWord, fillArray, flagValue, highByte, lowByte, replaceFlags, not, perform, readElement,
+  readFlag, readLatch, readMemory, readProgramMemory, readPort, readRegister, readSource, readTest, reportInterrupt, sendEscape, resolveAddress, updateFlags,
   testChoice, value, when, writeChoice, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
 import type { Choice, CpuDeclaration, Expression, Flag, FlagGroup, FlagExpression, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
 import { validateInstruction } from "../validate.ts";
@@ -125,10 +125,10 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         const failure = reject(tokens.quoted());
         result.push(tokens.take("if") ? when(flagExpression(tokens), [failure]) : failure);
       } else if (tokens.take("fault")) {
-        tokens.expect("alignment"); const operation = tokens.word();
-        if (operation !== "read" && operation !== "write") return tokens.fail("Expected a data read or write alignment fault.");
+        tokens.expect("alignment"); const program = tokens.take("program"); const operation = tokens.word();
+        if (operation !== "read" && operation !== "write") return tokens.fail("Expected a read or write alignment fault.");
         tokens.expect("("); const address = expression(tokens); tokens.expect(")"); tokens.expect("if");
-        result.push(when(flagExpression(tokens), [alignmentFault(operation, address)]));
+        result.push(when(flagExpression(tokens), [alignmentFault(operation, address, program ? "program" : "data")]));
       } else if (tokens.take("defer")) {
         const scope = tokens.word();
         if (scope !== "irq" && scope !== "intr" && scope !== "all") return tokens.fail("Expected irq, intr, or all deferral scope.");
@@ -227,7 +227,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
             if (size !== 8 && size !== 16 && size !== 32) return tokens.fail("Operand size must be 8, 16, or 32.");
             tokens.expect(","); const mode = expression(tokens); tokens.expect(","); const code = expression(tokens); tokens.expect(")");
             result.push(resolveAddress(name, size, mode, code));
-          } else if (tokens.take("fetch")) result.push(fetchByte(name));
+          } else if (tokens.take("fetch")) result.push(tokens.take("word") ? fetchWord(name) : fetchByte(name));
           else if (tokens.next === "sample" && tokens.peek(1) === "test") {
             tokens.expect("sample"); tokens.expect("test"); result.push(readTest(name));
           }
@@ -254,6 +254,9 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
             const operand = tokens.lookup(selectedOperands);
             if (operand.kind === "unsupported") return tokens.fail("Unsupported operands cannot be selected.");
             result.push(operand.kind === "register" ? readRegister(name, operand.register) : readSource(name, operand.read));
+          } else if (tokens.next === "program" && tokens.peek(1) === "memory") {
+            tokens.expect("program"); tokens.expect("memory"); tokens.expect("(");
+            result.push(readProgramMemory(name, expression(tokens))); tokens.expect(")");
           } else if ((tokens.next === "memory" || tokens.next === "port") && tokens.peek(1) === "(") {
             const memory = tokens.word() === "memory";
             tokens.expect("("); result.push(memory ? readMemory(name, address(tokens)) : readPort(name, expression(tokens))); tokens.expect(")");

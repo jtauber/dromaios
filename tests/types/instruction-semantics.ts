@@ -46,17 +46,17 @@ import type { Cpu6809State } from "../../src/components/cpus/generated/6809-cpu.
 export function check68000MoveTypes(state: Cpu68000State, context: Cpu68000AddressContext & {
   readByte(address: number): number; writeByte(address: number, byte: number): void;
 }): void {
-  moves68000["8_immediate_d0"](state, 7, 4, 0, 0, { fetchWord: () => 0xffff });
-  const fault: OperandAlignmentFault | void = moves68000["32_program_memory"](state, 7, 2, 3, 0, context);
+  moves68000["MOVE.B IMMEDIATE,D0"](state, 7, 4, 0, 0, { fetchWord: () => 0xffff });
+  const fault: OperandAlignmentFault | void = moves68000["MOVE.L PROGRAM,MEMORY"](state, 7, 2, 3, 0, context);
   resolveAddress("address", 32, literal(3, 7), literal(3, 2));
   commitAddressUpdates(); fetchWord("word"); readProgramMemory("byte", literal(32, 0));
   alignmentFault("read", literal(32, 1), "program");
   // @ts-expect-error Program-space reads cannot be supplied only as data-space reads.
-  moves68000["16_program_d0"](state, 7, 2, 0, 0, { resolveAddress: context.resolveAddress, readByte: context.readByte, commitAddressUpdates: context.commitAddressUpdates });
+  moves68000["MOVE.W PROGRAM,D0"](state, 7, 2, 0, 0, { resolveAddress: context.resolveAddress, readByte: context.readByte, commitAddressUpdates: context.commitAddressUpdates });
   // @ts-expect-error Even byte transfers require an explicit commit stage after addressing.
-  moves68000["8_memory_d0"](state, 2, 0, 0, 0, { resolveAddress: context.resolveAddress, readByte: context.readByte });
+  moves68000["MOVE.B MEMORY,D0"](state, 2, 0, 0, 0, { resolveAddress: context.resolveAddress, readByte: context.readByte });
   // @ts-expect-error The word fetch supplies a complete numeric word.
-  moves68000["8_immediate_d0"](state, 7, 4, 0, 0, { fetchWord: () => false });
+  moves68000["MOVE.B IMMEDIATE,D0"](state, 7, 4, 0, 0, { fetchWord: () => false });
   // @ts-expect-error Selector expressions must be captured numbers, not conditions.
   resolveAddress("address", 32, flagValue("supervisor"), literal(3, 2));
   // @ts-expect-error Alignment faults require a native access kind.

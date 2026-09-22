@@ -81,7 +81,7 @@ module.exports = grammar({
     reject_statement: $ => seq('reject', $.string, optional(seq('if', $._expression))),
     capture: $ => seq(field('name', choice($.identifier, alias('exchange', $.identifier), alias('port', $.identifier))), '=', choice($._read, $._expression)),
     _read: $ => choice(
-      'fetch', seq('sample', 'test'), $.choice_read, $.state_read, $.array_read, $.source_read, $.operand_read,
+      seq('fetch', optional('word')), seq('program', 'memory', $.arguments), seq('sample', 'test'), $.choice_read, $.state_read, $.array_read, $.source_read, $.operand_read,
     ),
     choice_read: $ => seq('choice', $._state_name, '=', choice($.string, $.number)),
     state_read: $ => seq(choice('register', 'flag', 'latch'), $._state_name),
@@ -97,7 +97,7 @@ module.exports = grammar({
     perform_statement: $ => seq('perform', field('name', $.identifier), $.arguments),
     when_statement: $ => seq('when', choice(seq('test', $.identifier), $._expression), $.body),
     return_statement: $ => seq('return', $._expression),
-    fault_statement: $ => seq('fault', 'alignment', choice('read', 'write'),
+    fault_statement: $ => seq('fault', 'alignment', optional('program'), choice('read', 'write'),
       '(', $._expression, ')', 'if', $._expression),
     commit_statement: _ => seq('commit', 'addresses'),
     defer_statement: _ => seq('defer', choice('irq', 'intr', 'all')),
