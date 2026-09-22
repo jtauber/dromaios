@@ -22,8 +22,8 @@ import { instructions as strings8088 } from "../../src/components/cpus/generated
 import { instructions as arithmetic8088 } from "../../src/components/cpus/generated/8088-arithmetic.js";
 import { instructions as stack8088 } from "../../src/components/cpus/generated/8088-stack.js";
 import { instructions as unary8088 } from "../../src/components/cpus/generated/8088-unary.js";
-import { instructions as alu8088 } from "../../src/components/cpus/generated/8088-alu.js";
-import { instructions as transfers8088 } from "../../src/components/cpus/generated/8088-transfers.js";
+import { instructions as operand8088, sourceReaders as operandSources8088 } from "../../src/components/cpus/generated/8088-operands.js";
+import { instructions as actions8088 } from "../../src/components/cpus/generated/8088-state.js";
 import { instructions as generated8088, opcodeEntries as opcodeEntries8088 } from "../../src/components/cpus/generated/8088.js";
 import { cpu8088StateDescription } from "../../src/components/cpus/state/8088.js";
 import type { Cpu8088State } from "../../src/components/cpus/8088.js";
@@ -697,45 +697,41 @@ export function check8088TransferTypes(state: Cpu8088State, intel: Cpu8080State)
   addWrap(projectAddress(value("segment"), value("offset"), 4, 20), literal(16, 1));
   // @ts-expect-error Projections use numeric words, not conditions.
   projectAddress(flagValue("carry"), value("offset"), 4, 20);
-  transfers8088.move_8_0_4(state);
-  transfers8088.exchange_8_0_4(state);
-  transfers8088.load_16_0(state, 0xffff, 0xffff, { readByte: () => 0 });
-  transfers8088.store_16_0(state, 0xffff, 0xffff, { writeByte: () => {} });
-  transfers8088.immediate_16(state, 0xffff, 0xffff, { fetchByte: () => 0, writeByte: () => {} });
-  transfers8088.exchangeMemory_16_0(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {} });
-  // @ts-expect-error Generated register transfers need no memory or fetch capability.
-  transfers8088.move_8_0_4(state, {});
-  // @ts-expect-error Resolved addresses are numbers, not opaque mapping callbacks.
-  transfers8088.load_16_0(state, () => 0xffff, 0xffff, { readByte: () => 0 });
-  // @ts-expect-error MOV never reads its memory destination.
-  transfers8088.store_16_0(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {} });
-  // @ts-expect-error A memory exchange needs the write capability as well as reading.
-  transfers8088.exchangeMemory_16_0(state, 0xffff, 0xffff, { readByte: () => 0 });
-  // @ts-expect-error Immediate memory MOV must fetch before writing.
-  transfers8088.immediate_16(state, 0xffff, 0xffff, { writeByte: () => {} });
-  // @ts-expect-error Resolved transfer bodies retain concrete 8088 state.
-  transfers8088.exchange_8_0_4(intel);
+  const memory = { readByte: () => 0, writeByte: () => {} };
+  actions8088.move8(state, 0xc0, 0xc4, 0, memory);
+  actions8088.exchange16(state, 0, 0xc0, 0xffffffff, memory);
+  actions8088.store16(state, 0xffffffff, 0x1234, { writeByte: () => {} });
+  operand8088[0xc7](state, 0, 0, { fetchByte: () => 0, writeByte: () => {} });
+  operandSources8088(state).addressing.effectiveAddress(0, 1, 0xffff, { fetchByte: () => 0 });
+  // @ts-expect-error Captured pointers are numbers, not opaque mapping callbacks.
+  actions8088.move8(state, 0xc0, 0, () => 0xffffffff, memory);
+  // @ts-expect-error A memory store never reads its destination.
+  actions8088.store16(state, 0xffffffff, 0, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error A dynamic exchange requires writing as well as reading.
+  actions8088.exchange16(state, 0, 0xc0, 0, { readByte: () => 0 });
+  // @ts-expect-error Immediate MOV must fetch before writing.
+  operand8088[0xc7](state, 0, 0, { writeByte: () => {} });
+  // @ts-expect-error Address sources require the captured segment selection.
+  operandSources8088(state).addressing.effectiveAddress(0, { fetchByte: () => 0 });
+  // @ts-expect-error Chapter actions retain concrete 8088 state.
+  actions8088.move8(intel, 0xc0, 0xc4, 0, memory);
 }
 
 export function check8088AluTypes(state: Cpu8088State, intel: Cpu8080State): void {
-  alu8088.ADD_8_0_4(state);
-  alu8088.ADC_fromMemory_16_0(state, 0xffff, 0xffff, { readByte: () => 0 });
-  alu8088.CMP_toMemory_16_0(state, 0xffff, 0xffff, { readByte: () => 0 });
-  alu8088.TEST_immediate_16_memory(state, 0xffff, 0xffff, { fetchByte: () => 0, readByte: () => 0 });
-  alu8088.SBB_signed_16_4(state, { fetchByte: () => 0 });
-  alu8088.ADD_immediate_8_memory(state, 0xffff, 0xffff, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
-  // @ts-expect-error A register-pair body has no context.
-  alu8088.ADD_8_0_4(state, {});
+  actions8088.addRM8(state, 0xc0, 0, 1, { readByte: () => 0, writeByte: () => {} });
+  actions8088.cmpRM16(state, 0, 0xffffffff, 0, { readByte: () => 0 });
+  actions8088.testRM16(state, 0, 0xffffffff, 0, { readByte: () => 0 });
+  operand8088[0x83](state, 1, 0xffff, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error CMP cannot write its memory operand.
-  alu8088.CMP_toMemory_16_0(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {} });
-  // @ts-expect-error Immediate TEST must fetch before reading its destination.
-  alu8088.TEST_immediate_16_memory(state, 0xffff, 0xffff, { readByte: () => 0 });
-  // @ts-expect-error Memory arithmetic requires writing as well as reading.
-  alu8088.ADD_toMemory_16_0(state, 0xffff, 0xffff, { readByte: () => 0 });
-  // @ts-expect-error 8088 generated bodies retain their concrete CPU state.
-  alu8088.ADD_8_0_4(intel);
-  // @ts-expect-error The original chip has no sign-extended immediate OR.
-  alu8088.OR_signed_16_0(state, { fetchByte: () => 0 });
+  actions8088.cmpRM16(state, 0, 0, 0, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Immediate ALU forms must fetch their source.
+  operand8088[0x83](state, 0, 0, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Dynamic arithmetic requires writing as well as reading.
+  actions8088.addRM8(state, 0, 0, 0, { readByte: () => 0 });
+  // @ts-expect-error Prefix selection is a numeric input, not a callback.
+  operand8088[0x83](state, () => 1, 0xffff, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Generated bodies retain concrete CPU state.
+  actions8088.addRM8(intel, 0, 0, 0, { readByte: () => 0, writeByte: () => {} });
 }
 
 

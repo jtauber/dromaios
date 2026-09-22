@@ -3,20 +3,24 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { boolean, defineState, flag, group, unsigned } from "../../../../src/components/cpus/state.js";
 import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
-import { instructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions8088, operandInstructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { instructions as actions, sourceReaders } from "../../../../src/components/cpus/generated/8088-state.js";
 import { initialState } from "../8088/helpers.js";
 
 const chapter = compileCpuChapter(readFileSync("src/components/cpus/specifications/8088.md", "utf8"), { name: "8088" });
 const opcodes = [
+  0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0a, 0x0b, 0x10, 0x11, 0x12, 0x13, 0x18, 0x19, 0x1a, 0x1b,
+  0x20, 0x21, 0x22, 0x23, 0x28, 0x29, 0x2a, 0x2b, 0x30, 0x31, 0x32, 0x33, 0x38, 0x39, 0x3a, 0x3b,
+  0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b,
+  0xa0, 0xa1, 0xa2, 0xa3, 0xc6, 0xc7,
   0x04, 0x05, 0x0c, 0x0d, 0x14, 0x15, 0x1c, 0x1d, 0x24, 0x25, 0x2c, 0x2d, 0x34, 0x35, 0x3c, 0x3d,
   0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
   0x9e, 0x9f, 0xa8, 0xa9,
   0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf,
-];
+].sort((a, b) => a - b);
 
-test("the 8088 chapter owns the complete stored schema and 52 exact instruction forms", () => {
+test("the 8088 chapter owns the complete stored schema and 124 forms across 102 primary encodings", () => {
   const expected = defineState({
     ax: unsigned(16), bx: unsigned(16), cx: unsigned(16), dx: unsigned(16),
     sp: unsigned(16), bp: unsigned(16), si: unsigned(16), di: unsigned(16),
@@ -28,9 +32,10 @@ test("the 8088 chapter owns the complete stored schema and 52 exact instruction 
   assert.deepEqual(Object.keys(cpu8088StateDescription), Object.keys(expected));
   assert.deepEqual(Object.keys(cpu8088StateDescription.flags.fields), Object.keys(expected.flags.fields));
   const entries = Object.values(chapter.families).flat();
-  assert.equal(entries.length, 52);
+  assert.equal(entries.length, 102);
+  assert.equal(entries.length - 4 + 8 + 8 + 5 + 5, 124); // Immediate group selectors are distinct forms.
   assert.deepEqual(entries.map(([opcode]) => opcode).sort((a, b) => a - b), opcodes);
-  for (const [opcode, definition] of entries) assert.deepEqual(instructions8088[opcode], definition);
+  for (const [opcode, definition] of entries) assert.deepEqual(({ ...instructions8088, ...operandInstructions8088 })[opcode], definition);
   assert.equal(chapter.execution, undefined); assert.equal(chapter.interface, undefined);
 });
 

@@ -39,7 +39,7 @@ Executable chapters are maintained CPU sources:
   commitment, retirement, and IRQ/NMI entry. Mixed named interrupt entries select
   direct vectors or supplied instructions. Its public class, bank types, and
   nested snapshot views are generated; no handwritten implementation remains.
-- [Intel 8088: state, register views, and immediate arithmetic](../../src/components/cpus/specifications/8088.md)
+- [Intel 8088: state, segmented operands, transfers, and arithmetic](../../src/components/cpus/specifications/8088.md)
   owns stored state, writable byte aliases, physical PC and packed FLAGS views,
   immediate MOV, accumulator ALU/TEST, word INC/DEC, and LAHF/SAHF. Remaining
   native bodies share its register selectors, byte writes, and arithmetic/status
@@ -171,7 +171,8 @@ Quoted descriptions use JSON string escaping.
 | `bank RegisterBank = alternate snapshot BankSnapshot` | Name a stored group type and its readonly snapshot type with derived fields; both names receive the public class prefix. |
 | `offset = fetch` | Fetch and capture the next instruction byte. |
 | `index = register X`, `carry = flag C` | Read and capture a register or flag at this point; the capture retains its numeric or flag type. |
-| `address = source zeroPage` | Evaluate and capture a previously declared source. |
+| `address = source zeroPage`, `byte = source readAt(segment, offset)` | Evaluate a declared source with numeric arguments in parameter order, capturing its result. |
+| `memory(projectAddress(segment, offset, 4, 20))` | Project a captured word pair onto a physical address bus; available only as a memory address. |
 | `byte = memory(address)`, `byte = port(selector)` | Read and capture one memory or port byte. Port selectors have sixteen-bit width. |
 | `saved = array ADDRESS[slot]`, `stopped = latch STOPPED` | Capture an array element or latch at this point. |
 | `pointer = add(offset, index)` | Capture a pure numeric expression. Addition wraps at the operands' equal width. |
@@ -227,6 +228,42 @@ declarations to name the fields they need. They cannot also define a `state`
 block. The compiler validates their field kinds, widths, and array lengths
 against that schema; it does not emit a replacement schema for them.
 
+### Numeric source and family inputs
+
+Sources can declare numeric parameters after their description, with lowercase
+names and explicit widths. Calls supply exactly those arguments in declaration
+order; every argument is captured in the caller's scope before the source's
+first effect. Parameters are visible within that source, while caller captures
+and source locals remain isolated. A matching source forwards its arguments to
+the shared generated decoder and propagates `unsupported` to the whole caller.
+Standalone source readers expose the same numeric inputs before any context.
+
+```text
+source readAt "segmented byte" (segment: 16, offset: 16): 8 {
+  byte = memory(projectAddress(segment, offset, 4, 20))
+  return byte
+}
+family load (segment: 16) "10001000" {
+  byte = source readAt(segment, u16($FFFF))
+  A <- byte
+}
+```
+
+Family parameters follow the family name, before the encoding or multi-encoding
+body. The native adapter supplies them at execution time; current shared opcode
+bindings accept only their declared page operands, so arbitrary family inputs
+require an explicit adapter. Page operand names cannot duplicate these inputs.
+The 8088 uses this bridge for captured segment overrides until its prefix
+boundary migrates. No temporary prefix fields enter stored CPU state.
+
+`projectAddress(base, offset, shift, bits)` is an address expression, not a
+register value. Base and offset must be 16-bit numbers; shift is a constant
+0–16 and bus width is a constant 1–32. It computes `(base * 2^shift + offset)`
+modulo `2^bits`. Each byte of a word must wrap its logical offset before
+projection. Numeric inputs, projections, and byte matches also work with an
+unrelated CPU name and schema; [language tests](../../tests/components/cpus/semantics/literate-inputs.test.ts)
+check scope, widths, rejection propagation, and partial effects.
+
 ### Views and state actions
 
 `view` uses the same ordered captures and final `return` as `source`, with an
@@ -237,7 +274,7 @@ later bodies; each use reads current state with its own capture scope.
 
 `action` defines a named operation on stored state. Optional inputs are numeric
 values with lowercase names and explicit widths, available throughout that
-action but absent from sources' independent scopes. An action can read and
+action; sources see them only through explicit arguments. An action can read and
 write stored state, apply flag policies, and use nested conditions. Fields it
 does not write are preserved. Chapter bodies or execution bindings supply inputs
 and select when it runs; input widths are compile-time contracts, as for other
@@ -923,8 +960,12 @@ to validate same-width EXG/TFR pairs before either register is read.
 The last line is always `otherwise unsupported`. If no case matches, the
 containing source or instruction returns that outcome immediately, retaining
 completed fetches, memory accesses, and state changes. It does not yield a value
-or execute later effects. Thus matches belong in sources and instruction bodies;
-views and actions cannot contain them, including through source calls.
+or execute later effects. Sources, instruction bodies, and composed actions
+may contain matches; nested action rejection stops the enclosing instruction.
+Views cannot reject. Actions selected by an execution contract (counter writes,
+reset, retirement, acceptance, or external entry) also reject matches, including
+through source or nested action calls, because those boundaries cannot consume
+an instruction's unsupported result.
 
 The [6809 indexed source](../../src/components/cpus/specifications/6809.md#indexed-postbytes)
 uses nested matches for base selection, mode decoding, and optional indirection.

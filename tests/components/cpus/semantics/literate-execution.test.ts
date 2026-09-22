@@ -323,3 +323,19 @@ test("a renamed complete 8080 chapter retains generated IRQ deferral and retirem
   assert.equal(accepted.outcome, "executed");
   assert.equal(state.pc, 2); assert.equal(state.interruptEnabled, true); assert.equal(state.interruptDeferred, true);
 });
+
+test("lifecycle actions cannot hide a rejecting byte match inside a composed action", () => {
+  const rejecting = `action selectState "possibly reject" {
+  byte = register A
+  match byte {
+    case "00000000" {
+      A <- byte
+    }
+    otherwise unsupported
+  }
+}
+`;
+  const changed = markdown.replace('action resume "accept an external instruction" {',
+    rejecting + 'action resume "accept an external instruction" {\n  perform selectState()');
+  assert.throws(() => compile(changed), /Execution actions cannot reject through byte matches/);
+});

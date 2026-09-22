@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { instructions } from "../../../../src/components/cpus/generated/8088-alu.js";
-import { alu8088 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { probes } from "../../../helpers/8088-operands.js";
+import { operandInstructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { actions as definitions } from "../../../../src/components/cpus/semantics/generated/8088.js";
+import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import type { Cpu8088State } from "../../../../src/components/cpus/state/8088.js";
 import { address, aluResult, byteMoves, flags, initialState, registerValue, replaceRegister, words } from "../8088/helpers.js";
@@ -25,17 +27,16 @@ for (const width of [8, 16] as const) for (const operation of operations) {
   }
 }
 
-type RegisterBody = (state: Cpu8088State, context: Context) => void;
-type MemoryBody = (state: Cpu8088State, segment: number, offset: number, context: Context) => void;
-const bodies: Readonly<Record<string, RegisterBody | MemoryBody>> = instructions;
-
-// The independent inventory above validates the calling convention of each dynamic test lookup.
-function run(form: Case, state: Cpu8088State, segment: number, offset: number, context: Context) {
-  const body = bodies[form.key];
-  assert.equal(typeof body, "function");
-  if (form.destination === "memory" || form.source === "memory") (body as MemoryBody)(state, segment, offset, context);
-  else (body as RegisterBody)(state, context);
+// Probe arguments are raw ModR/M register selectors or a captured logical pointer.
+function run(form: Case, state: Cpu8088State, segment: number, offset: number, context: Partial<Context>) {
+  const { operation, width, destination, source } = form;
+  const mode = source === "immediate" || source === "signed" ? source : "operand";
+  const unexpected = () => { throw Error("Unexpected capability"); };
+  return probes[`${operation}_${width}_${mode}`](state, destination === "memory" ? 0 : 0xc0 + destination,
+    typeof source === "number" ? 0xc0 + source : 0, segment * 65536 + offset,
+    { fetchByte: unexpected, readByte: unexpected, writeByte: unexpected, ...context });
 }
+const formNamed = (key: string) => { const form = cases.find(form => form.key === key); assert.ok(form); return form; };
 const field = (width: 8 | 16, selector: number) => width === 8 ? byteMoves[selector]![1] : words[selector]!;
 
 function observed(state: Cpu8088State, effect: (name: string) => void): Cpu8088State {
@@ -51,12 +52,11 @@ function observed(state: Cpu8088State, effect: (name: string) => void): Cpu8088S
   });
 }
 
-test("8088 ALU inventory specializes every legal resolved operand choice without unused TEST directions or signed logic", () => {
+test("8088 chapter ALU probes retain the 1631 resolved operand cases without unused TEST directions or signed logic", () => {
   assert.equal(cases.length, 1631);
   const keys = cases.map(form => form.key).sort();
   assert.equal(new Set(keys).size, keys.length);
-  assert.deepEqual(Object.keys(instructions).sort(), keys);
-  assert.deepEqual(Object.keys(alu8088).sort(), keys);
+  assert.equal(Object.keys(probes).filter(key => !key.startsWith("fetchAndStore")).length, 41);
 });
 
 test("every 8088 ALU body preserves capture/flag/write order and precisely completed effects at every failure", () => {
@@ -115,7 +115,7 @@ test("every 8088 ALU body preserves capture/flag/write order and precisely compl
 test("8088 ALU captures the source before memory reads, carry after both operands, and fixed addresses across callbacks", () => {
   const state = initialState({ ax: 0x1234, ds: 0xffff, flags: flags(0) }), oldFlags = state.flags;
   const accesses: number[] = [], writes: number[] = [];
-  instructions.ADC_toMemory_16_0(state, 0xffff, 0xffff, {
+  run(formNamed("ADC_toMemory_16_0"), state, 0xffff, 0xffff, {
     readByte(a) {
       accesses.push(a); state.ax = 0xaaaa; state.ds = 0;
       state.flags = flags(511); // Both the carry capture and later updates must observe the replacement.
@@ -129,7 +129,7 @@ test("8088 ALU captures the source before memory reads, carry after both operand
   assert.deepEqual(state.flags, { ...expected.flags, cf: false }); assert.deepEqual(oldFlags, flags(0));
 
   state.ax = 1; state.flags = flags(0);
-  instructions.SBB_fromMemory_16_0(state, 0xffff, 0xf, {
+  run(formNamed("SBB_fromMemory_16_0"), state, 0xffff, 0xf, {
     readByte(a) { state.ax = 0x8000; state.flags.cf = true; return a === 0xfffff ? 0xff : 0x7f; },
   });
   assert.equal(state.ax, 0);
@@ -138,14 +138,14 @@ test("8088 ALU captures the source before memory reads, carry after both operand
 
 test("8088 immediate bodies finish fetching before destination reads and byte writes preserve the live other half after flags", () => {
   const state = initialState({ ax: 0x1234, flags: flags(0) });
-  instructions.ADC_immediate_8_4(observed(state, name => {
+  run(formNamed("ADC_immediate_8_4"), observed(state, name => {
     if (name === "write flag pf") state.ax = 0xa5ee;
-  }), { fetchByte() { state.ax = 0x7f55; state.flags.cf = true; return 0; } });
+  }), 0, 0, { fetchByte() { state.ax = 0x7f55; state.flags.cf = true; return 0; } });
   assert.equal(state.ax, 0x80ee);
   assert.deepEqual(state.flags, aluResult("ADC", 8, 0x7f, 0, { ...flags(0), cf: true }).flags);
 
   const bytes = new Map([[0xfffff, 0xff], [0, 0x7f]]), effects: string[] = [];
-  instructions.ADD_signed_16_memory(state, 0xffff, 0xf, {
+  run(formNamed("ADD_signed_16_memory"), state, 0xffff, 0xf, {
     fetchByte() { effects.push("fetch"); bytes.set(0, 0); return 0x80; },
     readByte(a) { effects.push("read"); return bytes.get(a)!; },
     writeByte(a, byte) { effects.push("write"); bytes.set(a, byte); },
@@ -155,14 +155,15 @@ test("8088 immediate bodies finish fetching before destination reads and byte wr
 });
 
 test("8088 ALU explanations show sign extension, source/destination/carry order, flag timing, and read-only comparisons", () => {
-  const text = describeInstruction(alu8088.ADC_signed_16_memory!);
-  assert.match(text, /signExtend16\(immediate\)/);
-  assert.ok(text.indexOf("fetch byte") < text.indexOf("read memory"));
+  const describe = (action: typeof definitions.adcRM16) => describeInstruction({ ...action,
+    cpu: { name: "8088", state: cpu8088StateDescription }, explanation: "Resolved arithmetic." });
+  const text = describe(definitions.adcRM16);
+  assert.match(describeInstruction(operandInstructions8088[0x83]!), /signExtend16\(immediate\)/);
   assert.ok(text.lastIndexOf("read memory") < text.indexOf("read CF"));
   assert.ok(text.indexOf("PF :=") < text.indexOf("write memory"));
   assert.match(text, /Flags preserved throughout: TF, IF, DF\./);
-  for (const operation of ["CMP", "TEST"]) {
-    const comparison = describeInstruction(alu8088[operation + "_immediate_16_memory"]!);
+  for (const action of [definitions.cmpRM16, definitions.testRM16]) {
+    const comparison = describe(action);
     assert.match(comparison, /read memory/); assert.doesNotMatch(comparison, /write memory/);
   }
 });

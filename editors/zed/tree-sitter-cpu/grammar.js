@@ -25,7 +25,7 @@ module.exports = grammar({
     choice_declaration: $ => seq('choice', $._state_name, ':', commaSeparated(choice($.string, $.number)), optional($.field_mapping)),
     field_mapping: $ => seq('=', $.identifier),
 
-    source_declaration: $ => seq(choice('source', 'view'), field('name', $.identifier), $.string, ':', $.number, $.body),
+    source_declaration: $ => seq(choice('source', 'view'), field('name', $.identifier), $.string, optional($.parameters), ':', $.number, $.body),
     action_declaration: $ => seq('action', field('name', $.identifier), $.string, optional($.parameters), optional(seq('using', 'memory')), $.body),
     policy_declaration: $ => seq('policy', field('name', $.identifier), $.string, $.parameters,
       '{', repeat($.flag_update), '}'),
@@ -48,7 +48,7 @@ module.exports = grammar({
       optional(seq('on', $.identifier)), optional(seq('{', repeat($.page_capture), $.page_opcode, '}'))),
     page_capture: $ => seq($.identifier, ':', $.number, '=', 'read'),
     page_opcode: _ => seq('opcode', '=', choice('fetch', 'read')),
-    family_declaration: $ => seq('family', field('name', $.identifier), choice(
+    family_declaration: $ => seq('family', field('name', $.identifier), optional($.parameters), choice(
       seq($._encoding, $.body),
       seq('{', repeat1($.encoding_declaration), repeat($._statement), '}'),
     )),
@@ -79,7 +79,7 @@ module.exports = grammar({
     choice_read: $ => seq('choice', $._state_name, '=', choice($.string, $.number)),
     state_read: $ => seq(choice('register', 'flag', 'latch'), $._state_name),
     array_read: $ => seq('array', $._state_name, '[', $._expression, ']'),
-    source_read: $ => seq('source', field('name', $.identifier)),
+    source_read: $ => seq('source', field('name', $.identifier), optional($.arguments)),
     operand_read: $ => seq('operand', $.identifier),
     write: $ => seq(choice($._state_name, $.array_target, $.operand_target, $.memory_target), '<-', choice($._expression, $.string)),
     array_target: $ => seq($._state_name, '[', optional($._expression), ']'),

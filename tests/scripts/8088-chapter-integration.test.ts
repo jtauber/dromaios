@@ -20,6 +20,10 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
     .replace("return lowByte(word)", "return highByte(word)")
     .replace("AX <- concat(highByte(preservedWord), byte)", "AX <- concat(lowByte(preservedWord), byte)")
     .replace("u32($FFFFF)", "u32($FFFF)")
+    .replace('source baseBXSI "DS:BX+SI": 32 {\n  segment = register DS',
+      'source baseBXSI "DS:BX+SI": 32 {\n  segment = register ES')
+    .replace("high = memory(projectAddress(segment, add(offset, u16(1)), 4, 20))",
+      "high = memory(projectAddress(segment, add(offset, u16(2)), 4, 20))")
     .replaceAll("ZF = zero(result)", "ZF = not(zero(result))")
     .replace("select(cf, u16($0001), u16(0))", "select(not(cf), u16($0001), u16(0))")
     .replace("CF = not(zero(and(status, u16($0001))))", "CF = zero(and(status, u16($0001)))");
@@ -54,6 +58,26 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
       if (code[0] === 0x88) assert.equal(after.bx, 0x5612);
       if (code[0] === 0x9c) { assert.equal(bytes[0x7ffe], 3); assert.equal(bytes[0x7fff], 0xf0); }
       if (code[0] === 0x9d) assert.equal(after.flags.cf, true);
+    }
+    // The ModR/M source changes both migrated and still-native families. Segment
+    // overrides keep their captured value, and native word reads reuse chapter memory16.
+    for (const code of [[0x8b, 0x00], [0x3e, 0x8b, 0x00], [0xc5, 0x00], [0xff, 0x00]]) {
+      const bytes = new Uint8Array(1048576); bytes.set(code, 0x12440);
+      bytes.set([0x34, 0x12, 0x56, 0, 0x78], 0x2011);
+      bytes.set([0xcd, 0xab, 0xef], 0x1011);
+      const accesses = [];
+      const ram = { size: bytes.length, read(address) { accesses.push(address); return bytes[address]; },
+        write(address, value) { bytes[address] = value; } };
+      const cpu = new Cpu8088(ram, { ...initial, scratch: 0, bx: 0x10, si: 1, ds: 0x100, es: 0x200 });
+      assert.equal(cpu.step().outcome, "executed");
+      const after = cpu.snapshot();
+      if (code[0] === 0x3e) assert.equal(after.ax, 0xefcd);
+      else if (code[0] === 0xff) {
+        assert.equal(bytes[0x2011], 0x35); assert.equal(bytes[0x2012], 0x56);
+      } else assert.equal(after.ax, 0x5634);
+      if (code[0] === 0xc5) assert.equal(after.ds, 0x7856);
+      assert.deepEqual(accesses.slice(code.length), code[0] === 0x3e ? [0x1011, 0x1013]
+        : code[0] === 0xc5 ? [0x2011, 0x2013, 0x2013, 0x2015] : [0x2011, 0x2013]);
     }
   `], { encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);

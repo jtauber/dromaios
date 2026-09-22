@@ -236,7 +236,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
           for (const [name, bits] of Object.entries(inputs)) {
             identifier(name, where); expect(step.arguments[name]!, width(bits, where)); local.set(name, bits);
           }
-          steps(step.action.steps, local, `${where} / action ${step.action.name}`, false);
+          steps(step.action.steps, local, `${where} / action ${step.action.name}`, "match");
           return;
         }
         case "when":
@@ -320,7 +320,13 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         case "read-port": expect(step.port, 16); captured = 8; break;
         case "read-memory": address(step.address, scope, where); captured = 8; break;
         case "read-source": {
-          const local = new Map<string, ValueType>();
+          const inputs = step.source.inputs ?? {}, args = step.arguments ?? {}, local = new Map<string, ValueType>();
+          if (Object.keys(args).length !== Object.keys(inputs).length || Object.keys(args).some(name => !Object.hasOwn(inputs, name))) {
+            fail(where, "source arguments must match its inputs");
+          }
+          for (const [name, bits] of Object.entries(inputs)) {
+            identifier(name, where); expect(args[name]!, width(bits, where)); local.set(name, bits);
+          }
           steps(step.source.steps, local, `${where} / source ${step.source.name}`, allowRejection === false ? false : "match");
           captured = expression(step.source.result, local, where);
           if (captured !== width(step.source.width, where)) fail(where, "source result width does not match its declaration");

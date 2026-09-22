@@ -145,6 +145,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
         case "write-memory": emit(`write memory[${address(step.address)}] := ${number(step.value)}`); break;
         case "read-source":
           emit(`${step.name}:u${step.source.width} := source "${step.source.name}" {`);
+          for (const [name, bits] of Object.entries(step.source.inputs ?? {})) emit(`  ${name}:u${bits} := ${number(step.arguments![name]!)}`);
           body(step.source.steps, indent + "  ");
           emit(`  yield ${number(step.source.result)}`);
           emit("}");

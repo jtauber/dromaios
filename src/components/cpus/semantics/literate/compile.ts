@@ -8,7 +8,7 @@ import { defineInstruction, validateFlagPolicy, validateInstruction } from "../v
 import { opcodePageLayouts } from "../opcode-pages.ts";
 import type { OpcodePage } from "../opcode-pages.ts";
 import { chapterBlocks, chapterBody, ChapterError, ChapterTokens } from "./document.ts";
-import { expression, flagExpression, width } from "./expressions.ts";
+import { expression, flagExpression, parameters, width } from "./expressions.ts";
 import { chapterExecution, checkByteExecution } from "./execution.ts";
 import type { ChapterExecution } from "./execution.ts";
 import { chapterInterface } from "./interface.ts";
@@ -181,25 +181,20 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
       const open = () => { header.expect("{"); header.end(); };
       if (kind === "source" || kind === "view") {
         if (kind === "view" && name !== name.toUpperCase()) header.fail("View names must be uppercase.");
-        const description = header.quoted(); header.expect(":"); const bits = width(header); open();
+        const description = header.quoted(), inputs = parameters(header);
+        if (kind === "view" && Object.keys(inputs).length) header.fail("Views cannot require inputs.");
+        header.expect(":"); const bits = width(header); open();
         const last = body.at(-1) ?? header.fail("A source must end with return.");
         if (last.next !== "return") header.fail("A source must end with return.");
-        const bodySteps = steps(body.slice(0, -1), { effects: kind === "view" ? "view" : undefined });
+        const bodySteps = steps(body.slice(0, -1), { inputs, effects: kind === "view" ? "view" : undefined });
         last.expect("return"); const result = expression(last); last.end();
-        const source = { name: description, width: bits, steps: bodySteps, result };
-        last.checked(() => validateInstruction({ cpu, name, explanation: "", steps: [readSource("result", source)] }));
+        const source = { name: description, width: bits, ...(Object.keys(inputs).length ? { inputs } : {}), steps: bodySteps, result };
+        last.checked(() => validateInstruction({ cpu, name, explanation: "", inputs,
+          steps: [readSource("result", source, Object.keys(inputs).length ? Object.fromEntries(Object.keys(inputs).map(name => [name, value(name)])) : undefined)] }));
         sources.set(name, source);
         if (kind === "view") views.set(name, source);
       } else if (kind === "action") {
-        const description = header.quoted(), inputs: Record<string, Width> = {};
-        if (header.take("(")) {
-          if (header.next !== ")") do {
-            const parameter = header.word(); header.expect(":");
-            if (Object.hasOwn(inputs, parameter)) header.fail(`Duplicate parameter ${parameter}.`);
-            inputs[parameter] = width(header);
-          } while (header.take(","));
-          header.expect(")");
-        }
+        const description = header.quoted(), inputs = parameters(header);
         const memory = header.take("using"); if (memory) header.expect("memory");
         open();
         const definition = { cpu, name: description, explanation: block.explanation, inputs, steps: [] };
@@ -280,6 +275,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         if (digits === undefined || entries.length + tests.length !== 2 ** digits) header.fail("A catalogue must describe every value of its selector.");
         if (kind === "conditions") conditions.set(name, tests); else catalogues.set(name, entries);
       } else if (kind === "family") {
+        const familyInputs = parameters(header);
         const forms: ChapterTokens[] = [], definitions: OpcodeEntry<InstructionDefinition>[] = [];
         if (header.next === "{") {
           open();
@@ -293,7 +289,11 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
           const page = pageName === undefined ? undefined : opcodePageLayouts(Object.fromEntries(pages)).find(page => page.name === pageName)
             ?? form.fail(`Unknown name ${pageName}.`);
           const prefix = page?.key;
-          const inputs = Object.fromEntries((page?.operands ?? []).map(name => [name, 8 as const]));
+          const inputs = { ...familyInputs };
+          for (const name of page?.operands ?? []) {
+            if (Object.hasOwn(inputs, name)) form.fail(`Duplicate family/page input ${name}.`);
+            inputs[name] = 8;
+          }
           if (pattern.replace(/[\s_]/g, "").length === 16) wordPatterns.push(form);
           if ((prefix !== undefined || pages.size) && pattern.replace(/[\s_]/g, "").length !== 8) form.fail("Opcode pages require eight-bit patterns.");
           const selectors = new Map<string, Selector>();

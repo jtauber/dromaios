@@ -28,6 +28,7 @@ for (const query of ['highlights.scm', 'brackets.scm']) {
 }
 const html = treeSitter('cpu', ['highlight', ...configArgs, '--html', '--style', 'minimal', '--layout', 'fragment', fixture], { capture: true }).stdout;
 for (const [text, category] of [
+  ['projected', 'function'], ['projectAddress', 'function'], ['segment', 'variable'], ['offset', 'variable'],
   ['entries', 'keyword'], ['select', 'keyword'], ['supplied', 'keyword'], ['enter', 'keyword'],
   ['exchange', 'keyword'], ['FLAGS', 'property'], ['bank', 'keyword'], ['ALTERNATE', 'property'], ['MODE', 'property'], ['resume', 'keyword'], ['resumeSync', 'function'], ['match', 'keyword'], ['case', 'keyword'], ['otherwise', 'keyword'], ['unsupported', 'constant'], ['as', 'keyword'], ['waiting', 'constant'], ['page', 'keyword'], ['on', 'keyword'], ['cpu', 'keyword'], ['state', 'keyword'], ['family', 'keyword'], ['encoding', 'keyword'],
   ['perform', 'keyword'], ['prepare', 'function'], ['enter', 'function'], ['defer', 'keyword'], ['notify', 'keyword'], ['reti', 'keyword'], ['shiftBits', 'function'], ['irq', 'keyword'], ['into', 'keyword'], ['unless', 'keyword'],

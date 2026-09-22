@@ -5,7 +5,7 @@ import type { Choice, CpuDeclaration, Expression, Flag, FlagGroup, FlagExpressio
 import { validateInstruction } from "../validate.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
-import { expression, flagExpression } from "./expressions.ts";
+import { address, expression, flagExpression } from "./expressions.ts";
 import { chapterMatch } from "./matches.ts";
 
 export type ChapterOperand = { readonly name: string; readonly kind: "unsupported" } | { readonly name: string; readonly read: ValueSource } & (
@@ -43,13 +43,17 @@ export interface StatementOptions {
 }
 
 /** Views are pure reads; actions need an explicit memory capability for bus effects. */
-export function checkStateEffects(steps: readonly Statement[], effects: "view" | "state" | "memory"): void {
+export function checkStateEffects(steps: readonly Statement[], effects: "view" | "state" | "memory", allowMatches = true): void {
   for (const step of steps) {
     switch (step.kind) {
       case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": case "test-choice": break;
-      case "when": checkStateEffects(step.steps, effects); break;
-      case "read-source": checkStateEffects(step.source.steps, effects); break;
-      case "perform": checkStateEffects(step.action.steps, effects); break;
+      case "when": checkStateEffects(step.steps, effects, allowMatches); break;
+      case "match": case "dispatch":
+        if (effects === "view") throw new Error("Views may only read stored state; byte matches can reject.");
+        if (!allowMatches) throw new Error("Execution actions cannot reject through byte matches.");
+        step.cases.forEach(branch => checkStateEffects(branch.steps, effects, allowMatches)); break;
+      case "read-source": checkStateEffects(step.source.steps, effects, allowMatches); break;
+      case "perform": checkStateEffects(step.action.steps, effects, allowMatches); break;
       case "write-register": case "write-element": case "fill-array": case "write-latch": case "write-choice": case "update-flags": case "replace-flags": case "exchange-flags":
         if (effects !== "view") break;
         throw new Error("Views may only read stored state.");
@@ -139,9 +143,13 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
           result.push(readSource(address, operand.address), writeMemory(value(address), contents));
         }
       } else if ((tokens.next === "memory" || tokens.next === "port") && tokens.peek(1) === "(") {
-        const effect = tokens.word() === "memory" ? writeMemory : writePort;
-        tokens.expect("("); const address = expression(tokens); tokens.expect(")"); tokens.expect("<-");
-        result.push(effect(address, expression(tokens)));
+        const memory = tokens.word() === "memory";
+        tokens.expect("(");
+        if (memory) {
+          const target = address(tokens); tokens.expect(")"); tokens.expect("<-"); result.push(writeMemory(target, expression(tokens)));
+        } else {
+          const target = expression(tokens); tokens.expect(")"); tokens.expect("<-"); result.push(writePort(target, expression(tokens)));
+        }
       } else {
         const name = tokens.reference();
         if (tokens.take("[")) {
@@ -183,14 +191,23 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
           else if (tokens.take("array")) {
             const array = tokens.lookup(arrays); tokens.expect("[");
             result.push(readElement(name, array, expression(tokens))); tokens.expect("]");
-          } else if (tokens.take("source")) result.push(readSource(name, tokens.lookup(sources)));
+          } else if (tokens.take("source")) {
+            const source = tokens.lookup(sources), args: Record<string, NumberExpression> = {};
+            if (tokens.take("(")) {
+              for (const [index, parameter] of Object.keys(source.inputs ?? {}).entries()) {
+                if (index) tokens.expect(","); args[parameter] = expression(tokens);
+              }
+              tokens.expect(")");
+            }
+            result.push(readSource(name, source, Object.keys(args).length ? args : undefined));
+          }
           else if (tokens.take("operand")) {
             const operand = tokens.lookup(selectedOperands);
             if (operand.kind === "unsupported") return tokens.fail("Unsupported operands cannot be selected.");
             result.push(operand.kind === "register" ? readRegister(name, operand.register) : readSource(name, operand.read));
           } else if ((tokens.next === "memory" || tokens.next === "port") && tokens.peek(1) === "(") {
-            const effect = tokens.word() === "memory" ? readMemory : readPort;
-            tokens.expect("("); result.push(effect(name, expression(tokens))); tokens.expect(")");
+            const memory = tokens.word() === "memory";
+            tokens.expect("("); result.push(memory ? readMemory(name, address(tokens)) : readPort(name, expression(tokens))); tokens.expect(")");
           } else result.push(capture(name, expression(tokens)));
         }
       }

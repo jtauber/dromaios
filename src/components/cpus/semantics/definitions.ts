@@ -1,12 +1,12 @@
 import { instructions68000, quick68000, moves68000, wordMoves68000, logic68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000 } from "./definitions/68000.ts";
 import { chapterInstructionModules } from "./generated/catalogue.ts";
-import { instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088 } from "./definitions/8088.ts";
-import { actions as actions8088, views as views8088 } from "./generated/8088.ts";
+import { instructions8088, operandInstructions8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088 } from "./definitions/8088.ts";
+import { actions as actions8088, sources as sources8088, views as views8088 } from "./generated/8088.ts";
 import { cpu8088StateDescription } from "../state/8088.ts";
 import type { generateInstructions } from "./generate.ts";
 
 export * from "./generated/catalogue.ts";
-export { instructions68000, quick68000, moves68000, wordMoves68000, logic68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000, instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088 };
+export { instructions68000, quick68000, moves68000, wordMoves68000, logic68000, arithmetic68000, bits68000, wordArithmetic68000, decimal68000, control68000, transfers68000, system68000, instructions8088, operandInstructions8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088 };
 
 type GenerationParameters = Parameters<typeof generateInstructions>;
 interface InstructionModule {
@@ -37,8 +37,10 @@ export const instructionModules: readonly InstructionModule[] = Object.freeze<re
     sources: { cpu: { name: "8088", state: cpu8088StateDescription }, groups: { views: views8088 } },
   } },
   { name: "8088", cpu: "8088", definitions: instructions8088, options: { bindOpcodes: true } },
-  { name: "8088-transfers", cpu: "8088", definitions: transfers8088 },
-  { name: "8088-alu", cpu: "8088", definitions: alu8088 },
+  { name: "8088-operands", cpu: "8088", definitions: operandInstructions8088, options: {
+    origin: "specifications/8088.md",
+    sources: { cpu: { name: "8088", state: cpu8088StateDescription }, groups: { addressing: { effectiveAddress: sources8088.effectiveAddress } } },
+  } },
   { name: "8088-unary", cpu: "8088", definitions: unary8088 },
   { name: "8088-stack", cpu: "8088", definitions: stack8088 },
   { name: "8088-addressing", cpu: "8088", definitions: addressing8088 },

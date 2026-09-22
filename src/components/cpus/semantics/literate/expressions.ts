@@ -1,7 +1,7 @@
 import { addOverflow, addWrap, and, or, xor, select, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
   flagValue, halfBorrow, halfCarry, highByte, isWidth, literal, lowBit, lowByte, multiply, negative, not, shiftLeft, shiftRight,
-  overflow, shiftBits, signExtend, subtract, truncate, value, zero } from "../model.ts";
-import type { FlagExpression, NumberExpression, Width } from "../model.ts";
+  overflow, projectAddress, shiftBits, signExtend, subtract, truncate, value, zero } from "../model.ts";
+import type { AddressExpression, FlagExpression, NumberExpression, Width } from "../model.ts";
 import type { ChapterTokens } from "./document.ts";
 
 export function width(tokens: ChapterTokens): Width {
@@ -72,4 +72,25 @@ export function flagExpression(tokens: ChapterTokens): FlagExpression {
     result = operations[name as keyof typeof operations](expression(tokens));
   }
   tokens.expect(")"); return result;
+}
+
+/** Physical projection preserves the distinction between logical words and bus addresses. */
+export function address(tokens: ChapterTokens): AddressExpression {
+  if (tokens.next !== "projectAddress") return expression(tokens);
+  tokens.expect("projectAddress"); tokens.expect("(");
+  const base = expression(tokens); tokens.expect(","); const offset = expression(tokens); tokens.expect(",");
+  const shift = tokens.number(); tokens.expect(","); const bits = tokens.number(); tokens.expect(")");
+  return projectAddress(base, offset, shift, bits);
+}
+
+/** Ordered numeric inputs shared by sources, actions, and instruction families. */
+export function parameters(tokens: ChapterTokens): Record<string, Width> {
+  const inputs: Record<string, Width> = {};
+  if (!tokens.take("(")) return inputs;
+  if (tokens.next !== ")") do {
+    const name = tokens.word(); tokens.expect(":");
+    if (Object.hasOwn(inputs, name)) tokens.fail(`Duplicate parameter ${name}.`);
+    inputs[name] = width(tokens);
+  } while (tokens.take(","));
+  tokens.expect(")"); return inputs;
 }

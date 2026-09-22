@@ -114,7 +114,7 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
     if (input === undefined ? widths.length !== 0 : widths.length !== 1 || widths[0] !== input) {
       tokens.fail(input === undefined ? "Execution actions must have no inputs." : `Execution actions require one ${input}-bit input.`);
     }
-    tokens.checked(() => checkStateEffects(definition.steps, memory ? "memory" : "state"));
+    tokens.checked(() => checkStateEffects(definition.steps, memory ? "memory" : "state", false));
     return name;
   };
   const memory = required("memory"), memoryBits = memory.number(); memory.end();

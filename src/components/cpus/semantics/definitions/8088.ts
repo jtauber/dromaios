@@ -1,9 +1,9 @@
 import { cpu8088StateDescription } from "../../state/8088.ts";
 import { opcodeFamily } from "../../opcodes.ts";
 import { addWrap, bitAnd, bitOr, bitXor, capture, concat, cpuSymbols, deferInterrupt, evenParity, extend, flagLiteral, flagValue,
-  readTest, reportInterrupt, sendEscape, divide, fetchByte, highByte, iterate, literal, lowByte, multiply, negative, not, perform, projectAddress, readFlag, readMemory, readRegister, readSource, reject, select, shiftBits, signExtend, subtract, truncate, updateFlags, value, writeLatch, writeMemory, writeRegister, when, xor, zero } from "../model.ts";
+  readTest, reportInterrupt, sendEscape, divide, fetchByte, highByte, iterate, literal, lowByte, multiply, negative, not, perform, projectAddress, readFlag, readRegister, readSource, reject, select, shiftBits, signExtend, subtract, truncate, updateFlags, value, writeLatch, writeRegister, when, xor, zero } from "../model.ts";
 import type { InstructionDefinition, NumberExpression, Statement, ValueSource } from "../model.ts";
-import { atLeast, immediateByte, immediateWord, instructionSet, readWord, registerView, registerSource, shift, writeWord } from "../builders.ts";
+import { atLeast, immediateByte, immediateWord, instructionSet, registerView, registerSource, shift } from "../builders.ts";
 import type { RegisterView, ShiftInput } from "../builders.ts";
 import { flagInstruction, flagPolicy } from "../status.ts";
 import { defineInstruction } from "../validate.ts";
@@ -11,7 +11,7 @@ import { choose, conditional, flagCondition, relativeBranchSteps } from "../cont
 import { segmentedWordStack, stackPush, stackPop } from "../stack.ts";
 import type { Condition } from "../control-flow.ts";
 import { portTransfer } from "../ports.ts";
-import { actions, families, operands, policies, views } from "../generated/8088.ts";
+import { actions, families, operands, policies, sources, views } from "../generated/8088.ts";
 
 const cpu = cpuSymbols("8088", cpu8088StateDescription);
 const wordRegisters = operands.words.map(operand => {
@@ -27,10 +27,6 @@ const registers = [
   wordRegisters.map(word => ({ name: word.field.toUpperCase(), view: registerView(word) })),
 ] as const;
 const widths = [8, 16] as const;
-const immediates = { 8: immediateByte, 16: immediateWord };
-const operations = ["ADD", "OR", "ADC", "SBB", "AND", "SUB", "XOR", "CMP"] as const;
-type Operation = typeof operations[number] | "TEST";
-
 function resultFlags(width: 8 | 16) {
   return { zf: zero(value("result")), sf: negative(value("result")), pf: evenParity(width === 8 ? value("result") : lowByte(value("result"))) };
 }
@@ -66,17 +62,6 @@ const branchConditions = [
   { names: ["JLE", "JG"], decide: either(flagTest("zf"), signMismatch) }, // 111: signed less or equal
 ] as const;
 const relativeByteBranch = () => relativeBranchSteps(cpu.register("ip"), signExtend(value("offset"), 16));
-
-function aluSteps(operation: Operation, width: 8 | 16, write: (contents: NumberExpression) => readonly Statement[]): readonly Statement[] {
-  const withCarry = operation === "ADC" || operation === "SBB";
-  const logical = operation === "OR" || operation === "AND" || operation === "XOR" || operation === "TEST";
-  const logic = { OR: bitOr, AND: bitAnd, XOR: bitXor, TEST: bitAnd };
-  return [
-    ...(withCarry ? [readFlag("carry", cpu.flag("cf"))] : []),
-    ...(logical ? [capture("result", logic[operation](value("left"), value("right"))),
-      updateFlags(policies[`LOGIC${width}`], { result: value("result") })] : arithmeticBody(operation === "ADD" || operation === "ADC" ? "add" : "subtract", width, withCarry)),
-    ...(operation === "CMP" || operation === "TEST" ? [] : write(value("result")))];
-}
 
 const stack = segmentedWordStack(cpu.register("ss"), cpu.register("sp"));
 const segmentRegisters = ["es", "cs", "ss", "ds"] as const;
@@ -210,9 +195,12 @@ export const control8088 = {
   resumeWait: waitInstruction(true), escapeRegister: escapeInstruction(false), escapeMemory: escapeInstruction(true),
 };
 
+// Families with numeric inputs receive the decoder's captured prefix selection.
+export const operandInstructions8088 = instructionSet(Object.values(families).flat().filter(([, definition]) => definition.inputs));
+
 // Numeric keys are the encoding authority for both generated bodies and runtime bindings.
 export const instructions8088 = instructionSet([
-  ...Object.values(families).flat(),
+  ...Object.values(families).flat().filter(([, definition]) => !definition.inputs),
   // 000 ss 11p: ss=ES/CS/SS/DS; p=0 PUSH, p=1 POP, with POP CS undocumented.
   ...opcodeFamily("000 ss 110", { s: segmentRegisters }, ({ s }) =>
     stackPush(cpu.declaration, "PUSH " + s.toUpperCase(), stack, registerView(cpu.register(s)).source)),
@@ -320,14 +308,10 @@ interface OperandDefinition {
 }
 
 function memoryOperand(width: 8 | 16, segment = value("segment"), offset = value("offset")): OperandDefinition {
-  const address = (next: boolean) => projectAddress(segment, next ? addWrap(offset, literal(16, 1)) : offset, 4, 20);
+  const pointer = concat(segment, offset);
   return { name: `${width === 8 ? "byte" : "word"} [segment:offset]`, memory: true,
-    read: name => {
-      if (width === 8) return [readMemory(name, address(false))];
-      const word = readWord("low-first", address(false), address(true), `${name}Low`, `${name}High`);
-      return [...word.steps, capture(name, word.result)];
-    },
-    write: contents => width === 8 ? [writeMemory(address(false), contents)] : writeWord("low-first", address(false), address(true), contents),
+    read: name => [readSource(name, sources[`memory${width}`], { pointer })],
+    write: contents => [perform(actions[`store${width}`], { pointer, contents })],
   };
 }
 
@@ -337,7 +321,6 @@ function operandSet(width: 8 | 16) {
     .map(({ name, view }) => ({ name, read: name => [readSource(name, view.source)], write: view.write }));
   const memory = memoryOperand(width);
   return { width, registers: choices, memory,
-    immediate: { name: "n", read: (name: string) => [readSource(name, immediates[width])] },
     resolved: [...choices.map((operand, selector) => [selector, operand] as const), ["memory", memory] as const] };
 }
 
@@ -353,67 +336,6 @@ function readFarPointer(): readonly Statement[] {
   return [...wordOperands.memory.read("targetOffset"),
     ...memoryOperand(16, value("segment"), addWrap(value("offset"), literal(16, 2))).read("targetSegment")];
 }
-
-function transferDefinition(destination: OperandDefinition, source: Pick<OperandDefinition, "name" | "memory">, steps: readonly Statement[], exchange = false): InstructionDefinition {
-  const memory = destination.memory || source.memory;
-  return resolvedInstruction([destination, source], { name: `${exchange ? "XCHG" : "MOV"} ${destination.name},${source.name} (resolved)`,
-    explanation: "Enter after successful operand resolution. "
-      + (exchange ? "Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. "
-        : "Read the complete source before writing the destination; never read a memory destination. ")
-      + (memory ? "Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. " : "No memory access occurs. ")
-      + "Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.",
-    steps,
-  });
-}
-
-function moveBody(destination: OperandDefinition, source: Pick<OperandDefinition, "name" | "read" | "memory">) {
-  return transferDefinition(destination, source, [...source.read("right"), ...destination.write(value("right"))]);
-}
-
-function exchangeBody(left: OperandDefinition, right: OperandDefinition) {
-  return transferDefinition(left, right, [...left.read("left"), ...right.read("right"),
-    ...left.write(value("right")), ...right.write(value("left"))], true);
-}
-
-/** Specialized register choices; memory bodies share every decoder-resolved addressing mode. */
-export const transfers8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries(operandSets.flatMap(({ width, registers: operands, memory, immediate }) => [
-  ...operands.flatMap((destination, d) => operands.flatMap((source, s) => [
-    [`move_${width}_${d}_${s}`, moveBody(destination, source)], [`exchange_${width}_${d}_${s}`, exchangeBody(destination, source)],
-  ])),
-  ...operands.flatMap((register, r) => [
-    [`load_${width}_${r}`, moveBody(register, memory)], [`store_${width}_${r}`, moveBody(memory, register)],
-    [`exchangeMemory_${width}_${r}`, exchangeBody(memory, register)],
-  ]),
-  [`immediate_${width}`, moveBody(memory, immediate)],
-]));
-
-function aluDefinition(operation: Operation, width: 8 | 16, destination: OperandDefinition, source: Pick<OperandDefinition, "name" | "read" | "memory">): InstructionDefinition {
-  return resolvedInstruction([destination, source], { name: `${operation} ${destination.name},${source.name} (resolved)`,
-    explanation: "Enter after successful operand resolution. Read the complete source before the destination, then capture CF for ADC/SBB. "
-      + "Transfer low byte first, wrapping each logical offset before physical projection. Update arithmetic CF/AF/OF or clear logical OF/CF/AF, then ZF/SF/PF; word parity uses the low byte. "
-      + (operation === "CMP" || operation === "TEST" ? "Do not write either operand. " : "Write the destination after flags; byte views retain their live other half. ")
-      + "Preserve TF/IF/DF and control state. Failed effects retain every completed read, flag update, and byte write.",
-    steps: [...source.read("right"), ...destination.read("left"), ...aluSteps(operation, width, contents => destination.write(contents))],
-  });
-}
-
-/** ModR/M ALU bodies share resolved operands with MOV/XCHG and flags with the accumulator forms. */
-export const alu8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries(operandSets.flatMap(({ width, registers: operands, memory, immediate, resolved }) =>
-  [...operations, "TEST" as const].flatMap(operation => [
-    ...operands.flatMap((destination, d) => operands.map((source, s) =>
-      [`${operation}_${width}_${d}_${s}`, aluDefinition(operation, width, destination, source)])),
-    ...operands.flatMap((register, r) => [
-      [`${operation}_toMemory_${width}_${r}`, aluDefinition(operation, width, memory, register)],
-      ...(operation === "TEST" ? [] : [[`${operation}_fromMemory_${width}_${r}`, aluDefinition(operation, width, register, memory)]]),
-    ]),
-    ...resolved.flatMap(([selector, destination]) => [
-      [`${operation}_immediate_${width}_${selector}`, aluDefinition(operation, width, destination, immediate)],
-      ...(width !== 16 || !["ADD", "ADC", "SBB", "SUB", "CMP"].includes(operation) ? [] : [
-        [`${operation}_signed_${width}_${selector}`, aluDefinition(operation, width, destination,
-          { name: "sign-extended n8", read: (name: string) => [readSource("immediate", immediateByte), capture(name, signExtend(value("immediate"), 16))] })],
-      ]),
-    ]),
-  ])));
 
 /** INC/DEC restore captured CF before writeback; NOT has no flag effects and NEG uses ordinary subtraction flags. */
 export const unary8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries(operandSets.flatMap(({ width, resolved }) =>

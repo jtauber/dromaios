@@ -209,3 +209,13 @@ interface CpuZ80 "bank views" {
   bank RegisterBank = alternate snapshot BankSnapshot
   snapshot alternate.bc = BC_ALT
 }
+
+// Numeric inputs connect captured address values without hidden state fields.
+source projected "segmented byte" (segment: 16, offset: 16): 8 {
+  byte = memory(projectAddress(segment, offset, 4, 20))
+  return byte
+}
+family segmented (segment: 16) "10001000" {
+  byte = source projected(segment, u16($FFFF))
+  A <- byte
+}

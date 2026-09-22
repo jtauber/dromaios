@@ -65,6 +65,7 @@ export interface FlagPolicy {
 }
 export interface ValueSource {
   readonly name: string;
+  readonly inputs?: Readonly<Record<string, Width>>;
   readonly width: Width;
   readonly steps: readonly Statement[];
   readonly result: NumberExpression;
@@ -114,7 +115,7 @@ export type Statement =
   | { readonly kind: "read-program-memory"; readonly name: string; readonly address: NumberExpression }
   | { readonly kind: "read-port"; readonly name: string; readonly port: NumberExpression }
   | { readonly kind: "read-memory"; readonly name: string; readonly address: AddressExpression }
-  | { readonly kind: "read-source"; readonly name: string; readonly source: ValueSource }
+  | { readonly kind: "read-source"; readonly name: string; readonly source: ValueSource; readonly arguments?: Readonly<Record<string, NumberExpression>> }
   | { readonly kind: "write-register"; readonly register: Register; readonly value: NumberExpression }
   | { readonly kind: "write-element"; readonly array: RegisterArray; readonly index: NumberExpression; readonly value: NumberExpression }
   | { readonly kind: "fill-array"; readonly array: RegisterArray; readonly value: NumberExpression }
@@ -274,7 +275,8 @@ export const readFlag = (name: string, flag: Flag): Statement => ({ kind: "read-
 export const readLatch = (name: string, latch: Latch): Statement => ({ kind: "read-latch", name, latch });
 export const exchangeFlags = (left: FlagGroup, right: FlagGroup): Statement => ({ kind: "exchange-flags", left, right });
 export const readMemory = (name: string, address: AddressExpression): Statement => ({ kind: "read-memory", name, address });
-export const readSource = (name: string, source: ValueSource): Statement => ({ kind: "read-source", name, source });
+export const readSource = (name: string, source: ValueSource, args?: Readonly<Record<string, NumberExpression>>): Statement =>
+  ({ kind: "read-source", name, source, ...(args === undefined ? {} : { arguments: args }) });
 /** Expand a named operation in its own capture scope; arguments are captured before its effects. */
 export const perform = (action: Action, args: Readonly<Record<string, NumberExpression>>): Statement =>
   ({ kind: "perform", action: { name: action.name, ...(action.inputs ? { inputs: action.inputs } : {}), steps: action.steps }, arguments: args });

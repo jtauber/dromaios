@@ -694,13 +694,19 @@ inhibition on failure, guard release, and REP/REPNE rejection before body entry.
 
 ### Resolved segmented transfers
 
-ModR/M MOV and XCHG, absolute accumulator MOV, and immediate r/m MOV use the
-same byte/word views after the existing decoder selects registers or resolves
-one segment and offset. Register-to-register bodies specialize both selectors;
-memory bodies receive the captured numeric segment and offset, with only the
-fetch/read/write callbacks they need. The immediate register cases reuse the
-earlier MOV bodies. These 306 new bodies cover twelve complete opcode forms;
-no address-mode or register specialization earns additional opcode credit.
+The [8088 chapter](../../src/components/cpus/specifications/8088.md#segmented-memory-and-modrm-operands)
+owns ModR/M MOV/XCHG, absolute accumulator MOV, immediate r/m MOV, and their
+address decoding. The native boundary passes its captured segment override as
+numeric family inputs. Chapter sources capture default segments and base
+registers before fetching displacements, distinguish direct offsets from BP,
+and retain a packed segment/offset pair until the final access. Absolute MOV
+fetches its offset before reading DS and skips that read when overridden.
+
+Dynamic chapter read/write actions select the register view or resolved memory
+operand. This replaces 306 specialized production bodies with shared definitions
+for twelve complete opcode forms. Register and addressing choices do not earn
+additional opcode credit. Remaining native families also use the chapter's
+effective-address source and memory byte/word operations.
 
 `projectAddress(segment, offset, 4, 20)` maps a logical byte to the physical bus.
 Word bodies first add one to the offset with 16-bit wrapping, then project
@@ -712,7 +718,7 @@ half, including AL/AH aliases. All accesses are low byte first; a failed second
 access retains the first, and flags/control state remain untouched by the body.
 
 [Transfer probes](../../tests/components/cpus/semantics/8088-transfers.test.ts)
-cover every specialization, aliased views, changing live state, and failure at
+retain all 306 resolved operand cases, aliased views, changing live state, and failure at
 every effect. [CPU boundary probes](../../tests/components/cpus/8088/transfer-failures.test.ts)
 cover all twelve forms with prefixes, wrapping fetch/data addresses, overlapping
 code, retained partial writes and inhibition, and guard release. C6/C7 reject
@@ -721,33 +727,30 @@ REP/REPNE rejection and retirement remain with the existing CPU boundary.
 
 ### Resolved arithmetic, logic, and TEST
 
-The same register and memory operand construction now serves all eight ModR/M
-ALU operations, both full-width immediate groups, the documented 82/83 operation
-selectors, and register/immediate TEST. Their 1,631 specialized bodies cover
-62 complete forms. The 82 byte forms reuse ordinary immediate bodies; 83
-explicitly sign-extends its fetched byte to a word. TEST omits the nonexistent
-memory-source direction; sign-extended forms omit logical operations.
+Chapter families now cover all eight ModR/M ALU operations, both full-width
+immediate groups, documented 82/83 operation selectors, and register TEST.
+These are 60 complete forms. The four immediate-group primary bytes expand
+to 8 + 8 + 5 + 5 documented forms through their operation selectors. F6/F7
+immediate TEST still uses native group decoding and calls the chapter TEST
+action after address resolution and complete immediate fetching, so its two
+forms earn no literate credit yet.
 
-All forms capture the complete source before reading the destination, then
-ADC/SBB read CF. The shared `aluSteps` recipe also constructs the earlier
-accumulator forms without changing their expanded definitions. Arithmetic
-updates CF/AF/OF, then ZF/SF/PF; logical operations clear OF/CF/AF before the
-result flags. Word PF uses only the low byte. CMP/TEST stop after flags; other
-operations write afterward, preserving a byte register's live other half.
-A failed memory write retains the new flags and any earlier byte write.
+Shared chapter actions replace the 1,631 specialized ALU bodies. All forms
+capture the complete source before reading the destination, then ADC/SBB read
+CF. They reuse the accumulator policies: arithmetic updates CF/AF/OF, then
+ZF/SF/PF; logic clears OF/CF/AF before the result flags. Word PF uses only the
+low byte. CMP/TEST stop after flags; other operations write afterward,
+preserving a byte register's live other half. A failed memory write retains
+the new flags and any earlier byte write.
 
-MOV, XCHG, ALU, and register TEST share one CPU-owned ModR/M binding. The
-decoder resolves memory once and rejects unused immediate selectors before
-fetching a displacement. F6/F7 /0 enters immediate TEST's complete generated
-body; /1 remains unsupported, /2 and /3 enter generated NOT/NEG bodies, and
-multiply/divide enter the generated arithmetic bodies described below. Prefix rejection, fetching, and
-retirement remain outside the bodies.
-The handwritten ALU function table, operand-pair/application wrappers, immediate
-reader/TEST wrapper, and logical-flag helper are removed. String comparisons
-now share the same generated subtraction construction.
+Immediate groups reject unused selectors before address resolution or operand
+fetching. The 82 byte forms use ordinary bytes; 83 sign-extends its immediate.
+Chapter byte matches own these choices. Prefix scanning, REP rejection,
+fetch-cursor updates, and retirement remain at the native boundary. The old
+binary/immediate wrappers, selector tables, and ALU recipe have been removed.
 
 [Definition probes](../../tests/components/cpus/semantics/8088-alu.test.ts)
-check the entire specialization inventory, every effect and partial failure,
+retain all 1,631 resolved operand cases, every effect and partial failure,
 aliased registers, replaced flag objects, live byte halves, and fixed addresses
 across callbacks. [CPU boundary probes](../../tests/components/cpus/8088/alu-failures.test.ts)
 cover all 62 forms, prefixes, wrapped fetches and data, every failed byte,
@@ -1192,7 +1195,7 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `report-interrupt` | Report completed 8088 software delivery with a captured type byte; performs no entry or memory effects |
 | `write-port` | Write one byte to a captured 16-bit port address; no implicit memory access or flag update |
 | `write-memory` | Write one byte at an explicit 16-bit address, or a 32-bit logical address on the 68000, including unchanged values |
-| `read-source` | Expand and perform the named source body once in its own scope, then capture its result |
+| `read-source` | Capture declared numeric arguments, perform the named source once in its own scope, then capture its result |
 | `update-flags` | Bind a named policy's pure parameters and apply its assignments at this point |
 | `replace-flags` | Bind and evaluate a complete flag policy, then assign a fresh flag object; reject policies missing any stored flag |
 | `when` | Evaluate a Boolean condition; execute the nested ordered statements only if true, with no body effects otherwise |
@@ -1857,7 +1860,8 @@ bus errors, address errors, and successful transfers.
 
 The generator's `sources` option also emits `sourceReaders(state)`. These readers
 use the same validation, lexical scopes, and statement compiler as instruction
-bodies, returning the source's captured result. Each reader requires only the
+bodies, returning the source's captured result. Numeric source inputs precede
+any context and retain their declared order. Each reader requires only the
 callbacks it uses: a simple address needs fetching, an indirect address also
 needs pointer reads, and a memory operand adds the final data read. Binding
 performs no register or memory reads; each call observes live registers at its

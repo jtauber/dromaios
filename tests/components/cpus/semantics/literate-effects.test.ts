@@ -112,7 +112,7 @@ test("writable views, choices, and effect matches diagnose invalid definitions a
   assert.throws(() => compile(noWrite), /value-only operand cannot be written/);
 });
 
-test("effect match IR checks masks, scopes, action rejection, execution capabilities, and explanation", () => {
+test("effect match IR checks masks, scopes, action composition, execution capabilities, and explanation", () => {
   const chapter = compile(), cpu = { name: "probe", state: chapter.state! };
   const dispatch: Extract<Statement, { kind: "dispatch" }> = { kind: "dispatch", selector: literal(8, 0),
     cases: [{ mask: 255, value: 0, steps: [] }] };
@@ -120,7 +120,7 @@ test("effect match IR checks masks, scopes, action rejection, execution capabili
   assert.throws(() => validateInstruction(definition({ ...dispatch, cases: [] })), /at least one/);
   assert.throws(() => validateInstruction(definition({ ...dispatch, cases: [...dispatch.cases, ...dispatch.cases] })), /overlap/);
   assert.throws(() => validateInstruction(definition({ ...dispatch, cases: [{ mask: 0, value: 1, steps: [] }] })), /mask or value/);
-  assert.throws(() => validateInstruction(definition(perform({ name: "rejecting action", steps: [dispatch] }, {}))), /composed actions cannot reject/);
+  assert.doesNotThrow(() => validateInstruction(definition(perform({ name: "rejecting action", steps: [dispatch] }, {}))));
   assert.throws(() => checkByteExecution([{ ...dispatch, cases: [{ mask: 255, value: 0, steps: [readPort("port", literal(16, 0))] }] }], false, true), /memory-only/);
   const text = describeInstruction(definition(dispatch));
   assert.match(text, /match byte/); assert.doesNotMatch(text, /yield/);

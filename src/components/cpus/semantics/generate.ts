@@ -292,17 +292,23 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
                 decoder = { key: `decode${decoders.size}`, code: "", capabilities: new Set<Capability>() };
                 decoders.set(identity, decoder);
                 decoder.code = compile(decoder.key, { cpu: definition.cpu, name: step.source.name,
-                  explanation: "Reusable byte decoding.", steps: step.source.steps }, step.source.result, decoder.capabilities);
+                  explanation: "Reusable byte decoding.", ...(step.source.inputs ? { inputs: step.source.inputs } : {}), steps: step.source.steps }, step.source.result, decoder.capabilities);
               }
               for (const capability of decoder.capabilities) capabilities.add(capability);
               rejections.add("unsupported"); outcomes.add("unsupported");
               const decoded = local("decoded");
-              emit(`const ${decoded} = decoders.${decoder.key}(state${decoder.capabilities.size ? ", instruction" : ""});`);
+              const args = Object.keys(step.source.inputs ?? {}).map(name => number(step.arguments![name]!, scope).code);
+              emit(`const ${decoded} = decoders.${decoder.key}(state${args.map(arg => `, ${arg}`).join("")}${decoder.capabilities.size ? ", instruction" : ""});`);
               emit(`if (${decoded} === "unsupported") return ${decoded};`);
               captured = { code: decoded, type: step.source.width };
               break;
             }
             const sourceScope = new Map<string, CapturedValue>();
+            for (const name of Object.keys(step.source.inputs ?? {})) {
+              const argument = number(step.arguments![name]!, scope), captured = local(name);
+              emit(`const ${captured}: number = ${argument.code};`);
+              sourceScope.set(name, { code: captured, type: argument.type });
+            }
             body(step.source.steps, sourceScope);
             captured = number(step.source.result, sourceScope);
             break;
@@ -378,7 +384,8 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
   const methods = Object.entries(definitions).map(([name, definition]) => compile(name, definition));
   const readers = sources ? Object.entries(sources.groups).map(([group, members]) => {
     const methods = Object.entries(members).map(([name, source]) => compile(name, {
-      cpu: sources.cpu, name: source.name, explanation: "Reusable value source.", steps: [readSource("result", source)],
+      cpu: sources.cpu, name: source.name, explanation: "Reusable value source.", ...(source.inputs ? { inputs: source.inputs } : {}),
+      steps: [readSource("result", source, source.inputs && Object.fromEntries(Object.keys(source.inputs).map(name => [name, value(name)])))],
     }, value("result")));
     return `    [${JSON.stringify(group)}]: {\n${methods.join("\n\n")}\n    },`;
   }) : [];
