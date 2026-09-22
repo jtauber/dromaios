@@ -32,7 +32,7 @@ for (const [text, category] of [
   ['projected', 'function'], ['projectAddress', 'function'], ['segment', 'variable'], ['offset', 'variable'],
   ['entries', 'keyword'], ['select', 'keyword'], ['supplied', 'keyword'], ['enter', 'keyword'],
   ['exchange', 'keyword'], ['FLAGS', 'property'], ['bank', 'keyword'], ['ALTERNATE', 'property'], ['MODE', 'property'], ['resume', 'keyword'], ['resumeSync', 'function'], ['match', 'keyword'], ['case', 'keyword'], ['otherwise', 'keyword'], ['unsupported', 'constant'], ['as', 'keyword'], ['waiting', 'constant'], ['page', 'keyword'], ['on', 'keyword'], ['cpu', 'keyword'], ['state', 'keyword'], ['family', 'keyword'], ['encoding', 'keyword'],
-  ['perform', 'keyword'], ['prepare', 'function'], ['enter', 'function'], ['defer', 'keyword'], ['notify', 'keyword'], ['reti', 'keyword'], ['shiftBits', 'function'], ['irq', 'keyword'], ['into', 'keyword'], ['unless', 'keyword'],
+  ['perform', 'keyword'], ['prepare', 'function'], ['enter', 'function'], ['defer', 'keyword'], ['notify', 'keyword'], ['reti', 'keyword'], ['shiftBits', 'function'], ['irq', 'keyword'], ['intr', 'keyword'], ['all', 'keyword'], ['into', 'keyword'], ['unless', 'keyword'],
   ['callback', 'keyword'], ['validate', 'keyword'], ['using', 'keyword'], ['vectors', 'keyword'], ['DEFERRED', 'property'], ['ENABLED', 'property'],
   ['A', 'property'], ['C', 'property'], ['ADDRESS', 'property'], ['STOPPED', 'property'], ['WAIT', 'property'], ['choice', 'keyword'],
   ['addressStack', 'variable'], ['slot', 'variable'], ['source', 'variable'], ['carry', 'variable'],

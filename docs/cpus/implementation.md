@@ -660,8 +660,7 @@ The [binary helpers](../../src/components/cpus/binary.ts) interpret byte values
 without owning CPU state:
 
 - `signed8(byte)` interprets an unsigned byte as a signed integer in `-128–127`.
-  The 8088 and 68000 use it for byte displacements in native
-  address decoding. Generated sign extension is expressed in the definitions.
+  The 68000 uses it for byte displacements in native address decoding. Generated sign extension is expressed in the definitions.
 - `readWordLE(nextByte)` reads two bytes, low first; `readWordBE(nextByte)` reads
   high first. Both return an unsigned 16-bit value. Each calls `nextByte`
   exactly twice on success and propagates a callback failure without further reads.
@@ -804,37 +803,34 @@ against native decoder bindings. The decoder still owns prefixes, segmented
 fetching, and retirement; generated bodies receive only the callbacks their
 effects require. Preserve operand-before-CF captures and flags-before-writeback.
 
-For resolved 8088 transfers, retain ModR/M and segment selection in the decoder.
-Pass the captured segment and offset to the generated memory body. Express each
-physical address with `projectAddress(segment, offset, 4, 20)`, wrapping each
-logical byte offset before projection. Keep complete source capture, low-first
-accesses, and partial writeback explicit; never replace them with an opaque
-address callback. Register-pair bodies specialize the selectors at construction.
-`operandSet` builds each width's register, memory, and immediate definitions,
-plus a register/memory list carrying the selectors used in body names. Transfers,
-ALU, unary, shift, multiply/divide, control, and segment-move families reuse these
-catalogues. `resolvedInstruction` declares segment/offset inputs when an operand
-uses memory; families retain their own exclusions and ordered effect statements.
-MOV/XCHG/ALU/TEST share one ModR/M binding; their bodies retain different effect
-schedules. ALU/TEST capture the source before the destination, then CF for ADC/SBB.
-Share their arithmetic/flag recipe with accumulator forms; update flags before
-writeback, preserve live byte halves, and omit writes entirely for CMP/TEST.
+The 8088 chapter owns ModR/M selection and segmented operand resolution.
+The native prefix scanner passes its captured override as numeric family inputs.
+Express each physical address with `projectAddress(segment, offset, 4, 20)`,
+wrapping each logical byte offset before projection. Keep complete source
+capture, low-first accesses, and partial writeback explicit; never replace
+them with an opaque address callback. Dynamic read/write actions select the
+chapter's register views or resolved memory, while each family keeps its own
+selector exclusions and effect order. ALU/TEST capture source, destination,
+then CF for ADC/SBB; update flags before writeback and omit writes for CMP/TEST.
 
 Unary bodies reuse those operands and flag recipes. INC/DEC capture CF after
 the complete operand and restore it before writeback; NOT never accesses flags.
-For relative branches, use IP with `relativeBranchSteps`; read it only on the
-taken path after fetching. Preserve short-circuit flag reads with construction
-decisions rather than eagerly capturing every condition bit. LOOP writes and
-rereads CX before testing it. Use `updateStatus` for SAHF's partial flag update;
-whole-object restoration would incorrectly replace its unlisted flags.
+For relative branches, reuse the chapter's `relativeJump` action and read live
+IP only on the taken path after fetching. The `branchDecision` source names
+the condition selector and inversion bit, preserving short-circuit flag reads
+through ordered matches. LOOP writes and rereads CX before testing it. SAHF's
+chapter policy changes individual flags; whole-object restoration would
+incorrectly replace its unlisted flags.
 
-Use `segmentedWordStack` for the 8088's once-per-word pointer adjustment and
-captured SS:SP. Capture push sources before pointer changes, and keep PUSH SP's
-decremented source explicit. Far calls capture the whole target before pushing
-CS, then capture live IP for the second push. Word FLAGS packing shares the
-CPU-owned layout. Keep segment-pop and POPF recognition requests as explicit
-`deferInterrupt` effects; they queue work for successful retirement rather than
-writing stored boundary latches during the body.
+Use the chapter's `pushWord` action and `popWord` source for once-per-word
+pointer adjustment and captured SS:SP. Capture push sources before pointer
+changes, and keep PUSH SP's decremented source explicit. Far calls capture
+the whole target before pushing CS, then capture live IP for the second push.
+Word FLAGS packing shares the chapter layout. Keep segment-pop and POPF
+recognition requests as explicit `defer all` and `defer intr` statements;
+they queue work for successful retirement rather than writing stored boundary
+latches during the body. Native interrupt entry and IRET consume these same
+chapter stack and FLAGS definitions.
 
 String bodies specialize legal repeat modes and segment overrides at construction.
 Keep zero-count checks before operand capture; capture source/destination

@@ -11,16 +11,14 @@ import { copyState, readState } from "./state.ts";
 import { cpu8088StateDescription } from "./state/8088.ts";
 import type { Cpu8088State, Cpu8088Flags } from "./state/8088.ts";
 import { sourceReaders } from "./generated/8088-state.ts";
-import { instructions as semantics, opcodeEntries } from "./generated/8088.ts";
+import { opcodeEntries } from "./generated/8088.ts";
 import { instructions as operands, sourceReaders as operandSources } from "./generated/8088-operands.ts";
-import { instructions as stack } from "./generated/8088-stack.ts";
-import { instructions as addressing } from "./generated/8088-addressing.ts";
 import { instructions as strings } from "./generated/8088-strings.ts";
 import { instructions as control } from "./generated/8088-control.ts";
 import { record8088External } from "./8088-external.ts";
 import type { Cpu8088ExternalAccess, Cpu8088ExternalConnections, Cpu8088ExternalContext } from "./8088-external.ts";
 import type { ReadonlyState } from "./state.js";
-import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
+import { opcodeFamily, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { checkUnsigned } from "../validation.ts";
 
@@ -99,20 +97,6 @@ type SegmentRegister = "es" | "cs" | "ss" | "ds";
 type StringOperation = "move" | "compare" | "store" | "load" | "scan";
 interface MemoryAddress { readonly segment: number; readonly offset: number }
 
-const opcodeBodies: Readonly<Partial<Record<number, (state: Cpu8088State, instruction: InstructionContext) => Rejection | "unsupported" | void>>> = semantics;
-
-type SegmentMove = `segment_${"load" | "store"}_${SegmentRegister}`;
-
-// The remaining native segment moves select a register body or one resolved memory body.
-const registerOperands: Readonly<Partial<Record<`${SegmentMove}_${number}`,
-  (state: Cpu8088State, instruction: InstructionContext) => Rejection | void>>> = addressing;
-const memoryOperands: Readonly<Partial<Record<`${SegmentMove}_memory`,
-  (state: Cpu8088State, segment: number, offset: number, instruction: InstructionContext) => Rejection | void>>> = addressing;
-
-const addressMemory: Readonly<Partial<Record<`${"LES" | "LDS"}_${number}`,
-  (state: Cpu8088State, segment: number, offset: number, instruction: InstructionContext) => void>>> = addressing;
-const effectiveOffsets: Readonly<Record<`LEA_${number}`, (state: Cpu8088State, offset: number) => void>> = addressing;
-
 type StringKey = `${StringOperation}_${OperandWidth}`;
 const plainStrings: Readonly<Record<StringKey, (state: Cpu8088State, instruction: ByteMemory) => void>> = strings;
 const overriddenStrings: Readonly<Record<`${StringKey}_override`,
@@ -121,8 +105,6 @@ const repeatedStrings: Readonly<Partial<Record<`${StringKey}_${"repe" | "repne"}
   (state: Cpu8088State, startIP: number, instruction: ByteMemory) => void>>> = strings;
 const overriddenRepeatedStrings: Readonly<Partial<Record<`${StringKey}_${"repe" | "repne"}_override`,
   (state: Cpu8088State, segment: number, startIP: number, instruction: ByteMemory) => void>>> = strings;
-
-const instructionPattern = opcodePattern<OpcodeHandler>;
 
 // The original 8088 has twenty address lines; carries beyond bit 19 are discarded.
 function physicalAddress(segment: number, offset: number): number {
@@ -307,21 +289,10 @@ export class Cpu8088 {
         return outcome === "unsupported" ? "opcode" : outcome;
       }]),
 
-      // 1000 11 d 0 + mm 0ss rrr moves segment registers; loading CS is undocumented.
-      ...opcodeFamily("1000 11 d 0", { d: [false, true] }, ({ d: toSegment }) => (instruction: InstructionContext) => this.#moveSegment(toSegment, instruction)), // MOV r/m16,Sreg / Sreg,r/m16
-      ...instructionPattern("1000 1101", instruction => this.#loadAddress(undefined, instruction)), // LEA r16,m
-      ...instructionPattern("1000 1111", instruction => this.#popOperand(instruction)), // POP r/m16, only /0
-
       ...this.#stringHandlers, // MOVS/CMPS/STOS/LODS/SCAS, with optional REP
-
-      // 1100 010s loads a far pointer into a general register and ES (s=0) or DS (s=1).
-      ...opcodeFamily("1100 010 s", { s: ["es", "ds"] }, ({ s: segment }) => (instruction: InstructionContext) => this.#loadAddress(segment, instruction)), // LES / LDS
-
-      ...instructionPattern("1101 0111", instruction => this.#translate(instruction)), // XLAT
 
       // 1101 1ooo + mm ppp rrr: ooo:ppp is the six-bit external opcode; mm/rrr selects its source.
       ...opcodeFamily("1101 1ooo", { o: [0, 1, 2, 3, 4, 5, 6, 7] }, ({ o }) => (instruction: InstructionContext) => this.#escape(o, instruction)), // ESC
-
     ];
   }
 
@@ -343,32 +314,6 @@ export class Cpu8088 {
     return { segment: Math.floor(pointer / 0x10000), offset: pointer & 0xffff };
   }
 
-  // Callers reject unused operation selectors before this can fetch a displacement.
-  #operand(operation: SegmentMove, modRM: number, instruction: InstructionContext): Rejection | void {
-    if (modRM >= 0xc0) return registerOperands[`${operation}_${modRM & 7}`]!(this.#state, instruction);
-    const { segment, offset } = this.#effectiveAddress(modRM, instruction);
-    return memoryOperands[`${operation}_memory`]!(this.#state, segment, offset, instruction);
-  }
-
-  #moveSegment(toSegment: boolean, instruction: InstructionContext): Rejection | void {
-    const modRM = instruction.fetchByte(), segment = this.#segmentRegisters[(modRM >>> 3) & 7];
-    if (!segment || (toSegment && segment === "cs")) return "opcode";
-    return this.#operand(`segment_${toSegment ? "load" : "store"}_${segment}`, modRM, instruction);
-  }
-
-  #loadAddress(segment: "es" | "ds" | undefined, instruction: InstructionContext): Rejection | void {
-    const modRM = instruction.fetchByte();
-    if (modRM >= 0xc0) return "opcode";
-    const register = (modRM >>> 3) & 7, address = this.#effectiveAddress(modRM, instruction);
-    if (segment === undefined) effectiveOffsets[`LEA_${register}`]!(this.#state, address.offset);
-    else addressMemory[`${segment === "es" ? "LES" : "LDS"}_${register}`]!(this.#state, address.segment, address.offset, instruction);
-  }
-
-  #translate(instruction: InstructionContext): void {
-    if (instruction.segment === undefined) addressing.XLAT(this.#state, instruction);
-    else addressing.XLAT_override(this.#state, instruction.segment, instruction);
-  }
-
   // Prefix selection stays in the decoder; generated string bodies execute one element per step.
   #string(operation: StringOperation, width: OperandWidth, instruction: InstructionContext): Rejection | void {
     const { repeat, segment, startIp } = instruction, key = `${operation}_${width}` as const;
@@ -380,19 +325,6 @@ export class Cpu8088 {
       const repeated = `${key}_${repeat ? "repe" : "repne"}` as const;
       if (segment === undefined) repeatedStrings[repeated]!(this.#state, startIp, instruction);
       else overriddenRepeatedStrings[`${repeated}_override`]!(this.#state, segment, startIp, instruction);
-    }
-  }
-
-  // Control flow and stack operations.
-
-  #popOperand(instruction: InstructionContext): Rejection | void {
-    const modRM = instruction.fetchByte();
-    if ((modRM & 0x38) !== 0) return "opcode";
-    if (modRM >= 0xc0) {
-      opcodeBodies[0x58 + (modRM & 7)]!(this.#state, instruction);
-    } else {
-      const { segment, offset } = this.#effectiveAddress(modRM, instruction);
-      stack.POP_memory(this.#state, segment, offset, instruction);
     }
   }
 }

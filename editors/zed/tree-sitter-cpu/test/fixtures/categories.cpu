@@ -101,6 +101,11 @@ execution {
   }
 }
 
+family enable8088 "00000000" {
+  defer intr
+  defer all
+}
+
 // Memory actions and named vector entry, without a synthetic stopped latch.
 action vectorReset "reset from memory" using memory {
   low = memory(u16($FFFC))

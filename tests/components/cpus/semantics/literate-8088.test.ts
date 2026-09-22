@@ -19,9 +19,14 @@ const opcodes = [
   0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
   0x9e, 0x9f, 0xa8, 0xa9,
   0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf,
+  0x06, 0x0e, 0x16, 0x1e, 0x07, 0x17, 0x1f, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58,
+  0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78,
+  0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f, 0x8c, 0x8d, 0x8e, 0x8f, 0x90, 0x91, 0x92, 0x93, 0x94,
+  0x95, 0x96, 0x97, 0x9a, 0x9c, 0x9d, 0xc2, 0xc3, 0xc4, 0xc5, 0xca, 0xcb, 0xd7, 0xe0, 0xe1, 0xe2,
+  0xe3, 0xe8, 0xe9, 0xea, 0xeb, 0xf4, 0xf5, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd,
 ].sort((a, b) => a - b);
 
-test("the 8088 chapter owns the complete stored schema and 183 forms across 118 primary encodings", () => {
+test("the 8088 chapter owns the complete stored schema and 260 forms across 195 primary encodings", () => {
   const expected = defineState({
     ax: unsigned(16), bx: unsigned(16), cx: unsigned(16), dx: unsigned(16),
     sp: unsigned(16), bp: unsigned(16), si: unsigned(16), di: unsigned(16),
@@ -33,10 +38,10 @@ test("the 8088 chapter owns the complete stored schema and 183 forms across 118 
   assert.deepEqual(Object.keys(cpu8088StateDescription), Object.keys(expected));
   assert.deepEqual(Object.keys(cpu8088StateDescription.flags.fields), Object.keys(expected.flags.fields));
   const entries = Object.values(chapter.families).flat();
-  assert.equal(entries.length, 118);
+  assert.equal(entries.length, 195);
   // Replace primary group bytes with their documented extension forms; far pointers
   // count once per operation, independent of the three legal memory modes.
-  assert.equal(entries.length - 4 + 8 + 8 + 5 + 5 - 4 + 4 * 7 - 2 + 2 * 7 - 2 + 2 + 7, 183);
+  assert.equal(entries.length - 4 + 8 + 8 + 5 + 5 - 4 + 4 * 7 - 2 + 2 * 7 - 2 + 2 + 7, 260);
   assert.deepEqual(entries.map(([opcode]) => opcode).sort((a, b) => a - b), opcodes);
   for (const [opcode, definition] of entries) assert.deepEqual(({ ...instructions8088, ...operandInstructions8088 })[opcode], definition);
   assert.equal(chapter.execution, undefined); assert.equal(chapter.interface, undefined);

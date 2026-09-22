@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/8088.js";
-import { instructions as addressing } from "../../../../src/components/cpus/generated/8088-addressing.js";
+import { compileResolved, addressing8088 } from "../../../helpers/8088-resolved.js";
 import { instructions as strings } from "../../../../src/components/cpus/generated/8088-strings.js";
-import { addressing8088, strings8088, instructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { strings8088, instructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
 import type { Cpu8088State, Cpu8088Flags } from "../../../../src/components/cpus/state/8088.js";
 import { address, aluResult, flags, initialState, words } from "../8088/helpers.js";
 
-type Context = { readByte(address: number): number; writeByte(address: number, byte: number): void; deferInterrupt(scope: "intr" | "all"): void };
+const addressing = await compileResolved(addressing8088);
+
+type Context = { fetchByte(): number; readByte(address: number): number; writeByte(address: number, byte: number): void; deferInterrupt(scope: "intr" | "all"): void };
 type Body = (state: Cpu8088State, context: Context) => void;
 type InputBody = (state: Cpu8088State, input: number, context: Context) => void;
 type AddressBody = (state: Cpu8088State, segment: number, offset: number, context: Context) => void;
@@ -48,7 +50,7 @@ for (const [r, register] of words.entries()) {
 }
 for (const override of [false, true]) {
   const key = "XLAT" + (override ? "_override" : "");
-  addressCases.push({ key, execute: (state, context) => override ? addressing.XLAT_override(state, segment, context) : addressing.XLAT(state, context),
+  addressCases.push({ key, execute: (state, context) => override ? (generatedAddressing.XLAT_override as InputBody)(state, segment, context) : (generatedAddressing.XLAT as Body)(state, context),
     reference(state, context) {
       const index = wrap(state.bx + state.ax % 256), contents = context.readByte(address(override ? segment : state.ds, index));
       state.ax = Math.floor(state.ax / 256) * 256 + contents;
@@ -131,6 +133,7 @@ function recorded(before: Cpu8088State, initial: Map<number, number>, failAt = -
     set(target, field, value) { effect(["write " + String(field), value]); return Reflect.set(target, field, value); },
   });
   const context: Context = {
+    fetchByte() { assert.fail("Resolved bodies cannot fetch instruction bytes"); },
     readByte(a) { const event: Event = ["read memory " + a]; effect(event); assert.ok(bytes.has(a)); const n = bytes.get(a)!; mutate?.(state, event); return n; },
     writeByte(a, byte) { const event: Event = ["write memory " + a, byte]; effect(event); bytes.set(a, byte); mutate?.(state, event); },
     deferInterrupt(scope) { effect(["defer " + scope]); deferred.push(scope); },

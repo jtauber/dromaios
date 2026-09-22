@@ -28,6 +28,10 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
     .replaceAll("shifted = iterate(count, originalOperand)", "shifted = iterate(add(count, u8(1)), originalOperand)")
     .replace('reject "divide-error" if zero(xor(quotient, u8($80)))', 'reject "divide-error" if zero(xor(quotient, u8($81)))')
     .replace("SP <- subtract(pointer, u16(2))", "SP <- subtract(pointer, u16(4))")
+    .replace("SP <- add(pointer, u16(2))", "SP <- add(pointer, u16(4))")
+    .replace("IP <- add(position, offset)", "IP <- add(add(position, offset), u16(1))")
+    .replace("return xor(positive, and(condition, u8(1)))", "return xor(positive, xor(and(condition, u8(1)), u8(1)))")
+    .replaceAll("defer all", "defer intr")
     .replace("select(cf, u16($0001), u16(0))", "select(not(cf), u16($0001), u16(0))")
     .replace("CF = not(zero(and(status, u16($0001))))", "CF = zero(and(status, u16($0001)))");
   writeFileSync(file, chapter);
@@ -59,11 +63,11 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
       if (code[0] === 0x04) { assert.equal(after.ax, 0x3413); assert.equal(after.flags.zf, true); }
       if (code[0] === 0x00) { assert.equal(after.bx, 0x568a); assert.equal(after.flags.zf, true); }
       if (code[0] === 0x88) assert.equal(after.bx, 0x5612);
-      if (code[0] === 0x9c) { assert.equal(bytes[0x7ffe], 3); assert.equal(bytes[0x7fff], 0xf0); }
+      if (code[0] === 0x9c) { assert.equal(after.sp, 0x7ffc); assert.equal(bytes[0x7ffc], 3); assert.equal(bytes[0x7ffd], 0xf0); }
       if (code[0] === 0x9d) assert.equal(after.flags.cf, true);
     }
-    // The ModR/M source changes both migrated and still-native families. Segment
-    // overrides keep their captured value, and native word reads reuse chapter memory16.
+    // ModR/M families share address sources and word reads. Segment overrides
+    // retain their captured value instead of reading the changed default segment.
     for (const code of [[0x8b, 0x00], [0x3e, 0x8b, 0x00], [0xc5, 0x00], [0xff, 0x00]]) {
       const bytes = new Uint8Array(1048576); bytes.set(code, 0x12440);
       bytes.set([0x34, 0x12, 0x56, 0, 0x78], 0x2011);
@@ -96,6 +100,31 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
         assert.equal(record.after.ip, 0x1234); assert.equal(record.after.sp, 0x7ffc);
         assert.deepEqual([...bytes.slice(0x7ffc, 0x7ffe)], [2, 1]);
       }
+    }
+    // Native software entry and IRET consume chapter stack rules too. Conditional
+    // branches and segment loads also follow their changed formal definitions.
+    for (const code of [[0xcc], [0xcf], [0xeb, 0], [0x74, 0], [0x8e, 0xd8]]) {
+      const bytes = new Uint8Array(1048576); bytes.set(code, 0x12440);
+      bytes[0x8000] = 0x34; bytes[0x8002] = 0x12;
+      bytes[0x8004] = 0x78; bytes[0x8006] = 0x56;
+      bytes[0x800a] = 2;
+      const ram = { size: bytes.length, read: address => bytes[address], write: (address, value) => { bytes[address] = value; } };
+      const cpu = new Cpu8088(ram, { ...initial, scratch: 0 });
+      const record = cpu.step(), after = record.after;
+      assert.equal(record.outcome, "executed");
+      if (code[0] === 0xcc) {
+        assert.deepEqual(record.interrupt, { source: "software", vector: 3 });
+        assert.equal(after.sp, 0x7ff4);
+        assert.deepEqual([...bytes.slice(0x7ff4, 0x7ff6)], [1, 1]);
+        assert.deepEqual([...bytes.slice(0x7ff8, 0x7ffa)], [0x34, 0x12]);
+        assert.deepEqual([...bytes.slice(0x7ffc, 0x7ffe)], [3, 0xf0]);
+      } else if (code[0] === 0xcf) {
+        assert.equal(after.ip, 0x1234); assert.equal(after.cs, 0x5678); assert.equal(after.sp, 0x800c);
+        assert.equal(after.flags.if, true); assert.equal(after.interruptDeferred, true);
+      } else if (code[0] === 0x8e) {
+        assert.equal(after.ds, 0x1234); assert.equal(after.interruptDeferred, true);
+        assert.equal(after.recognitionDeferred, false);
+      } else assert.equal(after.ip, 0x103);
     }
   `], { encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);

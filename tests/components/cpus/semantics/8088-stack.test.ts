@@ -11,7 +11,6 @@ import { cpuSymbols, deferInterrupt } from "../../../../src/components/cpus/sema
 import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
-import { segmentedWordStack } from "../../../../src/components/cpus/semantics/stack.js";
 import type { Statement } from "../../../../src/components/cpus/semantics/model.js";
 import type { Cpu8088State, Cpu8088Flags } from "../../../../src/components/cpus/state/8088.js";
 import { address, flags, initialState, words } from "../8088/helpers.js";
@@ -209,9 +208,8 @@ test("8088 POPF reads IF after the whole pop and defers before replacing flags w
   }
 });
 
-test("segmented stack and deferral construction reject unsupported widths, CPUs, and scopes", () => {
+test("deferral construction rejects unsupported CPUs and scopes", () => {
   const intel = cpuSymbols("8088", cpu8088StateDescription), mos = cpuSymbols("6502", cpu6502StateDescription);
-  assert.throws(() => segmentedWordStack(intel.register("ss"), mos.register("sp")), /word registers/);
   const definition = { cpu: intel.declaration, name: "defer", explanation: "Boundary request.", steps: [deferInterrupt("intr")] };
   defineInstruction(definition);
   assert.throws(() => defineInstruction({ ...definition, cpu: mos.declaration }), /declared retirement destination/);

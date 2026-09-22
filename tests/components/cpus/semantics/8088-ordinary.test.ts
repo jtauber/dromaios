@@ -197,10 +197,10 @@ test("8088 byte/status and unary writebacks retain live halves and carry capture
 });
 
 test("8088 ordinary descriptions expose short-circuit branches, counter writeback, partial status, and carry restoration", () => {
-  const branch = describeInstruction(instructions8088[0x76]!);
+  const branch = describeInstruction(instructions8088[0x76]!).split("```text\n")[1]!;
   assert.ok(branch.indexOf("fetch byte") < branch.indexOf("read CF"));
   assert.match(branch, /read ZF/); assert.match(branch, /read IP/);
-  const loop = describeInstruction(instructions8088[0xe0]!);
+  const loop = describeInstruction(instructions8088[0xe0]!).split("```text\n")[1]!;
   assert.ok(loop.indexOf("write CX") < loop.indexOf("read ZF"));
   const status = describeInstruction(instructions8088[0x9e]!);
   assert.match(status, /Flags preserved throughout: TF, IF, DF, OF\./);

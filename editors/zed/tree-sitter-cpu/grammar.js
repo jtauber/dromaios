@@ -97,7 +97,7 @@ module.exports = grammar({
     fault_statement: $ => seq('fault', 'alignment', choice('read', 'write'),
       '(', $._expression, ')', 'if', $._expression),
     commit_statement: _ => seq('commit', 'addresses'),
-    defer_statement: _ => seq('defer', 'irq'),
+    defer_statement: _ => seq('defer', choice('irq', 'intr', 'all')),
     notify_statement: _ => seq('notify', 'reti'),
     _expression: $ => choice($.identifier, $.number, $.call),
     call: $ => seq(field('function', $.identifier), $.arguments),

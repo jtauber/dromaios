@@ -3,7 +3,7 @@
   "policy" "operands" "pair" "codes" "conditions" "family" "page" "encoding" "for" "in"
   "with" "named" "except" "fetch" "operand" "apply" "replace" "when" "test" "return"
   "iterate" "divide" "reject" "signed" "unsigned"
-  "fault" "alignment" "read" "write" "if" "commit" "addresses" "defer" "irq" "into" "notify" "reti"
+  "fault" "alignment" "read" "write" "if" "commit" "addresses" "defer" "irq" "intr" "all" "into" "notify" "reti"
   "execution" "memory" "port" "counter" "stopped" "word" "opcode" "advance"
   "on" "dispatch" "decode" "then" "external" "after" "failure" "retain" "reset" "retire" "interrupt"
   "accept" "always" "unless" "bytes" "acknowledge" "preserve" "interface" "snapshot" "unknown"

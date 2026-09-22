@@ -17,9 +17,7 @@ import { instructions as quick68000 } from "../../src/components/cpus/generated/
 import { cpu68000StateDescription } from "../../src/components/cpus/state/68000.js";
 import type { Cpu68000State } from "../../src/components/cpus/68000.js";
 import { instructions as control8088 } from "../../src/components/cpus/generated/8088-control.js";
-import { instructions as addressing8088 } from "../../src/components/cpus/generated/8088-addressing.js";
 import { instructions as strings8088 } from "../../src/components/cpus/generated/8088-strings.js";
-import { instructions as stack8088 } from "../../src/components/cpus/generated/8088-stack.js";
 import { instructions as operand8088, sourceReaders as operandSources8088 } from "../../src/components/cpus/generated/8088-operands.js";
 import { instructions as actions8088 } from "../../src/components/cpus/generated/8088-state.js";
 import { instructions as generated8088, opcodeEntries as opcodeEntries8088 } from "../../src/components/cpus/generated/8088.js";
@@ -773,7 +771,7 @@ export function check8088StackTypes(state: Cpu8088State, intel: Cpu8080State): v
   generated8088[0xc2](state, { fetchByte: () => 0, readByte: () => 0 });
   actions8088.pushWord(state, 0x1234, { writeByte: () => {} });
   operand8088[0xff](state, 0, 0, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
-  stack8088.POP_memory(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  operand8088[0x8f](state, 0, 0, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
   deferInterrupt("all");
   // @ts-expect-error Deferral is a specific boundary request, not an arbitrary callback.
   deferInterrupt(() => {});
@@ -799,12 +797,12 @@ export function check8088StackTypes(state: Cpu8088State, intel: Cpu8080State): v
 
 
 export function check8088AddressingAndStringTypes(state: Cpu8088State, intel: Cpu8080State): void {
-  addressing8088.segment_load_ss_0(state, { deferInterrupt: () => {} });
-  addressing8088.segment_store_cs_memory(state, 0xffff, 0xffff, { writeByte: () => {} });
-  addressing8088.LEA_0(state, 0xffff);
-  addressing8088.LES_0(state, 0xffff, 0xffff, { readByte: () => 0 });
-  addressing8088.XLAT(state, { readByte: () => 0 });
-  addressing8088.XLAT_override(state, 0xffff, { readByte: () => 0 });
+  operand8088[0x8e](state, 0, 0, { fetchByte: () => 0, readByte: () => 0, deferInterrupt: () => {} });
+  operand8088[0x8c](state, 0, 0, { fetchByte: () => 0, writeByte: () => {} });
+  operand8088[0x8d](state, 0, 0, { fetchByte: () => 0 });
+  operand8088[0xc4](state, 0, 0, { fetchByte: () => 0, readByte: () => 0 });
+  operand8088[0xd7](state, 0, 0, { readByte: () => 0 });
+  operand8088[0xd7](state, 1, 0xffff, { readByte: () => 0 });
   generated8088[0xfa](state);
   generated8088[0xfb](state, { deferInterrupt: () => {} });
   generated8088[0xcf](state, { readByte: () => 0, deferInterrupt: () => {} });
@@ -813,15 +811,15 @@ export function check8088AddressingAndStringTypes(state: Cpu8088State, intel: Cp
   strings8088.compare_16_repne(state, 0xffff, { readByte: () => 0 });
   strings8088.load_8_repe_override(state, 0xffff, 0xffff, { readByte: () => 0 });
   // @ts-expect-error Segment loads cannot omit their retirement request.
-  addressing8088.segment_load_ss_0(state);
+  operand8088[0x8e](state, 0, 0, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error Segment stores cannot read their memory destination.
-  addressing8088.segment_store_cs_memory(state, 0, 0, { readByte: () => 0, writeByte: () => {} });
+  operand8088[0x8c](state, 0, 0, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error LEA never accesses memory.
-  addressing8088.LEA_0(state, 0, { readByte: () => 0 });
+  operand8088[0x8d](state, 0, 0, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error LES has no segment-MOV inhibition effect.
-  addressing8088.LES_0(state, 0, 0, { readByte: () => 0, deferInterrupt: () => {} });
-  // @ts-expect-error A plain XLAT has no override input.
-  addressing8088.XLAT(state, 0xffff, { readByte: () => 0 });
+  operand8088[0xc4](state, 0, 0, { fetchByte: () => 0, readByte: () => 0, deferInterrupt: () => {} });
+  // @ts-expect-error Captured overrides are numeric, not callbacks.
+  operand8088[0xd7](state, 1, () => 0xffff, { readByte: () => 0 });
   // @ts-expect-error CLI has no deferral effect.
   generated8088[0xfa](state, { deferInterrupt: () => {} });
   // @ts-expect-error IRET needs a deferral capability as well as stack reads.

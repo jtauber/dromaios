@@ -39,13 +39,13 @@ Executable chapters are maintained CPU sources:
   commitment, retirement, and IRQ/NMI entry. Mixed named interrupt entries select
   direct vectors or supplied instructions. Its public class, bank types, and
   nested snapshot views are generated; no handwritten implementation remains.
-- [Intel 8088: state, segmented operands, transfers, and arithmetic](../../src/components/cpus/specifications/8088.md)
+- [Intel 8088: state and ordinary instructions](../../src/components/cpus/specifications/8088.md)
   owns stored state, writable byte aliases, physical PC and packed FLAGS views,
-  ordinary ALU/TEST and unary arithmetic, shifts/rotates, multiply/divide,
-  decimal adjustment, sign extension, MOV/XCHG operand families, and indirect
-  CALL/JMP/PUSH. Remaining native bodies share its register selectors,
-  arithmetic/status policies, and segmented addressing. Prefix scanning,
-  remaining instruction families, reset, execution, and the public class remain native.
+  ordinary arithmetic, transfers, branches, stacks, calls/returns, and simple
+  controls. Remaining native bodies share its arithmetic/status policies,
+  segmented addressing, memory operations, and stack actions. Strings, ports,
+  WAIT/ESC, software interrupts/IRET, prefix scanning, reset, execution, and
+  the public class remain native.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -184,6 +184,7 @@ Quoted descriptions use JSON string escaping.
 | `result = operand s`, `operand d <- result` | Read or write a selected register, pair, writable view, or memory operand at this point. |
 | `notify reti` | Request a device notification after successful architectural retirement; requires `notify reti after retire` in a preceding decode-before-execution contract. State/memory actions cannot request notification. |
 | `defer irq` | Request one-boundary IRQ deferral on successful retirement; requires `retire irq into LATCH`. This does not immediately write stored state. |
+| `defer intr`, `defer all` | Request INTR-only or all-interrupt recognition delay through the existing 8088 native boundary. The request commits only at successful retirement; these scopes are unavailable to other CPUs and to state/memory actions and views. |
 | `exchange FLAGS, ALTERNATE.FLAGS` | Exchange complete flag objects with matching stored fields: read right, read left, write left, write right. Preserve identity without reading individual flags; allowed in actions but not views. |
 | `replace PSW(status)` | Replace the complete flag object; the policy must define every flag in exactly one bank. |
 | `apply NZ(result)`, `apply ALU(result, carry(left, right))` | Apply a declared flag policy to typed numeric and flag expressions. |
@@ -428,7 +429,8 @@ A plain `interrupt { … }` block declares supplied-instruction delivery:
 A declared retirement destination also grants IRQ deferral to the chapter's
 instruction representation; validation and generated context types do not infer
 that capability from the CPU name. The declaration must precede families that
-request deferral.
+request deferral. The separate 8088 `intr` and `all` scopes currently target its
+native adapter; they do not extend the shared byte execution contracts.
 
 Ordinary and supplied-instruction paths select the chapter's same opcode table. Stored-state operations still
 use the instruction representation; the execution declaration generates only

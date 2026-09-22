@@ -297,7 +297,7 @@ for (const [before, after, message] of [
   ["accept when ENABLED", "accept when A", /Unknown name A/],
   ["unless DEFERRED", "unless CY", /Unknown name CY/],
   ["callback validate on read", "callback validate on dispatch", /offer or read/],
-  ["  defer irq\n", "  defer nmi\n", /Expected "irq"/],
+  ["  defer irq\n", "  defer nmi\n", /Expected irq, intr, or all/],
 ] as const) test(`8080 execution rejects ${after} at its Markdown location`, () => {
   assert.throws(() => compileCpuChapter(intel.replace(before, after), { name: "8080" }, intelFile), error =>
     error instanceof ChapterError && error.file === intelFile && error.line > 0 && message.test(error.message));

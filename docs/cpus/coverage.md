@@ -24,7 +24,7 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,747](../../src/components/cpus/specifications/6502.md) | 601 | 151 / 151 | 100% | 6 / 6 |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,900](../../src/components/cpus/specifications/z80.md) | 1,509 | 698 / 698 | 100% | 6 / 6 |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,566](../../src/components/cpus/specifications/6809.md) | 1,322 | 268 / 268 | 100% | 6 / 6 |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [398](../../src/components/cpus/8088.ts) | [2,422](../../src/components/cpus/specifications/8088.md) | 1,882 | 183 / 291 | 62.9% | 2 / 6 |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [330](../../src/components/cpus/8088.ts) | [2,964](../../src/components/cpus/specifications/8088.md) | 2,291 | 260 / 291 | 89.3% | 2 / 6 |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [604](../../src/components/cpus/68000.ts) | [154](../../src/components/cpus/specifications/68000-word-transfers.md) | 70 | 192 / 36,029 | 0.5% | 0 / 6 |
 
 **Literate instruction coverage** measures documented opcode forms authored in
@@ -201,18 +201,17 @@ choices, and derived snapshot fields through the public CPU. A renamed model
 with renamed state and sources exercises the same compiler and runtime.
 
 The [8088 chapter](../../src/components/cpus/specifications/8088.md) owns
-**183 / 291 forms (62.9%)**: the earlier register/accumulator and segmented
-MOV/XCHG/ALU families, plus unary arithmetic, immediate TEST, shifts/rotates,
-multiply/divide, decimal adjustments, sign extensions, and indirect
-CALL/JMP/PUSH. Complete stored state, byte-register views/writes, physical PC,
-and packed FLAGS earn **2 / 6 model milestones**. Remaining native bodies
-consume its operand catalogues, arithmetic/status policies, effective-address
-source, and memory read/write actions.
+**260 / 291 forms (89.3%)**: all ordinary arithmetic, transfers, branches,
+stacks, calls/returns, and simple controls. Complete stored state, byte-register
+views/writes, physical PC, and packed FLAGS earn **2 / 6 model milestones**.
+Remaining native bodies consume its arithmetic/status policies, effective-address
+source, memory operations, and stack actions.
 [Chapter tests](../../tests/components/cpus/semantics/literate-8088.test.ts) verify
 exact ownership; [integration tests](../../tests/scripts/8088-chapter-integration.test.ts)
 prove formal edits reach public state, snapshots, machine parsing, arithmetic,
-indirect control, and remaining native consumers. Reset, prefix scanning,
-remaining families, execution, and the public interface remain.
+branches, stack/segment operations, and remaining native interrupt consumers.
+The remaining 31 forms are strings, ports, WAIT/ESC, and software interrupts/IRET.
+Reset, prefix scanning, execution, and the public interface remain native.
 
 The [68000 word-transfer chapter](../../src/components/cpus/specifications/68000-word-transfers.md)
 adds 64 data-register copies and 128 loads/stores through `(An)`. It specifies
@@ -236,7 +235,7 @@ CPU language or the amount of work remaining. See the
 ## Completed instruction-definition migration
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **12,569 generated bodies** for instructions and reusable actions,
+contains **10,232 generated bodies** for instructions and reusable actions,
 including 6502/6800/8088 entry helpers, 6809 frame/vector helpers, 8088 WAIT
 resumption, and chapter-defined stack, PC-write, reset, and acceptance actions. They cover **38,128 complete opcode
 forms**; helpers do not add opcode credit. All eight CPUs now
@@ -702,14 +701,14 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Two remaining handwritten CPU core files | 1,002 |
-| CPU-specific instruction definition files | 1,010 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,120 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **7,132** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 14,590 |
+| Two remaining handwritten CPU core files | 934 |
+| CPU-specific instruction definition files | 798 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,097 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,829** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 15,132 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 130 |
-| Generated executable CPU output, counted separately | 282,591 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,688,825 |
+| Generated executable CPU output, counted separately | 283,662 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,895,890 |
 | Generated state schemas/types, counted separately | 170 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
@@ -723,7 +722,7 @@ migration to zero**. The final public-interface step removes its remaining
 **71 core lines**, **11 state-adapter lines**, and **9 definition-adapter lines**.
 Its generated public class is **52 lines**, its generated state module is
 **24 lines**, and shared generation supplies both. The shared byte runtime
-is now **121 lines**; the literate front end is **1,689 lines**.
+is now **121 lines**; the literate front end is **1,691 lines**.
 
 Across the earlier 8008 execution, public-interface, and machine-integration
 migration, authored CPU TypeScript grew from **9,416 to 9,671 lines**, and CPU
@@ -1024,31 +1023,33 @@ vectors, acceptance effects, and bank snapshots. Before/after comparisons match
 43,008 ordinary/prefixed instructions, 10,240 supplied instructions, 192 boundary
 cases, and 39,942 injected failures, including callback snapshots.
 
-The 8088 arithmetic slice reaches **183 / 291 chapter forms (62.9%)**.
-Its **59 additional forms** cover eight unary forms, two immediate TEST forms,
-28 shifts/rotates, eight multiply/divide forms, six decimal adjustments, two
-sign extensions, and five indirect CALL/JMP/PUSH forms. Complete F6/F7, FE/FF,
-and D0–D3 groups now belong to the chapter. It removes **417 specialized
-production bodies**: 72 unary, 324 arithmetic, and 21 stack/control bodies.
-Prefix scanning, remaining families, and execution boundaries still need
-migration; model milestones remain **2 / 6**.
+The 8088 ordinary-instruction migration reaches **260 / 291 chapter forms
+(89.3%)**. Its **77 additional forms** cover conditional branches and loops,
+direct calls and returns, register/segment/FLAGS stacks, remaining transfers
+and address loads, and simple controls. The separate native stack and addressing
+modules and segmented stack builder are removed. Native software entry and
+IRET consume chapter stack/FLAGS definitions. The 31 remaining forms are
+strings, ports, WAIT/ESC, and software interrupts/IRET; prefix scanning, reset,
+execution boundaries, and the public interface also remain native. Model
+milestones stay at **2 / 6** until whole areas migrate.
 
-The core falls from **452 to 398 lines** and the native definition file from
-**531 to 372**. Bounded iteration, explicit division outcomes, and signed products
-reuse existing semantic operations through new chapter syntax. Including that
-language support, authored CPU TypeScript falls from **7,316 to 7,132 lines**
-(**184 fewer**). The 8088 chapter grows from **1,588 to 2,422 lines**, with
-**1,882 formal lines**, bringing total maintained CPU source from **21,202 to
-21,852 lines**. Handwritten implementation shrinks; the executable explanation
-and expanded generated listings grow. Generated output remains separately counted.
+The core falls from **398 to 330 lines** and the native definition file from
+**372 to 160**. The language exposes the existing 8088 deferral scopes as
+`defer intr` and `defer all`; all other new families use existing syntax.
+Authored CPU TypeScript falls from **7,132 to 6,829 lines** (**303 fewer**).
+The 8088 chapter grows from **2,422 to 2,964 lines**, with **2,291 formal
+lines**, bringing total maintained CPU source from **21,852 to 22,091 lines**.
+The handwritten implementation shrinks while the executable explanation grows;
+generated output remains separately counted.
 
-Independent arithmetic and failure-order tests remain in place. Resolved test
-probes reuse chapter cases while retaining independent schedules and exhaustive
-decimal inputs. Chapter-edit checks change loop counts, signed quotient limits,
-and stack decrements through public execution. Before/after public execution
-matches **16,384 first-byte cases**, **23,040 ModR/M cases**, **1,536 reset/interrupt
-cases**, and **13,795 injected failures**, including snapshots inside callbacks.
-Coverage measures literate ownership; all documented forms remain implemented.
+Independent effect-order and failure tests remain in place. Resolved test
+probes reuse chapter cases while retaining independent schedules. Chapter-edit
+checks change stack increments, branch decisions, relative targets, and
+recognition delays through public execution, including native interrupt entry
+and IRET. Before/after public execution matches **16,384 first-byte cases**,
+**23,040 ModR/M cases**, **1,536 reset/interrupt cases**, and **13,795 injected
+failures**, including snapshots inside callbacks. Coverage measures literate
+ownership; all documented forms remain implemented.
 
 Generated chapter data repeats the validated CPU schema within expanded
 definitions and remains a separate, disposable intermediate representation.

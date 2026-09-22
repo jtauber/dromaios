@@ -650,7 +650,9 @@ failed register effects, all byte products, and rejected multiplication widths.
 
 The [8088 chapter](../../src/components/cpus/specifications/8088.md) owns the
 stored schema, writable byte aliases, physical PC, packed FLAGS, register
-selectors, and the immediate MOV/ALU/TEST, word INC/DEC, and LAHF/SAHF families.
+selectors, and all ordinary arithmetic, transfer, branch, stack, and control
+families. Strings, ports, WAIT/ESC, and software interrupts/IRET retain native
+definitions, consuming the chapter’s shared sources, actions, and policies.
 The [remaining definitions](../../src/components/cpus/semantics/definitions/8088.ts)
 consume its byte views and write actions through `RegisterView`, and reuse its
 arithmetic, logic, and status policies. Scalar words still use `registerView`.
@@ -771,14 +773,12 @@ operand from zero; NOT complements it without flag access. Memory writes
 retain low-first order and offset wrapping, and byte views retain their live
 other half. A failed write leaves completed flag updates intact.
 
-Jcc, LOOP/JCXZ, and relative JMP use the shared `relativeBranchSteps` recipe
-with the IP role. It reads and writes IP only on the taken path, after the
-complete displacement fetch. The CPU still owns per-byte CS:IP fetching.
-The construction helper `choose` combines two conditional statement arms.
-Conditions use captured flag values, so one arm cannot change which other
-arm is selected. `either` composes these decisions during construction to
-preserve JBE/JA's CF-before-ZF and JLE/JG's ZF-before-SF/OF short circuits.
-No runtime condition callback or new semantic primitive is introduced.
+Jcc, LOOP/JCXZ, and relative JMP use the chapter's `relativeJump` action.
+It reads and writes live IP only on the taken path, after the complete
+displacement fetch. The CPU still owns per-byte CS:IP fetching. The chapter's
+`branchDecision` source exposes the condition code's three-bit selector and
+low inversion bit. Ordered matches retain JBE/JA's CF-before-ZF and JLE/JG's
+ZF-before-SF/OF short circuits; they never capture every flag eagerly.
 LOOP variants fetch, read/decrement/write CX, then reread it; a zero count
 skips ZF. JCXZ reads CX once and never changes it.
 
@@ -787,7 +787,7 @@ SAHF/LAHF share the CPU-owned low FLAGS layout with runtime FLAGS packing.
 `updateStatus` reuses the status decoder but updates individual flags:
 SAHF changes CF/PF/AF/ZF/SF without replacing the flag object or disturbing
 TF/IF/DF/OF. LAHF packs those flags before reading live AL for its AH write.
-Carry/direction controls reuse `flagInstruction`; HLT writes only the halt
+Carry/direction controls use chapter flag policies; HLT writes only the halt
 latch. Trap sampling and retirement remain in the CPU boundary.
 
 These bodies add 40 complete forms: eight unary, 22 relative control-flow,
@@ -809,8 +809,8 @@ memory bodies to read/write access, and state-only bodies to their CPU state.
 
 ## 8088 segmented stacks and far control flow
 
-`segmentedWordStack` shares push/pop instruction construction with the byte-stack
-models, while making the 8088 schedule explicit. A push reads and decrements SP
+The chapter’s `pushWord` action and `popWord` source own the segmented stack
+schedule, replacing the separate TypeScript builder. A push reads and decrements SP
 by two, then captures SS:SP before writing low and high bytes. A pop captures
 SS:SP, reads both bytes, then reads and increments live SP. Each logical offset
 wraps to sixteen bits before physical projection. A callback cannot retarget
@@ -822,9 +822,8 @@ PUSH SP subtracts two from its captured source before the stack's separate SP
 update. POP SP overwrites the incremented pointer. ModR/M POP captures its
 memory destination before popping and writes low/high without reading it.
 Chapter FF matches reject invalid selectors and resolve addresses before data
-effects. The native POP decoder still selects the short register form or the
-remaining resolved memory body. Chapter indirect pushes and calls share the
-chapter’s `pushWord` action; direct stack forms still use the TypeScript builder.
+effects. The chapter also owns ModR/M POP and its selector rejection. Direct
+and indirect stack/control forms share these same sources and actions.
 
 Near indirect calls capture the target before stacking return IP. Relative
 CALL captures and pushes return IP, then reads live IP for the relative target.
@@ -841,18 +840,20 @@ the complete word, reads live IF, requests INTR deferral on a zero-to-one
 transition, then replaces the entire flag object. Segment pops write their
 register before requesting inhibition of all interrupt recognition.
 
-`deferInterrupt("intr" | "all")` is an explicit, validated boundary effect,
-currently allowed only for the 8088. It calls the instruction context's
+`defer intr` and `defer all` lower to the explicit, validated
+`deferInterrupt("intr" | "all")` boundary effect, allowed only for the 8088.
+It calls the instruction context's
 `InterruptDeferralContext` capability at that point in the sequence. The
 callback queues the request; only successful retirement commits the stored
 inhibition latches. A failed body retains earlier architectural effects but
 never retires the request. This keeps boundary policy in the CPU while making
 the request visible to both execution generation and explanation.
 
-These definitions cover 38 complete forms. Five indirect CALL/JMP/PUSH forms
-now belong to the chapter; their 21 specialized production bodies are removed.
-Resolved test probes retain independent effect schedules. Interrupt entry and
-IRET still use the TypeScript stack and FLAGS construction, as described below.
+All 38 stack/control forms belong to the chapter. Resolved test probes retain
+independent effect schedules. Native interrupt entry performs the chapter’s
+`pushWord` action; native IRET performs its `returnFar` action followed by the
+POPF family body, including its deferral request. This reuses the instruction’s
+ordered effects without granting state actions access to CPU boundaries.
 
 [Definition probes](../../tests/components/cpus/semantics/8088-stack.test.ts)
 independently specify every body's state, memory, and deferral order, fail each
@@ -865,7 +866,7 @@ only each body's required byte accesses and deferral capability.
 
 ## 8088 remaining transfers and string elements
 
-Segment MOV bodies receive a decoded register or captured memory address.
+Chapter segment MOV families decode ModR/M and resolve their operands.
 They capture the complete source before writing; a segment load then requests
 all-interrupt deferral. LEA writes only the resolved offset. LES/LDS share the
 far-pointer read sequence with indirect far CALL/JMP, capturing all four bytes
@@ -900,8 +901,9 @@ FLAGS restoration used by RETF/POPF. A failure reading FLAGS retains the already
 restored IP/CS and completed SP changes; retirement still samples the original
 TF. No new primitive or runtime callback is required for these instructions.
 
-Together these add 19 forms through 140 bodies: 89 addressing/transfer choices,
-48 string choices, and three numeric opcode bodies. The
+These 19 forms retain tests for 140 cases: 89 addressing/transfer choices,
+48 string choices, and three numeric opcode bodies. Addressing, CLI, and STI
+now come from the chapter; the remaining native IRET composes chapter actions. The
 [definition probes](../../tests/components/cpus/semantics/8088-strings.test.ts)
 check every body's ordered effects, failure at each effect, callback changes,
 all incoming string flag patterns, and empty/one/multiple repeat counts.
@@ -1575,10 +1577,10 @@ The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,68000,8008,8080,8088,6809,z80}.ts`,
 `6502-state.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-word-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, `68000-bits.ts`, `68000-word-arithmetic.ts`,
 `68000-decimal.ts`, `68000-control.ts`, `68000-transfers.ts`, `68000-system.ts`, and the separate 8088
-operand, stack, addressing, string, and control modules. The 8088 operand module
+operand, string, and control modules. The 8088 operand module
 contains chapter groups with captured prefix inputs; remaining native modules
 retain their resolved bodies. Its numeric opcode module has automatic bindings.
-The former transfer, ALU, unary, and arithmetic modules are removed.
+The former transfer, ALU, unary, arithmetic, stack, and addressing modules are removed.
 The 68000 word-transfer chapter owns 64 register-copy definitions in `68000.ts`
 and 128 numeric load/store definitions in `68000-word-moves.ts`. The core selects
 these encodings before the broader MOVE catalogue; other memory forms retain

@@ -121,7 +121,9 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         tokens.expect("("); const address = expression(tokens); tokens.expect(")"); tokens.expect("if");
         result.push(when(flagExpression(tokens), [alignmentFault(operation, address)]));
       } else if (tokens.take("defer")) {
-        tokens.expect("irq"); result.push(deferInterrupt("irq"));
+        const scope = tokens.word();
+        if (scope !== "irq" && scope !== "intr" && scope !== "all") return tokens.fail("Expected irq, intr, or all deferral scope.");
+        result.push(deferInterrupt(scope));
       } else if (tokens.next === "notify" && tokens.peek(1) !== "=") {
         tokens.expect("notify"); tokens.expect("reti"); result.push(notifyReti());
       } else if (tokens.take("commit")) {

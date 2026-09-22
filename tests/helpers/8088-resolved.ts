@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
 import { families, sources } from "../../src/components/cpus/semantics/generated/8088.js";
-import { stack8088 as nativeStack } from "../../src/components/cpus/semantics/definitions/8088.js";
 import { generateInstructions } from "../../src/components/cpus/semantics/generate.js";
 import { capture, concat, literal, value } from "../../src/components/cpus/semantics/model.js";
 import type { InstructionDefinition } from "../../src/components/cpus/semantics/model.js";
@@ -20,15 +19,16 @@ function resolved(opcode: number, extension: number, target: number | "memory"):
   const branch = dispatch.cases.find(branch => (postbyte & branch.mask) === branch.value)!;
   const first = branch.steps[0];
   assert.ok(first?.kind === "read-source" && first.name === "pointer");
-  assert.deepEqual(first.source, sources.resolvedRM);
-  return { ...definition, inputs: target === "memory" ? { resolvedSegment: 16, resolvedOffset: 16 } : {},
+  assert.ok([sources.resolvedRM.name, sources.effectiveAddress.name].includes(first.source.name));
+  assert.deepEqual(first.source, first.source.name === sources.resolvedRM.name ? sources.resolvedRM : sources.effectiveAddress);
+  return { ...definition, inputs: opcode === 0x8d ? { resolvedOffset: 16 } : target === "memory" ? { resolvedSegment: 16, resolvedOffset: 16 } : {},
     steps: [capture("postbyte", literal(8, postbyte)),
-      capture("pointer", target === "memory" ? concat(value("resolvedSegment"), value("resolvedOffset")) : literal(32, 0)), ...branch.steps.slice(1)] };
+      capture("pointer", target === "memory" ? concat(opcode === 0x8d ? literal(16, 0) : value("resolvedSegment"), value("resolvedOffset")) : literal(32, 0)), ...branch.steps.slice(1)] };
 }
 
 export const unary8088: Record<string, InstructionDefinition> = {};
 export const arithmetic8088: Record<string, InstructionDefinition> = {};
-export const stack8088: Record<string, InstructionDefinition> = { ...nativeStack };
+export const stack8088: Record<string, InstructionDefinition> = { POP_memory: resolved(0x8f, 0, "memory") };
 for (const width of [8, 16] as const) for (const target of [0, 1, 2, 3, 4, 5, 6, 7, "memory"] as const) {
   const word = Number(width === 16);
   for (const [index, name] of ["INC", "DEC", "NOT", "NEG"].entries()) {
@@ -46,6 +46,22 @@ for (const width of [8, 16] as const) for (const target of [0, 1, 2, 3, 4, 5, 6,
 }
 for (const [name, extension] of [["PUSH", 6], ["CALL_far", 3], ["JMP_far", 5]] as const) {
   stack8088[`${name}_memory`] = resolved(0xff, extension, "memory");
+}
+
+export const addressing8088: Record<string, InstructionDefinition> = {};
+for (const [extension, segment] of ["es", "cs", "ss", "ds"].entries()) {
+  for (const target of [0, 1, 2, 3, 4, 5, 6, 7, "memory"] as const) for (const load of [false, true]) {
+    if (load && segment === "cs") continue;
+    addressing8088[`segment_${load ? "load" : "store"}_${segment}_${target}`] = resolved(load ? 0x8e : 0x8c, extension, target);
+  }
+}
+for (let register = 0; register < 8; register++) for (const [name, opcode] of [["LEA", 0x8d], ["LES", 0xc4], ["LDS", 0xc5]] as const) {
+  addressing8088[`${name}_${register}`] = resolved(opcode, register, "memory");
+}
+for (const override of [false, true]) {
+  addressing8088[`XLAT${override ? "_override" : ""}`] = { ...encoded.get(0xd7)!, inputs: override ? { suppliedSegment: 16 } : {},
+    steps: [capture("overridden", literal(8, Number(override))),
+      capture("segmentOverride", override ? value("suppliedSegment") : literal(16, 0)), ...encoded.get(0xd7)!.steps] };
 }
 
 type Context = { fetchByte(): number; readByte(address: number): number; writeByte(address: number, byte: number): void };
