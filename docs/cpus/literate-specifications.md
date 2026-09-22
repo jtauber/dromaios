@@ -46,13 +46,12 @@ Executable chapters are maintained CPU sources:
   Reset, segmented fetching, prefix choices, trap/fault delivery, retirement,
   and ordered INTR/NMI offers are declared here. The class, connections, records,
   snapshots, and integration metadata are generated; no handwritten adapter remains.
-- [Motorola 68000: state and operand instructions](../../src/components/cpus/specifications/68000.md)
-  owns stored state, A7 and status views, every MOVE/MOVEA form, MOVEQ, EXT, SWAP,
-  EXG, logical/immediate forms, unary and binary arithmetic, bits/shifts/rotates,
-  word products/division, signed bounds, and packed decimal arithmetic. Reusable transfers,
-  register reads/writes, and pure calculation bindings retain
-  explicit access ordering. Its bank/status sources and result policies also
-  serve the remaining native core and instruction builders.
+- [Motorola 68000: complete instructions and stored state](../../src/components/cpus/specifications/68000.md)
+  owns all 36,029 documented instruction forms, their encodings, stored state,
+  and A7/status views and writes. Sources, actions, and bounded iteration keep
+  control-flow ordering, register-mask transfers, and status/system effects
+  explicit. Effective-address decoding, reset, execution, and exception delivery
+  remain native; the TypeScript definition adapter only groups chapter families.
 
 This is an authoring-language prototype over the existing
 [instruction representation](instruction-semantics.md), with a deliberately
@@ -204,6 +203,10 @@ Quoted descriptions use JSON string escaping.
 | `fault alignment read(address) if lowBit(address)` | Return an alignment fault when the captured predicate is true, before subsequent effects. `write` identifies a failed destination access. |
 | `fault alignment program read(address) if lowBit(address)` | Return a program-space alignment fault; writes cannot use program space. |
 | `commit addresses` | Commit register updates staged by the existing address decoder. |
+| `cursor = next address` | Capture the 68000's 32-bit sequential fetch cursor, independently of stored PC and any selected target. |
+| `select target(address)` | Select a 32-bit retirement target without moving the fetch cursor; the instruction checks alignment explicitly first. |
+| `fault alignment fetch(address) if lowBit(address)` | Return a target-alignment fault; fetch faults always name program space. |
+| `reset devices` | Signal the existing 68000 device-reset connection; the boundary records completion only after callback success. |
 | `result = iterate(count, initial) { … return next }` | Execute 0–255 ordered iterations, retaining the initial width; the final `return` occupies its own line. |
 | `iterate(count) { … step { … next local = expression } }` | Advance typed numeric and flag locals together; declarations and each trailing `next` occupy separate lines. |
 | `quotient, remainder = divide(dividend, divisor, signed) otherwise "divide-error"` | Divide a double-width dividend by a byte/word; choose `signed` or `unsigned`; return the named outcome on zero or quotient overflow. |
@@ -1140,7 +1143,8 @@ CPU-specific decoder built into the language.
 
 ## Native address-decoder boundary
 
-`resolve`, `commit addresses`, and alignment faults lower to existing IR effects,
+`resolve`, `commit addresses`, alignment faults, `next address`,
+`select target(...)`, and `reset devices` lower to existing IR effects,
 whose validator currently requires the 68000 address/exception boundary.
 They add no decoder or exception-delivery implementation to the compiler.
 Ordinary `memory` reads and writes still transfer one byte, including at 32-bit
@@ -1149,6 +1153,18 @@ Word transfers explicitly combine or split those bytes. A false fault condition
 continues normally; a true one returns the fault to the CPU boundary without
 undoing completed effects. Value sources cannot contain explicit fault/rejection
 statements; byte matches can return the fixed `unsupported` outcome described above.
+
+Cursor and target effects keep sequential fetching separate from retirement.
+A branch can capture its base before fetching an extension and validate a taken
+target afterward. Fetch faults always describe program space; data/program reads
+retain their separate address-fault forms. Device reset is an explicit callback,
+not CPU-state reset. All three effects require the existing 68000 context and
+remain unavailable to views and actions, including actions declaring `boundary`.
+This retains the native word-execution boundary pending its later migration.
+`next`, `target`, `select`, and `reset` remain valid local capture names.
+[Boundary-language tests](../../tests/components/cpus/semantics/literate-control-boundary.test.ts)
+check callback ordering, partial failures, widths, CPU ownership, transitive
+restrictions, and document-located errors.
 
 ## Review of the three chapters
 
@@ -1212,11 +1228,11 @@ interface. No handwritten 6502 implementation remains.
 The 8008 now expresses its address-stack selector, array, and port effects;
 the 68000 now owns its schema, transfers, logical/unary and binary arithmetic
 operations, bit/shift/rotate/TAS families, word products/division, signed bounds,
-packed decimal arithmetic, A7 selection, and status packing/restoration.
-Its native effective-address decoder consumes
-the chapter selection source and retains pending auto-updates. Shared TypeScript
-bodies still serve the remaining instruction families. Only complete chapter-owned
-forms earn literate coverage.
+packed decimal arithmetic, control flow, MOVEP/MOVEM, and status/system instructions.
+A7 selection and status packing/restoration are chapter-owned too. Its native
+effective-address decoder consumes the chapter selection source and retains
+pending auto-updates. All documented instruction bodies are chapter-owned;
+reset, execution, and exception delivery remain native.
 
 The 68000 arithmetic families reuse source bindings for calculations that return
 a result after applying flags. This differs from the pure logical calculations:

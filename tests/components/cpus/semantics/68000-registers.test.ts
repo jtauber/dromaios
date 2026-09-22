@@ -2,7 +2,7 @@ import { initialState } from "../../../helpers/68000-state.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/68000.js";
-import { instructions as quick } from "../../../../src/components/cpus/generated/68000-quick.js";
+import { instructions as quick, opcodeInstructions as quickEntries } from "../../../../src/components/cpus/generated/68000-quick.js";
 import { instructions68000, quick68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
 import { instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
@@ -46,6 +46,7 @@ for (const [base, kind, size, mnemonic] of [[0x4840, "swap", 32, "SWAP"], [0x488
   data.forEach((register, code) => forms.set(base + code, { kind, size, source: register, destination: register, name: `${mnemonic} ${register.toUpperCase()}` }));
 }
 const bodies: Readonly<Record<number, (state: Cpu68000State) => void>> = instructions;
+const quickOpcodes: Readonly<Record<number, (state: Cpu68000State, immediate: number) => void>> = quickEntries;
 
 
 const stored = (state: Cpu68000State, name: Register): StoredRegister => name === "a7" ? state.flags.s ? "ssp" : "usp" : name;
@@ -86,7 +87,8 @@ test("68000 definitions contain exactly 792 register operation words plus eight 
   const names = Object.fromEntries([...forms].map(([opcode, form]) => [opcode, form.name]));
   assert.deepEqual(Object.fromEntries(Object.entries(instructions68000).map(([opcode, definition]) => [opcode, definition.name])), names);
   assert.deepEqual(Object.keys(instructions), Object.keys(names));
-  assert.deepEqual(Object.keys(quick), data);
+  assert.deepEqual(Object.keys(quick), data.map(register => `MOVEQ #n,${register.toUpperCase()}`));
+  assert.equal(Object.keys(quickOpcodes).length, 2048);
   assert.deepEqual(Object.values(quick68000).map(definition => definition.name), data.map(register => `MOVEQ #n,${register.toUpperCase()}`));
   assert.equal(forms.size + Object.keys(quick).length, 800); // Immediate byte values do not multiply coverage.
   const probe = instructions68000[0x1000]!;
@@ -108,10 +110,10 @@ test("every register form preserves independent width, bank, alias, and flag exp
 });
 
 test("MOVEQ covers every immediate byte, destination, and incoming flag pattern", () => {
-  for (const register of data) for (let immediate = 0; immediate < 256; immediate++) for (let bits = 0; bits < 128; bits++) {
+  for (const [code, register] of data.entries()) for (let immediate = 0; immediate < 256; immediate++) for (let bits = 0; bits < 128; bits++) {
     const state = initialState(bits), expected = structuredClone(state);
     expected[register] = unsignedLong(signed(immediate, 8)); resultFlags(expected, expected[register], 32);
-    quick[register](state, immediate);
+    quickOpcodes[0x7000 + code * 512 + immediate]!(state, immediate);
     assert.deepEqual(state, expected);
   }
 });
@@ -141,7 +143,7 @@ function observe(state: Cpu68000State, events: Observation[], failAt: number, fa
 
 test("all 800 bodies retain exact register/flag effect order and stop at every failed effect", () => {
   const cases = [...forms].map(([opcode, form]) => ({ name: form.name, run: bodies[opcode]!, expected: (state: Cpu68000State) => reference(state, form) }));
-  cases.push(...data.map(register => ({ name: `MOVEQ ${register}`, run: (state: Cpu68000State) => quick[register](state, 0x80),
+  cases.push(...data.map((register, code) => ({ name: `MOVEQ ${register}`, run: (state: Cpu68000State) => quickOpcodes[0x7080 + code * 512]!(state, 0x80),
     expected: (state: Cpu68000State) => { state[register] = 0xffffff80; resultFlags(state, 0xffffff80, 32); } })));
   for (const entry of cases) for (const bits of [0, 127]) {
     const schedule: Observation[] = [], failure = new Error("failed state effect");

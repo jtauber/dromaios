@@ -8,18 +8,19 @@ import type { Statement } from "../../../../src/components/cpus/semantics/model.
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { initialState } from "../../../helpers/68000-state.js";
-import { instructions } from "../../../../src/components/cpus/generated/68000-control.js";
-import { controlForms68000 } from "../../../../src/components/cpus/68000-control.js";
-import { control68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
+import { opcodeInstructions as instructions } from "../../../../src/components/cpus/generated/68000-control.js";
+import { control68000, controlOpcodes68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
 import type { Cpu68000AddressContext, Cpu68000ControlContext, OperandAlignmentFault, TargetAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
 import type { WordInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 
 type Context = Cpu68000AddressContext & Cpu68000ControlContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
-type Outcome = OperandAlignmentFault | TargetAlignmentFault | void;
+type Outcome = OperandAlignmentFault | TargetAlignmentFault | "unsupported" | void;
 type Body = (state: Cpu68000State, mode: number, code: number, displacement: number, context: Context) => Outcome;
-const bodies: Readonly<Record<string, Body>> = instructions;
+const bodies: Readonly<Record<number, Body>> = instructions;
+const definitionNames = new Map(controlOpcodes68000);
+const definition = (opcode: number) => control68000[definitionNames.get(opcode)!]!;
 const names = ["T", "F", "HI", "LS", "CC", "CS", "NE", "EQ", "VC", "VS", "PL", "MI", "GE", "LT", "GT", "LE"];
 const branchName = (code: number) => code === 0 ? "BRA" : code === 1 ? "BSR" : `B${names[code]}`;
 const data = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
@@ -169,7 +170,7 @@ function observe(f: Form, scenario: Scenario, failAt: number, generated: boolean
     readProgramByte() { throw Error("control addresses do not read target data"); },
     writeByte(address, value) { effect("write byte", address, value); writes.push([address, value]); mutate(); },
   };
-  try { outcome = generated ? bodies[f.key]!(observed, f.mode, f.code, f.displacement, context) : reference(observed, f, context); }
+  try { outcome = generated ? bodies[f.opcode]!(observed, f.mode, f.code, f.displacement, context) : reference(observed, f, context); }
   catch (error) { if (error !== failure) throw error; failed = true; }
   return { state, events, writes, cursor, target, failed, outcome: outcome! };
 }
@@ -177,9 +178,8 @@ function observe(f: Form, scenario: Scenario, failAt: number, generated: boolean
 test("68000 control inventory covers exactly 5,349 operation words and 1,285 forms with 332 shared bodies", () => {
   assert.equal(forms.length, 5349); assert.equal(representatives.length, 332);
   assert.equal(forms.filter(f => f.operation !== "Bcc" && f.operation !== "BSR").length + 32, 1285);
-  assert.deepEqual(controlForms68000.map(f => [f.opcode, f.body, f.mode, f.code, f.displacement]).sort((a, b) => Number(a[0]) - Number(b[0])),
-    forms.map(f => [f.opcode, f.key, f.mode, f.code, f.displacement]));
-  assert.deepEqual(Object.keys(bodies).sort(), representatives.map(f => f.key).sort());
+  assert.deepEqual(Object.keys(bodies).map(Number), forms.map(f => f.opcode));
+  assert.equal(Object.keys(control68000).length, representatives.length);
 });
 
 test("every control binding preserves native condition captures, displacement aliases, and both stack banks", () => {
@@ -225,7 +225,7 @@ test("control displacements, target alignment, and DBcc counters retain unsigned
 });
 
 test("control explanations expose target selection separately from cursor, writes, and pointer commits", () => {
-  const branch = describeInstruction(control68000.BNE_word!), call = describeInstruction(control68000.JSR!), lea = describeInstruction(control68000.LEA_a7!);
+  const branch = describeInstruction(definition(0x6600)), call = describeInstruction(definition(0x4e90)), lea = describeInstruction(definition(0x4fd0));
   assert.ok(branch.indexOf("read Z") < branch.indexOf("read sequential fetch cursor"));
   assert.ok(branch.indexOf("read sequential fetch cursor") < branch.indexOf("fetch complete native-order word"));
   assert.ok(call.indexOf("write alignment fault") < call.indexOf("fetch alignment fault"));
@@ -264,7 +264,7 @@ test("nested cursor and target effects infer narrow capabilities and propagate f
     await import(`data:text/javascript,${encodeURIComponent(stripTypeScriptTypes(source))}`);
   for (const address of [0, 1, 2, 0x7ffffffe, 0x80000000, 0xfffffffe, 0xffffffff]) for (const failAt of [-1, 0, 1, 2, 3]) {
     const state = initialState(), before = structuredClone(state), events: unknown[][] = [], failure = Error("failed control capability");
-    let cursor = 0xfffffffe, selected: number | undefined, threw = false, outcome: TargetAlignmentFault | void;
+    let cursor = 0xfffffffe, selected: number | undefined, threw = false, outcome: TargetAlignmentFault | "unsupported" | void;
     const effect = (...event: unknown[]) => { events.push(event); if (events.length - 1 === failAt) throw failure; };
     try { outcome = compiled.instructions.probe(state, address, {
       nextAddress() { effect("cursor", cursor); return cursor; },

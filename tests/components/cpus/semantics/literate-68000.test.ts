@@ -9,7 +9,9 @@ import { cpu68000StateDescription } from "../../../../src/components/cpus/state/
 import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
 import { instructions as registerBodies } from "../../../../src/components/cpus/generated/68000.js";
 import { opcodeInstructions as memoryBodies } from "../../../../src/components/cpus/generated/68000-moves.js";
+import { opcodeInstructions as quickBodies } from "../../../../src/components/cpus/generated/68000-quick.js";
 import { instructions68000, moves68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
+import { instructionAliases } from "../../../../src/components/cpus/semantics/builders.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
@@ -38,22 +40,47 @@ for (const [kind, base] of [["copy", 0x3000], ["load", 0x3010], ["store", 0x3080
     name: `MOVE.W ${kind === "load" ? `(A${r})` : `D${r}`},${kind === "store" ? `(A${d})` : `D${d}`}` });
 }
 
-test("the 68000 chapter owns its state and 34,162 forms across 39,870 operation words", () => {
+test("the 68000 chapter owns its state and 36,029 documented forms and software emulator lines across 54,008 operation words", () => {
   const chapter = compile();
   assert.deepEqual(chapter.state, cpu68000StateDescription);
   const definitions = Object.fromEntries(Object.values(chapter.families).flat());
-  assert.equal(Object.keys(definitions).length, 39870);
-  // MOVEQ, quick arithmetic, and immediate shift counts do not multiply forms.
-  const counted = new Set(Object.keys(definitions).map(Number).map(opcode =>
-    opcode >>> 12 === 7 ? opcode & 0xff00 : opcode >>> 12 === 5 || opcode >>> 12 === 14 && (opcode & 0xc0) !== 0xc0 && !(opcode & 0x20) ? opcode & ~0x0e00 : opcode));
-  assert.equal(counted.size, 34162);
+  assert.equal(Object.keys(definitions).length, 54008);
+  // Operand literals do not multiply forms; software emulator lines have no documented forms.
+  const counted = new Set(Object.keys(definitions).map(Number).filter(opcode => opcode >>> 12 !== 10 && opcode >>> 12 !== 15).map(opcode => {
+    if (opcode >>> 12 === 7) return opcode & 0xff00; // MOVEQ immediate byte.
+    if (opcode >>> 12 === 6) return opcode & 0xff ? (opcode & 0xff00) | 1 : opcode; // Byte/word branches.
+    if ((opcode & 0xfff0) === 0x4e40) return 0x4e40; // TRAP literal.
+    if (opcode >>> 12 === 5 && (opcode & 0xc0) !== 0xc0
+      || opcode >>> 12 === 14 && (opcode & 0xc0) !== 0xc0 && !(opcode & 0x20)) return opcode & ~0x0e00;
+    return opcode;
+  }));
+  assert.equal(counted.size, 36029);
   assert.equal(Object.keys(memoryBodies).length, 9150);
+  assert.deepEqual(Object.keys(quickBodies).map(Number), chapter.families.moveQuick!.map(([opcode]) => opcode).sort((a, b) => a - b));
   for (const form of forms) {
     const expectedName = form.kind === "copy" ? form.name
       : `MOVE.W ${form.kind === "load" ? "MEMORY" : `D${form.r}`},${form.kind === "store" ? "MEMORY" : `D${form.d}`}`;
     assert.equal(definitions[form.opcode]!.name, expectedName);
     assert.deepEqual(definitions[form.opcode], form.kind === "copy" ? instructions68000[form.opcode] : moves68000[expectedName]);
   }
+});
+
+test("MOVEQ opcode entries follow a chapter encoding edit without changing its signed immediate behavior", async () => {
+  const changed = markdown.replace('"0111 ddd 0 xxxxxxxx"', '"0111 ddd 1 xxxxxxxx"');
+  const { definitions, opcodeAliases } = instructionAliases(compile(changed).families.moveQuick!);
+  const alu = new URL("../../../../src/components/cpus/alu.js", import.meta.url).href;
+  const javascript = stripTypeScriptTypes(generateInstructions("68000", definitions, { opcodeAliases }))
+    .replace('"../alu.ts"', JSON.stringify(alu));
+  const compiled: { opcodeInstructions: Readonly<Record<number, (state: Cpu68000State, immediate: number) => void>> } =
+    await import(`data:text/javascript,${encodeURIComponent(javascript)}`);
+  assert.equal(compiled.opcodeInstructions[0x7080], undefined);
+  const execute = compiled.opcodeInstructions[0x7180];
+  assert.ok(execute);
+  const state = initialState(0);
+  execute(state, 0x80);
+  assert.equal(state.d0, 0xffffff80);
+  assert.equal(state.flags.n, true);
+  assert.equal(state.flags.z, false);
 });
 
 function reference(form: Form, state: Cpu68000State, context: Context): OperandAlignmentFault | void {
@@ -152,7 +179,7 @@ const invalid: readonly [string, string, string, RegExp][] = [
   ["wide mode selector", "resolve(16, destinationMode,", "resolve(16, extend(destinationMode, 8),", /3-bit/],
   ["unsupported operand width", "resolve(16,", "resolve(14,", /Operand size/],
   ["short logical address", "read(sourceAddress) if", "read(truncate(sourceAddress, 16)) if", /32-bit/],
-  ["non-data alignment fault", "alignment read(sourceAddress)", "alignment fetch(sourceAddress)", /read or write/],
+  ["unknown alignment operation", "alignment read(sourceAddress)", "alignment execute(sourceAddress)", /read, write, or fetch/],
   ["unknown predicate", "if lowBit(sourceAddress)", "if odd(sourceAddress)", /Unknown flag operation/],
   ["misspelled commit", "commit addresses", "commit registers", /Expected "addresses"/],
   ["spelled-out flag literal", "V = 0", "V = false", /flag literals as 0 or 1/],

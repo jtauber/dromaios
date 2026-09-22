@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { instructions } from "../../../../src/components/cpus/generated/68000-transfers.js";
-import { transferForms68000 } from "../../../../src/components/cpus/68000-transfers.js";
-import { transfers68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
+import { opcodeInstructions as instructions } from "../../../../src/components/cpus/generated/68000-transfers.js";
+import { transfers68000, transferOpcodes68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import { initialState } from "../../../helpers/68000-state.js";
 import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
@@ -10,9 +9,11 @@ import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../../../
 import type { WordInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 
 type Context = Cpu68000AddressContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
-type Outcome = OperandAlignmentFault | void;
+type Outcome = OperandAlignmentFault | "unsupported" | void;
 type Body = (state: Cpu68000State, mode: number, code: number, context: Context) => Outcome;
-const bodies: Readonly<Record<string, Body>> = instructions;
+const bodies: Readonly<Record<number, Body>> = instructions;
+const definitionNames = new Map(transferOpcodes68000);
+const definition = (opcode: number) => transfers68000[definitionNames.get(opcode)!]!;
 const data = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
 const address = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
 type Stored = typeof data[number] | typeof address[number] | "usp" | "ssp";
@@ -109,7 +110,7 @@ function observe(f: Form, scenario: Scenario, failAt: number, generated: boolean
     readByte: address => read("read data", address), readProgramByte: address => read("read program", address),
     writeByte(address, contents) { effect("write byte", address, contents); writes.push([address, contents]); mutate(); },
   };
-  try { outcome = generated ? bodies[f.key]!(observed, f.mode, f.code, context) : reference(observed, f, context); }
+  try { outcome = generated ? bodies[f.opcode]!(observed, f.mode, f.code, context) : reference(observed, f, context); }
   catch (error) { if (error !== failure) throw error; failed = true; }
   return { state, events, writes, failed, outcome: outcome! };
 }
@@ -117,9 +118,8 @@ function observe(f: Form, scenario: Scenario, failAt: number, generated: boolean
 test("68000 transfer inventory covers exactly 256 MOVEP and 140 MOVEM forms with 294 bodies", () => {
   assert.equal(forms.filter(f => f.peripheral).length, 256); assert.equal(forms.filter(f => !f.peripheral).length, 140);
   assert.equal(representatives.length, 294);
-  assert.deepEqual(transferForms68000.map(f => [f.opcode, f.body, f.mode, f.code]).sort((a, b) => Number(a[0]) - Number(b[0])),
-    forms.map(f => [f.opcode, f.key, f.mode, f.code]));
-  assert.deepEqual(Object.keys(bodies).sort(), representatives.map(f => f.key).sort());
+  assert.deepEqual(Object.keys(bodies).map(Number), forms.map(f => f.opcode));
+  assert.equal(Object.keys(transfers68000).length, representatives.length);
 });
 
 test("every transfer binding preserves both stack banks, empty and sparse masks, and alignment", () => {
@@ -145,8 +145,8 @@ test("MOVEP displacement boundaries and MOVEM sign extension retain full unsigne
 });
 
 test("transfer explanations expose displacement capture, alternate bytes, mask order, and final pointer commit", () => {
-  const peripheral = describeInstruction(transfers68000.MOVEP_16_load_d0_a7!);
-  const multiple = describeInstruction(transfers68000.MOVEM_32_store_a7!);
+  const peripheral = describeInstruction(definition(0x010f));
+  const multiple = describeInstruction(definition(0x48e7));
   assert.ok(peripheral.indexOf("read S") < peripheral.indexOf("fetch complete native-order word"));
   assert.match(peripheral, /alternate addresses/); assert.doesNotMatch(peripheral, /alignment fault/);
   assert.ok(multiple.indexOf("fetch complete native-order word") < multiple.indexOf("read S"));

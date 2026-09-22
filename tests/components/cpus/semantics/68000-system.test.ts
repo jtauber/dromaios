@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { stripTypeScriptTypes } from "node:module";
-import { instructions } from "../../../../src/components/cpus/generated/68000-system.js";
-import { systemForms68000 } from "../../../../src/components/cpus/68000-system.js";
-import { system68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
+import { opcodeInstructions as instructions } from "../../../../src/components/cpus/generated/68000-system.js";
+import { system68000, systemOpcodes68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
@@ -16,9 +15,11 @@ import type { Cpu68000AddressContext, Cpu68000ControlContext, Cpu68000ResetConte
 import type { WordInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 
 type Context = Cpu68000AddressContext & Cpu68000ControlContext & Cpu68000ResetContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
-type Outcome = Cpu68000Exception | OperandAlignmentFault | TargetAlignmentFault | void;
+type Outcome = Cpu68000Exception | OperandAlignmentFault | TargetAlignmentFault | "unsupported" | void;
 type Body = (state: Cpu68000State, mode: number, code: number, context: Context) => Outcome;
-const bodies: Readonly<Record<string, Body>> = instructions;
+const bodies: Readonly<Record<number, Body>> = instructions;
+const definitionNames = new Map(systemOpcodes68000);
+const definition = (opcode: number) => system68000[definitionNames.get(opcode)!]!;
 const data = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
 const address = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
 type Stored = typeof data[number] | typeof address[number] | "usp" | "ssp";
@@ -169,7 +170,7 @@ function observe(f: Form, scenario: Scenario, failAt: number, generated: boolean
     nextAddress() { throw Error("status/system instructions do not read the fetch cursor"); },
     jump(address) { effect("target", address); target = address; mutate(); },
   };
-  try { outcome = generated ? bodies[f.key]!(observed, f.mode, f.code, context) : reference(observed, f, context); }
+  try { outcome = generated ? bodies[f.opcode]!(observed, f.mode, f.code, context) : reference(observed, f, context); }
   catch (error) { if (error !== failure) throw error; failed = true; }
   return { state, events, writes, failed, target, outcome: outcome! };
 }
@@ -177,9 +178,8 @@ function observe(f: Form, scenario: Scenario, failAt: number, generated: boolean
 test("68000 system inventory covers 186 documented forms, all aliases, and both software emulator lines in 63 bodies", () => {
   assert.equal(forms.length, 8393); assert.equal(representatives.length, 63);
   assert.equal(forms.filter(f => f.opcode < 0xa000 && f.key !== "TRAP").length + 1, 186);
-  assert.deepEqual(systemForms68000.map(f => [f.opcode, f.body, f.mode, f.code]).sort((a, b) => Number(a[0]) - Number(b[0])),
-    forms.map(f => [f.opcode, f.key, f.mode, f.code]));
-  assert.deepEqual(Object.keys(bodies).sort(), representatives.map(f => f.key).sort());
+  assert.deepEqual(Object.keys(bodies).map(Number), forms.map(f => f.opcode));
+  assert.equal(Object.keys(system68000).length, representatives.length);
 });
 
 test("every status/system binding preserves user/supervisor behavior, flags, and alias selection", () => {
@@ -202,9 +202,9 @@ test("system bodies preserve exact capture order and partial effects on every fa
 
 test("status writes ignore all reserved bits and preserve CCR system fields for every input word", () => {
   const selected = [
-    { execute: instructions.STOP, full: true, halt: true },
-    { execute: instructions.MOVE_immediate_CCR, full: false, halt: false },
-    { execute: instructions.MOVE_immediate_SR, full: true, halt: false },
+    { execute: instructions[0x4e72], full: true, halt: true },
+    { execute: instructions[0x44fc], full: false, halt: false },
+    { execute: instructions[0x46fc], full: true, halt: false },
   ];
   for (let word = 0; word < 65536; word++) for (const { execute, full, halt } of selected) {
     const state = initialState(), before = structuredClone(state.flags); state.interruptMask = word % 8;
@@ -219,7 +219,7 @@ test("status writes ignore all reserved bits and preserve CCR system fields for 
 test("packed SR combines every flag and interrupt-mask value with zero reserved bits", () => {
   for (let bits = 0; bits < 128; bits++) for (let mask = 0; mask < 8; mask++) {
     const state = initialState(bits); state.interruptMask = mask;
-    instructions.MOVE_SR_d0(state, 0, 0);
+    instructions[0x40c0](state, 0, 0);
     const expected = ((bits & 32) * 1024) + ((bits & 64) * 128) + mask * 256
       + (bits & 1) * 16 + (bits & 2) * 4 + (bits & 4) + (bits & 8) / 4 + (bits & 16) / 16;
     assert.equal(state.d0, 0x11220000 + expected);
@@ -227,11 +227,11 @@ test("packed SR combines every flag and interrupt-mask value with zero reserved 
 });
 
 test("status explanations expose privilege before fetch, status before pointer commits, and RTE frame read order", () => {
-  const immediate = describeInstruction(system68000.ORI_SR!), move = describeInstruction(system68000.MOVE_memory_SR!), rte = describeInstruction(system68000.RTE!);
+  const immediate = describeInstruction(definition(0x007c)), move = describeInstruction(definition(0x46d0)), rte = describeInstruction(definition(0x4e73));
   assert.ok(immediate.indexOf('reject instruction: "privilege-violation"') < immediate.indexOf("fetch complete native-order word"));
-  assert.ok(move.lastIndexOf("restore packed status") < move.indexOf("commit staged address-register updates"));
-  assert.ok(rte.indexOf("highByte0:u8") < rte.indexOf("statusByte0:u8"));
-  assert.ok(rte.indexOf("statusByte0:u8") < rte.indexOf("lowByte0:u8"));
+  assert.ok(move.lastIndexOf("perform write status register") < move.indexOf("commit staged address-register updates"));
+  assert.ok(rte.indexOf("high:u16") < rte.indexOf("status:u16"));
+  assert.ok(rte.indexOf("status:u16") < rte.indexOf("low:u16"));
   assert.ok(rte.indexOf("select instruction target") < rte.indexOf("write SSP"));
 });
 

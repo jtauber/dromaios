@@ -8,9 +8,9 @@ import { instructions as m68000 } from "../../../src/components/cpus/generated/6
 import { instructions as m6800 } from "../../../src/components/cpus/generated/6800.js";
 
 test("Motorola condition encodings agree with unsigned and signed comparisons", () => {
-  const state = initialState(), conditions = [m68000.ST_d0, m68000.SF_d0, m68000.SHI_d0, m68000.SLS_d0,
-    m68000.SCC_d0, m68000.SCS_d0, m68000.SNE_d0, m68000.SEQ_d0, m68000.SVC_d0, m68000.SVS_d0,
-    m68000.SPL_d0, m68000.SMI_d0, m68000.SGE_d0, m68000.SLT_d0, m68000.SGT_d0, m68000.SLE_d0];
+  const state = initialState(), conditions = [m68000["ST D0"], m68000["SF D0"], m68000["SHI D0"], m68000["SLS D0"],
+    m68000["SCC D0"], m68000["SCS D0"], m68000["SNE D0"], m68000["SEQ D0"], m68000["SVC D0"], m68000["SVS D0"],
+    m68000["SPL D0"], m68000["SMI D0"], m68000["SGE D0"], m68000["SLT D0"], m68000["SGT D0"], m68000["SLE D0"]];
   for (let left = 0; left < 256; left++) for (let right = 0; right < 256; right++) {
     const signedLeft = left < 128 ? left : left - 256, signedRight = right < 128 ? right : right - 256;
     const difference = signedLeft - signedRight;

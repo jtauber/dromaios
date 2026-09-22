@@ -13,21 +13,18 @@ import type { Cpu68000State, Cpu68000Flags } from "./state/68000.ts";
 export { cpu68000StateDescription } from "./state/68000.ts";
 export type { Cpu68000State, Cpu68000Flags } from "./state/68000.ts";
 import { instructions as generated } from "./generated/68000.ts";
-import { instructions as quick } from "./generated/68000-quick.ts";
+import { opcodeInstructions as quick } from "./generated/68000-quick.ts";
 import { opcodeInstructions as moves } from "./generated/68000-moves.ts";
 import { opcodeInstructions as logic } from "./generated/68000-logic.ts";
 import { opcodeInstructions as arithmetic } from "./generated/68000-arithmetic.ts";
 import { opcodeInstructions as bits } from "./generated/68000-bits.ts";
 import { opcodeInstructions as wordArithmetic } from "./generated/68000-word-arithmetic.ts";
-import { instructions as controlBodies } from "./generated/68000-control.ts";
-import { instructions as systemBodies } from "./generated/68000-system.ts";
-import { systemForms68000 } from "./68000-system.ts";
-import { instructions as transferBodies } from "./generated/68000-transfers.ts";
-import { transferForms68000 } from "./68000-transfers.ts";
-import { controlForms68000 } from "./68000-control.ts";
+import { opcodeInstructions as control } from "./generated/68000-control.ts";
+import { opcodeInstructions as system } from "./generated/68000-system.ts";
+import { opcodeInstructions as transfers } from "./generated/68000-transfers.ts";
 import { opcodeInstructions as decimal } from "./generated/68000-decimal.ts";
 import type { Cpu68000AddressContext, Cpu68000ControlContext, Cpu68000ResetContext } from "./68000-context.ts";
-import { opcodeFamily, opcodeTable } from "./opcodes.ts";
+import { opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
 
 export type Cpu68000Snapshot = ReadonlyState<Cpu68000State> & {
@@ -150,14 +147,8 @@ interface InstructionContext extends MemoryContext, Cpu68000ControlContext, Cpu6
 const arithmeticTables: readonly Readonly<Record<number, (state: Cpu68000State, mode: number, code: number, upperCode: number,
   instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | "unsupported" | void>>[] = [arithmetic, bits, wordArithmetic, decimal];
 
-const controlInstructions: Readonly<Record<string, (state: Cpu68000State, mode: number, code: number, displacement: number,
-  instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = controlBodies;
-
-const transferInstructions: Readonly<Record<string, (state: Cpu68000State, mode: number, code: number,
-  instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = transferBodies;
-
-const systemInstructions: Readonly<Record<string, (state: Cpu68000State, mode: number, code: number,
-  instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = systemBodies;
+const operandTables: readonly Readonly<Record<number, (state: Cpu68000State, mode: number, code: number,
+  instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | "unsupported" | void>>[] = [logic, transfers, system];
 
 type OpcodeHandler = (cpu: Cpu68000, instruction: InstructionContext) => InstructionFault | void;
 type AddressRegister = `a${0 | 1 | 2 | 3 | 4 | 5 | 6}` | "usp" | "ssp";
@@ -365,7 +356,6 @@ export class Cpu68000 {
 
   static readonly #dataRegisters = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
   static readonly #addressRegisters = ["a0", "a1", "a2", "a3", "a4", "a5", "a6", "usp", "ssp"] as const;
-  static readonly #immediateBytes = Array.from({ length: 0x100 }, (_, value) => value);
 
   // Bind encodings once per model; handlers receive the executing CPU and capture no instance state.
   static readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
@@ -381,8 +371,8 @@ export class Cpu68000 {
         return fault === "unsupported" ? "illegal-instruction" : fault;
       }];
     }),
-    // Logical/unary families bind register roles; mmm/eee is the one variable EA.
-    ...Object.entries(logic).map(([word, execute]): OpcodeEntry<OpcodeHandler> => {
+    // Logic, transfers, and system families bind roles; mmm/eee is the one variable EA.
+    ...operandTables.flatMap(table => Object.entries(table)).map(([word, execute]): OpcodeEntry<OpcodeHandler> => {
       const opcode = Number(word), mode = (opcode >>> 3) & 7, code = opcode & 7;
       return [opcode, (cpu, instruction) => {
         const fault = execute(cpu.#state, mode, code, cpu.#addressContext(instruction));
@@ -397,17 +387,20 @@ export class Cpu68000 {
         return fault === "unsupported" ? "illegal-instruction" : fault;
       }];
     }),
-    // Control definitions retain native condition, cursor, target, and stack stages.
-    ...controlForms68000.map(({ opcode, body, mode, code, displacement }): OpcodeEntry<OpcodeHandler> =>
-      [opcode, (cpu, instruction) => controlInstructions[body]!(cpu.#state, mode, code, displacement, cpu.#addressContext(instruction))]),
-    ...transferForms68000.map(({ opcode, body, mode, code }): OpcodeEntry<OpcodeHandler> =>
-      [opcode, (cpu, instruction) => transferInstructions[body]!(cpu.#state, mode, code, cpu.#addressContext(instruction))]),
-    ...systemForms68000.map(({ opcode, body, mode, code }): OpcodeEntry<OpcodeHandler> =>
-      [opcode, (cpu, instruction) => systemInstructions[body]!(cpu.#state, mode, code, cpu.#addressContext(instruction))]),
+    // 0110 cccc dddddddd: branch bodies receive the raw displacement byte; others ignore it.
+    ...Object.entries(control).map(([word, execute]): OpcodeEntry<OpcodeHandler> => {
+      const opcode = Number(word), mode = (opcode >>> 3) & 7, code = opcode & 7, displacement = opcode & 0xff;
+      return [opcode, (cpu, instruction) => {
+        const fault = execute(cpu.#state, mode, code, displacement, cpu.#addressContext(instruction));
+        return fault === "unsupported" ? "illegal-instruction" : fault;
+      }];
+    }),
     // 0111 rrr 0 iiiiiiii: rrr selects Dn; i is the signed immediate byte, extended to a long.
     // Bit 8 must be zero. Immediate values select handlers but do not add coverage forms.
-    ...opcodeFamily("0111 rrr 0 iiiiiiii", { r: this.#dataRegisters, i: this.#immediateBytes }, ({ r: register, i: value }) => (cpu: Cpu68000) => quick[register](cpu.#state, value)), // MOVEQ #n,Dn
-
+    ...Object.entries(quick).map(([word, execute]): OpcodeEntry<OpcodeHandler> => {
+      const opcode = Number(word), immediate = opcode & 0xff;
+      return [opcode, cpu => execute(cpu.#state, immediate)];
+    }),
   ], 16);
 
   // Exception entry. The original 68000 has no stacked frame-format word.

@@ -69,7 +69,7 @@ export function check68000MoveTypes(state: Cpu68000State, context: Cpu68000Addre
 export function check68000RegisterTypes(state: Cpu68000State, other: Cpu8088State): void {
   const cpu = cpuSymbols("68000", cpu68000StateDescription);
   cpu.register("d7"); cpu.register("usp"); cpu.register("ssp"); cpu.flag("s");
-  generated68000[0x3e4f](state); quick68000.d0(state, 0x80);
+  generated68000[0x3e4f](state); quick68000["MOVEQ #n,D0"](state, 0x80);
   // @ts-expect-error A7 is derived from USP/SSP, not a stored field.
   cpu.register("a7");
   // @ts-expect-error The supervisor bit is a flag, not a numeric register.
@@ -77,7 +77,7 @@ export function check68000RegisterTypes(state: Cpu68000State, other: Cpu8088Stat
   // @ts-expect-error Register-only bodies require no memory or decoder callbacks.
   generated68000[0x3000](state, { readByte: () => 0 });
   // @ts-expect-error MOVEQ requires the decoded immediate input.
-  quick68000.d0(state);
+  quick68000["MOVEQ #n,D0"](state);
   // @ts-expect-error Generated state remains CPU-specific.
   generated68000[0x3000](other);
 }
@@ -998,65 +998,65 @@ export function check68000WordAndDecimalTypes(state: Cpu68000State): void {
 
 export function check68000ControlTypes(state: Cpu68000State, flow: Cpu68000ControlContext): void {
   const operand = { resolveAddress: () => 0, commitAddressUpdates: () => {}, readByte: () => 0, writeByte: () => {} };
-  control68000.SNE_d0(state, 0, 0, 0);
-  const lea: void = control68000.LEA_a7(state, 7, 2, 0, { resolveAddress: () => 0 });
-  const branch: void | TargetAlignmentFault = control68000.BNE_byte(state, 0, 0, 2, flow);
-  const call: void | TargetAlignmentFault | OperandAlignmentFault = control68000.JSR(state, 7, 2, 0, { ...flow, resolveAddress: () => 0, writeByte: () => {} });
-  control68000.SNE_memory(state, 3, 7, 0, operand);
-  control68000.LINK_a7(state, 0, 0, 0, { fetchWord: () => 0, writeByte: () => {} });
+  control68000["SNE D0"](state, 0, 0, 0);
+  const lea: void | "unsupported" = control68000["LEA control EA,A7"](state, 7, 2, 0, { resolveAddress: () => 0 });
+  const branch: void | TargetAlignmentFault = control68000["BNE.B label"](state, 0, 0, 2, flow);
+  const call: void | TargetAlignmentFault | OperandAlignmentFault | "unsupported" = control68000["JSR control EA"](state, 7, 2, 0, { ...flow, resolveAddress: () => 0, writeByte: () => {} });
+  control68000["SNE MEMORY"](state, 3, 7, 0, operand);
+  control68000["LINK A7,#allocation"](state, 0, 0, 0, { fetchWord: () => 0, writeByte: () => {} });
   // @ts-expect-error Word displacements require native-word fetching.
-  control68000.BNE_word(state, 0, 0, 0, flow);
+  control68000["BNE.W label"](state, 0, 0, 0, flow);
   // @ts-expect-error LEA calculates an address without target selection or memory reads.
-  control68000.LEA_a7(state, 7, 2, 0, { resolveAddress: () => 0, jump: () => {} });
+  control68000["LEA control EA,A7"](state, 7, 2, 0, { resolveAddress: () => 0, jump: () => {} });
   // @ts-expect-error A taken branch can reject its target alignment.
-  const success: void = control68000.BNE_byte(state, 0, 0, 2, flow);
+  const success: void = control68000["BNE.B label"](state, 0, 0, 2, flow);
   // @ts-expect-error Returns read a complete long before selecting the target.
   control68000.RTS(state, 0, 0, 0, flow);
   // @ts-expect-error Scc reads memory even when its condition is always true.
-  control68000.ST_memory(state, 3, 7, 0, { resolveAddress: () => 0, commitAddressUpdates: () => {}, writeByte: () => {} });
+  control68000["ST MEMORY"](state, 3, 7, 0, { resolveAddress: () => 0, commitAddressUpdates: () => {}, writeByte: () => {} });
 }
 
 export function check68000TransferTypes(state: Cpu68000State): void {
   const fetch = { fetchWord: () => 0 }, read = { ...fetch, readByte: () => 0 }, write = { ...fetch, writeByte: () => {} };
-  const peripheral: void = transfers68000.MOVEP_16_load_d0_a7(state, 0, 0, read);
-  transfers68000.MOVEP_32_store_d7_a0(state, 0, 0, write);
-  const multiple: void | OperandAlignmentFault = transfers68000.MOVEM_32_store_a7(state, 4, 7, write);
-  transfers68000.MOVEM_16_load_a0(state, 3, 0, read);
-  transfers68000.MOVEM_32_load_program(state, 7, 2, { ...fetch, resolveAddress: () => 0, readProgramByte: () => 0 });
+  const peripheral: void | "unsupported" = transfers68000["MOVEP.W (d,A7),D0"](state, 0, 0, read);
+  transfers68000["MOVEP.L D7,(d,A0)"](state, 0, 0, write);
+  const multiple: void | OperandAlignmentFault | "unsupported" = transfers68000["MOVEM.L list,-(A7)"](state, 4, 7, write);
+  transfers68000["MOVEM.W (A0)+,list"](state, 3, 0, read);
+  transfers68000["MOVEM.L PROGRAM,list"](state, 7, 2, { ...fetch, resolveAddress: () => 0, readProgramByte: () => 0 });
   // @ts-expect-error MOVEP fetches a native displacement word, not separate bytes.
-  transfers68000.MOVEP_16_load_d0_a0(state, 0, 0, { fetchByte: () => 0, readByte: () => 0 });
+  transfers68000["MOVEP.W (d,A0),D0"](state, 0, 0, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error MOVEP stores never read data memory.
-  transfers68000.MOVEP_16_store_d0_a0(state, 0, 0, { ...write, readByte: () => 0 });
+  transfers68000["MOVEP.W D0,(d,A0)"](state, 0, 0, { ...write, readByte: () => 0 });
   // @ts-expect-error MOVEM retains a possible operand alignment fault.
-  const success: void = transfers68000.MOVEM_16_load_a7(state, 3, 7, read);
+  const success: void = transfers68000["MOVEM.W (A7)+,list"](state, 3, 7, read);
   // @ts-expect-error MOVEM postincrement owns its base update; it does not use the ordinary EA resolver.
-  transfers68000.MOVEM_16_load_a7(state, 3, 7, { ...read, resolveAddress: () => 0 });
+  transfers68000["MOVEM.W (A7)+,list"](state, 3, 7, { ...read, resolveAddress: () => 0 });
   // @ts-expect-error Control EAs require address resolution even with an empty register mask.
-  transfers68000.MOVEM_32_store_memory(state, 2, 0, write);
+  transfers68000["MOVEM.L list,MEMORY"](state, 2, 0, write);
   // @ts-expect-error PC-relative lists read program space, not data space.
-  transfers68000.MOVEM_32_load_program(state, 7, 2, { ...read, resolveAddress: () => 0 });
+  transfers68000["MOVEM.L PROGRAM,list"](state, 7, 2, { ...read, resolveAddress: () => 0 });
 }
 
 export function check68000SystemTypes(state: Cpu68000State): void {
   const word = { fetchWord: () => 0 }, memory = { resolveAddress: () => 0, commitAddressUpdates: () => {}, readByte: () => 0 };
-  const ccr: void = system68000.ORI_CCR(state, 0, 0, word);
-  const sr: void | "privilege-violation" = system68000.ORI_SR(state, 0, 0, word);
+  const ccr: void = system68000["ORI #n,CCR"](state, 0, 0, word);
+  const sr: void | "privilege-violation" = system68000["ORI #n,SR"](state, 0, 0, word);
   const reset: void | "privilege-violation" = system68000.RESET(state, 0, 0, { resetDevices: () => {} });
   const line: void | "line-a" = system68000.LINE_A(state, 0, 0);
   system68000.NOP(state, 0, 0);
-  system68000.MOVE_SR_memory(state, 3, 7, { ...memory, writeByte: () => {} });
-  system68000.MOVE_program_SR(state, 7, 2, { resolveAddress: () => 0, commitAddressUpdates: () => {}, readProgramByte: () => 0 });
+  system68000["MOVE SR,MEMORY"](state, 3, 7, { ...memory, writeByte: () => {} });
+  system68000["MOVE PROGRAM,SR"](state, 7, 2, { resolveAddress: () => 0, commitAddressUpdates: () => {}, readProgramByte: () => 0 });
   system68000.RTE(state, 0, 0, { readByte: () => 0, jump: () => {} });
   // @ts-expect-error Privileged status logic can reject before fetching an operand.
-  const success: void = system68000.ANDI_SR(state, 0, 0, word);
+  const success: void = system68000["ANDI #n,SR"](state, 0, 0, word);
   // @ts-expect-error RESET requires the explicit device connection.
   system68000.RESET(state, 0, 0);
   // @ts-expect-error RESET does not fetch operands or access memory.
   system68000.RESET(state, 0, 0, { resetDevices: () => {}, readByte: () => 0 });
   // @ts-expect-error SR destinations are read before being overwritten.
-  system68000.MOVE_SR_memory(state, 3, 7, { resolveAddress: () => 0, commitAddressUpdates: () => {}, writeByte: () => {} });
+  system68000["MOVE SR,MEMORY"](state, 3, 7, { resolveAddress: () => 0, commitAddressUpdates: () => {}, writeByte: () => {} });
   // @ts-expect-error Status sources require committing pending updates after restoration.
-  system68000.MOVE_memory_CCR(state, 3, 7, { resolveAddress: () => 0, readByte: () => 0 });
+  system68000["MOVE MEMORY,CCR"](state, 3, 7, { resolveAddress: () => 0, readByte: () => 0 });
   // @ts-expect-error Returns select a target only after complete reads and alignment validation.
   system68000.RTR(state, 0, 0, { readByte: () => 0 });
 }

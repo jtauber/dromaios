@@ -1,5 +1,5 @@
 import { divide, iterate, reject, alignmentFault, capture, commitAddressUpdates, deferInterrupt, notifyReti, exchangeFlags, fetchByte, fetchWord, fillArray, flagValue, highByte, lowByte, replaceFlags, not, perform, readElement,
-  readFlag, readLatch, readMemory, readProgramMemory, readPort, readRegister, readSource, readTest, reportInterrupt, sendEscape, resolveAddress, updateFlags,
+  readFlag, readLatch, readMemory, readProgramMemory, readPort, readRegister, readSource, readTest, reportInterrupt, sendEscape, resolveAddress, readNextAddress, selectTarget, resetDevices, updateFlags,
   testChoice, value, when, writeChoice, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
 import type { Choice, CpuDeclaration, Expression, Flag, FlagGroup, FlagExpression, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
 import { validateInstruction } from "../validate.ts";
@@ -131,9 +131,14 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         result.push(tokens.take("if") ? when(flagExpression(tokens), [failure]) : failure);
       } else if (tokens.take("fault")) {
         tokens.expect("alignment"); const program = tokens.take("program"); const operation = tokens.word();
-        if (operation !== "read" && operation !== "write") return tokens.fail("Expected a read or write alignment fault.");
+        if (operation !== "read" && operation !== "write" && operation !== "fetch") return tokens.fail("Expected a read, write, or fetch alignment fault.");
         tokens.expect("("); const address = expression(tokens); tokens.expect(")"); tokens.expect("if");
-        result.push(when(flagExpression(tokens), [alignmentFault(operation, address, program ? "program" : "data")]));
+        result.push(when(flagExpression(tokens), [alignmentFault(operation, address, program || operation === "fetch" ? "program" : "data")]));
+      } else if (tokens.next === "select" && tokens.peek(1) === "target") {
+        tokens.expect("select"); tokens.expect("target"); tokens.expect("(");
+        result.push(selectTarget(expression(tokens))); tokens.expect(")");
+      } else if (tokens.next === "reset" && tokens.peek(1) === "devices") {
+        tokens.expect("reset"); tokens.expect("devices"); result.push(resetDevices());
       } else if (tokens.take("defer")) {
         const scope = tokens.word();
         if (scope !== "irq" && scope !== "intr" && scope !== "all") return tokens.fail("Expected irq, intr, or all deferral scope.");
@@ -233,6 +238,8 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
             if (size !== 8 && size !== 16 && size !== 32) return tokens.fail("Operand size must be 8, 16, or 32.");
             tokens.expect(","); const mode = expression(tokens); tokens.expect(","); const code = expression(tokens); tokens.expect(")");
             result.push(resolveAddress(name, size, mode, code));
+          } else if (tokens.next === "next" && tokens.peek(1) === "address") {
+            tokens.expect("next"); tokens.expect("address"); result.push(readNextAddress(name));
           } else if (tokens.take("fetch")) result.push(tokens.take("word") ? fetchWord(name) : fetchByte(name));
           else if (tokens.next === "sample" && tokens.peek(1) === "test") {
             tokens.expect("sample"); tokens.expect("test"); result.push(readTest(name));

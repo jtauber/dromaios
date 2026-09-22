@@ -256,7 +256,6 @@ The authoring layers have separate homes:
 | [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, ordered word reads/writes, construction-time register views, comparison/transfer/shift/logical/arithmetic recipes, N/Z policies, and checked opcode inventories |
 | [control-flow.ts](../../src/components/cpus/semantics/control-flow.ts) | Conditional effects, jumps, branches, calls, returns, and vector loads with explicit operand/condition/stack order |
 | [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, ordered frames, and complete push/pop instruction construction |
-| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared Motorola condition construction for remaining 68000 definitions |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
 | [6502 chapter](../../src/components/cpus/specifications/6502.md) | Complete state, instruction inventory, NMOS arithmetic, status, reset, execution, and named external-entry policies |
 | [6800 chapter](../../src/components/cpus/specifications/6800.md) | Complete stored state, packed condition codes, instructions, reset, WAI suspension, IRQ/NMI entry, and public interface |
@@ -1602,8 +1601,9 @@ shared bodies and a generated table of their 9,150 non-register operation words.
 The native binding supplies the decoded EA fields. The initial specialized
 word-load/store module is removed. Reusable memory sources, data-register write
 actions, and result policies preserve ordered reads, pending-update commits,
-writeback, and fault behavior. Remaining native builders also consume the
-chapter's result policies and bank/status definitions.
+writeback, and fault behavior. All remaining 68000 instruction families now
+also come from the chapter; the native adapter only groups their calling
+conventions. Address decoding and lifecycle handling remain in the core.
 The script first compiles literate chapters to `semantics/generated/`, then
 loads the definition registry. Both output directories are ignored and removed
 by `npm run clean`.
@@ -1784,20 +1784,21 @@ faults and retained flags in both stack banks. [Chapter mutation tests](../../te
 change product signedness, overflow handling, signed bounds, decimal correction,
 cumulative zero, and paired destination selection in generated execution.
 
-The [control inventory](../../src/components/cpus/68000-control.ts) binds Scc,
+The [control families](../../src/components/cpus/specifications/68000.md#conditions-and-control-flow) bind Scc,
 DBcc, BRA/Bcc/BSR, LEA/PEA/JMP/JSR, LINK/UNLK, and RTS: 1,285 forms through
 332 bodies, serving 5,349 operation words. The byte displacement is a decoded
 parameter, while its zero encoding selects the word-fetch body. Modes and
 register selectors remain separate three-bit inputs. Body keys use native
 mnemonics, including ST/SF, DBT/DBF, BRA, and BSR.
 
-`motorolaCondition` now shares the native flag-capture sequence between the
-6800, 6809, and 68000. The 68000's branches and DBcc capture those flags before
+The 68000 chapter declares the native condition truth tables and flag-capture
+sequences; the now-unused TypeScript condition builder is removed. The 68000's branches and DBcc capture those flags before
 reading the sequential cursor or fetching the extension, whereas Scc captures
 them after its destination read. The superseded runtime condition table is
 removed; its independent arithmetic-comparison tests exercise generated Scc.
 
-`readNextAddress` and `selectTarget` expose narrow control capabilities. They
+`next address` and `select target(...)` expose the existing narrow control
+capabilities through `readNextAddress` and `selectTarget`. They
 keep the sequential fetch cursor separate from the selected target and stored
 PC. A branch uses the cursor before an extension fetch as its base. Only a
 taken branch checks target alignment; DBcc's terminating counter likewise
@@ -1810,7 +1811,7 @@ for fault delivery, including failures after a call has selected its target.
 Long pushes share explicit stack-bank selection, decremented-address alignment,
 high-first byte writes, and pointer commit after complete writes. Calls check
 stack alignment before target alignment, select their target, then write the
-return address and commit SP. LINK reuses this construction with a different
+return address and commit SP. LINK uses the same byte-transfer actions with a different
 finish: write the frame register before the allocated SP. LINK A7 saves the
 decremented address itself. UNLK advances the captured stack bank before
 restoring the frame register; RTS validates its whole popped target before
@@ -1824,13 +1825,13 @@ boundaries, and compare every failed effect with live callback mutations.
 Compiler/type probes cover widths, lexical scope, capabilities, and target
 faults. CPU bus tests fail every stack byte in both banks, both Scc accesses,
 and branch extension bytes, retaining partial writes, original pointers,
-counters, and the sequential fault PC. Earlier definitions and generated
-modules remain unchanged.
+counters, and the sequential fault PC. The core binds chapter-generated opcode
+tables; the separate TypeScript control inventory and builder are removed.
 
-The [transfer inventory](../../src/components/cpus/68000-transfers.ts) binds
+The [transfer families](../../src/components/cpus/specifications/68000.md#peripheral-and-multiple-register-transfers) bind
 all 256 MOVEP and 140 MOVEM forms through 294 bodies. MOVEP captures its base
-before fetching the signed displacement, then uses the shared high-first byte
-construction with a stride of two. Loads replace Dn only after all bytes arrive;
+before fetching the signed displacement, then uses explicit chapter sources/actions for high-first bytes
+with a stride of two. Loads replace Dn only after all bytes arrive;
 word loads preserve the live upper word. Stores capture Dn after the displacement
 fetch. Odd addresses remain legal.
 
@@ -1840,9 +1841,9 @@ and pointer, bypassing the resolver's single-operand update. An empty mask still
 fetches EA extensions but performs no alignment check or base update. Otherwise
 the first transfer's alignment is checked before any register or memory effect.
 
-The definition expands the sixteen mask bits in native order: D0..D7,A0..A7,
-reversed for predecrement stores. Each bit names the address after its optional
-transfer; clear bits consume no bytes. Sources and each selected A7 bank are
+The chapter iterates over sixteen mask bits in native order: D0..D7,A0..A7,
+reversed for predecrement stores. Typed locals carry the remaining mask, register
+index, and address; clear bits consume no bytes. Sources and each selected A7 bank are
 captured at that register's turn. Loads commit only complete registers and
 sign-extend words to all 32 bits. PC-relative loads use program space. After the
 whole list succeeds, the captured base bank receives the final pointer, replacing
@@ -1857,17 +1858,16 @@ and logical wrap. The existing CPU tests sweep every MOVEM mask and signed word.
 Additional bus tests fail every alternate MOVEP byte, every byte across multiple
 MOVEM registers in both stack banks, and extension fetches for empty lists.
 Type checks enforce data/program-space capabilities and the absence of ordinary
-EA resolution in the auto-update bodies. All earlier definitions and generated
-modules remain unchanged.
+EA resolution in the auto-update bodies. The separate TypeScript transfer
+inventory and builder are removed.
 
-The [system inventory](../../src/components/cpus/68000-system.ts) completes all
+The [system families](../../src/components/cpus/specifications/68000.md#status-and-system-instructions) complete all
 186 remaining documented forms through 63 bodies, also serving TRAP literals and
 software emulator-line requests. Privilege guards reject before operand fetching
 or address resolution. These outcomes use the existing exception boundary, which
 selects vectors, saved PCs, trace handling, and nested-fault behavior.
 
-Packed SR reuses CPU-owned condition/system flag layouts and shared status
-construction. Its captures retain T/S, interrupt mask, then X/N/Z/V/C order.
+Packed SR and its restoration use the chapter's views, policies, and actions. Its captures retain T/S, interrupt mask, then X/N/Z/V/C order.
 Immediate logic captures the old status before fetching the complete word.
 CCR restoration preserves system fields and the flag object. Full SR restoration
 writes condition codes, system flags, then interrupt mask. Loads commit pending
@@ -1880,7 +1880,8 @@ RTR captures the active stack bank and reads CCR before the long target. Both
 check stack alignment before any read and validate/select the target before
 advancing the captured pointer and restoring status. A failed read or odd target
 leaves those final effects unapplied. STOP restores the fetched SR before halting.
-The narrow `reset-devices` statement invokes the existing RESET connection;
+The chapter's `reset devices` statement lowers to the existing `reset-devices`
+effect and invokes the RESET connection;
 validation restricts it to the 68000, generated types require only that callback,
 and the CPU records reset only after callback success. It does not reset CPU state.
 
@@ -2106,7 +2107,9 @@ path into those definitions. Continue checking total authored source in the
 [footprint report](coverage.md#source-footprint), including the chapters and their
 compiler. Seven CPUs now have complete chapter-authored models, including the
 8088's segmented execution, external vector offers, and generated public
-interface. The 68000 still has a partial chapter.
+interface. The 68000 owns all instructions and stored state; its chapter still
+delegates effective-address decoding, reset, execution, and external events
+to the native core.
 
 Unbounded loops and CPU-boundary exception delivery remain outside semantic
 bodies; the 6809’s full postbyte decoder already belongs to its chapter. Pending 68000 address updates now have an explicit commit

@@ -308,26 +308,27 @@ commit updates before reading the destination. Their chapter sources correct
 low then high digit and publish C/X before reading cumulative Z. This differs from
 binary extended arithmetic's earlier Z capture.
 
-The [control inventory](../../src/components/cpus/68000-control.ts) shares
-Motorola condition construction and names bodies with native mnemonics. Keep
+The [control families](../../src/components/cpus/specifications/68000.md#conditions-and-control-flow) declare
+condition sources and name bodies with native mnemonics. Keep
 condition captures before branch extensions and after Scc's destination read.
-Use `readNextAddress` and `selectTarget` for the distinct sequential cursor and
+Use `next address` and `select target(...)` for the distinct sequential cursor and
 retirement target, with explicit target-alignment checks. Calls check stack
 alignment before target alignment, select the target before writing, and
 commit the captured stack bank only after all bytes succeed. Frame instructions
-share those byte stages while retaining their own commit order and A7 aliases.
+reuse the chapter's byte-transfer actions while retaining their own commit order and A7 aliases.
 LEA selects its destination bank before source resolution. These bodies never
 replace native fetch-cursor or exception-delivery handling.
 
-The [transfer inventory](../../src/components/cpus/68000-transfers.ts) keeps
+The [transfer families](../../src/components/cpus/specifications/68000.md#peripheral-and-multiple-register-transfers) keep
 MOVEP's alternate-byte stride and MOVEM's register-mask order beside their
 patterns. Reuse byte-transfer construction while retaining their own commit
-stages. MOVEM owns one final pointer update for the whole list; do not route it
+stages. MOVEM carries its mask, register index, and address through bounded iteration.
+It owns one final pointer update for the whole list; do not route it
 through ordinary single-operand auto-updates. Keep mask fetching, empty-list
 handling, register selection, and partial-failure behavior visible in its definition.
 
-The [system inventory](../../src/components/cpus/68000-system.ts) shares packed
-status layouts with the core. Keep privilege checks before operand effects, old
+The [system families](../../src/components/cpus/specifications/68000.md#status-and-system-instructions) use the chapter's
+packed status views and write actions, also consumed by the core. Keep privilege checks before operand effects, old
 status capture before immediate fetching, and SR restoration before pending
 address updates. Returns retain their exact frame-read order and commit the
 original stack bank before restoring status. Device RESET is an explicit signal;
@@ -950,8 +951,8 @@ indexed decoder as base-page bodies. The native `motorolaOperandBindings` wrappe
 and comparison/transfer builders are removed. Loads replace their destination
 before N/Z/V; stores capture the source after addressing and apply flags only
 after every write succeeds. Word accesses are high-first with sixteen-bit wrap.
-LDS arms NMI after writeback. [Motorola semantic helpers](../../src/components/cpus/semantics/motorola.ts)
-now retain only shared condition construction for the 68000.
+LDS arms NMI after writeback. Motorola condition construction now lives in
+the chapters; its former TypeScript helper has been removed.
 
 Every 6809 unary form now comes from the chapter, retaining CLR's read,
 preserving C on TST, and preserving V on right shifts. The 6800 chapter states

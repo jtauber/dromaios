@@ -25,7 +25,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,900](../../src/components/cpus/specifications/z80.md) | 1,509 | 698 / 698 | 100% | 6 / 6 |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,566](../../src/components/cpus/specifications/6809.md) | 1,322 | 268 / 268 | 100% | 6 / 6 |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,115](../../src/components/cpus/specifications/8088.md) | 2,714 | 291 / 291 | 100% | 6 / 6 |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [618](../../src/components/cpus/68000.ts) | [5,787](../../src/components/cpus/specifications/68000.md) | 3,584 | 34,162 / 36,029 | 94.8% | 1 / 6 |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [611](../../src/components/cpus/68000.ts) | [7,366](../../src/components/cpus/specifications/68000.md) | 4,537 | 36,029 / 36,029 | 100% | 2 / 6 |
 
 **Literate instruction coverage** measures documented opcode forms authored in
 executable chapters. This percentage alone does not measure the wider CPU
@@ -79,7 +79,7 @@ choices must come from the chapter.
 
 | Milestone | What the chapter must own | 8008 | 8080 | 6502 | 6800 | 6809 | Z80 | 8088 | 68000 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Complete instruction definitions and encodings | Every documented opcode form and its behavior at the model's declared fidelity | [Complete](../../src/components/cpus/specifications/8008.md) | [Complete](../../src/components/cpus/specifications/8080.md#checks-and-examples) | [Complete](../../src/components/cpus/specifications/6502.md#checks-and-examples) | [Complete](../../src/components/cpus/specifications/6800.md#checks-and-examples) | [Complete](../../src/components/cpus/specifications/6809.md#checks-and-examples) | [Complete](../../src/components/cpus/specifications/z80.md#checks-and-limits) | [Complete](../../src/components/cpus/specifications/8088.md#checks-and-limits) | Partial |
+| Complete instruction definitions and encodings | Every documented opcode form and its behavior at the model's declared fidelity | [Complete](../../src/components/cpus/specifications/8008.md) | [Complete](../../src/components/cpus/specifications/8080.md#checks-and-examples) | [Complete](../../src/components/cpus/specifications/6502.md#checks-and-examples) | [Complete](../../src/components/cpus/specifications/6800.md#checks-and-examples) | [Complete](../../src/components/cpus/specifications/6809.md#checks-and-examples) | [Complete](../../src/components/cpus/specifications/z80.md#checks-and-limits) | [Complete](../../src/components/cpus/specifications/8088.md#checks-and-limits) | [Complete](../../src/components/cpus/specifications/68000.md#checks-and-remaining-boundaries) |
 | Stored-state schema | All stored fields, types, widths, and array lengths | [Complete](../../src/components/cpus/specifications/8008.md#stored-state) | [Complete](../../src/components/cpus/specifications/8080.md#stored-state) | [Complete](../../src/components/cpus/specifications/6502.md#stored-state) | [Complete](../../src/components/cpus/specifications/6800.md#stored-state) | [Complete](../../src/components/cpus/specifications/6809.md#stored-state) | [Complete](../../src/components/cpus/specifications/z80.md#stored-state) | [Complete](../../src/components/cpus/specifications/8088.md#stored-state) | [Complete](../../src/components/cpus/specifications/68000.md#stored-state) |
 | Derived register views and writes | Computed registers, aliases, and their write rules | [Complete](../../src/components/cpus/specifications/8008.md#register-views) | [Complete](../../src/components/cpus/specifications/8080.md#register-views-and-counter-writes) | [Complete](../../src/components/cpus/specifications/6502.md#status-as-a-byte) | [Complete](../../src/components/cpus/specifications/6800.md#condition-codes-as-a-byte) | [Complete](../../src/components/cpus/specifications/6809.md#register-views-and-writes) | [Complete](../../src/components/cpus/specifications/z80.md#pair-and-status-views) | [Complete](../../src/components/cpus/specifications/8088.md#byte-views-and-writes) | Partial |
 | Reset effects | State changes, preservation rules, and any reset-time device or memory effects | [Complete](../../src/components/cpus/specifications/8008.md#reset) | [Complete](../../src/components/cpus/specifications/8080.md#reset) | [Complete](../../src/components/cpus/specifications/6502.md#reset-and-instruction-boundaries) | [Complete](../../src/components/cpus/specifications/6800.md#reset-and-instruction-boundaries) | [Complete](../../src/components/cpus/specifications/6809.md#reset-and-external-entry) | [Complete](../../src/components/cpus/specifications/z80.md#reset-and-execution) | [Complete](../../src/components/cpus/specifications/8088.md#reset-and-execution-lifecycle) | Native |
@@ -94,11 +94,12 @@ The 8088 reaches **6 / 6**. Instructions, stored state, register views/writes,
 reset, normal execution, and INTR/NMI acceptance are chapter-owned. Its public
 class, connection/record types, snapshots, and machine integration metadata
 are generated. No handwritten 8088 implementation or separate model document
-remains. The 68000 reaches **1 / 6** for its complete chapter-owned state schema.
-A7, physical-PC and packed-status views, status writes, and register families
-have migrated too. Derived views/writes remain partial while native adapters
-still bind selected storage and the remaining builders preserve partial Dn
-writes. Reset, execution, and external events remain native.
+remains. The 68000 reaches **2 / 6**: all documented instruction bodies and
+encodings, and its complete stored-state schema, are chapter-owned. A7,
+physical-PC and packed-status views, and status/result writes have migrated too.
+Derived views/writes remain partial while the native decoder binds selected
+storage and computes effective addresses. Reset, execution, and external events
+remain native.
 
 These are milestones, not equally sized units of work, so the count is not
 converted into a percentage. They cover each CPU's existing instruction-level
@@ -219,18 +220,17 @@ verify chapter edits through generation, construction, machine parsing, memory
 bounds, and execution.
 
 The [68000 chapter](../../src/components/cpus/specifications/68000.md) owns
-**34,162 of 36,029 documented forms (94.8%)**: all 9,726 MOVE/MOVEA forms,
-6,660 ordinary logical/immediate and CLR/NOT/TST forms, 11,186 binary arithmetic
-forms, 3,940 bit/shift/rotate/TAS forms, 2,120 word product/division/bounds
-forms, 306 packed decimal forms, eight MOVEQ destinations, sixteen EXT forms,
-eight SWAP forms, and 192 EXG pairs. These cover 39,870 operation words,
-but MOVEQ immediates and quick amounts
-do not multiply forms under the existing
+**all 36,029 documented forms (100%)**. The final 1,867 comprise 1,285 control
+forms, 396 MOVEP/MOVEM forms, and 186 status/system forms. The complete chapter
+covers **54,008 operation words**, including the software emulator lines.
+MOVEQ immediates, quick amounts, branch displacements, and TRAP literals do not
+multiply forms; lines A/F add no documented forms under the existing
 [counting rules](68000/opcode-count.md).
-The full stored-state schema earns **1 / 6 model milestones**. A7 selection,
-physical-PC and packed-status views, CCR/SR actions, and byte/word/long result
-policies also come from the chapter. The remaining native definitions consume
-those sources and policies; this shared use adds no opcode credit.
+Complete instructions and the stored-state schema earn **2 / 6 model milestones**.
+A7 selection, physical-PC and packed-status views, CCR/SR actions, and result
+policies also come from the chapter. The native core still owns effective-address
+decoding, reset, execution, and exception entry; its small definition adapter
+only groups chapter families for those calling conventions.
 
 [Register tests](../../tests/components/cpus/semantics/68000-registers.test.ts)
 retain independent width, bank, alias, live-read, and failed-effect expectations.
@@ -723,14 +723,14 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Remaining handwritten CPU core (68000) | 618 |
-| CPU-specific instruction definition files | 343 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,512 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,473** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 21,916 |
+| Remaining handwritten CPU core (68000) | 611 |
+| CPU-specific instruction definition files | 22 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,370 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,003** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 23,495 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 152 |
-| Generated executable CPU output, counted separately | 566,646 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 7,909,247 |
+| Generated executable CPU output, counted separately | 604,333 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 8,517,932 |
 | Generated state schemas/types, counted separately | 207 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
@@ -744,7 +744,7 @@ migration to zero**. The final public-interface step removes its remaining
 **71 core lines**, **11 state-adapter lines**, and **9 definition-adapter lines**.
 Its generated public class is **52 lines**, its generated state module is
 **24 lines**, and shared generation supplies both. The shared byte runtime
-is now **121 lines**; the literate front end is **2,138 lines**.
+is now **121 lines**; the literate front end is **2,145 lines**.
 
 Across the earlier 8008 execution, public-interface, and machine-integration
 migration, authored CPU TypeScript grew from **9,416 to 9,671 lines**, and CPU
@@ -1226,6 +1226,39 @@ The full integration fixtures still regenerate the complete registry for edits
 to individual chapters. With the same **2,849 tests**, the full regression
 passes in **5 minutes 15 seconds** for the test phase, or **6 minutes 24 seconds**
 including the clean build. These timings are local measurements.
+
+The final 68000 instruction migration adds **1,867 documented forms**, reaching
+**36,029 / 36,029 (100%)** and **2 / 6 model milestones**. Control flow, MOVEP/MOVEM,
+and status/system instructions retain **689 shared bodies**. Chapter-defined
+encodings replace their three TypeScript catalogues. The remaining definition
+adapter shrinks from **343 to 22 lines** and only groups chapter families.
+MOVEQ also binds its opcode entries directly from the chapter. The unused
+operand catalogue and Motorola condition helper are removed too.
+
+The chapter is **7,366 lines**, including **4,537 formal lines**. Authored CPU
+TypeScript falls from **6,473 to 6,003 lines**, a net reduction of **470**,
+including the new cursor/target/reset syntax. The native core is **611 lines**.
+Total maintained CPU source is **29,650 lines**, up from **28,541**, because
+chapter prose and formal definitions add more lines than the removed TypeScript.
+Generated output remains separate in the table above.
+
+MOVEM uses a bounded sixteen-step traversal of mask, register index, and address,
+with explicit per-register bank selection and a final captured-base commit.
+Control families retain condition captures, separate cursor/target effects,
+stack-before-target validation, and delayed pointer/counter commits. Status
+families retain privilege checks, SR-before-update ordering, return-frame reads,
+and the device reset signal. The native execution and exception boundary remains.
+
+Independent probes retain every encoding and failed effect, while chapter edits
+change conditions, cursor placement, byte spacing, mask order/count, sign
+extension, privilege and commit order, return frames, and RESET encoding/signal.
+A separate encoding edit changes the generated MOVEQ table.
+The saved-build comparison matches **131,072 instruction cases**, **256
+reset/interrupt cases**, and **10,980 injected failures**. Editor checks parse
+all **889 CPU fences** and check keyword-like capture names alongside the new
+boundary syntax. The complete clean-build regression passes **2,862 tests**;
+the Zed extension also builds successfully, and all **1,857 local documentation
+links** resolve.
 
 Generated chapter data shares identical instruction definitions across opcode
 aliases; distinct definitions still repeat their validated CPU schema. This is a
