@@ -8,13 +8,13 @@ import { generateChapterInterface } from "../src/components/cpus/semantics/liter
 
 /** Rebuild executable semantics from definitions and CPU-owned state schemas. */
 async function generateCpuSemantics(directory: string): Promise<void> {
-  const chapters = generateCpuChapters();
+  const models = generateCpuChapters();
   const { instructionModules } = await import("../src/components/cpus/semantics/definitions.ts");
   const modules = instructionModules.map(({ name, cpu, definitions, options }) =>
     [name, generateInstructions(cpu, definitions, options)] as const);
-  for (const { name, cpu, chapter } of chapters) {
-    if (chapter.execution) modules.push([`${name}-execution`, generateChapterExecution(cpu, name, chapter.execution)]);
-    if (chapter.interface) modules.push([`${name}-cpu`, generateChapterInterface(name, chapter.state!, chapter.interface, chapter.execution!)]);
+  for (const { name, cpu, state, execution, interface: api } of models) {
+    if (execution) modules.push([`${name}-execution`, generateChapterExecution(cpu, name, execution)]);
+    if (api) modules.push([`${name}-cpu`, generateChapterInterface(name, state!, api, execution!)]);
   }
   const names = new Set<string>();
   for (const [name] of modules) {

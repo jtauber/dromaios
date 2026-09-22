@@ -113,7 +113,11 @@ export function generateCpuChapters() {
   }
   writeFileSync(new URL("catalogue.ts", output), catalogue);
   writeFileSync(new URL("interfaces.ts", output), interfaces);
-  return chapters;
+  // The next stage needs model bindings only; release instruction graphs and rendered text
+  // before it imports the generated registry's own representation of those instructions.
+  return chapters.map(({ name, cpu, chapter }) => ({
+    name, cpu, state: chapter.state, execution: chapter.execution, interface: chapter.interface,
+  }));
 }
 
 if (import.meta.main) generateCpuChapters();

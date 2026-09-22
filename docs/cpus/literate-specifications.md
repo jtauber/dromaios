@@ -118,6 +118,9 @@ so runtime consumers need not load the expanded instruction data. Chapter
 generation takes no pre-existing schema for these CPUs and writes their state
 modules before the instruction registry is loaded. All chapters and schemas
 are checked before replacing existing output.
+Only model bindings pass to the executable-generation stage, allowing compiled
+instruction graphs and rendered chapter text to be reclaimed before that stage
+loads the generated registry.
 An `execution` contract also generates `generated/<chapter>-execution.ts`,
 binding named views/actions and the instruction table to the shared byte runtime.
 Chapters with owned state and execution generate instruction catalogue entries

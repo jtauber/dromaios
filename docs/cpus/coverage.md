@@ -728,7 +728,7 @@ judging source reduction; all counts include comments and blank lines.
 | Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,512 |
 | **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,473** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 21,916 |
-| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
+| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 152 |
 | Generated executable CPU output, counted separately | 566,646 |
 | Generated chapter data, catalogues, and entry-point metadata, counted separately | 7,909,247 |
 | Generated state schemas/types, counted separately | 207 |
@@ -1208,12 +1208,24 @@ executable output. Single-CPU semantic tests now import their own definitions;
 the representative 8008 transfer test fell from **3.23 seconds to 73 ms**.
 Complete-registry reproducibility and expanded-listing tests retain their full
 imports. These are local measurements, not a runtime-emulation speed claim.
+That migration's full regression passed **2,849 tests** in **24 minutes 20
+seconds** for the test phase, or **27 minutes 34 seconds** including the clean
+build; integration generation remained the main cost.
+
+The subsequent generator cleanup passes only model bindings between generation
+stages. It releases compiled instruction graphs and rendered chapter text before
+loading the generated registry's own instruction representation. A local clean
+build fell from **198.5 to 62.9 seconds**. A diagnostic retaining the stage's
+return value and collecting garbage measured **836.3 MiB before versus 9.6 MiB
+after** in added live heap. This measures retained data, not peak memory during
+chapter compilation; production does not force garbage collection.
+All **133 checked files**, covering generated CPU and machine sources and the
+expanded instruction listing, remain byte-identical. CPU generation scripts
+grow from **148 to 152 lines**; total maintained CPU source is **28,541 lines**.
 The full integration fixtures still regenerate the complete registry for edits
-to individual chapters. Generation also retains compiled chapters and rendered
-module text while loading that registry. Reducing those duplicated inputs is
-the next performance investigation. The full regression passes **2,849 tests**
-in **24 minutes 20 seconds** for the test phase, or **27 minutes 34 seconds**
-including the clean build; integration generation remains the main cost.
+to individual chapters. With the same **2,849 tests**, the full regression
+passes in **5 minutes 15 seconds** for the test phase, or **6 minutes 24 seconds**
+including the clean build. These timings are local measurements.
 
 Generated chapter data shares identical instruction definitions across opcode
 aliases; distinct definitions still repeat their validated CPU schema. This is a
