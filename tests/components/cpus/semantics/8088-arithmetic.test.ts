@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/8088.js";
-import { instructions as arithmetic } from "../../../../src/components/cpus/generated/8088-arithmetic.js";
-import { arithmetic8088, instructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { compileResolved, arithmetic8088 } from "../../../helpers/8088-resolved.js";
+import { instructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
 import type { Cpu8088State } from "../../../../src/components/cpus/state/8088.js";
 import { address, byteMoves, flags, initialState, words } from "../8088/helpers.js";
 
+const arithmetic = await compileResolved(arithmetic8088);
+
 type Context = { fetchByte(): number; readByte(address: number): number; writeByte(address: number, value: number): void };
-type Outcome = "opcode" | "divide-error" | void;
+type Outcome = "opcode" | "unsupported" | "divide-error" | void;
 type Body = (state: Cpu8088State, context: Context) => Outcome;
 type MemoryBody = (state: Cpu8088State, segment: number, offset: number, context: Context) => Outcome;
 interface Case { key: string; execute: Body; reference: Body }
@@ -97,7 +99,7 @@ const decimals: Case[] = Object.entries(decimalOpcodes).map(([key, name]) => ({ 
   }
 } }));
 
-test("8088 arithmetic definitions have exactly 324 operand specializations and six decimal opcodes", () => {
+test("8088 chapter probes cover 324 resolved arithmetic operands and six decimal opcodes", () => {
   assert.equal(cases.length, 324);
   assert.deepEqual(Object.keys(arithmetic).sort(), cases.map(c => c.key).sort());
   assert.deepEqual(Object.keys(arithmetic8088).sort(), Object.keys(arithmetic).sort());

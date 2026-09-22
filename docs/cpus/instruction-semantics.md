@@ -761,11 +761,12 @@ Generated context types give CMP/TEST no write capability.
 
 ### Unary operations, relative branches, and status
 
-INC/DEC/NOT/NEG cover eight register/memory forms with 72 specialized bodies.
-They reuse the same register and memory operands as transfers and ALU.
+INC/DEC/NOT/NEG cover eight register/memory forms through chapter actions.
+Seventy-two resolved test probes exercise those actions across all operands.
+They reuse the chapter’s register and memory sources and writes.
 INC/DEC capture CF after the complete operand, update CF/AF/OF/ZF/SF/PF,
-restore CF, and then write. The original word-register INC/DEC now share that
-construction without changing their expanded definitions. NEG subtracts the
+restore CF, and then write. Word-register INC/DEC use the same chapter flag
+policies. NEG subtracts the
 operand from zero; NOT complements it without flag access. Memory writes
 retain low-first order and offset wrapping, and byte views retain their live
 other half. A failed write leaves completed flag updates intact.
@@ -781,7 +782,7 @@ No runtime condition callback or new semantic primitive is introduced.
 LOOP variants fetch, read/decrement/write CX, then reread it; a zero count
 skips ZF. JCXZ reads CX once and never changes it.
 
-CBW and CWD express sign extension with existing byte/word expressions.
+CBW and CWD now express sign extension in the chapter with byte/word expressions.
 SAHF/LAHF share the CPU-owned low FLAGS layout with runtime FLAGS packing.
 `updateStatus` reuses the status decoder but updates individual flags:
 SAHF changes CF/PF/AF/ZF/SF without replacing the flag object or disturbing
@@ -792,9 +793,9 @@ latch. Trap sampling and retirement remain in the CPU boundary.
 These bodies add 40 complete forms: eight unary, 22 relative control-flow,
 and ten sign-extension/status/halt forms. The unary-operation and condition
 tables, generic operand-group wrapper, adjustment/addition helpers, and
-handwritten jump/loop paths are removed. FE/FF still reject invalid selectors
-before resolving an operand, and the remaining FF control/stack paths retain
-their schedules.
+handwritten jump/loop paths are removed. Chapter FE/FF matches reject invalid
+selectors before resolving an operand; the same FF family now owns indirect
+CALL/JMP/PUSH and their existing schedules.
 
 [Definition probes](../../tests/components/cpus/semantics/8088-ordinary.test.ts)
 check the exact added inventory, all flag patterns, short-circuit reads,
@@ -820,8 +821,10 @@ Register, segment, FLAGS, and memory pushes capture their full source first.
 PUSH SP subtracts two from its captured source before the stack's separate SP
 update. POP SP overwrites the incremented pointer. ModR/M POP captures its
 memory destination before popping and writes low/high without reading it.
-The decoder still rejects invalid selectors and resolves addresses before body
-entry. Register PUSH/POP reuse the short-encoding bodies.
+Chapter FF matches reject invalid selectors and resolve addresses before data
+effects. The native POP decoder still selects the short register form or the
+remaining resolved memory body. Chapter indirect pushes and calls share the
+chapter’s `pushWord` action; direct stack forms still use the TypeScript builder.
 
 Near indirect calls capture the target before stacking return IP. Relative
 CALL captures and pushes return IP, then reads live IP for the relative target.
@@ -846,10 +849,10 @@ inhibition latches. A failed body retains earlier architectural effects but
 never retires the request. This keeps boundary policy in the CPU while making
 the request visible to both execution generation and explanation.
 
-These definitions cover 38 complete forms with 54 instruction bodies. The
-complete generated entry now shares their word-push construction directly;
-the earlier standalone word-push helper is retired. IRET composes those same
-return and FLAGS statements in its own definition, as described below.
+These definitions cover 38 complete forms. Five indirect CALL/JMP/PUSH forms
+now belong to the chapter; their 21 specialized production bodies are removed.
+Resolved test probes retain independent effect schedules. Interrupt entry and
+IRET still use the TypeScript stack and FLAGS construction, as described below.
 
 [Definition probes](../../tests/components/cpus/semantics/8088-stack.test.ts)
 independently specify every body's state, memory, and deferral order, fail each
@@ -912,11 +915,12 @@ numeric inputs and memory/deferral capabilities.
 ## 8088 remaining ordinary arithmetic
 
 All 28 shift/rotate forms, eight multiply/divide forms, and six decimal/ASCII
-adjustments now use generated bodies. Register and resolved-memory forms share
-operand construction with earlier arithmetic; no runtime operand closure is
-needed for these instructions.
+adjustments now come from the executable chapter. ModR/M byte matches resolve
+operands and select reusable actions; the 324 specialized production arithmetic
+bodies are removed. Test probes extract chapter case bodies after pointer
+resolution so the existing independent effect oracles remain in use.
 
-The shift family reuses the shared one-bit recipe inside `iterate`. Its byte
+The shift family spells out each bit movement in a chapter match inside `iterate`. Its byte
 count is captured from CL before reading the operand and is never masked to
 five bits. Each iteration has an immutable current value, applies one shift,
 and writes CF; RCL/RCR reread CF at the next iteration. Zero iterations still
@@ -929,7 +933,7 @@ interpretation, yielding the full double-width unsigned bit pattern. Word
 products and DX:AX use 32-bit intermediates. These remain exact JavaScript
 numbers; bitwise operations explicitly restore unsigned results. `divide`
 checks zero and quotient overflow before publishing its quotient and remainder.
-The 8088 definition adds a separate rejection of the most negative signed
+The 8088 chapter adds a separate rejection of the most negative signed
 quotient. Named outcomes return to the CPU, which retains vector delivery,
 stacking, recognition, and retirement. Generated bodies never invoke a hidden
 interrupt callback.
@@ -944,7 +948,11 @@ check every body against independent schedules, every failed effect, all decimal
 byte/flag inputs, and callbacks that change live registers or carry.
 [Language probes](../../tests/components/cpus/semantics/wide-arithmetic.test.ts)
 check lexical scopes, unsigned 32-bit results, BigInt product/division oracles,
-bounded iteration, and early outcomes. [CPU boundary tests](../../tests/components/cpus/8088/arithmetic-failures.test.ts)
+bounded iteration, and early outcomes. [Chapter language probes](../../tests/components/cpus/semantics/literate-iteration.test.ts)
+check the new syntax, signedness, effect permissions, scopes, and diagnostics.
+[Public integration tests](../../tests/scripts/8088-chapter-integration.test.ts)
+change loop counts, the signed quotient limit, and stack decrements in a copied
+chapter and verify that public execution follows them. [CPU boundary tests](../../tests/components/cpus/8088/arithmetic-failures.test.ts)
 exercise every arithmetic group with wrapping, overlapping code/data, prefixes,
 zero-count writes, and failures during divide-error entry. Existing exhaustive
 CPU arithmetic tests retain their independent instruction expectations.
@@ -1566,9 +1574,11 @@ optimization pass into this review.
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,68000,8008,8080,8088,6809,z80}.ts`,
 `6502-state.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-word-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, `68000-bits.ts`, `68000-word-arithmetic.ts`,
-`68000-decimal.ts`, `68000-control.ts`, `68000-transfers.ts`, `68000-system.ts`, and the separate 8088 transfer, ALU, unary,
-stack, addressing, string, arithmetic, and control modules. The separate 8088
-operand modules contain specialized resolved bodies; its numeric opcode module retains automatic bindings.
+`68000-decimal.ts`, `68000-control.ts`, `68000-transfers.ts`, `68000-system.ts`, and the separate 8088
+operand, stack, addressing, string, and control modules. The 8088 operand module
+contains chapter groups with captured prefix inputs; remaining native modules
+retain their resolved bodies. Its numeric opcode module has automatic bindings.
+The former transfer, ALU, unary, and arithmetic modules are removed.
 The 68000 word-transfer chapter owns 64 register-copy definitions in `68000.ts`
 and 128 numeric load/store definitions in `68000-word-moves.ts`. The core selects
 these encodings before the broader MOVE catalogue; other memory forms retain

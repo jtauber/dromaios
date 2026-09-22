@@ -4,11 +4,13 @@ import { noPorts } from "../../../helpers/no-ports.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions, opcodeEntries } from "../../../../src/components/cpus/generated/8088.js";
-import { instructions as unary } from "../../../../src/components/cpus/generated/8088-unary.js";
-import { instructions8088, unary8088 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { compileResolved, unary8088 } from "../../../helpers/8088-resolved.js";
+import { instructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import type { Cpu8088State } from "../../../../src/components/cpus/state/8088.js";
 import { address, aluResult, byteMoves, flags, initialState, registerValue, replaceRegister, unaryForms, words } from "../8088/helpers.js";
+
+const unary = await compileResolved(unary8088);
 
 type Context = BytePorts & typeof no8088Control & { deferInterrupt(scope: "intr" | "all"): void; fetchByte(): number; readByte(address: number): number; writeByte(address: number, byte: number): void };
 type Body = (state: Cpu8088State, context: Context) => void;
@@ -30,7 +32,7 @@ const unaryCases = unaryForms.flatMap(([operation]) => ([8, 16] as const).flatMa
     operation, width, selector, key: [operation, width, selector].join("_"),
   }))));
 
-test("8088 ordinary inventory adds exactly 32 opcode bodies and 72 specializations for eight unary forms", () => {
+test("8088 ordinary inventory retains 32 opcode bodies and 72 chapter probes for eight unary forms", () => {
   assert.equal(Object.keys(names).length, 32);
   assert.deepEqual(Object.fromEntries(Object.entries(instructions8088).filter(([opcode]) => Number(opcode) in names).map(([opcode, d]) => [opcode, d.name])), names);
   const forbidden = new Proxy(initialState(), { get() { assert.fail("Binding must not read state"); } });
@@ -179,11 +181,12 @@ test("8088 byte/status and unary writebacks retain live halves and carry capture
   const state = initialState({ ax: 0x1234, flags: flags(0) });
   instructions[0x9f](observed(state, name => { if (name === "read flag sf") state.ax = 0xabee; }));
   assert.equal(state.ax, 0x02ee);
-  unary.INC_8_4(observed(state, name => { if (name === "write flag pf") state.ax = 0xa555; }));
+  (unary.INC_8_4 as Body)(observed(state, name => { if (name === "write flag pf") state.ax = 0xa555; }), { ...noPorts, ...no8088Control, fetchByte() { assert.fail(); }, readByte() { assert.fail(); }, writeByte() { assert.fail(); }, deferInterrupt() { assert.fail(); } });
   assert.equal(state.ax, 0x0355);
 
   const oldFlags = state.flags, accesses: number[] = [], writes: number[] = [];
-  unary.DEC_16_memory(state, 0xffff, 0xffff, {
+  (unary.DEC_16_memory as MemoryBody)(state, 0xffff, 0xffff, {
+    ...noPorts, ...no8088Control, fetchByte() { assert.fail(); }, deferInterrupt() { assert.fail(); },
     readByte(a) { accesses.push(a); state.flags = flags(511); state.ds = 0; return a === 0xffef ? 0 : 0x80; },
     writeByte(a, byte) { accesses.push(a); writes.push(byte); state.flags.cf = false; },
   });

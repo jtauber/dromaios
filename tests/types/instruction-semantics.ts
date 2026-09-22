@@ -19,9 +19,7 @@ import type { Cpu68000State } from "../../src/components/cpus/68000.js";
 import { instructions as control8088 } from "../../src/components/cpus/generated/8088-control.js";
 import { instructions as addressing8088 } from "../../src/components/cpus/generated/8088-addressing.js";
 import { instructions as strings8088 } from "../../src/components/cpus/generated/8088-strings.js";
-import { instructions as arithmetic8088 } from "../../src/components/cpus/generated/8088-arithmetic.js";
 import { instructions as stack8088 } from "../../src/components/cpus/generated/8088-stack.js";
-import { instructions as unary8088 } from "../../src/components/cpus/generated/8088-unary.js";
 import { instructions as operand8088, sourceReaders as operandSources8088 } from "../../src/components/cpus/generated/8088-operands.js";
 import { instructions as actions8088 } from "../../src/components/cpus/generated/8088-state.js";
 import { instructions as generated8088, opcodeEntries as opcodeEntries8088 } from "../../src/components/cpus/generated/8088.js";
@@ -743,8 +741,8 @@ export function check8088OrdinaryTypes(state: Cpu8088State, intel: Cpu8080State)
   generated8088[0x9e](state);
   generated8088[0x9f](state);
   generated8088[0xf4](state);
-  unary8088.INC_8_4(state);
-  unary8088.NEG_16_memory(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  actions8088.incRM8(state, 0xc4, 0, { readByte: () => 0, writeByte: () => {} });
+  actions8088.negRM16(state, 0, 0xffffffff, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Branches cannot access data memory.
   generated8088[0x76](state, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error Relative word branches require explicit byte fetching.
@@ -753,16 +751,16 @@ export function check8088OrdinaryTypes(state: Cpu8088State, intel: Cpu8080State)
   generated8088[0xf4](state, { retire: () => {} });
   // @ts-expect-error SAHF needs no memory capability.
   generated8088[0x9e](state, { readByte: () => 0 });
-  // @ts-expect-error Register unary operations need no context.
-  unary8088.INC_8_4(state, {});
+  // @ts-expect-error A dynamic r/m action requires its memory capabilities.
+  actions8088.incRM8(state, 0xc4, 0, {});
   // @ts-expect-error Even NOT requires a complete memory read before writing.
-  unary8088.NOT_16_memory(state, 0xffff, 0xffff, { writeByte: () => {} });
+  actions8088.notRM16(state, 0, 0xffffffff, { writeByte: () => {} });
   // @ts-expect-error Unary memory operations need both read and write.
-  unary8088.DEC_16_memory(state, 0xffff, 0xffff, { readByte: () => 0 });
+  actions8088.decRM16(state, 0, 0xffffffff, { readByte: () => 0 });
   // @ts-expect-error The decoder has finished fetching before a unary body begins.
-  unary8088.NEG_8_memory(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {}, fetchByte: () => 0 });
+  actions8088.negRM8(state, 0, 0xffffffff, { readByte: () => 0, writeByte: () => {}, fetchByte: () => 0 });
   // @ts-expect-error Bodies retain their concrete CPU state.
-  unary8088.NEG_8_0(intel);
+  actions8088.negRM8(intel, 0xc0, 0, { readByte: () => 0, writeByte: () => {} });
 }
 
 
@@ -773,9 +771,8 @@ export function check8088StackTypes(state: Cpu8088State, intel: Cpu8080State): v
   generated8088[0x9d](state, { readByte: () => 0, deferInterrupt: () => {} });
   generated8088[0x9a](state, { fetchByte: () => 0, writeByte: () => {} });
   generated8088[0xc2](state, { fetchByte: () => 0, readByte: () => 0 });
-  stack8088.JMP_0(state);
-  stack8088.CALL_4(state, { writeByte: () => {} });
-  stack8088.CALL_far_memory(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  actions8088.pushWord(state, 0x1234, { writeByte: () => {} });
+  operand8088[0xff](state, 0, 0, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
   stack8088.POP_memory(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {} });
   deferInterrupt("all");
   // @ts-expect-error Deferral is a specific boundary request, not an arbitrary callback.
@@ -794,10 +791,10 @@ export function check8088StackTypes(state: Cpu8088State, intel: Cpu8080State): v
   generated8088[0xe8](state, { fetchWord: () => 0, writeByte: () => {} });
   // @ts-expect-error RETF without a discard operand has no fetch capability.
   generated8088[0xcb](state, { fetchByte: () => 0, readByte: () => 0 });
-  // @ts-expect-error A resolved pointer jump has no stack-writing capability.
-  stack8088.JMP_far_memory(state, 0, 0, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error The chapter stack action cannot read memory.
+  actions8088.pushWord(state, 0, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Generated stack bodies retain the concrete CPU state.
-  stack8088.PUSH_memory(intel, 0, 0, { readByte: () => 0, writeByte: () => {} });
+  actions8088.pushWord(intel, 0, { writeByte: () => {} });
 }
 
 
@@ -842,10 +839,10 @@ export function check8088AddressingAndStringTypes(state: Cpu8088State, intel: Cp
 }
 
 export function check8088ArithmeticTypes(state: Cpu8088State, intel: Cpu8080State): void {
-  arithmetic8088.shift_0_cl_8_1(state);
-  arithmetic8088.shift_7_one_16_memory(state, 0, 0, { readByte: () => 0, writeByte: () => {} });
-  arithmetic8088.IMUL_16_memory(state, 0, 0, { readByte: () => 0 });
-  const outcome: "divide-error" | void = arithmetic8088.IDIV_16_2(state);
+  actions8088.shiftRM8(state, 0xc1, 0, 255, 0, { readByte: () => 0, writeByte: () => {} });
+  operand8088[0xd1](state, 0, 0, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
+  const outcome: "unsupported" | "divide-error" | void = operand8088[0xf7](state, 0, 0,
+    { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
   const radix: "opcode" | "divide-error" | void = generated8088[0xd4](state, { fetchByte: () => 10 });
   void outcome; void radix;
   iterate("current", literal(8, 3), literal(16, 0), [], value("current"));
@@ -860,20 +857,20 @@ export function check8088ArithmeticTypes(state: Cpu8088State, intel: Cpu8080Stat
   multiply(value("left"), value("right"), "signed");
   // @ts-expect-error Outcome names are data, not exception callbacks.
   reject(() => {});
-  // @ts-expect-error /6 remains undocumented.
-  arithmetic8088.shift_6_one_8_0(state);
+  // @ts-expect-error The undocumented D6 primary opcode has no chapter body.
+  operand8088[0xd6](state, 0, 0, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Shifts need their write capability even with a zero count.
-  arithmetic8088.shift_4_cl_16_memory(state, 0, 0, { readByte: () => 0 });
-  // @ts-expect-error Multiply cannot write its memory operand.
-  arithmetic8088.MUL_8_memory(state, 0, 0, { readByte: () => 0, writeByte: () => {} });
+  actions8088.shiftRM16(state, 0, 0, 0, 4, { readByte: () => 0 });
+  // @ts-expect-error Decoding the group requires fetching ModR/M and displacement bytes.
+  operand8088[0xf6](state, 0, 0, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Division returns an outcome; it never delivers an interrupt itself.
-  arithmetic8088.DIV_16_memory(state, 0, 0, { readByte: () => 0, interrupt: () => {} });
-  // @ts-expect-error Register arithmetic has no fetch or memory capability.
-  arithmetic8088.IMUL_8_0(state, { fetchByte: () => 0 });
+  operand8088[0xf7](state, 0, 0, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {}, interrupt: () => {} });
+  // @ts-expect-error The resolved shift action cannot fetch an instruction.
+  actions8088.shiftRM8(state, 0xc0, 0, 1, 2, { readByte: () => 0, writeByte: () => {}, fetchByte: () => 0 });
   // @ts-expect-error The divide-error outcome cannot be silently narrowed to success.
-  const success: undefined = arithmetic8088.DIV_8_0(state);
+  const success: undefined = operand8088[0xf6](state, 0, 0, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Bodies retain concrete CPU state.
-  arithmetic8088.MUL_16_0(intel);
+  operand8088[0xf7](intel, 0, 0, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
 }
 
 export function checkPortTypes(small: Cpu8008StoredState, intel: Cpu8080State, z80: CpuZ80State, x86: Cpu8088State): void {

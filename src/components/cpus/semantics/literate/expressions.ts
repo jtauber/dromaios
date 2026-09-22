@@ -39,8 +39,11 @@ export function expression(tokens: ChapterTokens): NumberExpression {
     const left = expression(tokens); tokens.expect(","); const right = expression(tokens);
     const incoming = tokens.take(",") ? flagExpression(tokens) : undefined;
     result = (name === "add" ? addWrap : subtract)(left, right, incoming);
+  } else if (name === "multiply") {
+    const left = expression(tokens); tokens.expect(","); const right = expression(tokens);
+    result = multiply(left, right, tokens.take(",") ? signedness(tokens) : false);
   } else {
-    const operations = { and: bitAnd, or: bitOr, xor: bitXor, concat, multiply };
+    const operations = { and: bitAnd, or: bitOr, xor: bitXor, concat };
     if (!Object.hasOwn(operations, name)) tokens.fail(`Unknown numeric operation ${name}.`);
     const left = expression(tokens); tokens.expect(",");
     result = operations[name as keyof typeof operations](left, expression(tokens));
@@ -93,4 +96,11 @@ export function parameters(tokens: ChapterTokens): Record<string, Width> {
     inputs[name] = width(tokens);
   } while (tokens.take(","));
   tokens.expect(")"); return inputs;
+}
+
+/** Signedness belongs to the operation; captured numbers retain their bit widths. */
+export function signedness(tokens: ChapterTokens): boolean {
+  const mode = tokens.word();
+  if (mode !== "signed" && mode !== "unsigned") tokens.fail("Expected signed or unsigned.");
+  return mode === "signed";
 }

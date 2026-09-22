@@ -219,3 +219,12 @@ family segmented (segment: 16) "10001000" {
   byte = source projected(segment, u16($FFFF))
   A <- byte
 }
+
+family bounded "11111110" {
+  result = iterate(u8(2), u8(1)) {
+    return add(result, u8(1))
+  }
+  quotient, remainder = divide(u16(12), result, signed) otherwise "division"
+  reject "division" if zero(quotient)
+  W <- multiply(quotient, remainder, unsigned)
+}

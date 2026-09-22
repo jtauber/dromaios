@@ -41,9 +41,11 @@ Executable chapters are maintained CPU sources:
   nested snapshot views are generated; no handwritten implementation remains.
 - [Intel 8088: state, segmented operands, transfers, and arithmetic](../../src/components/cpus/specifications/8088.md)
   owns stored state, writable byte aliases, physical PC and packed FLAGS views,
-  immediate MOV, accumulator ALU/TEST, word INC/DEC, and LAHF/SAHF. Remaining
-  native bodies share its register selectors, byte writes, and arithmetic/status
-  policies. Decoding, reset, execution, and the public class remain native.
+  ordinary ALU/TEST and unary arithmetic, shifts/rotates, multiply/divide,
+  decimal adjustment, sign extension, MOV/XCHG operand families, and indirect
+  CALL/JMP/PUSH. Remaining native bodies share its register selectors,
+  arithmetic/status policies, and segmented addressing. Prefix scanning,
+  remaining instruction families, reset, execution, and the public class remain native.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -188,8 +190,54 @@ Quoted descriptions use JSON string escaping.
 | `address = resolve(16, mode, code)` | Ask the existing address decoder to resolve an operand of the stated width; mode and code are captured three-bit values. |
 | `fault alignment read(address) if lowBit(address)` | Return an alignment fault when the captured predicate is true, before subsequent effects. `write` identifies a failed destination access. |
 | `commit addresses` | Commit register updates staged by the existing address decoder. |
+| `result = iterate(count, initial) { … return next }` | Execute 0–255 ordered iterations, retaining the initial width; the final `return` occupies its own line. |
+| `quotient, remainder = divide(dividend, divisor, signed) otherwise "divide-error"` | Divide a double-width dividend by a byte/word; choose `signed` or `unsigned`; return the named outcome on zero or quotient overflow. |
+| `reject "divide-error" if condition` | Return a named instruction outcome when the flag expression is true; omit `if` for unconditional rejection. |
 | `when not(carry) { … }` | Execute a nested block only when its captured flag expression is true. |
 | `when test c { … }` | Read the flag selected by a condition catalogue at this point, compare it with the required value, and conditionally execute the block. |
+
+### Bounded iteration and arithmetic outcomes
+
+Iteration names both its current value inside the block and its final value
+outside it. The byte count and numeric initial value are captured once, before
+any body effects. Each iteration has a fresh scope; local captures cannot escape
+or shadow outer captures. Its final `return` must retain the initial width.
+Zero iterations yield the initial value and perform no body effects.
+
+```text
+shifted = iterate(count, original) {
+  incoming = flag CF
+  result = shiftLeft(shifted, incoming)
+  apply CARRY(negative(shifted))
+  return result
+}
+```
+
+This describes the 8088's unmasked CL count and per-bit carry updates without
+an unbounded loop or host callback. Sources and actions may iterate within their
+existing effect permissions; views still cannot write state, and memory effects
+still require an explicit capability. Validation and capability inference inspect
+nested iterations as well as their surrounding statements.
+
+Division takes a 16-bit dividend and 8-bit divisor, or a 32-bit dividend and
+16-bit divisor. It captures quotient and remainder at the divisor's width only
+on success. Signed division truncates toward zero and gives the remainder the
+dividend's sign. The language allows the full signed quotient range; the 8088
+chapter explicitly rejects its chip-specific most negative quotient afterward.
+
+```text
+quotient, remainder = divide(dividend, divisor, signed) otherwise "divide-error"
+reject "divide-error" if zero(xor(quotient, u8($80)))
+```
+
+Named outcomes return from the complete instruction, including inside `when`
+or `iterate`, preserving earlier effects and skipping later ones. Sources and
+composed actions cannot use division or named rejection; their existing
+`otherwise unsupported` byte matches remain their only rejection path.
+The shared byte execution contracts do not yet support these arithmetic outcomes;
+a native adapter must handle them. The 8088 boundary continues to deliver type 0.
+[Language tests](../../tests/components/cpus/semantics/literate-iteration.test.ts)
+check arithmetic, zero/full counts, effects, lexical scopes, and those boundaries.
 
 ### State ownership
 
@@ -584,7 +632,7 @@ Numeric expressions are capture names, explicitly sized literals such as
 | Operation | Meaning |
 | --- | --- |
 | `add(left, right[, carry])`, `subtract(left, right[, borrow])` | Wrap at the operands' equal width; the optional third argument is a flag expression. |
-| `multiply(left, right)` | Unsigned multiplication of equal byte or word operands; returns the complete double-width product (16 or 32 bits). |
+| `multiply(left, right, signed)` | Full double-width product of equal byte/word operands, interpreted as two’s-complement values. Omit the third argument or use `unsigned` for unsigned multiplication. |
 | `and(left, right)`, `or(left, right)`, `xor(left, right)` | Bitwise operations on equal-width values. |
 | `shiftBits(value, left, count)`, `shiftBits(value, right, count)` | Logical shift with zero insertion and unchanged width; count is a constant from zero through that width. Shifting by the full width yields zero. |
 | `shiftLeft(value, bit)`, `shiftRight(value, bit)` | Shift one place, inserting the flag expression at the vacated end. |
@@ -1029,7 +1077,7 @@ Shared runtime services enforce the declared execution contract. Chapters
 without owned state validate declarations against an external schema; most
 other instruction families remain authored in TypeScript.
 
-The seven chapters now exercise contrasting widths, ordered effects, and
+The eight chapters now exercise contrasting widths, ordered effects, and
 interrupt-recognition policies. The 6502 now owns its complete state, status
 view/restoration, and all 151 documented instruction forms. Existing selector/source
 bindings express its irregular index-load/store encodings and cross-indexing.

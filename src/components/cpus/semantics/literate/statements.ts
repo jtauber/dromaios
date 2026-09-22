@@ -1,11 +1,11 @@
-import { alignmentFault, capture, commitAddressUpdates, deferInterrupt, notifyReti, exchangeFlags, fetchByte, fillArray, flagValue, highByte, lowByte, replaceFlags, not, perform, readElement,
+import { divide, iterate, reject, alignmentFault, capture, commitAddressUpdates, deferInterrupt, notifyReti, exchangeFlags, fetchByte, fillArray, flagValue, highByte, lowByte, replaceFlags, not, perform, readElement,
   readFlag, readLatch, readMemory, readPort, readRegister, readSource, resolveAddress, updateFlags,
   testChoice, value, when, writeChoice, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
 import type { Choice, CpuDeclaration, Expression, Flag, FlagGroup, FlagExpression, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
 import { validateInstruction } from "../validate.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
-import { address, expression, flagExpression } from "./expressions.ts";
+import { address, expression, flagExpression, signedness } from "./expressions.ts";
 import { chapterMatch } from "./matches.ts";
 
 export type ChapterOperand = { readonly name: string; readonly kind: "unsupported" } | { readonly name: string; readonly read: ValueSource } & (
@@ -47,7 +47,7 @@ export function checkStateEffects(steps: readonly Statement[], effects: "view" |
   for (const step of steps) {
     switch (step.kind) {
       case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": case "test-choice": break;
-      case "when": checkStateEffects(step.steps, effects, allowMatches); break;
+      case "when": case "iterate": checkStateEffects(step.steps, effects, allowMatches); break;
       case "match": case "dispatch":
         if (effects === "view") throw new Error("Views may only read stored state; byte matches can reject.");
         if (!allowMatches) throw new Error("Execution actions cannot reject through byte matches.");
@@ -112,6 +112,9 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
           if (index) tokens.expect(","); args[name] = expression(tokens);
         }
         tokens.expect(")"); result.push(perform(action, args));
+      } else if (tokens.take("reject")) {
+        const failure = reject(tokens.quoted());
+        result.push(tokens.take("if") ? when(flagExpression(tokens), [failure]) : failure);
       } else if (tokens.take("fault")) {
         tokens.expect("alignment"); const operation = tokens.word();
         if (operation !== "read" && operation !== "write") return tokens.fail("Expected a data read or write alignment fault.");
@@ -152,7 +155,12 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         }
       } else {
         const name = tokens.reference();
-        if (tokens.take("[")) {
+        if (tokens.take(",")) {
+          const remainder = tokens.word(); tokens.expect("="); tokens.expect("divide"); tokens.expect("(");
+          const dividend = expression(tokens); tokens.expect(","); const divisor = expression(tokens); tokens.expect(",");
+          const signed = signedness(tokens); tokens.expect(")"); tokens.expect("otherwise");
+          result.push(divide({ quotient: name, remainder, dividend, divisor, signed, onError: tokens.quoted() }));
+        } else if (tokens.take("[")) {
           const array = arrays.get(name) ?? tokens.fail(`Unknown array ${name}.`);
           if (tokens.take("]")) {
             tokens.expect("<-"); result.push(fillArray(array, expression(tokens)));
@@ -176,6 +184,19 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
             const { body, end } = chapterBody(lines, index); index = end;
             result.push(chapterMatch(tokens, body, name, symbols.catalogues, selectedOperands,
               (body, selected, check) => parse(body, check, selected), step => validate([...result, step])));
+          } else if (tokens.take("iterate")) {
+            tokens.expect("("); const count = expression(tokens); tokens.expect(","); const initial = expression(tokens);
+            tokens.expect(")"); tokens.expect("{"); tokens.end();
+            const { body, end } = chapterBody(lines, index); index = end;
+            const last = body.pop() ?? tokens.fail("An iteration must end with return.");
+            if (last.next !== "return") last.fail("An iteration must end with return.");
+            const check = (steps: readonly Statement[]) => validate([...result, iterate(name, count, initial, steps, value(name))]);
+            tokens.checked(() => check([]));
+            const steps = parse(body, check, selectedOperands);
+            last.expect("return"); const contents = expression(last); last.end();
+            const iteration = iterate(name, count, initial, steps, contents);
+            last.checked(() => validate([...result, iteration]));
+            result.push(iteration);
           } else if (tokens.take("resolve")) {
             tokens.expect("("); const size = tokens.number();
             if (size !== 8 && size !== 16 && size !== 32) return tokens.fail("Operand size must be 8, 16, or 32.");
@@ -229,5 +250,5 @@ export function usesMemory(steps: readonly Statement[]): boolean {
     || ((step.kind === "match" || step.kind === "dispatch") && step.cases.some(branch => usesMemory(branch.steps)))
     || (step.kind === "perform" && usesMemory(step.action.steps))
     || (step.kind === "read-source" && usesMemory(step.source.steps))
-    || (step.kind === "when" && usesMemory(step.steps)));
+    || ((step.kind === "when" || step.kind === "iterate") && usesMemory(step.steps)));
 }

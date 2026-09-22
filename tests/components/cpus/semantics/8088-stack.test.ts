@@ -4,8 +4,8 @@ import { noPorts } from "../../../helpers/no-ports.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions, opcodeEntries } from "../../../../src/components/cpus/generated/8088.js";
-import { instructions as stack } from "../../../../src/components/cpus/generated/8088-stack.js";
-import { instructions8088, stack8088 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { compileResolved, stack8088 } from "../../../helpers/8088-resolved.js";
+import { instructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import { cpuSymbols, deferInterrupt } from "../../../../src/components/cpus/semantics/model.js";
 import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
@@ -15,6 +15,8 @@ import { segmentedWordStack } from "../../../../src/components/cpus/semantics/st
 import type { Statement } from "../../../../src/components/cpus/semantics/model.js";
 import type { Cpu8088State, Cpu8088Flags } from "../../../../src/components/cpus/state/8088.js";
 import { address, flags, initialState, words } from "../8088/helpers.js";
+
+const stack = await compileResolved(stack8088);
 
 type Register = typeof words[number] | "cs" | "ss" | "ds" | "es" | "ip";
 type Operation = "PUSH" | "POP" | "PUSHF" | "POPF" | "CALL" | "JMP" | "RET";
@@ -51,7 +53,7 @@ function execute(form: Form, state: Cpu8088State, segment: number, offset: numbe
   else (resolved[form.key] as Body)(state, context);
 }
 
-test("8088 stack definitions add exactly 32 encoded bodies and 22 resolved bodies", () => {
+test("8088 stack inventory retains 32 encoded bodies and 22 resolved probes", () => {
   const opcodes = forms.filter(f => typeof f.key === "number").map(f => f.key);
   const keys = forms.filter(f => typeof f.key === "string").map(f => f.key).sort();
   assert.equal(opcodes.length, 32); assert.equal(keys.length, 22);
@@ -189,7 +191,7 @@ test("8088 relative CALL reads live IP after both writes while resolved CALL ret
   for (const relative of [false, true]) {
     const state = initialState({ ip: 0x100, ax: 0x5555 }), writes: number[] = [];
     const context = { fetchByte: () => 1, writeByte(_a: number, byte: number) { writes.push(byte); state.ip = 0xff00; state.ax = 0xaaaa; } };
-    if (relative) instructions[0xe8](state, context); else stack.CALL_0(state, context);
+    if (relative) instructions[0xe8](state, context); else (stack.CALL_0 as Body)(state, { ...noPorts, ...no8088Control, ...context, readByte() { assert.fail(); }, deferInterrupt() { assert.fail(); } });
     assert.deepEqual(writes, [0, 1]); assert.equal(state.ip, relative ? 1 : 0x5555);
   }
 });

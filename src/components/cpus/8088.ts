@@ -10,14 +10,12 @@ import type { WordInstructionContext, InterruptDeferralContext, InterruptReportC
 import { copyState, readState } from "./state.ts";
 import { cpu8088StateDescription } from "./state/8088.ts";
 import type { Cpu8088State, Cpu8088Flags } from "./state/8088.ts";
-import { instructions as actions, sourceReaders } from "./generated/8088-state.ts";
+import { sourceReaders } from "./generated/8088-state.ts";
 import { instructions as semantics, opcodeEntries } from "./generated/8088.ts";
 import { instructions as operands, sourceReaders as operandSources } from "./generated/8088-operands.ts";
-import { instructions as unary } from "./generated/8088-unary.ts";
 import { instructions as stack } from "./generated/8088-stack.ts";
 import { instructions as addressing } from "./generated/8088-addressing.ts";
 import { instructions as strings } from "./generated/8088-strings.ts";
-import { instructions as arithmetic } from "./generated/8088-arithmetic.ts";
 import { instructions as control } from "./generated/8088-control.ts";
 import { record8088External } from "./8088-external.ts";
 import type { Cpu8088ExternalAccess, Cpu8088ExternalConnections, Cpu8088ExternalContext } from "./8088-external.ts";
@@ -97,29 +95,19 @@ interface InstructionContext extends WordInstructionContext, BytePorts, Interrup
 type Rejection = "opcode" | "divide-error";
 type OpcodeHandler = (instruction: InstructionContext) => Rejection | void;
 type OperandWidth = 8 | 16;
-type UnaryOperation = "INC" | "DEC" | "NOT" | "NEG";
 type SegmentRegister = "es" | "cs" | "ss" | "ds";
 type StringOperation = "move" | "compare" | "store" | "load" | "scan";
 interface MemoryAddress { readonly segment: number; readonly offset: number }
 
-const opcodeBodies: Readonly<Partial<Record<number, (state: Cpu8088State, instruction: InstructionContext) => Rejection | void>>> = semantics;
+const opcodeBodies: Readonly<Partial<Record<number, (state: Cpu8088State, instruction: InstructionContext) => Rejection | "unsupported" | void>>> = semantics;
 
-type ArithmeticOperation = "MUL" | "IMUL" | "DIV" | "IDIV" | `shift_${number}_${"one" | "cl"}`;
 type SegmentMove = `segment_${"load" | "store"}_${SegmentRegister}`;
-type OperandOperation = `${UnaryOperation | ArithmeticOperation}_${OperandWidth}` | SegmentMove;
 
-// These families share the r/m selector: a specialized register body or one resolved memory body.
-const operandBodies = { ...unary, ...arithmetic, ...addressing };
-const registerOperands: Readonly<Partial<Record<`${OperandOperation}_${number}`,
-  (state: Cpu8088State, instruction: InstructionContext) => Rejection | void>>> = operandBodies;
-const memoryOperands: Readonly<Partial<Record<`${OperandOperation}_memory`,
-  (state: Cpu8088State, segment: number, offset: number, instruction: InstructionContext) => Rejection | void>>> = operandBodies;
-
-type StackOperation = "PUSH" | "POP" | "CALL" | "CALL_far" | "JMP" | "JMP_far";
-const stackRegisters: Readonly<Record<`${"CALL" | "JMP"}_${number}`,
-  (state: Cpu8088State, instruction: ByteMemory) => void>> = stack;
-const stackMemory: Readonly<Record<`${StackOperation}_memory`,
-  (state: Cpu8088State, segment: number, offset: number, instruction: ByteMemory) => void>> = stack;
+// The remaining native segment moves select a register body or one resolved memory body.
+const registerOperands: Readonly<Partial<Record<`${SegmentMove}_${number}`,
+  (state: Cpu8088State, instruction: InstructionContext) => Rejection | void>>> = addressing;
+const memoryOperands: Readonly<Partial<Record<`${SegmentMove}_memory`,
+  (state: Cpu8088State, segment: number, offset: number, instruction: InstructionContext) => Rejection | void>>> = addressing;
 
 const addressMemory: Readonly<Partial<Record<`${"LES" | "LDS"}_${number}`,
   (state: Cpu8088State, segment: number, offset: number, instruction: InstructionContext) => void>>> = addressing;
@@ -309,7 +297,10 @@ export class Cpu8088 {
 
   #instructionEntries(): readonly OpcodeEntry<OpcodeHandler>[] {
     return [
-      ...opcodeEntries(this.#state),
+      ...opcodeEntries(this.#state).map(([opcode, execute]): OpcodeEntry<OpcodeHandler> => [opcode, instruction => {
+        const outcome = execute(instruction);
+        return outcome === "unsupported" ? "opcode" : outcome;
+      }]),
       // Chapter families receive the captured override; prefix scanning remains at the boundary.
       ...Object.entries(operands).map(([opcode, execute]): OpcodeEntry<OpcodeHandler> => [Number(opcode), instruction => {
         const outcome = execute(this.#state, Number(instruction.segment !== undefined), instruction.segment ?? 0, instruction);
@@ -326,19 +317,11 @@ export class Cpu8088 {
       // 1100 010s loads a far pointer into a general register and ES (s=0) or DS (s=1).
       ...opcodeFamily("1100 010 s", { s: ["es", "ds"] }, ({ s: segment }) => (instruction: InstructionContext) => this.#loadAddress(segment, instruction)), // LES / LDS
 
-      // 1101 00vw + mm ooo rrr: v=0 shifts once, v=1 uses all eight bits of CL; w selects byte/word.
-      ...opcodeFamily("1101 00 v w", { v: [false, true], w: this.#operandWidths }, ({ v: useCL, w: width }) => (instruction: InstructionContext) => this.#shift(width, useCL, instruction)), // ROL/ROR/RCL/RCR/SHL/SHR/SAR
-
       ...instructionPattern("1101 0111", instruction => this.#translate(instruction)), // XLAT
 
       // 1101 1ooo + mm ppp rrr: ooo:ppp is the six-bit external opcode; mm/rrr selects its source.
       ...opcodeFamily("1101 1ooo", { o: [0, 1, 2, 3, 4, 5, 6, 7] }, ({ o }) => (instruction: InstructionContext) => this.#escape(o, instruction)), // ESC
 
-      // 1111 011w: ModR/M mm ooo rrr selects TEST, unused /1, NOT, NEG, MUL, IMUL, DIV, IDIV.
-      ...opcodeFamily("1111 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#unary(width, instruction)), // TEST/NOT/NEG/MUL/IMUL/DIV/IDIV r/m
-      // 1111 111w: /0..1 adjusts either width; /2..6 accepts only words for CALL/JMP/PUSH.
-      ...opcodeFamily("1111 111 w", { w: this.#operandWidths },
-        ({ w: width }) => (instruction: InstructionContext) => this.#adjustOrWordGroup(width, instruction)),
     ];
   }
 
@@ -361,7 +344,7 @@ export class Cpu8088 {
   }
 
   // Callers reject unused operation selectors before this can fetch a displacement.
-  #operand(operation: OperandOperation, modRM: number, instruction: InstructionContext): Rejection | void {
+  #operand(operation: SegmentMove, modRM: number, instruction: InstructionContext): Rejection | void {
     if (modRM >= 0xc0) return registerOperands[`${operation}_${modRM & 7}`]!(this.#state, instruction);
     const { segment, offset } = this.#effectiveAddress(modRM, instruction);
     return memoryOperands[`${operation}_memory`]!(this.#state, segment, offset, instruction);
@@ -405,48 +388,11 @@ export class Cpu8088 {
   #popOperand(instruction: InstructionContext): Rejection | void {
     const modRM = instruction.fetchByte();
     if ((modRM & 0x38) !== 0) return "opcode";
-    return this.#stackOperand("POP", modRM, instruction);
-  }
-
-  #adjustOrWordGroup(width: OperandWidth, instruction: InstructionContext): Rejection | void {
-    const modRM = instruction.fetchByte(), operation = (modRM >>> 3) & 7;
-    if ((width === 8 && operation > 1) || operation === 7) return "opcode";
-    if (operation < 2) return this.#operand(`${operation === 0 ? "INC" : "DEC"}_${width}`, modRM, instruction);
-    // FF /2..6: near CALL, far CALL, near JMP, far JMP, PUSH.
-    return this.#stackOperand((["CALL", "CALL_far", "JMP", "JMP_far", "PUSH"] as const)[operation - 2]!, modRM, instruction);
-  }
-
-  #stackOperand(operation: StackOperation, modRM: number, instruction: InstructionContext): Rejection | void {
     if (modRM >= 0xc0) {
-      if (operation === "CALL_far" || operation === "JMP_far") return "opcode";
-      const register = modRM & 7;
-      if (operation === "PUSH" || operation === "POP") opcodeBodies[(operation === "PUSH" ? 0x50 : 0x58) + register]!(this.#state, instruction);
-      else stackRegisters[`${operation}_${register}`]!(this.#state, instruction);
+      opcodeBodies[0x58 + (modRM & 7)]!(this.#state, instruction);
     } else {
       const { segment, offset } = this.#effectiveAddress(modRM, instruction);
-      stackMemory[`${operation}_memory`](this.#state, segment, offset, instruction);
+      stack.POP_memory(this.#state, segment, offset, instruction);
     }
-  }
-
-  // Arithmetic and flags.
-
-  #unary(width: OperandWidth, instruction: InstructionContext): Rejection | void {
-    const modRM = instruction.fetchByte(), selector = (modRM >>> 3) & 7;
-    if (selector === 0) {
-      const address = modRM < 0xc0 ? this.#effectiveAddress(modRM, instruction) : undefined;
-      const pointer = address ? address.segment * 0x10000 + address.offset : 0;
-      const right = width === 8 ? instruction.fetchByte() : instruction.fetchWord();
-      const outcome = actions[`testRM${width}`](this.#state, modRM, pointer, right, instruction);
-      return outcome === "unsupported" ? "opcode" : outcome;
-    }
-    if (selector === 1) return "opcode";
-    const operation = (["NOT", "NEG", "MUL", "IMUL", "DIV", "IDIV"] as const)[selector - 2]!;
-    return this.#operand(`${operation}_${width}`, modRM, instruction);
-  }
-
-  #shift(width: OperandWidth, useCL: boolean, instruction: InstructionContext): Rejection | void {
-    const modRM = instruction.fetchByte(), selector = (modRM >>> 3) & 7;
-    if (selector === 6) return "opcode";
-    return this.#operand(`shift_${selector}_${useCL ? "cl" : "one"}_${width}`, modRM, instruction);
   }
 }

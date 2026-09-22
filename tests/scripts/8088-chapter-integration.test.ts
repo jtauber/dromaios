@@ -25,6 +25,9 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
     .replace("high = memory(projectAddress(segment, add(offset, u16(1)), 4, 20))",
       "high = memory(projectAddress(segment, add(offset, u16(2)), 4, 20))")
     .replaceAll("ZF = zero(result)", "ZF = not(zero(result))")
+    .replaceAll("shifted = iterate(count, originalOperand)", "shifted = iterate(add(count, u8(1)), originalOperand)")
+    .replace('reject "divide-error" if zero(xor(quotient, u8($80)))', 'reject "divide-error" if zero(xor(quotient, u8($81)))')
+    .replace("SP <- subtract(pointer, u16(2))", "SP <- subtract(pointer, u16(4))")
     .replace("select(cf, u16($0001), u16(0))", "select(not(cf), u16($0001), u16(0))")
     .replace("CF = not(zero(and(status, u16($0001))))", "CF = zero(and(status, u16($0001)))");
   writeFileSync(file, chapter);
@@ -78,6 +81,21 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
       if (code[0] === 0xc5) assert.equal(after.ds, 0x7856);
       assert.deepEqual(accesses.slice(code.length), code[0] === 0x3e ? [0x1011, 0x1013]
         : code[0] === 0xc5 ? [0x2011, 0x2013, 0x2013, 0x2015] : [0x2011, 0x2013]);
+    }
+    // Formal loop bounds, chip-specific divide limits, and stack ordering own
+    // public execution, rather than the removed native arithmetic/group modules.
+    for (const code of [[0xd0, 0xe1], [0xf6, 0xf9], [0xff, 0xd0]]) {
+      const bytes = new Uint8Array(1048576); bytes.set(code, 0x12440);
+      const ram = { size: bytes.length, read: address => bytes[address], write: (address, value) => { bytes[address] = value; } };
+      const cpu = new Cpu8088(ram, { ...initial, scratch: 0, ax: code[0] === 0xf6 ? 0xff80 : 0x1234, cx: 1 });
+      const record = cpu.step();
+      assert.equal(record.outcome, "executed"); assert.equal(record.interrupt, undefined);
+      if (code[0] === 0xd0) assert.equal(record.after.cx, 4);
+      if (code[0] === 0xf6) assert.equal(record.after.ax, 0x0080);
+      if (code[0] === 0xff) {
+        assert.equal(record.after.ip, 0x1234); assert.equal(record.after.sp, 0x7ffc);
+        assert.deepEqual([...bytes.slice(0x7ffc, 0x7ffe)], [2, 1]);
+      }
     }
   `], { encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
