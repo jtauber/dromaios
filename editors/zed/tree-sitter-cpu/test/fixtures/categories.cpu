@@ -241,3 +241,19 @@ action device "captured device effects" (vector: 8) using memory, boundary {
   send escape(vector, u8(0)) with memory(u16(0), u16(0), projectAddress(u16(0), u16(0), 4, 20), u16(0))
   report interrupt(vector)
 }
+
+execution segmented {
+  segment CS shift 4
+  record address PC
+  fetch action advanceIP
+  prefixes limit 65536 {
+    segment $26 ES
+    ignore $F0
+    repeat $F3 1
+  }
+  waiting WAITING with pollWait(1)
+  pending "trap" vector 1 when TRAPPENDING unless RECOGNITIONDEFERRED with beginTrap then enterInterrupt
+  fault "divide-error" vector 0 with enterInterrupt
+  retire action finish sampling flag TF, latch TRAPPENDING
+  unsupported restore counter
+}

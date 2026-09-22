@@ -234,6 +234,12 @@ before committing PC/refresh. Chapter-defined interrupt entries combine direct
 NMI vectors, IRQ mode selection, and supplied instructions through that same
 decoder and retirement boundary. Paired programs expose common encodings alongside
 their different flag semantics.
+The [segmented runtime](../src/components/cpus/segmented-execution.ts) advances
+the live word counter after each successful fetch. The 8088 chapter selects
+segment projection, replaceable prefix captures, waiting continuations,
+trap/fault entry, and sampled retirement; the runtime supplies guarding and
+records. This preserves byte-by-byte commitment and retained host failures
+without imposing decode-before-execution on segmented instructions.
 The 6800 and 6809 chapters express accumulator operations,
 transfers, and control flow through the same instruction representation, retaining
 their distinct addressing and stack rules. Shared arithmetic, status, memory, and stack construction also serves

@@ -39,11 +39,12 @@ Executable chapters are maintained CPU sources:
   commitment, retirement, and IRQ/NMI entry. Mixed named interrupt entries select
   direct vectors or supplied instructions. Its public class, bank types, and
   nested snapshot views are generated; no handwritten implementation remains.
-- [Intel 8088: state and all instruction forms](../../src/components/cpus/specifications/8088.md)
+- [Intel 8088: instructions, reset, and normal execution](../../src/components/cpus/specifications/8088.md)
   owns stored state, writable byte aliases, physical PC and packed FLAGS views,
   and all 291 instruction forms, including strings, ports, WAIT/ESC, and software
   interrupts/IRET. Shared chapter actions also serve native interrupt entry and
-  WAIT resumption. Prefix scanning, reset, execution, and the public class remain native.
+  WAIT resumption. Reset, segmented fetching, prefix choices, trap/fault delivery,
+  and retirement are chapter-owned. External acceptance and the public class remain native.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -185,7 +186,7 @@ Quoted descriptions use JSON string escaping.
 | `send escape(opcode, postbyte) with memory(segment, offset, address, contents)` | Send a captured 8088 ESC request; omit `with memory(…)` for a register form. This statement performs no operand read. |
 | `report interrupt(vector)` | Record completed 8088 software interrupt delivery; vector reads and frame writes remain explicit preceding effects. |
 | `defer irq` | Request one-boundary IRQ deferral on successful retirement; requires `retire irq into LATCH`. This does not immediately write stored state. |
-| `defer intr`, `defer all` | Request INTR-only or all-interrupt recognition delay through the existing 8088 native boundary. The request commits only at successful retirement; these scopes are unavailable to other CPUs and views; actions require `using boundary`. |
+| `defer intr`, `defer all` | Request INTR-only or all-interrupt recognition delay through the chapter-bound segmented runtime. The request commits only at successful retirement; these scopes are unavailable to other CPUs and views; actions require `using boundary`. |
 | `exchange FLAGS, ALTERNATE.FLAGS` | Exchange complete flag objects with matching stored fields: read right, read left, write left, write right. Preserve identity without reading individual flags; allowed in actions but not views. |
 | `replace PSW(status)` | Replace the complete flag object; the policy must define every flag in exactly one bank. |
 | `apply NZ(result)`, `apply ALU(result, carry(left, right))` | Apply a declared flag policy to typed numeric and flag expressions. |
@@ -236,8 +237,9 @@ Named outcomes return from the complete instruction, including inside `when`
 or `iterate`, preserving earlier effects and skipping later ones. Sources and
 composed actions cannot use division or named rejection; their existing
 `otherwise unsupported` byte matches remain their only rejection path.
-The shared byte execution contracts do not yet support these arithmetic outcomes;
-a native adapter must handle them. The 8088 boundary continues to deliver type 0.
+Flat byte execution contracts do not support these arithmetic outcomes. The
+segmented contract names the entry action and vector for a declared fault; the
+8088 chapter selects type 0. Other execution models need their own fault policy.
 [Language tests](../../tests/components/cpus/semantics/literate-iteration.test.ts)
 check arithmetic, zero/full counts, effects, lexical scopes, and those boundaries.
 
@@ -303,8 +305,9 @@ Family parameters follow the family name, before the encoding or multi-encoding
 body. The native adapter supplies them at execution time; current shared opcode
 bindings accept only their declared page operands, so arbitrary family inputs
 require an explicit adapter. Page operand names cannot duplicate these inputs.
-The 8088 uses this bridge for captured segment overrides until its prefix
-boundary migrates. No temporary prefix fields enter stored CPU state.
+The 8088 segmented contract binds three explicit family signatures: no inputs,
+`(overridden: 8, segmentOverride: 16)`, or those inputs followed by
+`repeatMode: 8, startIP: 16`. No temporary prefix fields enter stored CPU state.
 
 `projectAddress(base, offset, shift, bits)` is an address expression, not a
 register value. Base and offset must be 16-bit numbers; shift is a constant
@@ -440,8 +443,8 @@ A plain `interrupt { … }` block declares supplied-instruction delivery:
 A declared retirement destination also grants IRQ deferral to the chapter's
 instruction representation; validation and generated context types do not infer
 that capability from the CPU name. The declaration must precede families that
-request deferral. The separate 8088 `intr` and `all` scopes currently target its
-native adapter; they do not extend the shared byte execution contracts.
+request deferral. The separate 8088 `intr` and `all` scopes target the segmented
+retirement action; they do not extend flat byte execution contracts.
 
 Ordinary and supplied-instruction paths select the chapter's same opcode table. Stored-state operations still
 use the instruction representation; the execution declaration generates only
@@ -1172,3 +1175,41 @@ and latches, and check nested scopes, array bounds, and schema diagnostics.
 The 68000 checks include independent ordered-effect expectations, failure at
 each observable stage, live upper-word preservation, both A7 banks, physical
 projection, and formal edits that change byte order and flag behavior.
+
+## Segmented execution
+
+The [8088 lifecycle](../../src/components/cpus/specifications/8088.md#reset-and-execution-lifecycle)
+uses `execution segmented { … }`. It selects the
+[shared segmented runtime](../../src/components/cpus/segmented-execution.ts)
+through [validated bindings](../../src/components/cpus/semantics/literate/segmented-execution.ts).
+The current binding supports the 8088's three family signatures and TEST/ESC
+context; it does not claim to supply an arbitrary processor's device API.
+
+| Declaration | Meaning |
+| --- | --- |
+| `memory 20`, `segment CS shift 4` | Validate RAM size and project the selected word register plus counter onto the declared bus. Supported bus widths are 16–24 bits; the shift must keep the full segment within that width. |
+| `counter IP write setIP` | Read a top-level word register; use the one-word state action when restoring an unsupported attempt's original offset. |
+| `record address PC` | Label an instruction with a parameterless 32-bit view captured before effects; this does not select its fetch address. |
+| `fetch action advanceIP` | Invoke an input-free state action after each successful instruction-byte read. Operand word ordering remains explicit in chapter sources. |
+| `prefixes limit 65536 { … }` | Bound prefix/opcode scanning to 1–65536 reads; operand fetches follow the selected body. Each `segment $26 ES` captures a word register after that byte; `repeat $F3 1` selects a nonzero byte mode; `ignore $F0` only consumes the prefix. Later prefixes of each kind replace earlier ones. Prefix bytes must be unique and cannot collide with families. |
+| `stopped STOPPED` | Return halted without fetching, after checking pending entry. |
+| `waiting WAITING with pollWait(1)` | Call a one-byte continuation action without fetching. It may change state, sample TEST, and request deferral; it cannot reject, access memory/ports, send ESC, or report software delivery. |
+| `pending "trap" vector 1 when TRAPPENDING unless RECOGNITIONDEFERRED with beginTrap then enterInterrupt` | Before stopping or waiting, run the input-free state action, then the one-byte memory entry action with the vector. Records retain the declared source and vector. An owed latch also keeps waiting/halted outcomes runnable. |
+| `fault "divide-error" vector 0 with enterInterrupt` | Deliver this named instruction outcome using the one-byte memory entry action, then retire. `opcode` and `unsupported` remain rejections; other instruction outcomes require a matching fault declaration. |
+| `reset action resetState` | Input-free, state-only reset with an empty access list. |
+| `retire action retireInstruction sampling flag TF, latch TRAPPENDING` | Capture the selected flags/latches before instruction or continuation effects. After success, pass two byte values for requested INTR/all deferral, then one byte per sample, to a state-only action. |
+| `unsupported restore counter`, `failure retain` | Skip retirement on rejection or thrown callbacks; restore only the counter on rejection, while throws retain every completed effect and produce no record. |
+| `interrupt external` | External acceptance remains in the native adapter and shares this runtime's reentrancy guard. A public interface cannot yet be generated from this partial contract. |
+
+Lifecycle actions are checked transitively against their narrower role even
+when their declarations permit broader effects. Byte matches cannot hide a
+rejection inside reset, fetch advancement, retirement, or entry hooks. Regular
+families retain their documented operand rejection, memory, port, device, and
+software-reporting effects. Prefix captures remain local to each attempt;
+repeated bodies receive the original counter and execute at most one element.
+
+[Language and runtime checks](../../tests/components/cpus/semantics/literate-segmented-execution.test.ts)
+exercise policy edits, live fetch callbacks, delayed samples, retained failures,
+and invalid contracts. [Public integration checks](../../tests/scripts/8088-chapter-integration.test.ts)
+edit a copied chapter and verify that the CPU class follows its reset, fetch,
+prefix, retirement, memory-size, and vector declarations.

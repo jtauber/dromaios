@@ -194,7 +194,7 @@ owns INT3, INT, INTO, IRET, WAIT, and all eight ESC primary encodings. Its
 ESC families fetch ModR/M and resolve memory through the same chapter source
 as ordinary operands. The separate native control module is removed. Chapter
 `enterInterrupt` and `pollWait` actions also serve external entry and WAIT
-resumption through the existing native boundary.
+resumption through the chapter execution contract. External acceptance remains native.
 
 Entry expands existing segmented memory, packed FLAGS, latch, and stack
 construction. It reads the entire four-byte vector first, captures FLAGS, clears
@@ -210,7 +210,7 @@ WAIT captures `readTest` once, then writes the waiting latch. First entry
 rewinds IP only when busy; resumption advances it only on release. Both read
 live IP after the pin callback, wrap it within sixteen bits, and request
 all-interrupt deferral only for a low sample. Resumption never refetches an
-opcode, and CPU-owned retirement retains the existing TF sampling policy.
+opcode, and chapter-owned retirement retains the original TF sampling policy.
 
 ESC's memory body reads a complete low-first dummy word through a captured
 segment/offset, even when no device is connected. The register body inspects
@@ -651,7 +651,10 @@ failed register effects, all byte products, and rejected multiplication widths.
 The [8088 chapter](../../src/components/cpus/specifications/8088.md) owns the
 stored schema, writable byte aliases, physical PC, packed FLAGS, register
 selectors, and all 291 documented instruction forms. Its shared sources,
-actions, and policies also serve interrupt entry and WAIT continuation.
+actions, and policies also serve interrupt entry and WAIT continuation. The
+chapter now declares reset, segmented fetching, prefix replacement, waiting,
+trap/fault delivery, and retirement samples; only external acceptance and the
+public adapter remain native.
 The [definition adapter](../../src/components/cpus/semantics/definitions/8088.ts)
 only groups chapter families by their captured prefix inputs; it defines no
 instruction behavior.

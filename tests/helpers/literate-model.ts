@@ -15,9 +15,14 @@ function chapterLayers(text: string, name: string, file: string) {
     return `data:text/javascript,${encodeURIComponent(code)}`;
   };
   const schema = url(generateChapterState(state) + (api ? generatePublicState(state, api) : ""), {}, new URL("../semantics/generated/state/", base));
-  const opcodes = url(generateInstructions(name, Object.fromEntries(Object.values(chapter.families).flat()), { bindOpcodes: true, pages: chapter.pages }));
+  const entries = Object.values(chapter.families).flat(), segmented = chapter.execution?.mode === "segmented";
+  const opcodes = url(generateInstructions(name, Object.fromEntries(segmented ? entries.filter(([, definition]) => !definition.inputs) : entries), { bindOpcodes: true, pages: chapter.pages }));
+  const extra = segmented ? Object.fromEntries([false, true].map(repeated => [
+    `./${name}-${repeated ? "strings" : "operands"}.ts`,
+    url(generateInstructions(name, Object.fromEntries(entries.filter(([, definition]) => definition.inputs && ("repeatMode" in definition.inputs) === repeated)))),
+  ])) : {};
   const actions = url(generateInstructions(name, chapter.actions, { sources: { cpu: { name, state }, groups: { views: chapter.views } } }));
-  const execution = url(generateChapterExecution(name, name, chapter.execution!), { [`./${name}.ts`]: opcodes, [`./${name}-state.ts`]: actions });
+  const execution = url(generateChapterExecution(name, name, chapter.execution!), { ...extra, [`./${name}.ts`]: opcodes, [`./${name}-state.ts`]: actions });
   return { chapter, state, api, url, schema, actions, execution };
 }
 

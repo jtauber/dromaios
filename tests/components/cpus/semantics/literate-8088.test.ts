@@ -47,7 +47,7 @@ test("the 8088 chapter owns the complete stored schema and all 291 forms across 
   assert.equal(entries.length - 4 + 8 + 8 + 5 + 5 - 4 + 4 * 7 - 2 + 2 * 7 - 2 + 2 + 7, 291);
   assert.deepEqual(entries.map(([opcode]) => opcode).sort((a, b) => a - b), opcodes);
   for (const [opcode, definition] of entries) assert.deepEqual(({ ...instructions8088, ...operandInstructions8088, ...strings8088 })[opcode], definition);
-  assert.equal(chapter.execution, undefined); assert.equal(chapter.interface, undefined);
+  assert.equal(chapter.execution?.mode, "segmented"); assert.equal(chapter.interface, undefined);
 });
 
 test("every chapter byte view and write selects its own word and preserves the live other half", () => {

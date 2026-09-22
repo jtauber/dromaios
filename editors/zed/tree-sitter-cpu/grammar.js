@@ -105,10 +105,21 @@ module.exports = grammar({
     call: $ => seq(field('function', $.identifier), $.arguments),
     arguments: $ => seq('(', optional(commaSeparated($._expression)), ')'),
 
-    execution_declaration: $ => seq('execution', '{', repeat(choice(
+    execution_declaration: $ => seq('execution', optional('segmented'), '{', repeat(choice(
       $.memory_policy, $.counter_policy, $.stopped_policy, $.word_policy,
+      $.segmentation_policy, $.prefix_policy, $.waiting_policy, $.pending_policy, $.fault_delivery_policy, $.unsupported_policy,
       $.opcode_policy, $.operand_policy, $.failure_policy, $.action_policy, $.retirement_policy, $.notification_policy, $.interrupt_policy,
     )), '}'),
+    segmentation_policy: $ => choice(seq('segment', $._state_name, 'shift', $.number),
+      seq('record', 'address', $._state_name), seq('fetch', 'action', $.identifier)),
+    prefix_policy: $ => seq('prefixes', 'limit', $.number, '{', repeat(choice(
+      seq('segment', $.number, $._state_name), seq('repeat', $.number, $.number), seq('ignore', $.number),
+    )), '}'),
+    waiting_policy: $ => seq('waiting', $._state_name, 'with', $.call),
+    pending_policy: $ => seq('pending', $.string, 'vector', $.number, 'when', $._state_name,
+      'unless', $._state_name, 'with', $.identifier, 'then', $.identifier),
+    fault_delivery_policy: $ => seq('fault', $.string, 'vector', $.number, 'with', $.identifier),
+    unsupported_policy: _ => seq('unsupported', 'restore', 'counter'),
     memory_policy: $ => seq('memory', $.number),
     counter_policy: $ => seq('counter', $._state_name, 'write', $.identifier),
     stopped_policy: $ => seq('stopped', choice('none', seq(choice($._state_name,
@@ -117,7 +128,7 @@ module.exports = grammar({
     opcode_policy: $ => seq('opcode', 'advance', 'on', choice('dispatch', 'read', seq('decode', 'with', 'action', $.identifier))),
     operand_policy: _ => seq('operand', 'advance', 'after', 'read'),
     failure_policy: _ => seq('failure', 'retain'),
-    action_policy: $ => seq(choice('reset', 'retire'), choice('none', seq('action', $.identifier))),
+    action_policy: $ => seq(choice('reset', 'retire'), choice('none', seq('action', $.identifier, optional(seq('sampling', commaSeparated(seq(choice('flag', 'latch'), $._state_name))))))),
     retirement_policy: $ => seq('retire', 'irq', 'into', $._state_name, optional(seq('then', 'action', $.identifier))),
     notification_policy: _ => seq('notify', 'reti', 'after', 'retire'),
     interrupt_policy: $ => seq('interrupt', choice('external', seq('entries', '{', repeat($.interrupt_entry), '}'), seq(optional('vectors'), '{', repeat(choice(
@@ -130,7 +141,7 @@ module.exports = grammar({
     entry_gate: $ => seq(choice('when', 'unless'), 'latch', $._state_name, 'otherwise', $.string),
     entry_action: $ => seq(choice('accept', 'enter'), 'action', $.identifier),
     entry_selection: $ => seq('select', $._state_name, '{', repeat($.entry_case), '}'),
-    entry_case: $ => seq('case', choice($.number, $.string), choice('supplied', seq('action', $.identifier))),
+    entry_case: $ => seq('case', choice($.number, $.string), choice('supplied', seq('action', $.identifier, optional(seq('sampling', commaSeparated(seq(choice('flag', 'latch'), $._state_name))))))),
     vector_entry: $ => seq('source', $.identifier, choice('always', seq('unless', 'flag', $._state_name),
       seq('when', 'latch', $._state_name, 'otherwise', $.string)), 'with', $.call,
       optional(seq('resume', 'when', 'choice', $._state_name, '=', $.string, 'with', $.call))),

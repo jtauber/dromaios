@@ -30,8 +30,9 @@ The [chapter's stored-state schema](../../../src/components/cpus/specifications/
 owns all fields, validation constraints, and control-latch meanings. Its
 [byte views and writes](../../../src/components/cpus/specifications/8088.md#byte-views-and-writes)
 and [packed FLAGS](../../../src/components/cpus/specifications/8088.md#flags-as-a-packed-value)
-are also authoritative; the native core and remaining instruction definitions
-consume those generated rules.
+are also authoritative. The chapter owns every instruction definition,
+[reset and normal execution](../../../src/components/cpus/specifications/8088.md#reset-and-execution-lifecycle);
+the remaining native adapter owns construction, snapshots, and external acceptance.
 
 `Cpu8088State` contains stored fields only. `.machine` definitions conventionally
 use uppercase register/flag names and camelCase control latches. Snapshots add
@@ -627,19 +628,11 @@ documented instruction inventory.
 
 ## CPU reset
 
-`reset()` sets CS to `FFFF`, IP to `0000`, DS/SS/ES to `0000`, and clears all
-nine flags, including IF, `halted`, `waiting`, and all three recognition latches.
-It performs **no RAM access**: `FFFF0` is the first
-instruction address, not a pointer read from a reset-vector table.
-
-AX/BX/CX/DX/SP/BP/SI/DI and RAM are preserved. Intel's reset table does not
-specify values for these general registers; preserving them is a deterministic
-model policy, not a claim about power-on values. The reset record has detached
+The chapter's [reset and execution lifecycle](../../../src/components/cpus/specifications/8088.md#reset-and-execution-lifecycle)
+owns the reset effects and preservation policy. `reset()` returns detached
 before/after snapshots and an empty access list, without a step outcome or
-instruction. A later step fetches current RAM at `FFFF0`.
-
-Reset does not restart a lesson at its example entry point or restore the
-example's memory image. Creating a fresh example performs that restart.
+instruction. A later step fetches current RAM at `FFFF0`. Reset does not restore
+an example's memory image; creating a fresh example performs that restart.
 
 ## Checks and limits
 

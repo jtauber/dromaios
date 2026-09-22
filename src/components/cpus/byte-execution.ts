@@ -50,7 +50,7 @@ interface InterruptRecognition {
 export function checkByteMemory(cpu: string, ram: Ram, bits: number): void {
   const size = 2 ** bits;
   if (ram.size !== size) {
-    const amount = size >= 1024 ? `${size / 1024} KiB` : `${size} bytes`;
+    const amount = size >= 1048576 ? `${size / 1048576} MiB` : size >= 1024 ? `${size / 1024} KiB` : `${size} bytes`;
     throw new RangeError(`The ${cpu} model requires exactly ${amount} of RAM.`);
   }
 }

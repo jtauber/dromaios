@@ -1,3 +1,5 @@
+import { generateSegmentedExecution } from "./segmented-execution.ts";
+import type { SegmentedExecution } from "./segmented-execution.ts";
 import type { Choice, Flag, InstructionDefinition, Latch, Statement, ValueSource } from "../model.ts";
 import { checkStateEffects, usesMemory } from "./statements.ts";
 import { chapterVectorEntries, generateVectorExecution } from "./vector-execution.ts";
@@ -10,6 +12,7 @@ import type { ChapterTokens } from "./document.ts";
 
 /** The currently supported execution contract: a flat byte bus with explicit fetch and retirement policies. */
 export interface ExecutionBase {
+  readonly mode: "byte";
   readonly memoryBits: number;
   readonly counter: string;
   readonly writeCounter: string;
@@ -45,7 +48,7 @@ interface DecodedBase extends ExecutionBase {
 }
 export type DecodedExecution = DecodedBase & ({ readonly interrupt: "external" }
   | { readonly interrupt: "entries"; readonly entries: readonly InterruptEntry[] });
-export type ChapterExecution = SuppliedExecution | VectorExecution | DecodedExecution;
+export type ChapterExecution = SuppliedExecution | VectorExecution | DecodedExecution | SegmentedExecution;
 
 /** Reject native decoder/fault effects that cannot run in the byte dispatch context. */
 export function checkByteExecution(steps: readonly Statement[], deferral = false, memoryOnly = false, decoded: { readonly notifyReti?: true } | undefined = undefined): void {
@@ -154,7 +157,7 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
   } else if (!retireAt.take("none")) { retireAt.expect("action"); retire = action(retireAt); }
   retireAt.end();
   required("interrupt");
-  const common = { memoryBits, counter, writeCounter, word, opcodeAdvance, reset, resetMemory,
+  const common = { mode: "byte" as const, memoryBits, counter, writeCounter, word, opcodeAdvance, reset, resetMemory,
     ...(retire === undefined ? {} : { retire }), ...(retireDeferral === undefined ? {} : { retireDeferral }) };
   if (external || entryLines !== undefined) {
     if (opcodeAdvance !== "decode" || opcodeFetched === undefined) return opcode.fail("Named interrupt entry requires decode-before-execution with a fetch action.");
@@ -206,6 +209,7 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
 
 /** Bind validated references to generated functions; no processor-specific execution algorithm is emitted. */
 export function generateChapterExecution(cpu: string, module: string, policy: ChapterExecution): string {
+  if (policy.mode === "segmented") return generateSegmentedExecution(cpu, module, policy);
   if (policy.opcodeAdvance === "decode") return generateDecodedExecution(cpu, module, policy);
   if (policy.interrupt === "vectors") return generateVectorExecution(cpu, module, policy);
   const quoted = JSON.stringify, action = (name: string) => `actions[${quoted(name)}](state)`;

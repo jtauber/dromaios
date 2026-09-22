@@ -534,9 +534,10 @@ The Z80 extends it as its local `InstructionContext`. Shared byte
 execution for the 8008 and 8080 adds `BytePorts` and IRQ-deferral
 callbacks; chapter validation permits deferral only with a declared retirement
 destination. The Z80 adds ports and deferral, plus RETI notification at retirement.
-The 8088 extends it with `BytePorts`, the instruction start IP, local segment/repeat
-prefixes, `InterruptDeferralContext` for instruction-local recognition delays,
+The segmented runtime supplies the 8088 with byte fetches and `BytePorts`,
+plus `InterruptDeferralContext` for instruction-local recognition delays,
 `InterruptReportContext` for software-entry metadata, and ESC/TEST callbacks.
+Captured prefix values and the instruction start IP are separate numeric inputs.
 Generated 8088 bodies perform software entry; the reporting callback records
 its vector. The 8008 fetches a full two-byte operand and masks it to a 14-bit
 address when jumping or calling. The 68000 extends `ByteMemory` with
@@ -632,8 +633,9 @@ views and actions. The 8008 exposes its live address-stack slot and masks writes
 to 14 bits without adding stored state; the 8080, 6502, 6800, and 6809 bind stored PC.
 The 8008's circular call stack remains explicit in its chapter. The Z80 chapter selects
 complete-prefix decoding and R updates in shared decoded execution; the
-8088 retains segment/repeat prefixes, one-element REP steps, trap boundaries,
-and native interrupt delivery; the 68000 retains word opcodes, alignment faults,
+8088 chapter selects segmented fetching, segment/repeat prefixes, one-element
+REP steps, and trap boundaries through the [segmented runtime](../../src/components/cpus/segmented-execution.ts),
+while its adapter retains external interrupt acceptance; the 68000 retains word opcodes, alignment faults,
 native exception frames, trace retirement, and interrupt offers. Those contracts
 do not fit this executor. All still share instruction contexts and recorded
 byte memory; specialized step loops do not require a broader executor API.
@@ -799,12 +801,13 @@ byte and word selectors shared across its instruction families.
 Keep 8088 bit patterns beside their chapter bodies. The
 [definition adapter](../../src/components/cpus/semantics/definitions/8088.ts) only
 groups families by their prefix inputs. Build the combined table after state
-initialization, retaining collision checks across the generated bindings. The decoder still owns prefixes, segmented
-fetching, and retirement; generated bodies receive only the callbacks their
+initialization, retaining collision checks across the generated bindings. The
+chapter execution contract owns prefixes, segmented fetching, and retirement;
+generated bodies receive only the callbacks their
 effects require. Preserve operand-before-CF captures and flags-before-writeback.
 
 The 8088 chapter owns ModR/M selection and segmented operand resolution.
-The native prefix scanner passes its captured override as numeric family inputs.
+The shared prefix scanner passes its captured override as numeric family inputs.
 Express each physical address with `projectAddress(segment, offset, 4, 20)`,
 wrapping each logical byte offset before projection. Keep complete source
 capture, low-first accesses, and partial writeback explicit; never replace
@@ -834,13 +837,13 @@ share the FLAGS action, whose `using memory, boundary` declaration makes its
 recognition request explicit.
 
 String families receive captured repeat mode, segment override, and prefix-start
-IP from the native boundary. The chapter rejects illegal REPNE combinations.
+IP from the chapter-bound runtime. The chapter rejects illegal REPNE combinations.
 Keep zero-count checks before operand capture; capture source/destination
 coordinates before access, but read DF and the live indices afterward.
 Reuse subtraction flags for CMPS/SCAS. Repeated forms decrement and reread CX,
 then test ZF only when required, and rewind to the supplied prefix-start IP.
 Keep each body to one element; refetching, prefix acceptance on non-string
-instructions, and retirement remain CPU responsibilities. IRET composes the same return and FLAGS statements
+instructions, and retirement follow the chapter execution contract. IRET composes the same return and FLAGS statements
 used by RETF/POPF, retaining their separate commit points.
 
 For multi-bit shifts, use bounded `iterate` around the shared one-bit recipe.

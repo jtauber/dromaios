@@ -51,7 +51,7 @@ test("shared body keys build only their first form and retain encounter order, i
 
 test("the catalogue and chapter bindings name exactly the generated modules, each reproducible without changing its inputs", () => {
   const directory = "src/components/cpus/generated";
-  const chapters = ["6502", "6800", "6809", "8008", "8080", "z80"].map(cpu => ({ cpu,
+  const chapters = ["6502", "6800", "6809", "8008", "8080", "8088", "z80"].map(cpu => ({ cpu,
     chapter: compileCpuChapter(readFileSync(`src/components/cpus/specifications/${cpu}.md`, "utf8"), { name: cpu }),
   }));
   const filenames = [...instructionModules.map(({ name }) => `${name}.ts`),

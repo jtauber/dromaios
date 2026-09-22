@@ -1,7 +1,7 @@
 import { instructionSet } from "../builders.ts";
 import { families } from "../generated/8088.ts";
 
-// Native prefix handling supplies captured numeric inputs until execution migrates.
+// Group chapter families by the captured inputs supplied by segmented execution.
 const entries = Object.values(families).flat();
 export const instructions8088 = instructionSet(entries.filter(([, definition]) => !definition.inputs));
 export const operandInstructions8088 = instructionSet(entries.filter(([, definition]) =>

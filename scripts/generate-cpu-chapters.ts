@@ -27,7 +27,7 @@ function chapterModule(chapter: CpuChapter, name: string, cpu: string): string {
       return `export const ${group}: {\n${fields}\n} = ${data};\n`;
     }),
     ...(Object.keys(chapter.pages).length ? [`export const pages = ${JSON.stringify(chapter.pages)} as const;`, ""] : []),
-    ...(chapter.execution && chapter.state ? [
+    ...(chapter.execution?.mode === "byte" && chapter.state ? [
       'import { instructionSet } from "../builders.ts";',
       `import { state } from "./state/${name}.ts";`,
       `export const instructions = instructionSet(Object.values(families).flat()${opcodePageLayouts(chapter.pages).some(page => page.on) ? ", 24" : Object.keys(chapter.pages).length ? ", 16" : ""});`,
@@ -58,7 +58,7 @@ export function generateCpuChapters() {
     return { name, cpu, chapter, module: chapterModule(chapter, name, cpu), state: chapter.state &&
       generateChapterState(chapter.state) + (chapter.interface ? generatePublicState(chapter.state, chapter.interface) : "") };
   });
-  const complete = chapters.filter(({ chapter }) => chapter.execution && chapter.state);
+  const complete = chapters.filter(({ chapter }) => chapter.execution?.mode === "byte" && chapter.state);
   const registered = new Set<string>();
   for (const { name, cpu } of complete) {
     if (registered.has(cpu)) throw new Error(`${name}.md: Duplicate complete CPU chapter for ${cpu}.`);

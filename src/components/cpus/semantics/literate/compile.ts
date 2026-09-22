@@ -9,6 +9,7 @@ import { opcodePageLayouts } from "../opcode-pages.ts";
 import type { OpcodePage } from "../opcode-pages.ts";
 import { chapterBlocks, chapterBody, ChapterError, ChapterTokens } from "./document.ts";
 import { expression, flagExpression, parameters, width } from "./expressions.ts";
+import { chapterSegmentedExecution, checkSegmentedEffects } from "./segmented-execution.ts";
 import { chapterExecution, checkByteExecution } from "./execution.ts";
 import type { ChapterExecution } from "./execution.ts";
 import { chapterInterface } from "./interface.ts";
@@ -141,12 +142,15 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         continue;
       }
       if (kind === "execution") {
+        const segmented = header.take("segmented");
+        if (segmented && cpu.name !== "8088") header.fail("Segmented execution currently supplies the 8088 device context.");
         if (execution) header.fail("Execution is already declared.");
         header.expect("{"); header.end();
         const { body, end } = chapterBody(lines, index); index = end;
-        execution = chapterExecution(header, body, { views, actions, latches, choices, flags });
-        if (execution.retireDeferral !== undefined) cpu = { ...cpu, irqDeferral: true };
-        if (execution.opcodeAdvance === "decode" && execution.notifyReti) cpu = { ...cpu, retiNotification: true };
+        execution = segmented ? chapterSegmentedExecution(header, body, { registers, views, actions, latches, flags })
+          : chapterExecution(header, body, { views, actions, latches, choices, flags });
+        if (execution.mode === "byte" && execution.retireDeferral !== undefined) cpu = { ...cpu, irqDeferral: true };
+        if (execution.mode === "byte" && execution.opcodeAdvance === "decode" && execution.notifyReti) cpu = { ...cpu, retiNotification: true };
         continue;
       }
       if (["register", "flag", "array", "latch", "choice"].includes(kind)) {
@@ -382,10 +386,19 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
   if (pages.size) for (const [opcode, tokens] of opcodes) {
     if (opcode > 255 && !pageTokens.has(opcode >>> 8)) tokens.fail("A word opcode cannot be mixed with byte opcode pages.");
   }
+  if (execution?.mode === "segmented") for (const tokens of pageTokens.values()) tokens.fail("Segmented execution uses replaceable prefixes, not opcode pages.");
   if (execution) for (const entries of families.values()) for (const [opcode, definition] of entries) {
     const tokens = opcodes.get(opcode)!;
     if (opcode > 0xff && !pageTokens.has(opcode >>> 8)) tokens.fail("Byte execution requires one-byte opcodes.");
-    tokens.checked(() => checkByteExecution(definition.steps, execution.retireDeferral !== undefined, execution.interrupt === "vectors",
+    if (execution.mode === "segmented") {
+      const inputs = Object.entries(definition.inputs ?? {});
+      const signatures = [[], [["overridden", 8], ["segmentOverride", 16]],
+        [["overridden", 8], ["segmentOverride", 16], ["repeatMode", 8], ["startIP", 16]]];
+      if (!signatures.some(signature => JSON.stringify(signature) === JSON.stringify(inputs))) tokens.fail("Segmented families need plain, override, or repeat inputs in declared order.");
+      if (opcode > 255 || execution.prefixes.some(prefix => prefix.opcode === opcode)) tokens.fail("Segmented instruction bytes cannot collide with prefixes or use opcode pages.");
+      const fault = execution.fault.source;
+      tokens.checked(() => checkSegmentedEffects(definition.steps, fault));
+    } else tokens.checked(() => checkByteExecution(definition.steps, execution.retireDeferral !== undefined, execution.interrupt === "vectors",
       execution.opcodeAdvance === "decode" ? execution : undefined));
   }
   return { cpu: cpu.name, pages: Object.fromEntries(pages), ...(ownsState ? { state: cpu.state } : {}), ...(execution ? { execution } : {}), ...(publicInterface ? { interface: publicInterface } : {}), sources: Object.fromEntries(sources), views: Object.fromEntries(views), actions: Object.fromEntries(actions), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), conditions: Object.fromEntries(conditions), families: Object.fromEntries(families) };

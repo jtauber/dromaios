@@ -318282,7 +318282,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 interrupt entry
 
-The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The native boundary uses the same action for external interrupts, traps, and divide errors; its acceptance and reporting policy still remains outside this chapter. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
+The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The execution contract below uses the same action for traps and divide errors; the native external adapter uses it for accepted INTR/NMI offers. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
 
 ```text
 vector:u8 := input
@@ -318433,6 +318433,84 @@ contents:u16 := source "read a captured 16-bit memory operand" {
   yield concatHighLow(high, low)
 }
 send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 reset control state, preserving general registers and RAM
+
+Reset selects CS:IP=`FFFF:0000`, clears DS/SS/ES, all nine flags, halt/wait, and the three recognition latches. It reads no vector: physical `$FFFF0` is the next instruction address. General registers and RAM are preserved because Intel leaves those register reset values unspecified. This is a deterministic model policy, not a claim about their power-on values.
+
+```text
+write CS:u16 := FFFF:u16
+write IP:u16 := 0000:u16
+write waiting:boolean := false
+write halted:boolean := false
+write trapPending:boolean := false
+write recognitionDeferred:boolean := false
+write interruptDeferred:boolean := false
+write ES:u16 := 0000:u16
+write SS:u16 := 0000:u16
+write DS:u16 := 0000:u16
+replace flags "clear every modeled flag" simultaneously {
+  CF := 0:flag
+  PF := 0:flag
+  AF := 0:flag
+  ZF := 0:flag
+  SF := 0:flag
+  TF := 0:flag
+  IF := 0:flag
+  DF := 0:flag
+  OF := 0:flag
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### 8088 replace the logical instruction offset
+
+Reset selects CS:IP=`FFFF:0000`, clears DS/SS/ES, all nine flags, halt/wait, and the three recognition latches. It reads no vector: physical `$FFFF0` is the next instruction address. General registers and RAM are preserved because Intel leaves those register reset values unspecified. This is a deterministic model policy, not a claim about their power-on values.
+
+```text
+offset:u16 := input
+write IP:u16 := offset
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 advance the live offset after one successful fetch
+
+Reset selects CS:IP=`FFFF:0000`, clears DS/SS/ES, all nine flags, halt/wait, and the three recognition latches. It reads no vector: physical `$FFFF0` is the next instruction address. General registers and RAM are preserved because Intel leaves those register reset values unspecified. This is a deterministic model policy, not a claim about their power-on values.
+
+```text
+offset:u16 := read IP
+write IP:u16 := addWrap(offset, 0001:u16)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 consume an owed trap before attempting entry
+
+Reset selects CS:IP=`FFFF:0000`, clears DS/SS/ES, all nine flags, halt/wait, and the three recognition latches. It reads no vector: physical `$FFFF0` is the next instruction address. General registers and RAM are preserved because Intel leaves those register reset values unspecified. This is a deterministic model policy, not a claim about their power-on values.
+
+```text
+write trapPending:boolean := false
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 commit requested delays and the original trap sample
+
+Reset selects CS:IP=`FFFF:0000`, clears DS/SS/ES, all nine flags, halt/wait, and the three recognition latches. It reads no vector: physical `$FFFF0` is the next instruction address. General registers and RAM are preserved because Intel leaves those register reset values unspecified. This is a deterministic model policy, not a claim about their power-on values.
+
+```text
+intr:u8 := input
+all:u8 := input
+sampledTF:u8 := input
+owedTrap:u8 := input
+write interruptDeferred:boolean := not(isZero(intr))
+write recognitionDeferred:boolean := not(isZero(all))
+write trapPending:boolean := or(not(isZero(owedTrap)), not(isZero(sampledTF)))
 ```
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
@@ -322228,7 +322306,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 INT3
 
-The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The native boundary uses the same action for external interrupts, traps, and divide errors; its acceptance and reporting policy still remains outside this chapter. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
+The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The execution contract below uses the same action for traps and divide errors; the native external adapter uses it for accepted INTR/NMI offers. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
 
 ```text
 perform "interrupt entry" {
@@ -322338,7 +322416,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
 
 ### 8088 INT n
 
-The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The native boundary uses the same action for external interrupts, traps, and divide errors; its acceptance and reporting policy still remains outside this chapter. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
+The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The execution contract below uses the same action for traps and divide errors; the native external adapter uses it for accepted INTR/NMI offers. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
 
 ```text
 vector:u8 := fetch byte
@@ -322449,7 +322527,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
 
 ### 8088 INTO
 
-The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The native boundary uses the same action for external interrupts, traps, and divide errors; its acceptance and reporting policy still remains outside this chapter. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
+The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The execution contract below uses the same action for traps and divide errors; the native external adapter uses it for accepted INTR/NMI offers. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
 
 ```text
 overflow:flag := read OF
@@ -322562,7 +322640,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
 
 ### 8088 IRET
 
-The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The native boundary uses the same action for external interrupts, traps, and divide errors; its acceptance and reporting policy still remains outside this chapter. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
+The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The execution contract below uses the same action for traps and divide errors; the native external adapter uses it for accepted INTR/NMI offers. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
 
 ```text
 perform "return to a saved CS:IP" {

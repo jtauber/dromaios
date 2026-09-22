@@ -28,6 +28,7 @@ for (const query of ['highlights.scm', 'brackets.scm']) {
 }
 const html = treeSitter('cpu', ['highlight', ...configArgs, '--html', '--style', 'minimal', '--layout', 'fragment', fixture], { capture: true }).stdout;
 for (const [text, category] of [
+  ['segmented', 'keyword'], ['prefixes', 'keyword'], ['sampling', 'keyword'], ['limit', 'keyword'], ['pending', 'keyword'],
   ['sample', 'keyword'], ['boundary', 'keyword'], ['report', 'keyword'], ['send', 'keyword'], ['escape', 'keyword'], ['test', 'keyword'], ['iterate', 'keyword'], ['divide', 'keyword'], ['reject', 'keyword'], ['signed', 'keyword'],
   ['projected', 'function'], ['projectAddress', 'function'], ['segment', 'variable'], ['offset', 'variable'],
   ['entries', 'keyword'], ['select', 'keyword'], ['supplied', 'keyword'], ['enter', 'keyword'],

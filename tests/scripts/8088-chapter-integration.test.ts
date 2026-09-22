@@ -171,3 +171,51 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
   `], { encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
 });
+
+test("8088 lifecycle chapter edits reach public reset, fetching, prefixes, retirement, and trap/fault delivery", t => {
+  const directory = mkdtempSync(join(tmpdir(), "dromaios-8088-lifecycle-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  mkdirSync(join(directory, "scripts"));
+  for (const name of ["generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
+  cpSync("src/components", join(directory, "src/components"), { recursive: true });
+  const file = join(directory, "src/components/cpus/specifications/8088.md");
+  writeFileSync(file, readFileSync(file, "utf8")
+    .replace('CS <- u16($FFFF)', 'CS <- u16($4444)').replace('memory 20', 'memory 21')
+    .replace('segment CS shift 4', 'segment DS shift 4').replace('IP <- add(offset, u16(1))', 'IP <- add(offset, u16(2))')
+    .replace('segment $26 ES', 'segment $26 SS').replace('prefixes limit 65536', 'prefixes limit 2')
+    .replace('"trap" vector 1', '"trap" vector 3').replace('"divide-error" vector 0', '"divide-error" vector 4')
+    .replace('sampling flag TF, latch TRAPPENDING', 'sampling flag CF, latch TRAPPENDING'));
+  const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
+  assert.equal(generated.status, 0, generated.stderr);
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { Cpu8088 } from ${JSON.stringify(pathToFileURL(join(directory, "src/components/cpus/8088.ts")).href)};
+    const initial = { ax: 0x1234, bx: 0, cx: 0, dx: 0, sp: 0x8000, bp: 0, si: 0, di: 0,
+      cs: 0x100, ds: 0x200, es: 0x300, ss: 0x400, ip: 0, halted: false, waiting: false,
+      interruptDeferred: false, recognitionDeferred: false, trapPending: false,
+      flags: { cf: false, pf: false, af: false, zf: false, sf: false, tf: false, if: false, df: false, of: false } };
+    for (const code of [[0x90], [0xb8, 0x78, 0x56], [0x26, 0xa0, 0, 2], [0x26, 0xf0, 0x90], [0xf6, 0xf1]]) {
+      const bytes = new Uint8Array(0x200000);
+      code.forEach((byte, i) => { bytes[0x2000 + 2*i] = byte; });
+      bytes[0x3200] = 0x55; bytes[0x4200] = 0x99; bytes[16] = 0x60;
+      const ram = { size: bytes.length, read: address => bytes[address], write: (address, byte) => { bytes[address] = byte; } };
+      assert.throws(() => new Cpu8088({ ...ram, size: 0x100000 }, initial), /2 MiB/);
+      const cpu = new Cpu8088(ram, initial), record = cpu.step();
+      assert.equal(record.instruction.address, 0x1000);
+      assert.equal(record.accesses[0].address, 0x2000);
+      if (code[0] === 0x90) assert.equal(record.after.ip, 2);
+      if (code[0] === 0xb8) { assert.equal(record.after.ax, 0x5678); assert.equal(record.after.ip, 6); }
+      if (code[1] === 0xa0) { assert.equal(record.after.al, 0x99); assert.equal(record.after.ip, 8); }
+      if (code[1] === 0xf0) { assert.equal(record.outcome, "unsupported"); assert.equal(record.after.ip, 0); assert.equal(record.instruction.bytes.length, 2); }
+      if (code[0] === 0xf6) { assert.deepEqual(record.interrupt, { source: "divide-error", vector: 4 }); assert.equal(record.after.ip, 0x60); }
+      const reset = cpu.reset(); assert.equal(reset.after.cs, 0x4444); assert.equal(reset.after.ax, record.after.ax); assert.deepEqual(reset.accesses, []);
+    }
+    const bytes = new Uint8Array(0x200000); bytes[0x2000] = 0x90; bytes[12] = 0x50;
+    const ram = { size: bytes.length, read: address => bytes[address], write: (address, byte) => { bytes[address] = byte; } };
+    const cpu = new Cpu8088(ram, { ...initial, flags: { ...initial.flags, cf: true } });
+    assert.equal(cpu.step().after.trapPending, true);
+    const trap = cpu.step(); assert.equal(trap.instruction, null);
+    assert.deepEqual(trap.interrupt, { source: "trap", vector: 3 }); assert.equal(trap.after.ip, 0x50);
+  `], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+});
