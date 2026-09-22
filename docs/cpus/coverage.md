@@ -25,7 +25,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,900](../../src/components/cpus/specifications/z80.md) | 1,509 | 698 / 698 | 100% | 6 / 6 |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,566](../../src/components/cpus/specifications/6809.md) | 1,322 | 268 / 268 | 100% | 6 / 6 |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,115](../../src/components/cpus/specifications/8088.md) | 2,714 | 291 / 291 | 100% | 6 / 6 |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [625](../../src/components/cpus/68000.ts) | [4,090](../../src/components/cpus/specifications/68000.md) | 2,427 | 27,796 / 36,029 | 77.1% | 1 / 6 |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [621](../../src/components/cpus/68000.ts) | [5,220](../../src/components/cpus/specifications/68000.md) | 3,228 | 31,736 / 36,029 | 88.1% | 1 / 6 |
 
 **Literate instruction coverage** measures documented opcode forms authored in
 executable chapters. This percentage alone does not measure the wider CPU
@@ -219,10 +219,11 @@ verify chapter edits through generation, construction, machine parsing, memory
 bounds, and execution.
 
 The [68000 chapter](../../src/components/cpus/specifications/68000.md) owns
-**27,796 of 36,029 documented forms (77.1%)**: all 9,726 MOVE/MOVEA forms,
+**31,736 of 36,029 documented forms (88.1%)**: all 9,726 MOVE/MOVEA forms,
 6,660 ordinary logical/immediate and CLR/NOT/TST forms, 11,186 binary arithmetic
-forms, eight MOVEQ destinations, sixteen EXT forms, eight SWAP forms, and 192 EXG
-pairs. These cover 32,160 operation words, but MOVEQ immediates and quick amounts
+forms, 3,940 bit/shift/rotate/TAS forms, eight MOVEQ destinations, sixteen EXT
+forms, eight SWAP forms, and 192 EXG pairs. These cover 37,444 operation words,
+but MOVEQ immediates and quick amounts
 do not multiply forms under the existing
 [counting rules](68000/opcode-count.md).
 The full stored-state schema earns **1 / 6 model milestones**. A7 selection,
@@ -635,14 +636,15 @@ family inventory is:
   Paired memory operands resolve source before destination, including repeated
   predecrement/postincrement of one register. Alignment failures discard both
   pending updates; destination-read/write failures retain committed updates.
-  BTST/BCHG/BCLR/BSET, every register/memory shift and rotate, and TAS add
+  [Chapter-owned BTST/BCHG/BCLR/BSET, shifts/rotates, and TAS](../../src/components/cpus/specifications/68000.md#bits-shifts-and-rotates) add
   **3,940 forms** through **2,086 shared bodies** (**5,284 operation words**).
   Bit numbers and register counts are captured before the tested operand,
   including aliased registers. Bits test modulo 32 for Dn and modulo 8 otherwise;
   BTST writes only Z and retains its program-space and immediate-source forms.
   TAS derives flags from the old byte before setting bit 7. Memory operands
   reuse the destination stages, including A7 byte stepping and update/fault
-  boundaries. Shifts reuse the shared one-bit recipe with named local values
+  boundaries. Their chapter families replace the native catalogue and builder.
+  Shifts reuse the shared one-bit recipe with typed chapter locals
   for result, X, C, and accumulated ASL overflow; flags publish after the loop.
   Zero-count shifts still set N/Z, clear V, and preserve X; ROX copies X to C,
   while the other families clear C. Ordinary rotates preserve X for all counts.
@@ -718,14 +720,14 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Remaining handwritten CPU core (68000) | 625 |
-| CPU-specific instruction definition files | 467 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,538 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,630** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 20,219 |
+| Remaining handwritten CPU core (68000) | 621 |
+| CPU-specific instruction definition files | 418 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 5,536 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,575** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 21,349 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
-| Generated executable CPU output, counted separately | 473,997 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 5,655,300 |
+| Generated executable CPU output, counted separately | 557,785 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 7,581,662 |
 | Generated state schemas/types, counted separately | 207 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
@@ -739,7 +741,7 @@ migration to zero**. The final public-interface step removes its remaining
 **71 core lines**, **11 state-adapter lines**, and **9 definition-adapter lines**.
 Its generated public class is **52 lines**, its generated state module is
 **24 lines**, and shared generation supplies both. The shared byte runtime
-is now **121 lines**; the literate front end is **2,088 lines**.
+is now **121 lines**; the literate front end is **2,137 lines**.
 
 Across the earlier 8008 execution, public-interface, and machine-integration
 migration, authored CPU TypeScript grew from **9,416 to 9,671 lines**, and CPU
@@ -1147,6 +1149,32 @@ calculation, flag effect, alias, and injected failure boundary. Chapter edits
 change calculation expressions, X and cumulative-zero policies, quick amounts,
 and paired-register selection. The saved-build comparison matches **131,072
 instruction cases**, **256 reset/interrupt cases**, and **8,804 injected failures**.
+
+The bit/shift/rotate/TAS migration adds **3,940 documented forms**, bringing
+68000 literate coverage to **31,736 / 36,029 (88.1%)**. Its **5,284 operation
+words** select **2,086 shared chapter bodies**. The chapter owns encodings,
+modulo bit selection, quick/register count decoding, local shift calculations,
+flag publication, and operand access/writeback. Typed `iterate` locals expose
+the existing simultaneous-update semantic operation; this adds no new runtime
+primitive. The editor grammar supports and highlights the new notation.
+
+The chapter is **5,220 lines**, including **3,228 formal lines**.
+Removing the handwritten bit catalogue and builder, including the shared
+language addition, reduces authored CPU TypeScript from **6,630 to 6,575
+lines**, a net reduction of **55**. CPU definition files are **418
+lines** and the native core is **621 lines**. Total maintained CPU source,
+including chapters and generation scripts, is **28,072 lines**;
+the extra chapter prose and formal definitions increase this wider total.
+Generated execution and chapter data remain separate. Model milestones stay
+**1 / 6**; effective-address decoding, reset, execution boundaries, and the
+remaining instruction families still await migration.
+
+Independent bit-array and ordered-effect tests retain every encoding, all
+six-bit shift counts, register aliases, and partial failures. Chapter edits
+change carry initials, overflow accumulation, count masks, and bit-number
+reduction. Typed-loop tests cover simultaneous updates, scopes, nested effects,
+and early outcomes. The saved-build comparison matches **131,072 instruction
+cases**, **256 reset/interrupt cases**, and **7,252 injected failures**.
 
 Generated chapter data shares identical instruction definitions across opcode
 aliases; distinct definitions still repeat their validated CPU schema. This is a

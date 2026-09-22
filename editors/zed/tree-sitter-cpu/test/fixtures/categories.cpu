@@ -294,3 +294,16 @@ view SELECTED "selected register" : 8 {
   }
   return contents
 }
+
+source shifted "typed locals" (original: 8, count: 8): 8 {
+  iterate(count) {
+    value: 8 = original
+    carry: flag = 0
+    step {
+      next = shiftLeft(value, carry)
+      next value = next
+      next carry = negative(value)
+    }
+  }
+  return value
+}

@@ -43,7 +43,7 @@ type Symbols = {
 export function checkSegmentedEffects(steps: readonly Statement[], fault: string, continuation = false): void {
   for (const step of steps) switch (step.kind) {
     case "choose": checkSegmentedEffects(step.yes.steps, fault, continuation); checkSegmentedEffects(step.no.steps, fault, continuation); break;
-    case "when": case "iterate": checkSegmentedEffects(step.steps, fault, continuation); break;
+    case "when": case "iterate": case "iterate-together": checkSegmentedEffects(step.steps, fault, continuation); break;
     case "read-source": checkSegmentedEffects(step.source.steps, fault, continuation); break;
     case "perform": checkSegmentedEffects(step.action.steps, fault, continuation); break;
     case "dispatch": case "match":

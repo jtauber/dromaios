@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { initialState } from "../../../helpers/68000-state.js";
-import { instructions } from "../../../../src/components/cpus/generated/68000-bits.js";
-import { bitForms68000 } from "../../../../src/components/cpus/68000-bits.js";
+import { instructions, opcodeInstructions } from "../../../../src/components/cpus/generated/68000-bits.js";
 import { bits68000 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
@@ -10,8 +9,8 @@ import type { WordInstructionContext } from "../../../../src/components/cpus/ins
 import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
 
 type Context = Cpu68000AddressContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
-type Body = (state: Cpu68000State, sm: number, sc: number, dm: number, dc: number, context: Context) => OperandAlignmentFault | void;
-const bodies: Readonly<Record<string, Body>> = instructions;
+type Body = (state: Cpu68000State, mode: number, code: number, upperCode: number, context: Context) => OperandAlignmentFault | "unsupported" | void;
+const bodies: Readonly<Record<number, Body>> = opcodeInstructions;
 const data = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
 const address = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
 type Operation = "BTST" | "BCHG" | "BCLR" | "BSET" | "ASL" | "ASR" | "LSL" | "LSR" | "ROL" | "ROR" | "ROXL" | "ROXR" | "TAS";
@@ -105,7 +104,7 @@ interface Scenario { bits: number; address: number; original: number; source: nu
 function observe(f: Form, scenario: Scenario, failAt: number, generated: boolean) {
   const state = initialState(scenario.bits), events: unknown[][] = [], writes: number[][] = [], pending = new Map<string, number>();
   const failure = Error("injected bit operation failure");
-  let failed = false, outcome: OperandAlignmentFault | void;
+  let failed = false, outcome: OperandAlignmentFault | "unsupported" | void;
   if (f.dm === 0) state[data[f.dc]!] = scenario.original;
   if (f.source.startsWith("d")) state[data[f.sc]!] = scenario.source;
   const effect = (...event: unknown[]) => { events.push(event); if (events.length - 1 === failAt) throw failure; };
@@ -139,7 +138,7 @@ function observe(f: Form, scenario: Scenario, failAt: number, generated: boolean
     readByte: a => read("data", a), readProgramByte: a => read("program", a),
     writeByte(a, byte) { effect("memory write", a, byte); mutate(); writes.push([a, byte]); },
   };
-  try { outcome = generated ? bodies[f.key]!(observed, f.sm, f.sc, f.dm, f.dc, context) : reference(observed, f, context); }
+  try { outcome = generated ? bodies[f.opcode]!(observed, f.dm, f.dc, f.sc, context) : reference(observed, f, context); }
   catch (error) { if (error !== failure) throw error; failed = true; }
   return { state, events, writes, failed, outcome: outcome! };
 }
@@ -148,12 +147,10 @@ const scenario: Scenario = { bits: 127, address: 0xfffffffe, original: 0x8765432
 test("68000 bit operations, shifts, and TAS cover 3,940 forms, 5,284 words, and 2,086 shared bodies", () => {
   assert.equal(forms.length, 5284); assert.equal(representatives.length, 2086);
   assert.equal(new Set(forms.map(f => f.source === "quick" ? f.opcode - f.sc * 512 : f.opcode)).size, 3940);
-  assert.equal(bitForms68000.length, forms.length); assert.equal(new Set(bitForms68000.map(f => f.opcode)).size, forms.length);
-  const expected = new Map(forms.map(f => [f.opcode, f]));
-  for (const f of bitForms68000) assert.deepEqual({ opcode: f.opcode, operation: f.operation, size: f.size, source: f.source?.name ?? "none",
-    sm: f.sourceMode, sc: f.sourceCode, dm: f.destinationMode, dc: f.destinationCode, key: f.body }, expected.get(f.opcode));
-  const keys = representatives.map(f => f.key).sort();
-  assert.deepEqual(Object.keys(bits68000).sort(), keys); assert.deepEqual(Object.keys(bodies).sort(), keys);
+  assert.deepEqual(Object.keys(bodies).map(Number), forms.map(f => f.opcode));
+  assert.equal(new Set(Object.values(bodies)).size, 2086);
+  assert.equal(Object.keys(bits68000).length, 2086);
+  assert.deepEqual(Object.keys(instructions).sort(), Object.keys(bits68000).sort());
 });
 
 test("every bit/shift binding preserves selectors, register aliases, operand space, and incoming flags", () => {
@@ -184,7 +181,7 @@ test("shifts cover every count, width, sign boundary, incoming flag combination,
     for (let count = 0; count < 64; count++) for (const x of [false, true]) for (const original of values) {
       const state = initialState(); state.d0 = 0xabcdef00 - 0xabcdef00 % 2 ** f.size + original; state.d1 = 0x12340000 + count; state.flags.x = x;
       const before = structuredClone(state), facts = shifted(f, original, count, x);
-      bodies[f.key]!(state, 0, 1, 0, 0, {} as Context);
+      bodies[f.opcode]!(state, 0, 0, 1, {} as Context);
       assert.deepEqual(state, { ...before, d0: before.d0 - original + facts.result, flags: { ...before.flags,
         n: facts.n, z: facts.z, v: facts.v, c: facts.c, x: facts.x } }, `${f.key} count ${count} input ${original}`);
     }
@@ -209,12 +206,12 @@ test("bit operations reduce full register and immediate bit numbers modulo opera
 });
 
 test("bit/shift explanations show captured counts, local flag iteration, tested bytes, and flags before writes", () => {
-  const shift = describeInstruction(bits68000.ASL_16_one_memory!);
-  assert.ok(shift.indexOf("commit staged") < shift.indexOf("destinationByte0:u8 := read memory"));
-  assert.ok(shift.indexOf("destinationByte1:u8 := read memory") < shift.indexOf("initialExtend:flag := read X"));
+  const shift = describeInstruction(bits68000["ASL.W MEMORY"]!);
+  assert.ok(shift.indexOf("commit staged") < shift.indexOf("byte0:u8 := read memory"));
+  assert.ok(shift.indexOf("byte1:u8 := read memory") < shift.indexOf("initialExtend:flag := read X"));
   assert.match(shift, /next overflowBit := or/);
   assert.ok(shift.indexOf("Update all values together") < shift.indexOf('flags "68000 shift result"'));
   assert.ok(shift.indexOf('flags "68000 shift result"') < shift.indexOf("write memory"));
-  assert.match(describeInstruction(bits68000.BTST_8_d0_program!), /read program memory/);
-  assert.doesNotMatch(describeInstruction(bits68000.BTST_8_d0_immediate!), /write memory|read memory/);
+  assert.match(describeInstruction(bits68000["BTST.B D0,PROGRAM"]!), /read program memory/);
+  assert.doesNotMatch(describeInstruction(bits68000["BTST.B D0,IMMEDIATE"]!), /write memory|read memory/);
 });

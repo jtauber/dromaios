@@ -289,12 +289,14 @@ updates and read the updated register afterward. Their arithmetic width is
 always 32 bits; word EA sources sign-extend, while quick values remain positive.
 ADDA/SUBA and address quick operations preserve flags; CMPA changes N/Z/V/C.
 
-The [bit/shift inventory](../../src/components/cpus/68000-bits.ts) retains the four source/destination
-selectors and native ALU destination stages. Capture bit numbers and shift counts before
-reading the target; keep BTST's program-space and immediate reads distinct from
+The [bit/shift chapter families](../../src/components/cpus/specifications/68000.md#bits-shifts-and-rotates)
+own encodings, register roles, count decoding, and destination stages, using the
+same raw `mode/code/upperCode` binding as arithmetic. Capture bit numbers and
+shift counts before reading the target; keep BTST's program-space and immediate reads distinct from
 writable operands. Shifts share one-bit construction with the other CPUs.
-Use named local iteration values for the result, extend, carry, and accumulated
-overflow, updating them together and publishing architectural flags afterward.
+Use typed `iterate` locals for the result, extend, carry, and accumulated
+overflow. Trailing `next` clauses update them together; publish architectural
+flags afterward.
 Keep zero-count flag rules and TAS's original-byte flag calculation explicit.
 
 Word-source MUL/DIV/CHK commit source updates after their result/flag effects,

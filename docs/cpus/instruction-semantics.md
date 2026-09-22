@@ -1701,20 +1701,22 @@ successive updates to the same An. Source or alignment failures discard pending
 updates. A failed destination read retains committed updates; a failed write
 also retains calculated flags and earlier bytes. The native arithmetic builder
 and its encoding classifier are removed without a language or compiler change.
-The native ALU destination recipe remains in use for bits, shifts, and decimal
-operations until their own chapter migration.
+The native ALU destination recipe remains in use for decimal operations
+until their own chapter migration.
 
-The [bit/shift inventory](../../src/components/cpus/68000-bits.ts) adds 2,086
-bodies for 3,940 documented forms. All families reuse the ALU destination
-recipe. Bit-number immediates fetch a complete word before target extensions;
+The [bit/shift chapter families](../../src/components/cpus/specifications/68000.md#bits-shifts-and-rotates) own
+2,086 bodies for 3,940 documented forms across 5,284 operation words. They share
+the chapter's register readers, memory sources, and writeback actions. Native
+bindings supply only raw `mode/code/upperCode`; the chapter owns register roles,
+quick count decoding, and the six-bit register-count mask. Bit-number immediates fetch a complete word before target extensions;
 dynamic bit numbers and register shift counts are captured before the target,
 including when both operands select the same Dn. BTST also admits PC-relative
 program reads and, in its dynamic form, a fetched immediate byte. Only Z changes
 for bit operations. TAS sets N/Z and clears V/C from the old byte, then writes
 that byte with bit 7 set.
 
-`iterateTogether` extends bounded iteration to named numeric and Boolean
-values. Initial expressions use only the outer scope. Every next expression
+The chapter's typed `iterate(count) { … step { … next … } }` lowers to
+`iterateTogether`, bounded iteration over named numeric and Boolean values. Initial expressions use only the outer scope. Every next expression
 uses the current iteration's values and local captures; all next values are
 computed before any accumulator changes. Zero iterations retain the initials,
 and internal captures never escape. The validator checks names, widths, flag
@@ -1733,7 +1735,10 @@ or rejection before publishing results. The [bit/shift tests](../../tests/compon
 scan every operation word independently, compare every generated body and effect
 failure, and use a bit-array oracle for all six-bit counts and sign boundaries.
 CPU bus tests retain byte failures, A7 updates in both banks, and program-space
-function codes. Earlier definitions and generated modules remain unchanged.
+function codes. [Chapter mutation tests](../../tests/components/cpus/semantics/literate-68000-bits.test.ts)
+verify shared quick-count aliases and change carry initials, ASL overflow,
+count masks, and bit reduction in the generated execution. The handwritten
+bit catalogue and builder are removed.
 
 The remaining [word and decimal inventory](../../src/components/cpus/68000-arithmetic.ts)
 binds 2,120 MULU/MULS/DIVU/DIVS/CHK forms to 440 word-source bodies and 306

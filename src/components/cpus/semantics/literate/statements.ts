@@ -8,6 +8,7 @@ import type { ChapterTokens } from "./document.ts";
 import { address, expression, flagExpression, signedness } from "./expressions.ts";
 import { chapterChoose } from "./choose.ts";
 import { chapterMatch } from "./matches.ts";
+import { chapterIteration } from "./iterations.ts";
 
 export type ChapterOperand = { readonly name: string; readonly kind: "unsupported" } | { readonly name: string; readonly read: ValueSource } & (
   | { readonly kind: "view"; readonly write: InstructionDefinition }
@@ -53,7 +54,7 @@ export function checkStateEffects(steps: readonly Statement[], effects: Effects,
       case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": case "test-choice": break;
       case "choose":
         checkStateEffects(step.yes.steps, effects, allowMatches); checkStateEffects(step.no.steps, effects, allowMatches); break;
-      case "when": case "iterate": checkStateEffects(step.steps, effects, allowMatches); break;
+      case "when": case "iterate": case "iterate-together": checkStateEffects(step.steps, effects, allowMatches); break;
       case "match": case "dispatch":
         if (effects === "view") throw new Error("Views may only read stored state; byte matches can reject.");
         if (!allowMatches) throw new Error("Execution actions cannot reject through byte matches.");
@@ -91,7 +92,11 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
     const result: Statement[] = [];
     for (let index = 0; index < lines.length; index++) {
       const tokens = lines[index]!;
-      if (tokens.take("match")) {
+      if (tokens.next === "iterate" && tokens.peek(1) === "(") {
+        const { body, end } = chapterBody(lines, index); index = end;
+        result.push(chapterIteration(tokens, body, (body, check) => parse(body, check, selectedOperands),
+          step => validate([...result, step])));
+      } else if (tokens.take("match")) {
         const { body, end } = chapterBody(lines, index); index = end;
         result.push(chapterMatch(tokens, body, undefined, symbols.catalogues, selectedOperands,
           (body, selected, check) => parse(body, check, selected), step => validate([...result, step])));
@@ -282,5 +287,5 @@ export function usesMemory(steps: readonly Statement[]): boolean {
     || (step.kind === "choose" && (usesMemory(step.yes.steps) || usesMemory(step.no.steps)))
     || (step.kind === "perform" && usesMemory(step.action.steps))
     || (step.kind === "read-source" && usesMemory(step.source.steps))
-    || ((step.kind === "when" || step.kind === "iterate") && usesMemory(step.steps)));
+    || ((step.kind === "when" || step.kind === "iterate" || step.kind === "iterate-together") && usesMemory(step.steps)));
 }

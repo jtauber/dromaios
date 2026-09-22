@@ -201,6 +201,7 @@ Quoted descriptions use JSON string escaping.
 | `fault alignment program read(address) if lowBit(address)` | Return a program-space alignment fault; writes cannot use program space. |
 | `commit addresses` | Commit register updates staged by the existing address decoder. |
 | `result = iterate(count, initial) { … return next }` | Execute 0–255 ordered iterations, retaining the initial width; the final `return` occupies its own line. |
+| `iterate(count) { … step { … next local = expression } }` | Advance typed numeric and flag locals together; declarations and each trailing `next` occupy separate lines. |
 | `quotient, remainder = divide(dividend, divisor, signed) otherwise "divide-error"` | Divide a double-width dividend by a byte/word; choose `signed` or `unsigned`; return the named outcome on zero or quotient overflow. |
 | `reject "divide-error" if condition` | Return a named instruction outcome when the flag expression is true; omit `if` for unconditional rejection. |
 | `when not(carry) { … }` | Execute a nested block only when its captured flag expression is true. |
@@ -228,6 +229,40 @@ an unbounded loop or host callback. Sources and actions may iterate within their
 existing effect permissions; views still cannot write state, and memory effects
 still require an explicit capability. Validation and capability inference inspect
 nested iterations as well as their surrounding statements.
+
+When a calculation carries several values between steps, declare typed locals
+before a `step` block. This form lowers to the same `iterateTogether` semantic
+operation used by TypeScript definitions:
+
+```text
+iterate(count) {
+  shifted: 16 = original
+  extendBit: flag = initialExtend
+  overflowBit: flag = 0
+  step {
+    result = shiftLeft(shifted, 0)
+    next shifted = result
+    next extendBit = negative(shifted)
+    next overflowBit = or(overflowBit, xor(negative(shifted), negative(result)))
+  }
+}
+```
+
+The byte count and all initial expressions use the enclosing scope and are
+captured once. Initial expressions cannot refer to other locals in this loop.
+Every local requires exactly one trailing `next` clause, of its declared numeric
+width or `flag` type. All next expressions see the same current locals and the
+step's captures; every update is computed before any local advances. At count
+zero the initials remain unchanged. After the loop, its declared locals hold
+the final values; captures inside `step` do not escape. Nested loops and body
+effects obey the same scope and capability rules as single-value iteration.
+The name `next` remains available for an ordinary capture (`next = …`).
+
+The [68000 shifts](../../src/components/cpus/specifications/68000.md#local-shift-state)
+use this to calculate result, X, C, and cumulative overflow locally, then publish
+architectural flags after the loop. [Typed-loop language tests](../../tests/components/cpus/semantics/literate-iteration-values.test.ts)
+check simultaneous updates, zero/maximum counts, nesting, captured counts,
+ordered failures, declared outcomes, and document-located validation errors.
 
 Division takes a 16-bit dividend and 8-bit divisor, or a 32-bit dividend and
 16-bit divisor. It captures quotient and remainder at the divisor's width only
@@ -1137,7 +1172,8 @@ instruction catalogue bindings. No processor-specific TypeScript implementation
 remains; the chapter supplies all of its model and public-interface choices.
 Shared runtime services enforce the declared execution contract. Chapters
 without owned state validate declarations against an external schema; the
-68000 retains most of its instruction definitions in TypeScript.
+68000 retains its remaining word/decimal arithmetic, control, transfer, and
+system instruction definitions in TypeScript.
 
 The eight chapters now exercise contrasting widths, ordered effects, and
 interrupt-recognition policies. The 6502 now owns its complete state, status
@@ -1150,7 +1186,8 @@ owns reset bus effects, ordinary execution, named IRQ/NMI entry, and its public
 interface. No handwritten 6502 implementation remains.
 The 8008 now expresses its address-stack selector, array, and port effects;
 the 68000 now owns its schema, transfers, logical/unary and binary arithmetic
-operations, A7 selection, and status packing/restoration. Its native effective-address decoder consumes
+operations, bit/shift/rotate/TAS families, A7 selection, and status packing/restoration.
+Its native effective-address decoder consumes
 the chapter selection source and retains pending auto-updates. Shared TypeScript
 bodies still serve the remaining instruction families. Only complete chapter-owned
 forms earn literate coverage.

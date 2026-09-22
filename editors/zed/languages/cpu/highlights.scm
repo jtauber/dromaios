@@ -4,7 +4,7 @@
   "with" "named" "except" "fetch" "operand" "apply" "replace" "when" "test" "return"
   "segmented" "segment" "shift" "record" "address" "prefixes" "limit" "repeat" "ignore" "pending" "vector" "sampling" "restore"
   "sample" "boundary" "report" "send" "escape"
-  "choose" "else" "iterate" "divide" "reject" "signed" "unsigned"
+  "choose" "else" "iterate" "step" "next" "divide" "reject" "signed" "unsigned"
   "program" "fault" "alignment" "read" "write" "if" "commit" "addresses" "defer" "irq" "intr" "all" "into" "notify" "reti"
   "execution" "memory" "port" "counter" "stopped" "word" "opcode" "advance"
   "on" "dispatch" "decode" "then" "external" "after" "failure" "retain" "reset" "retire" "interrupt"
