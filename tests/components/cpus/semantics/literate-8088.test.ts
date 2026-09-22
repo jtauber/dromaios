@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { boolean, defineState, flag, group, unsigned } from "../../../../src/components/cpus/state.js";
 import { cpu8088StateDescription } from "../../../../src/components/cpus/state/8088.js";
-import { instructions8088, operandInstructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions8088, operandInstructions8088, strings8088 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { instructions as actions, sourceReaders } from "../../../../src/components/cpus/generated/8088-state.js";
 import { initialState } from "../8088/helpers.js";
@@ -24,9 +24,12 @@ const opcodes = [
   0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f, 0x8c, 0x8d, 0x8e, 0x8f, 0x90, 0x91, 0x92, 0x93, 0x94,
   0x95, 0x96, 0x97, 0x9a, 0x9c, 0x9d, 0xc2, 0xc3, 0xc4, 0xc5, 0xca, 0xcb, 0xd7, 0xe0, 0xe1, 0xe2,
   0xe3, 0xe8, 0xe9, 0xea, 0xeb, 0xf4, 0xf5, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd,
+  0xa4, 0xa5, 0xa6, 0xa7, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
+  0xe4, 0xe5, 0xe6, 0xe7, 0xec, 0xed, 0xee, 0xef, 0x9b, 0xcc, 0xcd, 0xce, 0xcf,
+  0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
 ].sort((a, b) => a - b);
 
-test("the 8088 chapter owns the complete stored schema and 260 forms across 195 primary encodings", () => {
+test("the 8088 chapter owns the complete stored schema and all 291 forms across 226 primary encodings", () => {
   const expected = defineState({
     ax: unsigned(16), bx: unsigned(16), cx: unsigned(16), dx: unsigned(16),
     sp: unsigned(16), bp: unsigned(16), si: unsigned(16), di: unsigned(16),
@@ -38,12 +41,12 @@ test("the 8088 chapter owns the complete stored schema and 260 forms across 195 
   assert.deepEqual(Object.keys(cpu8088StateDescription), Object.keys(expected));
   assert.deepEqual(Object.keys(cpu8088StateDescription.flags.fields), Object.keys(expected.flags.fields));
   const entries = Object.values(chapter.families).flat();
-  assert.equal(entries.length, 195);
+  assert.equal(entries.length, 226);
   // Replace primary group bytes with their documented extension forms; far pointers
   // count once per operation, independent of the three legal memory modes.
-  assert.equal(entries.length - 4 + 8 + 8 + 5 + 5 - 4 + 4 * 7 - 2 + 2 * 7 - 2 + 2 + 7, 260);
+  assert.equal(entries.length - 4 + 8 + 8 + 5 + 5 - 4 + 4 * 7 - 2 + 2 * 7 - 2 + 2 + 7, 291);
   assert.deepEqual(entries.map(([opcode]) => opcode).sort((a, b) => a - b), opcodes);
-  for (const [opcode, definition] of entries) assert.deepEqual(({ ...instructions8088, ...operandInstructions8088 })[opcode], definition);
+  for (const [opcode, definition] of entries) assert.deepEqual(({ ...instructions8088, ...operandInstructions8088, ...strings8088 })[opcode], definition);
   assert.equal(chapter.execution, undefined); assert.equal(chapter.interface, undefined);
 });
 

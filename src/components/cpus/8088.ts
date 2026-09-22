@@ -2,7 +2,7 @@ import type { Ram } from "../memory/ram.js";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep, WaitingStep } from "./execution-records.ts";
 import { readWordLE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
-import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
+import type { MemoryAccess } from "./memory-access.ts";
 import { recordPorts } from "./port-access.ts";
 import type { BytePorts, PortAccess } from "./port-access.ts";
 import { executionBoundary } from "./execution-boundary.ts";
@@ -10,11 +10,10 @@ import type { WordInstructionContext, InterruptDeferralContext, InterruptReportC
 import { copyState, readState } from "./state.ts";
 import { cpu8088StateDescription } from "./state/8088.ts";
 import type { Cpu8088State, Cpu8088Flags } from "./state/8088.ts";
-import { sourceReaders } from "./generated/8088-state.ts";
+import { instructions as actions, sourceReaders } from "./generated/8088-state.ts";
 import { opcodeEntries } from "./generated/8088.ts";
-import { instructions as operands, sourceReaders as operandSources } from "./generated/8088-operands.ts";
+import { instructions as operands } from "./generated/8088-operands.ts";
 import { instructions as strings } from "./generated/8088-strings.ts";
-import { instructions as control } from "./generated/8088-control.ts";
 import { record8088External } from "./8088-external.ts";
 import type { Cpu8088ExternalAccess, Cpu8088ExternalConnections, Cpu8088ExternalContext } from "./8088-external.ts";
 import type { ReadonlyState } from "./state.js";
@@ -92,19 +91,7 @@ interface InstructionContext extends WordInstructionContext, BytePorts, Interrup
 }
 type Rejection = "opcode" | "divide-error";
 type OpcodeHandler = (instruction: InstructionContext) => Rejection | void;
-type OperandWidth = 8 | 16;
 type SegmentRegister = "es" | "cs" | "ss" | "ds";
-type StringOperation = "move" | "compare" | "store" | "load" | "scan";
-interface MemoryAddress { readonly segment: number; readonly offset: number }
-
-type StringKey = `${StringOperation}_${OperandWidth}`;
-const plainStrings: Readonly<Record<StringKey, (state: Cpu8088State, instruction: ByteMemory) => void>> = strings;
-const overriddenStrings: Readonly<Record<`${StringKey}_override`,
-  (state: Cpu8088State, segment: number, instruction: ByteMemory) => void>> = strings;
-const repeatedStrings: Readonly<Partial<Record<`${StringKey}_${"repe" | "repne"}`,
-  (state: Cpu8088State, startIP: number, instruction: ByteMemory) => void>>> = strings;
-const overriddenRepeatedStrings: Readonly<Partial<Record<`${StringKey}_${"repe" | "repne"}_override`,
-  (state: Cpu8088State, segment: number, startIP: number, instruction: ByteMemory) => void>>> = strings;
 
 // The original 8088 has twenty address lines; carries beyond bit 19 are discarded.
 function physicalAddress(segment: number, offset: number): number {
@@ -163,7 +150,7 @@ export class Cpu8088 {
       if (this.#state.trapPending && !this.#state.recognitionDeferred) {
         const memory = recordMemory(this.#ram);
         this.#state.trapPending = false;
-        control.enterInterrupt(this.#state, 1, memory);
+        actions.enterInterrupt(this.#state, 1, memory);
         return { before, after: this.snapshot(), instruction: null, accesses: memory.accesses,
           outcome: "executed", interrupt: { source: "trap", vector: 1 } };
       }
@@ -194,7 +181,7 @@ export class Cpu8088 {
         },
         reportInterrupt: (vector: number): void => { interrupt = { source: "software", vector }; },
       };
-      if (before.waiting) reason = control.resumeWait(this.#state, context);
+      if (before.waiting) reason = actions.pollWait(this.#state, 1, context);
       else {
         // A full code segment of prefixes cannot reach an opcode; bound the attempt without a later-x86 length limit.
         while (bytes.length < 0x10000) {
@@ -204,7 +191,7 @@ export class Cpu8088 {
           if (opcode === 0xf0) continue; // LOCK has no bus-arbitration effect in this CPU-and-RAM model.
           if (opcode === 0xf2 || opcode === 0xf3) { repeat = opcode === 0xf3; continue; }
           const handler = this.#opcodeHandlers[opcode];
-          if (handler && (repeat === undefined || this.#stringHandlers.some(([code]) => code === opcode))) {
+          if (handler && (repeat === undefined || Object.hasOwn(strings, opcode))) {
             reason = handler({ ...context, segment, repeat });
           }
           break;
@@ -212,7 +199,7 @@ export class Cpu8088 {
       }
       if (reason === "divide-error") {
         // Original 8088 type 0 returns AFTER DIV/IDIV, unlike later x86 fault restart.
-        control.enterInterrupt(this.#state, 0, { readByte, writeByte });
+        actions.enterInterrupt(this.#state, 0, { readByte, writeByte });
         interrupt = { source: "divide-error", vector: 0 };
       }
       if (reason === "opcode") this.#state.ip = before.ip;
@@ -259,7 +246,7 @@ export class Cpu8088 {
         checkUnsigned("Interrupt vector", vector, 0xff);
         accesses.push({ kind: "acknowledge", value: vector });
       }
-      control.enterInterrupt(this.#state, vector, memory);
+      actions.enterInterrupt(this.#state, vector, memory);
       return { before, after: this.snapshot(), source, instruction: null, accesses, outcome: "accepted", vector };
     });
   }
@@ -268,15 +255,6 @@ export class Cpu8088 {
 
   readonly #segmentRegisters = ["es", "cs", "ss", "ds"] as const;
   readonly #segmentOverrides = opcodeTable<SegmentRegister>(opcodeFamily("001 ss 110", { s: this.#segmentRegisters }, ({ s }) => s));
-  readonly #operandWidths = [8, 16] as const;
-
-  // 1010 ooo w: ooo=010 MOVS, 011 CMPS, 101 STOS, 110 LODS, 111 SCAS; w=0 byte/1 word.
-  // ooo=000/001 and 100 belong to absolute MOV and immediate TEST, respectively.
-  readonly #stringHandlers: readonly OpcodeEntry<OpcodeHandler>[] = ([
-    ["010", "move"], ["011", "compare"], ["101", "store"], ["110", "load"], ["111", "scan"],
-  ] as const).flatMap(([bits, operation]) => opcodeFamily(`1010 ${bits} w`, { w: this.#operandWidths },
-    ({ w: width }) => instruction => this.#string(operation, width, instruction)));
-
   #instructionEntries(): readonly OpcodeEntry<OpcodeHandler>[] {
     return [
       ...opcodeEntries(this.#state).map(([opcode, execute]): OpcodeEntry<OpcodeHandler> => [opcode, instruction => {
@@ -289,42 +267,12 @@ export class Cpu8088 {
         return outcome === "unsupported" ? "opcode" : outcome;
       }]),
 
-      ...this.#stringHandlers, // MOVS/CMPS/STOS/LODS/SCAS, with optional REP
-
-      // 1101 1ooo + mm ppp rrr: ooo:ppp is the six-bit external opcode; mm/rrr selects its source.
-      ...opcodeFamily("1101 1ooo", { o: [0, 1, 2, 3, 4, 5, 6, 7] }, ({ o }) => (instruction: InstructionContext) => this.#escape(o, instruction)), // ESC
+      // Repeated bodies execute one element and receive the original prefix start.
+      ...Object.entries(strings).map(([opcode, execute]): OpcodeEntry<OpcodeHandler> => [Number(opcode), instruction => {
+        const outcome = execute(this.#state, Number(instruction.segment !== undefined), instruction.segment ?? 0,
+          instruction.repeat === undefined ? 0 : instruction.repeat ? 1 : 2, instruction.startIp, instruction);
+        return outcome === "unsupported" ? "opcode" : outcome;
+      }]),
     ];
-  }
-
-  // Resolve ESC's operand through the ordinary decoder; the body owns its dummy read and device effect.
-  #escape(highOpcode: number, instruction: InstructionContext): void {
-    const modRM = instruction.fetchByte();
-    if (modRM >= 0xc0) control.escapeRegister(this.#state, highOpcode, modRM, instruction);
-    else {
-      const { segment, offset } = this.#effectiveAddress(modRM, instruction);
-      control.escapeMemory(this.#state, highOpcode, modRM, segment, offset, instruction);
-    }
-  }
-
-  // Memory-only callers reject mod=11 before asking for an effective address.
-  #effectiveAddress(modRM: number, instruction: InstructionContext): MemoryAddress {
-    const pointer = operandSources(this.#state).addressing.effectiveAddress(modRM,
-      Number(instruction.segment !== undefined), instruction.segment ?? 0, instruction);
-    if (pointer === "unsupported") throw new Error("Expected a memory ModR/M operand.");
-    return { segment: Math.floor(pointer / 0x10000), offset: pointer & 0xffff };
-  }
-
-  // Prefix selection stays in the decoder; generated string bodies execute one element per step.
-  #string(operation: StringOperation, width: OperandWidth, instruction: InstructionContext): Rejection | void {
-    const { repeat, segment, startIp } = instruction, key = `${operation}_${width}` as const;
-    if (repeat === false && operation !== "compare" && operation !== "scan") return "opcode";
-    if (repeat === undefined) {
-      if (segment === undefined) plainStrings[key](this.#state, instruction);
-      else overriddenStrings[`${key}_override`](this.#state, segment, instruction);
-    } else {
-      const repeated = `${key}_${repeat ? "repe" : "repne"}` as const;
-      if (segment === undefined) repeatedStrings[repeated]!(this.#state, startIp, instruction);
-      else overriddenRepeatedStrings[`${repeated}_override`]!(this.#state, segment, startIp, instruction);
-    }
   }
 }

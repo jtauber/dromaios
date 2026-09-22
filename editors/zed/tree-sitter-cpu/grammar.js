@@ -26,7 +26,7 @@ module.exports = grammar({
     field_mapping: $ => seq('=', $.identifier),
 
     source_declaration: $ => seq(choice('source', 'view'), field('name', $.identifier), $.string, optional($.parameters), ':', $.number, $.body),
-    action_declaration: $ => seq('action', field('name', $.identifier), $.string, optional($.parameters), optional(seq('using', 'memory')), $.body),
+    action_declaration: $ => seq('action', field('name', $.identifier), $.string, optional($.parameters), optional(seq('using', commaSeparated(choice('memory', 'boundary')))), $.body),
     policy_declaration: $ => seq('policy', field('name', $.identifier), $.string, $.parameters,
       '{', repeat($.flag_update), '}'),
     parameters: $ => seq('(', optional(commaSeparated($.parameter)), ')'),
@@ -66,7 +66,7 @@ module.exports = grammar({
     body: $ => seq('{', repeat($._statement), '}'),
     _statement: $ => choice(
       $.match_capture, $.match_statement, $.capture, $.write, $.apply_statement, $.exchange_statement, $.perform_statement, $.when_statement,
-      $.iterate_capture, $.divide_capture, $.reject_statement, $.return_statement, $.fault_statement, $.commit_statement, $.defer_statement, $.notify_statement,
+      $.iterate_capture, $.divide_capture, $.reject_statement, $.return_statement, $.fault_statement, $.commit_statement, $.defer_statement, $.notify_statement, $.report_statement, $.escape_statement,
     ),
     match_capture: $ => seq(field('name', $.identifier), '=', 'match', $._expression, ':', $.number,
       '{', repeat1($.match_case), 'otherwise', 'unsupported', '}'),
@@ -78,7 +78,7 @@ module.exports = grammar({
     reject_statement: $ => seq('reject', $.string, optional(seq('if', $._expression))),
     capture: $ => seq(field('name', choice($.identifier, alias('exchange', $.identifier), alias('port', $.identifier))), '=', choice($._read, $._expression)),
     _read: $ => choice(
-      'fetch', $.choice_read, $.state_read, $.array_read, $.source_read, $.operand_read,
+      'fetch', seq('sample', 'test'), $.choice_read, $.state_read, $.array_read, $.source_read, $.operand_read,
     ),
     choice_read: $ => seq('choice', $._state_name, '=', choice($.string, $.number)),
     state_read: $ => seq(choice('register', 'flag', 'latch'), $._state_name),
@@ -99,6 +99,8 @@ module.exports = grammar({
     commit_statement: _ => seq('commit', 'addresses'),
     defer_statement: _ => seq('defer', choice('irq', 'intr', 'all')),
     notify_statement: _ => seq('notify', 'reti'),
+    report_statement: $ => seq('report', 'interrupt', $.arguments),
+    escape_statement: $ => seq('send', 'escape', $.arguments, optional(seq('with', 'memory', $.arguments))),
     _expression: $ => choice($.identifier, $.number, $.call),
     call: $ => seq(field('function', $.identifier), $.arguments),
     arguments: $ => seq('(', optional(commaSeparated($._expression)), ')'),

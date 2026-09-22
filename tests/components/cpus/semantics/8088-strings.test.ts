@@ -13,10 +13,10 @@ type Context = { fetchByte(): number; readByte(address: number): number; writeBy
 type Body = (state: Cpu8088State, context: Context) => void;
 type InputBody = (state: Cpu8088State, input: number, context: Context) => void;
 type AddressBody = (state: Cpu8088State, segment: number, offset: number, context: Context) => void;
-type RepeatedBody = (state: Cpu8088State, segment: number, startIP: number, context: Context) => void;
 interface Case { key: string; execute: Body; reference: Body }
 const generatedAddressing: Readonly<Record<string, Body | InputBody | AddressBody>> = addressing;
-const generatedStrings: Readonly<Record<string, Body | InputBody | RepeatedBody>> = strings;
+const stringOpcodes = { move: 0xa4, compare: 0xa6, store: 0xaa, load: 0xac, scan: 0xae } as const;
+const generatedStrings: Readonly<Partial<Record<number, (state: Cpu8088State, overridden: number, segment: number, repeatMode: number, startIP: number, context: Context) => void>>> = strings;
 const wrap = (n: number) => (n + 65536) % 65536;
 const segment = 0xffff, offset = 0xffff, startIP = 0xfffc;
 const flagBits = { cf: 0, pf: 2, af: 4, zf: 6, sf: 7, tf: 8, if: 9, df: 10, of: 11 } as const;
@@ -75,10 +75,8 @@ for (const operation of ["move", "compare", "store", "load", "scan"] as const) f
     if (repeat === "repne" && !compares) continue;
     const key = `${operation}_${width}${repeat === "once" ? "" : "_" + repeat}${override ? "_override" : ""}`;
     stringCases.push({ key, execute(state, context) {
-      if (repeat === "once") {
-        if (override) (generatedStrings[key] as InputBody)(state, segment, context); else (generatedStrings[key] as Body)(state, context);
-      } else if (override) (generatedStrings[key] as RepeatedBody)(state, segment, startIP, context);
-      else (generatedStrings[key] as InputBody)(state, startIP, context);
+      generatedStrings[stringOpcodes[operation] + Number(width === 16)]!(state, Number(override), override ? segment : 0,
+        repeat === "once" ? 0 : repeat === "repe" ? 1 : 2, startIP, context);
     }, reference(state, context) {
       if (repeat !== "once" && state.cx === 0) return;
       const sourceSegment = override ? segment : state.ds, sourceOffset = state.si, destSegment = state.es, destOffset = state.di;
@@ -109,7 +107,7 @@ test("8088 addressing, string, and remaining interrupt-control definitions have 
   assert.equal(addressCases.length, 89); assert.equal(stringCases.length, 48);
   assert.deepEqual(Object.keys(addressing).sort(), addressCases.map(c => c.key).sort());
   assert.deepEqual(Object.keys(addressing8088).sort(), Object.keys(addressing).sort());
-  assert.deepEqual(Object.keys(strings).sort(), stringCases.map(c => c.key).sort());
+  assert.deepEqual(Object.keys(strings).map(Number), [0xa4, 0xa5, 0xa6, 0xa7, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf]);
   assert.deepEqual(Object.keys(strings8088).sort(), Object.keys(strings).sort());
   assert.deepEqual([0xcf, 0xfa, 0xfb].map(opcode => instructions8088[opcode]!.name), ["IRET", "CLI", "STI"]);
 });

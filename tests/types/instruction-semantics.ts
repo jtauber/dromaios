@@ -16,9 +16,8 @@ import { instructions as generated68000 } from "../../src/components/cpus/genera
 import { instructions as quick68000 } from "../../src/components/cpus/generated/68000-quick.js";
 import { cpu68000StateDescription } from "../../src/components/cpus/state/68000.js";
 import type { Cpu68000State } from "../../src/components/cpus/68000.js";
-import { instructions as control8088 } from "../../src/components/cpus/generated/8088-control.js";
 import { instructions as strings8088 } from "../../src/components/cpus/generated/8088-strings.js";
-import { instructions as operand8088, sourceReaders as operandSources8088 } from "../../src/components/cpus/generated/8088-operands.js";
+import { instructions as operand8088 } from "../../src/components/cpus/generated/8088-operands.js";
 import { instructions as actions8088 } from "../../src/components/cpus/generated/8088-state.js";
 import { instructions as generated8088, opcodeEntries as opcodeEntries8088 } from "../../src/components/cpus/generated/8088.js";
 import { cpu8088StateDescription } from "../../src/components/cpus/state/8088.js";
@@ -698,7 +697,6 @@ export function check8088TransferTypes(state: Cpu8088State, intel: Cpu8080State)
   actions8088.exchange16(state, 0, 0xc0, 0xffffffff, memory);
   actions8088.store16(state, 0xffffffff, 0x1234, { writeByte: () => {} });
   operand8088[0xc7](state, 0, 0, { fetchByte: () => 0, writeByte: () => {} });
-  operandSources8088(state).addressing.effectiveAddress(0, 1, 0xffff, { fetchByte: () => 0 });
   // @ts-expect-error Captured pointers are numbers, not opaque mapping callbacks.
   actions8088.move8(state, 0xc0, 0, () => 0xffffffff, memory);
   // @ts-expect-error A memory store never reads its destination.
@@ -707,8 +705,6 @@ export function check8088TransferTypes(state: Cpu8088State, intel: Cpu8080State)
   actions8088.exchange16(state, 0, 0xc0, 0, { readByte: () => 0 });
   // @ts-expect-error Immediate MOV must fetch before writing.
   operand8088[0xc7](state, 0, 0, { writeByte: () => {} });
-  // @ts-expect-error Address sources require the captured segment selection.
-  operandSources8088(state).addressing.effectiveAddress(0, { fetchByte: () => 0 });
   // @ts-expect-error Chapter actions retain concrete 8088 state.
   actions8088.move8(intel, 0xc0, 0xc4, 0, memory);
 }
@@ -806,10 +802,10 @@ export function check8088AddressingAndStringTypes(state: Cpu8088State, intel: Cp
   generated8088[0xfa](state);
   generated8088[0xfb](state, { deferInterrupt: () => {} });
   generated8088[0xcf](state, { readByte: () => 0, deferInterrupt: () => {} });
-  strings8088.move_8(state, { readByte: () => 0, writeByte: () => {} });
-  strings8088.store_16_override(state, 0xffff, { writeByte: () => {} });
-  strings8088.compare_16_repne(state, 0xffff, { readByte: () => 0 });
-  strings8088.load_8_repe_override(state, 0xffff, 0xffff, { readByte: () => 0 });
+  strings8088[0xa4](state, 0, 0, 0, 0, { readByte: () => 0, writeByte: () => {} });
+  strings8088[0xab](state, 1, 0xffff, 0, 0, { writeByte: () => {} });
+  strings8088[0xa7](state, 0, 0, 2, 0xffff, { readByte: () => 0 });
+  strings8088[0xac](state, 1, 0xffff, 1, 0xffff, { readByte: () => 0 });
   // @ts-expect-error Segment loads cannot omit their retirement request.
   operand8088[0x8e](state, 0, 0, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error Segment stores cannot read their memory destination.
@@ -825,15 +821,15 @@ export function check8088AddressingAndStringTypes(state: Cpu8088State, intel: Cp
   // @ts-expect-error IRET needs a deferral capability as well as stack reads.
   generated8088[0xcf](state, { readByte: () => 0 });
   // @ts-expect-error REPNE has no documented MOVS form.
-  strings8088.move_8_repne(state, 0, { readByte: () => 0, writeByte: () => {} });
+  strings8088[0xa4](state, 0, 0, 1, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Comparisons never write memory.
-  strings8088.compare_16_repne(state, 0, { readByte: () => 0, writeByte: () => {} });
+  strings8088[0xa7](state, 0, 0, 2, 0, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Repeated bodies take a captured prefix-start IP, not a fetch callback.
-  strings8088.load_8_repe(state, { fetchByte: () => 0, readByte: () => 0 });
+  strings8088[0xac](state, 0, 0, 1, 0, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error A completed string body cannot deliver interrupts or fetch the next iteration.
-  strings8088.store_8(state, { writeByte: () => {}, fetchByte: () => 0 });
+  strings8088[0xaa](state, 0, 0, 0, 0, { writeByte: () => {}, fetchByte: () => 0 });
   // @ts-expect-error Bodies retain their concrete CPU state.
-  strings8088.move_8(intel, { readByte: () => 0, writeByte: () => {} });
+  strings8088[0xa4](intel, 0, 0, 0, 0, { readByte: () => 0, writeByte: () => {} });
 }
 
 export function check8088ArithmeticTypes(state: Cpu8088State, intel: Cpu8080State): void {
@@ -904,10 +900,10 @@ export function check8088ControlTypes(state: Cpu8088State, other: Cpu8080State):
   generated8088[0xcc](state, { ...memory, reportInterrupt: () => {} });
   generated8088[0xcd](state, { ...memory, fetchByte: () => 0, reportInterrupt: () => {} });
   generated8088[0x9b](state, { readTest: () => true, deferInterrupt: () => {} });
-  control8088.enterInterrupt(state, 3, memory);
-  control8088.resumeWait(state, { readTest: () => false, deferInterrupt: () => {} });
-  control8088.escapeRegister(state, 7, 0xc7, { sendEscape: () => {} });
-  control8088.escapeMemory(state, 7, 0x3f, 0xffff, 0xffff, { readByte: () => 0, sendEscape: () => {} });
+  actions8088.enterInterrupt(state, 3, memory);
+  actions8088.pollWait(state, 1, { readTest: () => false, deferInterrupt: () => {} });
+  operand8088[0xdf](state, 0, 0, { fetchByte: () => 0xc7, readByte: () => 0, sendEscape: () => {} });
+  actions8088.escapeMemory(state, 63, 0x3f, 0xffffffff, { readByte: () => 0, sendEscape: () => {} });
   readTest("high"); reportInterrupt(literal(8, 3)); sendEscape({ opcode: literal(8, 63), modRM: literal(8, 255) });
   // @ts-expect-error A TEST pin sample is Boolean, not an unchecked numeric level.
   generated8088[0x9b](state, { readTest: () => 1, deferInterrupt: () => {} });
@@ -916,17 +912,17 @@ export function check8088ControlTypes(state: Cpu8088State, other: Cpu8080State):
   // @ts-expect-error Complete software delivery requires reporting capability.
   generated8088[0xcc](state, memory);
   // @ts-expect-error External entry does not report software delivery.
-  control8088.enterInterrupt(state, 3, { ...memory, reportInterrupt: () => {} });
+  actions8088.enterInterrupt(state, 3, { ...memory, reportInterrupt: () => {} });
   // @ts-expect-error Vector inputs are captured numbers, not host callbacks.
-  control8088.enterInterrupt(state, () => 3, memory);
+  actions8088.enterInterrupt(state, () => 3, memory);
   // @ts-expect-error WAIT resumption never fetches again.
-  control8088.resumeWait(state, { readTest: () => false, deferInterrupt: () => {}, fetchByte: () => 0 });
-  // @ts-expect-error A register ESC must not read CPU data memory.
-  control8088.escapeRegister(state, 7, 0xc7, { readByte: () => 0, sendEscape: () => {} });
+  actions8088.pollWait(state, 1, { readTest: () => false, deferInterrupt: () => {}, fetchByte: () => 0 });
+  // @ts-expect-error A complete ESC family requires ModR/M fetching.
+  operand8088[0xdf](state, 0, 0, { readByte: () => 0, sendEscape: () => {} });
   // @ts-expect-error A memory ESC must finish its dummy word read before sending.
-  control8088.escapeMemory(state, 7, 0x3f, 0, 0, { sendEscape: () => {} });
+  actions8088.escapeMemory(state, 63, 0x3f, 0, { sendEscape: () => {} });
   // @ts-expect-error Generated controls retain the concrete CPU state.
-  control8088.enterInterrupt(other, 3, memory);
+  actions8088.enterInterrupt(other, 3, memory);
   // @ts-expect-error Vector expressions are numeric, not Boolean.
   reportInterrupt(flagValue("high"));
   // @ts-expect-error ESC requests contain explicit data, not opaque execution callbacks.

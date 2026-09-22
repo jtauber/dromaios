@@ -233,3 +233,11 @@ family bounded "11111110" {
   reject "division" if zero(quotient)
   W <- multiply(quotient, remainder, unsigned)
 }
+
+// Boundary capabilities are checked by the chapter compiler, including nested calls.
+action device "captured device effects" (vector: 8) using memory, boundary {
+  high = sample test
+  send escape(vector, u8(0))
+  send escape(vector, u8(0)) with memory(u16(0), u16(0), projectAddress(u16(0), u16(0), 4, 20), u16(0))
+  report interrupt(vector)
+}

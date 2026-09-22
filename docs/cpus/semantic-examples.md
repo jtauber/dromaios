@@ -312479,7 +312479,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 replace all FLAGS
 
-The low byte is `SF ZF 0 AF 0 PF 1 CF`. The full original-chip FLAGS word adds TF/IF/DF/OF in bits 8–11 and sets bits 12–15. Packing reads CF/PF/AF/ZF/SF, then TF/IF/DF/OF for the word. Reserved bits are ignored on restoration. SAHF updates five fields of the existing flags object. Full restoration replaces all nine fields, and is shared by native POPF and IRET. Their interrupt-deferral and stack rules remain with those instructions.
+The low byte is `SF ZF 0 AF 0 PF 1 CF`. The full original-chip FLAGS word adds TF/IF/DF/OF in bits 8–11 and sets bits 12–15. Packing reads CF/PF/AF/ZF/SF, then TF/IF/DF/OF for the word. Reserved bits are ignored on restoration. SAHF updates five fields of the existing flags object. Full restoration replaces all nine fields, and is shared by POPF and IRET. Their interrupt-deferral and stack rules remain with those instructions.
 
 ```text
 status:u16 := input
@@ -318027,9 +318027,53 @@ write IP:u16 := addWrap(position, offset)
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
+### 8088 restore stacked FLAGS with recognition delay
+
+PUSHF (`1001 1100`) captures the packed FLAGS word before pushing. POPF (`1001 1101`) reads the complete word before consulting live IF. A transition from clear IF to set IF requests INTR deferral before replacing the flag object. Reserved bits are ignored by the chapter's existing restore policy. IRET uses this same chapter action after completing its far return.
+
+```text
+status:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  word:u16 := source "read a captured 16-bit memory operand" {
+    pointer:u32 := concatHighLow(segment, offset)
+    segment := low16(shiftBitsRight(pointer, 16))
+    offset := low16(pointer)
+    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+    yield concatHighLow(high, low)
+  }
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield word
+}
+oldIF:flag := read IF
+when not(oldIF) {
+  when not(isZero(bitAnd(status, 0200:u16))) {
+    request INTR deferral at successful retirement
+  }
+}
+perform "replace all FLAGS" {
+  status:u16 := status
+  replace flags "restore FLAGS" simultaneously {
+    CF := not(isZero(bitAnd(status, 0001:u16)))
+    PF := not(isZero(bitAnd(status, 0004:u16)))
+    AF := not(isZero(bitAnd(status, 0010:u16)))
+    ZF := not(isZero(bitAnd(status, 0040:u16)))
+    SF := not(isZero(bitAnd(status, 0080:u16)))
+    TF := not(isZero(bitAnd(status, 0100:u16)))
+    IF := not(isZero(bitAnd(status, 0200:u16)))
+    DF := not(isZero(bitAnd(status, 0400:u16)))
+    OF := not(isZero(bitAnd(status, 0800:u16)))
+  } // Replace the complete flag object.
+}
+```
+
+Flags preserved throughout: none.
+
 ### 8088 return within CS
 
-`1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. Native IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
+`1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
 
 ```text
 discard:u16 := input
@@ -318057,7 +318101,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 return to a saved CS:IP
 
-`1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. Native IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
+`1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
 
 ```text
 discard:u16 := input
@@ -318095,6 +318139,300 @@ write IP:u16 := targetIP
 write CS:u16 := targetCS
 pointer:u16 := read SP
 write SP:u16 := addWrap(pointer, discard)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 store byte or word string operand
+
+A plain operation never reads CX. A repeated operation reads CX first and skips every operand, flag, and index effect if it is zero. Nonempty operations capture source segment/SI and fixed destination ES/DI before any data access, even if the selected operation uses only one side. This retains the declared model's observable access schedule. Word reads/writes use the same low-first, offset-wrapping memory rules as other instructions.
+
+```text
+pointer:u32 := input
+width:u8 := input
+contents:u16 := input
+match byte width {
+  case (byte & FF) = 00 {
+    perform "write a captured 8-bit memory operand" {
+      pointer:u32 := pointer
+      contents:u8 := lowByte(contents)
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      write memory[projectAddress(segment * 16 + offset, 20 bits)] := contents
+    }
+  }
+  case (byte & FF) = 01 {
+    perform "write a captured 16-bit memory operand" {
+      pointer:u32 := pointer
+      contents:u16 := contents
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+      write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+    }
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 load AL or AX from a captured string operand
+
+A plain operation never reads CX. A repeated operation reads CX first and skips every operand, flag, and index effect if it is zero. Nonempty operations capture source segment/SI and fixed destination ES/DI before any data access, even if the selected operation uses only one side. This retains the declared model's observable access schedule. Word reads/writes use the same low-first, offset-wrapping memory rules as other instructions.
+
+```text
+width:u8 := input
+contents:u16 := input
+match byte width {
+  case (byte & FF) = 00 {
+    perform "write AL, preserving its other half" {
+      byte:u8 := lowByte(contents)
+      preservedWord:u16 := read AX
+      write AX:u16 := concatHighLow(highByte(preservedWord), byte)
+    }
+  }
+  case (byte & FF) = 01 {
+    write AX:u16 := contents
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 subtraction flags without operand writeback
+
+A plain operation never reads CX. A repeated operation reads CX first and skips every operand, flag, and index effect if it is zero. Nonempty operations capture source segment/SI and fixed destination ES/DI before any data access, even if the selected operation uses only one side. This retains the declared model's observable access schedule. Word reads/writes use the same low-first, offset-wrapping memory rules as other instructions.
+
+```text
+width:u8 := input
+left:u16 := input
+right:u16 := input
+match byte width {
+  case (byte & FF) = 00 {
+    result := subtract(lowByte(left), lowByte(right))
+    flags "8088 SUB flags" simultaneously {
+      CF := borrow(lowByte(left), lowByte(right), 0:flag)
+      AF := halfBorrow4(lowByte(left), lowByte(right), 0:flag)
+      OF := subtractOverflow(lowByte(left), lowByte(right), 0:flag)
+      ZF := isZero(result)
+      SF := topBit(result)
+      PF := evenParity8(result)
+    } // Preserve unlisted flags.
+  }
+  case (byte & FF) = 01 {
+    result := subtract(left, right)
+    flags "8088 SUB flags" simultaneously {
+      CF := borrow(left, right, 0:flag)
+      AF := halfBorrow4(left, right, 0:flag)
+      OF := subtractOverflow(left, right, 0:flag)
+      ZF := isZero(result)
+      SF := topBit(result)
+      PF := evenParity8(lowByte(result))
+    } // Preserve unlisted flags.
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 advance live indices and decide repetition
+
+After data and comparison flags, read live DF to select the signed byte/word stride. Advance live SI before DI when both apply. Repeated forms then decrement live CX and reread it; only a nonzero count tests the new ZF for CMPS/SCAS. A continuing operation rewinds IP to the supplied prefix start. The next step refetches prefixes, so code changes, snapshot resumption, and interrupt offers remain observable. The finishing action's numeric selectors describe which indices and repeat condition the calling family uses.
+
+```text
+width:u8 := input
+useSI:u8 := input
+useDI:u8 := input
+compares:u8 := input
+repeatMode:u8 := input
+startIP:u16 := input
+backward:flag := read DF
+size := addWrap(zeroExtend16(width), 0001:u16)
+delta := select(backward, subtract(0000:u16, size), size)
+when not(isZero(useSI)) {
+  position:u16 := read SI
+  write SI:u16 := addWrap(position, delta)
+}
+when not(isZero(useDI)) {
+  position:u16 := read DI
+  write DI:u16 := addWrap(position, delta)
+}
+when not(isZero(repeatMode)) {
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    when isZero(compares) {
+      write IP:u16 := startIP
+    }
+    when not(isZero(compares)) {
+      equal:flag := read ZF
+      when xor(equal, isZero(bitXor(repeatMode, 02:u8))) {
+        write IP:u16 := startIP
+      }
+    }
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 interrupt entry
+
+The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The native boundary uses the same action for external interrupts, traps, and divide errors; its acceptance and reporting policy still remains outside this chapter. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
+
+```text
+vector:u8 := input
+offset := shiftBitsLeft(zeroExtend16(vector), 2)
+targetIP:u16 := source "read a captured 16-bit memory operand" {
+  pointer:u32 := concatHighLow(0000:u16, offset)
+  segment := low16(shiftBitsRight(pointer, 16))
+  offset := low16(pointer)
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  yield concatHighLow(high, low)
+}
+targetCS:u16 := source "read a captured 16-bit memory operand" {
+  pointer:u32 := concatHighLow(0000:u16, addWrap(offset, 0002:u16))
+  segment := low16(shiftBitsRight(pointer, 16))
+  offset := low16(pointer)
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  yield concatHighLow(high, low)
+}
+savedFlags:u16 := source "packed FLAGS word" {
+  cf:flag := read CF
+  pf:flag := read PF
+  af:flag := read AF
+  zf:flag := read ZF
+  sf:flag := read SF
+  tf:flag := read TF
+  if:flag := read IF
+  df:flag := read DF
+  of:flag := read OF
+  cfBit := select(cf, 0001:u16, 0000:u16)
+  pfBit := select(pf, 0004:u16, 0000:u16)
+  afBit := select(af, 0010:u16, 0000:u16)
+  zfBit := select(zf, 0040:u16, 0000:u16)
+  sfBit := select(sf, 0080:u16, 0000:u16)
+  tfBit := select(tf, 0100:u16, 0000:u16)
+  ifBit := select(if, 0200:u16, 0000:u16)
+  dfBit := select(df, 0400:u16, 0000:u16)
+  ofBit := select(of, 0800:u16, 0000:u16)
+  arithmetic := bitOr(cfBit, bitOr(pfBit, bitOr(afBit, bitOr(zfBit, sfBit))))
+  controls := bitOr(tfBit, bitOr(ifBit, bitOr(dfBit, ofBit)))
+  yield bitOr(F002:u16, bitOr(arithmetic, controls))
+}
+flags "disable traps and mask INTR" simultaneously {
+  TF := 0:flag
+  IF := 0:flag
+} // Preserve unlisted flags.
+write recognitionDeferred:boolean := false
+write interruptDeferred:boolean := false
+write waiting:boolean := false
+write halted:boolean := false
+perform "push a captured word" {
+  word:u16 := savedFlags
+  pointer:u16 := read SP
+  write SP:u16 := subtract(pointer, 0002:u16)
+  segment:u16 := read SS
+  offset:u16 := read SP
+  perform "write a captured 16-bit memory operand" {
+    pointer:u32 := concatHighLow(segment, offset)
+    contents:u16 := word
+    segment := low16(shiftBitsRight(pointer, 16))
+    offset := low16(pointer)
+    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+  }
+}
+savedCS:u16 := read CS
+perform "push a captured word" {
+  word:u16 := savedCS
+  pointer:u16 := read SP
+  write SP:u16 := subtract(pointer, 0002:u16)
+  segment:u16 := read SS
+  offset:u16 := read SP
+  perform "write a captured 16-bit memory operand" {
+    pointer:u32 := concatHighLow(segment, offset)
+    contents:u16 := word
+    segment := low16(shiftBitsRight(pointer, 16))
+    offset := low16(pointer)
+    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+  }
+}
+savedIP:u16 := read IP
+perform "push a captured word" {
+  word:u16 := savedIP
+  pointer:u16 := read SP
+  write SP:u16 := subtract(pointer, 0002:u16)
+  segment:u16 := read SS
+  offset:u16 := read SP
+  perform "write a captured 16-bit memory operand" {
+    pointer:u32 := concatHighLow(segment, offset)
+    contents:u16 := word
+    segment := low16(shiftBitsRight(pointer, 16))
+    offset := low16(pointer)
+    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+  }
+}
+write CS:u16 := targetCS
+write IP:u16 := targetIP
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
+
+### 8088 sample TEST for initial WAIT or continuation
+
+WAIT (`1001 1011`) samples the physical TEST level once, then writes WAITING. A high level means busy: initial execution backs IP up to the WAIT opcode, after any prefixes. A busy continuation leaves IP alone and does not refetch. A low level releases waiting; continuation advances live IP past WAIT and requests all-interrupt recognition delay. Initial release leaves IP alone. Failed sampling writes no CPU state. The boundary records the sample and owns waiting records, reentrancy, and pending trap handling.
+
+```text
+resuming:u8 := input
+high:flag := sample and record physical TEST level; high waits, low releases
+write waiting:boolean := high
+when isZero(resuming) {
+  when high {
+    position:u16 := read IP
+    write IP:u16 := subtract(position, 0001:u16)
+  }
+}
+when not(isZero(resuming)) {
+  when not(high) {
+    position:u16 := read IP
+    write IP:u16 := addWrap(position, 0001:u16)
+  }
+}
+when not(high) {
+  request all interrupt deferral at successful retirement
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 capture dummy word before ESC delivery
+
+ESC uses `1101 1 ooo` and ModR/M `mm ppp rrr`; `ooo:ppp` forms the six-bit coprocessor opcode. Register forms send the selector without reading CPU registers. Memory forms resolve the ordinary segmented address and read a complete dummy word even if no coprocessor is connected. Only then do they send the captured segment, offset, physical address, and word. The device adapter detaches requests and records only successful delivery. ESC itself leaves CPU state and flags unchanged; no coprocessor arithmetic is emulated.
+
+```text
+opcode:u8 := input
+postbyte:u8 := input
+pointer:u32 := input
+segment := low16(shiftBitsRight(pointer, 16))
+offset := low16(pointer)
+contents:u16 := source "read a captured 16-bit memory operand" {
+  pointer:u32 := pointer
+  segment := low16(shiftBitsRight(pointer, 16))
+  offset := low16(pointer)
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  yield concatHighLow(high, low)
+}
+send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
 ```
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
@@ -321245,17 +321583,28 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 WAIT
 
-Sample and record TEST once before writing waiting. When busy, decrement live IP to the WAIT opcode, after any prefixes. Immediate release leaves IP alone. Only a low sample requests all-interrupt inhibition at successful retirement. Preserve flags and pending traps; failed pin sampling changes no CPU state.
+WAIT (`1001 1011`) samples the physical TEST level once, then writes WAITING. A high level means busy: initial execution backs IP up to the WAIT opcode, after any prefixes. A busy continuation leaves IP alone and does not refetch. A low level releases waiting; continuation advances live IP past WAIT and requests all-interrupt recognition delay. Initial release leaves IP alone. Failed sampling writes no CPU state. The boundary records the sample and owns waiting records, reentrancy, and pending trap handling.
 
 ```text
-high:flag := sample and record physical TEST level; high waits, low releases
-write waiting:boolean := high
-when high {
-  position:u16 := read IP
-  write IP:u16 := subtract(position, 0001:u16)
-}
-when not(high) {
-  request all interrupt deferral at successful retirement
+perform "sample TEST for initial WAIT or continuation" {
+  resuming:u8 := 00:u8
+  high:flag := sample and record physical TEST level; high waits, low releases
+  write waiting:boolean := high
+  when isZero(resuming) {
+    when high {
+      position:u16 := read IP
+      write IP:u16 := subtract(position, 0001:u16)
+    }
+  }
+  when not(isZero(resuming)) {
+    when not(high) {
+      position:u16 := read IP
+      write IP:u16 := addWrap(position, 0001:u16)
+    }
+  }
+  when not(high) {
+    request all interrupt deferral at successful retirement
+  }
 }
 ```
 
@@ -321263,7 +321612,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 PUSHF
 
-PUSHF (`1001 1100`) captures the packed FLAGS word before pushing. POPF (`1001 1101`) reads the complete word before consulting live IF. A transition from clear IF to set IF requests INTR deferral before replacing the flag object. Reserved bits are ignored by the chapter's existing restore policy. Native IRET uses this same chapter body after completing its far return.
+PUSHF (`1001 1100`) captures the packed FLAGS word before pushing. POPF (`1001 1101`) reads the complete word before consulting live IF. A transition from clear IF to set IF requests INTR deferral before replacing the flag object. Reserved bits are ignored by the chapter's existing restore policy. IRET uses this same chapter action after completing its far return.
 
 ```text
 original:u16 := source "packed FLAGS word" {
@@ -321310,43 +321659,45 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 POPF
 
-PUSHF (`1001 1100`) captures the packed FLAGS word before pushing. POPF (`1001 1101`) reads the complete word before consulting live IF. A transition from clear IF to set IF requests INTR deferral before replacing the flag object. Reserved bits are ignored by the chapter's existing restore policy. Native IRET uses this same chapter body after completing its far return.
+PUSHF (`1001 1100`) captures the packed FLAGS word before pushing. POPF (`1001 1101`) reads the complete word before consulting live IF. A transition from clear IF to set IF requests INTR deferral before replacing the flag object. Reserved bits are ignored by the chapter's existing restore policy. IRET uses this same chapter action after completing its far return.
 
 ```text
-status:u16 := source "pop segmented word" {
-  segment:u16 := read SS
-  offset:u16 := read SP
-  word:u16 := source "read a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(segment, offset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
+perform "restore stacked FLAGS with recognition delay" {
+  status:u16 := source "pop segmented word" {
+    segment:u16 := read SS
+    offset:u16 := read SP
+    word:u16 := source "read a captured 16-bit memory operand" {
+      pointer:u32 := concatHighLow(segment, offset)
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+      high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+      yield concatHighLow(high, low)
+    }
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0002:u16)
+    yield word
   }
-  pointer:u16 := read SP
-  write SP:u16 := addWrap(pointer, 0002:u16)
-  yield word
-}
-oldIF:flag := read IF
-when not(oldIF) {
-  when not(isZero(bitAnd(status, 0200:u16))) {
-    request INTR deferral at successful retirement
+  oldIF:flag := read IF
+  when not(oldIF) {
+    when not(isZero(bitAnd(status, 0200:u16))) {
+      request INTR deferral at successful retirement
+    }
   }
-}
-perform "replace all FLAGS" {
-  status:u16 := status
-  replace flags "restore FLAGS" simultaneously {
-    CF := not(isZero(bitAnd(status, 0001:u16)))
-    PF := not(isZero(bitAnd(status, 0004:u16)))
-    AF := not(isZero(bitAnd(status, 0010:u16)))
-    ZF := not(isZero(bitAnd(status, 0040:u16)))
-    SF := not(isZero(bitAnd(status, 0080:u16)))
-    TF := not(isZero(bitAnd(status, 0100:u16)))
-    IF := not(isZero(bitAnd(status, 0200:u16)))
-    DF := not(isZero(bitAnd(status, 0400:u16)))
-    OF := not(isZero(bitAnd(status, 0800:u16)))
-  } // Replace the complete flag object.
+  perform "replace all FLAGS" {
+    status:u16 := status
+    replace flags "restore FLAGS" simultaneously {
+      CF := not(isZero(bitAnd(status, 0001:u16)))
+      PF := not(isZero(bitAnd(status, 0004:u16)))
+      AF := not(isZero(bitAnd(status, 0010:u16)))
+      ZF := not(isZero(bitAnd(status, 0040:u16)))
+      SF := not(isZero(bitAnd(status, 0080:u16)))
+      TF := not(isZero(bitAnd(status, 0100:u16)))
+      IF := not(isZero(bitAnd(status, 0200:u16)))
+      DF := not(isZero(bitAnd(status, 0400:u16)))
+      OF := not(isZero(bitAnd(status, 0800:u16)))
+    } // Replace the complete flag object.
+  }
 }
 ```
 
@@ -321715,7 +322066,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 RET n
 
-`1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. Native IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
+`1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
 
 ```text
 discard:u16 := source "immediate word, low byte first" {
@@ -321750,7 +322101,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 RET
 
-`1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. Native IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
+`1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
 
 ```text
 perform "return within CS" {
@@ -321780,7 +322131,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 RETF n
 
-`1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. Native IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
+`1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
 
 ```text
 discard:u16 := source "immediate word, low byte first" {
@@ -321831,7 +322182,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 RETF
 
-`1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. Native IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
+`1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
 
 ```text
 perform "return to a saved CS:IP" {
@@ -321877,234 +322228,22 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 INT3
 
-Use vector 3. Read all four vector bytes before touching flags or stack, even when the frame overlaps the vector. Capture FLAGS, clear TF then IF and the recognition/wait/halt latches, then push FLAGS, live CS, and live IP. Commit target CS then IP after all writes succeed; preserve any owed trap. Each push uses the chapter’s captured SS:SP and low-first word writes, retaining completed effects on failure. Report software delivery only after the complete entry succeeds.
+The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The native boundary uses the same action for external interrupts, traps, and divide errors; its acceptance and reporting policy still remains outside this chapter. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
 
 ```text
-targetOffset:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(0000:u16, shiftBitsLeft(zeroExtend16(03:u8), 2))
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-targetSegment:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(0000:u16, addWrap(shiftBitsLeft(zeroExtend16(03:u8), 2), 0002:u16))
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-savedFlags:u16 := source "packed FLAGS word" {
-  cf:flag := read CF
-  pf:flag := read PF
-  af:flag := read AF
-  zf:flag := read ZF
-  sf:flag := read SF
-  tf:flag := read TF
-  if:flag := read IF
-  df:flag := read DF
-  of:flag := read OF
-  cfBit := select(cf, 0001:u16, 0000:u16)
-  pfBit := select(pf, 0004:u16, 0000:u16)
-  afBit := select(af, 0010:u16, 0000:u16)
-  zfBit := select(zf, 0040:u16, 0000:u16)
-  sfBit := select(sf, 0080:u16, 0000:u16)
-  tfBit := select(tf, 0100:u16, 0000:u16)
-  ifBit := select(if, 0200:u16, 0000:u16)
-  dfBit := select(df, 0400:u16, 0000:u16)
-  ofBit := select(of, 0800:u16, 0000:u16)
-  arithmetic := bitOr(cfBit, bitOr(pfBit, bitOr(afBit, bitOr(zfBit, sfBit))))
-  controls := bitOr(tfBit, bitOr(ifBit, bitOr(dfBit, ofBit)))
-  yield bitOr(F002:u16, bitOr(arithmetic, controls))
-}
-flags "disable traps and mask INTR" simultaneously {
-  TF := 0:flag
-  IF := 0:flag
-} // Preserve unlisted flags.
-write recognitionDeferred:boolean := false
-write interruptDeferred:boolean := false
-write waiting:boolean := false
-write halted:boolean := false
-perform "push a captured word" {
-  word:u16 := savedFlags
-  pointer:u16 := read SP
-  write SP:u16 := subtract(pointer, 0002:u16)
-  segment:u16 := read SS
-  offset:u16 := read SP
-  perform "write a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(segment, offset)
-    contents:u16 := word
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
-  }
-}
-savedCS:u16 := read CS
-perform "push a captured word" {
-  word:u16 := savedCS
-  pointer:u16 := read SP
-  write SP:u16 := subtract(pointer, 0002:u16)
-  segment:u16 := read SS
-  offset:u16 := read SP
-  perform "write a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(segment, offset)
-    contents:u16 := word
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
-  }
-}
-savedIP:u16 := read IP
-perform "push a captured word" {
-  word:u16 := savedIP
-  pointer:u16 := read SP
-  write SP:u16 := subtract(pointer, 0002:u16)
-  segment:u16 := read SS
-  offset:u16 := read SP
-  perform "write a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(segment, offset)
-    contents:u16 := word
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
-  }
-}
-write CS:u16 := targetSegment
-write IP:u16 := targetOffset
-report completed software interrupt delivery, vector 03:u8
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
-
-### 8088 INT n
-
-Fetch the type byte first. Read all four vector bytes before touching flags or stack, even when the frame overlaps the vector. Capture FLAGS, clear TF then IF and the recognition/wait/halt latches, then push FLAGS, live CS, and live IP. Commit target CS then IP after all writes succeed; preserve any owed trap. Each push uses the chapter’s captured SS:SP and low-first word writes, retaining completed effects on failure. Report software delivery only after the complete entry succeeds.
-
-```text
-vector:u8 := fetch byte
-targetOffset:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(0000:u16, shiftBitsLeft(zeroExtend16(vector), 2))
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-targetSegment:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(0000:u16, addWrap(shiftBitsLeft(zeroExtend16(vector), 2), 0002:u16))
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-savedFlags:u16 := source "packed FLAGS word" {
-  cf:flag := read CF
-  pf:flag := read PF
-  af:flag := read AF
-  zf:flag := read ZF
-  sf:flag := read SF
-  tf:flag := read TF
-  if:flag := read IF
-  df:flag := read DF
-  of:flag := read OF
-  cfBit := select(cf, 0001:u16, 0000:u16)
-  pfBit := select(pf, 0004:u16, 0000:u16)
-  afBit := select(af, 0010:u16, 0000:u16)
-  zfBit := select(zf, 0040:u16, 0000:u16)
-  sfBit := select(sf, 0080:u16, 0000:u16)
-  tfBit := select(tf, 0100:u16, 0000:u16)
-  ifBit := select(if, 0200:u16, 0000:u16)
-  dfBit := select(df, 0400:u16, 0000:u16)
-  ofBit := select(of, 0800:u16, 0000:u16)
-  arithmetic := bitOr(cfBit, bitOr(pfBit, bitOr(afBit, bitOr(zfBit, sfBit))))
-  controls := bitOr(tfBit, bitOr(ifBit, bitOr(dfBit, ofBit)))
-  yield bitOr(F002:u16, bitOr(arithmetic, controls))
-}
-flags "disable traps and mask INTR" simultaneously {
-  TF := 0:flag
-  IF := 0:flag
-} // Preserve unlisted flags.
-write recognitionDeferred:boolean := false
-write interruptDeferred:boolean := false
-write waiting:boolean := false
-write halted:boolean := false
-perform "push a captured word" {
-  word:u16 := savedFlags
-  pointer:u16 := read SP
-  write SP:u16 := subtract(pointer, 0002:u16)
-  segment:u16 := read SS
-  offset:u16 := read SP
-  perform "write a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(segment, offset)
-    contents:u16 := word
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
-  }
-}
-savedCS:u16 := read CS
-perform "push a captured word" {
-  word:u16 := savedCS
-  pointer:u16 := read SP
-  write SP:u16 := subtract(pointer, 0002:u16)
-  segment:u16 := read SS
-  offset:u16 := read SP
-  perform "write a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(segment, offset)
-    contents:u16 := word
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
-  }
-}
-savedIP:u16 := read IP
-perform "push a captured word" {
-  word:u16 := savedIP
-  pointer:u16 := read SP
-  write SP:u16 := subtract(pointer, 0002:u16)
-  segment:u16 := read SS
-  offset:u16 := read SP
-  perform "write a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(segment, offset)
-    contents:u16 := word
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
-  }
-}
-write CS:u16 := targetSegment
-write IP:u16 := targetOffset
-report completed software interrupt delivery, vector vector
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
-
-### 8088 INTO
-
-Test OF first; when clear perform no delivery effects. Read all four vector bytes before touching flags or stack, even when the frame overlaps the vector. Capture FLAGS, clear TF then IF and the recognition/wait/halt latches, then push FLAGS, live CS, and live IP. Commit target CS then IP after all writes succeed; preserve any owed trap. Each push uses the chapter’s captured SS:SP and low-first word writes, retaining completed effects on failure. Report software delivery only after the complete entry succeeds.
-
-```text
-condition:flag := read OF
-when condition {
-  targetOffset:u16 := source "read a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(0000:u16, shiftBitsLeft(zeroExtend16(04:u8), 2))
+perform "interrupt entry" {
+  vector:u8 := 03:u8
+  offset := shiftBitsLeft(zeroExtend16(vector), 2)
+  targetIP:u16 := source "read a captured 16-bit memory operand" {
+    pointer:u32 := concatHighLow(0000:u16, offset)
     segment := low16(shiftBitsRight(pointer, 16))
     offset := low16(pointer)
     low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
     high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
     yield concatHighLow(high, low)
   }
-  targetSegment:u16 := source "read a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(0000:u16, addWrap(shiftBitsLeft(zeroExtend16(04:u8), 2), 0002:u16))
+  targetCS:u16 := source "read a captured 16-bit memory operand" {
+    pointer:u32 := concatHighLow(0000:u16, addWrap(offset, 0002:u16))
     segment := low16(shiftBitsRight(pointer, 16))
     offset := low16(pointer)
     low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
@@ -322189,8 +322328,232 @@ when condition {
       write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
     }
   }
-  write CS:u16 := targetSegment
-  write IP:u16 := targetOffset
+  write CS:u16 := targetCS
+  write IP:u16 := targetIP
+}
+report completed software interrupt delivery, vector 03:u8
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
+
+### 8088 INT n
+
+The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The native boundary uses the same action for external interrupts, traps, and divide errors; its acceptance and reporting policy still remains outside this chapter. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
+
+```text
+vector:u8 := fetch byte
+perform "interrupt entry" {
+  vector:u8 := vector
+  offset := shiftBitsLeft(zeroExtend16(vector), 2)
+  targetIP:u16 := source "read a captured 16-bit memory operand" {
+    pointer:u32 := concatHighLow(0000:u16, offset)
+    segment := low16(shiftBitsRight(pointer, 16))
+    offset := low16(pointer)
+    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+    yield concatHighLow(high, low)
+  }
+  targetCS:u16 := source "read a captured 16-bit memory operand" {
+    pointer:u32 := concatHighLow(0000:u16, addWrap(offset, 0002:u16))
+    segment := low16(shiftBitsRight(pointer, 16))
+    offset := low16(pointer)
+    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+    yield concatHighLow(high, low)
+  }
+  savedFlags:u16 := source "packed FLAGS word" {
+    cf:flag := read CF
+    pf:flag := read PF
+    af:flag := read AF
+    zf:flag := read ZF
+    sf:flag := read SF
+    tf:flag := read TF
+    if:flag := read IF
+    df:flag := read DF
+    of:flag := read OF
+    cfBit := select(cf, 0001:u16, 0000:u16)
+    pfBit := select(pf, 0004:u16, 0000:u16)
+    afBit := select(af, 0010:u16, 0000:u16)
+    zfBit := select(zf, 0040:u16, 0000:u16)
+    sfBit := select(sf, 0080:u16, 0000:u16)
+    tfBit := select(tf, 0100:u16, 0000:u16)
+    ifBit := select(if, 0200:u16, 0000:u16)
+    dfBit := select(df, 0400:u16, 0000:u16)
+    ofBit := select(of, 0800:u16, 0000:u16)
+    arithmetic := bitOr(cfBit, bitOr(pfBit, bitOr(afBit, bitOr(zfBit, sfBit))))
+    controls := bitOr(tfBit, bitOr(ifBit, bitOr(dfBit, ofBit)))
+    yield bitOr(F002:u16, bitOr(arithmetic, controls))
+  }
+  flags "disable traps and mask INTR" simultaneously {
+    TF := 0:flag
+    IF := 0:flag
+  } // Preserve unlisted flags.
+  write recognitionDeferred:boolean := false
+  write interruptDeferred:boolean := false
+  write waiting:boolean := false
+  write halted:boolean := false
+  perform "push a captured word" {
+    word:u16 := savedFlags
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0002:u16)
+    segment:u16 := read SS
+    offset:u16 := read SP
+    perform "write a captured 16-bit memory operand" {
+      pointer:u32 := concatHighLow(segment, offset)
+      contents:u16 := word
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+      write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+    }
+  }
+  savedCS:u16 := read CS
+  perform "push a captured word" {
+    word:u16 := savedCS
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0002:u16)
+    segment:u16 := read SS
+    offset:u16 := read SP
+    perform "write a captured 16-bit memory operand" {
+      pointer:u32 := concatHighLow(segment, offset)
+      contents:u16 := word
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+      write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+    }
+  }
+  savedIP:u16 := read IP
+  perform "push a captured word" {
+    word:u16 := savedIP
+    pointer:u16 := read SP
+    write SP:u16 := subtract(pointer, 0002:u16)
+    segment:u16 := read SS
+    offset:u16 := read SP
+    perform "write a captured 16-bit memory operand" {
+      pointer:u32 := concatHighLow(segment, offset)
+      contents:u16 := word
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+      write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+    }
+  }
+  write CS:u16 := targetCS
+  write IP:u16 := targetIP
+}
+report completed software interrupt delivery, vector vector
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
+
+### 8088 INTO
+
+The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The native boundary uses the same action for external interrupts, traps, and divide errors; its acceptance and reporting policy still remains outside this chapter. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
+
+```text
+overflow:flag := read OF
+when overflow {
+  perform "interrupt entry" {
+    vector:u8 := 04:u8
+    offset := shiftBitsLeft(zeroExtend16(vector), 2)
+    targetIP:u16 := source "read a captured 16-bit memory operand" {
+      pointer:u32 := concatHighLow(0000:u16, offset)
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+      high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+      yield concatHighLow(high, low)
+    }
+    targetCS:u16 := source "read a captured 16-bit memory operand" {
+      pointer:u32 := concatHighLow(0000:u16, addWrap(offset, 0002:u16))
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+      high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+      yield concatHighLow(high, low)
+    }
+    savedFlags:u16 := source "packed FLAGS word" {
+      cf:flag := read CF
+      pf:flag := read PF
+      af:flag := read AF
+      zf:flag := read ZF
+      sf:flag := read SF
+      tf:flag := read TF
+      if:flag := read IF
+      df:flag := read DF
+      of:flag := read OF
+      cfBit := select(cf, 0001:u16, 0000:u16)
+      pfBit := select(pf, 0004:u16, 0000:u16)
+      afBit := select(af, 0010:u16, 0000:u16)
+      zfBit := select(zf, 0040:u16, 0000:u16)
+      sfBit := select(sf, 0080:u16, 0000:u16)
+      tfBit := select(tf, 0100:u16, 0000:u16)
+      ifBit := select(if, 0200:u16, 0000:u16)
+      dfBit := select(df, 0400:u16, 0000:u16)
+      ofBit := select(of, 0800:u16, 0000:u16)
+      arithmetic := bitOr(cfBit, bitOr(pfBit, bitOr(afBit, bitOr(zfBit, sfBit))))
+      controls := bitOr(tfBit, bitOr(ifBit, bitOr(dfBit, ofBit)))
+      yield bitOr(F002:u16, bitOr(arithmetic, controls))
+    }
+    flags "disable traps and mask INTR" simultaneously {
+      TF := 0:flag
+      IF := 0:flag
+    } // Preserve unlisted flags.
+    write recognitionDeferred:boolean := false
+    write interruptDeferred:boolean := false
+    write waiting:boolean := false
+    write halted:boolean := false
+    perform "push a captured word" {
+      word:u16 := savedFlags
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0002:u16)
+      segment:u16 := read SS
+      offset:u16 := read SP
+      perform "write a captured 16-bit memory operand" {
+        pointer:u32 := concatHighLow(segment, offset)
+        contents:u16 := word
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+        write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+      }
+    }
+    savedCS:u16 := read CS
+    perform "push a captured word" {
+      word:u16 := savedCS
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0002:u16)
+      segment:u16 := read SS
+      offset:u16 := read SP
+      perform "write a captured 16-bit memory operand" {
+        pointer:u32 := concatHighLow(segment, offset)
+        contents:u16 := word
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+        write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+      }
+    }
+    savedIP:u16 := read IP
+    perform "push a captured word" {
+      word:u16 := savedIP
+      pointer:u16 := read SP
+      write SP:u16 := subtract(pointer, 0002:u16)
+      segment:u16 := read SS
+      offset:u16 := read SP
+      perform "write a captured 16-bit memory operand" {
+        pointer:u32 := concatHighLow(segment, offset)
+        contents:u16 := word
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+        write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+      }
+    }
+    write CS:u16 := targetCS
+    write IP:u16 := targetIP
+  }
   report completed software interrupt delivery, vector 04:u8
 }
 ```
@@ -322199,7 +322562,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
 
 ### 8088 IRET
 
-Complete the chapter's far return before its FLAGS pop. Failed FLAGS reads retain the completed return; POPF requests INTR deferral before restoring flags. Retirement samples the original TF.
+The entry action captures FLAGS, clears TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS, and live IP in that order. It commits target CS then IP after the complete frame succeeds. Failed accesses retain completed effects. The native boundary uses the same action for external interrupts, traps, and divide errors; its acceptance and reporting policy still remains outside this chapter. `report interrupt` records completed software delivery only; it performs no vector or stack effects itself.
 
 ```text
 perform "return to a saved CS:IP" {
@@ -322239,7 +322602,7 @@ perform "return to a saved CS:IP" {
   pointer:u16 := read SP
   write SP:u16 := addWrap(pointer, discard)
 }
-perform "POPF" {
+perform "restore stacked FLAGS with recognition delay" {
   status:u16 := source "pop segmented word" {
     segment:u16 := read SS
     offset:u16 := read SP
@@ -322439,14 +322802,14 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 IN AL,n
 
-Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
-port:u16 := source "zero-extended immediate port" {
-  port:u8 := fetch byte
-  yield zeroExtend16(port)
+selector:u16 := source "zero-extended immediate port" {
+  byte:u8 := fetch byte
+  yield zeroExtend16(byte)
 }
-low:u8 := read port[port]
+low:u8 := read port[selector]
 perform "write AL, preserving its other half" {
   byte:u8 := low
   preservedWord:u16 := read AX
@@ -322458,15 +322821,15 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 IN AX,n
 
-Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer low then high bytes, wrapping the second port within 16 bits. Preserve flags. Failed accesses stop later effects; completed effects remain.
+The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
-port:u16 := source "zero-extended immediate port" {
-  port:u8 := fetch byte
-  yield zeroExtend16(port)
+selector:u16 := source "zero-extended immediate port" {
+  byte:u8 := fetch byte
+  yield zeroExtend16(byte)
 }
-low:u8 := read port[port]
-high:u8 := read port[addWrap(port, 0001:u16)]
+low:u8 := read port[selector]
+high:u8 := read port[addWrap(selector, 0001:u16)]
 write AX:u16 := concatHighLow(high, low)
 ```
 
@@ -322474,37 +322837,34 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 OUT n,AL
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
-port:u16 := source "zero-extended immediate port" {
-  port:u8 := fetch byte
-  yield zeroExtend16(port)
+selector:u16 := source "zero-extended immediate port" {
+  byte:u8 := fetch byte
+  yield zeroExtend16(byte)
 }
 contents:u8 := source "low byte of AX" {
   word:u16 := read AX
   yield lowByte(word)
 }
-write port[port] := contents
+write port[selector] := contents
 ```
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 OUT n,AX
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer low then high bytes, wrapping the second port within 16 bits. Preserve flags. Failed accesses stop later effects; completed effects remain.
+The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
-port:u16 := source "zero-extended immediate port" {
-  port:u8 := fetch byte
-  yield zeroExtend16(port)
+selector:u16 := source "zero-extended immediate port" {
+  byte:u8 := fetch byte
+  yield zeroExtend16(byte)
 }
-contents:u16 := source "register AX" {
-  contents:u16 := read AX
-  yield contents
-}
-write port[port] := lowByte(contents)
-write port[addWrap(port, 0001:u16)] := highByte(contents)
+contents:u16 := read AX
+write port[selector] := lowByte(contents)
+write port[addWrap(selector, 0001:u16)] := highByte(contents)
 ```
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
@@ -322608,14 +322968,14 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 IN AL,DX
 
-Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
-port:u16 := source "register DX" {
-  contents:u16 := read DX
-  yield contents
+selector:u16 := source "DX port" {
+  selector:u16 := read DX
+  yield selector
 }
-low:u8 := read port[port]
+low:u8 := read port[selector]
 perform "write AL, preserving its other half" {
   byte:u8 := low
   preservedWord:u16 := read AX
@@ -322627,15 +322987,15 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 IN AX,DX
 
-Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer low then high bytes, wrapping the second port within 16 bits. Preserve flags. Failed accesses stop later effects; completed effects remain.
+The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
-port:u16 := source "register DX" {
-  contents:u16 := read DX
-  yield contents
+selector:u16 := source "DX port" {
+  selector:u16 := read DX
+  yield selector
 }
-low:u8 := read port[port]
-high:u8 := read port[addWrap(port, 0001:u16)]
+low:u8 := read port[selector]
+high:u8 := read port[addWrap(selector, 0001:u16)]
 write AX:u16 := concatHighLow(high, low)
 ```
 
@@ -322643,37 +323003,34 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 OUT DX,AL
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
-port:u16 := source "register DX" {
-  contents:u16 := read DX
-  yield contents
+selector:u16 := source "DX port" {
+  selector:u16 := read DX
+  yield selector
 }
 contents:u8 := source "low byte of AX" {
   word:u16 := read AX
   yield lowByte(word)
 }
-write port[port] := contents
+write port[selector] := contents
 ```
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 OUT DX,AX
 
-Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer low then high bytes, wrapping the second port within 16 bits. Preserve flags. Failed accesses stop later effects; completed effects remain.
+The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
-port:u16 := source "register DX" {
-  contents:u16 := read DX
-  yield contents
+selector:u16 := source "DX port" {
+  selector:u16 := read DX
+  yield selector
 }
-contents:u16 := source "register AX" {
-  contents:u16 := read AX
-  yield contents
-}
-write port[port] := lowByte(contents)
-write port[addWrap(port, 0001:u16)] := highByte(contents)
+contents:u16 := read AX
+write port[selector] := lowByte(contents)
+write port[addWrap(selector, 0001:u16)] := highByte(contents)
 ```
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
@@ -422777,6 +423134,5238 @@ perform "write AL, preserving its other half" {
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
+### 8088 ESC 0
+
+ESC uses `1101 1 ooo` and ModR/M `mm ppp rrr`; `ooo:ppp` forms the six-bit coprocessor opcode. Register forms send the selector without reading CPU registers. Memory forms resolve the ordinary segmented address and read a complete dummy word even if no coprocessor is connected. Only then do they send the captured segment, offset, physical address, and word. The device adapter detaches requests and records only successful delivery. ESC itself leaves CPU state and flags unchanged; no coprocessor arithmetic is emulated.
+
+```text
+overridden:u8 := input
+segmentOverride:u16 := input
+postbyte:u8 := fetch byte
+highOpcode:u8 := source "0" {
+  yield 00:u8
+}
+opcode := bitOr(shiftBitsLeft(highOpcode, 3), bitAnd(shiftBitsRight(postbyte, 3), 07:u8))
+match byte postbyte {
+  case (byte & C0) = C0 {
+    send and record ESC opcode opcode, ModR/M postbyte, register selector only; device receives a detached request; record only after callback success
+  }
+  case (byte & 80) = 00 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  case (byte & C0) = 80 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ESC 1
+
+ESC uses `1101 1 ooo` and ModR/M `mm ppp rrr`; `ooo:ppp` forms the six-bit coprocessor opcode. Register forms send the selector without reading CPU registers. Memory forms resolve the ordinary segmented address and read a complete dummy word even if no coprocessor is connected. Only then do they send the captured segment, offset, physical address, and word. The device adapter detaches requests and records only successful delivery. ESC itself leaves CPU state and flags unchanged; no coprocessor arithmetic is emulated.
+
+```text
+overridden:u8 := input
+segmentOverride:u16 := input
+postbyte:u8 := fetch byte
+highOpcode:u8 := source "1" {
+  yield 01:u8
+}
+opcode := bitOr(shiftBitsLeft(highOpcode, 3), bitAnd(shiftBitsRight(postbyte, 3), 07:u8))
+match byte postbyte {
+  case (byte & C0) = C0 {
+    send and record ESC opcode opcode, ModR/M postbyte, register selector only; device receives a detached request; record only after callback success
+  }
+  case (byte & 80) = 00 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  case (byte & C0) = 80 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ESC 2
+
+ESC uses `1101 1 ooo` and ModR/M `mm ppp rrr`; `ooo:ppp` forms the six-bit coprocessor opcode. Register forms send the selector without reading CPU registers. Memory forms resolve the ordinary segmented address and read a complete dummy word even if no coprocessor is connected. Only then do they send the captured segment, offset, physical address, and word. The device adapter detaches requests and records only successful delivery. ESC itself leaves CPU state and flags unchanged; no coprocessor arithmetic is emulated.
+
+```text
+overridden:u8 := input
+segmentOverride:u16 := input
+postbyte:u8 := fetch byte
+highOpcode:u8 := source "2" {
+  yield 02:u8
+}
+opcode := bitOr(shiftBitsLeft(highOpcode, 3), bitAnd(shiftBitsRight(postbyte, 3), 07:u8))
+match byte postbyte {
+  case (byte & C0) = C0 {
+    send and record ESC opcode opcode, ModR/M postbyte, register selector only; device receives a detached request; record only after callback success
+  }
+  case (byte & 80) = 00 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  case (byte & C0) = 80 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ESC 3
+
+ESC uses `1101 1 ooo` and ModR/M `mm ppp rrr`; `ooo:ppp` forms the six-bit coprocessor opcode. Register forms send the selector without reading CPU registers. Memory forms resolve the ordinary segmented address and read a complete dummy word even if no coprocessor is connected. Only then do they send the captured segment, offset, physical address, and word. The device adapter detaches requests and records only successful delivery. ESC itself leaves CPU state and flags unchanged; no coprocessor arithmetic is emulated.
+
+```text
+overridden:u8 := input
+segmentOverride:u16 := input
+postbyte:u8 := fetch byte
+highOpcode:u8 := source "3" {
+  yield 03:u8
+}
+opcode := bitOr(shiftBitsLeft(highOpcode, 3), bitAnd(shiftBitsRight(postbyte, 3), 07:u8))
+match byte postbyte {
+  case (byte & C0) = C0 {
+    send and record ESC opcode opcode, ModR/M postbyte, register selector only; device receives a detached request; record only after callback success
+  }
+  case (byte & 80) = 00 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  case (byte & C0) = 80 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ESC 4
+
+ESC uses `1101 1 ooo` and ModR/M `mm ppp rrr`; `ooo:ppp` forms the six-bit coprocessor opcode. Register forms send the selector without reading CPU registers. Memory forms resolve the ordinary segmented address and read a complete dummy word even if no coprocessor is connected. Only then do they send the captured segment, offset, physical address, and word. The device adapter detaches requests and records only successful delivery. ESC itself leaves CPU state and flags unchanged; no coprocessor arithmetic is emulated.
+
+```text
+overridden:u8 := input
+segmentOverride:u16 := input
+postbyte:u8 := fetch byte
+highOpcode:u8 := source "4" {
+  yield 04:u8
+}
+opcode := bitOr(shiftBitsLeft(highOpcode, 3), bitAnd(shiftBitsRight(postbyte, 3), 07:u8))
+match byte postbyte {
+  case (byte & C0) = C0 {
+    send and record ESC opcode opcode, ModR/M postbyte, register selector only; device receives a detached request; record only after callback success
+  }
+  case (byte & 80) = 00 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  case (byte & C0) = 80 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ESC 5
+
+ESC uses `1101 1 ooo` and ModR/M `mm ppp rrr`; `ooo:ppp` forms the six-bit coprocessor opcode. Register forms send the selector without reading CPU registers. Memory forms resolve the ordinary segmented address and read a complete dummy word even if no coprocessor is connected. Only then do they send the captured segment, offset, physical address, and word. The device adapter detaches requests and records only successful delivery. ESC itself leaves CPU state and flags unchanged; no coprocessor arithmetic is emulated.
+
+```text
+overridden:u8 := input
+segmentOverride:u16 := input
+postbyte:u8 := fetch byte
+highOpcode:u8 := source "5" {
+  yield 05:u8
+}
+opcode := bitOr(shiftBitsLeft(highOpcode, 3), bitAnd(shiftBitsRight(postbyte, 3), 07:u8))
+match byte postbyte {
+  case (byte & C0) = C0 {
+    send and record ESC opcode opcode, ModR/M postbyte, register selector only; device receives a detached request; record only after callback success
+  }
+  case (byte & 80) = 00 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  case (byte & C0) = 80 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ESC 6
+
+ESC uses `1101 1 ooo` and ModR/M `mm ppp rrr`; `ooo:ppp` forms the six-bit coprocessor opcode. Register forms send the selector without reading CPU registers. Memory forms resolve the ordinary segmented address and read a complete dummy word even if no coprocessor is connected. Only then do they send the captured segment, offset, physical address, and word. The device adapter detaches requests and records only successful delivery. ESC itself leaves CPU state and flags unchanged; no coprocessor arithmetic is emulated.
+
+```text
+overridden:u8 := input
+segmentOverride:u16 := input
+postbyte:u8 := fetch byte
+highOpcode:u8 := source "6" {
+  yield 06:u8
+}
+opcode := bitOr(shiftBitsLeft(highOpcode, 3), bitAnd(shiftBitsRight(postbyte, 3), 07:u8))
+match byte postbyte {
+  case (byte & C0) = C0 {
+    send and record ESC opcode opcode, ModR/M postbyte, register selector only; device receives a detached request; record only after callback success
+  }
+  case (byte & 80) = 00 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  case (byte & C0) = 80 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ESC 7
+
+ESC uses `1101 1 ooo` and ModR/M `mm ppp rrr`; `ooo:ppp` forms the six-bit coprocessor opcode. Register forms send the selector without reading CPU registers. Memory forms resolve the ordinary segmented address and read a complete dummy word even if no coprocessor is connected. Only then do they send the captured segment, offset, physical address, and word. The device adapter detaches requests and records only successful delivery. ESC itself leaves CPU state and flags unchanged; no coprocessor arithmetic is emulated.
+
+```text
+overridden:u8 := input
+segmentOverride:u16 := input
+postbyte:u8 := fetch byte
+highOpcode:u8 := source "7" {
+  yield 07:u8
+}
+opcode := bitOr(shiftBitsLeft(highOpcode, 3), bitAnd(shiftBitsRight(postbyte, 3), 07:u8))
+match byte postbyte {
+  case (byte & C0) = C0 {
+    send and record ESC opcode opcode, ModR/M postbyte, register selector only; device receives a detached request; record only after callback success
+  }
+  case (byte & 80) = 00 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  case (byte & C0) = 80 {
+    pointer:u32 := source "capture a logical memory address" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & C7) = 00 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 01 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 02 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 03 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          yield base
+        }
+        case (byte & C7) = 04 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 05 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 06 {
+          base:u32 := source "DS and a direct offset" {
+            segment:u16 := read DS
+            offset:u16 := source "immediate word, low byte first" {
+              low:u8 := fetch byte
+              high:u8 := fetch byte
+              yield concatHighLow(high, low)
+            }
+            yield concatHighLow(segment, offset)
+          }
+          yield base
+        }
+        case (byte & C7) = 07 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          yield base
+        }
+        case (byte & C7) = 40 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 41 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 42 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 43 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 44 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 45 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 46 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 47 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u8 := fetch byte
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), signExtend16(displacement))
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 80 {
+          base:u32 := source "DS:BX+SI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 81 {
+          base:u32 := source "DS:BX+DI" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 82 {
+          base:u32 := source "SS:BP+SI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read SI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 83 {
+          base:u32 := source "SS:BP+DI" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            second:u16 := read DI
+            yield concatHighLow(segment, addWrap(first, second))
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 84 {
+          base:u32 := source "DS:SI" {
+            segment:u16 := read DS
+            first:u16 := read SI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 85 {
+          base:u32 := source "DS:DI" {
+            segment:u16 := read DS
+            first:u16 := read DI
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 86 {
+          base:u32 := source "SS:BP" {
+            segment:u16 := read SS
+            first:u16 := read BP
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        case (byte & C7) = 87 {
+          base:u32 := source "DS:BX" {
+            segment:u16 := read DS
+            first:u16 := read BX
+            yield concatHighLow(segment, first)
+          }
+          displacement:u16 := source "immediate word, low byte first" {
+            low:u8 := fetch byte
+            high:u8 := fetch byte
+            yield concatHighLow(high, low)
+          }
+          segment := low16(shiftBitsRight(base, 16))
+          offset := addWrap(low16(base), displacement)
+          yield concatHighLow(segment, offset)
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      segment := low16(shiftBitsRight(pointer, 16))
+      yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+    }
+    perform "capture dummy word before ESC delivery" {
+      opcode:u8 := opcode
+      postbyte:u8 := postbyte
+      pointer:u32 := pointer
+      segment := low16(shiftBitsRight(pointer, 16))
+      offset := low16(pointer)
+      contents:u16 := source "read a captured 16-bit memory operand" {
+        pointer:u32 := pointer
+        segment := low16(shiftBitsRight(pointer, 16))
+        offset := low16(pointer)
+        low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+        high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+        yield concatHighLow(high, low)
+      }
+      send and record ESC opcode opcode, ModR/M postbyte, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word contents; device receives a detached request; record only after callback success
+    }
+  }
+  otherwise return outcome "unsupported"; no later effects
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
 ### 8088 8-bit TEST, unary, multiply, and divide group
 
 Division reads AX or DX then AX after the divisor. Signed division truncates toward zero; its remainder follows the dividend sign. Zero divisors and quotient overflow return `divide-error` before any register writes. The original signed 8088 also rejects the most negative quotient. Successful byte division writes AL=quotient, AH=remainder; word division writes AX then DX. Every flag is preserved. The native boundary delivers type 0 using the post-instruction IP, retaining the original 8088 convention.
@@ -442030,152 +447619,146 @@ Flags preserved throughout: TF, IF, DF.
 
 ### 8088 MOVSB
 
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+MOVS captures the complete source before writing the destination. CMPS reads source before destination; STOS captures AL/AX; LODS preserves live AH for byte loads; SCAS captures AL/AX before reading the destination. CMPS and SCAS apply the same subtraction flags as ordinary SUB, without writing either operand. Each family keeps these effects between the common count guard and index/repeat action.
 
 ```text
-sourceSegment:u16 := read DS
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-contents:u8 := source "read a captured 8-bit memory operand" {
-  pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  yield low
-}
-perform "write a captured 8-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  contents:u8 := contents
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  write memory[projectAddress(segment * 16 + offset, 20 bits)] := contents
-}
-backward:flag := read DF
-delta := select(backward, FFFF:u16, 0001:u16)
-si:u16 := read SI
-write SI:u16 := addWrap(si, delta)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 MOVSB (segment override)
-
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-sourceSegment := segment
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-contents:u8 := source "read a captured 8-bit memory operand" {
-  pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  yield low
-}
-perform "write a captured 8-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  contents:u8 := contents
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  write memory[projectAddress(segment * 16 + offset, 20 bits)] := contents
-}
-backward:flag := read DF
-delta := select(backward, FFFF:u16, 0001:u16)
-si:u16 := read SI
-write SI:u16 := addWrap(si, delta)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 REP MOVSB
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
+overridden:u8 := input
+segmentOverride:u16 := input
+repeatMode:u8 := input
 startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment:u16 := read DS
+when isZero(bitXor(repeatMode, 02:u8)) {
+  return outcome "opcode"; no later effects
+}
+count:u16 := source "plain operation or remaining repeat count" {
+  repeatMode:u8 := repeatMode
+  count:u16 := match byte repeatMode {
+    case (byte & FF) = 00 {
+      yield 0001:u16
+    }
+    case (byte & FF) = 01 {
+      count:u16 := read CX
+      yield count
+    }
+    case (byte & FF) = 02 {
+      count:u16 := read CX
+      yield count
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield count
+}
+when not(isZero(count)) {
+  sourceSegment:u16 := source "DS unless a segment override was captured" {
+    overridden:u8 := overridden
+    segmentOverride:u16 := segmentOverride
+    segment:u16 := match byte overridden {
+      case (byte & FF) = 00 {
+        original:u16 := read DS
+        yield original
+      }
+      case (byte & FF) = 01 {
+        yield segmentOverride
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield segment
+  }
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  contents:u8 := source "read a captured 8-bit memory operand" {
+  width:u8 := source "B" {
+    yield 00:u8
+  }
+  contents:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
+    width:u8 := width
+    contents:u16 := match byte width {
+      case (byte & FF) = 00 {
+        byte:u8 := source "read a captured 8-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          yield low
+        }
+        yield zeroExtend16(byte)
+      }
+      case (byte & FF) = 01 {
+        word:u16 := source "read a captured 16-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+          yield concatHighLow(high, low)
+        }
+        yield word
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield contents
   }
-  perform "write a captured 8-bit memory operand" {
+  perform "store byte or word string operand" {
     pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    contents:u8 := contents
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := contents
+    width:u8 := width
+    contents:u16 := contents
+    match byte width {
+      case (byte & FF) = 00 {
+        perform "write a captured 8-bit memory operand" {
+          pointer:u32 := pointer
+          contents:u8 := lowByte(contents)
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          write memory[projectAddress(segment * 16 + offset, 20 bits)] := contents
+        }
+      }
+      case (byte & FF) = 01 {
+        perform "write a captured 16-bit memory operand" {
+          pointer:u32 := pointer
+          contents:u16 := contents
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+          write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+        }
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
   }
-  backward:flag := read DF
-  delta := select(backward, FFFF:u16, 0001:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    write IP:u16 := startIP
-  }
-}
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 REP MOVSB (segment override)
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment := segment
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  contents:u8 := source "read a captured 8-bit memory operand" {
-    pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
-  }
-  perform "write a captured 8-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    contents:u8 := contents
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := contents
-  }
-  backward:flag := read DF
-  delta := select(backward, FFFF:u16, 0001:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    write IP:u16 := startIP
+  perform "advance live indices and decide repetition" {
+    width:u8 := width
+    useSI:u8 := 01:u8
+    useDI:u8 := 01:u8
+    compares:u8 := 00:u8
+    repeatMode:u8 := repeatMode
+    startIP:u16 := startIP
+    backward:flag := read DF
+    size := addWrap(zeroExtend16(width), 0001:u16)
+    delta := select(backward, subtract(0000:u16, size), size)
+    when not(isZero(useSI)) {
+      position:u16 := read SI
+      write SI:u16 := addWrap(position, delta)
+    }
+    when not(isZero(useDI)) {
+      position:u16 := read DI
+      write DI:u16 := addWrap(position, delta)
+    }
+    when not(isZero(repeatMode)) {
+      count:u16 := read CX
+      write CX:u16 := subtract(count, 0001:u16)
+      remaining:u16 := read CX
+      when not(isZero(remaining)) {
+        when isZero(compares) {
+          write IP:u16 := startIP
+        }
+        when not(isZero(compares)) {
+          equal:flag := read ZF
+          when xor(equal, isZero(bitXor(repeatMode, 02:u8))) {
+            write IP:u16 := startIP
+          }
+        }
+      }
+    }
   }
 }
 ```
@@ -442184,160 +447767,146 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 MOVSW
 
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+MOVS captures the complete source before writing the destination. CMPS reads source before destination; STOS captures AL/AX; LODS preserves live AH for byte loads; SCAS captures AL/AX before reading the destination. CMPS and SCAS apply the same subtraction flags as ordinary SUB, without writing either operand. Each family keeps these effects between the common count guard and index/repeat action.
 
 ```text
-sourceSegment:u16 := read DS
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-contents:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-perform "write a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  contents:u16 := contents
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-  write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
-}
-backward:flag := read DF
-delta := select(backward, FFFE:u16, 0002:u16)
-si:u16 := read SI
-write SI:u16 := addWrap(si, delta)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 MOVSW (segment override)
-
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-sourceSegment := segment
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-contents:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-perform "write a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  contents:u16 := contents
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-  write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
-}
-backward:flag := read DF
-delta := select(backward, FFFE:u16, 0002:u16)
-si:u16 := read SI
-write SI:u16 := addWrap(si, delta)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 REP MOVSW
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
+overridden:u8 := input
+segmentOverride:u16 := input
+repeatMode:u8 := input
 startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment:u16 := read DS
+when isZero(bitXor(repeatMode, 02:u8)) {
+  return outcome "opcode"; no later effects
+}
+count:u16 := source "plain operation or remaining repeat count" {
+  repeatMode:u8 := repeatMode
+  count:u16 := match byte repeatMode {
+    case (byte & FF) = 00 {
+      yield 0001:u16
+    }
+    case (byte & FF) = 01 {
+      count:u16 := read CX
+      yield count
+    }
+    case (byte & FF) = 02 {
+      count:u16 := read CX
+      yield count
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield count
+}
+when not(isZero(count)) {
+  sourceSegment:u16 := source "DS unless a segment override was captured" {
+    overridden:u8 := overridden
+    segmentOverride:u16 := segmentOverride
+    segment:u16 := match byte overridden {
+      case (byte & FF) = 00 {
+        original:u16 := read DS
+        yield original
+      }
+      case (byte & FF) = 01 {
+        yield segmentOverride
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield segment
+  }
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  contents:u16 := source "read a captured 16-bit memory operand" {
+  width:u8 := source "W" {
+    yield 01:u8
+  }
+  contents:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
+    width:u8 := width
+    contents:u16 := match byte width {
+      case (byte & FF) = 00 {
+        byte:u8 := source "read a captured 8-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          yield low
+        }
+        yield zeroExtend16(byte)
+      }
+      case (byte & FF) = 01 {
+        word:u16 := source "read a captured 16-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+          yield concatHighLow(high, low)
+        }
+        yield word
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield contents
   }
-  perform "write a captured 16-bit memory operand" {
+  perform "store byte or word string operand" {
     pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
+    width:u8 := width
     contents:u16 := contents
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+    match byte width {
+      case (byte & FF) = 00 {
+        perform "write a captured 8-bit memory operand" {
+          pointer:u32 := pointer
+          contents:u8 := lowByte(contents)
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          write memory[projectAddress(segment * 16 + offset, 20 bits)] := contents
+        }
+      }
+      case (byte & FF) = 01 {
+        perform "write a captured 16-bit memory operand" {
+          pointer:u32 := pointer
+          contents:u16 := contents
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+          write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+        }
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
   }
-  backward:flag := read DF
-  delta := select(backward, FFFE:u16, 0002:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    write IP:u16 := startIP
-  }
-}
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 REP MOVSW (segment override)
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment := segment
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  contents:u16 := source "read a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
-  }
-  perform "write a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    contents:u16 := contents
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
-  }
-  backward:flag := read DF
-  delta := select(backward, FFFE:u16, 0002:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    write IP:u16 := startIP
+  perform "advance live indices and decide repetition" {
+    width:u8 := width
+    useSI:u8 := 01:u8
+    useDI:u8 := 01:u8
+    compares:u8 := 00:u8
+    repeatMode:u8 := repeatMode
+    startIP:u16 := startIP
+    backward:flag := read DF
+    size := addWrap(zeroExtend16(width), 0001:u16)
+    delta := select(backward, subtract(0000:u16, size), size)
+    when not(isZero(useSI)) {
+      position:u16 := read SI
+      write SI:u16 := addWrap(position, delta)
+    }
+    when not(isZero(useDI)) {
+      position:u16 := read DI
+      write DI:u16 := addWrap(position, delta)
+    }
+    when not(isZero(repeatMode)) {
+      count:u16 := read CX
+      write CX:u16 := subtract(count, 0001:u16)
+      remaining:u16 := read CX
+      when not(isZero(remaining)) {
+        when isZero(compares) {
+          write IP:u16 := startIP
+        }
+        when not(isZero(compares)) {
+          equal:flag := read ZF
+          when xor(equal, isZero(bitXor(repeatMode, 02:u8))) {
+            write IP:u16 := startIP
+          }
+        }
+      }
+    }
   }
 }
 ```
@@ -442346,304 +447915,174 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 CMPSB
 
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+MOVS captures the complete source before writing the destination. CMPS reads source before destination; STOS captures AL/AX; LODS preserves live AH for byte loads; SCAS captures AL/AX before reading the destination. CMPS and SCAS apply the same subtraction flags as ordinary SUB, without writing either operand. Each family keeps these effects between the common count guard and index/repeat action.
 
 ```text
-sourceSegment:u16 := read DS
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-left:u8 := source "read a captured 8-bit memory operand" {
-  pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  yield low
-}
-right:u8 := source "read a captured 8-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  yield low
-}
-result := subtract(left, right)
-flags "8088 SUB flags" simultaneously {
-  CF := borrow(left, right, 0:flag)
-  AF := halfBorrow4(left, right, 0:flag)
-  OF := subtractOverflow(left, right, 0:flag)
-  ZF := isZero(result)
-  SF := topBit(result)
-  PF := evenParity8(result)
-} // Preserve unlisted flags.
-backward:flag := read DF
-delta := select(backward, FFFF:u16, 0001:u16)
-si:u16 := read SI
-write SI:u16 := addWrap(si, delta)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 CMPSB (segment override)
-
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-sourceSegment := segment
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-left:u8 := source "read a captured 8-bit memory operand" {
-  pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  yield low
-}
-right:u8 := source "read a captured 8-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  yield low
-}
-result := subtract(left, right)
-flags "8088 SUB flags" simultaneously {
-  CF := borrow(left, right, 0:flag)
-  AF := halfBorrow4(left, right, 0:flag)
-  OF := subtractOverflow(left, right, 0:flag)
-  ZF := isZero(result)
-  SF := topBit(result)
-  PF := evenParity8(result)
-} // Preserve unlisted flags.
-backward:flag := read DF
-delta := select(backward, FFFF:u16, 0001:u16)
-si:u16 := read SI
-write SI:u16 := addWrap(si, delta)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPE CMPSB
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
+overridden:u8 := input
+segmentOverride:u16 := input
+repeatMode:u8 := input
 startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment:u16 := read DS
+count:u16 := source "plain operation or remaining repeat count" {
+  repeatMode:u8 := repeatMode
+  count:u16 := match byte repeatMode {
+    case (byte & FF) = 00 {
+      yield 0001:u16
+    }
+    case (byte & FF) = 01 {
+      count:u16 := read CX
+      yield count
+    }
+    case (byte & FF) = 02 {
+      count:u16 := read CX
+      yield count
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield count
+}
+when not(isZero(count)) {
+  sourceSegment:u16 := source "DS unless a segment override was captured" {
+    overridden:u8 := overridden
+    segmentOverride:u16 := segmentOverride
+    segment:u16 := match byte overridden {
+      case (byte & FF) = 00 {
+        original:u16 := read DS
+        yield original
+      }
+      case (byte & FF) = 01 {
+        yield segmentOverride
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield segment
+  }
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  left:u8 := source "read a captured 8-bit memory operand" {
+  width:u8 := source "B" {
+    yield 00:u8
+  }
+  left:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
+    width:u8 := width
+    contents:u16 := match byte width {
+      case (byte & FF) = 00 {
+        byte:u8 := source "read a captured 8-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          yield low
+        }
+        yield zeroExtend16(byte)
+      }
+      case (byte & FF) = 01 {
+        word:u16 := source "read a captured 16-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+          yield concatHighLow(high, low)
+        }
+        yield word
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield contents
   }
-  right:u8 := source "read a captured 8-bit memory operand" {
+  right:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
+    width:u8 := width
+    contents:u16 := match byte width {
+      case (byte & FF) = 00 {
+        byte:u8 := source "read a captured 8-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          yield low
+        }
+        yield zeroExtend16(byte)
+      }
+      case (byte & FF) = 01 {
+        word:u16 := source "read a captured 16-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+          yield concatHighLow(high, low)
+        }
+        yield word
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield contents
   }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(result)
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFF:u16, 0001:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when condition {
-      write IP:u16 := startIP
+  perform "subtraction flags without operand writeback" {
+    width:u8 := width
+    left:u16 := left
+    right:u16 := right
+    match byte width {
+      case (byte & FF) = 00 {
+        result := subtract(lowByte(left), lowByte(right))
+        flags "8088 SUB flags" simultaneously {
+          CF := borrow(lowByte(left), lowByte(right), 0:flag)
+          AF := halfBorrow4(lowByte(left), lowByte(right), 0:flag)
+          OF := subtractOverflow(lowByte(left), lowByte(right), 0:flag)
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(result)
+        } // Preserve unlisted flags.
+      }
+      case (byte & FF) = 01 {
+        result := subtract(left, right)
+        flags "8088 SUB flags" simultaneously {
+          CF := borrow(left, right, 0:flag)
+          AF := halfBorrow4(left, right, 0:flag)
+          OF := subtractOverflow(left, right, 0:flag)
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(lowByte(result))
+        } // Preserve unlisted flags.
+      }
+      otherwise return outcome "unsupported"; no later effects
     }
   }
-}
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPE CMPSB (segment override)
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment := segment
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  left:u8 := source "read a captured 8-bit memory operand" {
-    pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
-  }
-  right:u8 := source "read a captured 8-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
-  }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(result)
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFF:u16, 0001:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when condition {
-      write IP:u16 := startIP
+  perform "advance live indices and decide repetition" {
+    width:u8 := width
+    useSI:u8 := 01:u8
+    useDI:u8 := 01:u8
+    compares:u8 := 01:u8
+    repeatMode:u8 := repeatMode
+    startIP:u16 := startIP
+    backward:flag := read DF
+    size := addWrap(zeroExtend16(width), 0001:u16)
+    delta := select(backward, subtract(0000:u16, size), size)
+    when not(isZero(useSI)) {
+      position:u16 := read SI
+      write SI:u16 := addWrap(position, delta)
     }
-  }
-}
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPNE CMPSB
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment:u16 := read DS
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  left:u8 := source "read a captured 8-bit memory operand" {
-    pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
-  }
-  right:u8 := source "read a captured 8-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
-  }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(result)
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFF:u16, 0001:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when not(condition) {
-      write IP:u16 := startIP
+    when not(isZero(useDI)) {
+      position:u16 := read DI
+      write DI:u16 := addWrap(position, delta)
     }
-  }
-}
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPNE CMPSB (segment override)
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment := segment
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  left:u8 := source "read a captured 8-bit memory operand" {
-    pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
-  }
-  right:u8 := source "read a captured 8-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
-  }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(result)
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFF:u16, 0001:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when not(condition) {
-      write IP:u16 := startIP
+    when not(isZero(repeatMode)) {
+      count:u16 := read CX
+      write CX:u16 := subtract(count, 0001:u16)
+      remaining:u16 := read CX
+      when not(isZero(remaining)) {
+        when isZero(compares) {
+          write IP:u16 := startIP
+        }
+        when not(isZero(compares)) {
+          equal:flag := read ZF
+          when xor(equal, isZero(bitXor(repeatMode, 02:u8))) {
+            write IP:u16 := startIP
+          }
+        }
+      }
     }
   }
 }
@@ -442653,316 +448092,174 @@ Flags preserved throughout: TF, IF, DF.
 
 ### 8088 CMPSW
 
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+MOVS captures the complete source before writing the destination. CMPS reads source before destination; STOS captures AL/AX; LODS preserves live AH for byte loads; SCAS captures AL/AX before reading the destination. CMPS and SCAS apply the same subtraction flags as ordinary SUB, without writing either operand. Each family keeps these effects between the common count guard and index/repeat action.
 
 ```text
-sourceSegment:u16 := read DS
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-left:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-right:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-result := subtract(left, right)
-flags "8088 SUB flags" simultaneously {
-  CF := borrow(left, right, 0:flag)
-  AF := halfBorrow4(left, right, 0:flag)
-  OF := subtractOverflow(left, right, 0:flag)
-  ZF := isZero(result)
-  SF := topBit(result)
-  PF := evenParity8(lowByte(result))
-} // Preserve unlisted flags.
-backward:flag := read DF
-delta := select(backward, FFFE:u16, 0002:u16)
-si:u16 := read SI
-write SI:u16 := addWrap(si, delta)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 CMPSW (segment override)
-
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-sourceSegment := segment
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-left:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-right:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-result := subtract(left, right)
-flags "8088 SUB flags" simultaneously {
-  CF := borrow(left, right, 0:flag)
-  AF := halfBorrow4(left, right, 0:flag)
-  OF := subtractOverflow(left, right, 0:flag)
-  ZF := isZero(result)
-  SF := topBit(result)
-  PF := evenParity8(lowByte(result))
-} // Preserve unlisted flags.
-backward:flag := read DF
-delta := select(backward, FFFE:u16, 0002:u16)
-si:u16 := read SI
-write SI:u16 := addWrap(si, delta)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPE CMPSW
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
+overridden:u8 := input
+segmentOverride:u16 := input
+repeatMode:u8 := input
 startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment:u16 := read DS
+count:u16 := source "plain operation or remaining repeat count" {
+  repeatMode:u8 := repeatMode
+  count:u16 := match byte repeatMode {
+    case (byte & FF) = 00 {
+      yield 0001:u16
+    }
+    case (byte & FF) = 01 {
+      count:u16 := read CX
+      yield count
+    }
+    case (byte & FF) = 02 {
+      count:u16 := read CX
+      yield count
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield count
+}
+when not(isZero(count)) {
+  sourceSegment:u16 := source "DS unless a segment override was captured" {
+    overridden:u8 := overridden
+    segmentOverride:u16 := segmentOverride
+    segment:u16 := match byte overridden {
+      case (byte & FF) = 00 {
+        original:u16 := read DS
+        yield original
+      }
+      case (byte & FF) = 01 {
+        yield segmentOverride
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield segment
+  }
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  left:u16 := source "read a captured 16-bit memory operand" {
+  width:u8 := source "W" {
+    yield 01:u8
+  }
+  left:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
+    width:u8 := width
+    contents:u16 := match byte width {
+      case (byte & FF) = 00 {
+        byte:u8 := source "read a captured 8-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          yield low
+        }
+        yield zeroExtend16(byte)
+      }
+      case (byte & FF) = 01 {
+        word:u16 := source "read a captured 16-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+          yield concatHighLow(high, low)
+        }
+        yield word
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield contents
   }
-  right:u16 := source "read a captured 16-bit memory operand" {
+  right:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
+    width:u8 := width
+    contents:u16 := match byte width {
+      case (byte & FF) = 00 {
+        byte:u8 := source "read a captured 8-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          yield low
+        }
+        yield zeroExtend16(byte)
+      }
+      case (byte & FF) = 01 {
+        word:u16 := source "read a captured 16-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+          yield concatHighLow(high, low)
+        }
+        yield word
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield contents
   }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(lowByte(result))
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFE:u16, 0002:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when condition {
-      write IP:u16 := startIP
+  perform "subtraction flags without operand writeback" {
+    width:u8 := width
+    left:u16 := left
+    right:u16 := right
+    match byte width {
+      case (byte & FF) = 00 {
+        result := subtract(lowByte(left), lowByte(right))
+        flags "8088 SUB flags" simultaneously {
+          CF := borrow(lowByte(left), lowByte(right), 0:flag)
+          AF := halfBorrow4(lowByte(left), lowByte(right), 0:flag)
+          OF := subtractOverflow(lowByte(left), lowByte(right), 0:flag)
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(result)
+        } // Preserve unlisted flags.
+      }
+      case (byte & FF) = 01 {
+        result := subtract(left, right)
+        flags "8088 SUB flags" simultaneously {
+          CF := borrow(left, right, 0:flag)
+          AF := halfBorrow4(left, right, 0:flag)
+          OF := subtractOverflow(left, right, 0:flag)
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(lowByte(result))
+        } // Preserve unlisted flags.
+      }
+      otherwise return outcome "unsupported"; no later effects
     }
   }
-}
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPE CMPSW (segment override)
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment := segment
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  left:u16 := source "read a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
-  }
-  right:u16 := source "read a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
-  }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(lowByte(result))
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFE:u16, 0002:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when condition {
-      write IP:u16 := startIP
+  perform "advance live indices and decide repetition" {
+    width:u8 := width
+    useSI:u8 := 01:u8
+    useDI:u8 := 01:u8
+    compares:u8 := 01:u8
+    repeatMode:u8 := repeatMode
+    startIP:u16 := startIP
+    backward:flag := read DF
+    size := addWrap(zeroExtend16(width), 0001:u16)
+    delta := select(backward, subtract(0000:u16, size), size)
+    when not(isZero(useSI)) {
+      position:u16 := read SI
+      write SI:u16 := addWrap(position, delta)
     }
-  }
-}
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPNE CMPSW
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment:u16 := read DS
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  left:u16 := source "read a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
-  }
-  right:u16 := source "read a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
-  }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(lowByte(result))
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFE:u16, 0002:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when not(condition) {
-      write IP:u16 := startIP
+    when not(isZero(useDI)) {
+      position:u16 := read DI
+      write DI:u16 := addWrap(position, delta)
     }
-  }
-}
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPNE CMPSW (segment override)
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment := segment
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  left:u16 := source "read a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
-  }
-  right:u16 := source "read a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
-  }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(lowByte(result))
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFE:u16, 0002:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when not(condition) {
-      write IP:u16 := startIP
+    when not(isZero(repeatMode)) {
+      count:u16 := read CX
+      write CX:u16 := subtract(count, 0001:u16)
+      remaining:u16 := read CX
+      when not(isZero(remaining)) {
+        when isZero(compares) {
+          write IP:u16 := startIP
+        }
+        when not(isZero(compares)) {
+          equal:flag := read ZF
+          when xor(equal, isZero(bitXor(repeatMode, 02:u8))) {
+            write IP:u16 := startIP
+          }
+        }
+      }
     }
   }
 }
@@ -442972,132 +448269,135 @@ Flags preserved throughout: TF, IF, DF.
 
 ### 8088 STOSB
 
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+MOVS captures the complete source before writing the destination. CMPS reads source before destination; STOS captures AL/AX; LODS preserves live AH for byte loads; SCAS captures AL/AX before reading the destination. CMPS and SCAS apply the same subtraction flags as ordinary SUB, without writing either operand. Each family keeps these effects between the common count guard and index/repeat action.
 
 ```text
-sourceSegment:u16 := read DS
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-contents:u8 := source "low byte of AX" {
-  word:u16 := read AX
-  yield lowByte(word)
-}
-perform "write a captured 8-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  contents:u8 := contents
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  write memory[projectAddress(segment * 16 + offset, 20 bits)] := contents
-}
-backward:flag := read DF
-delta := select(backward, FFFF:u16, 0001:u16)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 STOSB (segment override)
-
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-sourceSegment := segment
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-contents:u8 := source "low byte of AX" {
-  word:u16 := read AX
-  yield lowByte(word)
-}
-perform "write a captured 8-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  contents:u8 := contents
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  write memory[projectAddress(segment * 16 + offset, 20 bits)] := contents
-}
-backward:flag := read DF
-delta := select(backward, FFFF:u16, 0001:u16)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 REP STOSB
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
+overridden:u8 := input
+segmentOverride:u16 := input
+repeatMode:u8 := input
 startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment:u16 := read DS
+when isZero(bitXor(repeatMode, 02:u8)) {
+  return outcome "opcode"; no later effects
+}
+count:u16 := source "plain operation or remaining repeat count" {
+  repeatMode:u8 := repeatMode
+  count:u16 := match byte repeatMode {
+    case (byte & FF) = 00 {
+      yield 0001:u16
+    }
+    case (byte & FF) = 01 {
+      count:u16 := read CX
+      yield count
+    }
+    case (byte & FF) = 02 {
+      count:u16 := read CX
+      yield count
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield count
+}
+when not(isZero(count)) {
+  sourceSegment:u16 := source "DS unless a segment override was captured" {
+    overridden:u8 := overridden
+    segmentOverride:u16 := segmentOverride
+    segment:u16 := match byte overridden {
+      case (byte & FF) = 00 {
+        original:u16 := read DS
+        yield original
+      }
+      case (byte & FF) = 01 {
+        yield segmentOverride
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield segment
+  }
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  contents:u8 := source "low byte of AX" {
-    word:u16 := read AX
-    yield lowByte(word)
+  width:u8 := source "B" {
+    yield 00:u8
   }
-  perform "write a captured 8-bit memory operand" {
+  contents:u16 := source "AL or AX string operand" {
+    width:u8 := width
+    contents:u16 := match byte width {
+      case (byte & FF) = 00 {
+        byte:u8 := source "low byte of AX" {
+          word:u16 := read AX
+          yield lowByte(word)
+        }
+        yield zeroExtend16(byte)
+      }
+      case (byte & FF) = 01 {
+        word:u16 := read AX
+        yield word
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield contents
+  }
+  perform "store byte or word string operand" {
     pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    contents:u8 := contents
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := contents
+    width:u8 := width
+    contents:u16 := contents
+    match byte width {
+      case (byte & FF) = 00 {
+        perform "write a captured 8-bit memory operand" {
+          pointer:u32 := pointer
+          contents:u8 := lowByte(contents)
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          write memory[projectAddress(segment * 16 + offset, 20 bits)] := contents
+        }
+      }
+      case (byte & FF) = 01 {
+        perform "write a captured 16-bit memory operand" {
+          pointer:u32 := pointer
+          contents:u16 := contents
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+          write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+        }
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
   }
-  backward:flag := read DF
-  delta := select(backward, FFFF:u16, 0001:u16)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    write IP:u16 := startIP
-  }
-}
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 REP STOSB (segment override)
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment := segment
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  contents:u8 := source "low byte of AX" {
-    word:u16 := read AX
-    yield lowByte(word)
-  }
-  perform "write a captured 8-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    contents:u8 := contents
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := contents
-  }
-  backward:flag := read DF
-  delta := select(backward, FFFF:u16, 0001:u16)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    write IP:u16 := startIP
+  perform "advance live indices and decide repetition" {
+    width:u8 := width
+    useSI:u8 := 00:u8
+    useDI:u8 := 01:u8
+    compares:u8 := 00:u8
+    repeatMode:u8 := repeatMode
+    startIP:u16 := startIP
+    backward:flag := read DF
+    size := addWrap(zeroExtend16(width), 0001:u16)
+    delta := select(backward, subtract(0000:u16, size), size)
+    when not(isZero(useSI)) {
+      position:u16 := read SI
+      write SI:u16 := addWrap(position, delta)
+    }
+    when not(isZero(useDI)) {
+      position:u16 := read DI
+      write DI:u16 := addWrap(position, delta)
+    }
+    when not(isZero(repeatMode)) {
+      count:u16 := read CX
+      write CX:u16 := subtract(count, 0001:u16)
+      remaining:u16 := read CX
+      when not(isZero(remaining)) {
+        when isZero(compares) {
+          write IP:u16 := startIP
+        }
+        when not(isZero(compares)) {
+          equal:flag := read ZF
+          when xor(equal, isZero(bitXor(repeatMode, 02:u8))) {
+            write IP:u16 := startIP
+          }
+        }
+      }
+    }
   }
 }
 ```
@@ -443106,136 +448406,135 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 STOSW
 
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+MOVS captures the complete source before writing the destination. CMPS reads source before destination; STOS captures AL/AX; LODS preserves live AH for byte loads; SCAS captures AL/AX before reading the destination. CMPS and SCAS apply the same subtraction flags as ordinary SUB, without writing either operand. Each family keeps these effects between the common count guard and index/repeat action.
 
 ```text
-sourceSegment:u16 := read DS
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-contents:u16 := source "register AX" {
-  contents:u16 := read AX
-  yield contents
-}
-perform "write a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  contents:u16 := contents
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-  write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
-}
-backward:flag := read DF
-delta := select(backward, FFFE:u16, 0002:u16)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 STOSW (segment override)
-
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-sourceSegment := segment
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-contents:u16 := source "register AX" {
-  contents:u16 := read AX
-  yield contents
-}
-perform "write a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  contents:u16 := contents
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-  write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
-}
-backward:flag := read DF
-delta := select(backward, FFFE:u16, 0002:u16)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 REP STOSW
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
+overridden:u8 := input
+segmentOverride:u16 := input
+repeatMode:u8 := input
 startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment:u16 := read DS
+when isZero(bitXor(repeatMode, 02:u8)) {
+  return outcome "opcode"; no later effects
+}
+count:u16 := source "plain operation or remaining repeat count" {
+  repeatMode:u8 := repeatMode
+  count:u16 := match byte repeatMode {
+    case (byte & FF) = 00 {
+      yield 0001:u16
+    }
+    case (byte & FF) = 01 {
+      count:u16 := read CX
+      yield count
+    }
+    case (byte & FF) = 02 {
+      count:u16 := read CX
+      yield count
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield count
+}
+when not(isZero(count)) {
+  sourceSegment:u16 := source "DS unless a segment override was captured" {
+    overridden:u8 := overridden
+    segmentOverride:u16 := segmentOverride
+    segment:u16 := match byte overridden {
+      case (byte & FF) = 00 {
+        original:u16 := read DS
+        yield original
+      }
+      case (byte & FF) = 01 {
+        yield segmentOverride
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield segment
+  }
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  contents:u16 := source "register AX" {
-    contents:u16 := read AX
+  width:u8 := source "W" {
+    yield 01:u8
+  }
+  contents:u16 := source "AL or AX string operand" {
+    width:u8 := width
+    contents:u16 := match byte width {
+      case (byte & FF) = 00 {
+        byte:u8 := source "low byte of AX" {
+          word:u16 := read AX
+          yield lowByte(word)
+        }
+        yield zeroExtend16(byte)
+      }
+      case (byte & FF) = 01 {
+        word:u16 := read AX
+        yield word
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
     yield contents
   }
-  perform "write a captured 16-bit memory operand" {
+  perform "store byte or word string operand" {
     pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
+    width:u8 := width
     contents:u16 := contents
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+    match byte width {
+      case (byte & FF) = 00 {
+        perform "write a captured 8-bit memory operand" {
+          pointer:u32 := pointer
+          contents:u8 := lowByte(contents)
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          write memory[projectAddress(segment * 16 + offset, 20 bits)] := contents
+        }
+      }
+      case (byte & FF) = 01 {
+        perform "write a captured 16-bit memory operand" {
+          pointer:u32 := pointer
+          contents:u16 := contents
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+          write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+        }
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
   }
-  backward:flag := read DF
-  delta := select(backward, FFFE:u16, 0002:u16)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    write IP:u16 := startIP
-  }
-}
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 REP STOSW (segment override)
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment := segment
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  contents:u16 := source "register AX" {
-    contents:u16 := read AX
-    yield contents
-  }
-  perform "write a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    contents:u16 := contents
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
-  }
-  backward:flag := read DF
-  delta := select(backward, FFFE:u16, 0002:u16)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    write IP:u16 := startIP
+  perform "advance live indices and decide repetition" {
+    width:u8 := width
+    useSI:u8 := 00:u8
+    useDI:u8 := 01:u8
+    compares:u8 := 00:u8
+    repeatMode:u8 := repeatMode
+    startIP:u16 := startIP
+    backward:flag := read DF
+    size := addWrap(zeroExtend16(width), 0001:u16)
+    delta := select(backward, subtract(0000:u16, size), size)
+    when not(isZero(useSI)) {
+      position:u16 := read SI
+      write SI:u16 := addWrap(position, delta)
+    }
+    when not(isZero(useDI)) {
+      position:u16 := read DI
+      write DI:u16 := addWrap(position, delta)
+    }
+    when not(isZero(repeatMode)) {
+      count:u16 := read CX
+      write CX:u16 := subtract(count, 0001:u16)
+      remaining:u16 := read CX
+      when not(isZero(remaining)) {
+        when isZero(compares) {
+          write IP:u16 := startIP
+        }
+        when not(isZero(compares)) {
+          equal:flag := read ZF
+          when xor(equal, isZero(bitXor(repeatMode, 02:u8))) {
+            write IP:u16 := startIP
+          }
+        }
+      }
+    }
   }
 }
 ```
@@ -443244,136 +448543,136 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 LODSB
 
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+MOVS captures the complete source before writing the destination. CMPS reads source before destination; STOS captures AL/AX; LODS preserves live AH for byte loads; SCAS captures AL/AX before reading the destination. CMPS and SCAS apply the same subtraction flags as ordinary SUB, without writing either operand. Each family keeps these effects between the common count guard and index/repeat action.
 
 ```text
-sourceSegment:u16 := read DS
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-contents:u8 := source "read a captured 8-bit memory operand" {
-  pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  yield low
-}
-perform "write AL, preserving its other half" {
-  byte:u8 := contents
-  preservedWord:u16 := read AX
-  write AX:u16 := concatHighLow(highByte(preservedWord), byte)
-}
-backward:flag := read DF
-delta := select(backward, FFFF:u16, 0001:u16)
-si:u16 := read SI
-write SI:u16 := addWrap(si, delta)
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 LODSB (segment override)
-
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-sourceSegment := segment
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-contents:u8 := source "read a captured 8-bit memory operand" {
-  pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  yield low
-}
-perform "write AL, preserving its other half" {
-  byte:u8 := contents
-  preservedWord:u16 := read AX
-  write AX:u16 := concatHighLow(highByte(preservedWord), byte)
-}
-backward:flag := read DF
-delta := select(backward, FFFF:u16, 0001:u16)
-si:u16 := read SI
-write SI:u16 := addWrap(si, delta)
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 REP LODSB
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
+overridden:u8 := input
+segmentOverride:u16 := input
+repeatMode:u8 := input
 startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment:u16 := read DS
+when isZero(bitXor(repeatMode, 02:u8)) {
+  return outcome "opcode"; no later effects
+}
+count:u16 := source "plain operation or remaining repeat count" {
+  repeatMode:u8 := repeatMode
+  count:u16 := match byte repeatMode {
+    case (byte & FF) = 00 {
+      yield 0001:u16
+    }
+    case (byte & FF) = 01 {
+      count:u16 := read CX
+      yield count
+    }
+    case (byte & FF) = 02 {
+      count:u16 := read CX
+      yield count
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield count
+}
+when not(isZero(count)) {
+  sourceSegment:u16 := source "DS unless a segment override was captured" {
+    overridden:u8 := overridden
+    segmentOverride:u16 := segmentOverride
+    segment:u16 := match byte overridden {
+      case (byte & FF) = 00 {
+        original:u16 := read DS
+        yield original
+      }
+      case (byte & FF) = 01 {
+        yield segmentOverride
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield segment
+  }
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  contents:u8 := source "read a captured 8-bit memory operand" {
+  width:u8 := source "B" {
+    yield 00:u8
+  }
+  contents:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
+    width:u8 := width
+    contents:u16 := match byte width {
+      case (byte & FF) = 00 {
+        byte:u8 := source "read a captured 8-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          yield low
+        }
+        yield zeroExtend16(byte)
+      }
+      case (byte & FF) = 01 {
+        word:u16 := source "read a captured 16-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+          yield concatHighLow(high, low)
+        }
+        yield word
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield contents
   }
-  perform "write AL, preserving its other half" {
-    byte:u8 := contents
-    preservedWord:u16 := read AX
-    write AX:u16 := concatHighLow(highByte(preservedWord), byte)
+  perform "load AL or AX from a captured string operand" {
+    width:u8 := width
+    contents:u16 := contents
+    match byte width {
+      case (byte & FF) = 00 {
+        perform "write AL, preserving its other half" {
+          byte:u8 := lowByte(contents)
+          preservedWord:u16 := read AX
+          write AX:u16 := concatHighLow(highByte(preservedWord), byte)
+        }
+      }
+      case (byte & FF) = 01 {
+        write AX:u16 := contents
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
   }
-  backward:flag := read DF
-  delta := select(backward, FFFF:u16, 0001:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    write IP:u16 := startIP
-  }
-}
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 REP LODSB (segment override)
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment := segment
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  contents:u8 := source "read a captured 8-bit memory operand" {
-    pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
-  }
-  perform "write AL, preserving its other half" {
-    byte:u8 := contents
-    preservedWord:u16 := read AX
-    write AX:u16 := concatHighLow(highByte(preservedWord), byte)
-  }
-  backward:flag := read DF
-  delta := select(backward, FFFF:u16, 0001:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    write IP:u16 := startIP
+  perform "advance live indices and decide repetition" {
+    width:u8 := width
+    useSI:u8 := 01:u8
+    useDI:u8 := 00:u8
+    compares:u8 := 00:u8
+    repeatMode:u8 := repeatMode
+    startIP:u16 := startIP
+    backward:flag := read DF
+    size := addWrap(zeroExtend16(width), 0001:u16)
+    delta := select(backward, subtract(0000:u16, size), size)
+    when not(isZero(useSI)) {
+      position:u16 := read SI
+      write SI:u16 := addWrap(position, delta)
+    }
+    when not(isZero(useDI)) {
+      position:u16 := read DI
+      write DI:u16 := addWrap(position, delta)
+    }
+    when not(isZero(repeatMode)) {
+      count:u16 := read CX
+      write CX:u16 := subtract(count, 0001:u16)
+      remaining:u16 := read CX
+      when not(isZero(remaining)) {
+        when isZero(compares) {
+          write IP:u16 := startIP
+        }
+        when not(isZero(compares)) {
+          equal:flag := read ZF
+          when xor(equal, isZero(bitXor(repeatMode, 02:u8))) {
+            write IP:u16 := startIP
+          }
+        }
+      }
+    }
   }
 }
 ```
@@ -443382,124 +448681,136 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 LODSW
 
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+MOVS captures the complete source before writing the destination. CMPS reads source before destination; STOS captures AL/AX; LODS preserves live AH for byte loads; SCAS captures AL/AX before reading the destination. CMPS and SCAS apply the same subtraction flags as ordinary SUB, without writing either operand. Each family keeps these effects between the common count guard and index/repeat action.
 
 ```text
-sourceSegment:u16 := read DS
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-contents:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-write AX:u16 := contents
-backward:flag := read DF
-delta := select(backward, FFFE:u16, 0002:u16)
-si:u16 := read SI
-write SI:u16 := addWrap(si, delta)
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 LODSW (segment override)
-
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-sourceSegment := segment
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-contents:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-write AX:u16 := contents
-backward:flag := read DF
-delta := select(backward, FFFE:u16, 0002:u16)
-si:u16 := read SI
-write SI:u16 := addWrap(si, delta)
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 REP LODSW
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
+overridden:u8 := input
+segmentOverride:u16 := input
+repeatMode:u8 := input
 startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment:u16 := read DS
+when isZero(bitXor(repeatMode, 02:u8)) {
+  return outcome "opcode"; no later effects
+}
+count:u16 := source "plain operation or remaining repeat count" {
+  repeatMode:u8 := repeatMode
+  count:u16 := match byte repeatMode {
+    case (byte & FF) = 00 {
+      yield 0001:u16
+    }
+    case (byte & FF) = 01 {
+      count:u16 := read CX
+      yield count
+    }
+    case (byte & FF) = 02 {
+      count:u16 := read CX
+      yield count
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield count
+}
+when not(isZero(count)) {
+  sourceSegment:u16 := source "DS unless a segment override was captured" {
+    overridden:u8 := overridden
+    segmentOverride:u16 := segmentOverride
+    segment:u16 := match byte overridden {
+      case (byte & FF) = 00 {
+        original:u16 := read DS
+        yield original
+      }
+      case (byte & FF) = 01 {
+        yield segmentOverride
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield segment
+  }
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  contents:u16 := source "read a captured 16-bit memory operand" {
+  width:u8 := source "W" {
+    yield 01:u8
+  }
+  contents:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
+    width:u8 := width
+    contents:u16 := match byte width {
+      case (byte & FF) = 00 {
+        byte:u8 := source "read a captured 8-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          yield low
+        }
+        yield zeroExtend16(byte)
+      }
+      case (byte & FF) = 01 {
+        word:u16 := source "read a captured 16-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+          yield concatHighLow(high, low)
+        }
+        yield word
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield contents
   }
-  write AX:u16 := contents
-  backward:flag := read DF
-  delta := select(backward, FFFE:u16, 0002:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    write IP:u16 := startIP
+  perform "load AL or AX from a captured string operand" {
+    width:u8 := width
+    contents:u16 := contents
+    match byte width {
+      case (byte & FF) = 00 {
+        perform "write AL, preserving its other half" {
+          byte:u8 := lowByte(contents)
+          preservedWord:u16 := read AX
+          write AX:u16 := concatHighLow(highByte(preservedWord), byte)
+        }
+      }
+      case (byte & FF) = 01 {
+        write AX:u16 := contents
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
   }
-}
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 REP LODSW (segment override)
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment := segment
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  contents:u16 := source "read a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
-  }
-  write AX:u16 := contents
-  backward:flag := read DF
-  delta := select(backward, FFFE:u16, 0002:u16)
-  si:u16 := read SI
-  write SI:u16 := addWrap(si, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    write IP:u16 := startIP
+  perform "advance live indices and decide repetition" {
+    width:u8 := width
+    useSI:u8 := 01:u8
+    useDI:u8 := 00:u8
+    compares:u8 := 00:u8
+    repeatMode:u8 := repeatMode
+    startIP:u16 := startIP
+    backward:flag := read DF
+    size := addWrap(zeroExtend16(width), 0001:u16)
+    delta := select(backward, subtract(0000:u16, size), size)
+    when not(isZero(useSI)) {
+      position:u16 := read SI
+      write SI:u16 := addWrap(position, delta)
+    }
+    when not(isZero(useDI)) {
+      position:u16 := read DI
+      write DI:u16 := addWrap(position, delta)
+    }
+    when not(isZero(repeatMode)) {
+      count:u16 := read CX
+      write CX:u16 := subtract(count, 0001:u16)
+      remaining:u16 := read CX
+      when not(isZero(remaining)) {
+        when isZero(compares) {
+          write IP:u16 := startIP
+        }
+        when not(isZero(compares)) {
+          equal:flag := read ZF
+          when xor(equal, isZero(bitXor(repeatMode, 02:u8))) {
+            write IP:u16 := startIP
+          }
+        }
+      }
+    }
   }
 }
 ```
@@ -443508,274 +448819,163 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 SCASB
 
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+MOVS captures the complete source before writing the destination. CMPS reads source before destination; STOS captures AL/AX; LODS preserves live AH for byte loads; SCAS captures AL/AX before reading the destination. CMPS and SCAS apply the same subtraction flags as ordinary SUB, without writing either operand. Each family keeps these effects between the common count guard and index/repeat action.
 
 ```text
-sourceSegment:u16 := read DS
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-left:u8 := source "low byte of AX" {
-  word:u16 := read AX
-  yield lowByte(word)
-}
-right:u8 := source "read a captured 8-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  yield low
-}
-result := subtract(left, right)
-flags "8088 SUB flags" simultaneously {
-  CF := borrow(left, right, 0:flag)
-  AF := halfBorrow4(left, right, 0:flag)
-  OF := subtractOverflow(left, right, 0:flag)
-  ZF := isZero(result)
-  SF := topBit(result)
-  PF := evenParity8(result)
-} // Preserve unlisted flags.
-backward:flag := read DF
-delta := select(backward, FFFF:u16, 0001:u16)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 SCASB (segment override)
-
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-sourceSegment := segment
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-left:u8 := source "low byte of AX" {
-  word:u16 := read AX
-  yield lowByte(word)
-}
-right:u8 := source "read a captured 8-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  yield low
-}
-result := subtract(left, right)
-flags "8088 SUB flags" simultaneously {
-  CF := borrow(left, right, 0:flag)
-  AF := halfBorrow4(left, right, 0:flag)
-  OF := subtractOverflow(left, right, 0:flag)
-  ZF := isZero(result)
-  SF := topBit(result)
-  PF := evenParity8(result)
-} // Preserve unlisted flags.
-backward:flag := read DF
-delta := select(backward, FFFF:u16, 0001:u16)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPE SCASB
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
+overridden:u8 := input
+segmentOverride:u16 := input
+repeatMode:u8 := input
 startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment:u16 := read DS
+count:u16 := source "plain operation or remaining repeat count" {
+  repeatMode:u8 := repeatMode
+  count:u16 := match byte repeatMode {
+    case (byte & FF) = 00 {
+      yield 0001:u16
+    }
+    case (byte & FF) = 01 {
+      count:u16 := read CX
+      yield count
+    }
+    case (byte & FF) = 02 {
+      count:u16 := read CX
+      yield count
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield count
+}
+when not(isZero(count)) {
+  sourceSegment:u16 := source "DS unless a segment override was captured" {
+    overridden:u8 := overridden
+    segmentOverride:u16 := segmentOverride
+    segment:u16 := match byte overridden {
+      case (byte & FF) = 00 {
+        original:u16 := read DS
+        yield original
+      }
+      case (byte & FF) = 01 {
+        yield segmentOverride
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield segment
+  }
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  left:u8 := source "low byte of AX" {
-    word:u16 := read AX
-    yield lowByte(word)
+  width:u8 := source "B" {
+    yield 00:u8
   }
-  right:u8 := source "read a captured 8-bit memory operand" {
+  left:u16 := source "AL or AX string operand" {
+    width:u8 := width
+    contents:u16 := match byte width {
+      case (byte & FF) = 00 {
+        byte:u8 := source "low byte of AX" {
+          word:u16 := read AX
+          yield lowByte(word)
+        }
+        yield zeroExtend16(byte)
+      }
+      case (byte & FF) = 01 {
+        word:u16 := read AX
+        yield word
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield contents
+  }
+  right:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
+    width:u8 := width
+    contents:u16 := match byte width {
+      case (byte & FF) = 00 {
+        byte:u8 := source "read a captured 8-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          yield low
+        }
+        yield zeroExtend16(byte)
+      }
+      case (byte & FF) = 01 {
+        word:u16 := source "read a captured 16-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+          yield concatHighLow(high, low)
+        }
+        yield word
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield contents
   }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(result)
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFF:u16, 0001:u16)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when condition {
-      write IP:u16 := startIP
+  perform "subtraction flags without operand writeback" {
+    width:u8 := width
+    left:u16 := left
+    right:u16 := right
+    match byte width {
+      case (byte & FF) = 00 {
+        result := subtract(lowByte(left), lowByte(right))
+        flags "8088 SUB flags" simultaneously {
+          CF := borrow(lowByte(left), lowByte(right), 0:flag)
+          AF := halfBorrow4(lowByte(left), lowByte(right), 0:flag)
+          OF := subtractOverflow(lowByte(left), lowByte(right), 0:flag)
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(result)
+        } // Preserve unlisted flags.
+      }
+      case (byte & FF) = 01 {
+        result := subtract(left, right)
+        flags "8088 SUB flags" simultaneously {
+          CF := borrow(left, right, 0:flag)
+          AF := halfBorrow4(left, right, 0:flag)
+          OF := subtractOverflow(left, right, 0:flag)
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(lowByte(result))
+        } // Preserve unlisted flags.
+      }
+      otherwise return outcome "unsupported"; no later effects
     }
   }
-}
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPE SCASB (segment override)
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment := segment
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  left:u8 := source "low byte of AX" {
-    word:u16 := read AX
-    yield lowByte(word)
-  }
-  right:u8 := source "read a captured 8-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
-  }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(result)
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFF:u16, 0001:u16)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when condition {
-      write IP:u16 := startIP
+  perform "advance live indices and decide repetition" {
+    width:u8 := width
+    useSI:u8 := 00:u8
+    useDI:u8 := 01:u8
+    compares:u8 := 01:u8
+    repeatMode:u8 := repeatMode
+    startIP:u16 := startIP
+    backward:flag := read DF
+    size := addWrap(zeroExtend16(width), 0001:u16)
+    delta := select(backward, subtract(0000:u16, size), size)
+    when not(isZero(useSI)) {
+      position:u16 := read SI
+      write SI:u16 := addWrap(position, delta)
     }
-  }
-}
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPNE SCASB
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment:u16 := read DS
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  left:u8 := source "low byte of AX" {
-    word:u16 := read AX
-    yield lowByte(word)
-  }
-  right:u8 := source "read a captured 8-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
-  }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(result)
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFF:u16, 0001:u16)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when not(condition) {
-      write IP:u16 := startIP
+    when not(isZero(useDI)) {
+      position:u16 := read DI
+      write DI:u16 := addWrap(position, delta)
     }
-  }
-}
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPNE SCASB (segment override)
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment := segment
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  left:u8 := source "low byte of AX" {
-    word:u16 := read AX
-    yield lowByte(word)
-  }
-  right:u8 := source "read a captured 8-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    yield low
-  }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(result)
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFF:u16, 0001:u16)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when not(condition) {
-      write IP:u16 := startIP
+    when not(isZero(repeatMode)) {
+      count:u16 := read CX
+      write CX:u16 := subtract(count, 0001:u16)
+      remaining:u16 := read CX
+      when not(isZero(remaining)) {
+        when isZero(compares) {
+          write IP:u16 := startIP
+        }
+        when not(isZero(compares)) {
+          equal:flag := read ZF
+          when xor(equal, isZero(bitXor(repeatMode, 02:u8))) {
+            write IP:u16 := startIP
+          }
+        }
+      }
     }
   }
 }
@@ -443785,441 +448985,166 @@ Flags preserved throughout: TF, IF, DF.
 
 ### 8088 SCASW
 
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+MOVS captures the complete source before writing the destination. CMPS reads source before destination; STOS captures AL/AX; LODS preserves live AH for byte loads; SCAS captures AL/AX before reading the destination. CMPS and SCAS apply the same subtraction flags as ordinary SUB, without writing either operand. Each family keeps these effects between the common count guard and index/repeat action.
 
 ```text
-sourceSegment:u16 := read DS
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-left:u16 := source "register AX" {
-  contents:u16 := read AX
-  yield contents
-}
-right:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-result := subtract(left, right)
-flags "8088 SUB flags" simultaneously {
-  CF := borrow(left, right, 0:flag)
-  AF := halfBorrow4(left, right, 0:flag)
-  OF := subtractOverflow(left, right, 0:flag)
-  ZF := isZero(result)
-  SF := topBit(result)
-  PF := evenParity8(lowByte(result))
-} // Preserve unlisted flags.
-backward:flag := read DF
-delta := select(backward, FFFE:u16, 0002:u16)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 SCASW (segment override)
-
-Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-sourceSegment := segment
-sourceOffset:u16 := read SI
-destinationSegment:u16 := read ES
-destinationOffset:u16 := read DI
-left:u16 := source "register AX" {
-  contents:u16 := read AX
-  yield contents
-}
-right:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-result := subtract(left, right)
-flags "8088 SUB flags" simultaneously {
-  CF := borrow(left, right, 0:flag)
-  AF := halfBorrow4(left, right, 0:flag)
-  OF := subtractOverflow(left, right, 0:flag)
-  ZF := isZero(result)
-  SF := topBit(result)
-  PF := evenParity8(lowByte(result))
-} // Preserve unlisted flags.
-backward:flag := read DF
-delta := select(backward, FFFE:u16, 0002:u16)
-di:u16 := read DI
-write DI:u16 := addWrap(di, delta)
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPE SCASW
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
+overridden:u8 := input
+segmentOverride:u16 := input
+repeatMode:u8 := input
 startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment:u16 := read DS
+count:u16 := source "plain operation or remaining repeat count" {
+  repeatMode:u8 := repeatMode
+  count:u16 := match byte repeatMode {
+    case (byte & FF) = 00 {
+      yield 0001:u16
+    }
+    case (byte & FF) = 01 {
+      count:u16 := read CX
+      yield count
+    }
+    case (byte & FF) = 02 {
+      count:u16 := read CX
+      yield count
+    }
+    otherwise return outcome "unsupported"; no later effects
+  }
+  yield count
+}
+when not(isZero(count)) {
+  sourceSegment:u16 := source "DS unless a segment override was captured" {
+    overridden:u8 := overridden
+    segmentOverride:u16 := segmentOverride
+    segment:u16 := match byte overridden {
+      case (byte & FF) = 00 {
+        original:u16 := read DS
+        yield original
+      }
+      case (byte & FF) = 01 {
+        yield segmentOverride
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield segment
+  }
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  left:u16 := source "register AX" {
-    contents:u16 := read AX
+  width:u8 := source "W" {
+    yield 01:u8
+  }
+  left:u16 := source "AL or AX string operand" {
+    width:u8 := width
+    contents:u16 := match byte width {
+      case (byte & FF) = 00 {
+        byte:u8 := source "low byte of AX" {
+          word:u16 := read AX
+          yield lowByte(word)
+        }
+        yield zeroExtend16(byte)
+      }
+      case (byte & FF) = 01 {
+        word:u16 := read AX
+        yield word
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
     yield contents
   }
-  right:u16 := source "read a captured 16-bit memory operand" {
+  right:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
+    width:u8 := width
+    contents:u16 := match byte width {
+      case (byte & FF) = 00 {
+        byte:u8 := source "read a captured 8-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          yield low
+        }
+        yield zeroExtend16(byte)
+      }
+      case (byte & FF) = 01 {
+        word:u16 := source "read a captured 16-bit memory operand" {
+          pointer:u32 := pointer
+          segment := low16(shiftBitsRight(pointer, 16))
+          offset := low16(pointer)
+          low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+          high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+          yield concatHighLow(high, low)
+        }
+        yield word
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+    yield contents
   }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(lowByte(result))
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFE:u16, 0002:u16)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when condition {
-      write IP:u16 := startIP
+  perform "subtraction flags without operand writeback" {
+    width:u8 := width
+    left:u16 := left
+    right:u16 := right
+    match byte width {
+      case (byte & FF) = 00 {
+        result := subtract(lowByte(left), lowByte(right))
+        flags "8088 SUB flags" simultaneously {
+          CF := borrow(lowByte(left), lowByte(right), 0:flag)
+          AF := halfBorrow4(lowByte(left), lowByte(right), 0:flag)
+          OF := subtractOverflow(lowByte(left), lowByte(right), 0:flag)
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(result)
+        } // Preserve unlisted flags.
+      }
+      case (byte & FF) = 01 {
+        result := subtract(left, right)
+        flags "8088 SUB flags" simultaneously {
+          CF := borrow(left, right, 0:flag)
+          AF := halfBorrow4(left, right, 0:flag)
+          OF := subtractOverflow(left, right, 0:flag)
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(lowByte(result))
+        } // Preserve unlisted flags.
+      }
+      otherwise return outcome "unsupported"; no later effects
+    }
+  }
+  perform "advance live indices and decide repetition" {
+    width:u8 := width
+    useSI:u8 := 00:u8
+    useDI:u8 := 01:u8
+    compares:u8 := 01:u8
+    repeatMode:u8 := repeatMode
+    startIP:u16 := startIP
+    backward:flag := read DF
+    size := addWrap(zeroExtend16(width), 0001:u16)
+    delta := select(backward, subtract(0000:u16, size), size)
+    when not(isZero(useSI)) {
+      position:u16 := read SI
+      write SI:u16 := addWrap(position, delta)
+    }
+    when not(isZero(useDI)) {
+      position:u16 := read DI
+      write DI:u16 := addWrap(position, delta)
+    }
+    when not(isZero(repeatMode)) {
+      count:u16 := read CX
+      write CX:u16 := subtract(count, 0001:u16)
+      remaining:u16 := read CX
+      when not(isZero(remaining)) {
+        when isZero(compares) {
+          write IP:u16 := startIP
+        }
+        when not(isZero(compares)) {
+          equal:flag := read ZF
+          when xor(equal, isZero(bitXor(repeatMode, 02:u8))) {
+            write IP:u16 := startIP
+          }
+        }
+      }
     }
   }
 }
 ```
 
 Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPE SCASW (segment override)
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment := segment
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  left:u16 := source "register AX" {
-    contents:u16 := read AX
-    yield contents
-  }
-  right:u16 := source "read a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
-  }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(lowByte(result))
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFE:u16, 0002:u16)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when condition {
-      write IP:u16 := startIP
-    }
-  }
-}
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPNE SCASW
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment:u16 := read DS
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  left:u16 := source "register AX" {
-    contents:u16 := read AX
-    yield contents
-  }
-  right:u16 := source "read a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
-  }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(lowByte(result))
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFE:u16, 0002:u16)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when not(condition) {
-      write IP:u16 := startIP
-    }
-  }
-}
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 REPNE SCASW (segment override)
-
-Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
-
-```text
-segment:u16 := input
-startIP:u16 := input
-initialCount:u16 := read CX
-when not(isZero(initialCount)) {
-  sourceSegment := segment
-  sourceOffset:u16 := read SI
-  destinationSegment:u16 := read ES
-  destinationOffset:u16 := read DI
-  left:u16 := source "register AX" {
-    contents:u16 := read AX
-    yield contents
-  }
-  right:u16 := source "read a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(destinationSegment, destinationOffset)
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-    high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-    yield concatHighLow(high, low)
-  }
-  result := subtract(left, right)
-  flags "8088 SUB flags" simultaneously {
-    CF := borrow(left, right, 0:flag)
-    AF := halfBorrow4(left, right, 0:flag)
-    OF := subtractOverflow(left, right, 0:flag)
-    ZF := isZero(result)
-    SF := topBit(result)
-    PF := evenParity8(lowByte(result))
-  } // Preserve unlisted flags.
-  backward:flag := read DF
-  delta := select(backward, FFFE:u16, 0002:u16)
-  di:u16 := read DI
-  write DI:u16 := addWrap(di, delta)
-  count:u16 := read CX
-  write CX:u16 := subtract(count, 0001:u16)
-  remaining:u16 := read CX
-  when not(isZero(remaining)) {
-    condition:flag := read ZF
-    when not(condition) {
-      write IP:u16 := startIP
-    }
-  }
-}
-```
-
-Flags preserved throughout: TF, IF, DF.
-
-### 8088 interrupt entry
-
-Read all four vector bytes before touching flags or stack, even when the frame overlaps the vector. Capture FLAGS, clear TF then IF and the recognition/wait/halt latches, then push FLAGS, live CS, and live IP. Commit target CS then IP after all writes succeed; preserve any owed trap. Each push uses the chapter’s captured SS:SP and low-first word writes, retaining completed effects on failure.
-
-```text
-vector:u8 := input
-targetOffset:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(0000:u16, shiftBitsLeft(zeroExtend16(vector), 2))
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-targetSegment:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(0000:u16, addWrap(shiftBitsLeft(zeroExtend16(vector), 2), 0002:u16))
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-savedFlags:u16 := source "packed FLAGS word" {
-  cf:flag := read CF
-  pf:flag := read PF
-  af:flag := read AF
-  zf:flag := read ZF
-  sf:flag := read SF
-  tf:flag := read TF
-  if:flag := read IF
-  df:flag := read DF
-  of:flag := read OF
-  cfBit := select(cf, 0001:u16, 0000:u16)
-  pfBit := select(pf, 0004:u16, 0000:u16)
-  afBit := select(af, 0010:u16, 0000:u16)
-  zfBit := select(zf, 0040:u16, 0000:u16)
-  sfBit := select(sf, 0080:u16, 0000:u16)
-  tfBit := select(tf, 0100:u16, 0000:u16)
-  ifBit := select(if, 0200:u16, 0000:u16)
-  dfBit := select(df, 0400:u16, 0000:u16)
-  ofBit := select(of, 0800:u16, 0000:u16)
-  arithmetic := bitOr(cfBit, bitOr(pfBit, bitOr(afBit, bitOr(zfBit, sfBit))))
-  controls := bitOr(tfBit, bitOr(ifBit, bitOr(dfBit, ofBit)))
-  yield bitOr(F002:u16, bitOr(arithmetic, controls))
-}
-flags "disable traps and mask INTR" simultaneously {
-  TF := 0:flag
-  IF := 0:flag
-} // Preserve unlisted flags.
-write recognitionDeferred:boolean := false
-write interruptDeferred:boolean := false
-write waiting:boolean := false
-write halted:boolean := false
-perform "push a captured word" {
-  word:u16 := savedFlags
-  pointer:u16 := read SP
-  write SP:u16 := subtract(pointer, 0002:u16)
-  segment:u16 := read SS
-  offset:u16 := read SP
-  perform "write a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(segment, offset)
-    contents:u16 := word
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
-  }
-}
-savedCS:u16 := read CS
-perform "push a captured word" {
-  word:u16 := savedCS
-  pointer:u16 := read SP
-  write SP:u16 := subtract(pointer, 0002:u16)
-  segment:u16 := read SS
-  offset:u16 := read SP
-  perform "write a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(segment, offset)
-    contents:u16 := word
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
-  }
-}
-savedIP:u16 := read IP
-perform "push a captured word" {
-  word:u16 := savedIP
-  pointer:u16 := read SP
-  write SP:u16 := subtract(pointer, 0002:u16)
-  segment:u16 := read SS
-  offset:u16 := read SP
-  perform "write a captured 16-bit memory operand" {
-    pointer:u32 := concatHighLow(segment, offset)
-    contents:u16 := word
-    segment := low16(shiftBitsRight(pointer, 16))
-    offset := low16(pointer)
-    write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
-    write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
-  }
-}
-write CS:u16 := targetSegment
-write IP:u16 := targetOffset
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
-
-### 8088 resume WAIT
-
-Sample and record TEST once before writing waiting. On release, increment live IP past the saved WAIT opcode. Busy resumption leaves IP alone and does not refetch. Only a low sample requests all-interrupt inhibition at successful retirement. Preserve flags and pending traps; failed pin sampling changes no CPU state.
-
-```text
-high:flag := sample and record physical TEST level; high waits, low releases
-write waiting:boolean := high
-when not(high) {
-  position:u16 := read IP
-  write IP:u16 := addWrap(position, 0001:u16)
-}
-when not(high) {
-  request all interrupt deferral at successful retirement
-}
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 ESC register (resolved)
-
-After ModR/M fetch and address resolution, pass the register selector without reading any CPU register or memory. Combine opcode bits ooo with ModR/M ppp to form the six-bit external opcode. Send a detached request and record it only after callback success; preserve all CPU state.
-
-```text
-highOpcode:u3 := input
-modRM:u8 := input
-send and record ESC opcode bitOr(shiftBitsLeft(zeroExtend8(highOpcode), 3), bitAnd(shiftBitsRight(modRM, 3), 07:u8)), ModR/M modRM, register selector only; device receives a detached request; record only after callback success
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
-### 8088 ESC memory (resolved)
-
-After ModR/M fetch and address resolution, read a complete dummy word low byte first, even without a device; wrap each logical byte offset before projecting to the physical bus. Combine opcode bits ooo with ModR/M ppp to form the six-bit external opcode. Send a detached request and record it only after callback success; preserve all CPU state.
-
-```text
-highOpcode:u3 := input
-modRM:u8 := input
-segment:u16 := input
-offset:u16 := input
-operand:u16 := source "read a captured 16-bit memory operand" {
-  pointer:u32 := concatHighLow(segment, offset)
-  segment := low16(shiftBitsRight(pointer, 16))
-  offset := low16(pointer)
-  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
-  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
-  yield concatHighLow(high, low)
-}
-send and record ESC opcode bitOr(shiftBitsLeft(zeroExtend8(highOpcode), 3), bitAnd(shiftBitsRight(modRM, 3), 07:u8)), ModR/M modRM, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word operand; device receives a detached request; record only after callback success
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.

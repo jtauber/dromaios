@@ -26,7 +26,7 @@ family, including addressing, encodings, and reusable stack/frame actions. Its
 reset, waiting, execution, IRQ/NMI recognition, and public interface also come
 from the chapter, with memory-only vector execution shared with the 6502.
 The construction history below describes the earlier shared-builder migration;
-the 8088 and 68000 retain TypeScript builders.
+the 68000 retains TypeScript builders; the 8088 adapter only groups chapter families.
 
 ## The review slice
 
@@ -120,11 +120,12 @@ address. Narrow selectors widen explicitly; word transfers expand into two
 byte effects with visible ordering and wrapping. Device validation and access
 recording still use the cores' existing `recordPorts` callbacks.
 
-[Port-transfer construction](../../src/components/cpus/semantics/ports.ts)
-captures the complete address before reading an output operand or starting
+The [8088 port families](../../src/components/cpus/specifications/8088.md#port-input-and-output)
+capture the complete address before reading an output operand or starting
 input. Outputs capture the whole operand before the first write; inputs commit
-the register/view only after every read succeeds. This serves 8088 byte/word I/O. The 8008, 8080, and Z80 chapters
-express their ordered effects directly in formal port families.
+the register/view only after every read succeeds. The former TypeScript port
+builder is removed. The 8008, 8080, Z80, and 8088 chapters all express these
+ordered effects directly in formal port families.
 Address sources expose the difference between an encoded 8008 selector, an
 8080 immediate port, Z80 old-A-high/immediate-low, BC, and 8088 immediate/DX.
 The 8088 byte view preserves live AH after a device callback.
@@ -188,12 +189,12 @@ Boolean captures, conditional capabilities, and CPU-specific request scopes.
 
 ## Completing the 8088 controls
 
-INT3, INT, INTO, WAIT, and all eight ESC primary encodings complete the 8088's
-instruction migration. Four numeric definitions join the generated opcode
-bindings. Two resolved ESC bodies cover every ModR/M byte after the existing
-CPU decoder fetches it and, for memory forms, resolves its segment and offset.
-The [control module](../../src/components/cpus/semantics/definitions/8088.ts)
-also supplies interrupt entry and WAIT resumption without opcode fetching.
+The [8088 chapter](../../src/components/cpus/specifications/8088.md#interrupt-instructions-and-shared-entry)
+owns INT3, INT, INTO, IRET, WAIT, and all eight ESC primary encodings. Its
+ESC families fetch ModR/M and resolve memory through the same chapter source
+as ordinary operands. The separate native control module is removed. Chapter
+`enterInterrupt` and `pollWait` actions also serve external entry and WAIT
+resumption through the existing native boundary.
 
 Entry expands existing segmented memory, packed FLAGS, latch, and stack
 construction. It reads the entire four-byte vector first, captures FLAGS, clears
@@ -221,7 +222,7 @@ validates a Boolean physical level before recording or returning it. Neither
 adapter performs instruction state transitions, memory reads, or interrupt entry.
 The public connection and execution-record types remain compatible.
 
-The three new effects—`read-test`, `send-escape`, and `report-interrupt`—are
+The effects `read-test`, `send-escape`, and `report-interrupt` are
 validated against the 8088 context, with explicit Boolean/byte/word/address
 requirements and ordinary lexical scope checks. A shared capability mapping
 selects context types and imports for all CPUs, including effects in conditional
@@ -252,7 +253,6 @@ The authoring layers have separate homes:
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
 | [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, ordered word reads/writes, construction-time register views, comparison/transfer/shift/logical/arithmetic recipes, N/Z policies, and checked opcode inventories |
 | [control-flow.ts](../../src/components/cpus/semantics/control-flow.ts) | Conditional effects, jumps, branches, calls, returns, and vector loads with explicit operand/condition/stack order |
-| [ports.ts](../../src/components/cpus/semantics/ports.ts) | Shared byte/word port transfers: capture addresses before operands, transfer low byte first, and commit input only after complete reads |
 | [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, ordered frames, and complete push/pop instruction construction |
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared Motorola condition construction for remaining 68000 definitions |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
@@ -650,12 +650,11 @@ failed register effects, all byte products, and rejected multiplication widths.
 
 The [8088 chapter](../../src/components/cpus/specifications/8088.md) owns the
 stored schema, writable byte aliases, physical PC, packed FLAGS, register
-selectors, and all ordinary arithmetic, transfer, branch, stack, and control
-families. Strings, ports, WAIT/ESC, and software interrupts/IRET retain native
-definitions, consuming the chapter’s shared sources, actions, and policies.
-The [remaining definitions](../../src/components/cpus/semantics/definitions/8088.ts)
-consume its byte views and write actions through `RegisterView`, and reuse its
-arithmetic, logic, and status policies. Scalar words still use `registerView`.
+selectors, and all 291 documented instruction forms. Its shared sources,
+actions, and policies also serve interrupt entry and WAIT continuation.
+The [definition adapter](../../src/components/cpus/semantics/definitions/8088.ts)
+only groups chapter families by their captured prefix inputs; it defines no
+instruction behavior.
 
 Each byte source reads its stored word once. A write action captures the live
 word at writeback and concatenates the new byte with its other half. This
@@ -678,7 +677,7 @@ exchanges capture the selected register before AX and write AX before the select
 register, including both reads and writes for NOP's self-exchange. None of these
 bodies reads or changes TF/IF/DF or the execution-control latches.
 
-Chapter byte/word catalogues serve migrated and remaining native definitions.
+Chapter byte/word catalogues serve all instruction families.
 Numeric definition keys drive generated opcode bindings; the constructor combines them
 with handwritten entries only after state initialization. The accumulator-dispatch
 and register-adjustment wrappers are removed. Prefix decoding, REP rejection,
@@ -851,9 +850,10 @@ the request visible to both execution generation and explanation.
 
 All 38 stack/control forms belong to the chapter. Resolved test probes retain
 independent effect schedules. Native interrupt entry performs the chapter’s
-`pushWord` action; native IRET performs its `returnFar` action followed by the
-POPF family body, including its deferral request. This reuses the instruction’s
-ordered effects without granting state actions access to CPU boundaries.
+`pushWord` action; IRET performs `returnFar` followed by `restoreStackFlags`,
+shared with POPF. The latter explicitly declares `using memory, boundary` for
+its ordered stack reads and deferral request. Plain state actions retain their
+state-only contract.
 
 [Definition probes](../../tests/components/cpus/semantics/8088-stack.test.ts)
 independently specify every body's state, memory, and deferral order, fail each
@@ -875,8 +875,10 @@ MOV/POP's recognition delay. XLAT reads BX, then AL, wraps their sum, selects
 DS or the already captured override, and reads one byte. Its AL write preserves
 the live AH after that access.
 
-The [string definitions](../../src/components/cpus/semantics/definitions/8088.ts)
-specialize byte/word width, operation, repetition condition, and source override.
+The [string families](../../src/components/cpus/specifications/8088.md#string-elements-and-repetition)
+encode byte/word width and operation, receiving captured repetition, source
+override, and prefix-start IP as numeric inputs. Ten chapter bodies replace
+48 specialized native definitions.
 Each body performs one element. Plain forms do not read CX or IP. Repeated
 forms first read CX; zero skips the entire operand/flag/index sequence.
 
@@ -893,7 +895,7 @@ reread it. Only a nonzero count permits CMPS/SCAS to read their new ZF; REP
 transfers never read ZF. A continuing iteration writes the supplied prefix-start
 IP. The next CPU step refetches prefixes and operands, preserving snapshot
 resumption, code/data overlap, and interrupt boundaries. REPNE remains invalid
-for MOVS/STOS/LODS, rejected in the decoder before any body effects.
+for MOVS/STOS/LODS, rejected by the chapter before any state or device effects.
 
 CLI clears IF without a read or deferral. STI reads IF, requests INTR deferral
 only when clear, then sets it. IRET expands the same complete far return and
@@ -903,7 +905,7 @@ TF. No new primitive or runtime callback is required for these instructions.
 
 These 19 forms retain tests for 140 cases: 89 addressing/transfer choices,
 48 string choices, and three numeric opcode bodies. Addressing, CLI, and STI
-now come from the chapter; the remaining native IRET composes chapter actions. The
+and all string/interrupt forms now come from the chapter. The
 [definition probes](../../tests/components/cpus/semantics/8088-strings.test.ts)
 check every body's ordered effects, failure at each effect, callback changes,
 all incoming string flag patterns, and empty/one/multiple repeat counts.
@@ -1577,10 +1579,12 @@ The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,68000,8008,8080,8088,6809,z80}.ts`,
 `6502-state.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-word-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, `68000-bits.ts`, `68000-word-arithmetic.ts`,
 `68000-decimal.ts`, `68000-control.ts`, `68000-transfers.ts`, `68000-system.ts`, and the separate 8088
-operand, string, and control modules. The 8088 operand module
-contains chapter groups with captured prefix inputs; remaining native modules
-retain their resolved bodies. Its numeric opcode module has automatic bindings.
-The former transfer, ALU, unary, arithmetic, stack, and addressing modules are removed.
+operand and string modules. The 8088 operand module
+contains chapter groups with captured segment overrides. The string module
+adds repeat mode and prefix-start IP inputs. Its numeric opcode module has
+automatic bindings, and its state module also emits shared entry/WAIT actions.
+The former transfer, ALU, unary, arithmetic, stack, addressing, and control
+modules are removed.
 The 68000 word-transfer chapter owns 64 register-copy definitions in `68000.ts`
 and 128 numeric load/store definitions in `68000-word-moves.ts`. The core selects
 these encodings before the broader MOVE catalogue; other memory forms retain
@@ -1613,7 +1617,8 @@ Opcode selection remains in the CPU tables. For the 6502 and numeric 8088 famili
 `generateInstructions(..., { bindOpcodes: true })` also generates
 `opcodeEntries(state)`, connecting every defined opcode to its body. The CPU
 constructs its table after initializing state. The 6502 and 8008 use generated entries
-exclusively; the 8088 combines them with handwritten entries. In every case
+exclusively; the 8088 combines plain entries with bindings that supply captured
+prefix inputs to chapter operand and string families. In every case
 `opcodeTable` rejects collisions. A numeric list such as
 `{ bindOpcodes: [0xC0, 0xC1] }` binds only those definition keys, allowing other
 bodies in the same module to retain explicit bindings or decoded inputs. The
@@ -2074,13 +2079,13 @@ All eight documented instruction inventories now use generated definitions.
 The [literate prototype](literate-specifications.md) now tests an external authoring
 path into those definitions. Continue checking total authored source in the
 [footprint report](coverage.md#source-footprint), including the chapters and their
-compiler. Complete instruction migration does not yet provide a full CPU
-authoring language: lifecycle contracts, native decoders, and external interfaces
-remain outside the chapter language.
+compiler. Six CPUs now have complete chapter-authored models. The 8088 has
+complete instruction authoring but still needs chapter-owned reset, prefix and
+execution contracts, event recognition, and its public interface. The 68000
+still has a partial chapter.
 
-General addressing decoders (such as the full 6809 postbyte decoder), unbounded
-loops, and CPU-boundary exception delivery remain outside the
-semantic bodies. Pending 68000 address updates now have an explicit commit
+Unbounded loops and CPU-boundary exception delivery remain outside semantic
+bodies; the 6809’s full postbyte decoder already belongs to its chapter. Pending 68000 address updates now have an explicit commit
 stage while the decoder still owns their calculation. Bounded numeric iteration and named instruction outcomes now
 serve 8088 arithmetic without moving CPU boundaries into the language. Register views and byte-mask stacks now have
 construction recipes, but no new runtime or primitive representation. The 68000

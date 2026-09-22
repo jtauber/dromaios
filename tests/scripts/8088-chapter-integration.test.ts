@@ -32,6 +32,12 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
     .replace("IP <- add(position, offset)", "IP <- add(add(position, offset), u16(1))")
     .replace("return xor(positive, and(condition, u8(1)))", "return xor(positive, xor(and(condition, u8(1)), u8(1)))")
     .replaceAll("defer all", "defer intr")
+    .replaceAll("port(add(selector, u16(1)))", "port(add(selector, u16(2)))")
+    .replace("size = add(extend(width, 16), u16(1))", "size = add(extend(width, 16), u16(2))")
+    .replace("CX <- subtract(count, u16(1))", "CX <- subtract(count, u16(2))")
+    .replace("WAITING <- high", "WAITING <- not(high)")
+    .replace("shiftBits(highOpcode, left, 3)", "shiftBits(highOpcode, left, 2)")
+    .replace("shiftBits(extend(vector, 16), left, 2)", "shiftBits(extend(vector, 16), left, 3)")
     .replace("select(cf, u16($0001), u16(0))", "select(not(cf), u16($0001), u16(0))")
     .replace("CF = not(zero(and(status, u16($0001))))", "CF = zero(and(status, u16($0001)))");
   writeFileSync(file, chapter);
@@ -125,6 +131,42 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
         assert.equal(after.ds, 0x1234); assert.equal(after.interruptDeferred, true);
         assert.equal(after.recognitionDeferred, false);
       } else assert.equal(after.ip, 0x103);
+    }
+    // The last instruction families also follow formal edits: word port stride,
+    // repeat count/indices, WAIT polarity, ESC encoding, and shared vector entry.
+    for (const code of [[0xe5, 0x40], [0xe7, 0x40], [0xf3, 0xa5], [0x9b], [0xdf, 0xc7], [0xdf, 6, 0, 2]]) {
+      const bytes = new Uint8Array(1048576); bytes.set(code, 0x12440);
+      bytes[0x200] = 0xab; bytes[0x202] = 0xcd;
+      const ports = [], escapes = [];
+      const ram = { size: bytes.length, read: address => bytes[address], write: (address, value) => { bytes[address] = value; } };
+      const cpu = new Cpu8088(ram, { ...initial, scratch: 0, cx: 3, si: 0x200, di: 0x300 }, {
+        ports: { readPort(address) { ports.push(address); return address === 0x40 ? 0x56 : 0x78; },
+          writePort(address, byte) { ports.push([address, byte]); } },
+        test: () => false, escape(request) { escapes.push(request); },
+      });
+      const record = cpu.step(), after = record.after;
+      if (code[0] === 0xe5) { assert.deepEqual(ports, [0x40, 0x42]); assert.equal(after.ax, 0x7856); }
+      if (code[0] === 0xe7) assert.deepEqual(ports, [[0x40, 0x34], [0x42, 0x12]]);
+      if (code[0] === 0xf3) {
+        assert.deepEqual([...bytes.slice(0x300, 0x302)], [0xab, 0xcd]);
+        assert.equal(after.si, 0x203); assert.equal(after.di, 0x303);
+        assert.equal(after.cx, 1); assert.equal(after.ip, initial.ip);
+      }
+      if (code[0] === 0x9b) {
+        assert.equal(record.outcome, "waiting"); assert.equal(after.waiting, true);
+        const resumed = cpu.step(); assert.equal(resumed.after.ip, 0x102);
+        assert.equal(resumed.instruction, null); assert.equal(resumed.after.waiting, true);
+      }
+      if (code[0] === 0xdf) assert.deepEqual(escapes, [{ opcode: 28, modRM: code[1],
+        memory: code[1] === 0xc7 ? null : { segment: 0, offset: 0x200, address: 0x200, value: 0xcdab } }]);
+    }
+    for (const external of [false, true]) {
+      const bytes = new Uint8Array(1048576); bytes.set([0xcd, 3], 0x12440);
+      bytes[24] = 0x44; bytes[26] = 0x33; bytes[28] = 0x22;
+      const ram = { size: bytes.length, read: address => bytes[address], write: (address, value) => { bytes[address] = value; } };
+      const cpu = new Cpu8088(ram, { ...initial, scratch: 0, flags: { ...initial.flags, if: true } });
+      const record = external ? cpu.interrupt("intr", () => 3) : cpu.step();
+      assert.equal(record.after.ip, 0x3344); assert.equal(record.after.cs, 0x2233);
     }
   `], { encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);

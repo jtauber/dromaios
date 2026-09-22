@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/8088.js";
-import { instructions as control } from "../../../../src/components/cpus/generated/8088-control.js";
-import { control8088, instructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { compileResolved } from "../../../helpers/8088-resolved.js";
+import { control8088 } from "../../../helpers/8088-external.js";
+import { instructions8088 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { record8088External } from "../../../../src/components/cpus/8088-external.js";
 import type { Cpu8088Escape } from "../../../../src/components/cpus/8088-external.js";
 import type { Cpu8088State } from "../../../../src/components/cpus/state/8088.js";
@@ -27,6 +28,12 @@ interface Context {
 }
 type Body = (state: Cpu8088State, context: Context) => void;
 interface Probe { name: string; generated: Body; reference: Body }
+const control = await compileResolved<{
+  enterInterrupt(state: Cpu8088State, vector: number, context: Context): void;
+  resumeWait: Body;
+  escapeRegister(state: Cpu8088State, high: number, modRM: number, context: Context): void;
+  escapeMemory(state: Cpu8088State, high: number, modRM: number, segment: number, offset: number, context: Context): void;
+}>(control8088);
 const wrap = (n: number) => (n + 65536) % 65536;
 const physical = (segment: number, offset: number) => (segment * 16 + offset) % 1048576;
 const positions = { cf: 0, pf: 2, af: 4, zf: 6, sf: 7, tf: 8, if: 9, df: 10, of: 11 } as const;

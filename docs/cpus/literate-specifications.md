@@ -39,13 +39,11 @@ Executable chapters are maintained CPU sources:
   commitment, retirement, and IRQ/NMI entry. Mixed named interrupt entries select
   direct vectors or supplied instructions. Its public class, bank types, and
   nested snapshot views are generated; no handwritten implementation remains.
-- [Intel 8088: state and ordinary instructions](../../src/components/cpus/specifications/8088.md)
+- [Intel 8088: state and all instruction forms](../../src/components/cpus/specifications/8088.md)
   owns stored state, writable byte aliases, physical PC and packed FLAGS views,
-  ordinary arithmetic, transfers, branches, stacks, calls/returns, and simple
-  controls. Remaining native bodies share its arithmetic/status policies,
-  segmented addressing, memory operations, and stack actions. Strings, ports,
-  WAIT/ESC, software interrupts/IRET, prefix scanning, reset, execution, and
-  the public class remain native.
+  and all 291 instruction forms, including strings, ports, WAIT/ESC, and software
+  interrupts/IRET. Shared chapter actions also serve native interrupt entry and
+  WAIT resumption. Prefix scanning, reset, execution, and the public class remain native.
 - [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
   defines word copies between data registers and word loads/stores through `(An)`.
   Its word-result flag policy also serves the remaining word definitions.
@@ -182,9 +180,12 @@ Quoted descriptions use JSON string escaping.
 | `ADDRESS[slot] <- target`, `STOPPED <- 1` | Write an indexed stored register or a Boolean control latch; latch writes also accept captured flag expressions. |
 | `ADDRESS[] <- u14($0000)` | Fill every physical array slot with the same width-checked value, without reading previous elements. |
 | `result = operand s`, `operand d <- result` | Read or write a selected register, pair, writable view, or memory operand at this point. |
-| `notify reti` | Request a device notification after successful architectural retirement; requires `notify reti after retire` in a preceding decode-before-execution contract. State/memory actions cannot request notification. |
+| `notify reti` | Request a device notification after successful architectural retirement; requires `notify reti after retire` in a preceding decode-before-execution contract. Actions need `using boundary` to request notification; lifecycle hooks retain their narrower contracts. |
+| `high = sample test` | Capture the Boolean physical TEST level through the 8088 device adapter. |
+| `send escape(opcode, postbyte) with memory(segment, offset, address, contents)` | Send a captured 8088 ESC request; omit `with memory(…)` for a register form. This statement performs no operand read. |
+| `report interrupt(vector)` | Record completed 8088 software interrupt delivery; vector reads and frame writes remain explicit preceding effects. |
 | `defer irq` | Request one-boundary IRQ deferral on successful retirement; requires `retire irq into LATCH`. This does not immediately write stored state. |
-| `defer intr`, `defer all` | Request INTR-only or all-interrupt recognition delay through the existing 8088 native boundary. The request commits only at successful retirement; these scopes are unavailable to other CPUs and to state/memory actions and views. |
+| `defer intr`, `defer all` | Request INTR-only or all-interrupt recognition delay through the existing 8088 native boundary. The request commits only at successful retirement; these scopes are unavailable to other CPUs and views; actions require `using boundary`. |
 | `exchange FLAGS, ALTERNATE.FLAGS` | Exchange complete flag objects with matching stored fields: read right, read left, write left, write right. Preserve identity without reading individual flags; allowed in actions but not views. |
 | `replace PSW(status)` | Replace the complete flag object; the policy must define every flag in exactly one bank. |
 | `apply NZ(result)`, `apply ALU(result, carry(left, right))` | Apply a declared flag policy to typed numeric and flag expressions. |
@@ -341,12 +342,22 @@ action reset "read the reset vector" using memory {
 }
 ```
 
-Such actions can read/write memory and state, but still cannot fetch instructions,
-access ports, or invoke CPU-boundary effects. Restrictions follow sources, performed actions, and
-nested branches, including constant-false branches, with diagnostics at the
-calling statement. Counter writes, retirement, and supplied-instruction acceptance
-still require state-only actions; vector reset/entry may use memory. Views reject
-all writes and external effects, keeping snapshot inspection pure.
+An action can separately declare `using boundary` for TEST sampling, ESC delivery,
+software-delivery reporting, interrupt deferral, or RETI notification. Combine
+capabilities explicitly as `using memory, boundary` when both are needed; the
+order does not matter, and duplicates or unknown capabilities are errors.
+Capabilities permit only effects valid for the CPU's instruction context. No
+action may fetch instruction bytes, access ports, or resolve native addresses.
+
+Restrictions follow sources, performed actions, and nested branches, including
+constant-false branches. An outer action must declare every capability its
+nested effects require. Counter writes, retirement, and supplied-instruction
+acceptance still require state-only actions; vector reset/entry may use memory.
+Those bindings recheck their narrower contracts even if an action declares
+`boundary`. Views reject all writes and external effects, keeping snapshot
+inspection pure. [Boundary-language tests](../../tests/components/cpus/semantics/literate-boundary.test.ts)
+check captured arguments, failed callbacks, CPU/width errors, capability
+composition, lifecycle restrictions, and keyword capture names.
 
 `perform NAME(arguments)` expands an earlier action at that statement. Arguments
 are numeric expressions in declaration order, with exactly the declared widths;

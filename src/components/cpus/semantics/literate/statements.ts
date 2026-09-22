@@ -1,5 +1,5 @@
 import { divide, iterate, reject, alignmentFault, capture, commitAddressUpdates, deferInterrupt, notifyReti, exchangeFlags, fetchByte, fillArray, flagValue, highByte, lowByte, replaceFlags, not, perform, readElement,
-  readFlag, readLatch, readMemory, readPort, readRegister, readSource, resolveAddress, updateFlags,
+  readFlag, readLatch, readMemory, readPort, readRegister, readSource, readTest, reportInterrupt, sendEscape, resolveAddress, updateFlags,
   testChoice, value, when, writeChoice, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
 import type { Choice, CpuDeclaration, Expression, Flag, FlagGroup, FlagExpression, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
 import { validateInstruction } from "../validate.ts";
@@ -37,13 +37,16 @@ interface Symbols {
   readonly catalogues: ReadonlyMap<string, readonly ChapterOperand[]>;
 }
 
+export type ActionCapability = "memory" | "boundary";
+type Effects = "view" | "state" | ActionCapability | readonly ActionCapability[];
 export interface StatementOptions {
   readonly inputs?: Readonly<Record<string, Width>>;
-  readonly effects?: "view" | "state" | "memory";
+  readonly effects?: Effects;
 }
 
-/** Views are pure reads; actions need an explicit memory capability for bus effects. */
-export function checkStateEffects(steps: readonly Statement[], effects: "view" | "state" | "memory", allowMatches = true): void {
+/** Action capabilities are explicit and transitive; lifecycle hooks recheck their narrower contract. */
+export function checkStateEffects(steps: readonly Statement[], effects: Effects, allowMatches = true): void {
+  const permits = (capability: ActionCapability) => effects === capability || (Array.isArray(effects) && effects.includes(capability));
   for (const step of steps) {
     switch (step.kind) {
       case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": case "test-choice": break;
@@ -58,8 +61,11 @@ export function checkStateEffects(steps: readonly Statement[], effects: "view" |
         if (effects !== "view") break;
         throw new Error("Views may only read stored state.");
       case "read-memory": case "write-memory":
-        if (effects === "memory") break;
+        if (permits("memory")) break;
         throw new Error("Views and state actions cannot fetch instructions or access memory without using memory.");
+      case "read-test": case "send-escape": case "report-interrupt": case "defer-interrupt": case "notify-reti":
+        if (permits("boundary")) break;
+        throw new Error("Actions need using boundary for CPU boundaries; views cannot access CPU boundaries.");
       default: throw new Error("Views and actions cannot fetch instructions or access ports or CPU boundaries.");
     }
   }
@@ -126,6 +132,16 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         result.push(deferInterrupt(scope));
       } else if (tokens.next === "notify" && tokens.peek(1) !== "=") {
         tokens.expect("notify"); tokens.expect("reti"); result.push(notifyReti());
+      } else if (tokens.next === "report" && tokens.peek(1) !== "=") {
+        tokens.expect("report"); tokens.expect("interrupt"); tokens.expect("("); result.push(reportInterrupt(expression(tokens))); tokens.expect(")");
+      } else if (tokens.next === "send" && tokens.peek(1) !== "=") {
+        tokens.expect("send"); tokens.expect("escape"); tokens.expect("("); const opcode = expression(tokens); tokens.expect(",");
+        const modRM = expression(tokens); tokens.expect(")");
+        if (tokens.take("with")) {
+          tokens.expect("memory"); tokens.expect("("); const segment = expression(tokens); tokens.expect(","); const offset = expression(tokens); tokens.expect(",");
+          const physical = address(tokens); tokens.expect(","); const contents = expression(tokens); tokens.expect(")");
+          result.push(sendEscape({ opcode, modRM, memory: { segment, offset, address: physical, value: contents } }));
+        } else result.push(sendEscape({ opcode, modRM }));
       } else if (tokens.take("commit")) {
         tokens.expect("addresses"); result.push(commitAddressUpdates());
       } else if (tokens.next === "apply" || tokens.next === "replace") {
@@ -205,6 +221,9 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
             tokens.expect(","); const mode = expression(tokens); tokens.expect(","); const code = expression(tokens); tokens.expect(")");
             result.push(resolveAddress(name, size, mode, code));
           } else if (tokens.take("fetch")) result.push(fetchByte(name));
+          else if (tokens.next === "sample" && tokens.peek(1) === "test") {
+            tokens.expect("sample"); tokens.expect("test"); result.push(readTest(name));
+          }
           else if (tokens.take("choice")) {
             const choice = tokens.lookup(choices); tokens.expect("=");
             result.push(testChoice(name, choice, tokens.choiceValue()));
@@ -246,7 +265,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
   return parse(lines, validate);
 }
 
-/** Generated action signatures include a context only when an actual memory effect needs one. */
+/** Whether a lifecycle binding needs byte memory after its effect contract has been checked. */
 export function usesMemory(steps: readonly Statement[]): boolean {
   return steps.some(step => step.kind === "read-memory" || step.kind === "write-memory"
     || ((step.kind === "match" || step.kind === "dispatch") && step.cases.some(branch => usesMemory(branch.steps)))

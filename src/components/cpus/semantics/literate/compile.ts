@@ -15,7 +15,7 @@ import { chapterInterface } from "./interface.ts";
 import type { ChapterInterface } from "./interface.ts";
 import { chapterState, checkStateSymbol, stateSymbol } from "./state.ts";
 import { chapterStatements } from "./statements.ts";
-import type { ChapterCondition, ChapterOperand, StatementOptions } from "./statements.ts";
+import type { ActionCapability, ChapterCondition, ChapterOperand, StatementOptions } from "./statements.ts";
 export type { ChapterCondition, ChapterOperand } from "./statements.ts";
 
 type Selection = ChapterOperand | ChapterCondition;
@@ -195,11 +195,17 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         if (kind === "view") views.set(name, source);
       } else if (kind === "action") {
         const description = header.quoted(), inputs = parameters(header);
-        const memory = header.take("using"); if (memory) header.expect("memory");
+        const capabilities: ActionCapability[] = [];
+        if (header.take("using")) do {
+          const capability = header.word();
+          if (capability !== "memory" && capability !== "boundary") return header.fail("Expected memory or boundary capability.");
+          if (capabilities.includes(capability)) header.fail(`Duplicate action capability ${capability}.`);
+          capabilities.push(capability);
+        } while (header.take(","));
         open();
         const definition = { cpu, name: description, explanation: block.explanation, inputs, steps: [] };
         header.checked(() => validateInstruction(definition));
-        const bodySteps = steps(body, { inputs, effects: memory ? "memory" : "state" });
+        const bodySteps = steps(body, { inputs, effects: capabilities });
         actions.set(name, header.checked(() => defineInstruction({ ...definition, steps: bodySteps })));
       } else if (kind === "policy") {
         const description = header.quoted(); header.expect("(");

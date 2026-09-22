@@ -68,7 +68,7 @@ type Context = { fetchByte(): number; readByte(address: number): number; writeBy
 type Outcome = "opcode" | "unsupported" | "divide-error" | void;
 type Body = (state: Cpu8088State, context: Context) => Outcome;
 type MemoryBody = (state: Cpu8088State, segment: number, offset: number, context: Context) => Outcome;
-export async function compileResolved(definitions: Record<string, InstructionDefinition>): Promise<Record<string, Body | MemoryBody>> {
+export async function compileResolved<T = Record<string, Body | MemoryBody>>(definitions: Record<string, InstructionDefinition>): Promise<T> {
   const source = generateInstructions("8088", definitions);
   const javascript = stripTypeScriptTypes(source).replace('"../alu.ts"', JSON.stringify(new URL("../../src/components/cpus/alu.js", import.meta.url).href));
   const module = await import(`data:text/javascript,${encodeURIComponent(javascript)}`);

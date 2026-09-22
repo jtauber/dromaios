@@ -794,12 +794,12 @@ defines low/high byte views of its stored words. Each source reads its word
 once; each write action rereads the live word to preserve its other half after
 intervening fetches or flag effects. Action-local captures isolate multiple
 writes in an instruction such as XCHG. Chapter operand catalogues supply the
-byte and word selectors used by both migrated and remaining native definitions.
+byte and word selectors shared across its instruction families.
 
-Keep 8088 bit patterns beside their bodies, in the chapter or
-[remaining definitions](../../src/components/cpus/semantics/definitions/8088.ts).
-Build the combined table after state initialization, retaining collision checks
-against native decoder bindings. The decoder still owns prefixes, segmented
+Keep 8088 bit patterns beside their chapter bodies. The
+[definition adapter](../../src/components/cpus/semantics/definitions/8088.ts) only
+groups families by their prefix inputs. Build the combined table after state
+initialization, retaining collision checks across the generated bindings. The decoder still owns prefixes, segmented
 fetching, and retirement; generated bodies receive only the callbacks their
 effects require. Preserve operand-before-CF captures and flags-before-writeback.
 
@@ -829,16 +829,18 @@ the whole target before pushing CS, then capture live IP for the second push.
 Word FLAGS packing shares the chapter layout. Keep segment-pop and POPF
 recognition requests as explicit `defer all` and `defer intr` statements;
 they queue work for successful retirement rather than writing stored boundary
-latches during the body. Native interrupt entry and IRET consume these same
-chapter stack and FLAGS definitions.
+latches during the body. Native interrupt entry consumes chapter stack rules. Chapter IRET and POPF
+share the FLAGS action, whose `using memory, boundary` declaration makes its
+recognition request explicit.
 
-String bodies specialize legal repeat modes and segment overrides at construction.
+String families receive captured repeat mode, segment override, and prefix-start
+IP from the native boundary. The chapter rejects illegal REPNE combinations.
 Keep zero-count checks before operand capture; capture source/destination
 coordinates before access, but read DF and the live indices afterward.
 Reuse subtraction flags for CMPS/SCAS. Repeated forms decrement and reread CX,
 then test ZF only when required, and rewind to the supplied prefix-start IP.
-Keep each body to one element; refetching, rejection, and retirement remain
-CPU responsibilities. IRET composes the same return and FLAGS statements
+Keep each body to one element; refetching, prefix acceptance on non-string
+instructions, and retirement remain CPU responsibilities. IRET composes the same return and FLAGS statements
 used by RETF/POPF, retaining their separate commit points.
 
 For multi-bit shifts, use bounded `iterate` around the shared one-bit recipe.
