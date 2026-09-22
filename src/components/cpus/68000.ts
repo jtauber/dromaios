@@ -1,32 +1,20 @@
+import { createExecution, exceptions } from "./generated/68000-execution.ts";
+import type { WordMemory } from "./word-execution.ts";
 import { reset } from "./generated/68000-reset.ts";
 import { sourceReaders } from "./generated/68000-state.ts";
 import type { MemoryConnection } from "../memory/connection.ts";
 import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
 import { checkUnsigned } from "../validation.ts";
-import { registerUpdates } from "./register-updates.ts";
 import { executionBoundary } from "./execution-boundary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess, RecordedMemory } from "./memory-access.ts";
 import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.ts";
 import { cpu68000StateDescription } from "./state/68000.ts";
-import type { Cpu68000State, Cpu68000Flags } from "./state/68000.ts";
+import type { Cpu68000State } from "./state/68000.ts";
 export { cpu68000StateDescription } from "./state/68000.ts";
 export type { Cpu68000State, Cpu68000Flags } from "./state/68000.ts";
-import { instructions as generated } from "./generated/68000.ts";
-import { opcodeInstructions as quick } from "./generated/68000-quick.ts";
-import { opcodeInstructions as moves } from "./generated/68000-moves.ts";
-import { opcodeInstructions as logic } from "./generated/68000-logic.ts";
-import { opcodeInstructions as arithmetic } from "./generated/68000-arithmetic.ts";
-import { opcodeInstructions as bits } from "./generated/68000-bits.ts";
-import { opcodeInstructions as wordArithmetic } from "./generated/68000-word-arithmetic.ts";
-import { opcodeInstructions as control } from "./generated/68000-control.ts";
-import { opcodeInstructions as system } from "./generated/68000-system.ts";
-import { opcodeInstructions as transfers } from "./generated/68000-transfers.ts";
-import { opcodeInstructions as decimal } from "./generated/68000-decimal.ts";
-import type { Cpu68000AddressContext, Cpu68000ControlContext, Cpu68000ResetContext } from "./68000-context.ts";
-import { opcodeTable } from "./opcodes.ts";
-import type { OpcodeEntry } from "./opcodes.ts";
+import type { Cpu68000ResetContext } from "./68000-context.ts";
 
 export type Cpu68000Snapshot = ReadonlyState<Cpu68000State> & {
   /** Active stack pointer: SSP in supervisor mode, USP in user mode. */
@@ -107,7 +95,6 @@ export type Cpu68000MemoryErrorDelivery = Cpu68000AddressErrorDelivery | Cpu6800
 export type Cpu68000ExceptionDelivery = Cpu68000ShortExceptionDelivery | Cpu68000MemoryErrorDelivery;
 // Detection retains the access space until the exception captures its function code.
 interface AlignmentFault extends Cpu68000MemoryFault { readonly programSpace?: boolean }
-type InstructionFault = AlignmentFault | Cpu68000Exception;
 
 // Only an explicit connection result creates this private unwinding signal. Host throws propagate.
 class BusFault implements AlignmentFault {
@@ -134,23 +121,6 @@ export type Cpu68000ResetRecord = StateTransition<Cpu68000Snapshot> & {
   readonly fault?: Cpu68000AlignmentFault | Cpu68000BusFault;
 };
 
-interface MemoryContext extends ByteMemory {
-  readonly fetchByte: (address: number) => number;
-  readonly readProgramByte: (address: number) => number;
-}
-
-interface InstructionContext extends MemoryContext, Cpu68000ControlContext, Cpu68000ResetContext {
-  readonly fetchWord: () => number;
-}
-
-// A common raw-field boundary preserves each generated body's own narrower capabilities.
-const arithmeticTables: readonly Readonly<Record<number, (state: Cpu68000State, mode: number, code: number, upperCode: number,
-  instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | "unsupported" | void>>[] = [arithmetic, bits, wordArithmetic, decimal];
-
-const operandTables: readonly Readonly<Record<number, (state: Cpu68000State, mode: number, code: number,
-  instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | "unsupported" | void>>[] = [logic, transfers, system];
-
-type OpcodeHandler = (cpu: Cpu68000, instruction: InstructionContext) => InstructionFault | void;
 type OperandSize = 8 | 16 | 32;
 interface ExceptionFrame { readonly stack: number; readonly status: number }
 
@@ -160,6 +130,7 @@ export class Cpu68000 {
   readonly #state: Cpu68000State;
   readonly #readers: ReturnType<typeof sourceReaders>;
   readonly #connections: Cpu68000Connections | undefined;
+  readonly #execute: ReturnType<typeof createExecution<Cpu68000ExceptionDelivery, Cpu68000AlignmentFault | Cpu68000BusFault>>;
   readonly #atBoundary = executionBoundary("68000 step, reset, and interrupt calls must not be reentrant.");
 
   constructor(memory: MemoryConnection, initialState: Cpu68000State, connections?: Cpu68000Connections) {
@@ -168,6 +139,15 @@ export class Cpu68000 {
     this.#state = readState(cpu68000StateDescription, initialState);
     this.#readers = sourceReaders(this.#state);
     this.#connections = connections;
+    this.#execute = createExecution(this.#state, {
+      exception: (request, memory) => {
+        const exception = this.#enterException(request, memory);
+        return { exception, delivered: !("fault" in exception) };
+      },
+      initialFetch: (fault, memory) => this.#initialFetchFault(fault, memory),
+      memoryError: (fault, cursor, memory) => this.#memoryError(fault, cursor, true, memory),
+      faultFromError: error => error instanceof BusFault ? error : undefined,
+    });
   }
 
   /** Inspect detached state, the active stack pointer, and the physical PC without RAM access. */
@@ -194,75 +174,12 @@ export class Cpu68000 {
       const before = this.snapshot();
       const accesses: Cpu68000Access[] = [];
       const memory = this.#recordMemory(access => { accesses.push(access); });
-      if (before.faulted) return { before, after: this.snapshot(), accesses, instruction: null, outcome: "halted" };
-      if (before.tracePending) {
-        const exception = this.#enterException({ source: "trace", vector: 9, returnPc: before.pc }, memory);
-        return { before, after: this.snapshot(), accesses, instruction: null, exception,
-          outcome: this.#state.faulted ? "halted" : "executed" };
-      }
-      if (before.halted) return { before, after: this.snapshot(), accesses, instruction: null, outcome: "halted" };
-      const address = before.pc;
-      if (address % 2 !== 0) {
-        const delivery = this.#initialFetchFault({ operation: "fetch", address }, memory);
-        return { before, after: this.snapshot(), accesses, instruction: null, ...delivery,
-          outcome: this.#state.faulted ? "halted" : "executed" };
-      }
-      const bytes: number[] = [];
-      // Keep the sequential fetch cursor even when a call selects its target before stacking.
-      let cursor = address;
-      let target: number | undefined;
-      let instruction: Cpu68000Instruction | null = null;
-      const fetchWord = (): number => {
-        const high = memory.fetchByte(cursor);
-        const low = memory.fetchByte(cursor + 1);
-        cursor = (cursor + 2) >>> 0;
-        bytes.push(high, low);
-        return (high << 8) | low;
-      };
-      try {
-        const opcode = this.#state.ir = fetchWord();
-        instruction = { address, bytes };
-        this.#state.entry = { kind: "none", vector: 0 };
-        const handler = Cpu68000.#opcodeHandlers[opcode];
-        // Unmatched words fault during decoding, before extensions or operands.
-        const fault = handler ? handler(this, {
-          ...memory, nextAddress: () => cursor, fetchWord,
-          resetDevices: () => {
-            if (!this.#connections) throw new Error("RESET requires a connected device reset callback.");
-            this.#connections.resetDevices();
-            accesses.push({ kind: "reset" });
-          },
-          jump: address => { target = address; },
-        }) : "illegal-instruction";
-        if (typeof fault === "string") {
-          const { vector, instructionCompleted } = Cpu68000.#exceptions[fault];
-          const requested = {
-            source: fault,
-            vector: vector + (fault === "trap" ? opcode & 15 : 0),
-            // Faulting instructions restart; arithmetic and explicit traps resume after their operands.
-            returnPc: instructionCompleted ? cursor : address,
-          };
-          const exception = this.#enterException(requested, memory);
-          // Only completed instructions can owe a trace after their synchronous exception.
-          if (exception.source !== "address-error" && exception.source !== "bus-error") this.#state.tracePending = before.flags.t && instructionCompleted;
-          return { before, after: this.snapshot(), accesses, instruction, exception,
-            outcome: this.#state.faulted ? "halted" : "executed" };
-        }
-        if (fault) {
-          const exception = this.#memoryError(fault, cursor, true, memory);
-          return { before, after: this.snapshot(), accesses, instruction, exception,
-            outcome: this.#state.faulted ? "halted" : "executed" };
-        }
-        this.#state.pc = target ?? cursor;
-        this.#state.tracePending = before.flags.t; // Sample T before execution, including SR loads and RTE.
-        return { before, after: this.snapshot(), accesses, instruction, outcome: this.#state.halted && !this.#state.tracePending ? "halted" : "executed" };
-      } catch (error) {
-        if (!(error instanceof BusFault)) throw error;
-        const delivery = instruction ? { exception: this.#memoryError(error, cursor, true, memory) }
-          : this.#initialFetchFault(error, memory);
-        return { before, after: this.snapshot(), accesses, instruction, ...delivery,
-          outcome: this.#state.faulted ? "halted" : "executed" };
-      }
+      const result = this.#execute(memory, () => {
+        if (!this.#connections) throw new Error("RESET requires a connected device reset callback.");
+        this.#connections.resetDevices();
+        accesses.push({ kind: "reset" });
+      });
+      return { before, after: this.snapshot(), accesses, ...result };
     });
   }
 
@@ -314,66 +231,6 @@ export class Cpu68000 {
     return this.#readers.views.SR();
   }
 
-  // Opcode selectors and construction. Register and mode fields use numeric encoding order.
-
-  // Completion determines both the saved PC and whether tracing follows entry.
-  static readonly #exceptions = {
-    "illegal-instruction": { vector: 4, instructionCompleted: false },
-    "divide-by-zero": { vector: 5, instructionCompleted: true },
-    "bounds-check": { vector: 6, instructionCompleted: true },
-    "overflow-trap": { vector: 7, instructionCompleted: true },
-    "privilege-violation": { vector: 8, instructionCompleted: false },
-    "line-a": { vector: 10, instructionCompleted: false },
-    "line-f": { vector: 11, instructionCompleted: false },
-    "trap": { vector: 32, instructionCompleted: true },
-  } as const satisfies Record<Cpu68000Exception, { readonly vector: number; readonly instructionCompleted: boolean }>;
-
-  // Bind encodings once per model; handlers receive the executing CPU and capture no instance state.
-  static readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
-    // Chapter register families select storage before access; unknown selections are illegal.
-    ...Object.entries(generated).map(([opcode, execute]): OpcodeEntry<OpcodeHandler> =>
-      [Number(opcode), cpu => execute(cpu.#state) === "unsupported" ? "illegal-instruction" : undefined]),
-    // 00 zz ddd mmm sss rrr: chapter legality, native extraction of the four EA fields.
-    ...Object.entries(moves).map(([word, execute]): OpcodeEntry<OpcodeHandler> => {
-      const opcode = Number(word), sourceMode = (opcode >>> 3) & 7, sourceCode = opcode & 7;
-      const destinationMode = (opcode >>> 6) & 7, destinationCode = (opcode >>> 9) & 7;
-      return [opcode, (cpu, instruction) => {
-        const fault = execute(cpu.#state, sourceMode, sourceCode, destinationMode, destinationCode, cpu.#addressContext(instruction));
-        return fault === "unsupported" ? "illegal-instruction" : fault;
-      }];
-    }),
-    // Logic, transfers, and system families bind roles; mmm/eee is the one variable EA.
-    ...operandTables.flatMap(table => Object.entries(table)).map(([word, execute]): OpcodeEntry<OpcodeHandler> => {
-      const opcode = Number(word), mode = (opcode >>> 3) & 7, code = opcode & 7;
-      return [opcode, (cpu, instruction) => {
-        const fault = execute(cpu.#state, mode, code, cpu.#addressContext(instruction));
-        return fault === "unsupported" ? "illegal-instruction" : fault;
-      }];
-    }),
-    // Arithmetic and bit families receive raw mmm/eee and rrr/qqq; the chapter assigns roles.
-    ...arithmeticTables.flatMap(table => Object.entries(table)).map(([word, execute]): OpcodeEntry<OpcodeHandler> => {
-      const opcode = Number(word), mode = (opcode >>> 3) & 7, code = opcode & 7, upperCode = (opcode >>> 9) & 7;
-      return [opcode, (cpu, instruction) => {
-        const fault = execute(cpu.#state, mode, code, upperCode, cpu.#addressContext(instruction));
-        return fault === "unsupported" ? "illegal-instruction" : fault;
-      }];
-    }),
-    // 0110 cccc dddddddd: branch bodies receive the raw displacement byte; others ignore it.
-    ...Object.entries(control).map(([word, execute]): OpcodeEntry<OpcodeHandler> => {
-      const opcode = Number(word), mode = (opcode >>> 3) & 7, code = opcode & 7, displacement = opcode & 0xff;
-      return [opcode, (cpu, instruction) => {
-        const fault = execute(cpu.#state, mode, code, displacement, cpu.#addressContext(instruction));
-        return fault === "unsupported" ? "illegal-instruction" : fault;
-      }];
-    }),
-    // 0111 rrr 0 iiiiiiii: rrr selects Dn; i is the signed immediate byte, extended to a long.
-    // Bit 8 must be zero. Immediate values select handlers but do not add coverage forms.
-    ...Object.entries(quick).map(([word, execute]): OpcodeEntry<OpcodeHandler> => {
-      const opcode = Number(word), immediate = opcode & 0xff;
-      return [opcode, cpu => execute(cpu.#state, immediate)];
-    }),
-  ], 16);
-
   // Exception entry. The original 68000 has no stacked frame-format word.
 
   #beginException(bytes: 6 | 14): ExceptionFrame {
@@ -412,7 +269,7 @@ export class Cpu68000 {
   #enterException(exception: Cpu68000ShortExceptionDelivery, memory: ByteMemory): Cpu68000ExceptionDelivery {
     const frame = this.#beginException(6);
     // Group-2 traps count as instruction processing; trace/illegal/privilege/line faults do not.
-    const processing = exception.source !== "trace" && Cpu68000.#exceptions[exception.source].instructionCompleted;
+    const processing = exceptions[exception.source].completed;
     let fault: AlignmentFault | undefined;
     try {
       fault = this.#stackFault(frame) ?? this.#finishException(exception.vector, exception.returnPc, frame, memory);
@@ -474,22 +331,9 @@ export class Cpu68000 {
     return { source: "bus-error", operation, address };
   }
 
-  // Each instruction owns an update set; the chapter selects storage and commit points.
-  #addressContext(instruction: InstructionContext): InstructionContext & Cpu68000AddressContext {
-    const updates = registerUpdates(), context = { ...instruction, ...updates };
-    return { ...instruction,
-      resolveAddress: (size, mode, code) => {
-        const address = this.#readers.sources.effectiveAddress(size, mode, code, context);
-        if (address === "unsupported") throw new Error("Unsupported effective address reached execution.");
-        return address;
-      },
-      commitAddressUpdates: updates.commit,
-    };
-  }
-
   // Memory access. Only bus addresses discard the high eight bits.
 
-  #recordMemory(onAccess?: (access: MemoryAccess) => void): RecordedMemory & MemoryContext {
+  #recordMemory(onAccess?: (access: MemoryAccess) => void): RecordedMemory & WordMemory {
     // Only our private token crosses the recorder. Thrown host values, even "bus-error", escape unchanged.
     const failed = Symbol("failed memory transfer");
     const { accesses, readByte, writeByte } = recordMemory({

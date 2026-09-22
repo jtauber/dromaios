@@ -19,7 +19,9 @@ of completed byte accesses. Plain `Ram` remains a valid connection. Later 680x0 
 The chapter owns the [stored schema](../../../src/components/cpus/specifications/68000.md#stored-state),
 [construction and inspection contract](../../../src/components/cpus/specifications/68000.md#construction-and-inspection),
 and [A7/status views](../../../src/components/cpus/specifications/68000.md#a7-and-physical-addresses).
-This document retains the native memory, execution, and exception contracts
+Its [normal execution contract](../../../src/components/cpus/specifications/68000.md#fetching-dispatch-and-retirement)
+also owns fetches, dispatch, stopping, retirement, and trace scheduling.
+This document retains the native memory and exception-entry contracts
 while those parts of the model are migrated.
 
 ## Memory connection
@@ -542,31 +544,12 @@ one transition. It reports `outcome: "executed"` on successful delivery and
 adds `exception: { source, vector, returnPc }` to the record. This lets the
 runner continue through a handler. No handler opcode is fetched during entry.
 
-| Source | Vector | Saved PC |
-| --- | --- | --- |
-| `illegal-instruction` (ILLEGAL, `4AFC`, and other invalid encodings outside lines A/F) | 4 | Instruction start |
-| `divide-by-zero` (DIVU/DIVS) | 5 | After opcode and extensions |
-| `bounds-check` (CHK) | 6 | After opcode and extensions |
-| `overflow-trap` (TRAPV with V=1) | 7 | After TRAPV |
-| `privilege-violation` | 8 | Instruction start |
-| `line-a` (`A000`–`AFFF`) | 10 | Instruction start |
-| `line-f` (`F000`–`FFFF`) | 11 | Instruction start |
-| `trap` (TRAP #n) | 32+n, n=0..15 | After TRAP |
-
-Bits 15..12 identify the two emulator lines; their low twelve bits are left
-for software interpretation. All other words outside the documented instruction
-inventory enter vector 4, including Motorola's reserved `4AFA`/`4AFB` words,
-invalid instruction/addressing combinations, and later-chip encodings absent
-from the original 68000. Detection fetches only the two-byte operation word,
-without extension or operand reads. Every step either executes (possibly
-delivering an exception) or halts; there is no unsupported-opcode outcome.
-
-These three classes do not complete an instruction and therefore owe no trace,
-even when T was set. They save the full faulting PC before its fetch increment,
-including at `FFFFFFFE`. RTE with an unchanged frame retries the same word;
-a software emulator must adjust the saved PC if it wants to resume after it.
-Each successful entry remains an executed step, so the runner continues through
-the handler using its normal step budget.
+The chapter's [exception declarations](../../../src/components/cpus/specifications/68000.md#fetching-dispatch-and-retirement)
+select vectors, saved PCs, and instruction completion. Restarting exceptions save
+the full faulting address: RTE with an unchanged frame retries that word. A
+software emulator must adjust the saved PC to resume after it. Each successful
+entry remains an executed step, so the runner continues through the handler
+using its normal step budget.
 
 TRAPV with V=0 advances PC without entering an exception. TRAP, TRAPV, ILLEGAL,
 other illegal encodings, emulator lines, and privilege violations preserve all
@@ -625,22 +608,13 @@ control flags it interrupted. These are instruction-level commit points.
 
 ## Trace recognition
 
-T is sampled at the beginning of each instruction. Successful completion
-sets `tracePending` to that sample, even if the instruction changed T. A pending
-trace takes precedence over stopped state and opcode alignment at the next
-`step()`: it performs a separate six-byte entry to vector 9 with
-`instruction: null`, `outcome: "executed"`, and
-`exception: { source: "trace", vector: 9, returnPc }`. The saved PC and SR
-are the current post-instruction state, including a taken branch target.
-No instruction is fetched. Trace entry clears STOP, T, and `tracePending`.
-
-TRAP, taken TRAPV, CHK failure, and division by zero complete their own exception
-entry first, then retain any trace owed by the original instruction. That trace
-stacks the resulting handler PC/SR before any handler opcode executes. Illegal
-instructions and privilege violations do not complete an instruction, so they
-suppress tracing. Address errors likewise suppress the owed trace.
-Host callback failures have no completed retirement; their effects follow the
-failure boundaries above.
+The chapter owns [trace sampling and scheduling](../../../src/components/cpus/specifications/68000.md#fetching-dispatch-and-retirement),
+including precedence over STOP and alignment, and traces owed after synchronous
+exceptions. Delivery uses a separate six-byte entry to vector 9 with
+`instruction: null` and `{ source: "trace", vector: 9, returnPc }`.
+The saved PC and SR are the current post-instruction state, including a taken
+branch or exception handler target. No instruction is fetched. Trace entry
+clears STOP, T, and `tracePending`.
 
 An odd trace stack terminally halts through failed address-error entry, with
 no RAM accesses, cleared STOP/trace latches, and 20 reserved stack bytes.
@@ -724,16 +698,8 @@ The physical chip's 124-clock reset pulse is not timed here.
 
 ## Stepping and records
 
-`step()` delivers an owed trace or attempts one instruction using current RAM. The
-[coverage tracker](../coverage.md#68000) lists the exact supported operation
-words. An ordinary successful instruction returns:
-
-- `outcome: "executed"`;
-- `instruction.address`: the full 32-bit starting PC;
-- `instruction.bytes`: the fetched operation word and extension bytes, in order;
-- detached `before` and `after` snapshots;
-- `accesses`: ordered byte reads/writes with **physical** addresses and values,
-  plus a completed device-reset event for RESET.
+The chapter owns the [step and record contract](../../../src/components/cpus/specifications/68000.md#fetching-dispatch-and-retirement).
+The following details describe operand-transfer ordering within those records.
 
 MOVE fetches the operation word and source extensions, then reads the source.
 It next fetches destination extensions and writes the destination. All

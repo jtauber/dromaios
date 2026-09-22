@@ -1219,12 +1219,12 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `divide` | Divide a double-width dividend by a byte/word divisor with explicit signedness; truncate toward zero, retain dividend sign on the remainder, and capture both results at divisor width; zero returns the named `onError` outcome; overflow also returns it unless an optional `overflow` flag capture is named |
 | `reject` | Return a named outcome immediately from the complete instruction body; preserve completed effects and perform no later statement |
 
-The current cores still own fetch-cursor behavior, PC commitment, access
-recording, exception handling, and instruction boundaries. In particular,
-`fetch-byte` does not assert one universal PC-update rule for all CPUs. Generated
-bodies receive each core's existing callbacks, including interrupt-supplied
-fetching on the 8080. The 68000's `fetch-word` retains its complete-word
-cursor and recorded-instruction update, even when the second byte faults.
+Execution runtimes implement the chapters' fetch-cursor and PC-commit policies,
+with boundary services for access recording and instruction records. The 68000
+still delivers exception frames natively. `fetch-byte` does not assert one
+universal PC-update rule: generated bodies receive the selected callbacks,
+including interrupt-supplied fetching on the 8080. The 68000's `fetch-word`
+commits its cursor and recorded instruction bytes only after both reads succeed.
 Operand data reads and writes remain explicit byte accesses with visible
 ordering and address wrapping; no data-word primitive hides partial completion.
 
@@ -1598,13 +1598,13 @@ modules are removed.
 The 68000 chapter owns all register and memory MOVE/MOVEA definitions and
 encodings. Register forms remain in `68000.ts`; `68000-moves.ts` exposes 169
 shared bodies and a generated table of their 9,150 non-register operation words.
-The native binding supplies the decoded EA fields. The initial specialized
+The generated execution binding supplies the chapter-declared EA fields. The initial specialized
 word-load/store module is removed. Reusable memory sources, data-register write
 actions, and result policies preserve ordered reads, pending-update commits,
 writeback, and fault behavior. All remaining 68000 instruction families now
 also come from the chapter; the native adapter only groups their calling
-conventions. Address decoding also comes from the chapter; lifecycle handling
-remains in the core.
+conventions. Address decoding, reset, and normal execution also come from the
+chapter; exception entry remains in the core.
 The 68000's generated state module also exposes its effective-address source.
 `read-pending-register` and `stage-register` are schema-checked register effects:
 generation supplies a lazy stored read or a deferred write callback identified
@@ -1875,8 +1875,8 @@ inventory and builder are removed.
 The [system families](../../src/components/cpus/specifications/68000.md#status-and-system-instructions) complete all
 186 remaining documented forms through 63 bodies, also serving TRAP literals and
 software emulator-line requests. Privilege guards reject before operand fetching
-or address resolution. These outcomes use the existing exception boundary, which
-selects vectors, saved PCs, trace handling, and nested-fault behavior.
+or address resolution. The chapter execution contract selects vectors, saved
+PCs, and trace handling; native exception entry handles frames and nested faults.
 
 Packed SR and its restoration use the chapter's views, policies, and actions. Its captures retain T/S, interrupt mask, then X/N/Z/V/C order.
 Immediate logic captures the old status before fetching the complete word.
@@ -2124,8 +2124,9 @@ path into those definitions. Continue checking total authored source in the
 compiler. Seven CPUs now have complete chapter-authored models, including the
 8088's segmented execution, external vector offers, and generated public
 interface. The 68000 owns all instructions, stored state, register views/writes,
-effective-address decoding, and reset; execution and external events still use
-the native core.
+effective-address decoding, reset, and normal execution. Its word contract binds
+encoded fields, fetch commits, retirement, and tracing to a shared executor;
+external entry still uses the native core.
 
 Unbounded loops and CPU-boundary exception delivery remain outside semantic
 bodies; both the 6809 postbyte decoder and the 68000 effective-address decoder

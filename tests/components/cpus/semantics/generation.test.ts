@@ -87,9 +87,9 @@ test("the catalogue and chapter bindings name exactly the generated modules, eac
   for (const { cpu, chapter } of chapters) {
     const before = JSON.stringify(chapter);
     if (chapter.execution) {
-      const source = generateChapterExecution(cpu, cpu, chapter.execution);
+      const source = generateChapterExecution(cpu, cpu, chapter.execution, instructionModules.filter(entry => entry.cpu === cpu && entry.name !== `${cpu}-state`));
       assert.equal(source, readFileSync(`${directory}/${cpu}-execution.ts`, "utf8"));
-      assert.equal(generateChapterExecution(cpu, cpu, chapter.execution), source);
+      assert.equal(generateChapterExecution(cpu, cpu, chapter.execution, instructionModules.filter(entry => entry.cpu === cpu && entry.name !== `${cpu}-state`)), source);
     }
     if (chapter.reset) {
       const source = generateChapterReset(cpu, chapter.reset);

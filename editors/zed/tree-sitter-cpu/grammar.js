@@ -122,11 +122,19 @@ module.exports = grammar({
     reset_declaration: $ => seq('reset', '{', repeat(choice(
       seq('attempt', 'action', $.identifier), seq('complete', 'action', $.identifier, 'with', 'failure'),
     )), '}'),
-    execution_declaration: $ => seq('execution', optional('segmented'), '{', repeat(choice(
-      $.memory_policy, $.counter_policy, $.stopped_policy, $.word_policy,
+    execution_declaration: $ => seq('execution', optional(choice('segmented', 'word')), '{', repeat(choice(
+      $.word_execution_policy, $.memory_policy, $.counter_policy, $.stopped_policy, $.word_policy,
       $.segmentation_policy, $.prefix_policy, $.waiting_policy, $.pending_policy, $.fault_delivery_policy, $.unsupported_policy,
       $.opcode_policy, $.operand_policy, $.failure_policy, $.action_policy, $.retirement_policy, $.notification_policy, $.interrupt_policy,
     )), '}'),
+    word_execution_policy: $ => choice(
+      seq('fetch', choice('big', 'little'), 'advance', 'after', 'word'), seq('alignment', $.number),
+      seq('terminal', $._state_name), seq('fetched', 'action', $.identifier),
+      seq('trace', $._state_name, 'pending', $._state_name, 'exception', $.string, 'action', $.identifier),
+      seq('address', 'source', $.identifier), seq(choice('unknown', 'unsupported'), $.string),
+      seq('inputs', '{', repeat(seq($.identifier, '=', $.string)), '}'),
+      seq('exceptions', '{', repeat(seq($.string, 'vector', $.number, optional(seq('plus', $.string)), choice('complete', 'restart'))), '}'),
+    ),
     segmentation_policy: $ => choice(seq('segment', $._state_name, 'shift', $.number),
       seq('record', 'address', $._state_name), seq('fetch', 'action', $.identifier)),
     prefix_policy: $ => seq('prefixes', 'limit', $.number, '{', repeat(choice(
@@ -138,7 +146,7 @@ module.exports = grammar({
     fault_delivery_policy: $ => seq('fault', $.string, 'vector', $.number, 'with', $.identifier),
     unsupported_policy: _ => seq('unsupported', 'restore', 'counter'),
     memory_policy: $ => seq('memory', $.number),
-    counter_policy: $ => seq('counter', $._state_name, 'write', $.identifier),
+    counter_policy: $ => seq('counter', $._state_name, optional(seq('write', $.identifier))),
     stopped_policy: $ => seq('stopped', choice('none', seq(choice($._state_name,
       seq('choice', $._state_name, 'unless', $.string)), optional(seq('as', 'waiting'))))),
     word_policy: _ => seq('word', choice('little', 'big')),

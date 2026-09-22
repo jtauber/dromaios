@@ -15,7 +15,7 @@ async function generateCpuSemantics(directory: string): Promise<void> {
     [name, generateInstructions(cpu, definitions, options)] as const);
   for (const { name, cpu, state, execution, reset, interface: api } of models) {
     if (reset) modules.push([`${name}-reset`, generateChapterReset(name, reset)]);
-    if (execution) modules.push([`${name}-execution`, generateChapterExecution(cpu, name, execution)]);
+    if (execution) modules.push([`${name}-execution`, generateChapterExecution(cpu, name, execution, instructionModules.filter(entry => entry.cpu === cpu && entry.name !== `${name}-state`))]);
     if (api) modules.push([`${name}-cpu`, generateChapterInterface(name, state!, api, execution!)]);
   }
   const names = new Set<string>();

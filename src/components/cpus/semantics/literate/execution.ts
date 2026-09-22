@@ -1,3 +1,5 @@
+import { generateWordExecution } from "./word-execution.ts";
+import type { WordExecution, WordInstructionModule } from "./word-execution.ts";
 import { generateSegmentedExecution } from "./segmented-execution.ts";
 import type { SegmentedExecution } from "./segmented-execution.ts";
 import type { Choice, Flag, InstructionDefinition, Latch, Statement, ValueSource } from "../model.ts";
@@ -10,7 +12,7 @@ import type { VectorEntry } from "./vector-execution.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
 
-/** The currently supported execution contract: a flat byte bus with explicit fetch and retirement policies. */
+/** A flat byte bus with explicit fetch and retirement policies. */
 export interface ExecutionBase {
   readonly mode: "byte";
   readonly memoryBits: number;
@@ -48,7 +50,7 @@ interface DecodedBase extends ExecutionBase {
 }
 export type DecodedExecution = DecodedBase & ({ readonly interrupt: "external" }
   | { readonly interrupt: "entries"; readonly entries: readonly InterruptEntry[] });
-export type ChapterExecution = SuppliedExecution | VectorExecution | DecodedExecution | SegmentedExecution;
+export type ChapterExecution = SuppliedExecution | VectorExecution | DecodedExecution | SegmentedExecution | WordExecution;
 
 /** Reject native decoder/fault effects that cannot run in the byte dispatch context. */
 export function checkByteExecution(steps: readonly Statement[], deferral = false, memoryOnly = false, decoded: { readonly notifyReti?: true } | undefined = undefined): void {
@@ -209,7 +211,8 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
 }
 
 /** Bind validated references to generated functions; no processor-specific execution algorithm is emitted. */
-export function generateChapterExecution(cpu: string, module: string, policy: ChapterExecution): string {
+export function generateChapterExecution(cpu: string, module: string, policy: ChapterExecution, modules: readonly WordInstructionModule[] = []): string {
+  if (policy.mode === "word") return generateWordExecution(module, policy, modules);
   if (policy.mode === "segmented") return generateSegmentedExecution(cpu, module, policy);
   if (policy.opcodeAdvance === "decode") return generateDecodedExecution(cpu, module, policy);
   if (policy.interrupt === "vectors") return generateVectorExecution(cpu, module, policy);

@@ -92,7 +92,13 @@ Its attempt action reads and checks vectors; its completion action defines the
 state changes after success or a modeled fault. The shared
 [reset sequence](../../src/components/cpus/reset-sequence.ts) handles that ordering.
 The native reset wrapper supplies guarded snapshots, recorded memory, and its
-private bus-fault classifier. Normal execution and exception delivery remain native.
+private bus-fault classifier. Its word execution declaration also generates
+`generated/68000-execution.ts`: encoded-field bindings, exception selection, and
+hooks for fetching, retirement, and tracing. The shared
+[word executor](../../src/components/cpus/word-execution.ts) retains a sequential
+cursor independently of branch targets and commits whole fetched words. The
+native wrapper supplies snapshots, recording, bus-fault classification, and
+exception-frame delivery; no instruction dispatch table remains in the core.
 
 ## Reading order
 
@@ -328,7 +334,7 @@ alignment before target alignment, select the target before writing, and
 commit the captured stack bank only after all bytes succeed. Frame instructions
 reuse the chapter's byte-transfer actions while retaining their own commit order and A7 aliases.
 LEA selects its destination bank before source resolution. These bodies never
-replace native fetch-cursor or exception-delivery handling.
+replace fetch-cursor or exception-delivery handling at the execution boundary.
 
 The [transfer families](../../src/components/cpus/specifications/68000.md#peripheral-and-multiple-register-transfers) keep
 MOVEP's alternate-byte stride and MOVEM's register-mask order beside their
@@ -649,8 +655,8 @@ The 8008's circular call stack remains explicit in its chapter. The Z80 chapter 
 complete-prefix decoding and R updates in shared decoded execution; the
 8088 chapter selects segmented fetching, segment/repeat prefixes, one-element
 REP steps, and trap boundaries through the [segmented runtime](../../src/components/cpus/segmented-execution.ts),
-while its adapter retains external interrupt acceptance; the 68000 retains word opcodes, alignment faults,
-native exception frames, trace retirement, and interrupt offers. Those contracts
+including external interrupt acceptance. The 68000 selects a separate chapter-bound
+word executor, with native exception frames and interrupt offers. Those contracts
 do not fit this executor. All still share instruction contexts and recorded
 byte memory; specialized step loops do not require a broader executor API.
 
@@ -691,7 +697,7 @@ fetchWord: () => readWordLE(fetchByte),
 
 Use a word reader when two consecutive byte fetches describe the operation.
 The 6502's JSR retains separate low/high fetches around its stack writes, and
-the 68000 retains its word-based cursor and fault handling. Stack-pointer
+the 68000 word executor commits its cursor only after both fetches succeed. Stack-pointer
 updates remain visible in their CPU implementations; reset-vector addresses
 now live in executable chapters.
 

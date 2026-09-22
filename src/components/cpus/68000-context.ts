@@ -1,9 +1,4 @@
-/** Chapter-generated address decoding stages updates locally; instruction definitions choose when to commit. */
-export interface Cpu68000AddressContext {
-  readonly resolveAddress: (size: 8 | 16 | 32, mode: number, code: number) => number;
-  readonly commitAddressUpdates: () => void;
-  readonly readProgramByte: (address: number) => number;
-}
+export type { WordAddressContext as Cpu68000AddressContext } from "./word-execution.ts";
 
 /** A rejected operand access; the CPU boundary owns exception delivery. */
 export interface OperandAlignmentFault {

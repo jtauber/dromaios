@@ -1,3 +1,4 @@
+import { chapterWordExecution, checkWordEffects } from "./word-execution.ts";
 import type { StateFields } from "../../state.ts";
 import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
 import type { OpcodeEntry } from "../../opcodes.ts";
@@ -156,12 +157,13 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         continue;
       }
       if (kind === "execution") {
-        const segmented = header.take("segmented");
+        const segmented = header.take("segmented"), word = !segmented && header.take("word");
         if (segmented !== (cpu.segmentedBoundary === true)) header.fail("Segmented execution requires a matching CPU boundary declaration.");
         if (execution) header.fail("Execution is already declared.");
         header.expect("{"); header.end();
         const { body, end } = chapterBody(lines, index); index = end;
         execution = segmented ? chapterSegmentedExecution(header, body, { registers, views, actions, latches, flags })
+          : word ? chapterWordExecution(header, body, { views, actions, sources, latches, flags })
           : chapterExecution(header, body, { views, actions, latches, choices, flags });
         if (execution.mode === "byte" && execution.retireDeferral !== undefined) cpu = { ...cpu, irqDeferral: true };
         if (execution.mode === "byte" && execution.opcodeAdvance === "decode" && execution.notifyReti) cpu = { ...cpu, retiNotification: true };
@@ -400,10 +402,18 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
   if (pages.size) for (const [opcode, tokens] of opcodes) {
     if (opcode > 255 && !pageTokens.has(opcode >>> 8)) tokens.fail("A word opcode cannot be mixed with byte opcode pages.");
   }
-  if (execution && reset) throw new ChapterError(file, 1, 1, "Standalone reset cannot duplicate an execution contract’s reset.");
+  if (execution && execution.mode !== "word" && reset) throw new ChapterError(file, 1, 1, "Standalone reset cannot duplicate an execution contract’s reset.");
   if (execution?.mode === "segmented") for (const tokens of pageTokens.values()) tokens.fail("Segmented execution uses replaceable prefixes, not opcode pages.");
   if (execution) for (const entries of families.values()) for (const [opcode, definition] of entries) {
     const tokens = opcodes.get(opcode)!;
+    if (execution.mode === "word") {
+      if (pages.size) tokens.fail("Word execution cannot use byte opcode pages.");
+      for (const [name, width] of Object.entries(definition.inputs ?? {})) {
+        if (execution.inputs[name]?.width !== width) tokens.fail(`Missing or wrong-width encoded input ${name}.`);
+      }
+      tokens.checked(() => checkWordEffects(definition.steps, execution.exceptions));
+      continue;
+    }
     if (opcode > 0xff && !pageTokens.has(opcode >>> 8)) tokens.fail("Byte execution requires one-byte opcodes.");
     if (execution.mode === "segmented") {
       const inputs = Object.entries(definition.inputs ?? {});

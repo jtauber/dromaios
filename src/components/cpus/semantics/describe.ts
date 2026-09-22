@@ -193,7 +193,7 @@ validation, execution bindings, and current limits. The same definitions also
 generate typed instruction bodies for the bounded CPU migration.
 
 Bodies begin after opcode selection. Chapter-owned forms include their operand
-fetching and addressing. Remaining native decoders supply any declared address
+fetching and addressing. Generated execution bindings supply declared address
 or selector inputs. Declared inputs
 are captured before entry. Statements are
 ordered. Captures are immutable; each source and action

@@ -3,6 +3,7 @@
   "policy" "operands" "pair" "codes" "conditions" "family" "page" "encoding" "for" "in"
   "with" "named" "except" "fetch" "operand" "apply" "replace" "when" "test" "return"
   "segmented" "segment" "shift" "record" "address" "prefixes" "limit" "repeat" "ignore" "pending" "vector" "sampling" "restore"
+  "terminal" "trace" "exception" "fetched" "inputs" "exceptions" "plus" "restart"
   "attempt" "complete" "stage" "staging" "target" "devices" "sample" "boundary" "report" "send" "escape"
   "choose" "else" "iterate" "step" "next" "divide" "reject" "signed" "unsigned"
   "program" "fault" "alignment" "read" "write" "if" "commit" "addresses" "defer" "irq" "intr" "all" "into" "notify" "reti"

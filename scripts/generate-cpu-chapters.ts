@@ -35,7 +35,7 @@ function chapterModule(chapter: CpuChapter, name: string, cpu: string): string {
       return `export const ${group}: {\n${fields}\n} = ${data};\n`;
     }),
     ...(Object.keys(chapter.pages).length ? [`export const pages = ${JSON.stringify(chapter.pages)} as const;`, ""] : []),
-    ...(chapter.execution && chapter.state ? [
+    ...(chapter.execution && chapter.execution.mode !== "word" && chapter.state ? [
       'import { instructionSet } from "../builders.ts";',
       `import { state } from "./state/${name}.ts";`,
       `const entries = Object.values(families).flat();`,
@@ -71,7 +71,7 @@ export function generateCpuChapters() {
       generateChapterState(chapter.state) + (chapter.interface ? generatePublicState(chapter.state, chapter.interface) : "") };
   });
   // Keep the explanation order: flat/decoded byte models, then segmented models.
-  const complete = chapters.filter(({ chapter }) => chapter.execution && chapter.state)
+  const complete = chapters.filter(({ chapter }) => chapter.execution && chapter.execution.mode !== "word" && chapter.state)
     .sort((left, right) => Number(left.chapter.execution!.mode === "segmented") - Number(right.chapter.execution!.mode === "segmented"));
   const registered = new Set<string>();
   for (const { name, cpu } of complete) {
@@ -90,12 +90,14 @@ export function generateCpuChapters() {
     ...publicChapters.map(({ name }, index) => `import { state as state${index} } from "./state/${name}.ts";`),
     "export const chapterInterfaces = {",
     ...publicChapters.map(({ name, cpu, chapter }, index) => {
+      const execution = chapter.execution!;
+      if (execution.mode === "word") throw new Error("Word interfaces require chapter-owned exception entry.");
       const pc = chapter.interface!.snapshots.find(({ field }) => field === "pc");
       const storedPc = chapter.state?.pc;
       const pcBits = pc ? chapter.views[pc.view]!.width : storedPc?.kind === "unsigned" ? storedPc.bits : undefined;
-      const maximumPc = chapter.execution!.mode === "segmented" ? 2 ** chapter.execution!.memoryBits - 1
+      const maximumPc = execution.mode === "segmented" ? 2 ** execution.memoryBits - 1
         : pcBits === undefined ? undefined : 2 ** pcBits - 1;
-      return `  ${JSON.stringify(cpu)}: { name: ${JSON.stringify(chapter.interface!.name)}, module: "generated/${name}-cpu", state: state${index}, ramSize: ${2 ** chapter.execution!.memoryBits}, maximumPc: ${maximumPc} },`;
+      return `  ${JSON.stringify(cpu)}: { name: ${JSON.stringify(chapter.interface!.name)}, module: "generated/${name}-cpu", state: state${index}, ramSize: ${2 ** execution.memoryBits}, maximumPc: ${maximumPc} },`;
     }), "} as const;", "export interface ChapterStates {",
     ...publicChapters.map(({ name, cpu, chapter }) =>
       `  ${JSON.stringify(cpu)}: import("./state/${name}.ts").${chapter.interface!.name}State;`),

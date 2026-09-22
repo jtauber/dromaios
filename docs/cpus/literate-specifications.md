@@ -52,7 +52,8 @@ Executable chapters are maintained CPU sources:
   control-flow ordering, register-mask transfers, and status/system effects
   explicit. Its effective-address sources own mode and index decoding, register
   selection, and staged updates. A standalone reset contract owns vector reads,
-  fault completion, and preserved state. Execution and exception delivery remain
+  fault completion, and preserved state. A word execution contract owns fetching,
+  encoded inputs, dispatch, retirement, and trace scheduling. Exception delivery remains
   native; the TypeScript definition adapter only groups chapter families.
 
 This is an authoring-language prototype over the existing
@@ -545,7 +546,8 @@ The [68000 reset section](../../src/components/cpus/specifications/68000.md#exte
 uses the existing program-long source, commits SSP and PC independently, and
 rejects an odd PC before completion. Its chapter defines every reset-specific
 state change and preservation rule. A standalone reset cannot coexist with an
-execution contract that already owns reset. Missing/duplicate fields, wrong
+byte or segmented execution contract that already owns reset. Word execution
+uses the separate reset contract. Missing/duplicate fields, wrong
 action inputs, and unsupported effects are source-located errors.
 [Language tests](../../tests/components/cpus/semantics/literate-reset.test.ts)
 exercise another CPU/schema, state-only attempts, invalid contracts, and edits
@@ -1240,7 +1242,7 @@ latest value of each register in first-stage order, stopping at a thrown write;
 completed writes remain. Entries survive commit, so later pending reads and
 repeated commits retain the established behavior. The 68000's existing
 `commit addresses` boundary invokes this helper. Its chapter supplies all bank,
-width, step, extension, and address-wrap rules; the native word-fetch boundary
+width, step, extension, and address-wrap rules; the declared word-fetch boundary
 still records complete words and advances the cursor only after both bytes.
 
 ## Review of the three chapters
@@ -1308,7 +1310,7 @@ operations, bit/shift/rotate/TAS families, word products/division, signed bounds
 packed decimal arithmetic, control flow, MOVEP/MOVEM, and status/system instructions.
 A7 selection, status packing/restoration, effective-address decoding, and staged
 auto-updates are chapter-owned too. All documented instruction bodies are chapter-owned;
-reset is chapter-owned too. Execution and exception delivery remain native.
+reset and normal execution are chapter-owned too. Exception delivery remains native.
 
 The 68000 arithmetic families reuse source bindings for calculations that return
 a result after applying flags. This differs from the pure logical calculations:
@@ -1482,3 +1484,52 @@ metadata uses the segmented bus width for the physical runner-PC bound.
 [Public mutation tests](../../tests/components/cpus/semantics/literate-vector-offers.test.ts)
 change gates, masks, vectors, acceptance effects, names, and views, including a
 renamed model with the same device contract.
+
+## Word execution
+
+The [68000 execution section](../../src/components/cpus/specifications/68000.md#fetching-dispatch-and-retirement)
+uses `execution word { … }`. It binds chapter families to an atomic 16-bit fetch
+stream through the [shared word executor](../../src/components/cpus/word-execution.ts).
+The sequential cursor and a selected branch target stay independent. The cursor
+and recorded instruction bytes advance only after both reads of a word succeed;
+the access recorder can still retain a successful first byte. Stored PC changes
+at the declared retirement action. This is an instruction-level contract without
+prefetch or cycle timing.
+
+| Declaration | Contract |
+| --- | --- |
+| `counter FETCHPC` | Read an input-free state view; its width defines cursor wrapping. |
+| `fetch big advance after word` | Assemble a complete word high byte first; `little` selects low byte first. |
+| `alignment 2` | Reject an odd initial fetch before memory access; `1` allows either parity. |
+| `terminal FAULTED`, `stopped HALTED` | Terminal halt prevents all work; pending entry takes precedence over an ordinary stop. |
+| `trace T pending TRACEPENDING exception "trace" action scheduleTrace` | Sample a declared flag before callbacks. The pending latch requests the named exception before fetching; the state-only action takes the sampled value as an eight-bit zero/one. |
+| `fetched action beginInstruction` | Invoke a state-only action with the complete 16-bit operation word, before lookup. |
+| `retire action finishInstruction` | Pass the target or sequential cursor, then the eight-bit sample, to a state-only action. |
+| `address source effectiveAddress` | Bind a source taking size (8 bits), mode (3), and code (3), returning a 32-bit address. Each instruction has its own pending-register update set. |
+| `unknown "illegal-instruction"`, `unsupported "illegal-instruction"` | Select declared exceptions for unmatched words and rejected operand selections. |
+| `interrupt external` | Leave frame delivery and external offers at the native boundary; no public interface can yet be generated. |
+
+`inputs { … }` binds each numeric family parameter to a quoted 16-bit mask,
+for example `mode = "xxxx xxxx xxmmm xxx"`. The single contiguous named field
+supplies an unsigned value; its width must match every use of that input name.
+Spaces and underscores are ignored. Other bits must be `x`. These masks only
+extract inputs: family encodings remain the opcode authority. Bindings capture
+fields once per operation word and do not capture any CPU instance.
+
+`exceptions { … }` declares quoted names, byte vectors, and `complete` or
+`restart`. A completed instruction saves its sequential cursor and may retain
+its sampled trace after successful entry; a restarting instruction saves its
+starting address and owes no trace. An optional `plus` mask adds an encoded
+literal, as in `"trap" vector 32 plus "xxxx xxxx xxxx vvvv" complete`.
+The entire vector range must fit a byte. Pending entry uses the current address.
+Memory faults retain the sequential cursor; failed first-fetch handling remains
+part of the external entry contract.
+
+The compiler rejects duplicate or missing fields, unknown references, wrong
+hook/input widths, undeclared exception outcomes, and unsupported effects,
+including byte fetches and ports hidden in composed sources/actions. The
+[language tests](../../tests/components/cpus/semantics/literate-word-execution.test.ts)
+exercise an unrelated word model and change the public 68000 through chapter
+edits; [runtime tests](../../tests/components/cpus/word-execution.test.ts) cover
+partial reads, arbitration, cursor/target separation, trace sampling, and host
+throws. Word execution uses the separate [reset sequence](#reset-sequences-with-modeled-faults).
