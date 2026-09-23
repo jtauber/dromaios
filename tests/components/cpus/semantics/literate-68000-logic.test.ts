@@ -47,15 +47,22 @@ async function generated(definition: InstructionDefinition) {
   return module.instructions.run;
 }
 
-test("editing a chapter calculation changes generated logical results and flags", async () => {
+test("one edit to a chapter calculation changes logical results and flags at every width", async () => {
   const changed = markdown.replace("return and(left, right)", "return or(left, right)");
   assert.notEqual(changed, markdown);
-  const definition = compile(changed).families.operandLogic8DataData!.find(([opcode]) => opcode === 0xc001)![1];
-  const run = await generated(definition), state = initialState(127);
-  state.d0 = 0xabcd000f; state.d1 = 0xf0;
-  assert.equal(run(state, 0, 1), undefined);
-  assert.equal(state.d0, 0xabcd00ff);
-  assert.deepEqual(state.flags, { x: true, n: true, z: false, v: false, c: false, t: true, s: true });
+  const families = compile(changed).families;
+  for (const [width, opcode, left, right, expected] of [
+    [8, 0xc001, 0xabcd000f, 0xf0, 0xabcd00ff],
+    [16, 0xc041, 0xabcd000f, 0xf000, 0xabcdf00f],
+    [32, 0xc081, 0x0f, 0xf0000000, 0xf000000f],
+  ] as const) {
+    const definition = families[`operandLogic${width}DataData`]!.find(([word]) => word === opcode)![1];
+    const run = await generated(definition), state = initialState(127);
+    state.d0 = left; state.d1 = right;
+    assert.equal(run(state, 0, 1), undefined);
+    assert.equal(state.d0, expected);
+    assert.deepEqual(state.flags, { x: true, n: true, z: false, v: false, c: false, t: true, s: true });
+  }
 });
 
 test("editing chapter register fields changes opcode binding without a native catalogue", async () => {
@@ -71,8 +78,8 @@ test("editing chapter register fields changes opcode binding without a native ca
 });
 
 for (const [name, before, after, message] of [
-  ["unknown calculation", "with calculation = andByte", "with calculation = missing", /Unknown name missing/],
-  ["wrong calculation width", "with calculation = andByte", "with calculation = andWord", /input.*16-bit|must be 16-bit|expected 16/i],
+  ["unknown calculation", "with calculation = andValue<8>", "with calculation = missing", /Unknown name missing/],
+  ["wrong calculation width", "with calculation = andValue<8>", "with calculation = andValue<16>", /input.*16-bit|must be 16-bit|expected 16/i],
   ["uncaptured calculation argument", "source calculation(destination, sourceValue)", "source calculation(destination, missing)", /not been captured/],
 ] as const) test(`logical chapter rejects ${name} at its document location`, () => {
   assert.ok(markdown.includes(before));

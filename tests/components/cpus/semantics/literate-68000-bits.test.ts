@@ -49,29 +49,37 @@ async function generated(definition: InstructionDefinition) {
     context?: Context): void | "unsupported" | OperandAlignmentFault } } = await import(`data:text/javascript,${encodeURIComponent(source)}`);
   return module.instructions.run;
 }
-function edited(before: string, after: string, opcode: number) {
+function edited(before: string, after: string): Readonly<Record<number, InstructionDefinition>> {
   assert.ok(markdown.includes(before));
-  return Object.values(compile(markdown.replace(before, after)).families).flat().find(([word]) => word === opcode)![1];
+  return Object.fromEntries(Object.values(compile(markdown.replace(before, after)).families).flat());
 }
 
-test("editing local carry initialization changes the zero-count shift result flags", async () => {
-  const run = await generated(edited("carryBit: flag = 0", "carryBit: flag = 1", 0xe220)); // ASR.B D1,D0
-  const state = initialState(0); state.d0 = 0x80; state.d1 = 0;
-  run(state, 0, 0, 1);
-  assert.equal(state.d0, 0x80); assert.equal(state.flags.c, true); assert.equal(state.flags.x, false);
+test("one edit to local carry initialization changes zero-count ASR flags at every width", async () => {
+  const definitions = edited("carryBit: flag = 0", "carryBit: flag = 1");
+  for (const [width, opcode] of [[8, 0xe220], [16, 0xe260], [32, 0xe2a0]] as const) { // ASR D1,D0
+    const run = await generated(definitions[opcode]!);
+    const state = initialState(0); state.d0 = 2 ** (width - 1); state.d1 = 0;
+    run(state, 0, 0, 1);
+    assert.equal(state.d0, 2 ** (width - 1));
+    assert.equal(state.flags.c, true); assert.equal(state.flags.x, false);
+  }
 });
 
-test("editing the local overflow recurrence changes ASL without changing its shifted value", async () => {
-  const run = await generated(edited("next overflowBit = or(overflowBit, xor(negative(shifted), negative(result)))",
-    "next overflowBit = 0", 0xe320)); // ASL.B D1,D0
-  const state = initialState(0); state.d0 = 0x40; state.d1 = 1;
-  run(state, 0, 0, 1);
-  assert.equal(state.d0, 0x80); assert.equal(state.flags.n, true); assert.equal(state.flags.v, false);
+test("one edit to the overflow recurrence changes ASL at every width without changing its result", async () => {
+  const definitions = edited("next overflowBit = or(overflowBit, xor(negative(shifted), negative(result)))",
+    "next overflowBit = 0");
+  for (const [width, opcode] of [[8, 0xe320], [16, 0xe360], [32, 0xe3a0]] as const) { // ASL D1,D0
+    const run = await generated(definitions[opcode]!);
+    const state = initialState(0); state.d0 = 2 ** (width - 2); state.d1 = 1;
+    run(state, 0, 0, 1);
+    assert.equal(state.d0, 2 ** (width - 1));
+    assert.equal(state.flags.n, true); assert.equal(state.flags.v, false);
+  }
 });
 
 test("editing the chapter count mask changes full-count execution", async () => {
   const run = await generated(edited("count = and(truncate(countRegister, 8), u8(63))",
-    "count = and(truncate(countRegister, 8), u8(31))", 0xe320));
+    "count = and(truncate(countRegister, 8), u8(31))")[0xe320]!);
   const state = initialState(0); state.d0 = 1; state.d1 = 32;
   run(state, 0, 0, 1);
   assert.equal(state.d0, 1);
@@ -79,7 +87,7 @@ test("editing the chapter count mask changes full-count execution", async () => 
 
 test("editing bit-number reduction changes the memory bit selected", async () => {
   const run = await generated(edited("iterate(and(bitNumber, u8(7)), u8(1))",
-    "iterate(and(bitNumber, u8(3)), u8(1))", 0x03d0)); // BSET.B D1,(A0)
+    "iterate(and(bitNumber, u8(3)), u8(1))")[0x03d0]!); // BSET.B D1,(A0)
   const state = initialState(0), writes: number[][] = []; state.d1 = 7;
   run(state, 2, 0, 1, {
     resolveAddress: () => 0x100, commitAddressUpdates() {}, readByte: () => 0,

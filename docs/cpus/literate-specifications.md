@@ -319,7 +319,7 @@ when quotientOverflow {
 }
 when not(quotientOverflow) {
   D0 <- concat(remainder, quotient)
-  apply wordResult(quotient)
+  apply resultFlags<16>(quotient)
 }
 ```
 

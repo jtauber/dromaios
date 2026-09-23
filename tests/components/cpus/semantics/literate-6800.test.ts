@@ -126,8 +126,8 @@ test("condition-code transfers obey the chapter's fixed bits, restore every flag
 test("6800 declaration errors retain their Markdown locations", () => {
   for (const [before, after, message] of [
     ["register B: 8", "register B: 8 = a", /Duplicate stored field/],
-    ["apply NZV16(result)", "apply NZV8(result)", /8-bit|u8|width/],
-    ["replace CCFLAGS(status)", "replace NZV8(status)", /Unknown name NZV8/],
+    ["apply NZV<16>(result)", "apply NZV<8>(result)", /8-bit|u8|width/],
+    ["replace CCFLAGS(status)", "replace NZV<8>(status)", /Unknown name NZV<8>/],
   ] as const) {
     assert.ok(markdown.includes(before));
     const line = markdown.slice(0, markdown.indexOf(before)).split("\n").length;
