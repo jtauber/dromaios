@@ -188,21 +188,22 @@ Quoted descriptions use JSON string escaping.
 | `choice IM: 0, 1, 2` | Declare an exact set of numeric alternatives; `IM <- 2` writes one and `mode2 = choice IM = 2` tests it. |
 | `choice WAIT: "none", "sync", "cwai" = waitMode` | Declare a stored field with an exact set of named alternatives. |
 | `waiting = choice WAIT = "cwai"`, `WAIT <- "none"` | Capture a Boolean comparison or write one declared alternative; unknown choices are errors. |
-| `source zeroPage "zero page": 16 { … }` | Ordered steps ending in a numeric `return`; each use has its own capture scope. |
-| `view PC "selected PC": 14 { … }` | A named read-only state source, ending in a numeric `return`; it cannot access external devices. |
-| `action setPC "set selected PC" (address: 16) { … }` | Ordered state effects with optional numeric inputs; no instruction fetching, memory, port, or boundary effects. |
+| `source zeroPage "zero page": 16 { … }` | Ordered steps ending in a typed `return`; each use has its own capture scope. |
+| `view PC "selected PC": 14 { … }` | A named read-only state source, ending in a typed `return`; it cannot access external devices. |
+| `action setPC "set selected PC" (address: 16) { … }` | Ordered state effects with optional numeric or `flag` inputs; no instruction fetching, memory, port, or boundary effects. |
 | `execution { … }` | Bind the chapter's views, actions, and opcode families to a checked execution contract. |
 | `interface Cpu8008 "description" { … }` | Generate the public class, concrete result types, and state aliases from owned state and an earlier execution contract. |
-| `snapshot pc = PC`, `snapshot alternate.bc = BC_ALT` | Expose an earlier numeric state view under a top-level field or inside a stored group, inside `interface`. |
+| `snapshot pc = PC`, `snapshot alternate.bc = BC_ALT` | Expose an earlier numeric or Boolean state view under a top-level field or inside a stored group, inside `interface`. |
 | `bank RegisterBank = alternate snapshot BankSnapshot` | Name a stored group type and its readonly snapshot type with derived fields; both names receive the public class prefix. |
 | `offset = fetch`, `extension = fetch word` | Fetch and capture the next instruction byte or native instruction word. The connection owns word byte order and partial-fetch behavior. |
 | `index = register X`, `carry = flag C` | Read and capture a register or flag at this point; the capture retains its numeric or flag type. |
-| `address = source zeroPage`, `byte = source readAt(segment, offset)` | Evaluate a declared source with numeric arguments in parameter order, capturing its result. |
+| `address = source zeroPage`, `byte = source readAt(segment, offset)` | Evaluate a declared source with typed arguments in parameter order, capturing its result. |
 | `memory(projectAddress(segment, offset, 4, 20))` | Project a captured word pair onto a physical address bus; available only as a memory address. |
 | `byte = program memory(address)` | Read one program-space byte at a 32-bit logical address, through a word-boundary connection. |
 | `byte = memory(address)`, `byte = port(selector)` | Read and capture one memory or port byte. Port selectors have sixteen-bit width. |
 | `saved = array ADDRESS[slot]`, `stopped = latch STOPPED` | Capture an array element or latch at this point. |
 | `pointer = add(offset, index)` | Capture a pure numeric expression. Addition wraps at the operands' equal width. |
+| `aboveNine: flag = not(lessThan(digit, u8(10), unsigned))` | Capture a pure Boolean expression; this local value does not change a stored flag. |
 | `A <- result`, `memory(address) <- byte`, `port(selector) <- byte` | Write to a register, byte memory location, or port. |
 | `ADDRESS[slot] <- target`, `STOPPED <- 1` | Write an indexed stored register or a Boolean control latch; latch writes also accept captured flag expressions. |
 | `ADDRESS[] <- u14($0000)` | Fill every physical array slot with the same width-checked value, without reading previous elements. |
@@ -391,24 +392,36 @@ pointer = choose supervisor : 32 {
 }
 ```
 
-The condition is a captured flag expression. Both branches must end with a
-numeric `return` of the declared width. Outer captures are visible inside;
-branch-local captures do not escape. Only `pointer` becomes available afterward.
+The condition is a captured flag expression. The result type can be a numeric
+width or `flag`; both branches must end with a `return` of that type. Outer
+captures are visible inside; branch-local captures do not escape. Only `pointer` becomes available afterward.
 Every branch is validated, even when the condition is constant. Views may use
 `choose` for conditional reads; they still cannot hide writes, memory accesses,
 or rejection inside either branch. Actions and execution bindings likewise
 check both branches against their permitted effects. Unlike a byte-pattern
 match, a conditional value has no implicit unsupported outcome.
 
-### Numeric source and family inputs
+### Typed values and inputs
 
-Sources can declare numeric parameters after their description, with lowercase
-names and explicit widths. Calls supply exactly those arguments in declaration
-order; every argument is captured in the caller's scope before the source's
+Values have a numeric width (`3`, `8`, `14`, `16`, or `32`) or the Boolean type
+`flag`. Boolean literals are `0` and `1`; they are distinct from numeric
+`u8(0)` and `u8(1)`. A `flag` value need not represent a stored CPU flag: it can
+name any predicate. Pure captures use `name: flag = expression`; numeric
+captures can also declare a width (`count: 8 = u8(4)`), checked against their
+expression, or keep the usual `count = u8(4)` spelling. Reads already determine
+their result type and need no annotation. Registers and memory addresses
+require numeric values. Use `select(predicate, u8(1), u8(0))` when a number
+is actually needed.
+
+Sources declare their result type after `:` and can declare typed parameters
+after their description, with lowercase names and explicit types. Calls supply
+exactly those arguments in declaration order; every argument is captured in the caller's scope before the source's
 first effect. Parameters are visible within that source, while caller captures
 and source locals remain isolated. A matching source forwards its arguments to
 the shared generated decoder and propagates `unsupported` to the whole caller.
-Standalone source readers expose the same numeric inputs before any context.
+Standalone source readers expose the same typed inputs before any context;
+Boolean results remain Booleans, including when a matching source can also
+return the distinct `unsupported` outcome.
 
 ```text
 source readAt "segmented byte" (segment: 16, offset: 16): 8 {
@@ -420,6 +433,32 @@ family load (segment: 16) "10001000" {
   A <- byte
 }
 ```
+
+A Boolean source can retain conditional reads without converting the decision
+to a byte. For example, the [8088 chapter](../../src/components/cpus/specifications/8088.md)
+uses this shape for decimal correction:
+
+```text
+source needsCorrection "threshold or incoming carry" (digit: 8, forced: flag): flag {
+  aboveNine: flag = not(lessThan(digit, u8(10), unsigned))
+  decision = choose or(aboveNine, forced) : flag {
+    then {
+      return 1
+    }
+    else {
+      incoming = flag AF
+      return incoming
+    }
+  }
+  return decision
+}
+```
+
+AF is read only when neither captured condition already requires correction.
+A returning byte-pattern `match` can likewise declare `: flag`; its selector
+remains an eight-bit number. All branches must return the declared type.
+[Boolean-value tests](../../tests/components/cpus/semantics/literate-flags.test.ts)
+check typed calls, local scopes, skipped reads, rejection, and partial effects.
 
 Family parameters follow the family name, before the encoding or multi-encoding
 body. Execution bindings supply them at runtime. Byte opcode bindings accept
@@ -441,17 +480,17 @@ check scope, widths, rejection propagation, and partial effects.
 ### Views and state actions
 
 `view` uses the same ordered captures and final `return` as `source`, with an
-uppercase name and explicit result width. Its body can read registers, array
-elements, flags, and latches, and perform pure calculations. It cannot write
+uppercase name and explicit numeric or `flag` result type. Its body can read
+registers, array elements, flags, and latches, and perform pure calculations. It cannot write
 state or touch external devices. A view is also available as `source NAME` to
 later bodies; each use reads current state with its own capture scope.
 
 `action` defines a named operation on stored state. Optional inputs are numeric
-values with lowercase names and explicit widths, available throughout that
-action; sources see them only through explicit arguments. An action can read and
+or Boolean values with lowercase names and explicit types, available throughout
+that action; sources see them only through explicit arguments. An action can read and
 write stored state, apply flag policies, and use nested conditions. Fields it
 does not write are preserved. Chapter bodies or execution bindings supply inputs
-and select when it runs; input widths are compile-time contracts, as for other
+and select when it runs; input types are compile-time contracts, as for other
 generated helpers, rather than new runtime argument validation.
 
 Views and plain state actions reject instruction fetching, memory, ports,
@@ -1166,7 +1205,7 @@ name template. Neither kind reads state during family expansion or binding.
 ## Byte-pattern matches
 
 A `match` captures an eight-bit selector once and selects a disjoint case. Its
-value form yields a numeric result; its statement form performs effects. Both
+value form yields a numeric or Boolean result; its statement form performs effects. Both
 use the same bit vocabulary as opcode families: `0`/`1` fix bits, `x` ignores
 bits, and lowercase selector fields expand an operand catalogue. For example,
 a source can select X/Y/U/S while retaining the complete captured postbyte:
@@ -1184,14 +1223,15 @@ result = match postbyte: 16 {
 ```
 
 Every pattern has eight bits, ignoring spaces and underscores. In the value
-form, each case must end in `return` with the declared result width. There must
+form, each case must end in `return` with the declared result type (a numeric
+width or `flag`). There must
 be at least one case.
 Cases must be disjoint after selector expansion. Ignored bits remain masks,
 rather than expanding to duplicate bodies. A case inherits outer captures and
 selected operands, but its local captures and new selectors cannot escape.
 Nested matches can further decode the same captured byte.
 
-An effect match has no result capture, width, or `return`:
+An effect match has no result capture, type, or `return`:
 
 ```cpu
 match postbyte {
@@ -1221,7 +1261,8 @@ The [6809 indexed source](../../src/components/cpus/specifications/6809.md#index
 uses nested matches for base selection, mode decoding, and optional indirection.
 It makes auto-updates, S arming, and high-first indirect reads explicit. Generation
 shares a source with a top-level match as one decoder function within its output
-module, with a `number | "unsupported"` result and only its required capabilities.
+module, with a `number | "unsupported"` or `boolean | "unsupported"` result
+and only its required capabilities.
 Instruction callers and any exported source readers reuse that function. Ordinary
 straight-line sources still inline; this is generated-code sharing, with no
 CPU-specific decoder built into the language.

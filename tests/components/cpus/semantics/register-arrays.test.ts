@@ -51,7 +51,7 @@ test("register arrays are schema-owned and every index must provably fit before 
 });
 
 test("narrow captures retain lexical scope and require explicit conversions for arithmetic and writes", () => {
-  const source = { name: "selected PC", width: 14 as const,
+  const source = { name: "selected PC", type: 14 as const,
     steps: [readRegister("slot", selector), readElement("pc", slots, value("slot"))], result: value("pc") };
   define([readSource("pc", source), writeElement(slots, literal(3, 0), value("pc"))]);
   assert.throws(() => define([readSource("pc", source), readElement("again", slots, value("slot"))]), /not been captured/);

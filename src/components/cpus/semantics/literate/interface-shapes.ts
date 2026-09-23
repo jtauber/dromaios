@@ -13,8 +13,8 @@ export function snapshotInterface(api: ChapterInterface) {
   const name = api.name, quoted = JSON.stringify;
   const nested = [...new Set(api.snapshots.filter(({ field }) => field.includes(".")).map(({ field }) => field.split(".")[0]!))];
   const at = (parent?: string) => api.snapshots.filter(({ field }) => parent === undefined ? !field.includes(".") : field.startsWith(parent + "."));
-  const additions = (parent?: string) => at(parent).map(({ field, description }) =>
-    `  ${comment(description)}\n  readonly ${quoted(field.split(".").at(-1)!)}: number;`).join("\n");
+  const additions = (parent?: string) => at(parent).map(({ field, description, type }) =>
+    `  ${comment(description)}\n  readonly ${quoted(field.split(".").at(-1)!)}: ${type === "flag" ? "boolean" : "number"};`).join("\n");
   const bankType = (field: string) => `ReadonlyState<${name}State[${quoted(field)}]> & {\n${additions(field)}\n}`;
   const snapshotTypes = (api.banks ?? []).map(bank => `export type ${name}${bank.snapshot} = ${bankType(bank.field)};`).join("\n");
   const derived = (parent?: string) => at(parent).map(({ field, view }) => `${quoted(field.split(".").at(-1)!)}: views[${quoted(view)}]()`);

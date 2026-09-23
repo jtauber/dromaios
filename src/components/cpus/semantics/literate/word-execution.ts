@@ -67,7 +67,8 @@ export function chapterWordExecution(header: ChapterTokens, lines: readonly Chap
     tokens.checked(() => checkStateEffects(definition.steps, "state", false)); return name;
   };
   const pc = required("counter"), counter = pc.word(), view = symbols.views.get(counter) ?? pc.fail(`Unknown counter view ${counter}.`); pc.end();
-  const bits = view.width;
+  const bits = view.type;
+  if (bits === "flag") return pc.fail("The counter view must be numeric.");
   const memory = required("memory"), memoryBits = memory.number(); memory.end();
   if (!Number.isInteger(memoryBits) || memoryBits < 1 || memoryBits > bits) memory.fail("Word memory width must be an integer within the logical address width.");
   const fetch = required("fetch"), order = fetch.take("big") ? "big" : fetch.take("little") ? "little" : fetch.fail("Expected big or little word order.");
@@ -82,7 +83,7 @@ export function chapterWordExecution(header: ChapterTokens, lines: readonly Chap
   const retireAt = required("retire"), retire = action(retireAt, [bits, 8]); retireAt.end();
   const addressAt = required("address"); addressAt.expect("source");
   const address = addressAt.word(), source = symbols.sources.get(address) ?? addressAt.fail(`Unknown address source ${address}.`); addressAt.end();
-  if (source.width !== 32 || JSON.stringify(Object.values(source.inputs ?? {})) !== "[8,3,3]") addressAt.fail("Address source needs [8, 3, 3] inputs and a 32-bit result.");
+  if (source.type !== 32 || JSON.stringify(Object.values(source.inputs ?? {})) !== "[8,3,3]") addressAt.fail("Address source needs [8, 3, 3] inputs and a 32-bit result.");
   const unknownAt = required("unknown"), unknown = unknownAt.quoted(); unknownAt.end();
   const unsupportedAt = required("unsupported"), unsupported = unsupportedAt.quoted(); unsupportedAt.end();
   required("inputs"); const inputs = new Map<string, EncodedInput>();

@@ -250,7 +250,7 @@ test("cursor and target statements validate widths, scope, CPU context, and fetc
   assert.throws(() => defineInstruction({ ...base, steps: [when(flagLiteral(false), [readNextAddress("inner")]), selectTarget(value("inner"))] }), /inner/);
   assert.throws(() => defineInstruction({ ...base, steps: [alignmentFault("fetch", literal(32, 1), "data")] }), /access space/);
   assert.throws(() => defineInstruction({ ...base, steps: [alignmentFault("fetch", literal(16, 1))] }), /32-bit/);
-  assert.throws(() => defineInstruction({ ...base, steps: [readSource("source", { name: "faulting source", width: 32,
+  assert.throws(() => defineInstruction({ ...base, steps: [readSource("source", { name: "faulting source", type: 32,
     steps: [alignmentFault("fetch", literal(32, 1))], result: literal(32, 0) })] }), /sources and composed actions cannot reject/);
 });
 

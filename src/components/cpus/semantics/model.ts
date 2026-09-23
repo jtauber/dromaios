@@ -71,10 +71,10 @@ export interface FlagPolicy {
 }
 export interface ValueSource {
   readonly name: string;
-  readonly inputs?: Readonly<Record<string, Width>>;
-  readonly width: Width;
+  readonly inputs?: Readonly<Record<string, ValueType>>;
+  readonly type: ValueType;
   readonly steps: readonly Statement[];
-  readonly result: NumberExpression;
+  readonly result: Expression;
 }
 /** Disjoint masked byte cases with effects in their own lexical scope. */
 export interface DispatchCase {
@@ -83,7 +83,7 @@ export interface DispatchCase {
   readonly steps: readonly Statement[];
 }
 export interface MatchCase extends DispatchCase {
-  readonly result: NumberExpression;
+  readonly result: Expression;
 }
 export interface SourceDefinitions {
   readonly cpu: CpuDeclaration;
@@ -95,18 +95,18 @@ export interface EscapeRequest {
   readonly modRM: NumberExpression;
   readonly memory?: { readonly segment: NumberExpression; readonly offset: NumberExpression; readonly address: AddressExpression; readonly value: NumberExpression };
 }
-export interface ValueBranch { readonly steps: readonly Statement[]; readonly result: NumberExpression }
+export interface ValueBranch { readonly steps: readonly Statement[]; readonly result: Expression }
 export type Statement =
-  | { readonly kind: "choose"; readonly name: string; readonly condition: FlagExpression; readonly width: Width; readonly yes: ValueBranch; readonly no: ValueBranch }
+  | { readonly kind: "choose"; readonly name: string; readonly condition: FlagExpression; readonly type: ValueType; readonly yes: ValueBranch; readonly no: ValueBranch }
   | { readonly kind: "dispatch"; readonly selector: NumberExpression; readonly cases: readonly DispatchCase[] }
-  | { readonly kind: "match"; readonly name: string; readonly selector: NumberExpression; readonly width: Width; readonly cases: readonly MatchCase[] }
-  | { readonly kind: "perform"; readonly action: Action; readonly arguments: Readonly<Record<string, NumberExpression>> }
+  | { readonly kind: "match"; readonly name: string; readonly selector: NumberExpression; readonly type: ValueType; readonly cases: readonly MatchCase[] }
+  | { readonly kind: "perform"; readonly action: Action; readonly arguments: Readonly<Record<string, Expression>> }
   | { readonly kind: "when"; readonly condition: FlagExpression; readonly steps: readonly Statement[] }
   | { readonly kind: "iterate"; readonly name: string; readonly count: NumberExpression; readonly initial: NumberExpression; readonly steps: readonly Statement[]; readonly result: NumberExpression }
   | { readonly kind: "iterate-together"; readonly count: NumberExpression; readonly values: Readonly<Record<string, IterationValue>>; readonly steps: readonly Statement[] }
   | { readonly kind: "reject"; readonly reason: string }
   | { readonly kind: "divide"; readonly quotient: string; readonly remainder: string; readonly dividend: NumberExpression; readonly divisor: NumberExpression; readonly signed: boolean; readonly onError: string; readonly overflow?: string }
-  | { readonly kind: "capture"; readonly name: string; readonly value: NumberExpression }
+  | { readonly kind: "capture"; readonly name: string; readonly value: Expression; readonly type?: ValueType }
   | { readonly kind: "read-register"; readonly name: string; readonly register: Register }
   | { readonly kind: "read-pending-register"; readonly name: string; readonly register: Register }
   | { readonly kind: "stage-register"; readonly register: Register; readonly value: NumberExpression }
@@ -125,7 +125,7 @@ export type Statement =
   | { readonly kind: "read-program-memory"; readonly name: string; readonly address: NumberExpression }
   | { readonly kind: "read-port"; readonly name: string; readonly port: NumberExpression }
   | { readonly kind: "read-memory"; readonly name: string; readonly address: AddressExpression }
-  | { readonly kind: "read-source"; readonly name: string; readonly source: ValueSource; readonly arguments?: Readonly<Record<string, NumberExpression>> }
+  | { readonly kind: "read-source"; readonly name: string; readonly source: ValueSource; readonly arguments?: Readonly<Record<string, Expression>> }
   | { readonly kind: "write-register"; readonly register: Register; readonly value: NumberExpression }
   | { readonly kind: "write-element"; readonly array: RegisterArray; readonly index: NumberExpression; readonly value: NumberExpression }
   | { readonly kind: "fill-array"; readonly array: RegisterArray; readonly value: NumberExpression }
@@ -142,8 +142,8 @@ export type Statement =
   | { readonly kind: "update-flags" | "replace-flags"; readonly policy: FlagPolicy; readonly arguments: Readonly<Record<string, Expression>> };
 export interface Action {
   readonly name: string;
-  /** Captured numeric inputs supplied by the caller, in declaration order, before the body runs. */
-  readonly inputs?: Readonly<Record<string, Width>>;
+  /** Captured inputs supplied by the caller, in declaration order, before the body runs. */
+  readonly inputs?: Readonly<Record<string, ValueType>>;
   readonly steps: readonly Statement[];
 }
 export interface InstructionDefinition extends Action {
@@ -265,7 +265,7 @@ export const iterateTogether = (count: NumberExpression, values: Readonly<Record
 export const reject = (reason: string): Statement => ({ kind: "reject", reason });
 /** Divide a double-width dividend by a byte/word. Reject zero; optionally capture overflow instead of rejecting it. */
 export const divide = (division: Omit<Extract<Statement, { kind: "divide" }>, "kind">): Statement => ({ kind: "divide", ...division });
-export const capture = (name: string, value: NumberExpression): Statement => ({ kind: "capture", name, value });
+export const capture = (name: string, value: Expression, type?: ValueType): Statement => ({ kind: "capture", name, value, ...(type === undefined ? {} : { type }) });
 export const fetchByte = (name: string): Statement => ({ kind: "fetch-byte", name });
 /** Fetch one complete operand word in the CPU's native order and retain its fetch-commit boundary. */
 export const fetchWord = (name: string): Statement => ({ kind: "fetch-word", name });
@@ -291,10 +291,10 @@ export const readFlag = (name: string, flag: Flag): Statement => ({ kind: "read-
 export const readLatch = (name: string, latch: Latch): Statement => ({ kind: "read-latch", name, latch });
 export const exchangeFlags = (left: FlagGroup, right: FlagGroup): Statement => ({ kind: "exchange-flags", left, right });
 export const readMemory = (name: string, address: AddressExpression): Statement => ({ kind: "read-memory", name, address });
-export const readSource = (name: string, source: ValueSource, args?: Readonly<Record<string, NumberExpression>>): Statement =>
+export const readSource = (name: string, source: ValueSource, args?: Readonly<Record<string, Expression>>): Statement =>
   ({ kind: "read-source", name, source, ...(args === undefined ? {} : { arguments: args }) });
 /** Expand a named operation in its own capture scope; arguments are captured before its effects. */
-export const perform = (action: Action, args: Readonly<Record<string, NumberExpression>>): Statement =>
+export const perform = (action: Action, args: Readonly<Record<string, Expression>>): Statement =>
   ({ kind: "perform", action: { name: action.name, ...(action.inputs ? { inputs: action.inputs } : {}), steps: action.steps }, arguments: args });
 export const writeRegister = (register: Register, value: NumberExpression): Statement => ({ kind: "write-register", register, value });
 export const writeElement = (array: RegisterArray, index: NumberExpression, value: NumberExpression): Statement => ({ kind: "write-element", array, index, value });

@@ -1,13 +1,18 @@
 import { addOverflow, addWrap, and, or, xor, select, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
   equal, flagValue, halfBorrow, halfCarry, highByte, isWidth, lessThan, literal, lowBit, lowByte, multiply, negative, not, shiftLeft, shiftRight,
   overflow, projectAddress, shiftBits, signExtend, subtract, truncate, value, zero } from "../model.ts";
-import type { AddressExpression, FlagExpression, NumberExpression, Width } from "../model.ts";
+import type { AddressExpression, Expression, FlagExpression, NumberExpression, ValueType, Width } from "../model.ts";
 import type { ChapterTokens } from "./document.ts";
 
 export function width(tokens: ChapterTokens): Width {
   const bits = tokens.number();
   return isWidth(bits) ? bits : tokens.fail("Expected width 3, 8, 14, 16, or 32.");
 }
+
+export const valueType = (tokens: ChapterTokens): ValueType => tokens.take("flag") ? "flag" : width(tokens);
+export const typedExpression = (tokens: ChapterTokens, type: ValueType): Expression => type === "flag" ? flagExpression(tokens) : expression(tokens);
+export const reference = (name: string, type: ValueType): Expression => type === "flag" ? flagValue(name) : value(name);
+export const initialValue = (type: ValueType): Expression => type === "flag" ? flagLiteral(false) : literal(type, 0);
 
 /** Numeric expressions use captures only; state reads are separate ordered statements. */
 export function expression(tokens: ChapterTokens): NumberExpression {
@@ -90,16 +95,27 @@ export function address(tokens: ChapterTokens): AddressExpression {
   return projectAddress(base, offset, shift, bits);
 }
 
-/** Ordered numeric inputs shared by sources, actions, and instruction families. */
-export function parameters(tokens: ChapterTokens): Record<string, Width> {
-  const inputs: Record<string, Width> = {};
+/** Ordered typed inputs shared by sources, actions, policies, and instruction families. */
+export function parameters(tokens: ChapterTokens): Record<string, ValueType> {
+  const inputs: Record<string, ValueType> = {};
   if (!tokens.take("(")) return inputs;
   if (tokens.next !== ")") do {
     const name = tokens.word(); tokens.expect(":");
     if (Object.hasOwn(inputs, name)) tokens.fail(`Duplicate parameter ${name}.`);
-    inputs[name] = width(tokens);
+    inputs[name] = valueType(tokens);
   } while (tokens.take(","));
   tokens.expect(")"); return inputs;
+}
+
+/** Argument types come from the declaration, including ambiguous and/or/xor calls. */
+export function callArguments(tokens: ChapterTokens, inputs: Readonly<Record<string, ValueType>> = {}): Record<string, Expression> {
+  tokens.expect("(");
+  const args: Record<string, Expression> = {};
+  for (const [index, [name, type]] of Object.entries(inputs).entries()) {
+    if (index) tokens.expect(",");
+    args[name] = typedExpression(tokens, type);
+  }
+  tokens.expect(")"); return args;
 }
 
 /** Signedness belongs to the operation; captured numbers retain their bit widths. */

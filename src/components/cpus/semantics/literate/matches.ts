@@ -1,8 +1,7 @@
 import { opcodeFamily } from "../../opcodes.ts";
-import { literal } from "../model.ts";
 import type { DispatchCase, MatchCase, Statement } from "../model.ts";
 import { chapterBody, ChapterTokens } from "./document.ts";
-import { expression, width } from "./expressions.ts";
+import { expression, initialValue, typedExpression, valueType } from "./expressions.ts";
 import type { ChapterOperand } from "./statements.ts";
 
 /** Match captured bytes, expanding catalogue selectors while keeping ignored bits masked. */
@@ -12,12 +11,12 @@ export function chapterMatch(header: ChapterTokens, lines: readonly ChapterToken
   check: (step: Statement) => void): Statement {
   const selector = expression(header);
   if (name !== undefined) header.expect(":");
-  const bits = name === undefined ? undefined : width(header);
+  const type = name === undefined ? undefined : valueType(header);
   header.expect("{"); header.end();
   const cases: MatchCase[] = [];
   const statement = (): Statement => name === undefined
     ? { kind: "dispatch", selector, cases: cases.map(({ mask, value, steps }): DispatchCase => ({ mask, value, steps })) }
-    : { kind: "match", name, selector, width: bits!, cases };
+    : { kind: "match", name, selector, type: type!, cases };
   const fallback = lines.at(-1) ?? header.fail("A match needs cases and otherwise unsupported.");
   fallback.expect("otherwise"); fallback.expect("unsupported"); fallback.end();
   for (let index = 0; index < lines.length - 1; index++) {
@@ -43,7 +42,7 @@ export function chapterMatch(header: ChapterTokens, lines: readonly ChapterToken
       const branch = body.map(line => new ChapterTokens(line.source, line.file));
       const last = name === undefined ? undefined : branch.pop();
       if (name !== undefined && last?.next !== "return") (last ?? tokens).fail("A match case must end with return.");
-      const current: MatchCase = { mask, value, steps: [], result: literal(bits ?? 8, 0) };
+      const current: MatchCase = { mask, value, steps: [], result: initialValue(type ?? 8) };
       cases.push(current);
       tokens.checked(() => check(statement())); // Reject overlapping encodings before parsing their effects.
       const checkBody = (steps: readonly Statement[]) => {
@@ -51,7 +50,7 @@ export function chapterMatch(header: ChapterTokens, lines: readonly ChapterToken
       };
       const steps = parse(branch, new Map([...operands, ...Object.entries(selected)]), checkBody);
       let result = current.result;
-      if (last) { last.expect("return"); result = expression(last); last.end(); }
+      if (last) { last.expect("return"); result = typedExpression(last, type!); last.end(); }
       cases[cases.length - 1] = { ...current, steps, result };
       (last ?? tokens).checked(() => check(statement()));
     }

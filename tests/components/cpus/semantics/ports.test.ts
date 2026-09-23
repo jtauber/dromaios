@@ -178,7 +178,7 @@ test("port effects validate word addresses, byte values, captures, scopes, descr
     [readPort("byte", literal(16, 0)), capture("byte", literal(8, 0))],
     [when(flagLiteral(true), [readPort("byte", literal(16, 0))]), capture("copy", value("byte"))],
   ]) assert.throws(() => define(steps));
-  const input = define([readSource("contents", { name: "port byte", width: 8, steps: [readPort("byte", literal(16, 0xffff))], result: value("byte") }),
+  const input = define([readSource("contents", { name: "port byte", type: 8, steps: [readPort("byte", literal(16, 0xffff))], result: value("byte") }),
     writePort(literal(16, 0), value("contents"))]);
   const description = describeInstruction(input);
   assert.match(description, /read port\[FFFF:u16\]/); assert.match(description, /write port\[0000:u16\]/); assert.doesNotMatch(description, /read memory/);

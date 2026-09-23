@@ -145,7 +145,7 @@ for (const [name, body, error] of [
 
 test("IR source inputs validate names and widths independently of chapter parsing", () => {
   const definition = compile(`${scalar}family p "00000000" {\n}`).families.p![0]![1];
-  const source = { name: "identity", width: 8 as const, inputs: { byte: 8 as const }, steps: [], result: value("byte") };
+  const source = { name: "identity", type: 8 as const, inputs: { byte: 8 as const }, steps: [], result: value("byte") };
   const check = (args: Parameters<typeof readSource>[2]) => defineInstruction({ ...definition, steps: [readSource("result", source, args)] });
   assert.doesNotThrow(() => check({ byte: literal(8, 1) }));
   assert.throws(() => check(undefined), /arguments must match/);

@@ -67,6 +67,27 @@ test("public generation works with another processor name, class, schema, and sn
   assert.equal(cpu.step().outcome, "halted"); assert.equal("addressStack" in cpu.snapshot(), false);
 });
 
+test("Boolean state views produce Boolean snapshots and cannot replace the program counter", async () => {
+  const text = markdown.replace('view PC "selected program counter"', `view READY "ready to execute": flag {
+  stopped = latch STOPPED
+  return not(stopped)
+}
+view PC "selected program counter"`).replace("snapshot pc = PC", "snapshot ready = READY\n  snapshot pc = PC");
+  const chapter = compile(text);
+  assert.match(generateChapterInterface("8008", chapter.state!, chapter.interface!, chapter.execution!), /readonly "ready": boolean/);
+  const exports = await generated(text);
+  const Cpu = exports.Cpu8008 as new (ram: Ram, state: Cpu8008State) => Omit<Cpu8008, "snapshot"> & {
+    snapshot(): Cpu8008State & { ready: boolean };
+  };
+  const cpu = new Cpu(new Ram(0x4000), { a: 0, b: 0, c: 0, d: 0, e: 0, h: 0, l: 0,
+    flags: { s: false, z: false, p: false, c: false }, addressStack: [0, 0, 0, 0, 0, 0, 0, 0], stackIndex: 0, halted: false });
+  const snapshot = cpu.snapshot();
+  assert.equal(snapshot.ready, true);
+  cpu.step(); // Zero is HLT.
+  assert.equal(cpu.snapshot().ready, false); assert.equal(snapshot.ready, true);
+  assert.throws(() => compile(text.replace("counter PC write setPC", "counter READY write setPC")), /counter|PC/);
+});
+
 const invalid: readonly [string, string, string, RegExp][] = [
   ["missing view", "snapshot pc = PC", "snapshot pc = absent", /Unknown state view absent/],
   ["stored register instead of view", "snapshot pc = PC", "snapshot pc = A", /Unknown state view A/],

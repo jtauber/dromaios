@@ -38,7 +38,7 @@ test("conditional scopes inherit captures, prohibit shadowing and escape, and ke
     [[when(flagLiteral(true), [capture("inner", literal(8, 1))]), capture("escaped", value("inner"))], /not been captured/],
     [[when(flagLiteral(false), [readFlag("inner", cpu.flag("c"))]), when(flagValue("inner"), [])], /not been captured/],
     [[capture("outer", literal(8, 1)), when(flagLiteral(true), [readSource("result", {
-      name: "closed", width: 8, steps: [], result: value("outer"),
+      name: "closed", type: 8, steps: [], result: value("outer"),
     })])], /not been captured/],
   ] satisfies [Statement[], RegExp][]) assert.throws(() => define(steps), message);
 });

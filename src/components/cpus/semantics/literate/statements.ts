@@ -1,11 +1,11 @@
 import { divide, iterate, reject, alignmentFault, capture, commitAddressUpdates, deferInterrupt, notifyReti, exchangeFlags, fetchByte, fetchWord, fillArray, flagValue, highByte, lowByte, replaceFlags, not, perform, readElement,
   readFlag, readLatch, readMemory, readProgramMemory, readPort, readRegister, readPendingRegister, stageRegister, readSource, readTest, reportInterrupt, sendEscape, resolveAddress, readNextAddress, selectTarget, resetDevices, updateFlags,
   testChoice, value, when, writeChoice, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
-import type { Choice, CpuDeclaration, Expression, Flag, FlagGroup, FlagExpression, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueSource, Width } from "../model.ts";
+import type { Choice, CpuDeclaration, Flag, FlagGroup, FlagExpression, FlagPolicy, InstructionDefinition, Latch, Register, RegisterArray, Statement, ValueSource, ValueType } from "../model.ts";
 import { validateInstruction } from "../validate.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
-import { address, expression, flagExpression, signedness } from "./expressions.ts";
+import { address, callArguments, expression, flagExpression, signedness, typedExpression, valueType } from "./expressions.ts";
 import { chapterChoose } from "./choose.ts";
 import { chapterMatch } from "./matches.ts";
 import { chapterIteration } from "./iterations.ts";
@@ -42,7 +42,7 @@ interface Symbols {
 export type ActionCapability = "memory" | "boundary" | "staging" | "alignment";
 type Effects = "view" | "state" | "data-memory" | ActionCapability | readonly ActionCapability[];
 export interface StatementOptions {
-  readonly inputs?: Readonly<Record<string, Width>>;
+  readonly inputs?: Readonly<Record<string, ValueType>>;
   readonly effects?: Effects;
 }
 
@@ -107,7 +107,11 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
     const result: Statement[] = [];
     for (let index = 0; index < lines.length; index++) {
       const tokens = lines[index]!;
-      if (tokens.next === "iterate" && tokens.peek(1) === "(") {
+      if (tokens.peek(1) === ":") {
+        const name = tokens.reference(); tokens.expect(":");
+        const type = valueType(tokens); tokens.expect("=");
+        result.push(capture(name, typedExpression(tokens, type), type));
+      } else if (tokens.next === "iterate" && tokens.peek(1) === "(") {
         const { body, end } = chapterBody(lines, index); index = end;
         result.push(chapterIteration(tokens, body, (body, check) => parse(body, check, selectedOperands),
           step => validate([...result, step])));
@@ -135,12 +139,8 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         const left = tokens.lookup(flagGroups, true); tokens.expect(",");
         result.push(exchangeFlags(left, tokens.lookup(flagGroups, true)));
       } else if (tokens.take("perform")) {
-        const action = tokens.lookup(actions); tokens.expect("(");
-        const args: Record<string, NumberExpression> = {};
-        for (const [index, name] of Object.keys(action.inputs ?? {}).entries()) {
-          if (index) tokens.expect(","); args[name] = expression(tokens);
-        }
-        tokens.expect(")"); result.push(perform(action, args));
+        const action = tokens.lookup(actions);
+        result.push(perform(action, callArguments(tokens, action.inputs)));
       } else if (tokens.take("reject")) {
         const failure = reject(tokens.quoted());
         result.push(tokens.take("if") ? when(flagExpression(tokens), [failure]) : failure);
@@ -178,12 +178,8 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         tokens.expect("<-"); result.push(stageRegister(register, expression(tokens)));
       } else if (tokens.next === "apply" || tokens.next === "replace") {
         const effect = tokens.word() === "apply" ? updateFlags : replaceFlags;
-        const policy = tokens.lookup(policies); tokens.expect("(");
-        const args: Record<string, Expression> = {};
-        for (const [index, [name, type]] of Object.entries(policy.parameters).entries()) {
-          if (index) tokens.expect(","); args[name] = type === "flag" ? flagExpression(tokens) : expression(tokens);
-        }
-        tokens.expect(")"); result.push(effect(policy, args));
+        const policy = tokens.lookup(policies);
+        result.push(effect(policy, callArguments(tokens, policy.parameters)));
       } else if (tokens.take("operand")) {
         const operand = tokens.lookup(selectedOperands); tokens.expect("<-"); const contents = expression(tokens);
         if (operand.kind === "unsupported") return tokens.fail("Unsupported operands cannot be selected.");
@@ -277,13 +273,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
             const array = tokens.lookup(arrays, true); tokens.expect("[");
             result.push(readElement(name, array, expression(tokens))); tokens.expect("]");
           } else if (tokens.take("source")) {
-            const source = tokens.lookup(sources), args: Record<string, NumberExpression> = {};
-            if (tokens.take("(")) {
-              for (const [index, parameter] of Object.keys(source.inputs ?? {}).entries()) {
-                if (index) tokens.expect(","); args[parameter] = expression(tokens);
-              }
-              tokens.expect(")");
-            }
+            const source = tokens.lookup(sources), args = tokens.next === "(" ? callArguments(tokens, source.inputs) : {};
             result.push(readSource(name, source, Object.keys(args).length ? args : undefined));
           }
           else if (tokens.take("operand")) {

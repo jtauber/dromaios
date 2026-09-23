@@ -45,13 +45,13 @@ export function chapterWordEvents(header: ChapterTokens, lines: readonly Chapter
   const view = (tokens: ChapterTokens, width: number) => {
     tokens.expect("view"); const name = tokens.word(), source = symbols.views.get(name) ?? tokens.fail(`Unknown view ${name}.`);
     signature(tokens, source.inputs, []);
-    if (source.width !== width) tokens.fail(`Event view needs width ${width}.`);
+    if (source.type !== width) tokens.fail(`Event view needs width ${width}.`);
     return name;
   };
   const source = (tokens: ChapterTokens, widths: readonly number[], width: number) => {
     tokens.expect("source"); const name = tokens.word(), definition = symbols.sources.get(name) ?? tokens.fail(`Unknown source ${name}.`);
     signature(tokens, definition.inputs, widths);
-    if (definition.width !== width) tokens.fail(`Event source needs width ${width}.`);
+    if (definition.type !== width) tokens.fail(`Event source needs width ${width}.`);
     tokens.checked(() => checkStateEffects(definition.steps, "view", false)); return name;
   };
   const action = (tokens: ChapterTokens, widths: readonly number[], effects: "state" | "alignment" | "memory" | "vector") => {

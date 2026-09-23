@@ -30,6 +30,7 @@ export function chapterVectorEntries(header: ChapterTokens, lines: readonly Chap
     if (effects === "state" && inputs.length) tokens.fail("Resume actions must have no inputs.");
     tokens.expect("(");
     const args = inputs.map((bits, index) => {
+      if (bits === "flag") return tokens.fail("Vector entry arguments must be numeric.");
       if (index) tokens.expect(","); const value = tokens.number();
       if (!Number.isSafeInteger(value) || value < 0 || value >= 2 ** bits) tokens.fail(`Entry argument must fit ${bits} bits.`);
       return value;

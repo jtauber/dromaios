@@ -9,7 +9,7 @@ import { defineInstruction, validateFlagPolicy, validateInstruction } from "../v
 import { opcodePageLayouts } from "../opcode-pages.ts";
 import type { OpcodePage } from "../opcode-pages.ts";
 import { chapterBlocks, chapterBody, ChapterError, ChapterTokens } from "./document.ts";
-import { expression, flagExpression, parameters, width } from "./expressions.ts";
+import { expression, flagExpression, parameters, reference, typedExpression, valueType, width } from "./expressions.ts";
 import { chapterSegmentedExecution, checkSegmentedEffects } from "./segmented-execution.ts";
 import { chapterExecution, checkByteExecution } from "./execution.ts";
 import type { ChapterExecution } from "./execution.ts";
@@ -205,14 +205,14 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         if (kind === "view" && name !== name.toUpperCase()) header.fail("View names must be uppercase.");
         const description = header.quoted(), inputs = parameters(header);
         if (kind === "view" && Object.keys(inputs).length) header.fail("Views cannot require inputs.");
-        header.expect(":"); const bits = width(header); open();
+        header.expect(":"); const type = valueType(header); open();
         const last = body.at(-1) ?? header.fail("A source must end with return.");
         if (last.next !== "return") header.fail("A source must end with return.");
         const bodySteps = steps(body.slice(0, -1), { inputs, effects: kind === "view" ? "view" : undefined });
-        last.expect("return"); const result = expression(last); last.end();
-        const source = { name: description, width: bits, ...(Object.keys(inputs).length ? { inputs } : {}), steps: bodySteps, result };
+        last.expect("return"); const result = typedExpression(last, type); last.end();
+        const source = { name: description, type, ...(Object.keys(inputs).length ? { inputs } : {}), steps: bodySteps, result };
         last.checked(() => validateInstruction({ cpu, name, explanation: "", inputs,
-          steps: [readSource("result", source, Object.keys(inputs).length ? Object.fromEntries(Object.keys(inputs).map(name => [name, value(name)])) : undefined)] }));
+          steps: [readSource("result", source, Object.keys(inputs).length ? Object.fromEntries(Object.entries(inputs).map(([name, type]) => [name, reference(name, type)])) : undefined)] }));
         sources.set(name, source);
         if (kind === "view") views.set(name, source);
       } else if (kind === "action") {
@@ -267,7 +267,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
             const contents = tokens.take("=") ? tokens.number() : ordinal;
             if (!Number.isInteger(contents) || contents < 0 || contents >= 2 ** bits) tokens.fail(`Encoded value must fit ${bits} bits.`);
             entries.push({ kind: "value", name: description,
-              read: { name: description, width: bits, steps: [], result: literal(bits, contents) } });
+              read: { name: description, type: bits, steps: [], result: literal(bits, contents) } });
           } else if (kind === "conditions") {
             tokens.expect("="); tokens.expect("flag"); const flag = tokens.lookup(flags, true); tokens.expect("=");
             const expected = flagExpression(tokens);
@@ -278,7 +278,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
             if (operandKind === "unsupported") entries.push({ kind: "unsupported", name: description });
             else if (operandKind === "view") {
               const read = tokens.lookup(views); tokens.expect("write"); const write = tokens.lookup(actions);
-              if (Object.values(write.inputs ?? {}).length !== 1 || Object.values(write.inputs!)[0] !== read.width) {
+              if (Object.values(write.inputs ?? {}).length !== 1 || Object.values(write.inputs!)[0] !== read.type) {
                 tokens.fail("A writable view needs an action with one input matching its width.");
               }
               entries.push({ kind: "view", name: description, read, write });
@@ -289,11 +289,11 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
               const high = tokens.lookup(registers, true), low = tokens.lookup(registers, true);
               if (high.width !== 8 || low.width !== 8) tokens.fail("Register pairs require two byte registers, high then low.");
               entries.push({ kind: "pair", name: description, high, low,
-                read: { name: description, width: 16, steps: [readRegister("high", high), readRegister("low", low)], result: concat(value("high"), value("low")) } });
+                read: { name: description, type: 16, steps: [readRegister("high", high), readRegister("low", low)], result: concat(value("high"), value("low")) } });
             } else {
               if (operandKind !== "memory" && operandKind !== "value") tokens.fail("Expected register, pair, view, memory, value, or unsupported operand.");
               const source = tokens.lookup(sources);
-              if (operandKind === "memory" && source.width !== 16) tokens.fail("Memory operands require a 16-bit address source.");
+              if (operandKind === "memory" && source.type !== 16) tokens.fail("Memory operands require a 16-bit address source.");
               entries.push(operandKind === "memory" ? { kind: "memory", name: description, address: source, read: memorySource(source) }
                 : { kind: "value", name: description, read: source });
             }

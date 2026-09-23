@@ -1,7 +1,7 @@
 import { comment, stateAliases, snapshotInterface } from "./interface-shapes.ts";
 import { generateWordInterface } from "./word-interface.ts";
 import type { StateFields } from "../../state.ts";
-import type { ValueSource } from "../model.ts";
+import type { ValueSource, ValueType } from "../model.ts";
 import type { ChapterReset } from "./reset.ts";
 import type { ChapterExecution } from "./execution.ts";
 import type { ChapterTokens } from "./document.ts";
@@ -11,7 +11,7 @@ export interface ChapterInterface {
   readonly name: string;
   readonly description: string;
   readonly banks?: readonly { readonly field: string; readonly name: string; readonly snapshot: string }[];
-  readonly snapshots: readonly { readonly field: string; readonly view: string; readonly description: string }[];
+  readonly snapshots: readonly { readonly field: string; readonly view: string; readonly description: string; readonly type: ValueType }[];
 }
 
 export function chapterInterface(header: ChapterTokens, lines: readonly ChapterTokens[], state: StateFields,
@@ -38,7 +38,7 @@ export function chapterInterface(header: ChapterTokens, lines: readonly ChapterT
       else if (Object.hasOwn(group.fields, child)) tokens.fail(`Duplicate or reserved snapshot field ${field}.`);
     }
     if (field.split(".").includes("__proto__") || fields.has(field)) tokens.fail(`Duplicate or reserved snapshot field ${field}.`);
-    fields.add(field); snapshots.push({ field, view, description: source.name });
+    fields.add(field); snapshots.push({ field, view, description: source.name, type: source.type });
   }
   // Array/group aliases share the public namespace with standard record and state types.
   const types = new Set(["State", "StoredState", "Snapshot", "MemoryAccess", "Access", "Instruction", "StepRecord", "ResetRecord",

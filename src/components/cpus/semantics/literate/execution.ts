@@ -127,7 +127,7 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
   if (!Number.isInteger(memoryBits) || memoryBits < 1 || memoryBits > 16) memory.fail("Flat byte execution needs a memory width from 1 to 16 bits.");
   const pc = required("counter"), counter = pc.word();
   const view = symbols.views.get(counter) ?? pc.fail(`Unknown state view ${counter}.`);
-  if (view.width > memoryBits) pc.fail("The counter view must fit the memory address width.");
+  if (view.type === "flag" || view.type > memoryBits) pc.fail("The counter view must fit the memory address width.");
   pc.expect("write"); const writeCounter = action(pc, 16); pc.end();
   const stop = required("stopped");
   let stopped: string | undefined, stoppedUnless: string | undefined;

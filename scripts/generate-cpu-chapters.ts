@@ -82,7 +82,9 @@ export function generateCpuChapters() {
       const execution = chapter.execution!;
       const pc = chapter.interface!.snapshots.find(({ field }) => field === "pc");
       const storedPc = chapter.state?.pc;
-      const pcBits = pc ? chapter.views[pc.view]!.width : storedPc?.kind === "unsigned" ? storedPc.bits : undefined;
+      const pcType = pc ? chapter.views[pc.view]!.type : storedPc?.kind === "unsigned" ? storedPc.bits : undefined;
+      if (pcType === "flag") throw new Error(`${name}: the public PC must be numeric.`);
+      const pcBits = pcType;
       const maximumPc = execution.mode === "segmented" ? 2 ** execution.memoryBits - 1
         : pcBits === undefined ? undefined : 2 ** pcBits - 1;
       return `  ${JSON.stringify(cpu)}: { name: ${JSON.stringify(chapter.interface!.name)}, module: "generated/${name}-cpu", state: state${index}, ramSize: ${2 ** execution.memoryBits}, maximumPc: ${maximumPc} },`;

@@ -41,15 +41,15 @@ export const atLeast = (left: NumberExpression, right: NumberExpression): FlagEx
 // Construction-time recipes return inspectable data; none reads live CPU state.
 // Every source owns its captures. Only the yielded value enters the caller's scope.
 export const immediateByte: ValueSource = {
-  name: "immediate byte", width: 8,
+  name: "immediate byte", type: 8,
   steps: [fetchByte("byte")], result: value("byte"),
 };
 
-export const immediateWord: ValueSource = { name: "immediate word, low byte first", width: 16,
+export const immediateWord: ValueSource = { name: "immediate word, low byte first", type: 16,
   steps: [fetchByte("low"), fetchByte("high")], result: concat(value("high"), value("low")) };
 
 export function registerSource(register: Register): ValueSource {
-  return { name: `register ${register.bank === undefined ? "" : register.bank.toUpperCase() + "."}${register.field.toUpperCase()}`, width: register.width,
+  return { name: `register ${register.bank === undefined ? "" : register.bank.toUpperCase() + "."}${register.field.toUpperCase()}`, type: register.width,
     steps: [readRegister("contents", register)], result: value("contents") };
 }
 
@@ -65,7 +65,7 @@ export function registerView(register: Register, afterWrite: readonly Statement[
 
 /** Resolve an address once, then read its byte. Stores and modifiers can use the address source alone. */
 export function memorySource(address: ValueSource): ValueSource {
-  return { name: `byte at ${address.name}`, width: 8,
+  return { name: `byte at ${address.name}`, type: 8,
     steps: [readSource("address", address), readMemory("byte", value("address"))], result: value("byte") };
 }
 

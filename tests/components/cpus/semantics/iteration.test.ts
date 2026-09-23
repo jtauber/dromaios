@@ -39,7 +39,7 @@ test("named iteration checks types, simultaneous initial scope, immutable locals
     [iterateTogether(literal(8, 1), values, [capture("left", literal(16, 0))])],
     [iterateTogether(literal(8, 1), values, [when(flagLiteral(true), [capture("local", literal(8, 0))]), capture("bad", value("local"))])],
     [loop, loop], [loop, capture("bad", value("temporary"))],
-    [readSource("closed", { name: "rejecting loop", width: 16, steps: [iterateTogether(literal(8, 1), values, [reject("zero")])], result: value("left") })],
+    [readSource("closed", { name: "rejecting loop", type: 16, steps: [iterateTogether(literal(8, 1), values, [reject("zero")])], result: value("left") })],
   ]) assert.throws(() => define(steps));
   const description = describeInstruction(define([loop]));
   assert.match(description, /iterate 02:u8 times with left, right, bit/);

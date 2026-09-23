@@ -1,5 +1,5 @@
-import type { AddressExpression, Expression, FlagExpression, InstructionDefinition, NumberExpression, SourceDefinitions, Statement, ValueType, Width } from "./model.ts";
-import { readSource, value } from "./model.ts";
+import type { AddressExpression, Expression, FlagExpression, InstructionDefinition, SourceDefinitions, Statement, ValueType, Width } from "./model.ts";
+import { flagValue, readSource, value } from "./model.ts";
 import { defineInstruction } from "./validate.ts";
 import { generatePageBindings } from "./generate-pages.ts";
 import { opcodePageLayouts } from "./opcode-pages.ts";
@@ -9,6 +9,7 @@ import type { OpcodeEntry } from "../opcodes.ts";
 
 interface CapturedValue { readonly code: string; readonly type: ValueType }
 type CapturedNumber = CapturedValue & { readonly type: Width };
+const typeName = (type: ValueType): string => type === "flag" ? "boolean" : "number";
 type Scope = ReadonlyMap<string, CapturedValue>;
 type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePort" | "deferInterrupt" | "notifyReti" | "reportInterrupt" | "readTest" | "sendEscape"
   | "fetchWord" | "resolveAddress" | "commitAddressUpdates" | "readProgramByte" | "nextAddress" | "jump" | "resetDevices" | "readPendingRegister" | "stageRegister";
@@ -57,7 +58,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
   ];
   const extensions = (capabilities: ReadonlySet<Capability>) => contextExtensions.filter(extension => extension.capabilities.some(name => capabilities.has(name)));
   const contextType = (capabilities: ReadonlySet<Capability>) => "ByteInstructionContext" + extensions(capabilities).map(extension => " & " + (extension.type ?? extension.name)).join("");
-  function compile(name: string, input: InstructionDefinition, result?: NumberExpression,
+  function compile(name: string, input: InstructionDefinition, result?: { readonly value: Expression; readonly type: ValueType },
     decoderCapabilities?: Set<Capability>): string {
     const definition = defineInstruction(input);
     if (definition.cpu.name !== cpu) throw new Error(`${name}: expected a ${cpu} definition.`);
@@ -132,6 +133,9 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
         default: throw new Error("Expected a validated numeric expression.");
       }
     }
+    function evaluated(expr: Expression, type: ValueType | undefined, scope: Scope): CapturedValue {
+      return type === "flag" ? { code: flag(expr, scope), type } : number(expr, scope);
+    }
     function incoming(expr: FlagExpression | undefined, scope: Scope): string {
       return expr === undefined ? "" : `, (${flag(expr, scope)}) ? 1 : 0`;
     }
@@ -176,25 +180,25 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           case "dispatch": case "match": {
             const selector = local("selector"), result = step.kind === "match" ? local(step.name) : undefined;
             emit(`const ${selector} = ${number(step.selector, scope).code};`);
-            if (result) emit(`let ${result}: number;`);
+            if (step.kind === "match") emit(`let ${result}: ${typeName(step.type)};`);
             for (const [index, branch] of step.cases.entries()) {
               emit(`${index ? "else " : ""}if ((${selector} & 0x${branch.mask.toString(16)}) === 0x${branch.value.toString(16)}) {`);
               depth += "  ";
               const inner = new Map(scope);
               body(branch.steps, inner);
-              if (step.kind === "match") emit(`${result} = ${number(step.cases[index]!.result, inner).code};`);
+              if (step.kind === "match") emit(`${result} = ${evaluated(step.cases[index]!.result, step.type, inner).code};`);
               depth = depth.slice(0, -2); emit("}");
             }
             emit(`else { ${reject("unsupported")} }`);
-            if (step.kind === "match") scope.set(step.name, { code: result!, type: step.width });
+            if (step.kind === "match") scope.set(step.name, { code: result!, type: step.type });
             continue;
           }
           case "perform": {
             comment(`Action: ${step.action.name}`);
             const actionScope = new Map<string, CapturedValue>();
-            for (const name of Object.keys(step.action.inputs ?? {})) {
-              const argument = number(step.arguments[name]!, scope), captured = local(name);
-              emit(`const ${captured}: number = ${argument.code};`);
+            for (const [name, type] of Object.entries(step.action.inputs ?? {})) {
+              const argument = evaluated(step.arguments[name]!, type, scope), captured = local(name);
+              emit(`const ${captured}: ${typeName(argument.type)} = ${argument.code};`);
               actionScope.set(name, { code: captured, type: argument.type });
             }
             body(step.action.steps, actionScope);
@@ -202,18 +206,18 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           }
           case "choose": {
             const result = local(step.name);
-            emit(`let ${result}: number;`);
+            emit(`let ${result}: ${typeName(step.type)};`);
             emit(`if (${flag(step.condition, scope)}) {`);
             for (const [index, branch] of [step.yes, step.no].entries()) {
               if (index) emit("} else {");
               depth += "  ";
               const inner = new Map(scope);
               body(branch.steps, inner);
-              emit(`${result} = ${number(branch.result, inner).code};`);
+              emit(`${result} = ${evaluated(branch.result, step.type, inner).code};`);
               depth = depth.slice(0, -2);
             }
             emit("}");
-            scope.set(step.name, { code: result, type: step.width });
+            scope.set(step.name, { code: result, type: step.type });
             continue;
           }
           case "when":
@@ -284,7 +288,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
             }
             continue;
           }
-          case "capture": captured = number(step.value, scope); break;
+          case "capture": captured = evaluated(step.value, step.type, scope); break;
           case "read-register": captured = { code: `${bank(step.register)}${field(step.register.field)}`, type: step.register.width }; break;
           case "read-pending-register": captured = { code: `${access("readPendingRegister")}(${registerKeyLiteral(step.register)}, () => ${bank(step.register)}${field(step.register.field)})`, type: step.register.width }; break;
           case "stage-register":
@@ -324,25 +328,25 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
                 decoder = { key: `decode${decoders.size}`, code: "", capabilities: new Set<Capability>() };
                 decoders.set(identity, decoder);
                 decoder.code = compile(decoder.key, { cpu: definition.cpu, name: step.source.name,
-                  explanation: "Reusable byte decoding.", ...(step.source.inputs ? { inputs: step.source.inputs } : {}), steps: step.source.steps }, step.source.result, decoder.capabilities);
+                  explanation: "Reusable byte decoding.", ...(step.source.inputs ? { inputs: step.source.inputs } : {}), steps: step.source.steps }, { value: step.source.result, type: step.source.type }, decoder.capabilities);
               }
               for (const capability of decoder.capabilities) capabilities.add(capability);
               rejections.add("unsupported"); outcomes.add("unsupported");
               const decoded = local("decoded");
-              const args = Object.keys(step.source.inputs ?? {}).map(name => number(step.arguments![name]!, scope).code);
+              const args = Object.entries(step.source.inputs ?? {}).map(([name, type]) => evaluated(step.arguments![name]!, type, scope).code);
               emit(`const ${decoded} = decoders.${decoder.key}(state${args.map(arg => `, ${arg}`).join("")}${decoder.capabilities.size ? ", instruction" : ""});`);
               emit(`if (${decoded} === "unsupported") return ${decoded};`);
-              captured = { code: decoded, type: step.source.width };
+              captured = { code: decoded, type: step.source.type };
               break;
             }
             const sourceScope = new Map<string, CapturedValue>();
-            for (const name of Object.keys(step.source.inputs ?? {})) {
-              const argument = number(step.arguments![name]!, scope), captured = local(name);
-              emit(`const ${captured}: number = ${argument.code};`);
+            for (const [name, type] of Object.entries(step.source.inputs ?? {})) {
+              const argument = evaluated(step.arguments![name]!, type, scope), captured = local(name);
+              emit(`const ${captured}: ${typeName(argument.type)} = ${argument.code};`);
               sourceScope.set(name, { code: captured, type: argument.type });
             }
             body(step.source.steps, sourceScope);
-            captured = number(step.source.result, sourceScope);
+            captured = evaluated(step.source.result, step.source.type, sourceScope);
             break;
           }
           case "write-register": emit(`${bank(step.register)}${field(step.register.field)} = ${number(step.value, scope).code};`); continue;
@@ -387,7 +391,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
         }
         const code = local(step.name);
         // Semantic numeric captures are width-checked values, not TypeScript singleton types.
-        const annotation = step.kind === "capture" || step.kind === "read-source" ? ": number" : "";
+        const annotation = step.kind === "capture" || step.kind === "read-source" ? `: ${typeName(captured.type)}` : "";
         emit(`const ${code}${annotation} = ${captured.code};`);
         scope.set(step.name, { code, type: captured.type });
       }
@@ -401,24 +405,24 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     }
     for (const [name, type] of Object.entries(definition.inputs ?? {})) {
       const code = local(name);
-      parameters.push(`${code}: number`);
+      parameters.push(`${code}: ${typeName(type)}`);
       scope.set(name, { code, type });
     }
     body(definition.steps, scope);
-    if (result) emit(`return ${number(result, scope).code};`);
+    if (result) emit(`return ${evaluated(result.value, result.type, scope).code};`);
     for (const name of capabilities) allCapabilities.add(name);
     for (const name of capabilities) decoderCapabilities?.add(name);
     if (capabilities.size) parameters.push(`instruction: Pick<${contextType(capabilities)}, ${[...capabilities].map(name => JSON.stringify(name)).join(" | ")}>`);
     const key = bound ? `0x${Number(name).toString(16).padStart(2, "0")}` : JSON.stringify(name);
     return `${indent}// ${JSON.stringify(`${cpu} ${definition.name}`)}\n`
-      + `${indent}${key}(${parameters.join(", ")}): ${[result ? "number" : "void", ...[...rejections].map(reason => JSON.stringify(reason)), ...(rejectsAlignment ? ["OperandAlignmentFault"] : []), ...(rejectsTarget ? ["TargetAlignmentFault"] : [])].join(" | ")} {\n${lines.join("\n")}\n${indent}},`;
+      + `${indent}${key}(${parameters.join(", ")}): ${[result ? typeName(result.type) : "void", ...[...rejections].map(reason => JSON.stringify(reason)), ...(rejectsAlignment ? ["OperandAlignmentFault"] : []), ...(rejectsTarget ? ["TargetAlignmentFault"] : [])].join(" | ")} {\n${lines.join("\n")}\n${indent}},`;
   }
   const methods = Object.entries(definitions).map(([name, definition]) => compile(name, definition));
   const readers = sources ? Object.entries(sources.groups).map(([group, members]) => {
     const methods = Object.entries(members).map(([name, source]) => compile(name, {
       cpu: sources.cpu, name: source.name, explanation: "Reusable value source.", ...(source.inputs ? { inputs: source.inputs } : {}),
-      steps: [readSource("result", source, source.inputs && Object.fromEntries(Object.keys(source.inputs).map(name => [name, value(name)])))],
-    }, value("result")));
+      steps: [readSource("result", source, source.inputs && Object.fromEntries(Object.entries(source.inputs).map(([name, type]) => [name, type === "flag" ? flagValue(name) : value(name)])))],
+    }, { value: source.type === "flag" ? flagValue("result") : value("result"), type: source.type }));
     return `    [${JSON.stringify(group)}]: {\n${methods.join("\n\n")}\n    },`;
   }) : [];
   if (prefixes.length) { allCapabilities.add("fetchByte"); outcomes.add("unsupported"); }

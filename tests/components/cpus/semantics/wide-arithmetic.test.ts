@@ -40,8 +40,8 @@ test("wide values, bounded iteration, and checked division validate widths, scop
     [divide({ dividend: literal(16, 1), divisor: literal(16, 1), quotient: "q", remainder: "r", signed: false, onError: "overflow" })],
     [divide({ dividend: literal(16, 1), divisor: literal(8, 1), quotient: "q", remainder: "q", signed: false, onError: "overflow" })],
     [reject("")], [reject("invalid reason")],
-    [readSource("closed", { name: "rejecting source", width: 16, steps: [when(flagLiteral(true), [quotient])], result: literal(16, 0) })],
-    [readSource("closed", { name: "rejecting iteration", width: 16, steps: [
+    [readSource("closed", { name: "rejecting source", type: 16, steps: [when(flagLiteral(true), [quotient])], result: literal(16, 0) })],
+    [readSource("closed", { name: "rejecting iteration", type: 16, steps: [
       iterate("current", literal(8, 1), literal(16, 0), [reject("stop")], value("current"))], result: value("current") })],
     [capture("bad", multiply(literal(32, 1), literal(32, 1)))],
     [capture("bad", concat(literal(32, 1), literal(32, 1)))],

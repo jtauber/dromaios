@@ -123,7 +123,7 @@ test("nested matches keep outer captures and reject overlap, wrong widths, escap
 
 test("match IR validates masks, branch scopes and results, and byte execution checks every branch capability", () => {
   const chapter = compile(), cpu = { name: "probe", state: chapter.state! };
-  const match: Extract<Statement, { kind: "match" }> = { kind: "match", name: "result", selector: literal(8, 0), width: 16,
+  const match: Extract<Statement, { kind: "match" }> = { kind: "match", name: "result", selector: literal(8, 0), type: 16,
     cases: [{ mask: 0xff, value: 0, steps: [], result: literal(16, 1) }] };
   const definition = (step: Statement): InstructionDefinition => ({ cpu, name: "probe", explanation: "probe", steps: [step] });
   for (const [mask, byte] of [[256, 0], [0, 1], [-1, 0], [255, 1.5]]) {
@@ -133,7 +133,7 @@ test("match IR validates masks, branch scopes and results, and byte execution ch
   assert.throws(() => validateInstruction(definition({ ...match, cases: [...match.cases, ...match.cases] })), /overlap/);
   assert.throws(() => validateInstruction(definition({ ...match, cases: [{ ...match.cases[0]!, result: value("absent") }] })), /not been captured/);
   assert.doesNotThrow(() => validateInstruction(definition(perform({ name: "action", steps: [match] }, {}))));
-  const source = { name: "decoder", width: 16 as const, steps: [match], result: value("result") };
+  const source = { name: "decoder", type: 16 as const, steps: [match], result: value("result") };
   assert.doesNotThrow(() => validateInstruction(definition(perform({ name: "action", steps: [readSource("decoded", source)] }, {}))));
   assert.throws(() => checkStateEffects([perform({ name: "action", steps: [readSource("decoded", source)] }, {})], "state", false), /Execution actions cannot reject/);
   const portCase = { ...match.cases[0]!, steps: [readPort("byte", literal(16, 0))] };

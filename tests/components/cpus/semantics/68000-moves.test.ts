@@ -168,7 +168,7 @@ test("staged address effects validate CPU, selectors, logical width, access spac
   assert.throws(() => defineInstruction({ ...base, steps: [readMemory("byte", literal(16, 0))] }), /32-bit/);
   assert.throws(() => defineInstruction({ ...base, steps: [readProgramMemory("byte", literal(16, 0))] }), /32-bit/);
   assert.throws(() => defineInstruction({ ...base, steps: [alignmentFault("write", literal(32, 1), "program")] }), /access space/);
-  assert.throws(() => defineInstruction({ ...base, steps: [readSource("word", { name: "cannot reject", width: 16,
+  assert.throws(() => defineInstruction({ ...base, steps: [readSource("word", { name: "cannot reject", type: 16,
     steps: [alignmentFault("read", literal(32, 1))], result: literal(16, 0) })] }), /sources and composed actions cannot reject/);
   assert.throws(() => defineInstruction({ ...base, steps: [resolveAddress("address", 16, value("missing"), literal(3, 2))] }), /missing/);
   const text = describeInstruction(moves68000["MOVE.L PROGRAM,MEMORY"]!);

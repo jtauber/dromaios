@@ -8,7 +8,7 @@ interface StatusLayout { readonly bits: Readonly<Record<string, number>>; readon
 /** Read each flag in layout order and insert its bit; fixed bits are not stored flags. */
 export function packedStatus(cpu: StatusCpu, layout: StatusLayout, set = 0): ValueSource {
   const width = layout.width ?? 8;
-  return { name: "packed status", width,
+  return { name: "packed status", type: width,
     steps: Object.keys(layout.bits).map(name => readFlag(name, cpu.flag(name))),
     result: Object.entries(layout.bits).reduce((result, [name, bit]) =>
       bitOr(result, select(flagValue(name), literal(width, 2 ** bit), literal(width, 0))), literal(width, layout.fixed | set)),

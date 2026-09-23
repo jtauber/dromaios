@@ -22,15 +22,15 @@ test("captures are immutable, ordered, scoped, and available only after their de
     [[{ kind: "fetch-byte", name: "byte" }, { kind: "fetch-byte", name: "byte" }], /duplicate capture/],
     [[{ kind: "fetch-byte", name: "invalid-name" }], /invalid value name/],
     [[{ kind: "fetch-byte", name: "outer" }, { kind: "read-source", name: "byte", source: {
-      name: "unbound", width: 8, steps: [], result: value("outer"),
+      name: "unbound", type: 8, steps: [], result: value("outer"),
     } }], /not been captured/],
     [[{ kind: "read-source", name: "byte", source: {
-      name: "nested", width: 8, steps: [{ kind: "fetch-byte", name: "inner" }], result: value("inner"),
+      name: "nested", type: 8, steps: [{ kind: "fetch-byte", name: "inner" }], result: value("inner"),
     } }, { kind: "capture", name: "copy", value: value("inner") }], /not been captured/],
   ] satisfies [Statement[], RegExp][]) assert.throws(() => define(steps), message);
   const owned = define([
     { kind: "read-source", name: "byte", source: {
-      name: "nested", width: 8, steps: [{ kind: "fetch-byte", name: "byte" }], result: value("byte"),
+      name: "nested", type: 8, steps: [{ kind: "fetch-byte", name: "byte" }], result: value("byte"),
     } },
     { kind: "write-register", register: mos.register("a"), value: value("byte") },
   ]);
@@ -47,7 +47,7 @@ test("widths require explicit widening, matching arithmetic operands, byte memor
     { kind: "write-register", register: mos.register("a"), value: literal(16, 1) },
     { kind: "read-memory", name: "byte", address: literal(8, 1) },
     { kind: "write-memory", address: literal(16, 1), value: literal(16, 1) },
-    { kind: "read-source", name: "byte", source: { name: "wrong result", width: 16, steps: [], result: literal(8, 0) } },
+    { kind: "read-source", name: "byte", source: { name: "wrong result", type: 16, steps: [], result: literal(8, 0) } },
   ] satisfies Statement[]) assert.throws(() => define([step]), /expected .*bit|source result width/);
   define([{ kind: "capture", name: "address", value: extend(literal(8, 255), 16) },
     { kind: "read-memory", name: "byte", address: value("address") }]);
@@ -59,7 +59,7 @@ test("instruction inputs are immutable typed captures in the body, not implicit 
   for (const [steps, message] of [
     [[capture("address", literal(16, 0))], /duplicate capture address/],
     [[capture("result", shiftLeft(literal(8, 0), flagValue("address")))], /flag address has not been captured/],
-    [[{ kind: "read-source", name: "byte", source: { name: "closed", width: 8,
+    [[{ kind: "read-source", name: "byte", source: { name: "closed", type: 8,
       steps: [readMemory("byte", value("address"))], result: value("byte") } }], /not been captured/],
     [[{ kind: "update-flags", policy: { ...policy, updates: [{ flag: mos.flag("z"), value: zero(value("address")) }] },
       arguments: { byte: literal(8, 0) } }], /not been captured/],
@@ -162,9 +162,9 @@ test("flag captures have distinct types, CPU ownership, ordering, and lexical sc
     [[carry, capture("carry", literal(8, 1))], /duplicate capture/],
     [[readFlag("carry", motorola.flag("c"))], /unknown flag/],
     [[readFlag("carry", { ...mos.flag("c"), field: "pc" })], /unknown flag/],
-    [[{ kind: "read-source", name: "result", source: { name: "local carry", width: 8, steps: [carry], result: shifted } },
+    [[{ kind: "read-source", name: "result", source: { name: "local carry", type: 8, steps: [carry], result: shifted } },
       capture("escaped", shifted)], /flag carry has not been captured/],
-    [[carry, { kind: "read-source", name: "result", source: { name: "outer carry", width: 8, steps: [], result: shifted } }], /flag carry has not been captured/],
+    [[carry, { kind: "read-source", name: "result", source: { name: "outer carry", type: 8, steps: [], result: shifted } }], /flag carry has not been captured/],
     [[carry, { kind: "update-flags", policy: { ...policy, updates: [{ flag: mos.flag("z"), value: flagValue("carry") }] },
       arguments: { byte: literal(8, 0) } }], /flag carry has not been captured/],
   ] satisfies [Statement[], RegExp][]) assert.throws(() => define(steps), message);

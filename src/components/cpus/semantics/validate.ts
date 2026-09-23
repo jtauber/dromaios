@@ -31,6 +31,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
     if (!isWidth(bits)) return fail(where, "expected width 3, 8, 14, 16, or 32");
     return bits;
   };
+  const valueType = (type: ValueType, where: string): ValueType => type === "flag" ? type : width(type, where);
   const arithmeticWidth = (bits: Width, where: string): Width => {
     if (bits !== 8 && bits !== 16 && bits !== 32) fail(where, "arithmetic requires an 8-, 16-, or 32-bit operand; widen narrow values explicitly");
     return bits;
@@ -172,6 +173,12 @@ function validation(cpu: CpuDeclaration, prefix: string) {
       default: fail(where, "unknown flag expression");
     }
   }
+  function expectValue(expr: Expression, type: ValueType, scope: ReadonlyMap<string, ValueType>, where: string, message: string): ValueType {
+    const expected = valueType(type, where);
+    if (expected === "flag") flagExpression(expr, scope, where);
+    else if (expression(expr, scope, where) !== expected) fail(where, message);
+    return expected;
+  }
   function policy(policy: FlagPolicy, args: Readonly<Record<string, Expression>>, scope: ReadonlyMap<string, ValueType>, where: string): void {
     const parameters = new Map<string, ValueType>();
     if (policy.unlisted !== "preserve") fail(where, "unlisted flags must be preserved");
@@ -205,7 +212,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
   function steps(body: readonly Statement[], scope: Map<string, ValueType>, parent: string, allowRejection: boolean | "match" = true): void {
     body.forEach((step, index) => {
       const where = `${parent} / ${index + 1} ${step.kind}`;
-      const number = (expr: NumberExpression): Width => expression(expr, scope, where);
+      const number = (expr: Expression): Width => expression(expr, scope, where);
       const expect = (expr: NumberExpression, bits: Width): void => {
         if (number(expr) !== bits) fail(where, `expected ${bits}-bit value`);
       };
@@ -223,7 +230,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         case "dispatch": case "match": {
           if (allowRejection === false) fail(where, "composed actions cannot reject an instruction through a byte match");
           expect(step.selector, 8);
-          const bits = step.kind === "match" ? width(step.width, where) : undefined;
+          const type = step.kind === "match" ? valueType(step.type, where) : undefined;
           if (!step.cases.length) fail(where, "a byte match needs at least one case");
           for (const [index, branch] of step.cases.entries()) {
             if (![branch.mask, branch.value].every(n => Number.isInteger(n) && n >= 0 && n <= 255)
@@ -233,30 +240,31 @@ function validation(cpu: CpuDeclaration, prefix: string) {
             }
             const local = new Map(scope);
             steps(branch.steps, local, `${where} / case ${index + 1}`, allowRejection);
-            if (step.kind === "match" && expression(step.cases[index]!.result, local, where) !== bits) fail(where, "match result width does not match its declaration");
+            if (step.kind === "match") expectValue(step.cases[index]!.result, type!, local, where, "match result width does not match its declaration");
           }
-          if (step.kind === "match") bind(step.name, bits!);
+          if (step.kind === "match") bind(step.name, type!);
           return;
         }
         case "perform": {
           const inputs = step.action.inputs ?? {}, local = new Map<string, ValueType>();
           if (Object.keys(step.arguments).length !== Object.keys(inputs).length
             || Object.keys(step.arguments).some(name => !Object.hasOwn(inputs, name))) fail(where, "action arguments must match its inputs");
-          for (const [name, bits] of Object.entries(inputs)) {
-            identifier(name, where); expect(step.arguments[name]!, width(bits, where)); local.set(name, bits);
+          for (const [name, type] of Object.entries(inputs)) {
+            identifier(name, where);
+            local.set(name, expectValue(step.arguments[name]!, type, scope, where, `expected ${type}-bit value`));
           }
           steps(step.action.steps, local, `${where} / action ${step.action.name}`, "match");
           return;
         }
         case "choose": {
           flagExpression(step.condition, scope, where);
-          const bits = width(step.width, where);
+          const type = valueType(step.type, where);
           for (const branch of [step.yes, step.no]) {
             const local = new Map(scope);
             steps(branch.steps, local, where, allowRejection);
-            if (expression(branch.result, local, where) !== bits) fail(where, "conditional result width does not match its declaration");
+            expectValue(branch.result, type, local, where, "conditional result width does not match its declaration");
           }
-          bind(step.name, bits);
+          bind(step.name, type);
           return;
         }
         case "when":
@@ -302,7 +310,10 @@ function validation(cpu: CpuDeclaration, prefix: string) {
           if (step.overflow !== undefined) bind(step.overflow, "flag");
           return;
         }
-        case "capture": captured = number(step.value); break;
+        case "capture":
+          captured = step.type === undefined ? number(step.value)
+            : expectValue(step.value, step.type, scope, where, "capture width does not match its declaration");
+          break;
         case "read-register": case "read-pending-register": captured = register(step.register, where); break;
         case "read-element": captured = element(step.array, step.index, scope, where); break;
         case "read-flag": flag(step.flag, where); captured = "flag"; break;
@@ -344,12 +355,12 @@ function validation(cpu: CpuDeclaration, prefix: string) {
           if (Object.keys(args).length !== Object.keys(inputs).length || Object.keys(args).some(name => !Object.hasOwn(inputs, name))) {
             fail(where, "source arguments must match its inputs");
           }
-          for (const [name, bits] of Object.entries(inputs)) {
-            identifier(name, where); expect(args[name]!, width(bits, where)); local.set(name, bits);
+          for (const [name, type] of Object.entries(inputs)) {
+            identifier(name, where);
+            local.set(name, expectValue(args[name]!, type, scope, where, `expected ${type}-bit value`));
           }
           steps(step.source.steps, local, `${where} / source ${step.source.name}`, allowRejection === false ? false : "match");
-          captured = expression(step.source.result, local, where);
-          if (captured !== width(step.source.width, where)) fail(where, "source result width does not match its declaration");
+          captured = expectValue(step.source.result, step.source.type, local, where, "source result width does not match its declaration");
           break;
         }
         case "write-register": case "stage-register": expect(step.value, register(step.register, where)); return;
@@ -410,7 +421,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
     const inputs = new Map<string, ValueType>();
     for (const [name, bits] of Object.entries(definition.inputs ?? {})) {
       identifier(name, "inputs");
-      inputs.set(name, width(bits, "inputs"));
+      inputs.set(name, valueType(bits, "inputs"));
     }
     steps(definition.steps, inputs, "body");
   } };

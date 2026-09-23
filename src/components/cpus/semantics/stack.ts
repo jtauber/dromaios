@@ -22,7 +22,7 @@ export function byteStack(pointer: Register, position: "occupied" | "free", page
     readRegister(`${name}Address`, pointer), writeMemory(address(`${name}Address`), contents),
     ...(position === "free" ? adjust(`${name}Pointer`, -1) : []),
   ];
-  const pop: ValueSource = { name: `pop byte through ${pointer.field.toUpperCase()}`, width: 8,
+  const pop: ValueSource = { name: `pop byte through ${pointer.field.toUpperCase()}`, type: 8,
     steps: [...(position === "free" ? adjust("pointer", 1) : []),
       readRegister("address", pointer), readMemory("byte", address("address")),
       ...(position === "occupied" ? adjust("pointer", 1) : [])], result: value("byte"),
@@ -42,7 +42,7 @@ export function wordStack(bytes: ReturnType<typeof byteStack>, order: "little-en
       ...bytes.push((second === "high" ? highByte : lowByte)(contents), name === undefined ? "first" : name + "First"),
       ...bytes.push((first === "high" ? highByte : lowByte)(contents), name === undefined ? "second" : name + "Second"),
     ],
-    pop: { name: `pop ${order} word`, width: 16,
+    pop: { name: `pop ${order} word`, type: 16,
       steps: [readSource(first, bytes.pop), readSource(second, bytes.pop)], result: concat(value("high"), value("low")) },
   };
 }

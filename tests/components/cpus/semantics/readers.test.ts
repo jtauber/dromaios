@@ -86,7 +86,7 @@ test("bound readers observe live indices at their specified fetch/pointer bounda
 });
 
 test("standalone source generation validates widths and CPU symbols and keeps returned captures scoped", async () => {
-  const returned: ValueSource = { name: "returned local", width: 8,
+  const returned: ValueSource = { name: "returned local", type: 8,
     steps: [{ kind: "capture", name: "result", value: literal(8, 7) }], result: value("result") };
   const sources: SourceDefinitions = { cpu: { name: "6502", state: cpu6502StateDescription }, groups: {
     ["__proto__"]: { constructor: returned },
@@ -103,7 +103,7 @@ test("standalone source generation validates widths and CPU symbols and keeps re
   assert.equal(readers["__proto__"]!["constructor"]!(), 7);
   assert.throws(() => generateInstructions("8080", {}, { sources }), /expected a 8080 definition/);
   const invalid: SourceDefinitions = { ...sources, groups: { operands: {
-    bad: { name: "wrong width", width: 16, steps: [], result: literal(8, 0) },
+    bad: { name: "wrong width", type: 16, steps: [], result: literal(8, 0) },
   } } };
   assert.throws(() => generateInstructions("6502", {}, { sources: invalid }), /source result width/);
 });

@@ -353,3 +353,35 @@ action loadVectors "vector reads" using memory, alignment {
   start = program memory(u32(4))
   fault alignment fetch(extend(start, 32)) if lowBit(start)
 }
+
+source needsCorrection "threshold or carry" (digit: 8, forced: flag): flag {
+  aboveNine: flag = not(lessThan(digit, u8(10), unsigned))
+  decision = choose or(aboveNine, forced) : flag {
+    then {
+      return 1
+    }
+    else {
+      incoming = flag C
+      return incoming
+    }
+  }
+  return decision
+}
+source decodedDecision "decode a predicate" (selector: 8): flag {
+  decision = match selector: flag {
+    case "00000000" {
+      return 0
+    }
+    case "00000001" {
+      return 1
+    }
+    otherwise unsupported
+  }
+  return decision
+}
+family typedNames "00000000" {
+  exchange: flag = 1
+  stage: flag = not(exchange)
+  notify: 8 = select(stage, u8(0), u8(1))
+  OUT <- notify
+}

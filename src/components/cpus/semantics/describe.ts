@@ -1,4 +1,4 @@
-import type { AddressExpression, Expression, FlagExpression, InstructionDefinition, Statement } from "./model.ts";
+import type { AddressExpression, Expression, FlagExpression, InstructionDefinition, Statement, ValueType } from "./model.ts";
 import { validateInstruction } from "./validate.ts";
 
 /** Expand every source and flag policy from its represented meaning, without running any effects. */
@@ -56,32 +56,34 @@ export function describeInstruction(definition: InstructionDefinition): string {
       default: throw new Error("Expected a validated flag expression.");
     }
   }
+  const typeName = (type: ValueType): string => type === "flag" ? "flag" : `u${type}`;
+  const typed = (expr: Expression, type: ValueType | undefined): string => type === "flag" ? flag(expr, {}) : number(expr);
   function body(steps: readonly Statement[], indent = ""): void {
     const emit = (line: string): void => { lines.push(indent + line); };
     for (const step of steps) {
       switch (step.kind) {
         case "dispatch": case "match":
-          emit(`${step.kind === "match" ? `${step.name}:u${step.width} := ` : ""}match byte ${number(step.selector)} {`);
+          emit(`${step.kind === "match" ? `${step.name}:${typeName(step.type)} := ` : ""}match byte ${number(step.selector)} {`);
           for (const [index, branch] of step.cases.entries()) {
             emit(`  case (byte & ${branch.mask.toString(16).toUpperCase().padStart(2, "0")}) = ${branch.value.toString(16).toUpperCase().padStart(2, "0")} {`);
             body(branch.steps, indent + "    ");
-            if (step.kind === "match") emit(`    yield ${number(step.cases[index]!.result)}`);
+            if (step.kind === "match") emit(`    yield ${typed(step.cases[index]!.result, step.type)}`);
             emit("  }");
           }
           emit('  otherwise return outcome "unsupported"; no later effects'); emit("}");
           break;
         case "perform":
           emit(`perform "${step.action.name}" {`);
-          for (const [name, bits] of Object.entries(step.action.inputs ?? {})) emit(`  ${name}:u${bits} := ${number(step.arguments[name]!)}`);
+          for (const [name, bits] of Object.entries(step.action.inputs ?? {})) emit(`  ${name}:${typeName(bits)} := ${typed(step.arguments[name]!, bits)}`);
           body(step.action.steps, indent + "  ");
           emit("}");
           break;
         case "choose":
-          emit(`${step.name}:u${step.width} := choose ${flag(step.condition, {})} {`);
+          emit(`${step.name}:${typeName(step.type)} := choose ${flag(step.condition, {})} {`);
           for (const [index, branch] of [step.yes, step.no].entries()) {
             emit(`  ${index ? "else" : "then"} {`);
             body(branch.steps, indent + "    ");
-            emit(`    yield ${number(branch.result)}`); emit("  }");
+            emit(`    yield ${typed(branch.result, step.type)}`); emit("  }");
           }
           emit("}");
           break;
@@ -117,7 +119,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
             emit(`// Zero divisor returns ${JSON.stringify(step.onError)}. Overflow continues with truncated results; the caller decides whether to write them.`);
           }
           break;
-        case "capture": emit(`${step.name} := ${number(step.value)}`); break;
+        case "capture": emit(`${step.name}${step.type === undefined ? "" : `:${typeName(step.type)}`} := ${typed(step.value, step.type)}`); break;
         case "read-register": emit(`${step.name}:u${step.register.width} := read ${bank(step.register)}${step.register.field.toUpperCase()}`); break;
         case "read-pending-register": emit(`${step.name}:u${step.register.width} := pending ${bank(step.register)}${step.register.field.toUpperCase()}, or read stored register if unstaged`); break;
         case "stage-register": emit(`stage ${bank(step.register)}${step.register.field.toUpperCase()}:u${step.register.width} := ${number(step.value)}; preserve stored state until commit`); break;
@@ -157,10 +159,10 @@ export function describeInstruction(definition: InstructionDefinition): string {
         case "write-port": emit(`write port[${number(step.port)}] := ${number(step.value)}`); break;
         case "write-memory": emit(`write memory[${address(step.address)}] := ${number(step.value)}`); break;
         case "read-source":
-          emit(`${step.name}:u${step.source.width} := source "${step.source.name}" {`);
-          for (const [name, bits] of Object.entries(step.source.inputs ?? {})) emit(`  ${name}:u${bits} := ${number(step.arguments![name]!)}`);
+          emit(`${step.name}:${typeName(step.source.type)} := source "${step.source.name}" {`);
+          for (const [name, bits] of Object.entries(step.source.inputs ?? {})) emit(`  ${name}:${typeName(bits)} := ${typed(step.arguments![name]!, bits)}`);
           body(step.source.steps, indent + "  ");
-          emit(`  yield ${number(step.source.result)}`);
+          emit(`  yield ${typed(step.source.result, step.source.type)}`);
           emit("}");
           break;
         case "update-flags": case "replace-flags":

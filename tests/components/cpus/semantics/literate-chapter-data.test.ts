@@ -12,11 +12,11 @@ const cpu = { name: "probe", state: defineState({ a: unsigned(8), flags: group({
 const register = { kind: "register", cpu: "probe", field: "a", width: 8 } as const;
 const policy: FlagPolicy = { name: "zero", parameters: { result: 8 }, unlisted: "preserve",
   updates: [{ flag: { kind: "flag", cpu: "probe", field: "z" }, value: zero(value("result")) }] };
-const source: ValueSource = { name: 'quoted "name"\nwith \\ and ${text}', width: 8, steps: [], result: literal(8, 1) };
+const source: ValueSource = { name: 'quoted "name"\nwith \\ and ${text}', type: 8, steps: [], result: literal(8, 1) };
 const other: ValueSource = { ...source, result: literal(8, 2) };
 const action = defineInstruction({ cpu, name: "store", explanation: "Store a captured byte.",
   inputs: { source: 8 }, steps: [writeRegister(register, value("source"))] });
-const nested: ValueSource = { name: "nested", width: 8, inputs: { source: 8, policy: 8, action: 8, cpu: 8, state: 8 },
+const nested: ValueSource = { name: "nested", type: 8, inputs: { source: 8, policy: 8, action: 8, cpu: 8, state: 8 },
   steps: [readSource("left", source), readSource("right", other)], result: value("left") };
 const definition = defineInstruction({ cpu, name: "copy", explanation: "Preserve scopes and named arguments.", steps: [
   readSource("byte", nested, { source: literal(8, 3), policy: literal(8, 4), action: literal(8, 5), cpu: literal(8, 6), state: literal(8, 7) }),

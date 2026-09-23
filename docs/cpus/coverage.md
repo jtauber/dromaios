@@ -252,7 +252,7 @@ check production ownership, all status values, memory faults, and formal edits.
 
 | Milestone | Evidence / remaining work |
 | --- | --- |
-| Eight executable chapters | The 6502, 6800, 6809, 8008, 8080, Z80, 8088, and 68000 exercise prose, checked declarations, encoding selectors and values, multiple widths, addressing, ordered effects, fault returns, typed flag policies, arithmetic bodies shared across encodings, nested conditions, stored arrays/latches/named choices, views, state actions, port effects, interrupt recognition, retirement deferral, byte-pair operands, numeric selection, complete flag replacement, explicit memory actions and their composition, named vector entry, and explicit waiting/wake policies, and disjoint byte-pattern matches with typed results and unsupported fallbacks, and named opcode pages with generated dispatch, writable view operands, reserved selector slots, effect-only matches, nested register banks, numeric choices, complete flag-object exchange, numeric source/family inputs, segmented memory projections, bounded iteration, signed multiplication, named division/rejection outcomes, TEST/ESC/software-reporting effects, explicit action boundary capabilities, nested state groups, and conditional values with ordered branch reads. |
+| Eight executable chapters | The 6502, 6800, 6809, 8008, 8080, Z80, 8088, and 68000 exercise prose, checked declarations, encoding selectors and values, multiple widths, addressing, ordered effects, fault returns, typed flag policies, arithmetic bodies shared across encodings, nested conditions, stored arrays/latches/named choices, views, state actions, port effects, interrupt recognition, retirement deferral, byte-pair operands, numeric selection, complete flag replacement, explicit memory actions and their composition, named vector entry, and explicit waiting/wake policies, and disjoint byte-pattern matches with typed results and unsupported fallbacks, and named opcode pages with generated dispatch, writable view operands, reserved selector slots, effect-only matches, nested register banks, numeric choices, complete flag-object exchange, numeric and Boolean source/family inputs, named Boolean captures and results, segmented memory projections, bounded iteration, signed multiplication, named division/rejection outcomes, TEST/ESC/software-reporting effects, explicit action boundary capabilities, nested state groups, and conditional values with ordered branch reads. |
 | Production equivalence | Independent CPU, machine, and type contracts remain in force. Old/new 8080 comparisons match full records, final state, bus events, and memory writes across 131,072 ordinary/supplied cases and 2,526 injected failures. The earlier 8008 migration matched 131,072 cases and 2,048 injected failures. The completed 6502 migration matches 65,536 instruction cases and 5,000 injected access failures, plus 3,072 reset/IRQ/NMI cases and 9,728 access failures with snapshots inside callbacks. The complete 6800 model migration matches 65,536 instruction cases, 512 step/reset/IRQ/NMI boundary cases, and 3,840 injected failures, including snapshots inside memory callbacks. The current 6809 migration matches 65,536 base instructions, 131,072 prefixed instructions, 57,344 indexed instructions, 8,192 register transfers, 20,480 mask/stack instructions, 3,840 lifecycle cases, and 120,405 injected access failures, including callback snapshots. The Z80 reset/execution migration matches 43,008 ordinary/prefixed instruction cases, 10,240 supplied instructions, 192 reset/IRQ/NMI cases, and 39,942 injected access failures, including callback snapshots. |
 | Authoring feedback | Syntax, state-schema, width, scope, and encoding errors report Markdown locations. Unknown declarations are identified directly; nested scope, array-bound, and policy errors identify the offending statement. Clean builds bootstrap chapter data before instruction generation. |
 | Language review | [Reviewed across the initial three chapters](literate-specifications.md#review-of-the-three-chapters): consistent operand vocabulary, explicit widths and effect order, distinct family explanations, and visible native boundaries. |
@@ -737,12 +737,12 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,442 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,442** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,465 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,465** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 24,490 |
-| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 146 |
-| Generated executable CPU output, counted separately | 604,911 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,002,255 |
+| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
+| Generated executable CPU output, counted separately | 604,924 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,002,159 |
 | Generated state schemas/types, counted separately | 213 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
@@ -756,7 +756,7 @@ migration to zero**. The final public-interface step removes its remaining
 **71 core lines**, **11 state-adapter lines**, and **9 definition-adapter lines**.
 Its generated public class is **52 lines**, its generated state module is
 **24 lines**, and shared generation supplies both. The shared byte runtime
-is now **121 lines**; the literate front end is **2,851 lines**.
+is now **121 lines**; the literate front end is **2,857 lines**.
 
 Across the earlier 8008 execution, public-interface, and machine-integration
 migration, authored CPU TypeScript grew from **9,416 to 9,671 lines**, and CPU

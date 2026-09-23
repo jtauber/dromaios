@@ -334,6 +334,9 @@ TypeScript distinguishes a register, a captured numeric expression, and a flag
 expression. Registers and flags do not implicitly read themselves. A numeric
 expression cannot be a flag formula or register destination. `readFlag` captures
 a Boolean at an explicit statement boundary; `flagValue` refers to that capture.
+`capture(name, expression, "flag")` names a pure Boolean expression without
+reading or updating a stored flag. A numeric type annotation is also checked;
+unannotated captures retain numeric width inference.
 Validation keeps Boolean and numeric captures distinct within the same lexical
 scope, including source-local scopes. Schema-derived names catch
 misspelled registers and flags at compile time. Runtime validation checks
@@ -341,9 +344,9 @@ CPU identity and widths; the current state-schema types do not retain literal
 register widths in TypeScript, so the experiment does not promise compile-time
 width checking.
 
-An instruction may declare numeric `inputs`, such as `{ address: 16 }`. These
-are captured values supplied at entry, before any body statement, and belong
-to the body's initial scope. Their names and widths are validated, and a later
+An instruction may declare typed `inputs`, such as `{ address: 16, enabled: "flag" }`.
+These are captured values supplied at entry, before any body statement, and belong
+to the body's initial scope. Their names and types are validated, and a later
 capture cannot redefine them. Sources and flag policies retain their separate
 closed scopes; a policy receives an input only through an explicit argument.
 Policy parameters may declare a supported numeric width or `"flag"`; numeric and Boolean
@@ -533,20 +536,21 @@ and C/H/control flags are preserved. Motorola BIT omits writeback; unlike 6502
 BIT, it derives N from the masked result and always clears V. The original
 6800's ORAA/ORAB spelling is retained. No Motorola logical-family builder remains.
 
-A `ValueSource` has a name, result width, ordered body, and pure result expression.
+A `ValueSource` has a name, optional typed inputs, result `type` (a numeric width
+or `"flag"`), ordered body, and pure result expression.
 Its captures live in a fresh scope; only its yielded value enters its caller's
 scope. Sources can explicitly update registers or access memory. Nothing about
 the word “source” makes its body pure. A resolved memory address is an immutable
 captured word used by later reads/writes, not a callback that can resolve again.
 
 A `match` statement captures a byte selector and tests disjoint mask/value cases.
-Each case has its own ordered steps and numeric result, checked against the
-match's declared width. It inherits outer captures without exporting branch
-locals. An unmatched byte returns `"unsupported"` from the enclosing body,
+Each case has its own ordered steps and numeric or Boolean result, checked
+against the match's declared `type`. It inherits outer captures without exporting
+branch locals. An unmatched byte returns `"unsupported"` from the enclosing body,
 retaining completed effects. Sources may contain this fixed rejection path;
 explicit fault/rejection statements remain restricted to instruction bodies.
-Composed actions cannot use matches, including through sources. The chapter
-language exposes [byte-pattern matches](literate-specifications.md#byte-pattern-matches)
+Composed actions may use matches, including through sources, and propagate
+their fixed unsupported outcome. The chapter language exposes [byte-pattern matches](literate-specifications.md#byte-pattern-matches)
 with catalogue selectors and an explicit unsupported fallback.
 
 Sources with a top-level match generate shared decoder functions, deduplicated by
@@ -556,18 +560,18 @@ inline. The 6809 chapter's one indexed source therefore serves base-page bodies
 and prefixed instruction bodies without duplicating its decoder in every
 executable instruction. Its standalone reader now belongs only to test probes.
 
-An `Action` has a name, optional numeric inputs, and an ordered body.
+An `Action` has a name, optional numeric or Boolean inputs, and an ordered body.
 `perform(action, arguments)` captures all arguments from the caller before
 expanding its body in a fresh scope. Only parameters enter that scope; action
-captures do not escape it. Validation checks exact argument names and widths,
-state references, and every nested effect. Composed actions cannot reject an
-instruction, including through nested sources or conditions. Generation inlines
-the body and collects its required capabilities; the reporter shows the action
+captures do not escape it. Validation checks exact argument names and types,
+state references, and every nested effect. Composed actions cannot explicitly
+reject an instruction; their only rejection path is an unsupported byte match.
+Generation inlines the body and collects its required capabilities; the reporter shows the action
 boundary and expanded effects. The chapter language exposes this as
 [`perform`](literate-specifications.md#views-and-state-actions), with references
 restricted to earlier actions so recursion cannot arise.
 
-A `FlagPolicy` declares numeric parameters and Boolean assignments. Each
+A `FlagPolicy` declares typed parameters and Boolean assignments. Each
 invocation binds exactly those parameters from captured caller values. Policies
 cannot reference caller-local names implicitly, access live registers, or
 perform memory operations. `unlisted: "preserve"` is mandatory. All assignments
@@ -1916,7 +1920,7 @@ bus errors, address errors, and successful transfers.
 
 The generator's `sources` option also emits `sourceReaders(state)`. These readers
 use the same validation, lexical scopes, and statement compiler as instruction
-bodies, returning the source's captured result. Numeric source inputs precede
+bodies, returning the source's captured result. Typed source inputs precede
 any context and retain their declared order. Each reader requires only the
 callbacks it uses: a simple address needs fetching, an indirect address also
 needs pointer reads, and a memory operand adds the final data read. Binding

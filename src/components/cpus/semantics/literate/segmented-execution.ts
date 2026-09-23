@@ -106,7 +106,7 @@ export function chapterSegmentedExecution(header: ChapterTokens, lines: readonly
   const baseShift = number(segmentAt, memoryBits - 16); segmentAt.end();
   const record = required("record"); record.expect("address"); const recordAddress = record.word();
   const view = symbols.views.get(recordAddress) ?? record.fail(`Unknown address view ${recordAddress}.`);
-  if (view.width !== 32 || Object.keys(view.inputs ?? {}).length) record.fail("Record address requires a parameterless 32-bit view.");
+  if (view.type !== 32 || Object.keys(view.inputs ?? {}).length) record.fail("Record address requires a parameterless 32-bit view.");
   record.end();
   const fetch = required("fetch"); fetch.expect("action"); const fetched = action(fetch, [], "state"); fetch.end();
   const prefixAt = required("prefixes"); prefixAt.expect("limit"); const prefixLimit = number(prefixAt, 65536);

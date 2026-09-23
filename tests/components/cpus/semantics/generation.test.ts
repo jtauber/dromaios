@@ -235,7 +235,7 @@ test("generated numeric inputs preserve declaration order, widths, and names ind
   const definition = { cpu: cpu.declaration, name: "inputs", explanation: "Captured numeric inputs.",
     inputs: { instruction: 16, state: 8, class: 8 }, steps: [
       { kind: "write-register", register: cpu.register("pc"), value: value("instruction") },
-      { kind: "read-source", name: "local", source: { name: "shadow", width: 8,
+      { kind: "read-source", name: "local", source: { name: "shadow", type: 8,
         steps: [{ kind: "capture", name: "state", value: literal(8, 0) }], result: value("state") } },
       { kind: "write-register", register: cpu.register("a"), value: value("state") },
       { kind: "write-memory", address: addWrap(value("instruction"), literal(16, 1)), value: value("class") },
@@ -448,9 +448,9 @@ test("generated source scopes and policy parameters are hygienic, even for host 
   const cpu = cpuSymbols("6502", cpu6502StateDescription);
   const definition = { cpu: cpu.declaration, name: "scope probe", explanation: "Compiler contract, not an opcode.", steps: [
     { kind: "capture", name: "state", value: literal(8, 7) },
-    { kind: "read-source", name: "instruction", source: { name: "outer", width: 8, steps: [
+    { kind: "read-source", name: "instruction", source: { name: "outer", type: 8, steps: [
       { kind: "capture", name: "state", value: literal(8, 9) },
-      { kind: "read-source", name: "class", source: { name: "inner", width: 8,
+      { kind: "read-source", name: "class", source: { name: "inner", type: 8,
         steps: [{ kind: "capture", name: "state", value: literal(8, 255) }], result: addWrap(value("state"), literal(8, 1)) } },
     ], result: addWrap(value("class"), value("state")) } },
     { kind: "write-register", register: cpu.register("a"), value: value("state") },

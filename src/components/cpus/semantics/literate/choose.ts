@@ -1,17 +1,16 @@
-import { literal } from "../model.ts";
 import type { Statement, ValueBranch } from "../model.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
-import { expression, flagExpression, width } from "./expressions.ts";
+import { flagExpression, initialValue, typedExpression, valueType } from "./expressions.ts";
 
 /** A conditional value evaluates exactly one branch, without an implicit rejection. */
 export function chapterChoose(header: ChapterTokens, lines: readonly ChapterTokens[], name: string,
   parse: (lines: readonly ChapterTokens[], check: (steps: readonly Statement[]) => void) => Statement[],
   check: (step: Statement) => void): Statement {
-  const condition = flagExpression(header); header.expect(":"); const bits = width(header);
+  const condition = flagExpression(header); header.expect(":"); const type = valueType(header);
   header.expect("{"); header.end();
-  const branches: ValueBranch[] = [0, 1].map(() => ({ steps: [], result: literal(bits, 0) }));
-  const statement = (): Statement => ({ kind: "choose", name, condition, width: bits, yes: branches[0]!, no: branches[1]! });
+  const branches: ValueBranch[] = [0, 1].map(() => ({ steps: [], result: initialValue(type) }));
+  const statement = (): Statement => ({ kind: "choose", name, condition, type, yes: branches[0]!, no: branches[1]! });
   header.checked(() => check(statement()));
   let index = 0;
   for (const [slot, label] of ["then", "else"].entries()) {
@@ -20,8 +19,8 @@ export function chapterChoose(header: ChapterTokens, lines: readonly ChapterToke
     const { body, end } = chapterBody(lines, index); index = end + 1;
     const last = body.pop() ?? tokens.fail("A conditional branch must end with return.");
     if (last.next !== "return") last.fail("A conditional branch must end with return.");
-    const steps = parse(body, steps => { branches[slot] = { steps, result: literal(bits, 0) }; check(statement()); });
-    last.expect("return"); const result = expression(last); last.end();
+    const steps = parse(body, steps => { branches[slot] = { steps, result: initialValue(type) }; check(statement()); });
+    last.expect("return"); const result = typedExpression(last, type); last.end();
     branches[slot] = { steps, result };
     last.checked(() => check(statement()));
   }

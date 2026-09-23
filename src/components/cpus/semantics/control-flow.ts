@@ -41,7 +41,7 @@ export function relativeBranch(cpu: FlowCpu, name: string, displacement: ValueSo
       + "add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. "
       + "Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.",
     steps: [readSource("offset", displacement), ...conditional(condition,
-      relativeBranchSteps(cpu.register("pc"), displacement.width === 8 ? signExtend(value("offset"), 16) : value("offset")))],
+      relativeBranchSteps(cpu.register("pc"), displacement.type === 8 ? signExtend(value("offset"), 16) : value("offset")))],
   });
 }
 
@@ -55,9 +55,9 @@ export function resolvedJump(cpu: FlowCpu) {
 
 /** Resolve the relative target before any call-stack effects; the return PC is captured separately. */
 export function relativeTarget(cpu: FlowCpu, displacement: ValueSource): ValueSource {
-  return { name: "relative call target", width: 16,
+  return { name: "relative call target", type: 16,
     steps: [readSource("offset", displacement), readRegister("pc", cpu.register("pc"))],
-    result: addWrap(value("pc"), displacement.width === 8 ? signExtend(value("offset"), 16) : value("offset")),
+    result: addWrap(value("pc"), displacement.type === 8 ? signExtend(value("offset"), 16) : value("offset")),
   };
 }
 
