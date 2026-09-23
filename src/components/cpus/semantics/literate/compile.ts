@@ -391,6 +391,8 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
           const choices = Object.fromEntries([...selectors].map(([selector, { choices }]) => [selector, choices]));
           const entries = form.checked(() => opcodeFamily(pattern, choices, selected => selected));
           for (const opcode of excluded) if (!entries.some(([candidate]) => opcode === candidate)) form.fail(`Excluded opcode $${opcode.toString(16)} is outside this family.`);
+          // Ignored bits add encodings, not new bindings. Share only within this encoding declaration.
+          const bodies = new Map<string, InstructionDefinition>();
           for (const [byte, selected] of entries) {
             if (excluded.has(byte)) continue;
             const opcode = prefix === undefined ? byte : prefix * 256 + byte;
@@ -409,9 +411,15 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
             if (!available) continue;
             if (opcodes.has(opcode)) form.fail(`Duplicate opcode $${opcode.toString(16)}.`);
             opcodes.set(opcode, form);
-            const bodySteps = steps(body.map(tokens => new ChapterTokens(tokens.source, file)), { bindings, operands, conditions: selectedConditions, inputs });
-            definitions.push([opcode, form.checked(() => defineInstruction({ cpu, name: instructionName({ ...Object.fromEntries(boundOperands), ...selected }),
-              explanation: block.explanation, ...(Object.keys(inputs).length ? { inputs } : {}), steps: bodySteps }))]);
+            const identity = JSON.stringify(selected);
+            let definition = bodies.get(identity);
+            if (definition === undefined) {
+              const bodySteps = steps(body.map(tokens => new ChapterTokens(tokens.source, file)), { bindings, operands, conditions: selectedConditions, inputs });
+              definition = form.checked(() => defineInstruction({ cpu, name: instructionName({ ...Object.fromEntries(boundOperands), ...selected }),
+                explanation: block.explanation, ...(Object.keys(inputs).length ? { inputs } : {}), steps: bodySteps }));
+              bodies.set(identity, definition);
+            }
+            definitions.push([opcode, definition]);
           }
           if (definitions.length === firstDefinition) form.fail("An encoding must define at least one instruction.");
         }

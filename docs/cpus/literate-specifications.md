@@ -123,6 +123,10 @@ Markdown chapter
 `npm test` include them. Chapter data is generated under
 `src/components/cpus/semantics/generated/`; executable bodies remain under
 `src/components/cpus/generated/`. Both directories are ignored and disposable.
+Within each encoding declaration, the compiler reuses a frozen instruction body
+for matching operand and condition selections. Ignored bits can therefore add
+aliases without rebuilding the body. Exclusions and collisions are still checked
+for every opcode; reuse does not cross encoding declarations or compilations.
 Chapter data keeps CPU declarations, schemas, value sources, flag policies,
 actions, and instruction definitions as shared typed constants. Dependencies
 precede their users; structural equality includes field order and boundary
