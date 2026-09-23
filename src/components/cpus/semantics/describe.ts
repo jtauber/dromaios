@@ -48,6 +48,8 @@ export function describeInstruction(definition: InstructionDefinition): string {
       case "and": return `and(${flag(expr.left, parameters)}, ${flag(expr.right, parameters)})`;
       case "negative": case "low-bit": case "zero": case "even-parity":
         return `${{ negative: "topBit", "low-bit": "lowBit", zero: "isZero", "even-parity": "evenParity8" }[expr.kind]}(${number(expr.value, parameters)})`;
+      case "equal": return `equal(${number(expr.left, parameters)}, ${number(expr.right, parameters)})`;
+      case "less-than": return `lessThan(${number(expr.left, parameters)}, ${number(expr.right, parameters)}, ${expr.signed ? "signed" : "unsigned"})`;
       case "borrow": case "half-borrow": case "subtract-overflow": case "carry": case "half-carry": case "add-overflow":
         return `${{ borrow: "borrow", "half-borrow": "halfBorrow4", "subtract-overflow": "subtractOverflow",
           carry: "carry", "half-carry": "halfCarry4", "add-overflow": "addOverflow" }[expr.kind]}(${number(expr.left, parameters)}, ${number(expr.right, parameters)}${incoming(expr.incoming, parameters)})`;

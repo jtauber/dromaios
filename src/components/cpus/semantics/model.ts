@@ -47,6 +47,8 @@ export type FlagExpression =
   | { readonly kind: "not"; readonly value: FlagExpression }
   | { readonly kind: "xor" | "and" | "or"; readonly left: FlagExpression; readonly right: FlagExpression }
   | { readonly kind: "negative" | "low-bit" | "zero" | "even-parity"; readonly value: NumberExpression }
+  | { readonly kind: "equal"; readonly left: NumberExpression; readonly right: NumberExpression }
+  | { readonly kind: "less-than"; readonly left: NumberExpression; readonly right: NumberExpression; readonly signed: boolean }
   | ({ readonly kind: "borrow" | "half-borrow" | "subtract-overflow" | "carry" | "half-carry" | "add-overflow" } & ArithmeticOperands);
 export type Expression = NumberExpression | FlagExpression;
 export interface IterationValue { readonly type: ValueType; readonly initial: Expression; readonly next: Expression }
@@ -234,6 +236,8 @@ export const negative = (value: NumberExpression): FlagExpression => ({ kind: "n
 export const lowBit = (value: NumberExpression): FlagExpression => ({ kind: "low-bit", value });
 export const zero = (value: NumberExpression): FlagExpression => ({ kind: "zero", value });
 export const evenParity = (value: NumberExpression): FlagExpression => ({ kind: "even-parity", value });
+export const equal = (left: NumberExpression, right: NumberExpression): FlagExpression => ({ kind: "equal", left, right });
+export const lessThan = (left: NumberExpression, right: NumberExpression, signed: boolean): FlagExpression => ({ kind: "less-than", left, right, signed });
 export const not = (value: FlagExpression): FlagExpression => ({ kind: "not", value });
 export const xor = (left: FlagExpression, right: FlagExpression): FlagExpression => ({ kind: "xor", left, right });
 export const and = (left: FlagExpression, right: FlagExpression): FlagExpression => ({ kind: "and", left, right });

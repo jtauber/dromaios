@@ -26,7 +26,7 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
       "high = memory(projectAddress(segment, add(offset, u16(2)), 4, 20))")
     .replaceAll("ZF = zero(result)", "ZF = not(zero(result))")
     .replaceAll("shifted = iterate(count, originalOperand)", "shifted = iterate(add(count, u8(1)), originalOperand)")
-    .replace('reject "divide-error" if zero(xor(quotient, u8($80)))', 'reject "divide-error" if zero(xor(quotient, u8($81)))')
+    .replace('reject "divide-error" if equal(quotient, u8($80))', 'reject "divide-error" if equal(quotient, u8($81))')
     .replace("SP <- subtract(pointer, u16(2))", "SP <- subtract(pointer, u16(4))")
     .replace("SP <- add(pointer, u16(2))", "SP <- add(pointer, u16(4))")
     .replace("IP <- add(position, offset)", "IP <- add(add(position, offset), u16(1))")

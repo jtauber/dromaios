@@ -88,6 +88,13 @@ interface Cpu8008 "Public interface" {
   snapshot pc = PC
 }
 
+// Numeric predicates are function calls; ordering states its signedness.
+policy comparisons "numeric relations" (left: 8, right: 8) {
+  Z = equal(left, right)
+  C = lessThan(left, right, unsigned)
+  S = lessThan(left, right, signed)
+}
+
 // Recognition and retirement syntax used by the 8080 chapter.
 action enable "request deferral" {
   ENABLED <- 1

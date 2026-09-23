@@ -38,6 +38,7 @@ for (const [text, category] of [
   ['callback', 'keyword'], ['validate', 'keyword'], ['using', 'keyword'], ['vectors', 'keyword'], ['DEFERRED', 'property'], ['ENABLED', 'property'],
   ['A', 'property'], ['C', 'property'], ['ADDRESS', 'property'], ['STOPPED', 'property'], ['WAIT', 'property'], ['choice', 'keyword'],
   ['addressStack', 'variable'], ['slot', 'variable'], ['source', 'variable'], ['carry', 'variable'],
+  ['equal', 'function'], ['lessThan', 'function'], ['unsigned', 'keyword'],
   ['multiply', 'function'], ['signExtend', 'function'], ['addOverflow', 'function'], ['overflow', 'function'], ['transfer', 'function'], ['add', 'function'], ['carry', 'function'], ['u14', 'function'],
   ['Cpu8008', 'type'], ['8', 'number'], ['$0000', 'number'], ['000', 'number'],
   ['pair', 'keyword'], ['replace', 'keyword'], ['little', 'constant'], ['none', 'constant'], ['&lt;-', 'operator'],

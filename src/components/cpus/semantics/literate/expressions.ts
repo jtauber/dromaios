@@ -1,5 +1,5 @@
 import { addOverflow, addWrap, and, or, xor, select, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
-  flagValue, halfBorrow, halfCarry, highByte, isWidth, literal, lowBit, lowByte, multiply, negative, not, shiftLeft, shiftRight,
+  equal, flagValue, halfBorrow, halfCarry, highByte, isWidth, lessThan, literal, lowBit, lowByte, multiply, negative, not, shiftLeft, shiftRight,
   overflow, projectAddress, shiftBits, signExtend, subtract, truncate, value, zero } from "../model.ts";
 import type { AddressExpression, FlagExpression, NumberExpression, Width } from "../model.ts";
 import type { ChapterTokens } from "./document.ts";
@@ -63,6 +63,10 @@ export function flagExpression(tokens: ChapterTokens): FlagExpression {
   else if (name === "and" || name === "or" || name === "xor") {
     const left = flagExpression(tokens); tokens.expect(",");
     result = { and, or, xor }[name](left, flagExpression(tokens));
+  } else if (name === "equal" || name === "lessThan") {
+    const left = expression(tokens); tokens.expect(","); const right = expression(tokens);
+    if (name === "equal") result = equal(left, right);
+    else { tokens.expect(","); result = lessThan(left, right, signedness(tokens)); }
   } else if (["carry", "borrow", "halfCarry", "halfBorrow", "addOverflow", "overflow"].includes(name)) {
     const left = expression(tokens); tokens.expect(","); const right = expression(tokens);
     const incoming = tokens.take(",") ? flagExpression(tokens) : undefined;

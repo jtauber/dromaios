@@ -19,17 +19,17 @@ see the [development instructions](../README.md#development).
 - [CPU implementation coverage](cpus/coverage.md): literate authoring progress,
   source footprint, supported forms, features, and remaining gaps.
   The [68000 count audit](cpus/68000/opcode-count.md) details its denominator.
-- [CPU completion plan](cpus/completion.md): evidence for the eight-CPU
-  capability checkpoint and the sequence for finishing interrupts and I/O.
+- [CPU completion record](cpus/completion.md): evidence for the eight-CPU
+  capability checkpoint and the completed interrupt and I/O implementation sequence.
 - [CPU source organization](cpus/implementation.md): reading order, bit-encoding
   layout, and the separation of handler construction from instruction behavior.
 - [Opcode definition experiment](cpus/opcode-definitions.md): typed encoding
   patterns for explicit opcodes, aliases, and instruction families.
 - [CPUs assembled from shared building blocks](cpus/shared-building-blocks.md):
-  exploratory design for shared CPU semantics and an eventual specification
-  DSL. The staged roadmap begins with ordinary TypeScript building blocks,
-  reviews their clarity and limits, and tests later language support against
-  existing models and future CPUs.
+  earlier design exploration for shared CPU semantics and the specification
+  language. Its staged migration plan is historical; the project roadmap owns
+  current priorities and the literate specification guide describes the
+  implemented language.
 - [Instruction semantics experiment](cpus/instruction-semantics.md): typed,
   inspectable definitions that drive validation, generated instruction bodies,
   and [generated explanations](cpus/semantic-examples.md).
@@ -39,21 +39,20 @@ see the [development instructions](../README.md#development).
 
 ## CPU models
 
-- [Intel 8008: literate specification](../src/components/cpus/specifications/8008.md)
-- [Intel 8080](../src/components/cpus/specifications/8080.md) — complete executable chapter
+- [Intel 8008](../src/components/cpus/specifications/8008.md)
+- [Intel 8080](../src/components/cpus/specifications/8080.md)
 - [MOS 6502](../src/components/cpus/specifications/6502.md)
-- [Motorola 6800](../src/components/cpus/specifications/6800.md) — complete executable chapter
+- [Motorola 6800](../src/components/cpus/specifications/6800.md)
 - [Motorola 6809](../src/components/cpus/specifications/6809.md)
-- [Zilog Z80](../src/components/cpus/specifications/z80.md) — complete executable chapter
+- [Zilog Z80](../src/components/cpus/specifications/z80.md)
 - [Intel 8088](../src/components/cpus/specifications/8088.md)
 - [Motorola 68000](../src/components/cpus/specifications/68000.md)
 
-Each model contract defines stored state, initialization, snapshots, execution
-records, unsupported-instruction policies, and CPU reset. Complete literate
-specifications, beginning with the 8008, keep these contracts and hardware
-references alongside their executable definitions; other CPUs retain separate
-model documents. Coverage stays in the combined tracker, while program behavior
-and acceptance criteria belong with the examples.
+All eight are complete executable specifications. Each keeps its stored state,
+initialization, snapshots, execution records, unsupported-instruction policies,
+reset contract, and hardware references alongside the formal definitions.
+Coverage stays in the combined tracker, while program behavior and acceptance
+criteria belong with the examples.
 
 ## CPU examples
 

@@ -299,7 +299,7 @@ chapter explicitly rejects its chip-specific most negative quotient afterward.
 
 ```text
 quotient, remainder = divide(dividend, divisor, signed) otherwise "divide-error"
-reject "divide-error" if zero(xor(quotient, u8($80)))
+reject "divide-error" if equal(quotient, u8($80))
 ```
 
 An optional third capture names a Boolean quotient-overflow result. With this
@@ -850,11 +850,26 @@ Flag expressions are captured flags or policy parameters, literal `0`/`1`, or:
 | --- | --- |
 | `and(left, right)`, `or(left, right)`, `xor(left, right)` | Combine flag expressions; numeric contexts use the bitwise versions. |
 | `not(flag)` | Negate a captured flag expression. |
+| `equal(left, right)` | Test whether two equal-width numeric values have the same bits. |
+| `lessThan(left, right, unsigned)` | Compare equal-width numbers as unsigned integers. |
+| `lessThan(left, right, signed)` | Compare equal-width numbers as two's-complement integers. Signedness is required for ordering and does not change the operands' stored bits. |
 | `negative(value)`, `zero(value)`, `lowBit(value)` | Test the top bit at the value's width, zero, or bit zero. |
 | `evenParity(byte)` | Test even parity of a byte, including zero. |
 | `carry(left, right[, incoming])`, `borrow(left, right[, incoming])` | Test unsigned carry or borrow at the operands' equal width, with an optional incoming flag. |
 | `addOverflow(left, right[, incoming])`, `overflow(left, right[, incoming])` | Test signed addition or subtraction overflow at the operands' equal width; the optional incoming carry/borrow is a flag expression and defaults to zero. |
 | `halfCarry(left, right[, incoming])`, `halfBorrow(left, right[, incoming])` | Test carry or borrow from the low nibble of equally sized operands, including an optional incoming flag. The 8080 chapter explicitly negates half-borrow for its subtraction AC rule. |
+
+Use comparisons when describing a relation between values: `equal(count, u8(1))`
+states equality directly, and `lessThan(index, u8(8), unsigned)` states a bound.
+Use `not(equal(...))` for inequality and `not(lessThan(...))` for greater than
+or equal; reverse the operands for greater than. All supported widths, including
+3-bit selectors and 14-bit addresses, can be compared. Mixed widths require
+explicit extension or truncation. Comparisons produce flag expressions, read
+only captured values, and do not change architectural flags by themselves.
+Keep `zero(result)` for a zero test and carry/borrow operations where they explain
+arithmetic flag calculations, including incoming carry or borrow.
+The [comparison tests](../../tests/components/cpus/semantics/literate-comparisons.test.ts)
+check signed and unsigned boundaries, explicit reads, and source-located errors.
 
 Flag constants use `0` and `1`, not spelled-out booleans. Updates take effect
 together. `apply` preserves unlisted flags and the current flag object; `replace`

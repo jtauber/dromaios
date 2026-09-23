@@ -737,12 +737,12 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,423 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,423** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,442 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,442** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 24,490 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 146 |
 | Generated executable CPU output, counted separately | 604,911 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,003,508 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,002,255 |
 | Generated state schemas/types, counted separately | 213 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
@@ -756,7 +756,7 @@ migration to zero**. The final public-interface step removes its remaining
 **71 core lines**, **11 state-adapter lines**, and **9 definition-adapter lines**.
 Its generated public class is **52 lines**, its generated state module is
 **24 lines**, and shared generation supplies both. The shared byte runtime
-is now **121 lines**; the literate front end is **2,847 lines**.
+is now **121 lines**; the literate front end is **2,851 lines**.
 
 Across the earlier 8008 execution, public-interface, and machine-integration
 migration, authored CPU TypeScript grew from **9,416 to 9,671 lines**, and CPU

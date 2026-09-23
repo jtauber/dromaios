@@ -72,7 +72,7 @@ for (const [before, after, message] of [
   ["replace PSW(lowByte(result))", "replace CARRY(1)", /every stored flag/],
   ["select(sign, u8($80), u8(0))", "select(accumulator, u8($80), u8(0))", /flag accumulator/],
   ["select(sign, u8($80), u8(0))", "select(sign, u16($80), u8(0))", /equal widths|same width/],
-  ["or(not(borrow(original, u8($9a))), carry)", "or(original, carry)", /flag original/],
+  ["or(not(lessThan(original, u8($9a), unsigned)), carry)", "or(original, carry)", /flag original/],
 ] as const) test(`8080 word/status syntax rejects ${after}`, () => {
   assert.ok(markdown.includes(before));
   const line = markdown.slice(0, markdown.indexOf(before)).split("\n").length;

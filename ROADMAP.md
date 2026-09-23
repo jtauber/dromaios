@@ -15,7 +15,10 @@ The [capability audit](docs/cpus/completion.md#cpu-only-checkpoint-review) recor
 the earlier CPU-only checkpoint; [CPU implementation coverage](docs/cpus/coverage.md)
 tracks current support, source footprint, and remaining fidelity limits.
 
-Current CPU work tests literate authoring on top of those definitions and shared code.
+All eight CPU models are now authored in executable literate specifications.
+The immediate focus is to improve the clarity and elegance of the specification
+language, then the clarity and measured performance of its generation code,
+and remove development-only documentation that no longer serves the project.
 Reusable memory and byte-I/O compositions also work in simulation. The
 [microcomputer.world reading site](site/README.md) now presents the executable CPU chapters
 with Sauvignon diagrams; interactive execution and complete historical
@@ -61,38 +64,42 @@ Acceptance checks are defined in the [8080 example specification](docs/cpus/8080
 
 ## 2. Develop literate CPU specifications — current
 
-Opcode expansion and instruction-definition migration are complete for the
-initial eight CPUs. The next work is to make a readable CPU description the
-maintained source of its formal behavior, while preserving each processor's
-contracts. The [literate specification guide](docs/cpus/literate-specifications.md)
-describes the working chapter prototype; the
-[coverage report](docs/cpus/coverage.md#literate-authoring-milestone) owns its progress.
+Opcode expansion and whole-model migration are complete for the initial eight
+CPUs. Their specifications own instructions, state, reset, execution, external
+events, and public interfaces. The
+[literate specification guide](docs/cpus/literate-specifications.md) describes
+the implemented language; the
+[coverage report](docs/cpus/coverage.md#literate-authoring-milestone) records
+the completed migration and current source footprint.
 
-- Reduce repeated definition construction and remove obsolete helpers where
-  this improves clarity. Measure total authored source, including definitions,
-  shared support, and generation machinery; keep generated output separate.
-- Preserve native encodings, register relationships, flags, addressing,
-  access order, and partial-failure behavior. Check shared behavior against
-  independently authored expectations, including boundary cases.
-- Compare execution records and inspection needs across the CPUs as examples
-  and browser views develop. The [shared CPU runner](docs/runtime/runner.md)
-  already supports bounded execution, completion addresses, halt/wait outcomes,
-  unsupported attempts, and retained CPU-specific records.
-- Prove an executable literate chapter from prose and formal rules through
-  validation, generated execution, and document diagnostics. Replace the
-  corresponding handwritten definitions rather than keeping two authorities.
-- Challenge the language with contrasting families and whole-CPU migrations,
-  including state, decoding, lifecycle, and generated public interfaces. The
-  completed chapters are tracked in the coverage report; each further migration
-  tests another execution architecture.
-  Keep the final language shape open to what those examples teach us.
-- Address remaining accuracy and machine-integration needs in reviewable
-  changes, with explicit model contracts and documented limits. Keep their
-  detailed status in the coverage tracker.
+The next few days focus on refinement, in this order:
 
-**Review points:** Behavior remains independently checked, and definitions and
-generated explanations make the order of effects clear. Shared construction
-reduces duplication without hiding hardware distinctions. Judge changes by
+1. **Make the specification language clear and elegant.** Review terminology,
+   syntax, scoping, and the relationships between declarations, expressions,
+   and ordered effects. Compare concrete before-and-after definitions across
+   the eight CPUs, from simple instructions to complex addressing and exception
+   entry. Reduce special cases and unnecessary concepts while keeping encodings,
+   widths, flag rules, access order, and partial failures visible. Add shared
+   definitions only where they improve the explanation; reuse is a means to
+   clarity, not the starting point for the language design.
+2. **Improve generation clarity and performance.** Once the language changes
+   are settled, simplify parsing, validation, representation, and code emission
+   around them. Make errors identify the relevant source definition. Measure
+   generation time and peak memory separately from TypeScript compilation and
+   test execution, then address demonstrated costs without obscuring the code.
+3. **Clean up the repository and documentation.** Remove superseded migration
+   plans, experiment reports, and development-only status lists after moving
+   any still-useful contracts or rationale into the maintained guides. Keep
+   hardware references, model limitations, and acceptance criteria with their
+   specifications. Repair links and the documentation index as files disappear;
+   Git history retains the development record.
+
+**Review points:** Specifications are easier to read and author through a
+coherent vocabulary, and generated behavior still passes independently authored
+checks. Compare total maintained specifications, shared support, and generation
+machinery; moving complexity between them is not a reduction. Report measured
+generation improvements and keep generated output separate from authored source.
+Judge changes by
 [correctness, clarity, elegance, then performance](AGENTS.md#priorities-for-source-code).
 
 ### CPU-only checkpoint
@@ -141,7 +148,7 @@ chapters now generate their public interfaces and integration metadata, with
 no CPU-specific handwritten implementation remaining. Refining the literate
 authoring format and simplifying shared generation remain ongoing work; the
 [shared-building-blocks proposal](docs/cpus/shared-building-blocks.md) records
-the broader goal. Neither further language work nor another CPU target is a
+the earlier design exploration. Neither further language work nor another CPU target is a
 prerequisite for browser or machine development.
 
 ## 3. Make the examples explorable in the browser

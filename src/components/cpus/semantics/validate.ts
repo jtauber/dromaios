@@ -160,6 +160,10 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         if (expr.kind === "even-parity" && bits !== 8) fail(where, "even parity requires a byte");
         return;
       }
+      case "equal": case "less-than":
+        if (expression(expr.left, scope, where) !== expression(expr.right, scope, where)) fail(where, "comparison operands must have equal widths");
+        if (expr.kind === "less-than" && typeof expr.signed !== "boolean") fail(where, "comparison signedness must be Boolean");
+        return;
       case "borrow": case "half-borrow": case "subtract-overflow": case "carry": case "half-carry": case "add-overflow":
         if (expression(expr.left, scope, where) !== expression(expr.right, scope, where)) fail(where, "flag operands must have equal widths");
         arithmeticWidth(expression(expr.left, scope, where), where);

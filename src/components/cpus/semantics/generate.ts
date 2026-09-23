@@ -149,6 +149,11 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           if (expr.kind === "zero") return `${value.code} === 0`;
           return `${helper("evenParity8")}(${value.code})`;
         }
+        case "equal": case "less-than": {
+          const left = number(expr.left, scope), right = number(expr.right, scope);
+          return expr.kind === "equal" ? `${left.code} === ${right.code}`
+            : `${integer(left, expr.signed)} < ${integer(right, expr.signed)}`;
+        }
         case "borrow": case "half-borrow": case "subtract-overflow": case "carry": case "half-carry": case "add-overflow": {
           const left = number(expr.left, scope), right = number(expr.right, scope);
           const property = { borrow: "borrow", "half-borrow": "halfBorrow", "subtract-overflow": "overflow",

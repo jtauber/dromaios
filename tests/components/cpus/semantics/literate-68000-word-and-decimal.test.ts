@@ -64,7 +64,7 @@ test("editing quotient overflow policy changes V without writing the oversized q
 });
 
 test("editing the signed-bound comparison changes CHK's accepted range", async () => {
-  const before = "or(negative(tested), or(negative(sourceWord), borrow(sourceWord, tested)))";
+  const before = "or(negative(tested), lessThan(sourceWord, tested, signed))";
   const run = await generated(edited(before, "negative(tested)", 0x4181)); // CHK.W D1,D0
   const state = initialState(0); state.d0 = 3; state.d1 = 2;
   assert.equal(run(state, 0, 1, 0), undefined);
