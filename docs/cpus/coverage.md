@@ -24,8 +24,8 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,761](../../src/components/cpus/specifications/6502.md) | 603 | 151 / 151 | 100% | 6 / 6 |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,911](../../src/components/cpus/specifications/z80.md) | 1,509 | 698 / 698 | 100% | 6 / 6 |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,566](../../src/components/cpus/specifications/6809.md) | 1,322 | 268 / 268 | 100% | 6 / 6 |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,113](../../src/components/cpus/specifications/8088.md) | 2,712 | 291 / 291 | 100% | 6 / 6 |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [0](../../src/components/cpus/specifications/68000.md) | [8,311](../../src/components/cpus/specifications/68000.md) | 4,834 | 36,029 / 36,029 | 100% | 6 / 6 |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,090](../../src/components/cpus/specifications/8088.md) | 2,688 | 291 / 291 | 100% | 6 / 6 |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [0](../../src/components/cpus/specifications/68000.md) | [8,123](../../src/components/cpus/specifications/68000.md) | 4,710 | 36,029 / 36,029 | 100% | 6 / 6 |
 
 **Literate instruction coverage** measures documented opcode forms authored in
 executable chapters. This percentage alone does not measure the wider CPU
@@ -252,7 +252,7 @@ check production ownership, all status values, memory faults, and formal edits.
 
 | Milestone | Evidence / remaining work |
 | --- | --- |
-| Eight executable chapters | The 6502, 6800, 6809, 8008, 8080, Z80, 8088, and 68000 exercise prose, checked declarations, encoding selectors and values, multiple widths, addressing, ordered effects, fault returns, typed flag policies, arithmetic bodies shared across encodings, nested conditions, stored arrays/latches/named choices, views, state actions, port effects, interrupt recognition, retirement deferral, byte-pair operands, numeric selection, complete flag replacement, explicit memory actions and their composition, named vector entry, and explicit waiting/wake policies, and disjoint byte-pattern matches with typed results and unsupported fallbacks, and named opcode pages with generated dispatch, writable view operands, reserved selector slots, effect-only matches, nested register banks, numeric choices, complete flag-object exchange, numeric and Boolean source/family inputs, named Boolean captures and results, segmented memory projections, bounded iteration, signed multiplication, named division/rejection outcomes, TEST/ESC/software-reporting effects, explicit action boundary capabilities, nested state groups, and conditional values with ordered branch reads. |
+| Eight executable chapters | The 6502, 6800, 6809, 8008, 8080, Z80, 8088, and 68000 exercise prose, checked declarations, encoding selectors and values, multiple widths, addressing, ordered effects, fault returns, typed flag policies, arithmetic bodies shared across encodings, nested conditions, stored arrays/latches/named choices, views, state actions, port effects, interrupt recognition, retirement deferral, byte-pair operands, numeric selection, complete flag replacement, explicit memory actions and their composition, named vector entry, and explicit waiting/wake policies, and disjoint byte-pattern matches with typed results and unsupported fallbacks, and named opcode pages with generated dispatch, writable view operands, reserved selector slots, effect-only matches, nested register banks, numeric choices, complete flag-object exchange, numeric and Boolean source/family inputs, named Boolean captures and results, segmented memory projections, bounded iteration, signed multiplication, named division/rejection outcomes, TEST/ESC/software-reporting effects, explicit action boundary capabilities, nested state groups, conditional values with ordered branch reads, and explicitly bounded width parameters for sources and flag policies. |
 | Production equivalence | Independent CPU, machine, and type contracts remain in force. Old/new 8080 comparisons match full records, final state, bus events, and memory writes across 131,072 ordinary/supplied cases and 2,526 injected failures. The earlier 8008 migration matched 131,072 cases and 2,048 injected failures. The completed 6502 migration matches 65,536 instruction cases and 5,000 injected access failures, plus 3,072 reset/IRQ/NMI cases and 9,728 access failures with snapshots inside callbacks. The complete 6800 model migration matches 65,536 instruction cases, 512 step/reset/IRQ/NMI boundary cases, and 3,840 injected failures, including snapshots inside memory callbacks. The current 6809 migration matches 65,536 base instructions, 131,072 prefixed instructions, 57,344 indexed instructions, 8,192 register transfers, 20,480 mask/stack instructions, 3,840 lifecycle cases, and 120,405 injected access failures, including callback snapshots. The Z80 reset/execution migration matches 43,008 ordinary/prefixed instruction cases, 10,240 supplied instructions, 192 reset/IRQ/NMI cases, and 39,942 injected access failures, including callback snapshots. |
 | Authoring feedback | Syntax, state-schema, width, scope, and encoding errors report Markdown locations. Unknown declarations are identified directly; nested scope, array-bound, and policy errors identify the offending statement. Clean builds bootstrap chapter data before instruction generation. |
 | Language review | [Reviewed across the initial three chapters](literate-specifications.md#review-of-the-three-chapters): consistent operand vocabulary, explicit widths and effect order, distinct family explanations, and visible native boundaries. |
@@ -737,13 +737,19 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,465 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,465** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,489 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,519 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,519** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,278 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
 | Generated executable CPU output, counted separately | 604,939 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,000,721 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,000,706 |
 | Generated state schemas/types, counted separately | 213 |
+
+Width parameters share the 68000's byte/word/long arithmetic definitions and
+8088 byte/word flag policies. This removes **211 chapter lines** while adding
+**54 shared TypeScript lines**, a net reduction of **157 maintained CPU source
+lines**. Specialization still produces concrete definitions for each width;
+this is an authoring simplification, not a generated-code reduction.
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
 outside this source count. Generated TypeScript is reproducible build output,
@@ -756,7 +762,7 @@ migration to zero**. The final public-interface step removes its remaining
 **71 core lines**, **11 state-adapter lines**, and **9 definition-adapter lines**.
 Its generated public class is **52 lines**, its generated state module is
 **24 lines**, and shared generation supplies both. The shared byte runtime
-is now **121 lines**; the literate front end is **2,857 lines**.
+is now **121 lines**; the literate front end is **2,908 lines**.
 
 Across the earlier 8008 execution, public-interface, and machine-integration
 migration, authored CPU TypeScript grew from **9,416 to 9,671 lines**, and CPU

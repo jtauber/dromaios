@@ -145,8 +145,8 @@ export function chapterSegmentedExecution(header: ChapterTokens, lines: readonly
   } while (retireAt.take(","));
   retireAt.end();
   const retireDefinition = symbols.actions.get(retire) ?? retireAt.fail(`Unknown state action ${retire}.`);
-  const widths = Object.values(retireDefinition.inputs ?? {});
-  if (widths.length !== samples.length + 2 || widths.some(width => width !== 8)) retireAt.fail("Retirement takes two byte deferrals followed by one byte per sample.");
+  const types = Object.values(retireDefinition.inputs ?? {});
+  if (types.length !== samples.length + 2 || types.some(type => type !== "flag")) retireAt.fail("Retirement takes two flag deferrals followed by one flag per sample.");
   retireAt.checked(() => checkStateEffects(retireDefinition.steps, "state", false));
   const unsupported = required("unsupported"); unsupported.expect("restore"); unsupported.expect("counter"); unsupported.end();
   const failure = required("failure"); failure.expect("retain"); failure.end();
@@ -204,7 +204,7 @@ ${prefix}
     ]),
     stopped: () => ${field(policy.stopped)}, waiting: () => ${field(policy.waiting)},
     resume: context => ${call(policy.resume, `, ${policy.resumeArgument}, context`)}, reset: () => ${call(policy.reset)},
-    sample: () => [${policy.samples.map(sample => `Number(${sample.kind === "flag" ? `state${sample.bank ? `[${q(sample.bank)}]` : ""}.flags[${q(sample.field)}]` : field(sample.field)})`).join(", ")}],
+    sample: () => [${policy.samples.map(sample => sample.kind === "flag" ? `state${sample.bank ? `[${q(sample.bank)}]` : ""}.flags[${q(sample.field)}]` : field(sample.field)).join(", ")}],
     retire: (intr, all, samples) => ${call(policy.retire, ", intr, all" + policy.samples.map((_, index) => `, samples[${index}]!`).join(""))},
     pending: {
       delivery: { source: ${q(pending.source)}, vector: ${pending.vector} },

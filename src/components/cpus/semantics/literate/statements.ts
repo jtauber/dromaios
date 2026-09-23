@@ -5,7 +5,7 @@ import type { Choice, CpuDeclaration, Flag, FlagGroup, FlagExpression, FlagPolic
 import { validateInstruction } from "../validate.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
-import { address, callArguments, expression, flagExpression, signedness, typedExpression, valueType } from "./expressions.ts";
+import { address, callArguments, definitionReference, expression, flagExpression, signedness, typedExpression, valueType } from "./expressions.ts";
 import { chapterChoose } from "./choose.ts";
 import { chapterMatch } from "./matches.ts";
 import { chapterIteration } from "./iterations.ts";
@@ -178,7 +178,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         tokens.expect("<-"); result.push(stageRegister(register, expression(tokens)));
       } else if (tokens.next === "apply" || tokens.next === "replace") {
         const effect = tokens.word() === "apply" ? updateFlags : replaceFlags;
-        const policy = tokens.lookup(policies);
+        const policy = definitionReference(tokens, policies);
         result.push(effect(policy, callArguments(tokens, policy.parameters)));
       } else if (tokens.take("operand")) {
         const operand = tokens.lookup(selectedOperands); tokens.expect("<-"); const contents = expression(tokens);
@@ -273,7 +273,7 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
             const array = tokens.lookup(arrays, true); tokens.expect("[");
             result.push(readElement(name, array, expression(tokens))); tokens.expect("]");
           } else if (tokens.take("source")) {
-            const source = tokens.lookup(sources), args = tokens.next === "(" ? callArguments(tokens, source.inputs) : {};
+            const source = definitionReference(tokens, sources), args = tokens.next === "(" ? callArguments(tokens, source.inputs) : {};
             result.push(readSource(name, source, Object.keys(args).length ? args : undefined));
           }
           else if (tokens.take("operand")) {

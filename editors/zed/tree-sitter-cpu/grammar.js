@@ -28,18 +28,20 @@ module.exports = grammar({
     choice_declaration: $ => seq('choice', $._state_name, ':', commaSeparated(choice($.string, $.number)), optional($.field_mapping)),
     field_mapping: $ => seq('=', $.identifier),
 
-    source_declaration: $ => seq(choice('source', 'view'), field('name', $.identifier), $.string, optional($.parameters), ':', $._value_type, $.body),
+    source_declaration: $ => seq(choice('source', 'view'), field('name', $.identifier), optional($.width_parameter), $.string, optional($.parameters), ':', $._value_type, $.body),
     action_declaration: $ => seq('action', field('name', $.identifier), $.string, optional($.parameters), optional(seq('using', commaSeparated(choice('memory', 'boundary', 'staging', 'alignment')))), $.body),
-    policy_declaration: $ => seq('policy', field('name', $.identifier), $.string, $.parameters,
+    policy_declaration: $ => seq('policy', field('name', $.identifier), optional($.width_parameter), $.string, $.parameters,
       '{', repeat($.flag_update), '}'),
     parameters: $ => seq('(', optional(commaSeparated($.parameter)), ')'),
-    _value_type: $ => choice($.number, 'flag'),
+    width_parameter: $ => seq('<', field('name', $.identifier), ':', commaSeparated($.number), '>'),
+    width_argument: $ => seq('<', choice($.number, $.identifier), '>'),
+    _value_type: $ => choice($.number, alias($.identifier, $.type_identifier), 'flag'),
     parameter: $ => seq($.identifier, ':', $._value_type),
     flag_update: $ => seq($._state_name, '=', $._expression),
 
     operands_declaration: $ => seq('operands', field('name', $.identifier), '{', repeat($.operand_entry), '}'),
     operand_entry: $ => seq($.number, $.string, '=', choice(
-      seq('register', $._state_name), seq('pair', $._state_name, $._state_name), seq(choice('memory', 'value'), $.identifier),
+      seq('register', $._state_name), seq('pair', $._state_name, $._state_name), seq(choice('memory', 'value'), $.identifier, optional($.width_argument)),
       seq('view', $.identifier, 'write', $.identifier), 'unsupported',
     )),
     codes_declaration: $ => seq('codes', field('name', $.identifier), optional(seq(':', $.number)),
@@ -65,7 +67,7 @@ module.exports = grammar({
       optional(seq('except', commaSeparated($.string))),
     ),
     selector: $ => seq($.identifier, 'in', $.identifier, optional(seq('.', field('view', $.identifier)))),
-    source_binding: $ => seq($.identifier, '=', choice($.identifier, seq('register', $._state_name))),
+    source_binding: $ => seq($.identifier, '=', choice(seq($.identifier, optional($.width_argument)), seq('register', $._state_name))),
 
     body: $ => seq('{', repeat($._statement), '}'),
     _statement: $ => choice(
@@ -95,13 +97,13 @@ module.exports = grammar({
     choice_read: $ => seq('choice', $._state_name, '=', choice($.string, $.number)),
     state_read: $ => seq(choice('register', 'flag', 'latch'), $._state_name),
     array_read: $ => seq('array', $._state_name, '[', $._expression, ']'),
-    source_read: $ => seq('source', field('name', $.identifier), optional($.arguments)),
+    source_read: $ => seq('source', field('name', $.identifier), optional($.width_argument), optional($.arguments)),
     operand_read: $ => seq('operand', $.identifier),
     write: $ => seq(choice($._state_name, $.array_target, $.operand_target, $.memory_target), '<-', choice($._expression, $.string)),
     array_target: $ => seq($._state_name, '[', optional($._expression), ']'),
     operand_target: $ => seq('operand', $.identifier),
     memory_target: $ => seq(choice('memory', 'port'), '(', $._expression, ')'),
-    apply_statement: $ => seq(choice('apply', 'replace'), field('name', $.identifier), $.arguments),
+    apply_statement: $ => seq(choice('apply', 'replace'), field('name', $.identifier), optional($.width_argument), $.arguments),
     exchange_statement: $ => seq('exchange', $._state_name, ',', $._state_name),
     perform_statement: $ => seq('perform', field('name', $.identifier), $.arguments),
     when_statement: $ => seq('when', choice(seq('test', $.identifier), $._expression), $.body),
@@ -118,7 +120,7 @@ module.exports = grammar({
     escape_statement: $ => seq('send', 'escape', $.arguments, optional(seq('with', 'memory', $.arguments))),
     _local_name: $ => choice($.identifier, ...['exchange', 'port', 'next', 'reset', 'select', 'target', 'stage', 'pending', 'staging', 'notify', 'report', 'send'].map(word => alias(word, $.identifier))),
     _expression: $ => choice($._local_name, $.number, $.call),
-    call: $ => seq(field('function', $._local_name), $.arguments),
+    call: $ => seq(field('function', $._local_name), optional($.width_argument), $.arguments),
     arguments: $ => seq('(', optional(commaSeparated($._expression)), ')'),
 
     reset_declaration: $ => seq('reset', '{', repeat(choice(

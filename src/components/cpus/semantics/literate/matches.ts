@@ -39,7 +39,7 @@ export function chapterMatch(header: ChapterTokens, lines: readonly ChapterToken
       const value = opcode & mask;
       if (seen.has(value)) continue;
       seen.add(value);
-      const branch = body.map(line => new ChapterTokens(line.source, line.file));
+      const branch = body.map(line => new ChapterTokens(line.source, line.file, line.widthParameter));
       const last = name === undefined ? undefined : branch.pop();
       if (name !== undefined && last?.next !== "return") (last ?? tokens).fail("A match case must end with return.");
       const current: MatchCase = { mask, value, steps: [], result: initialValue(type ?? 8) };

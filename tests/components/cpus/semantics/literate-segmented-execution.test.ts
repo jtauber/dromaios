@@ -120,7 +120,8 @@ const invalid: readonly [string, string, RegExp][] = [
   ['repeat $F3 1', 'repeat $100 1', /integer from/],
   ['fetch action advanceIP', 'fetch action pollWait', /input widths/],
   ['reset action resetState', 'reset action pollWait', /input widths/],
-  ['sampling flag TF, latch TRAPPENDING', 'sampling flag TF', /one byte per sample/],
+  ['sampling flag TF, latch TRAPPENDING', 'sampling flag TF', /one flag per sample/],
+  ['(intr: flag, all: flag, sampledTF: flag, owedTrap: flag)', '(intr: 8, all: flag, sampledTF: flag, owedTrap: flag)', /flag|Boolean/],
   ['"divide-error" vector 0', '"other-fault" vector 0', /declared segmented fault/],
   ['"divide-error" vector 0', '"opcode" vector 0', /unreserved/],
   ['waiting WAITING with pollWait(1)', 'waiting WAITING with enterInterrupt(1)', /continuation cannot use read-memory/],
@@ -137,4 +138,11 @@ test("segmented contracts reject unsupported shapes and transitive lifecycle eff
       assert.match(error.message, message, before); return true;
     });
   }
+});
+
+test("segmented retirement requires Boolean decisions even when its action ignores the inputs", () => {
+  const numeric = text.replace('execution segmented {', `action numericRetirement "ignore decisions" (intr: 8, all: 8, sampledTF: 8, owedTrap: 8) {
+}
+execution segmented {`).replace('retire action retireInstruction sampling', 'retire action numericRetirement sampling');
+  assert.throws(() => compileCpuChapter(numeric, { name: "8088" }, file), /two flag deferrals followed by one flag per sample/);
 });

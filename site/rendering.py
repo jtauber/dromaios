@@ -32,7 +32,7 @@ class CpuLexer(RegexLexer):
         (r"\b[A-Z][A-Z\d_]*\b", Name.Constant),
         (r"[a-zA-Z_][\w]*", Name),
         (r"<-|=", Operator),
-        (r"[{}\[\]():,.]", Punctuation),
+        (r"[{}\[\]():,.<>]", Punctuation),
         (r"\s+|.", Text),
     ]}
 

@@ -8,8 +8,9 @@ import type { Choice, CpuDeclaration, Flag, FlagGroup, FlagPolicy, InstructionDe
 import { defineInstruction, validateFlagPolicy, validateInstruction } from "../validate.ts";
 import { opcodePageLayouts } from "../opcode-pages.ts";
 import type { OpcodePage } from "../opcode-pages.ts";
+import type { WidthParameter } from "./document.ts";
 import { chapterBlocks, chapterBody, ChapterError, ChapterTokens } from "./document.ts";
-import { expression, flagExpression, parameters, reference, typedExpression, valueType, width } from "./expressions.ts";
+import { definitionReference, expression, flagExpression, parameters, reference, typedExpression, valueType, width } from "./expressions.ts";
 import { chapterSegmentedExecution, checkSegmentedEffects } from "./segmented-execution.ts";
 import { chapterExecution, checkByteExecution } from "./execution.ts";
 import type { ChapterExecution } from "./execution.ts";
@@ -91,6 +92,47 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
   } = {}) {
     return chapterStatements(lines, { cpu, registers, arrays, latches, choices, flags, flagGroups, policies, actions, catalogues,
       sources: options.bindings ?? sources, operands: options.operands ?? new Map(), conditions: options.conditions ?? new Map() }, options);
+  }
+
+  function defineValue(kind: "source" | "view" | "policy", name: string, header: ChapterTokens, body: readonly ChapterTokens[]) {
+    const open = () => { header.expect("{"); header.end(); };
+    if (kind === "source" || kind === "view") {
+      if (kind === "view" && name !== name.toUpperCase()) header.fail("View names must be uppercase.");
+      const description = header.quoted(), inputs = parameters(header);
+      if (kind === "view" && Object.keys(inputs).length) header.fail("Views cannot require inputs.");
+      header.expect(":"); const type = valueType(header); open();
+      const last = body.at(-1) ?? header.fail("A source must end with return.");
+      if (last.next !== "return") header.fail("A source must end with return.");
+      const bodySteps = steps(body.slice(0, -1), { inputs, effects: kind === "view" ? "view" : undefined });
+      last.expect("return"); const result = typedExpression(last, type); last.end();
+      const source = { name: description, type, ...(Object.keys(inputs).length ? { inputs } : {}), steps: bodySteps, result };
+      last.checked(() => validateInstruction({ cpu, name, explanation: "", inputs,
+        steps: [readSource("result", source, Object.keys(inputs).length ? Object.fromEntries(Object.entries(inputs).map(([name, type]) => [name, reference(name, type)])) : undefined)] }));
+      sources.set(name, source);
+      if (kind === "view") views.set(name, source);
+    } else {
+      const description = header.quoted(); header.expect("(");
+      const parameters: Record<string, ValueType> = {};
+      if (header.next !== ")") do {
+        const parameter = header.word(); header.expect(":");
+        if (Object.hasOwn(parameters, parameter)) header.fail(`Duplicate parameter ${parameter}.`);
+        parameters[parameter] = header.take("flag") ? "flag" : width(header);
+      } while (header.take(","));
+      header.expect(")"); open();
+      const updates: FlagPolicy["updates"][number][] = [], seen = new Set<string>();
+      const policy: FlagPolicy = { name: description, parameters, unlisted: "preserve", updates };
+      const validate = () => validateFlagPolicy(cpu, policy);
+      header.checked(validate);
+      for (const tokens of body) {
+        const flag = tokens.lookup(flags, true); tokens.expect("=");
+        const key = `${flag.bank ?? ""}.${flag.field}`;
+        if (seen.has(key)) tokens.fail(`Duplicate update of ${flag.field}.`);
+        seen.add(key);
+        updates.push({ flag, value: flagExpression(tokens) }); tokens.end();
+        tokens.checked(validate);
+      }
+      policies.set(name, policy);
+    }
   }
 
   const blocks = chapterBlocks(markdown, file);
@@ -198,23 +240,27 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         const key = layouts.at(-1)!.key;
         pages.set(name, page); pageTokens.set(key, header); continue;
       }
-      // Keep original lines: each family selection reparses its body, including nested blocks.
+      const variants: WidthParameter[] = [];
+      if (header.take("<")) {
+        if (kind !== "source" && kind !== "policy") header.fail("Only sources and policies can declare a width parameter.");
+        const parameter = header.word(); header.expect(":");
+        if (parameter === "flag") header.fail("A width parameter cannot be named flag.");
+        do {
+          const value = width(header);
+          if (variants.some(item => item.value === value)) header.fail(`Duplicate width ${value}.`);
+          variants.push({ name: parameter, value });
+        } while (header.take(","));
+        header.expect(">");
+      }
+      // Families and width variants reparse their original lines, including nested blocks.
       const { body, end } = chapterBody(lines, index); index = end;
       const open = () => { header.expect("{"); header.end(); };
-      if (kind === "source" || kind === "view") {
-        if (kind === "view" && name !== name.toUpperCase()) header.fail("View names must be uppercase.");
-        const description = header.quoted(), inputs = parameters(header);
-        if (kind === "view" && Object.keys(inputs).length) header.fail("Views cannot require inputs.");
-        header.expect(":"); const type = valueType(header); open();
-        const last = body.at(-1) ?? header.fail("A source must end with return.");
-        if (last.next !== "return") header.fail("A source must end with return.");
-        const bodySteps = steps(body.slice(0, -1), { inputs, effects: kind === "view" ? "view" : undefined });
-        last.expect("return"); const result = typedExpression(last, type); last.end();
-        const source = { name: description, type, ...(Object.keys(inputs).length ? { inputs } : {}), steps: bodySteps, result };
-        last.checked(() => validateInstruction({ cpu, name, explanation: "", inputs,
-          steps: [readSource("result", source, Object.keys(inputs).length ? Object.fromEntries(Object.entries(inputs).map(([name, type]) => [name, reference(name, type)])) : undefined)] }));
-        sources.set(name, source);
-        if (kind === "view") views.set(name, source);
+      if (kind === "source" || kind === "view" || kind === "policy") {
+        if (!variants.length) defineValue(kind, name, header, body);
+        for (const parameter of variants) {
+          defineValue(kind, `${name}<${parameter.value}>`, header.specialize(parameter),
+            body.map(tokens => new ChapterTokens(tokens.source, file, parameter)));
+        }
       } else if (kind === "action") {
         const description = header.quoted(), inputs = parameters(header);
         const capabilities: ActionCapability[] = [];
@@ -229,28 +275,6 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         header.checked(() => validateInstruction(definition));
         const bodySteps = steps(body, { inputs, effects: capabilities });
         actions.set(name, header.checked(() => defineInstruction({ ...definition, steps: bodySteps })));
-      } else if (kind === "policy") {
-        const description = header.quoted(); header.expect("(");
-        const parameters: Record<string, ValueType> = {};
-        if (header.next !== ")") do {
-          const parameter = header.word(); header.expect(":");
-          if (Object.hasOwn(parameters, parameter)) header.fail(`Duplicate parameter ${parameter}.`);
-          parameters[parameter] = header.take("flag") ? "flag" : width(header);
-        } while (header.take(","));
-        header.expect(")"); open();
-        const updates: FlagPolicy["updates"][number][] = [], seen = new Set<string>();
-        const policy: FlagPolicy = { name: description, parameters, unlisted: "preserve", updates };
-        const validate = () => validateFlagPolicy(cpu, policy);
-        header.checked(validate);
-        for (const tokens of body) {
-          const flag = tokens.lookup(flags, true); tokens.expect("=");
-          const key = `${flag.bank ?? ""}.${flag.field}`;
-          if (seen.has(key)) tokens.fail(`Duplicate update of ${flag.field}.`);
-          seen.add(key);
-          updates.push({ flag, value: flagExpression(tokens) }); tokens.end();
-          tokens.checked(validate);
-        }
-        policies.set(name, policy);
       } else if (kind === "operands" || kind === "codes" || kind === "conditions") {
         const valueWidth = kind === "codes" && header.take(":") ? width(header) : undefined;
         open(); const entries: ChapterOperand[] = [], tests: ChapterCondition[] = []; let digits: number | undefined;
@@ -292,7 +316,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
                 read: { name: description, type: 16, steps: [readRegister("high", high), readRegister("low", low)], result: concat(value("high"), value("low")) } });
             } else {
               if (operandKind !== "memory" && operandKind !== "value") tokens.fail("Expected register, pair, view, memory, value, or unsupported operand.");
-              const source = tokens.lookup(sources);
+              const source = definitionReference(tokens, sources);
               if (operandKind === "memory" && source.type !== 16) tokens.fail("Memory operands require a 16-bit address source.");
               entries.push(operandKind === "memory" ? { kind: "memory", name: description, address: source, read: memorySource(source) }
                 : { kind: "value", name: description, read: source });
@@ -346,7 +370,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
             if (form.take("register")) {
               const reference = form.reference(), register = registers.get(reference) ?? form.fail(`Unknown register ${reference}.`);
               boundOperands.set(alias, { kind: "register", name: reference, register, read: registerSource(register) });
-            } else boundSources.set(alias, form.lookup(sources));
+            } else boundSources.set(alias, definitionReference(form, sources));
           } while (form.take(","));
           const template = form.take("named") ? form.quoted() : undefined;
           if (template === undefined && selectors.size > 1) form.fail("A multi-selector family needs an explicit instruction name template.");

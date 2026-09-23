@@ -43,8 +43,8 @@ export interface SegmentedExecutionPolicy<Device, Fault extends string, Pending 
   readonly waiting: () => boolean;
   readonly resume: (context: BoundaryContext & Device) => void;
   readonly reset: () => void;
-  readonly sample: () => readonly number[];
-  readonly retire: (intr: number, all: number, samples: readonly number[]) => void;
+  readonly sample: () => readonly boolean[];
+  readonly retire: (intr: boolean, all: boolean, samples: readonly boolean[]) => void;
   readonly pending: {
     readonly delivery: Pending;
     readonly owed: () => boolean;
@@ -84,13 +84,13 @@ export function segmentedExecution<S, Device, External, Fault extends string, Pe
         const byte = memory.readByte(((policy.segment() * 2 ** policy.baseShift) + policy.counter.pc) & addressMask);
         policy.fetched(); bytes.push(byte); return byte;
       };
-      let intr = 0, all = 0;
+      let intr = false, all = false;
       let interrupt: { readonly source: "software" | Fault; readonly vector: number } | undefined;
       const context = {
         readByte: memory.readByte, writeByte: memory.writeByte,
         ...recordPorts(ports(), record), ...devices(record),
         fetchByte,
-        deferInterrupt: (scope: "intr" | "all"): void => { if (scope === "all") all = 1; else intr = 1; },
+        deferInterrupt: (scope: "intr" | "all"): void => { if (scope === "all") all = true; else intr = true; },
         reportInterrupt: (vector: number): void => { interrupt = { source: "software", vector }; },
       };
       let reason: "opcode" | "unsupported" | Fault | void = undefined;

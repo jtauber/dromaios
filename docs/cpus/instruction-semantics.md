@@ -1137,7 +1137,8 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `bitAnd(left, right)`, `bitOr(left, right)`, `bitXor(left, right)` | Bitwise AND, OR, and exclusive OR on equal-width unsigned numbers, preserving that width; distinct from Boolean `xor` |
 | `multiply(left, right, signed?)` | Equal byte or word operands; optional two’s-complement interpretation; yields the complete unsigned bit pattern at double width (16 or 32 bits) |
 | `concat(high, low)` | Equal byte or word halves combined high first, yielding an unsigned word or double word |
-| `highByte(value)`, `lowByte(value)` | Extract bits 15–8 or 7–0 of a captured word as a byte; byte operands and live register symbols are rejected |
+| `highByte(value)` | Extract bits 15–8 of a sixteen-bit value as a byte; other widths and live register symbols are rejected |
+| `lowByte(value)` | Extract bits 7–0 of an 8-, 14-, 16-, or 32-bit value as a byte; an eight-bit input is unchanged. Three-bit inputs and live register symbols are rejected |
 | `extend(value, width)` | Unsigned widening; narrowing and equal-width conversions are rejected |
 | `truncate(value, width)` | Keep the low bits at a strictly narrower supported width; writes never narrow implicitly |
 | `signExtend(value, width)` | Widen the two's-complement value, returning an unsigned bit pattern at the new width; `80:u8` becomes `FF80:u16`; narrowing and equal-width conversions are rejected |

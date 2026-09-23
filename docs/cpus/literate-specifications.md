@@ -477,6 +477,55 @@ projection. Numeric inputs, projections, and byte matches also work with an
 unrelated CPU name and schema; [language tests](../../tests/components/cpus/semantics/literate-inputs.test.ts)
 check scope, widths, rejection propagation, and partial effects.
 
+### Width parameters
+
+Sources and flag policies can share one body across an explicit list of numeric
+widths. The [68000 arithmetic definitions](../../src/components/cpus/specifications/68000.md)
+use this for byte, word, and long operations; the
+[8088 flag policies](../../src/components/cpus/specifications/8088.md) share their
+byte and word rules.
+
+```text
+policy resultFlags<bits: 8, 16, 32> "zero and sign" (result: bits) {
+  Z = zero(result)
+  N = negative(result)
+}
+source increment<bits: 8, 16, 32> "increment with flags" (input: bits): bits {
+  result: bits = add(input, u<bits>(1))
+  apply resultFlags<bits>(result)
+  return result
+}
+family incrementByte "00000000" {
+  original = register A
+  result = source increment<8>(original)
+  A <- result
+}
+```
+
+Each declaration has at most one width parameter, followed by a nonempty list
+of distinct supported widths (`3`, `8`, `14`, `16`, `32`). Its name stands for
+a width inside that declaration: in input/result types, typed captures, numeric
+operations that take widths, and calls to earlier specialized sources or policies.
+`u<bits>(1)` is a typed literal; `u<8>(1)` and the existing `u8(1)` mean the same
+thing. Parameter names do not substitute text in descriptions, value names, or
+numbers. `flag` remains the Boolean type and cannot name a width parameter.
+
+Calls always specify a declared width, including in family source bindings
+(`with calculation = increment<16>`) and value or memory operand entries.
+Runtime arguments still follow in parentheses and must match that specialization's
+types. There is no width inference or runtime width argument. Every listed width
+is compiled and checked immediately, including unused ones; diagnostics retain
+the Markdown position and identify the failing width. A body cannot refer to
+itself or to a later declaration. Views, actions, and families do not declare
+width parameters.
+
+Specialization produces the same concrete instruction representation as separate
+written definitions. It preserves scope, ordered effects, flag updates, and
+failure behavior. The [width tests](../../tests/components/cpus/semantics/literate-widths.test.ts)
+exercise these contracts through generated execution. Use a width parameter
+when the behavior is shared; keep differences in addressing or instruction
+semantics explicit.
+
 ### Views and state actions
 
 `view` uses the same ordered captures and final `return` as `source`, with an
@@ -864,7 +913,8 @@ Numeric expressions are capture names, explicitly sized literals such as
 | `select(condition, yes, no)` | Choose between two equal-width numeric expressions using a flag expression. |
 | `concat(high, low)` | Join two equal-width values, with high first. |
 | `extend(value, width)`, `signExtend(value, width)`, `truncate(value, width)` | Widen unsigned, widen signed, or narrow explicitly. |
-| `highByte(word)`, `lowByte(word)` | Extract a byte from a sixteen-bit word. |
+| `highByte(word)` | Extract bits 15–8 of a sixteen-bit word. |
+| `lowByte(value)` | Extract bits 7–0 of an 8-, 14-, 16-, or 32-bit value; an eight-bit value is unchanged. |
 
 Calls can nest. Numbers are decimal unless prefixed with `$`; widths are decimal.
 Captures and literals retain their widths, so zero-page wrapping follows from
@@ -1493,7 +1543,7 @@ device APIs remain outside its scope.
 | `pending "trap" vector 1 when TRAPPENDING unless RECOGNITIONDEFERRED with beginTrap then enterInterrupt` | Before stopping or waiting, run the input-free state action, then the one-byte memory entry action with the vector. Records retain the declared source and vector. An owed latch also keeps waiting/halted outcomes runnable. |
 | `fault "divide-error" vector 0 with enterInterrupt` | Deliver this named instruction outcome using the one-byte memory entry action, then retire. `opcode` and `unsupported` remain rejections; other instruction outcomes require a matching fault declaration. |
 | `reset action resetState` | Input-free, state-only reset with an empty access list. |
-| `retire action retireInstruction sampling flag TF, latch TRAPPENDING` | Capture the selected flags/latches before instruction or continuation effects. After success, pass two byte values for requested INTR/all deferral, then one byte per sample, to a state-only action. |
+| `retire action retireInstruction sampling flag TF, latch TRAPPENDING` | Capture the selected flags/latches before instruction or continuation effects. After success, pass two `flag` values for requested INTR/all deferral, then one `flag` per sample, to a state-only action. |
 | `unsupported restore counter`, `failure retain` | Skip retirement on rejection or thrown callbacks; restore only the counter on rejection, while throws retain every completed effect and produce no record. |
 | `interrupt offers { … }` | Declare source names, ordered flag/latch gates, acceptance actions, and fixed or acknowledged byte vectors. Entry shares the step/reset guard. |
 

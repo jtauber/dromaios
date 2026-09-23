@@ -106,8 +106,11 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         if (!Number.isSafeInteger(expr.value) || expr.value < 0 || expr.value >= 2 ** bits) fail(where, `literal does not fit ${bits} bits`);
         return bits;
       }
-      case "high-byte": case "low-byte":
-        if (expression(expr.value, scope, where) !== 16) fail(where, `${expr.kind === "high-byte" ? "high" : "low"} byte requires a word`);
+      case "high-byte":
+        if (expression(expr.value, scope, where) !== 16) fail(where, "high byte requires a word");
+        return 8;
+      case "low-byte":
+        if (expression(expr.value, scope, where) < 8) fail(where, "low byte requires at least eight bits");
         return 8;
       case "extend": case "sign-extend": {
         const from = expression(expr.value, scope, where), to = width(expr.width, where);

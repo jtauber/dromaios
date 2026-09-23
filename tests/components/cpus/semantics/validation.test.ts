@@ -94,12 +94,15 @@ test("numeric bitwise expressions require equally wide captured numbers and pres
   }
 });
 
-test("byte extraction requires a captured word and yields a byte, without implicit reads or conversions", () => {
+test("byte extraction checks numeric widths and yields a byte without implicit reads", () => {
+  for (const width of [8, 14, 16, 32] as const) {
+    define([capture("byte", lowByte(literal(width, 255)))]);
+  }
+  assert.throws(() => define([capture("byte", lowByte(literal(3, 7)))]), /at least eight bits/);
+  assert.throws(() => define([capture("byte", highByte(literal(8, 255)))]), /high byte requires a word/);
   for (const extract of [highByte, lowByte]) {
     define([capture("word", literal(16, 0xabcd)), { kind: "write-register", register: mos.register("a"), value: extract(value("word")) }]);
     for (const [expr, message] of [
-      [extract(literal(8, 255)), /byte requires a word/],
-      [extract(extract(literal(16, 65535))), /byte requires a word/],
       [extract(value("missing")), /not been captured/],
       [extract(flagLiteral(true) as unknown as NumberExpression), /unknown numeric expression/],
     ] satisfies [NumberExpression, RegExp][]) assert.throws(() => define([capture("byte", expr)]), message);

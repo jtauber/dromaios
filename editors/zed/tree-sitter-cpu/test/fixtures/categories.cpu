@@ -385,3 +385,16 @@ family typedNames "00000000" {
   notify: 8 = select(stage, u8(0), u8(1))
   OUT <- notify
 }
+
+policy wideFlags<bits: 8, 16> "shared zero rule" (result: bits) {
+  Z = zero(result)
+}
+source increment<bits: 8, 16> "width-specific addition" (value: bits): bits {
+  result: bits = add(value, u<bits>(1))
+  apply wideFlags<bits>(result)
+  return result
+}
+family incrementByte "00000000" {
+  result = source increment<8>(u8(1))
+  A <- result
+}

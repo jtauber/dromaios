@@ -1,3 +1,5 @@
+import type { Width } from "../model.ts";
+
 export interface ChapterLine { readonly text: string; readonly line: number }
 export interface ChapterBlock { readonly lines: readonly ChapterLine[]; readonly explanation: string }
 
@@ -39,6 +41,7 @@ export function chapterBlocks(markdown: string, file: string): readonly ChapterB
 }
 
 interface Token { readonly text: string; readonly column: number }
+export interface WidthParameter { readonly name: string; readonly value: Width }
 
 /** A statement occupies one line; expressions use explicit calls instead of implicit precedence. */
 export class ChapterTokens {
@@ -46,9 +49,10 @@ export class ChapterTokens {
   #index = 0;
   readonly source: ChapterLine;
   readonly file: string;
-  constructor(source: ChapterLine, file: string) {
-    this.source = source; this.file = file;
-    const pattern = /\s+|\/\/.*|"(?:[^"\\]|\\.)*"|[A-Za-z][A-Za-z0-9_]*|\$[\da-fA-F]+|\d+|<-|[{}\[\]():=.,]/y;
+  readonly widthParameter?: WidthParameter;
+  constructor(source: ChapterLine, file: string, widthParameter?: WidthParameter) {
+    this.source = source; this.file = file; this.widthParameter = widthParameter;
+    const pattern = /\s+|\/\/.*|"(?:[^"\\]|\\.)*"|[A-Za-z][A-Za-z0-9_]*|\$[\da-fA-F]+|\d+|<-|[{}\[\]():=.,<>]/y;
     let offset = 0;
     while (offset < source.text.length) {
       pattern.lastIndex = offset;
@@ -59,11 +63,21 @@ export class ChapterTokens {
       offset = pattern.lastIndex;
     }
   }
+  /** Reparse a declaration at the same position with one concrete width binding. */
+  specialize(parameter: WidthParameter): ChapterTokens {
+    const tokens = new ChapterTokens(this.source, this.file, parameter);
+    tokens.#index = this.#index;
+    return tokens;
+  }
   get next(): string | undefined { return this.#tokens[this.#index]?.text; }
   peek(offset: number): string | undefined { return this.#tokens[this.#index + offset]?.text; }
   get opensBlock(): boolean { return this.#tokens.at(-1)?.text === "{"; }
   get column(): number { return this.#tokens[this.#index]?.column ?? this.source.text.length + 1; }
-  fail(message: string, column = this.column): never { throw new ChapterError(this.file, this.source.line, column, message); }
+  fail(message: string, column = this.column): never {
+    const binding = this.widthParameter;
+    throw new ChapterError(this.file, this.source.line, column,
+      message + (binding ? ` (with ${binding.name} = ${binding.value})` : ""));
+  }
   take(text: string): boolean { if (this.next !== text) return false; this.#index++; return true; }
   expect(text: string): void { if (!this.take(text)) this.fail(`Expected ${JSON.stringify(text)}.`); }
   word(): string {

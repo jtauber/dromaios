@@ -41,7 +41,7 @@ for (const [text, category] of [
   ['equal', 'function'], ['lessThan', 'function'], ['unsigned', 'keyword'],
   ['needsCorrection', 'function'], ['aboveNine', 'variable'], ['decision', 'variable'], ['flag', 'keyword'],
   ['multiply', 'function'], ['signExtend', 'function'], ['addOverflow', 'function'], ['overflow', 'function'], ['transfer', 'function'], ['add', 'function'], ['carry', 'function'], ['u14', 'function'],
-  ['Cpu8008', 'type'], ['8', 'number'], ['$0000', 'number'], ['000', 'number'],
+  ['bits', 'type'], ['increment', 'function'], ['u', 'function'], ['&lt;', 'punctuation bracket'], ['&gt;', 'punctuation bracket'], ['Cpu8008', 'type'], ['8', 'number'], ['$0000', 'number'], ['000', 'number'],
   ['pair', 'keyword'], ['replace', 'keyword'], ['little', 'constant'], ['none', 'constant'], ['&lt;-', 'operator'],
 ]) {
   assert.ok(html.includes(`<span class='${category}'>${text}</span>`), `${text} is highlighted as ${category}`);

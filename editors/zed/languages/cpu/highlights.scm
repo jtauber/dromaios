@@ -19,6 +19,9 @@
 
 (identifier) @variable
 (state_identifier) @property
+(type_identifier) @type
+(width_parameter name: (identifier) @type)
+(width_argument (identifier) @type)
 (source_declaration name: (identifier) @function)
 (action_declaration name: (identifier) @function)
 (policy_declaration name: (identifier) @function)
@@ -33,5 +36,5 @@
 (escape_sequence) @string.escape
 (comment) @comment
 ["=" "<-"] @operator
-["{" "}" "[" "]" "(" ")"] @punctuation.bracket
+["{" "}" "[" "]" "(" ")" "<" ">"] @punctuation.bracket
 [":" "," "."] @punctuation.delimiter

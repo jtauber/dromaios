@@ -5,8 +5,17 @@ import type { AddressExpression, Expression, FlagExpression, NumberExpression, V
 import type { ChapterTokens } from "./document.ts";
 
 export function width(tokens: ChapterTokens): Width {
+  if (tokens.widthParameter && tokens.take(tokens.widthParameter.name)) return tokens.widthParameter.value;
   const bits = tokens.number();
   return isWidth(bits) ? bits : tokens.fail("Expected width 3, 8, 14, 16, or 32.");
+}
+
+/** Width arguments select checked definitions, independently of runtime value arguments. */
+export function definitionReference<T>(tokens: ChapterTokens, definitions: ReadonlyMap<string, T>): T {
+  const column = tokens.column;
+  let name = tokens.word();
+  if (tokens.take("<")) { name += `<${width(tokens)}>`; tokens.expect(">"); }
+  return definitions.get(name) ?? tokens.fail(`Unknown name ${name}; declare it before use.`, column);
 }
 
 export const valueType = (tokens: ChapterTokens): ValueType => tokens.take("flag") ? "flag" : width(tokens);
@@ -17,6 +26,10 @@ export const initialValue = (type: ValueType): Expression => type === "flag" ? f
 /** Numeric expressions use captures only; state reads are separate ordered statements. */
 export function expression(tokens: ChapterTokens): NumberExpression {
   const name = tokens.word();
+  if (name === "u" && tokens.take("<")) {
+    const bits = width(tokens); tokens.expect(">"); tokens.expect("(");
+    const result = literal(bits, tokens.number()); tokens.expect(")"); return result;
+  }
   if (!tokens.take("(")) return value(name);
   let result: NumberExpression;
   if (/^u(?:3|8|14|16|32)$/.test(name)) {

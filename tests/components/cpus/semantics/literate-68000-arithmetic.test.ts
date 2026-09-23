@@ -102,8 +102,8 @@ test("paired-memory destination selection comes from the chapter", async () => {
 });
 
 for (const [name, before, after, message] of [
-  ["unknown calculation", "with calculation = addByte", "with calculation = missing", /Unknown name missing/],
-  ["wrong calculation width", "with calculation = addByte", "with calculation = addWord", /input.*16-bit|must be 16-bit|expected 16/i],
+  ["unknown calculation", "with calculation = addValue<8>", "with calculation = missing", /Unknown name missing/],
+  ["wrong calculation width", "with calculation = addValue<8>", "with calculation = addValue<16>", /input.*16-bit|must be 16-bit|expected 16/i],
   ["wrong incoming flag type", "result = add(left, right, incoming)", "result = add(left, right, u8(1))", /flag|predicate/i],
 ] as const) test(`arithmetic chapter rejects ${name} at its document location`, () => {
   assert.ok(markdown.includes(before));
