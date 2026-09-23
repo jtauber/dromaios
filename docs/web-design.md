@@ -10,6 +10,19 @@ hardware dependencies. The [pedagogical plan](pedagogy.md) owns teaching
 principles and learning milestones. This note describes how people find and
 use those experiences on the website.
 
+## Current reading site
+
+[microcomputer.world](../site/README.md) is the first delivered website slice:
+a home page and all eight processor chapters, generated directly from their
+executable Markdown sources. Ryland supplies page generation; Sauvignon draws
+architecture diagrams authored in the chapters and storage maps derived from
+the CPU compiler. Pages include section navigation, highlighted definitions,
+and links back to repository material. They require no browser scripting.
+
+This establishes the reading layout before interactive execution. The sitemap
+and exploration workspace below remain the intended expansion, rather than
+additional navigation entries without usable content.
+
 ## Organizing idea
 
 Build a shared exploration workspace with several ways into it. Lessons,
@@ -147,7 +160,7 @@ initial state.
 
 Website explanations should stay grounded in the existing model contracts and
 example specifications. CPU state, execution records, and reset contracts
-remain in the CPU model documents; program behavior and acceptance criteria
+remain in the executable CPU chapters; program behavior and acceptance criteria
 remain in the example specifications. The site should expose that knowledge
 without introducing independent support or progress lists.
 
@@ -242,8 +255,9 @@ The initial direction is a **quiet, precise technical notebook**:
   inviting.
 
 Concrete typography, colours, panel layouts, and behavior on smaller screens
-should be evaluated in the first page sketches. The framework and routing
-implementation remain open.
+should be evaluated in the first page sketches. The static reading site uses
+Ryland and stable processor paths. The interactive workspace implementation
+remains open.
 
 ## Steps toward the site
 

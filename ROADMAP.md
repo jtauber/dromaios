@@ -16,8 +16,10 @@ the earlier CPU-only checkpoint; [CPU implementation coverage](docs/cpus/coverag
 tracks current support, source footprint, and remaining fidelity limits.
 
 Current CPU work tests literate authoring on top of those definitions and shared code.
-Reusable memory and byte-I/O compositions also work in simulation; the browser
-interface and complete historical machines remain ahead. The stages overlap:
+Reusable memory and byte-I/O compositions also work in simulation. The
+[microcomputer.world reading site](site/README.md) now presents the executable CPU chapters
+with Sauvignon diagrams; interactive execution and complete historical
+machines remain ahead. The stages overlap:
 browser work can build on these foundations while CPU and component work continues.
 Implementation order is independent of the tutorial's historical teaching
 order. See [CPU scope](docs/cpus/scope.md) for the rationale,

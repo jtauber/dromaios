@@ -15,7 +15,9 @@
     "check:src": "npm run generate:cpus && npm run generate:machines && tsc --project tsconfig.src.json",
     "build": "npm run clean && npm run check:src && tsc",
     "test": "npm run build && node scripts/test.ts",
-    "test:built": "node scripts/test.ts"
+    "test:built": "node scripts/test.ts",
+    "build:site": "uv run --project site --locked python site/build.py",
+    "test:site": "uv run --project site --locked python -m unittest discover -s site -p \"test_*.py\""
   },
   "devDependencies": {
     "@types/node": "24.13.4",

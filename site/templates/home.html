@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block main %}
+<main id="main" class="home">
+  <section class="hero" aria-labelledby="home-title">
+    <div class="hero-copy">
+      <p class="eyebrow">A field guide to the microcomputer era</p>
+      <h1 id="home-title">Computers, from<br>the instruction <em>up.</em></h1>
+      <p class="hero-intro">Meet the processors that made personal computing possible. Read their stories, follow their architecture, and see the definitions that bring them to life.</p>
+      <a class="button" href="#processors">Explore the processors <span aria-hidden="true">↓</span></a>
+      <p class="hero-note">{{ chapters | length }} processors. Readable specifications. Working models.</p>
+    </div>
+    <div class="hero-plate">
+      <div class="plate-heading"><span>Inside the Intel 8008</span><span>01 / {{ '%02d' | format(chapters | length) }}</span></div>
+      <img src="{{ hero_diagram }}" alt="Intel 8008 model state, drawn from its executable specification: byte registers, flags, eight address registers, stack index, and halt latch.">
+      <p><span class="status-dot" aria-hidden="true"></span> Drawn directly from the executable specification</p>
+    </div>
+  </section>
+
+  <section class="processor-section" id="processors" aria-labelledby="processor-heading">
+    <div class="section-heading">
+      <div><p class="eyebrow">The processor library</p><h2 id="processor-heading">A decade on a chip.</h2></div>
+      <p>From the 8008 to the 68000.<br>Choose a chapter and look inside.</p>
+    </div>
+    <div class="processor-grid">
+      {% for chapter in chapters %}
+      <a class="processor-card" href="{{ calc_url(chapter.url) }}">
+        <div class="card-top"><span class="card-year">{{ chapter.year }}</span><span class="card-number">{{ '%02d' | format(loop.index) }}</span></div>
+        <h3>{{ chapter.title }}</h3>
+        <p>{{ chapter.memoryBits }}-bit model address space</p>
+        <div class="card-bottom"><span>Read the chapter</span><span aria-hidden="true">↗</span></div>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="about-section" id="about" aria-labelledby="about-heading">
+    <div><p class="eyebrow">The book is the implementation</p><h2 id="about-heading">Read it.<br> Understand it.<br> <em>Run it.</em></h2></div>
+    <div class="about-copy">
+      <p class="lead">A processor specification can be more than a reference. It can be the source of the emulator itself.</p>
+      <p>Each chapter brings together the chip’s history, its programming model, and formal definitions of its behavior. Dromaios turns those definitions into working processor models. The explanation and the machine share one source.</p>
+      <p>This site is the reading room. Interactive lessons and explorable computers are the next part of the journey; today you can build and run the models from the repository.</p>
+      <a class="text-link" href="{{ repository }}#development">Build and run Dromaios <span aria-hidden="true">↗</span></a>
+      <a class="text-link" href="{{ repository }}/blob/main/docs/cpus/literate-specifications.md">Read the specification language guide <span aria-hidden="true">↗</span></a>
+    </div>
+  </section>
+</main>
+{% endblock %}

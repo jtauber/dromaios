@@ -66,6 +66,12 @@ CPU-specific handwritten implementation remains for these eight models.
 Current counts and milestone evidence belong in the
 [coverage report](coverage.md#literate-authoring-milestone).
 
+The [reading site](../../site/README.md) renders these chapters directly. Use
+`sauvignon` fences for architecture diagrams; they compile to SVG during the
+site build and do not affect CPU execution. Generated storage maps use the
+compiled state declarations, so register widths and groups are not maintained
+in a second diagram source.
+
 ## Reading and building a chapter
 
 A complete chapter is the CPU's model contract as well as its implementation

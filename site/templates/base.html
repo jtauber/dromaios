@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} · microcomputer.world</title>
+  <meta name="description" content="{% block description %}Explore how classic processors work through readable, executable specifications. A field guide to the microcomputer era at microcomputer.world.{% endblock %}">
+  <link rel="icon" type="image/svg+xml" href="{{ calc_url('assets/favicon.svg') }}">
+  {% block head %}{% endblock %}
+  <link rel="stylesheet" href="{{ calc_url('assets/style.css') }}">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="{{ calc_url('') }}"><span class="brand-mark" aria-hidden="true">M</span> microcomputer.world</a>
+    <nav aria-label="Main navigation">
+      <a href="{{ calc_url('#processors') }}">Processors</a>
+      <a href="{{ calc_url('#about') }}">About</a>
+      <a href="{{ repository }}">GitHub <span aria-hidden="true">↗</span></a>
+    </nav>
+  </header>
+  {% block main %}{% endblock %}
+  <footer class="site-footer">
+    <a class="wordmark" href="{{ calc_url('') }}">microcomputer.world</a>
+    <p>Understanding computers, one instruction at a time.</p>
+    <p>Built with <a href="{{ repository }}">Dromaios</a>, <a href="https://github.com/jtauber/ryland">Ryland</a> &amp; <a href="https://jtauber.github.io/sauvignon-new/">Sauvignon</a>.</p>
+  </footer>
+</body>
+</html>
