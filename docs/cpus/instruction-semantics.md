@@ -1611,6 +1611,14 @@ only connects this generated source to word fetching and the pending set.
 The script first compiles literate chapters to `semantics/generated/`, then
 loads the definition registry. Both output directories are ignored and removed
 by `npm run clean`.
+The [chapter-data emitter](../../src/components/cpus/semantics/literate/chapter-data.ts)
+serializes shared CPU declarations, schemas, sources, policies, actions, and
+instruction definitions once per distinct ordered structure. Nested uses refer
+to typed constants declared before their users. Only semantic references are
+shared; argument names and field names remain ordinary data. Instruction
+construction still copies, validates, and freezes each owned definition.
+This changes the intermediate representation's storage, not the ordered effects
+emitted into executable bodies or the expanded explanations.
 Regenerate with `npm run generate:cpus`;
 `npm run build` generates these bodies and the machine factories automatically.
 The source-only check and ordinary compilation both type-check the generated

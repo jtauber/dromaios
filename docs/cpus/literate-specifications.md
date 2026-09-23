@@ -117,6 +117,11 @@ Markdown chapter
 `npm test` include them. Chapter data is generated under
 `src/components/cpus/semantics/generated/`; executable bodies remain under
 `src/components/cpus/generated/`. Both directories are ignored and disposable.
+Chapter data keeps CPU declarations, schemas, value sources, flag policies,
+actions, and instruction definitions as shared typed constants. Dependencies
+precede their users; structural equality includes field order and boundary
+capabilities, so matching names alone never merge different behavior. This
+preserves the chapter's reusable building blocks in the intermediate representation.
 Chapters with a `state` block also generate small schema/type modules under
 `semantics/generated/state/`. These modules import only the shared state helpers,
 so runtime consumers need not load the expanded instruction data. Chapter

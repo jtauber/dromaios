@@ -737,12 +737,12 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,357 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,357** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,423 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,423** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 24,442 |
-| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 166 |
+| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 146 |
 | Generated executable CPU output, counted separately | 604,911 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 8,534,250 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,003,508 |
 | Generated state schemas/types, counted separately | 213 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
@@ -756,7 +756,7 @@ migration to zero**. The final public-interface step removes its remaining
 **71 core lines**, **11 state-adapter lines**, and **9 definition-adapter lines**.
 Its generated public class is **52 lines**, its generated state module is
 **24 lines**, and shared generation supplies both. The shared byte runtime
-is now **121 lines**; the literate front end is **2,781 lines**.
+is now **121 lines**; the literate front end is **2,847 lines**.
 
 Across the earlier 8008 execution, public-interface, and machine-integration
 migration, authored CPU TypeScript grew from **9,416 to 9,671 lines**, and CPU
@@ -1408,11 +1408,43 @@ The final clean-build regression passes **all 2,904 tests**, with no skips.
 Zed parses **902 CPU fences** and **72 machine examples**, checks highlighting,
 and builds the extension. All **1,848 local documentation links** resolve.
 
-Generated chapter data shares identical instruction definitions across opcode
-aliases; distinct definitions still repeat their validated CPU schema. This is a
-separate, disposable intermediate representation.
-The small generated state modules serve runtime consumers without importing
-that expanded data.
+Chapter-data generation now preserves shared CPU declarations, state schemas,
+value sources, flag policies, actions, and instruction definitions as typed
+references. Structural comparison retains field order, boundary capabilities,
+and distinct bodies with the same descriptive name. Dependencies precede their
+users, and instruction construction still copies, validates, and freezes owned
+data. The small generated state modules continue to serve runtime consumers
+without importing expanded instruction data.
+
+Across all 18 intermediate TypeScript files, including schema modules, output
+falls from **8,534,463 to 1,003,721 lines** and **250,152,283 to 23,096,972 bytes**:
+**88.2% fewer lines** and **90.8% fewer bytes**. All **114 saved executable CPU,
+machine, and instruction-listing files** remain byte-for-byte identical; the
+report check also reproduces the existing listing from the compact data.
+Authored CPU TypeScript grows from **6,357 to 6,423 lines**, while the two CPU
+generation scripts shrink from **166 to 146 lines**. Combined with the unchanged
+chapters, maintained CPU source is **31,011 lines**, a net addition of **46**.
+
+A single before/after measurement on the same machine with Node 24 ran the
+clean-build stages sequentially, using the commands from `npm run build`:
+
+| Stage | Before | After |
+| --- | ---: | ---: |
+| CPU generation | 30.5 s | 27.3 s |
+| Source-only type check | 31.0 s | 16.5 s |
+| Full TypeScript compilation | 39.8 s | 19.4 s |
+| Total, including cleaning and machine generation | 101.7 s | 63.5 s |
+
+These local measurements show a **37.5% shorter build**; they are not a timing
+guarantee for other machines or CI. [Serialization tests](../../tests/components/cpus/semantics/literate-chapter-data.test.ts) check nested
+references, operand catalogues, aliases, same-name/different-body definitions,
+quoted text, field order, boundary capabilities, prototype-like keys, unchanged
+inputs, deterministic output, and retained instruction validation.
+The final clean-build regression passes **all 2,907 tests**, with no skips.
+Its test phase took **524.4 seconds**, compared with **705.4 seconds** in the
+previous 2,904-test run; these are single local runs, not a controlled timing
+benchmark. The instruction-listing check passes, and all **1,850 local
+documentation links** resolve.
 
 The 16 standalone address/operand readers are now generated by the test harness;
 production expands those chapter sources into complete bodies. The indexed 6809
