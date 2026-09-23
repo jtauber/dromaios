@@ -1,5 +1,5 @@
+import { edited68000 as edited } from "../../../helpers/68000-chapter.js";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
@@ -8,7 +8,6 @@ import { ChapterError } from "../../../../src/components/cpus/semantics/literate
 import { generateChapterExecution } from "../../../../src/components/cpus/semantics/literate/execution.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
-import { instructionModules } from "../../../../src/components/cpus/semantics/definitions.js";
 import type { Cpu68000 } from "../../../../src/components/cpus/68000.js";
 import { initialState } from "../../../helpers/68000-state.js";
 
@@ -131,19 +130,6 @@ test("word declarations reject malformed fields, input widths, lifecycle effects
   assert.throws(() => compileCpuChapter(hidden), /cannot fetch instructions or access memory/);
 });
 
-const markdown = readFileSync("src/components/cpus/specifications/68000.md", "utf8");
-async function edited(replacements: readonly (readonly [string, string])[]): Promise<typeof Cpu68000> {
-  let text = markdown;
-  for (const [before, after] of replacements) { assert.ok(text.includes(before), before); text = text.replace(before, after); }
-  const chapter = compileCpuChapter(text), modules = instructionModules.filter(entry => entry.cpu === "68000" && entry.name !== "68000-state");
-  const actions = moduleUrl(generateInstructions(chapter.cpu, chapter.actions, {
-    sources: { cpu: { name: chapter.cpu, state: chapter.state! }, groups: { views: chapter.views, sources: { effectiveAddress: chapter.sources.effectiveAddress! } } },
-  }));
-  const execution = moduleUrl(generateChapterExecution("68000", "68000", chapter.execution!, modules), { "./68000-state.ts": actions });
-  return (await import(moduleUrl(readFileSync("src/components/cpus/68000.ts", "utf8"), {
-    "./generated/68000-execution.ts": execution,
-  }, new URL("../", base)))).Cpu68000;
-}
 function cpuWith(Cpu: typeof Cpu68000, words: readonly number[], bits = 64) {
   const state = initialState(bits); state.pc = 0x1000; state.ssp = 0x8000;
   const bytes = words.flatMap(word => [word >>> 8, word & 255]);

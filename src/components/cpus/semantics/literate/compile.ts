@@ -152,6 +152,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         if (publicInterface) header.fail("Public interface is already declared.");
         if (!ownsState || !execution) header.fail("A public interface requires chapter-owned state and an earlier execution contract.");
         if (execution?.interrupt === "external") header.fail("A public interface requires chapter-owned interrupt entry.");
+        if (execution?.mode === "word") header.fail("Word public-interface generation is not implemented.");
         const { body, end } = chapterBody(lines, index); index = end;
         publicInterface = chapterInterface(header, body, cpu.state, views);
         continue;

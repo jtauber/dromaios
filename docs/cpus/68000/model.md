@@ -21,8 +21,10 @@ The chapter owns the [stored schema](../../../src/components/cpus/specifications
 and [A7/status views](../../../src/components/cpus/specifications/68000.md#a7-and-physical-addresses).
 Its [normal execution contract](../../../src/components/cpus/specifications/68000.md#fetching-dispatch-and-retirement)
 also owns fetches, dispatch, stopping, retirement, and trace scheduling.
-This document retains the native memory and exception-entry contracts
-while those parts of the model are migrated.
+Its [event contract](../../../src/components/cpus/specifications/68000.md#exception-frames-and-external-events)
+owns exception frames, interrupt recognition and acknowledgement, and fault
+recovery. This document retains the public connection and record reference until
+the generated public-interface migration consolidates it into the chapter.
 
 ## Memory connection
 

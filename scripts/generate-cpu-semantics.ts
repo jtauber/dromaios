@@ -1,3 +1,4 @@
+import { generateWordEvents } from "../src/components/cpus/semantics/literate/word-events.ts";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +15,7 @@ async function generateCpuSemantics(directory: string): Promise<void> {
   const modules = instructionModules.map(({ name, cpu, definitions, options }) =>
     [name, generateInstructions(cpu, definitions, options)] as const);
   for (const { name, cpu, state, execution, reset, interface: api } of models) {
+    if (execution?.mode === "word" && execution.events) modules.push([`${name}-events`, generateWordEvents(name, execution.events, execution.terminal)]);
     if (reset) modules.push([`${name}-reset`, generateChapterReset(name, reset)]);
     if (execution) modules.push([`${name}-execution`, generateChapterExecution(cpu, name, execution, instructionModules.filter(entry => entry.cpu === cpu && entry.name !== `${name}-state`))]);
     if (api) modules.push([`${name}-cpu`, generateChapterInterface(name, state!, api, execution!)]);

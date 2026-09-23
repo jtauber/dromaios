@@ -1,3 +1,5 @@
+import { chapterWordEvents } from "./word-events.ts";
+import type { WordEvents } from "./word-events.ts";
 import type { Flag, InstructionDefinition, Latch, Statement, ValueSource } from "../model.ts";
 import type { OpcodeEntry } from "../../opcodes.ts";
 import type { WordExceptionPolicy } from "../../word-execution.ts";
@@ -8,7 +10,8 @@ import type { ChapterTokens } from "./document.ts";
 interface EncodedInput { readonly shift: number; readonly mask: number; readonly width: number }
 export interface WordExecution {
   readonly mode: "word";
-  readonly interrupt: "external";
+  readonly interrupt: "external" | "events";
+  readonly events?: WordEvents;
   readonly counter: string;
   readonly bits: number;
   readonly order: "big" | "little";
@@ -47,7 +50,7 @@ export function chapterWordExecution(header: ChapterTokens, lines: readonly Chap
     const tokens = lines[index]!, kind = tokens.word();
     if (fields.has(kind)) tokens.fail(`Duplicate word execution field ${kind}.`);
     fields.set(kind, tokens);
-    if (kind === "inputs" || kind === "exceptions") {
+    if (kind === "inputs" || kind === "exceptions" || kind === "events") {
       tokens.expect("{"); tokens.end();
       const { body, end } = chapterBody(lines, index); index = end; blocks.set(kind, body);
     }
@@ -95,9 +98,11 @@ export function chapterWordExecution(header: ChapterTokens, lines: readonly Chap
   }
   for (const name of [unknown, unsupported, pendingException]) if (!exceptions.has(name)) exceptionsAt.fail(`Unknown exception ${name}.`);
   header.checked(() => checkWordEffects(source.steps, Object.fromEntries(exceptions), "address"));
-  const interrupt = required("interrupt"); interrupt.expect("external"); interrupt.end();
+  const interrupt = required("interrupt"), owned = interrupt.take("events");
+  if (!owned) interrupt.expect("external"); interrupt.end();
+  const events = owned ? chapterWordEvents(required("events"), blocks.get("events")!, symbols) : undefined;
   for (const [name, tokens] of fields) tokens.fail(`Unknown word execution field ${name}.`);
-  return { mode: "word", interrupt: "external", counter, bits, order, alignment, terminal, stopped, pending, sample,
+  return { mode: "word", interrupt: owned ? "events" : "external", ...(events ? { events } : {}), counter, bits, order, alignment, terminal, stopped, pending, sample,
     pendingException, fetched, retire, trace, address, unknown, unsupported, inputs: Object.fromEntries(inputs), exceptions: Object.fromEntries(exceptions) };
 }
 

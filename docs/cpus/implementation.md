@@ -98,7 +98,11 @@ hooks for fetching, retirement, and tracing. The shared
 [word executor](../../src/components/cpus/word-execution.ts) retains a sequential
 cursor independently of branch targets and commits whole fetched words. The
 native wrapper supplies snapshots, recording, bus-fault classification, and
-exception-frame delivery; no instruction dispatch table remains in the core.
+generated event binding; no instruction dispatch or exception-frame policy remains
+in the core. `generated/68000-events.ts` binds chapter frame actions and recovery
+sources to the shared [word entry sequence](../../src/components/cpus/word-events.ts).
+The chapter selects frame contents and order, interrupt gates and acknowledgement
+vectors, initial-fetch recovery, and terminal halt after a second modeled fault.
 
 ## Reading order
 
@@ -470,7 +474,7 @@ port accesses. The 8088 additionally records ESC delivery and TEST samples throu
 68000 includes a device-reset event. Other CPUs retain the memory-only default.
 Each step type selects its supported outcomes. The 68000 defines its own
 `StateTransition`-based record with `executed` or `halted` outcomes and optional
-exception/fault metadata. Invalid opwords and memory errors enter native
+exception/fault metadata. Invalid opwords and memory errors enter chapter-bound
 exception delivery. An instruction can be null for a failed initial fetch,
 trace entry, or an already stopped CPU. Fault delivery records the fault and
 completed accesses, including on terminal halt.
@@ -485,7 +489,7 @@ The 68000's separate interrupt record contains a level, null instruction,
 acknowledgement and frame/vector accesses, and accepted, ignored, executed,
 or halted outcomes. Ignored offers identify masking, pending trace, or terminal
 fault state; failed entry reports memory-error delivery. Trace retirement and
-external entry share its native frame helpers; `tracePending` survives snapshots
+external entry share its chapter frame actions; `tracePending` survives snapshots
 independently of T.
 
 The separate interrupt records for the 6502, 6800, and 6809 use `StateTransition` with
@@ -656,7 +660,7 @@ complete-prefix decoding and R updates in shared decoded execution; the
 8088 chapter selects segmented fetching, segment/repeat prefixes, one-element
 REP steps, and trap boundaries through the [segmented runtime](../../src/components/cpus/segmented-execution.ts),
 including external interrupt acceptance. The 68000 selects a separate chapter-bound
-word executor, with native exception frames and interrupt offers. Those contracts
+word executor, with chapter-bound exception frames and interrupt offers. Those contracts
 do not fit this executor. All still share instruction contexts and recorded
 byte memory; specialized step loops do not require a broader executor API.
 
@@ -791,7 +795,7 @@ arming. PULU's S write arms before a subsequent PC pull. The 6809 chapter also
 owns interrupt recognition, frame selection, and vector delivery, sharing frame
 and vector actions with software entry. The 6502, 6800, and 8088 use generated
 entry bodies too. Z80 external entry composes chapter stack actions; the 68000
-retains native frame and fault-delivery helpers. Keep these boundary policies
+composes chapter frame actions and fault-recovery sources through word entry. Keep these boundary policies
 explicit when sharing stack mechanics.
 
 `RegisterView` is a construction-time source plus a function producing write
@@ -982,8 +986,8 @@ stages explicit; no native decimal builder remains.
 
 Chapter `call` and `jump` actions also serve indexed JSR/JMP after chapter-owned
 address resolution. Calls decrement live S before each byte write and preserve NMI arming;
-RTS increments live S only after successful reads. Masked stack and interrupt
-frame construction remains native until those operations migrate.
+RTS increments live S only after successful reads. The chapter also owns masked
+stack transfers and interrupt-frame construction.
 
 [Condition tests](../../tests/components/cpus/motorola.test.ts) compare encoded
 conditions with unsigned and signed arithmetic. [Generated-body tests](../../tests/components/cpus/semantics/arithmetic.test.ts)

@@ -53,13 +53,16 @@ Executable chapters are maintained CPU sources:
   explicit. Its effective-address sources own mode and index decoding, register
   selection, and staged updates. A standalone reset contract owns vector reads,
   fault completion, and preserved state. A word execution contract owns fetching,
-  encoded inputs, dispatch, retirement, and trace scheduling. Exception delivery remains
-  native; the TypeScript definition adapter only groups chapter families.
+  encoded inputs, dispatch, retirement, and trace scheduling. Its event contract owns
+  frame layouts, interrupt gates and acknowledgement, and fault recovery. The
+  native wrapper retains public types, snapshots, and connection validation; the
+  TypeScript definition adapter only groups chapter families.
 
 This is an authoring-language prototype over the existing
 [instruction representation](instruction-semantics.md), with a deliberately
-small vocabulary. It now describes complete instruction-level 8008, 8080, 6502, 6800, 6809, Z80, and 8088 models;
-other execution architectures still need language and runtime support.
+small vocabulary. It now describes the instruction-level behavior of all eight
+CPU models. The 68000 still needs public-interface generation and removal of its
+remaining handwritten adapters.
 Current counts and milestone evidence belong in the
 [coverage report](coverage.md#literate-authoring-milestone).
 
@@ -1293,7 +1296,8 @@ remains; the chapter supplies all of its model and public-interface choices.
 Shared runtime services enforce the declared execution contract. Chapters
 without owned state validate declarations against an external schema. The
 68000 owns all instructions, stored state, views/writes, effective-address
-decoding, and reset; execution and exception delivery still use native orchestration.
+decoding, reset, word execution, and event delivery. Its public interface and
+connection wrappers still await generation.
 
 The eight chapters now exercise contrasting widths, ordered effects, and
 interrupt-recognition policies. The 6502 now owns its complete state, status
@@ -1507,7 +1511,8 @@ prefetch or cycle timing.
 | `retire action finishInstruction` | Pass the target or sequential cursor, then the eight-bit sample, to a state-only action. |
 | `address source effectiveAddress` | Bind a source taking size (8 bits), mode (3), and code (3), returning a 32-bit address. Each instruction has its own pending-register update set. |
 | `unknown "illegal-instruction"`, `unsupported "illegal-instruction"` | Select declared exceptions for unmatched words and rejected operand selections. |
-| `interrupt external` | Leave frame delivery and external offers at the native boundary; no public interface can yet be generated. |
+| `interrupt external` | Leave frame delivery and external offers at the native boundary. |
+| `interrupt events` and `events { … }` | Bind the chapter-owned entry contract below. Word public-interface generation is a separate, unfinished boundary. |
 
 `inputs { … }` binds each numeric family parameter to a quoted 16-bit mask,
 for example `mode = "xxxx xxxx xxmmm xxx"`. The single contiguous named field
@@ -1533,3 +1538,58 @@ exercise an unrelated word model and change the public 68000 through chapter
 edits; [runtime tests](../../tests/components/cpus/word-execution.test.ts) cover
 partial reads, arbitration, cursor/target separation, trace sampling, and host
 throws. Word execution uses the separate [reset sequence](#reset-sequences-with-modeled-faults).
+
+
+### Word exception and interrupt entry
+
+The [68000 event section](../../src/components/cpus/specifications/68000.md#exception-frames-and-external-events)
+defines frame actions and read-only decision sources. An `events` block inside
+`execution word` connects them to the [shared entry sequence](../../src/components/cpus/word-events.ts).
+The runtime knows entry phases and records; it contains no processor name,
+frame-word layout, architectural vector number, interrupt mask rule, or status-bit
+calculation. Existing sources and actions express those details in the chapter.
+
+| Event field | Hook inputs and contract |
+| --- | --- |
+| `capture view EXCEPTIONSTACK view SR view INSTRUCTIONREGISTER` | Input-free views of stack (32 bits), status (16), and last instruction (16). Stack/status are captured before preparation; IR is sampled when recording a memory error. |
+| `prepare action prepareException` | Captured stack (32), reserved bytes (8); state-only. |
+| `stack check action checkExceptionStack` | Captured stack (32); may return an alignment fault but cannot access memory. |
+| `short frame action writeExceptionFrame bytes 6` | Stack (32), status (16), saved PC (32); ordered memory effects. |
+| `vector action loadExceptionVector` | Vector (8); memory effects and an optional alignment fault. |
+| `complete action finishException` | Processing zero/one (8), vector (8); state-only success effects. |
+| `entry return source exceptionFaultReturn` | Requested PC (32), vector (8), vector-phase zero/one (8); returns the recovery PC (32). |
+| `fault frame action writeMemoryErrorFrame bytes 14` | Stack (32), status (16), PC (32), fault address (32), write/processing/function-code values (8 each); ordered memory effects. |
+| `fault vectors address 3 bus 2` | Byte vectors for the two classified memory-error sources. |
+| `function code source faultFunctionCode values 1, 2, 5, 6` | Program-space zero/one (8); returns one declared byte value. The generated binding preserves that literal union in public records. |
+| `fault begin action beginMemoryError` | Vector (8); state-only effects after reserving the error frame. |
+| `halt action haltMemoryError` | No inputs; state-only effects after a fault during error entry. |
+| `initial fetch terminal source terminalInitialFetch return source initialFaultReturn processing source initialFaultProcessing` | Three input-free read-only sources: halt-without-frame (8), saved PC (32), processing zero/one (8). |
+| `levels 1 7` | Inclusive validated interrupt-offer range, within a byte. |
+| `gate source interruptGate reasons "faulted", "trace-pending", "masked"` | Level (8); zero admits, positive byte values select a one-based reason. |
+| `accept action acceptInterrupt` | Level (8); state-only effects before acknowledgement. |
+| `acknowledge autovector source autovector spurious 24 maximum 255` | The source maps level (8) to a vector byte; literals select spurious delivery and the maximum supplied vector. |
+| `interrupt return view FETCHPC processing 0` | Capture the interrupted address (32) and declare the entry's processing classification. |
+
+Short entry captures and prepares the frame, checks alignment, writes the frame,
+loads the vector, and completes. A modeled fault switches to memory-error entry,
+using the recovery source to distinguish frame and vector phases. Memory-error
+entry captures its record and frame, prepares and marks entry, checks/writes the
+frame, and loads its vector. A second fault invokes the declared halt action;
+it never recursively constructs more frames.
+
+An interrupt first validates the level and runs the gate. Rejected offers never
+validate or call acknowledgement. An admitted offer validates the callback,
+captures/prepares/checks the frame, applies acceptance, calls and validates
+acknowledgement, records it, then writes the frame and loads the vector. The
+stack check runs once, before the callback. An invalid callback/result or any
+host throw escapes with completed effects retained. Only the connection adapter's
+classified bus failure enters recovery; fault-shaped host objects are not trusted.
+
+Sources must be read-only and return the documented widths. Actions are checked
+transitively for their declared state, memory, and alignment capabilities; hidden
+fetches, ports, staging, or CPU callbacks are rejected. Hooks without memory
+effects do not receive a memory argument. Frame actions can use data- or
+program-space reads; their declared calls determine the recorded space. Runtime
+checks reject function codes and gate selectors outside their declared choices.
+[Language tests](../../tests/components/cpus/semantics/literate-word-events.test.ts)
+check invalid bindings and prove chapter changes alter public execution.

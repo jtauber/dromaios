@@ -91,7 +91,7 @@ export function generateCpuChapters() {
     "export const chapterInterfaces = {",
     ...publicChapters.map(({ name, cpu, chapter }, index) => {
       const execution = chapter.execution!;
-      if (execution.mode === "word") throw new Error("Word interfaces require chapter-owned exception entry.");
+      if (execution.mode === "word") throw new Error("Word public-interface generation is not implemented.");
       const pc = chapter.interface!.snapshots.find(({ field }) => field === "pc");
       const storedPc = chapter.state?.pc;
       const pcBits = pc ? chapter.views[pc.view]!.width : storedPc?.kind === "unsigned" ? storedPc.bits : undefined;

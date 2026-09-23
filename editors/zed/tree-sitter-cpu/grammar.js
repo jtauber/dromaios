@@ -123,7 +123,7 @@ module.exports = grammar({
       seq('attempt', 'action', $.identifier), seq('complete', 'action', $.identifier, 'with', 'failure'),
     )), '}'),
     execution_declaration: $ => seq('execution', optional(choice('segmented', 'word')), '{', repeat(choice(
-      $.word_execution_policy, $.memory_policy, $.counter_policy, $.stopped_policy, $.word_policy,
+      $.word_execution_policy, $.word_events, $.memory_policy, $.counter_policy, $.stopped_policy, $.word_policy,
       $.segmentation_policy, $.prefix_policy, $.waiting_policy, $.pending_policy, $.fault_delivery_policy, $.unsupported_policy,
       $.opcode_policy, $.operand_policy, $.failure_policy, $.action_policy, $.retirement_policy, $.notification_policy, $.interrupt_policy,
     )), '}'),
@@ -135,6 +135,19 @@ module.exports = grammar({
       seq('inputs', '{', repeat(seq($.identifier, '=', $.string)), '}'),
       seq('exceptions', '{', repeat(seq($.string, 'vector', $.number, optional(seq('plus', $.string)), choice('complete', 'restart'))), '}'),
     ),
+    word_events: $ => seq('events', '{', repeat(choice(
+      seq('capture', 'view', $._state_name, 'view', $._state_name, 'view', $._state_name),
+      seq(choice('prepare', seq('stack', 'check'), 'vector', 'complete', seq('fault', 'begin'), 'halt', 'accept'), 'action', $.identifier),
+      seq(choice(seq('short', 'frame'), seq('fault', 'frame')), 'action', $.identifier, 'bytes', $.number),
+      seq('entry', 'return', 'source', $.identifier),
+      seq('fault', 'vectors', 'address', $.number, 'bus', $.number),
+      seq('function', 'code', 'source', $.identifier, 'values', commaSeparated($.number)),
+      seq('initial', 'fetch', 'terminal', 'source', $.identifier, 'return', 'source', $.identifier, 'processing', 'source', $.identifier),
+      seq('levels', $.number, $.number),
+      seq('gate', 'source', $.identifier, 'reasons', commaSeparated($.string)),
+      seq('acknowledge', 'autovector', 'source', $.identifier, 'spurious', $.number, 'maximum', $.number),
+      seq('interrupt', 'return', 'view', $._state_name, 'processing', $.number),
+    )), '}'),
     segmentation_policy: $ => choice(seq('segment', $._state_name, 'shift', $.number),
       seq('record', 'address', $._state_name), seq('fetch', 'action', $.identifier)),
     prefix_policy: $ => seq('prefixes', 'limit', $.number, '{', repeat(choice(
@@ -156,7 +169,7 @@ module.exports = grammar({
     action_policy: $ => seq(choice('reset', 'retire'), choice('none', seq('action', $.identifier, optional(seq('sampling', commaSeparated(seq(choice('flag', 'latch'), $._state_name))))))),
     retirement_policy: $ => seq('retire', 'irq', 'into', $._state_name, optional(seq('then', 'action', $.identifier))),
     notification_policy: _ => seq('notify', 'reti', 'after', 'retire'),
-    interrupt_policy: $ => seq('interrupt', choice('external', seq('offers', '{', repeat($.vector_offer), '}'), seq('entries', '{', repeat($.interrupt_entry), '}'), seq(optional('vectors'), '{', repeat(choice(
+    interrupt_policy: $ => seq('interrupt', choice('external', 'events', seq('offers', '{', repeat($.vector_offer), '}'), seq('entries', '{', repeat($.interrupt_entry), '}'), seq(optional('vectors'), '{', repeat(choice(
       $.vector_entry,
       $.accept_policy, $.bytes_policy, $.callback_policy, $.interrupt_counter_policy, $.unknown_policy,
     )), '}'))),

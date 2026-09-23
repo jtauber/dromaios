@@ -66,6 +66,7 @@ ${[...stateAliases(state), ...(api.banks ?? [])].map(alias => `export type ${nam
 /** Emit the conventional public adapter, with every processor-specific choice supplied by the chapter. */
 export function generateChapterInterface(module: string, state: StateFields, api: ChapterInterface, execution: ChapterExecution): string {
   if (execution.interrupt === "external") throw new Error("A public interface requires chapter-owned interrupt entry.");
+  if (execution.mode === "word") throw new Error("Word public-interface generation is not implemented.");
   const vectors = execution.interrupt === "vectors", segmented = execution.mode === "segmented";
   const stoppedStep = vectors ? execution.waiting === undefined ? undefined : "WaitingStep" : "HaltedStep";
   const name = api.name, schema = `${name[0]!.toLowerCase() + name.slice(1)}StateDescription`, quoted = JSON.stringify;

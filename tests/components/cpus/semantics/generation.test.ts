@@ -1,3 +1,4 @@
+import { generateWordEvents } from "../../../../src/components/cpus/semantics/literate/word-events.js";
 import { extended6800 } from "../../../helpers/6800-operands.js";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
@@ -73,7 +74,7 @@ test("the catalogue and chapter bindings name exactly the generated modules, eac
     chapter: compileCpuChapter(readFileSync(`src/components/cpus/specifications/${cpu}.md`, "utf8"), { name: cpu }),
   }));
   const filenames = [...instructionModules.map(({ name }) => `${name}.ts`),
-    ...chapters.flatMap(({ cpu, chapter }) => [...(chapter.execution ? [`${cpu}-execution.ts`] : []), ...(chapter.reset ? [`${cpu}-reset.ts`] : []), ...(chapter.interface ? [`${cpu}-cpu.ts`] : [])])];
+    ...chapters.flatMap(({ cpu, chapter }) => [...(chapter.execution ? [`${cpu}-execution.ts`] : []), ...(chapter.execution?.mode === "word" && chapter.execution.events ? [`${cpu}-events.ts`] : []), ...(chapter.reset ? [`${cpu}-reset.ts`] : []), ...(chapter.interface ? [`${cpu}-cpu.ts`] : [])])];
   assert.equal(new Set(filenames).size, filenames.length, "module names must not overwrite one another");
   assert.deepEqual(readdirSync(directory).sort(), filenames.sort());
   for (const module of instructionModules) {
@@ -90,6 +91,11 @@ test("the catalogue and chapter bindings name exactly the generated modules, eac
       const source = generateChapterExecution(cpu, cpu, chapter.execution, instructionModules.filter(entry => entry.cpu === cpu && entry.name !== `${cpu}-state`));
       assert.equal(source, readFileSync(`${directory}/${cpu}-execution.ts`, "utf8"));
       assert.equal(generateChapterExecution(cpu, cpu, chapter.execution, instructionModules.filter(entry => entry.cpu === cpu && entry.name !== `${cpu}-state`)), source);
+    }
+    if (chapter.execution?.mode === "word" && chapter.execution.events) {
+      const source = generateWordEvents(cpu, chapter.execution.events, chapter.execution.terminal);
+      assert.equal(source, readFileSync(`${directory}/${cpu}-events.ts`, "utf8"));
+      assert.equal(generateWordEvents(cpu, chapter.execution.events, chapter.execution.terminal), source);
     }
     if (chapter.reset) {
       const source = generateChapterReset(cpu, chapter.reset);
