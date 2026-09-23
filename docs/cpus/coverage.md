@@ -737,8 +737,8 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,519 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,519** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,521 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,521** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 23,845 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
 | Generated executable CPU output, counted separately | 604,939 |
@@ -753,6 +753,29 @@ lines**. The 68000's 24 shift/rotate definitions become eight algorithms, each
 covering three widths. Specialization still produces concrete definitions for
 each width; this is an authoring simplification, not a generated-code reduction.
 
+Chapter-data generation compares ordered plain data before formatting a shared
+definition and its dependencies. This avoids rendering duplicates just to
+discover they already have a reference. Local measurements on macOS ARM64 with
+Node 24.20.0, using medians from three fresh processes per version:
+
+| CPU generation stage | Before | After |
+| --- | ---: | ---: |
+| Compile chapters | 7.35 s | 7.49 s |
+| Serialize chapter modules | 7.52 s | 1.63 s |
+| Load generated instruction registry | 3.54 s | 3.49 s |
+| Emit instruction bodies | 0.20 s | 0.19 s |
+| **Complete CPU generation, including startup and file writes** | **18.80 s** | **12.85 s** |
+
+Stage timers surround compilation, chapter-module serialization, registry
+import, and instruction emission. Complete generation is **32% faster**; median
+process peak RSS rises from **1,321 to 1,372 MiB** (about 4%), measured with
+`process.resourceUsage().maxRSS`. All **132 checked files**—generated CPU and
+machine sources and the expanded instruction listing—remain byte-identical.
+Separate TypeScript 7.0.2 processes take **11.6 s / 2,026 MiB peak RSS** for
+`tsc --project tsconfig.src.json` and **13.5 s / 3,359 MiB** for `tsc`. These are
+single-run compilation measurements; RSS is the whole process's peak, not a
+per-stage heap measurement. Generated file sizes and emulator behavior are unchanged.
+
 Tests, other documentation, machine definitions, and compiled JavaScript are
 outside this source count. Generated TypeScript is reproducible build output,
 not maintained source. Its size is still reported to keep expansion visible.
@@ -764,7 +787,7 @@ migration to zero**. The final public-interface step removes its remaining
 **71 core lines**, **11 state-adapter lines**, and **9 definition-adapter lines**.
 Its generated public class is **52 lines**, its generated state module is
 **24 lines**, and shared generation supplies both. The shared byte runtime
-is now **121 lines**; the literate front end is **2,908 lines**.
+is now **121 lines**; the literate front end is **2,910 lines**.
 
 Across the earlier 8008 execution, public-interface, and machine-integration
 migration, authored CPU TypeScript grew from **9,416 to 9,671 lines**, and CPU

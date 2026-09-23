@@ -70,6 +70,29 @@ test("chapter data preserves distinct boundary capabilities and record keys with
   assert.deepEqual(data.families.word![0]![1].cpu, word.cpu);
 });
 
+test("chapter data sharing ignores object identity but preserves field order", async () => {
+  // JSON round-tripping duplicates every reference, including repeated dependencies.
+  const copied: CpuChapter = JSON.parse(JSON.stringify(chapter));
+  assert.equal(generateChapterData(copied), generateChapterData(chapter));
+  const { name, type, steps, result } = source;
+  const reordered: ValueSource = { type, name, steps, result };
+  const { data } = await load({ ...chapter, views: { ALIAS: reordered } });
+  assert.deepEqual(data.sources.source, data.views.ALIAS);
+  assert.notEqual(data.sources.source, data.views.ALIAS);
+  assert.deepEqual(Object.keys(data.views.ALIAS!), ["type", "name", "steps", "result"]);
+});
+
+test("chapter data sharing is local to each generation", async () => {
+  const changing = { ...source };
+  const variant = { ...chapter, sources: { source: changing } };
+  const before = generateChapterData(variant);
+  changing.result = literal(8, 9);
+  const { data, source: after } = await load(variant);
+  assert.notEqual(after, before);
+  assert.deepEqual(data.sources.source!.result, literal(8, 9));
+  assert.deepEqual(data.views.ALIAS!.result, literal(8, 1));
+});
+
 test("serialized instruction bodies still pass through independent validation", async () => {
   const invalid: InstructionDefinition = { ...definition, steps: [writeRegister(register, value("missing"))] };
   await assert.rejects(() => load({ ...chapter, families: { invalid: [[0, invalid]] } }), /not been captured/);

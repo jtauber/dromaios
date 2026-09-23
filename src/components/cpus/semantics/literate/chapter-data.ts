@@ -10,11 +10,13 @@ export function generateChapterData(chapter: CpuChapter): string {
   const key = (name: string) => name === "__proto__" ? `[${JSON.stringify(name)}]` : JSON.stringify(name);
 
   function reference(type: SharedType, value: unknown): string {
-    const fields: Record<string, SharedType> = type === "InstructionDefinition" ? { cpu: "CpuDeclaration" }
-      : type === "CpuDeclaration" ? { state: "StateFields" } : {};
-    const body = render(value, fields), identity = `${type}:${body}`;
+    // Compare ordered plain data first; only distinct blocks need formatted declarations.
+    const identity = `${type}:${JSON.stringify(value)}`;
     const existing = shared.get(identity);
     if (existing !== undefined) return existing;
+    const fields: Record<string, SharedType> = type === "InstructionDefinition" ? { cpu: "CpuDeclaration" }
+      : type === "CpuDeclaration" ? { state: "StateFields" } : {};
+    const body = render(value, fields);
     const index = counts.get(type) ?? 0;
     const name = type[0]!.toLowerCase() + type.slice(1) + index;
     counts.set(type, index + 1); shared.set(identity, name);

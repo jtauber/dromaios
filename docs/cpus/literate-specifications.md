@@ -126,7 +126,9 @@ Markdown chapter
 Chapter data keeps CPU declarations, schemas, value sources, flag policies,
 actions, and instruction definitions as shared typed constants. Dependencies
 precede their users; structural equality includes field order and boundary
-capabilities, so matching names alone never merge different behavior. This
+capabilities, so matching names alone never merge different behavior. Equality
+is checked on ordered plain data before formatting each distinct definition.
+Sharing is local to one generation, so subsequent edits are always reflected. This
 preserves the chapter's reusable building blocks in the intermediate representation.
 Chapters with a `state` block also generate small schema/type modules under
 `semantics/generated/state/`. These modules import only the shared state helpers,
