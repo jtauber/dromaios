@@ -18,8 +18,8 @@
 
   <section class="processor-section" id="processors" aria-labelledby="processor-heading">
     <div class="section-heading">
-      <div><p class="eyebrow">The processor library</p><h2 id="processor-heading">A decade on a chip.</h2></div>
-      <p>From the 8008 to the 68000.<br>Choose a chapter and look inside.</p>
+      <div><p class="eyebrow">Processor guides</p><h2 id="processor-heading">A decade on a chip.</h2></div>
+      <p>From the 8008 to the 68000.<br>Choose a processor and explore how it works.</p>
     </div>
     <div class="processor-grid">
       {% for chapter in chapters %}
@@ -27,18 +27,18 @@
         <div class="card-top"><span class="card-year">{{ chapter.year }}</span><span class="card-number">{{ '%02d' | format(loop.index) }}</span></div>
         <h3>{{ chapter.title }}</h3>
         <p>{{ chapter.memoryBits }}-bit model address space</p>
-        <div class="card-bottom"><span>Read the chapter</span><span aria-hidden="true">↗</span></div>
+        <div class="card-bottom"><span>Explore the processor</span><span aria-hidden="true">↗</span></div>
       </a>
       {% endfor %}
     </div>
   </section>
 
   <section class="about-section" id="about" aria-labelledby="about-heading">
-    <div><p class="eyebrow">The book is the implementation</p><h2 id="about-heading">Read it.<br> Understand it.<br> <em>Run it.</em></h2></div>
+    <div><p class="eyebrow">An explanation you can run</p><h2 id="about-heading">Read it.<br> Understand it.<br> <em>Run it.</em></h2></div>
     <div class="about-copy">
       <p class="lead">A processor specification can be more than a reference. It can be the source of the emulator itself.</p>
-      <p>Each chapter brings together the chip’s history, its programming model, and formal definitions of its behavior. Dromaios turns those definitions into working processor models. The explanation and the machine share one source.</p>
-      <p>This site is the reading room. Interactive lessons and explorable computers are the next part of the journey; today you can build and run the models from the repository.</p>
+      <p>Each guide brings together the chip’s history, its programming model, and formal definitions of its behavior. Dromaios turns those definitions into working processor models. The explanation and the machine share one source.</p>
+      <p>Interactive lessons and embedded emulators will let you experiment with these processors in your browser. Today, you can explore their guides here and build and run the models from the repository.</p>
       <a class="text-link" href="{{ repository }}#development">Build and run Dromaios <span aria-hidden="true">↗</span></a>
       <a class="text-link" href="{{ repository }}/blob/main/docs/cpus/literate-specifications.md">Read the specification language guide <span aria-hidden="true">↗</span></a>
     </div>

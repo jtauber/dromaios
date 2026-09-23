@@ -23,10 +23,10 @@ and line-by-line analysis to interactive demonstrations and live execution.
 The [pedagogical roadmap](docs/pedagogy.md#pedagogical-roadmap) develops this
 path from individual calculations to understanding substantial programs.
 
-## Reading site
+## Processor guides
 
-[microcomputer.world](site/README.md), the static reading site, presents a home
-page and all eight executable processor chapters. Ryland builds the pages;
+[microcomputer.world](site/README.md) presents guides to all eight processors,
+drawn directly from their executable specifications. Ryland builds the pages;
 Sauvignon renders architecture diagrams and state maps derived from the
 specifications. Build and preview it locally with the separate site toolchain.
 GitHub Actions validates and publishes pushes to `main` through GitHub Pages.

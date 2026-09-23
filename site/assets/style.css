@@ -32,7 +32,16 @@ em { font-weight: inherit; }
 .button { background: var(--ink); color: var(--paper); padding: 12px 19px; display: inline-flex; gap: 32px; align-items: center; text-decoration: none; font-size: 14px; }
 .button:hover { background: #34594d; color: white; }
 .hero-note { font: 11px/1.7 var(--mono); color: var(--muted); margin: 20px 0 0; }
-.hero-plate { border: 1px solid #c6cec0; background: #f0eee5; transform: rotate(-1deg); box-shadow: 8px 10px 0 #e8e8dd; }
+.hero-plate {
+  border: 1px solid #c6cec0;
+  background: #f0eee5;
+  transform: rotate(-3deg);
+  box-shadow: 0 12px 30px rgb(37 62 55 / 14%);
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .hero-plate:hover { transform: translateY(-4px) rotate(-4deg); box-shadow: 0 20px 42px rgb(37 62 55 / 20%); }
+}
 .plate-heading { display: flex; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid #c6cec0; font: 11px/1.5 var(--mono); text-transform: uppercase; letter-spacing: .05em; }
 .hero-plate img { display: block; width: 100%; }
 .hero-plate p { margin: 0; padding: 13px 17px; font: 10px/1.6 var(--mono); border-top: 1px solid #c6cec0; color: #58685c; }

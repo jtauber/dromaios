@@ -1,12 +1,12 @@
 # microcomputer.world
 
-The reading site is branded **microcomputer.world**. Dromaios supplies the
-processor models and executable chapters; it is credited alongside the site’s
-other tools, Ryland and Sauvignon.
+**microcomputer.world** presents guides to classic processors. Dromaios supplies
+the processor models and executable specifications; it is credited alongside
+the site’s other tools, Ryland and Sauvignon.
 
-Ryland builds the home page and one page per executable CPU chapter. Sauvignon
-renders both the chapters’ architecture diagrams and state maps derived from the
-CPU compiler. The result is ordinary HTML, CSS, and SVG with no JavaScript,
+Ryland builds the home page and one guide per processor from its executable
+specification. Sauvignon renders both architecture diagrams and state maps
+derived from the CPU compiler. The result is ordinary HTML, CSS, and SVG with no JavaScript,
 CDN requests, or browser-side diagram rendering.
 
 ## Build and preview
@@ -129,7 +129,7 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   column; contents navigation and diagram disclosures work without JavaScript.
 
 Sauvignon fences replace the earlier Mermaid diagrams. GitHub currently shows
-these fences as source; the reading site displays the rendered diagrams and
+these fences as source; the site displays the rendered diagrams and
 provides expandable XML source and full-size SVG links.
 
 ## Checks
