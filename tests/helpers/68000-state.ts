@@ -1,4 +1,4 @@
-import type { Cpu68000State } from "../../src/components/cpus/state/68000.js";
+import type { Cpu68000State } from "../../src/components/cpus/semantics/generated/state/68000.js";
 
 export function initialState(bits = 127): Cpu68000State {
   return { d0: 0x11223344, d1: 0x55667788, d2: 0x99aabbcc, d3: 0xddeeff00,

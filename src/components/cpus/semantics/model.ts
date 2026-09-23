@@ -17,6 +17,8 @@ export interface CpuDeclaration {
   readonly irqDeferral?: true;
   /** Segmented boundaries supply deferral, software delivery reporting, and TEST/ESC effects. */
   readonly segmentedBoundary?: true;
+  /** Word boundaries supply 32-bit logical addresses, staged EAs, and device-reset effects. */
+  readonly wordBoundary?: true;
   /** The execution boundary delivers RETI notification after successful retirement. */
   readonly retiNotification?: true;
 }
@@ -267,10 +269,10 @@ export const fetchWord = (name: string): Statement => ({ kind: "fetch-word", nam
 export const readNextAddress = (name: string): Statement => ({ kind: "read-next-address", name });
 /** Select a target for successful retirement; the definition must check its alignment first. */
 export const selectTarget = (address: NumberExpression): Statement => ({ kind: "select-target", address });
-/** Decode a 68000 memory EA now, retaining staged address-register updates for later operands. */
+/** Decode a word-model memory EA now, retaining staged address-register updates for later operands. */
 export const resolveAddress = (name: string, size: 8 | 16 | 32, mode: NumberExpression, code: NumberExpression): Statement => ({ kind: "resolve-address", name, size, mode, code });
 export const commitAddressUpdates = (): Statement => ({ kind: "commit-address-updates" });
-/** Assert the connected 68000 device reset signal now; the boundary records successful completion. */
+/** Assert the connected device reset signal now; the boundary records successful completion. */
 export const resetDevices = (): Statement => ({ kind: "reset-devices" });
 /** Return a rejected logical access; test alignment explicitly before this statement. */
 export const alignmentFault = (operation: "read" | "write" | "fetch", address: NumberExpression, space: "data" | "program" = operation === "fetch" ? "program" : "data"): Statement => ({ kind: "alignment-fault", operation, address, space });

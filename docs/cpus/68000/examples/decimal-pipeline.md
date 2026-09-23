@@ -1,6 +1,6 @@
 # 68000 decimal pipeline and status control
 
-[Model contract](../model.md#decimal-arithmetic) ·
+[Model contract](../../../../src/components/cpus/specifications/68000.md#packed-decimal-arithmetic) ·
 [Machine definition](../../../../src/machines/68000/decimal-pipeline-example.machine) ·
 [Example tests](../../../../tests/machines/68000/decimal-pipeline-example.test.ts)
 

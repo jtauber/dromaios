@@ -18,7 +18,7 @@ async function generateCpuSemantics(directory: string): Promise<void> {
     if (execution?.mode === "word" && execution.events) modules.push([`${name}-events`, generateWordEvents(name, execution.events, execution.terminal)]);
     if (reset) modules.push([`${name}-reset`, generateChapterReset(name, reset)]);
     if (execution) modules.push([`${name}-execution`, generateChapterExecution(cpu, name, execution, instructionModules.filter(entry => entry.cpu === cpu && entry.name !== `${name}-state`))]);
-    if (api) modules.push([`${name}-cpu`, generateChapterInterface(name, state!, api, execution!)]);
+    if (api) modules.push([`${name}-cpu`, generateChapterInterface(name, state!, api, execution!, reset)]);
   }
   const names = new Set<string>();
   for (const [name] of modules) {

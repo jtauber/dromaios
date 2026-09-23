@@ -1,17 +1,21 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { opcodeInstructions as instructions } from "../../../../src/components/cpus/generated/68000-transfers.js";
-import { transfers68000, transferOpcodes68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
+import * as transfersModule from "../../../../src/components/cpus/generated/68000-mode-code.js";
+import { selectFamily } from "../../../helpers/68000-families.js";
+const transfersFamily = selectFamily(transfersModule, "operandTransfer");
+const { opcodeInstructions: instructions } = transfersFamily;
+import { transfers68000, transferOpcodes68000 } from "../../../helpers/68000-families.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import { initialState } from "../../../helpers/68000-state.js";
-import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
-import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
+import type { Cpu68000State } from "../../../../src/components/cpus/semantics/generated/state/68000.js";
+import type { WordAddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/word-execution.js";
 import type { WordInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 
-type Context = Cpu68000AddressContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
+type Context = WordAddressContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
 type Outcome = OperandAlignmentFault | "unsupported" | void;
 type Body = (state: Cpu68000State, mode: number, code: number, context: Context) => Outcome;
-const bodies: Readonly<Record<number, Body>> = instructions;
+// The test inventory selects only this semantic family from the shared signature module.
+const bodies = instructions as unknown as Readonly<Record<number, Body>>;
 const definitionNames = new Map(transferOpcodes68000);
 const definition = (opcode: number) => transfers68000[definitionNames.get(opcode)!]!;
 const data = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;

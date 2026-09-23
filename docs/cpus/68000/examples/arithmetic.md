@@ -1,6 +1,6 @@
 # 68000 long arithmetic example
 
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/68000.md) ·
 [Machine definition](../../../../src/machines/68000/example.machine) ·
 [Example tests](../../../../tests/machines/68000/example.test.ts)
 

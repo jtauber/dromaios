@@ -103,9 +103,9 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         const name = header.quoted();
         if (target.name !== undefined && name !== target.name) header.fail(`Expected CPU ${target.name}.`);
         if (!/^[a-z0-9]+$/.test(name)) header.fail("CPU names must contain lowercase letters or digits.");
-        const segmentedBoundary = header.take("boundary");
-        if (segmentedBoundary) header.expect("segmented");
-        cpu = { ...cpu, name, ...(segmentedBoundary ? { segmentedBoundary: true } : {}) };
+        const boundary = header.take("boundary") ? header.word() : undefined;
+        if (boundary !== undefined && boundary !== "segmented" && boundary !== "word") header.fail("Expected segmented or word boundary.");
+        cpu = { ...cpu, name, ...(boundary === "segmented" ? { segmentedBoundary: true } : boundary === "word" ? { wordBoundary: true } : {}) };
         if (cpu.state.flags?.kind === "group") flagGroups.set("FLAGS", { kind: "flag-group", cpu: name });
         declared = true; header.end(); continue;
       }
@@ -152,7 +152,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         if (publicInterface) header.fail("Public interface is already declared.");
         if (!ownsState || !execution) header.fail("A public interface requires chapter-owned state and an earlier execution contract.");
         if (execution?.interrupt === "external") header.fail("A public interface requires chapter-owned interrupt entry.");
-        if (execution?.mode === "word") header.fail("Word public-interface generation is not implemented.");
+        if (execution?.mode === "word" && !reset) header.fail("A word public interface requires an earlier reset contract.");
         const { body, end } = chapterBody(lines, index); index = end;
         publicInterface = chapterInterface(header, body, cpu.state, views);
         continue;
@@ -160,6 +160,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
       if (kind === "execution") {
         const segmented = header.take("segmented"), word = !segmented && header.take("word");
         if (segmented !== (cpu.segmentedBoundary === true)) header.fail("Segmented execution requires a matching CPU boundary declaration.");
+        if (word !== (cpu.wordBoundary === true)) header.fail("Word execution requires a matching CPU boundary declaration.");
         if (execution) header.fail("Execution is already declared.");
         header.expect("{"); header.end();
         const { body, end } = chapterBody(lines, index); index = end;

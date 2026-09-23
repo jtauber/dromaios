@@ -16,17 +16,16 @@ state validation, execution, and explanations; disassembly and richer inspection
 tools remain possible additional consumers. Expected behavior is checked
 independently against hardware documentation.
 
-A long-term aspiration for the CPU DSL is **literate programming**: a detailed
-description of a CPU would combine explanations with formal definitions from
-which its emulator is generated. The authored description would serve as both
-readable documentation and implementation source. Typed definitions and code
-generation provide a working foundation. The first
-[literate chapter](cpus/literate-specifications.md) now compiles Markdown `cpu`
-fences into that representation, with diagnostics tied to the document.
-The 8008, 8080, 6502, and 6800 now have complete descriptions at their declared instruction-level
-fidelity, including state, lifecycle policies, and generated public APIs.
-Their chapters are the sole processor-specific implementation sources. Generalizing whole-CPU
-authoring across the other architectures remains active work.
+The CPU language implements **literate programming**: each
+[executable chapter](cpus/literate-specifications.md) combines explanations with
+formal definitions in Markdown `cpu` fences. All eight current models are
+authored entirely in these chapters at their declared instruction-level fidelity,
+including state, instruction behavior, lifecycle policies, and public APIs.
+The chapters are both readable documentation and the sole processor-specific
+implementation sources. Validation reports diagnostics against the document;
+generation binds the definitions to shared TypeScript runtimes. Refining the
+language and its explanations through these eight architectures remains active
+work, as does expanding the hardware behavior that the models represent.
 
 The current [stored-state descriptions](cpus/implementation.md#stored-state-descriptions)
 are one such example: CPU-owned fields and constraints drive constructor
@@ -39,12 +38,13 @@ assemble public snapshots and records.
 The [instruction definitions](cpus/instruction-semantics.md) cover all eight
 documented instruction sets, pairing formal behavior with prose. Validation
 and generation produce both expanded explanations and
-typed TypeScript bodies. CPU tables bind those bodies to stored state and narrow
-execution contexts. Native decoders and exception-entry orchestration remain in
-the cores unless a chapter execution contract covers them. The 8008's contract
-generates bindings to shared byte execution, recording, and boundary guards;
-the runtime has no processor-name branches. Complete chapter state blocks generate stored-state
-schemas and types; partial chapters validate references to externally supplied schemas.
+typed TypeScript bodies. Generated tables bind those bodies to stored state and
+narrow execution contexts. Chapter execution contracts select shared byte,
+segmented, or word execution and entry sequencing, supplying processor-specific
+decoding, state transitions, and exception policies. Public classes, recording,
+and boundary guards are generated or shared; no handwritten CPU core remains.
+Chapter state blocks generate stored-state schemas and types; partial chapters
+used in language tests can validate references to externally supplied schemas.
 Schema generation precedes instruction generation and machine parsing, while
 runtime consumers load small schema modules separately from expanded instruction data.
 
@@ -53,8 +53,8 @@ The rule of three applies to these generalizations too. The 8080, 6502, and
 the shared definitions. Further language and component descriptions should
 likewise develop through concrete examples that preserve hardware distinctions.
 
-The [Zed extension](../editors/zed/README.md) uses a separate Tree-sitter grammar
-for editing machine definitions. The application parser and CPU state descriptions
+The [Zed extension](../editors/zed/README.md) uses Tree-sitter grammars
+for editing machine definitions and `cpu` fences. The application parsers and CPU state descriptions
 own validation; editor tooling recognises syntax and is built independently.
 
 ## The pieces

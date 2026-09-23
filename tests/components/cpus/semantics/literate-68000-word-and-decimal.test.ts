@@ -2,14 +2,19 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
-import { opcodeInstructions as words } from "../../../../src/components/cpus/generated/68000-word-arithmetic.js";
-import { opcodeInstructions as decimals } from "../../../../src/components/cpus/generated/68000-decimal.js";
-import { wordArithmetic68000, decimal68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
+import * as wordArithmeticModule from "../../../../src/components/cpus/generated/68000-mode-code-upper-code.js";
+import { selectFamily } from "../../../helpers/68000-families.js";
+const wordArithmeticFamily = selectFamily(wordArithmeticModule, "operandWord");
+const { opcodeInstructions: words } = wordArithmeticFamily;
+import * as decimalModule from "../../../../src/components/cpus/generated/68000-mode-code-upper-code.js";
+const decimalFamily = selectFamily(decimalModule, "operandDecimal");
+const { opcodeInstructions: decimals } = decimalFamily;
+import { wordArithmetic68000, decimal68000 } from "../../../helpers/68000-families.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import type { InstructionDefinition } from "../../../../src/components/cpus/semantics/model.js";
-import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
-import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
+import type { WordAddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/word-execution.js";
+import type { Cpu68000State } from "../../../../src/components/cpus/semantics/generated/state/68000.js";
 import { initialState } from "../../../helpers/68000-state.js";
 
 const file = "src/components/cpus/specifications/68000.md";
@@ -27,7 +32,7 @@ test("every production word/decimal definition and encoding comes from the chapt
   for (const definition of Object.values(definitions)) assert.deepEqual(definition.inputs, { mode: 3, code: 3, upperCode: 3 }, definition.name);
 });
 
-type Context = Pick<Cpu68000AddressContext, "resolveAddress" | "commitAddressUpdates"> & {
+type Context = Pick<WordAddressContext, "resolveAddress" | "commitAddressUpdates"> & {
   readByte(address: number): number; writeByte(address: number, byte: number): void;
 };
 async function generated(definition: InstructionDefinition) {

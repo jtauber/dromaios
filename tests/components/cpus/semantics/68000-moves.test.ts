@@ -2,20 +2,23 @@ import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { initialState } from "../../../helpers/68000-state.js";
-import { instructions, opcodeInstructions } from "../../../../src/components/cpus/generated/68000-moves.js";
-import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
+import * as movesModule from "../../../../src/components/cpus/generated/68000-source-mode-source-code-destination-mode-destination-code.js";
+import { selectFamily } from "../../../helpers/68000-families.js";
+const movesFamily = selectFamily(movesModule, "operandMove");
+const { instructions, opcodeInstructions } = movesFamily;
+import type { WordAddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/word-execution.js";
 import type { WordInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
-import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
-import { cpu68000StateDescription } from "../../../../src/components/cpus/state/68000.js";
+import type { Cpu68000State } from "../../../../src/components/cpus/semantics/generated/state/68000.js";
+import { cpu68000StateDescription } from "../../../../src/components/cpus/semantics/generated/state/68000.js";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
-import { moves68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
+import { moves68000 } from "../../../helpers/68000-families.js";
 import { alignmentFault, commitAddressUpdates, cpuSymbols, fetchWord, flagLiteral, literal, lowBit, readMemory, readProgramMemory, readSource, resolveAddress, value, when } from "../../../../src/components/cpus/semantics/model.js";
 import type { Statement } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 
-type Context = Cpu68000AddressContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
+type Context = WordAddressContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
 type Body = (state: Cpu68000State, sourceMode: number, sourceCode: number, destinationMode: number, destinationCode: number, context: Context) => OperandAlignmentFault | "unsupported" | void;
 const bodies: Readonly<Record<number, Body>> = opcodeInstructions;
 const data = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
@@ -154,12 +157,12 @@ test("MOVE result flags and sign extension cover all incoming flags and operand 
 
 test("staged address effects validate CPU, selectors, logical width, access space, and rejection scope", () => {
   const cpu = cpuSymbols("68000", cpu68000StateDescription), other = cpuSymbols("6502", cpu6502StateDescription);
-  const base = { cpu: cpu.declaration, name: "probe", explanation: "Contract probe.", steps: [] as readonly Statement[] };
+  const base = { cpu: { ...cpu.declaration, wordBoundary: true as const }, name: "probe", explanation: "Contract probe.", steps: [] as readonly Statement[] };
   const valid = [resolveAddress("source", 16, literal(3, 7), literal(3, 2)),
     when(lowBit(value("source")), [alignmentFault("read", value("source"), "program")]), readProgramMemory("byte", value("source")), commitAddressUpdates(), fetchWord("word")];
   defineInstruction({ ...base, steps: valid });
   for (const steps of [valid, [commitAddressUpdates()], [readProgramMemory("byte", literal(32, 0))], [alignmentFault("read", literal(32, 1))]]) {
-    assert.throws(() => defineInstruction({ ...base, cpu: other.declaration, steps }), /68000/);
+    assert.throws(() => defineInstruction({ ...base, cpu: other.declaration, steps }), /word/);
   }
   assert.throws(() => defineInstruction({ ...base, steps: [resolveAddress("address", 16, literal(8, 7), literal(3, 2))] }), /3-bit/);
   assert.throws(() => defineInstruction({ ...base, steps: [readMemory("byte", literal(16, 0))] }), /32-bit/);
@@ -176,7 +179,7 @@ test("staged address effects validate CPU, selectors, logical width, access spac
 
 test("native-word and address capabilities are inferred inside conditions; returned faults escape the whole body", async () => {
   const cpu = cpuSymbols("68000", cpu68000StateDescription);
-  const definition = { cpu: cpu.declaration, name: "nested fault", explanation: "Compiler contract.", steps: [when(flagLiteral(true), [
+  const definition = { cpu: { ...cpu.declaration, wordBoundary: true as const }, name: "nested fault", explanation: "Compiler contract.", steps: [when(flagLiteral(true), [
     fetchWord("word"), resolveAddress("address", 32, literal(3, 7), literal(3, 2)), alignmentFault("read", value("address"), "program"),
   ]), commitAddressUpdates()] };
   const source = generateInstructions("68000", { probe: definition });

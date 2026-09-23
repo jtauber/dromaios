@@ -1587,24 +1587,17 @@ optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,68000,8008,8080,8088,6809,z80}.ts`,
-`6502-state.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, `68000-bits.ts`, `68000-word-arithmetic.ts`,
-`68000-decimal.ts`, `68000-control.ts`, `68000-transfers.ts`, `68000-system.ts`, and the separate 8088
-operand and string modules. The 8088 operand module
-contains chapter groups with captured segment overrides. The string module
-adds repeat mode and prefix-start IP inputs. Its numeric opcode module has
-automatic bindings, and its state module also emits shared entry/WAIT actions.
-The former transfer, ALU, unary, arithmetic, stack, addressing, and control
-modules are removed.
-The 68000 chapter owns all register and memory MOVE/MOVEA definitions and
-encodings. Register forms remain in `68000.ts`; `68000-moves.ts` exposes 169
-shared bodies and a generated table of their 9,150 non-register operation words.
-The generated execution binding supplies the chapter-declared EA fields. The initial specialized
-word-load/store module is removed. Reusable memory sources, data-register write
-actions, and result policies preserve ordered reads, pending-update commits,
-writeback, and fault behavior. All remaining 68000 instruction families now
-also come from the chapter; the native adapter only groups their calling
-conventions. Address decoding, reset, and normal execution also come from the
-chapter; exception entry remains in the core.
+`6502-state.ts`, the 8088 operand/string modules, and the 68000's automatically
+partitioned word modules. The 8088 operand module captures segment overrides;
+its string module adds repeat mode and prefix-start IP. Word modules group
+instructions by their ordered numeric inputs, such as `68000-mode-code.ts` and
+`68000-mode-code-upper-code.ts`. Input-free bodies remain in generated `68000.ts`;
+MOVE operand bodies share `68000-source-mode-source-code-destination-mode-destination-code.ts`.
+
+All eight chapters generate their instruction catalogues, stored schemas, public
+classes and records, execution/entry bindings, and integration metadata. No
+handwritten per-CPU adapter remains. Reusable sources, write actions, and result
+policies preserve ordered reads, pending-update commits, writeback, and faults.
 The 68000's generated state module also exposes its effective-address source.
 `read-pending-register` and `stage-register` are schema-checked register effects:
 generation supplies a lazy stored read or a deferred write callback identified
@@ -1612,7 +1605,7 @@ by its register path. The [shared pending set](../../src/components/cpus/registe
 knows no processor names, widths, modes, or bank choices. Its first-stage order,
 latest-value replacement, retained entries, and partial-commit behavior are
 checked independently. Sources author mode/index decoding and address arithmetic;
-instruction bodies author alignment and commit timing. The native address context
+instruction bodies author alignment and commit timing. The shared word address context
 only connects this generated source to word fetching and the pending set.
 
 The script first compiles literate chapters to `semantics/generated/`, then
@@ -1624,11 +1617,9 @@ The source-only check and ordinary compilation both type-check the generated
 bodies. Reproducibility tests compare every module with fresh output and run the
 native generator in a clean temporary tree from another working directory.
 
-Handwritten CPU schemas live under
-[`src/components/cpus/state/`](../../src/components/cpus/state). The 8008, 8080,
-and 6502 schemas, mutable stored-state types, public aliases, and readonly caller
+All eight schemas, mutable stored-state types, public aliases, and readonly caller
 policies are generated into `semantics/generated/state/` and re-exported by their
-`generated/<cpu>-cpu.ts` modules. Other schemas remain authored TypeScript.
+`generated/<cpu>-cpu.ts` modules.
 Chapter generation builds owned schemas without importing existing output,
 before the instruction registry loads them. The machine parser
 uses these same schemas without importing executable handlers or expanded chapter
@@ -1654,7 +1645,7 @@ binding. Generated methods retain their precise callback types, while the
 bound handlers accept the shared byte instruction context, with deferral when
 the module requires it. Automatic opcode
 bindings reject selected definitions with numeric inputs, since they cannot
-supply those values; such bodies require an explicit CPU-owned binding.
+supply those values; such bodies require an execution-contract binding.
 
 The 68000 keeps its static dispatch table. Its numeric register definitions
 supply 792 entries directly, while eight MOVEQ bodies receive the decoded
@@ -1663,12 +1654,11 @@ words. No new semantic primitive is needed: existing truncation, sign extension,
 bitwise expressions, conditional statements, transfer construction, and flag
 policies express the register behavior. Conditional A7 selection accesses only
 the chosen stored stack pointer. A separate state-schema module lets generation
-bootstrap without loading the 68000 core or its generated imports.
+bootstrap without loading the generated public CPU or execution modules.
 
-Of the remaining 9,150 MOVE/MOVEA forms, 128 word loads/stores use chapter-owned
-numeric definitions. The other 9,022 forms select 169 bodies by source/destination
-role, with numeric mode/register inputs from their common encoding inventory.
-`Cpu68000AddressContext` retains the existing EA decoder and one pending-update
+The 9,150 operand MOVE/MOVEA operation words select 169 bodies by
+source/destination role, with numeric mode/register inputs from chapter masks.
+`WordAddressContext` connects the generated EA decoder to one pending-update
 map per instruction. Address resolution performs extension fetches and staging,
 with no operand-data read or flag update. The body explicitly requests source
 resolution, checks alignment, reads the complete source, then resolves and
@@ -1683,7 +1673,7 @@ own 906 bodies and all 6,660 encodings. They bind pure calculation sources with
 `with calculation = ...`, sharing operand access and flag/writeback sequencing
 across AND/OR/EOR and across CLR/NOT. TST has an explicit body without a write.
 MOVE and logic share chapter memory sources, immediate fetching, data-register
-write actions, and result policies. The native binding supplies only the encoded
+write actions, and result policies. The generated binding supplies only the encoded
 EA's mode and register code. No handwritten logical catalogue or instruction
 builder remains, and no new language or compiler feature is needed. AND/OR with
 an immediate source EA still share bodies with equivalent ANDI/ORI-to-Dn forms.
@@ -1697,7 +1687,7 @@ ordering distinct from MOVE's write-before-flags sequence. CCR/SR immediate
 logic remains in its separate status path.
 
 The [addition/subtraction/comparison chapter families](../../src/components/cpus/specifications/68000.md#addition-subtraction-and-comparison)
-own 2,678 bodies for 11,186 forms. The native binding supplies only raw
+own 2,678 bodies for 11,186 forms. The generated binding supplies only raw
 `mode/code/upperCode` fields. The chapter selects register roles, interprets
 quick zero as eight, and assigns paired predecrement/postincrement modes. Quick
 literal values do not multiply bodies or coverage. Ordinary immediate and
@@ -1719,12 +1709,11 @@ successive updates to the same An. Source or alignment failures discard pending
 updates. A failed destination read retains committed updates; a failed write
 also retains calculated flags and earlier bytes. The native arithmetic builder
 and its encoding classifier are removed without a language or compiler change.
-The native ALU destination recipe remains in use for Scc and status transfers
-until their own chapter migration.
+Scc and status transfers also use chapter-owned operand sources and write actions.
 
 The [bit/shift chapter families](../../src/components/cpus/specifications/68000.md#bits-shifts-and-rotates) own
 2,086 bodies for 3,940 documented forms across 5,284 operation words. They share
-the chapter's register readers, memory sources, and writeback actions. Native
+the chapter's register readers, memory sources, and writeback actions. Generated
 bindings supply only raw `mode/code/upperCode`; the chapter owns register roles,
 quick count decoding, and the six-bit register-count mask. Bit-number immediates fetch a complete word before target extensions;
 dynamic bit numbers and register shift counts are captured before the target,
@@ -1763,7 +1752,7 @@ bind 2,120 MULU/MULS/DIVU/DIVS/CHK forms to 440 bodies, and the
 [decimal families](../../src/components/cpus/specifications/68000.md#packed-decimal-arithmetic)
 bind 306 ABCD/SBCD/NBCD forms to 139 bodies. The chapter owns encodings,
 register roles, explicit paired predecrement modes, and distinct commit schedules.
-Native dispatch supplies only raw `mode/code/upperCode` fields. The handwritten
+Generated dispatch supplies only raw `mode/code/upperCode` fields. The handwritten
 word/decimal catalogue and builders are removed; chapter sources and actions
 supply operand reads, calculations, and writeback.
 
@@ -1876,7 +1865,7 @@ The [system families](../../src/components/cpus/specifications/68000.md#status-a
 186 remaining documented forms through 63 bodies, also serving TRAP literals and
 software emulator-line requests. Privilege guards reject before operand fetching
 or address resolution. The chapter execution contract selects vectors, saved
-PCs, and trace handling; native exception entry handles frames and nested faults.
+PCs, and trace handling; its event contract defines frames and nested-fault handling.
 
 Packed SR and its restoration use the chapter's views, policies, and actions. Its captures retain T/S, interrupt mask, then X/N/Z/V/C order.
 Immediate logic captures the old status before fetching the complete word.
@@ -1893,7 +1882,7 @@ advancing the captured pointer and restoring status. A failed read or odd target
 leaves those final effects unapplied. STOP restores the fetched SR before halting.
 The chapter's `reset devices` statement lowers to the existing `reset-devices`
 effect and invokes the RESET connection;
-validation restricts it to the 68000, generated types require only that callback,
+validation requires a word boundary, generated types require only that callback,
 and the CPU records reset only after callback success. It does not reset CPU state.
 
 External CPU reset is separately defined by the [chapter reset contract](../../src/components/cpus/specifications/68000.md#external-reset).
@@ -2121,12 +2110,13 @@ All eight documented instruction inventories now use generated definitions.
 The [literate prototype](literate-specifications.md) now tests an external authoring
 path into those definitions. Continue checking total authored source in the
 [footprint report](coverage.md#source-footprint), including the chapters and their
-compiler. Seven CPUs now have complete chapter-authored models, including the
+compiler. All eight CPUs now have complete chapter-authored models, including the
 8088's segmented execution, external vector offers, and generated public
 interface. The 68000 owns all instructions, stored state, register views/writes,
 effective-address decoding, reset, and normal execution. Its word contract binds
-encoded fields, fetch commits, retirement, and tracing to a shared executor;
-external entry still uses the native core.
+encoded fields, fetch commits, retirement, and tracing to a shared executor.
+Its chapter also owns external entry and generates its public interface and
+catalogue; shared services supply bus recording and guarded boundaries.
 
 Unbounded loops and CPU-boundary exception delivery remain outside semantic
 bodies; both the 6809 postbyte decoder and the 68000 effective-address decoder

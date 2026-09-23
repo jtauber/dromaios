@@ -15,8 +15,8 @@ type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePo
 
 /** Compile the bounded experiment to ordinary typed statements, without executing any effects. */
 export function generateInstructions(cpu: string, definitions: Readonly<Record<string, InstructionDefinition>>,
-  { bindOpcodes = false, opcodeAliases = [], pages = {}, sources, state, origin = `semantics/definitions/${cpu}.ts` }: {
-    bindOpcodes?: boolean | readonly number[]; opcodeAliases?: readonly OpcodeEntry<string>[]; pages?: Readonly<Record<string, OpcodePage>>; sources?: SourceDefinitions;
+  { opcodeBits = 8, bindOpcodes = false, opcodeAliases = [], pages = {}, sources, state, origin = `semantics/definitions/${cpu}.ts` }: {
+    opcodeBits?: 8 | 16 | 24; bindOpcodes?: boolean | readonly number[]; opcodeAliases?: readonly OpcodeEntry<string>[]; pages?: Readonly<Record<string, OpcodePage>>; sources?: SourceDefinitions;
     state?: { readonly name: string; readonly module: string }; origin?: string;
   } = {}): string {
   // Numeric definition keys are the opcode authority when generating execution bindings.
@@ -30,12 +30,12 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     if (!Object.hasOwn(definitions, opcode) || !definition) throw new Error(`Opcode ${opcode} has no instruction definition.`);
     if (prefixes.length && Number(opcode) > 255 && !prefixBytes.has(Number(opcode) >>> 8)) throw new Error(`Opcode ${opcode} has no declared page.`);
     return [Number(opcode), definition];
-  }), prefixes.some(page => page.on) ? 24 : prefixes.length || cpu === "68000" ? 16 : 8);
+  }), prefixes.some(page => page.on) ? 24 : prefixes.length ? 16 : opcodeBits);
   opcodeTable(opcodeAliases.map(([opcode, name]) => {
     if (!Object.hasOwn(definitions, name)) throw new Error(`Opcode alias ${opcode} has no definition ${name}.`);
     return [opcode, name];
-  }), cpu === "68000" ? 16 : 8);
-  const stateType = state?.name ?? `Cpu${cpu === "z80" ? "Z80" : cpu}State`;
+  }), opcodeBits);
+  const stateType = state?.name ?? "StoredState";
   const helpers = new Set<string>();
   const outcomes = new Set<string>();
   let alignmentFaults = false, targetFaults = false;
@@ -50,9 +50,9 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     { name: "InterruptReportContext", file: "instruction-context", capabilities: ["reportInterrupt"] },
     { name: "CoprocessorContext", file: "coprocessor-access", capabilities: ["readTest", "sendEscape"] },
     { name: "WordInstructionContext", file: "instruction-context", capabilities: ["fetchWord"] },
-    { name: "Cpu68000AddressContext", file: "68000-context", capabilities: ["resolveAddress", "commitAddressUpdates", "readProgramByte"] },
-    { name: "Cpu68000ControlContext", file: "68000-context", capabilities: ["nextAddress", "jump"] },
-    { name: "Cpu68000ResetContext", file: "68000-context", capabilities: ["resetDevices"] },
+    { name: "WordAddressContext", file: "word-execution", capabilities: ["resolveAddress", "commitAddressUpdates", "readProgramByte"] },
+    { name: "WordControlContext", file: "word-execution", capabilities: ["nextAddress", "jump"] },
+    { name: "DeviceResetContext", file: "word-execution", capabilities: ["resetDevices"] },
     { name: "RegisterUpdateContext", file: "register-updates", capabilities: ["readPendingRegister", "stageRegister"] },
   ];
   const extensions = (capabilities: ReadonlySet<Capability>) => contextExtensions.filter(extension => extension.capabilities.some(name => capabilities.has(name)));
@@ -417,11 +417,11 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     return `    [${JSON.stringify(group)}]: {\n${methods.join("\n\n")}\n    },`;
   }) : [];
   if (prefixes.length) { allCapabilities.add("fetchByte"); outcomes.add("unsupported"); }
-  const imports = [`import type { ${stateType} } from ${JSON.stringify(state?.module ?? `../state/${cpu}.ts`)};`];
+  const imports = [`import type { ${stateType} } from ${JSON.stringify(state?.module ?? `../semantics/generated/state/${cpu}.ts`)};`];
   if (bindOpcodes || allCapabilities.size) imports.push('import type { ByteInstructionContext } from "../instruction-context.ts";');
   for (const extension of extensions(allCapabilities)) imports.push(`import type { ${extension.name} } from "../${extension.file}.ts";`);
-  if (alignmentFaults) imports.push('import type { OperandAlignmentFault } from "../68000-context.ts";');
-  if (targetFaults) imports.push('import type { TargetAlignmentFault } from "../68000-context.ts";');
+  if (alignmentFaults) imports.push('import type { OperandAlignmentFault } from "../word-execution.ts";');
+  if (targetFaults) imports.push('import type { TargetAlignmentFault } from "../word-execution.ts";');
   if (bindOpcodes) imports.push('import type { OpcodeEntry } from "../opcodes.ts";');
   if (bindOpcodes) imports.push('import { opcodeTable } from "../opcodes.ts";');
   if (helpers.size) imports.push(`import { ${[...helpers].sort().join(", ")} } from "../alu.ts";`);

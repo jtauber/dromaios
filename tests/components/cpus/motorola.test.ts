@@ -4,7 +4,10 @@ import { add, subtract } from "../../../src/components/cpus/alu.js";
 import { motorolaArithmeticFlags } from "../../../src/components/cpus/motorola.js";
 
 import { initialState } from "../../helpers/68000-state.js";
-import { instructions as m68000 } from "../../../src/components/cpus/generated/68000-control.js";
+import * as controlModule from "../../../src/components/cpus/generated/68000-mode-code-displacement.js";
+import { selectFamily } from "../../helpers/68000-families.js";
+const controlFamily = selectFamily(controlModule, "operandControl");
+const { instructions: m68000 } = controlFamily;
 import { instructions as m6800 } from "../../../src/components/cpus/generated/6800.js";
 
 test("Motorola condition encodings agree with unsigned and signed comparisons", () => {

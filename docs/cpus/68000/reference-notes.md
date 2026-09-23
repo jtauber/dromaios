@@ -60,7 +60,7 @@ prefetch and cycle counts remain outside the model.
   exception behavior. Keep original-68000 rules separate from 68010/68020 ones.
 - Keep Macintosh mapping and ROM behavior in future machine/device components.
 
-The [model contract](model.md) records current policies; the
+The [model contract](../../../src/components/cpus/specifications/68000.md) records current policies; the
 [opcode-count audit](opcode-count.md) explains the coverage denominator.
 
 ## MOVE and effective-address expansion
@@ -326,7 +326,7 @@ checks, and active-stack handling. ADD/SUB accept an extended mode, allowing
 NEGX to reuse SUBX's flag logic with a zero left operand. The opcode table
 retains the complete bit patterns and explicit addressing choices.
 
-The [model contract](model.md#extended-arithmetic-and-memory-comparison)
+The [model contract](../../../src/components/cpus/specifications/68000.md#addition-subtraction-and-comparison)
 specifies staged operand updates on alignment faults and instruction-level access order;
 neither exception delivery nor cycle ordering is added here. The
 [combined example](examples/extended.md) restores a 64-bit memory value and
@@ -357,7 +357,7 @@ existing paired-operand path for predecrement. That path also handles A7's
 two-byte step; the reference's decimal path decrements byte A7 by one.
 Valid packed operands are checked against independent integer decimal
 arithmetic; non-BCD inputs follow the explicit deterministic correction
-policy in the [model contract](model.md#decimal-arithmetic).
+policy in the [model contract](../../../src/components/cpus/specifications/68000.md#packed-decimal-arithmetic).
 
 MOVEP reuses ordered memory transfer with a stride of two. Word-source
 execution shares EA resolution, alignment checks, and deferred address
@@ -420,7 +420,7 @@ Manual-derived tests additionally cover user/supervisor banks, all trap vectors,
 all RTE status words, nested entries/returns and snapshot restoration, address
 wrapping, stack/vector overlap, privilege rejection before operand reads,
 and host RAM failures during frame/vector transfers. The
-[model contract](model.md#synchronous-exception-entry-and-return) describes
+[model contract](../../../src/components/cpus/specifications/68000.md#synchronous-exception-entry-and-return) describes
 alignment faults and callback-visible partial state. Illegal/emulator-line and
 address-error and bus-error delivery are covered below.
 
@@ -469,7 +469,7 @@ the instruction already executing.
 Sections 6.3.2–6.3.4 specify mask comparison, the level-7 transition exception,
 autovectors, device vector bytes, vector 15 for an uninitialized peripheral,
 and vector 24 for spurious acknowledgement. The caller owns selected requests
-and level-7 edges under the [boundary API](model.md#external-interrupt-delivery).
+and level-7 edges under the [boundary API](../../../src/components/cpus/specifications/68000.md#external-interrupt-delivery).
 The [programmer's reference](https://www.nxp.com/docs/en/reference-manual/M68000PRM.pdf)
 RESET and STOP entries supply device-output preservation and stop/wake rules.
 Only the original chip's single T bit applies; later-family T0/T1 wording in
@@ -579,7 +579,7 @@ overlap, snapshot detachment, first-handler fetch failures, and software cleanup
 followed by RTE. Separate host throws and invalid callback results must never
 be converted into vector 2.
 
-These checks validate the [declared recovery contract](model.md#bus-errors),
+These checks validate the [declared recovery contract](../../../src/components/cpus/specifications/68000.md#bus-errors),
 not hardware bus-cycle fault timing. The byte connection can stop midway through
 a modeled word; hardware uses word bus transactions. Ordinary saved PCs follow
 the completed-word fetch cursor, and existing helper commit points determine

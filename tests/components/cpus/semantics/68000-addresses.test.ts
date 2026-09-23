@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sourceReaders } from "../../../../src/components/cpus/generated/68000-state.js";
 import { registerUpdates } from "../../../../src/components/cpus/register-updates.js";
-import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
+import type { Cpu68000State } from "../../../../src/components/cpus/semantics/generated/state/68000.js";
 import { initialState } from "../../../helpers/68000-state.js";
 
 const addressRegisters = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;

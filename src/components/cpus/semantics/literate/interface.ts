@@ -1,5 +1,8 @@
+import { comment, stateAliases, snapshotInterface } from "./interface-shapes.ts";
+import { generateWordInterface } from "./word-interface.ts";
 import type { StateFields } from "../../state.ts";
 import type { ValueSource } from "../model.ts";
+import type { ChapterReset } from "./reset.ts";
 import type { ChapterExecution } from "./execution.ts";
 import type { ChapterTokens } from "./document.ts";
 
@@ -39,17 +42,14 @@ export function chapterInterface(header: ChapterTokens, lines: readonly ChapterT
   }
   // Array/group aliases share the public namespace with standard record and state types.
   const types = new Set(["State", "StoredState", "Snapshot", "MemoryAccess", "Access", "Instruction", "StepRecord", "ResetRecord",
-    "InterruptAccess", "InterruptInstruction", "InterruptRecord", "InterruptSource", "Connections", "Delivery", "Escape"]);
+    "InterruptAccess", "InterruptInstruction", "InterruptRecord", "InterruptSource", "Connections", "Delivery", "Escape",
+    "InterruptLevel", "InterruptVector", "MemoryFault", "AlignmentFault", "BusFault", "Exception",
+    "ShortExceptionDelivery", "AddressErrorDelivery", "BusErrorDelivery", "MemoryErrorDelivery", "ExceptionDelivery"]);
   for (const alias of [...stateAliases(state).map(alias => alias.name), ...banks.flatMap(bank => [bank.name, bank.snapshot])]) {
     if (types.has(alias)) header.fail(`Public state alias ${name}${alias} conflicts with another type.`);
     types.add(alias);
   }
   return { name, description, snapshots, ...(banks.length ? { banks } : {}) };
-}
-
-function stateAliases(state: StateFields) {
-  return Object.entries(state).filter(([, value]) => value.kind === "array" || value.kind === "group")
-    .map(([field]) => ({ field, name: field[0]!.toUpperCase() + field.slice(1) }));
 }
 
 /** Preserve mutable storage while accepting readonly caller arrays and detached readonly snapshots. */
@@ -64,13 +64,12 @@ ${[...stateAliases(state), ...(api.banks ?? [])].map(alias => `export type ${nam
 }
 
 /** Emit the conventional public adapter, with every processor-specific choice supplied by the chapter. */
-export function generateChapterInterface(module: string, state: StateFields, api: ChapterInterface, execution: ChapterExecution): string {
+export function generateChapterInterface(module: string, state: StateFields, api: ChapterInterface, execution: ChapterExecution, reset?: ChapterReset): string {
   if (execution.interrupt === "external") throw new Error("A public interface requires chapter-owned interrupt entry.");
-  if (execution.mode === "word") throw new Error("Word public-interface generation is not implemented.");
+  if (execution.mode === "word") return generateWordInterface(module, state, api, execution, reset);
   const vectors = execution.interrupt === "vectors", segmented = execution.mode === "segmented";
   const stoppedStep = vectors ? execution.waiting === undefined ? undefined : "WaitingStep" : "HaltedStep";
   const name = api.name, schema = `${name[0]!.toLowerCase() + name.slice(1)}StateDescription`, quoted = JSON.stringify;
-  const comment = (text: string) => `/** ${text.replace(/\*\//g, "* /").replace(/[\r\n\u2028\u2029]/g, " ")} */`;
   const aliases = [...stateAliases(state), ...(api.banks ?? [])].map(alias => `${name}${alias.name}`);
   const named = execution.interrupt === "entries";
   const notification = execution.mode === "byte" && execution.opcodeAdvance === "decode" && execution.notifyReti;
@@ -83,14 +82,7 @@ export function generateChapterInterface(module: string, state: StateFields, api
   const overloads = named || segmented ? execution.entries.map(entry =>
     `  interrupt(source: ${quoted(entry.source)}${("vector" in entry ? entry.vector === "acknowledge" : entry.delivery.kind === "acknowledged") ? ", acknowledge: () => number" : ""}): ${name}InterruptRecord;`).join("\n") + "\n" : "";
   const initialState = vectors ? `ReadonlyState<${name}State>` : `${name}State`;
-  const nested = [...new Set(api.snapshots.filter(({ field }) => field.includes(".")).map(({ field }) => field.split(".")[0]!))];
-  const at = (parent?: string) => api.snapshots.filter(({ field }) => parent === undefined ? !field.includes(".") : field.startsWith(parent + "."));
-  const additions = (parent?: string) => at(parent).map(({ field, description }) =>
-    `  ${comment(description)}\n  readonly ${quoted(field.split(".").at(-1)!)}: number;`).join("\n");
-  const bankType = (field: string) => `ReadonlyState<${name}State[${quoted(field)}]> & {\n${additions(field)}\n}`;
-  const snapshotTypes = (api.banks ?? []).map(bank => `export type ${name}${bank.snapshot} = ${bankType(bank.field)};`).join("\n");
-  const derived = (parent?: string) => at(parent).map(({ field, view }) => `${quoted(field.split(".").at(-1)!)}: views[${quoted(view)}]()`);
-  const snapshotValues = [...derived(), ...nested.map(field => `${quoted(field)}: { ...state[${quoted(field)}], ${derived(field).join(", ")} }`)];
+  const snapshot = snapshotInterface(api);
   return `// Generated from the chapter's public interface. Do not edit.
 import { sourceReaders } from "./${module}-state.ts";
 import { checkMemory, createExecution${segmented ? ", recordDevices" : ""} } from "./${module}-execution.ts";
@@ -108,13 +100,9 @@ import type { ReadonlyState } from "../state.ts";
 export { ${schema} } from "../semantics/generated/state/${module}.ts";
 export type { ${[`${name}State`, `${name}StoredState`, ...aliases].join(", ")} } from "../semantics/generated/state/${module}.ts";
 
-${snapshotTypes}
+${snapshot.types}
 export type ${name}Snapshot = ReadonlyState<${name}State> & {
-${additions()}
-${nested.map(field => {
-  const alias = api.banks?.find(bank => bank.field === field);
-  return `  readonly ${quoted(field)}: ${alias ? name + alias.snapshot : bankType(field)};`;
-}).join("\n")}
+${snapshot.fields}
 };
 export type ${name}MemoryAccess = MemoryAccess;
 export type ${name}Access = MemoryAccess${vectors ? "" : " | PortAccess"}${segmented ? " | CoprocessorAccess" : ""};
@@ -140,7 +128,7 @@ export class ${name} {
 
   snapshot(): ${name}Snapshot {
     const state = copyState(${schema}, this.#state), views = sourceReaders(state).views;
-    return { ...state${snapshotValues.length ? ", " + snapshotValues.join(", ") : ""} };
+    return { ...state${snapshot.values.length ? ", " + snapshot.values.join(", ") : ""} };
   }
 
   reset(): ${name}ResetRecord { return this.#execution.reset(); }

@@ -48,7 +48,7 @@ will be organized for learning, exploration, and reference as support develops.
   byte-register views from stored words. Its [arithmetic example](8088/examples/arithmetic.md)
   exercises the shared runner without changes. The [PC reference review](8088/reference-notes.md)
   records comparisons with `dromaios-pc` and hardware-generated instruction tests.
-- The **68000 was the eighth CPU**. Its [model contract](68000/model.md) preserves
+- The **68000 was the eighth CPU**. Its [model contract](../../src/components/cpus/specifications/68000.md) preserves
   32-bit registers on a 24-bit bus and derives the active stack pointer from
   user/supervisor state. Its [arithmetic example](68000/examples/arithmetic.md)
   uses word encodings and big-endian long operands. The

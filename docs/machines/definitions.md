@@ -16,7 +16,7 @@ address for the caller; it does not make the CPU stop there automatically.
 Flat-RAM images use physical RAM addresses; named `image` blocks use local
 component offsets. Completion compares `snapshot().pc`: a
 physical address for the [8088](../../src/components/cpus/specifications/8088.md#logical-and-physical-addresses),
-but the full 32-bit register for the [68000](../cpus/68000/model.md#logical-and-physical-addresses).
+but the full 32-bit register for the [68000](../../src/components/cpus/specifications/68000.md#logical-and-physical-addresses).
 
 ## RAM and CPU ownership
 

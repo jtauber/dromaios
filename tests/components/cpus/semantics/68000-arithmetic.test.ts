@@ -1,16 +1,20 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { initialState } from "../../../helpers/68000-state.js";
-import { instructions, opcodeInstructions } from "../../../../src/components/cpus/generated/68000-arithmetic.js";
-import { arithmetic68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
-import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
+import * as arithmeticModule from "../../../../src/components/cpus/generated/68000-mode-code-upper-code.js";
+import { selectFamily } from "../../../helpers/68000-families.js";
+const arithmeticFamily = selectFamily(arithmeticModule, "operandArithmetic");
+const { instructions, opcodeInstructions } = arithmeticFamily;
+import { arithmetic68000 } from "../../../helpers/68000-families.js";
+import type { WordAddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/word-execution.js";
 import type { WordInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
-import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
+import type { Cpu68000State } from "../../../../src/components/cpus/semantics/generated/state/68000.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 
-type Context = Cpu68000AddressContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
+type Context = WordAddressContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
 type Body = (state: Cpu68000State, mode: number, code: number, upperCode: number, context: Context) => OperandAlignmentFault | "unsupported" | void;
-const bodies: Readonly<Record<number, Body>> = opcodeInstructions;
+// The test inventory selects only this semantic family from the shared signature module.
+const bodies = opcodeInstructions as unknown as Readonly<Record<number, Body>>;
 const data = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
 const address = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
 type Stored = typeof data[number] | typeof address[number] | "usp" | "ssp";

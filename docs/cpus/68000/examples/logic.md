@@ -1,6 +1,6 @@
 # 68000 masked buffer merge example
 
-[Model contract](../model.md#register-and-memory-logic) ·
+[Model contract](../../../../src/components/cpus/specifications/68000.md#logical-operations-and-readmodifywrite) ·
 [Machine definition](../../../../src/machines/68000/logic-example.machine) ·
 [Example tests](../../../../tests/machines/68000/logic-example.test.ts)
 
@@ -107,5 +107,5 @@ both processor modes, and reset preservation. Changing the loaded mask to
 `000000FF` replaces only the fourth byte of each destination. CPU tests cover
 the other sizes, addressing forms, aliases, flag inputs, and alignment faults.
 
-The [model references](../model.md#references-and-checks) identify the original
+The [model references](../../../../src/components/cpus/specifications/68000.md#hardware-references) identify the original
 68000 instruction formats and flag rules used here.

@@ -91,17 +91,17 @@ INTR/NMI offers, divide-error delivery, and single stepping. It completes its in
 [ESC and TEST/WAIT connections](../../src/components/cpus/specifications/8088.md#wait-and-coprocessor-escape), including
 resumable waiting and interrupt/trap restart.
 The 68000 now completes its documented opcode inventory, including
-[synchronous entry/RTE](68000/model.md#synchronous-exception-entry-and-return),
-[interrupt offers and trace](68000/model.md#external-interrupt-delivery), STOP
-wakeup, and the [RESET device connection](68000/model.md#reset-device-connection).
+[synchronous entry/RTE](../../src/components/cpus/specifications/68000.md#synchronous-exception-entry-and-return),
+[interrupt offers and trace](../../src/components/cpus/specifications/68000.md#external-interrupt-delivery), STOP
+wakeup, and the [RESET device connection](../../src/components/cpus/specifications/68000.md#reset-device-connection).
 The 8008 also implements [external interrupt delivery](../../src/components/cpus/specifications/8008.md#external-interrupt-delivery),
 including supplied instruction bytes, STOPPED release, startup after reset, and
 native circular-stack calls without advancing the interrupted PC.
 The documented opcode milestone is complete for all eight. Further accuracy
 and machine integration work can now use that baseline. The 68000 also delivers
-[illegal-instruction and emulator-line exceptions](68000/model.md#synchronous-exception-entry-and-return).
-It delivers [address errors](68000/model.md#address-errors) and explicit
-[bus errors](68000/model.md#bus-errors), including extended frames, retained
+[illegal-instruction and emulator-line exceptions](../../src/components/cpus/specifications/68000.md#synchronous-exception-entry-and-return).
+It delivers [address errors](../../src/components/cpus/specifications/68000.md#address-errors) and explicit
+[bus errors](../../src/components/cpus/specifications/68000.md#bus-errors), including extended frames, retained
 partial transfers, and terminal halt on failed error/reset entry. Exact hardware
 prefetch and partial-instruction fault sequencing remain outside this model.
 Timing and device scheduling remain separate from completed opcode inventories.

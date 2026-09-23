@@ -1,6 +1,6 @@
 # 68000 ROM output
 
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/68000.md) ·
 [Machine composition](../../../../src/machines/68000/output-example.machine) ·
 [Example tests](../../../../tests/machines/68000/output-example.test.ts) ·
 [Byte-output contract](../../../devices/byte-output.md)

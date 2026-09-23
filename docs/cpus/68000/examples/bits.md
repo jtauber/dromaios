@@ -1,6 +1,6 @@
 # 68000 bit operations example
 
-[Model contract](../model.md#bit-operations) ·
+[Model contract](../../../../src/components/cpus/specifications/68000.md#testing-and-changing-a-bit) ·
 [Machine definition](../../../../src/machines/68000/bits-example.machine) ·
 [Example tests](../../../../tests/machines/68000/bits-example.test.ts)
 

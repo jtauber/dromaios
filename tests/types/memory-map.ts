@@ -3,7 +3,7 @@ import type { MemoryRegion } from "../../src/components/memory/memory-map.js";
 import type { MemoryConnection } from "../../src/components/memory/connection.js";
 import { Ram } from "../../src/components/memory/ram.js";
 import { Rom } from "../../src/components/memory/rom.js";
-import { Cpu68000 } from "../../src/components/cpus/68000.js";
+import { Cpu68000 } from "../../src/components/cpus/generated/68000-cpu.js";
 import { create68000RomBootExample } from "../../src/machines/generated/68000/rom-boot-example.js";
 
 // Compiled, never called: RAM, ROM, and maps share the connection without erasing concrete types.

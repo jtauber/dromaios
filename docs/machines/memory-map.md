@@ -77,7 +77,7 @@ components remain responsible for returning valid bytes and reporting failure
 before completing any transfer or device side effect.
 
 The 68000 accepts this connection directly and records successful accesses at
-physical map addresses. Its [bus-error contract](../cpus/68000/model.md#bus-errors)
+physical map addresses. Its [bus-error contract](../../src/components/cpus/specifications/68000.md#bus-errors)
 defines failed-byte metadata and exception delivery. Other CPU constructors
 still accept `Ram`; this change does not generalize their memory APIs or invent
 fault delivery for them.

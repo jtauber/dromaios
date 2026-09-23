@@ -1,6 +1,6 @@
 # 68000 word-buffer sum example
 
-[Model contract](../model.md#register-and-address-arithmetic) ·
+[Model contract](../../../../src/components/cpus/specifications/68000.md#addition-subtraction-and-comparison) ·
 [Machine definition](../../../../src/machines/68000/word-sum-example.machine) ·
 [Example tests](../../../../tests/machines/68000/word-sum-example.test.ts)
 
@@ -87,6 +87,6 @@ factory isolation, bounded resumption, snapshot restoration, retained traces,
 both processor modes, and reset preservation. Replacing the first input with
 zero changes both corrected totals to `0001` and still leaves Z set.
 
-The [arithmetic contract](../model.md#references-and-checks) links Motorola's
+The [arithmetic contract](../../../../src/components/cpus/specifications/68000.md#hardware-references) links Motorola's
 encoding and flag references. CPU tests supply the broader operand, addressing,
 flag, alias, wrapping, and alignment checks.

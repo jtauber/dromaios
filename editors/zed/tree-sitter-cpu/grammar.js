@@ -17,7 +17,7 @@ module.exports = grammar({
       $.family_declaration, $.page_declaration, $.execution_declaration, $.reset_declaration, $.interface_declaration,
     )),
 
-    cpu_declaration: $ => seq('cpu', field('model', $.string), optional(seq('boundary', 'segmented'))),
+    cpu_declaration: $ => seq('cpu', field('model', $.string), optional(seq('boundary', choice('segmented', 'word')))),
     state_declaration: $ => seq('state', '{', repeat(choice($._state_field, $.bank_declaration, $.group_declaration)), '}'),
     group_declaration: $ => seq('group', $._state_name, optional($.field_mapping), '{', repeat($._state_field), '}'),
     bank_declaration: $ => seq('bank', $._state_name, optional($.field_mapping), '{', repeat(choice($.register_declaration, $.flag_declaration)), '}'),

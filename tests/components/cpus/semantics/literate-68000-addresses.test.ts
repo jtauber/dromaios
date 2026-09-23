@@ -4,7 +4,7 @@ import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { registerUpdates } from "../../../../src/components/cpus/register-updates.js";
 import type { RegisterUpdateContext } from "../../../../src/components/cpus/register-updates.js";
-import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
+import type { Cpu68000State } from "../../../../src/components/cpus/semantics/generated/state/68000.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { initialState } from "../../../helpers/68000-state.js";
@@ -17,7 +17,7 @@ async function edited(replacements: readonly (readonly [string, string])[]) {
   for (const [before, after] of replacements) { assert.ok(text.includes(before), before); text = text.replace(before, after); }
   const chapter = compileCpuChapter(text, {}, file);
   const source = generateInstructions("68000", {}, { sources: {
-    cpu: { name: "68000", state: chapter.state! }, groups: { sources: { effectiveAddress: chapter.sources.effectiveAddress! } },
+    cpu: { name: "68000", state: chapter.state!, wordBoundary: true }, groups: { sources: { effectiveAddress: chapter.sources.effectiveAddress! } },
   } });
   const javascript = stripTypeScriptTypes(source).replace('"../alu.ts"', JSON.stringify(new URL("../../../../src/components/cpus/alu.js", import.meta.url).href));
   const module: { sourceReaders(state: Cpu68000State): { sources: { effectiveAddress: Decoder } } } =

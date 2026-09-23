@@ -1,20 +1,23 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { stripTypeScriptTypes } from "node:module";
-import { opcodeInstructions as instructions } from "../../../../src/components/cpus/generated/68000-system.js";
-import { system68000, systemOpcodes68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
+import * as systemModule from "../../../../src/components/cpus/generated/68000-mode-code.js";
+import { selectFamily } from "../../../helpers/68000-families.js";
+const systemFamily = selectFamily(systemModule, "operandSystem");
+const { opcodeInstructions: instructions } = systemFamily;
+import { system68000, systemOpcodes68000 } from "../../../helpers/68000-families.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 import { cpuSymbols, flagLiteral, literal, resetDevices, when, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
-import { cpu68000StateDescription } from "../../../../src/components/cpus/state/68000.js";
+import { cpu68000StateDescription } from "../../../../src/components/cpus/semantics/generated/state/68000.js";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import { initialState } from "../../../helpers/68000-state.js";
-import type { Cpu68000State, Cpu68000Exception } from "../../../../src/components/cpus/68000.js";
-import type { Cpu68000AddressContext, Cpu68000ControlContext, Cpu68000ResetContext, OperandAlignmentFault, TargetAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
+import type { Cpu68000State, Cpu68000Exception } from "../../../../src/components/cpus/generated/68000-cpu.js";
+import type { WordAddressContext, WordControlContext, DeviceResetContext, OperandAlignmentFault, TargetAlignmentFault } from "../../../../src/components/cpus/word-execution.js";
 import type { WordInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 
-type Context = Cpu68000AddressContext & Cpu68000ControlContext & Cpu68000ResetContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
+type Context = WordAddressContext & WordControlContext & DeviceResetContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
 type Outcome = Cpu68000Exception | OperandAlignmentFault | TargetAlignmentFault | "unsupported" | void;
 type Body = (state: Cpu68000State, mode: number, code: number, context: Context) => Outcome;
 const bodies: Readonly<Record<number, Body>> = instructions;
@@ -237,12 +240,12 @@ test("status explanations expose privilege before fetch, status before pointer c
 
 test("device reset validates its owning CPU and propagates nested callback failures without later effects", async () => {
   const cpu = cpuSymbols("68000", cpu68000StateDescription), other = cpuSymbols("6502", cpu6502StateDescription);
-  const definition = defineInstruction({ cpu: cpu.declaration, name: "reset probe", explanation: "Device signal before a later effect.",
+  const definition = defineInstruction({ cpu: { ...cpu.declaration, wordBoundary: true as const }, name: "reset probe", explanation: "Device signal before a later effect.",
     steps: [when(flagLiteral(true), [resetDevices()]), writeRegister(cpu.register("d0"), literal(32, 42))] });
-  assert.throws(() => defineInstruction({ ...definition, cpu: other.declaration, steps: [resetDevices()] }), /68000 connection/);
+  assert.throws(() => defineInstruction({ ...definition, cpu: other.declaration, steps: [resetDevices()] }), /word connection/);
   const source = generateInstructions("68000", { probe: definition });
-  assert.match(source, /Cpu68000ResetContext/); assert.match(source, /"resetDevices"/); assert.doesNotMatch(source, /"readByte"|"writeByte"/);
-  const compiled: { instructions: { probe(state: Cpu68000State, context: Cpu68000ResetContext): void } } =
+  assert.match(source, /DeviceResetContext/); assert.match(source, /"resetDevices"/); assert.doesNotMatch(source, /"readByte"|"writeByte"/);
+  const compiled: { instructions: { probe(state: Cpu68000State, context: DeviceResetContext): void } } =
     await import(`data:text/javascript,${encodeURIComponent(stripTypeScriptTypes(source))}`);
   const state = initialState(), before = structuredClone(state), failure = Error("device failure");
   assert.throws(() => compiled.instructions.probe(state, { resetDevices() { throw failure; } }), error => error === failure);

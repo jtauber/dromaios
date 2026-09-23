@@ -103,9 +103,9 @@ test("the catalogue and chapter bindings name exactly the generated modules, eac
       assert.equal(generateChapterReset(cpu, chapter.reset), source);
     }
     if (chapter.interface) {
-      const publicSource = generateChapterInterface(cpu, chapter.state!, chapter.interface, chapter.execution!);
+      const publicSource = generateChapterInterface(cpu, chapter.state!, chapter.interface, chapter.execution!, chapter.reset);
       assert.equal(publicSource, readFileSync(`${directory}/${cpu}-cpu.ts`, "utf8"));
-      assert.equal(generateChapterInterface(cpu, chapter.state!, chapter.interface, chapter.execution!), publicSource);
+      assert.equal(generateChapterInterface(cpu, chapter.state!, chapter.interface, chapter.execution!, chapter.reset), publicSource);
     }
     assert.equal(JSON.stringify(chapter), before);
   }

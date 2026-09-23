@@ -1,6 +1,6 @@
 # 68000 shifts and rotates example
 
-[Model contract](../model.md#shifts-and-rotates) ·
+[Model contract](../../../../src/components/cpus/specifications/68000.md#bits-shifts-and-rotates) ·
 [Machine definition](../../../../src/machines/68000/shifts-example.machine) ·
 [Example tests](../../../../tests/machines/68000/shifts-example.test.ts)
 

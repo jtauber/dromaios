@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Cpu68000 } from "../../../src/components/cpus/68000.js";
-import type { Cpu68000Access, Cpu68000Snapshot, Cpu68000StepRecord } from "../../../src/components/cpus/68000.js";
+import { Cpu68000 } from "../../../src/components/cpus/generated/68000-cpu.js";
+import type { Cpu68000Access, Cpu68000Snapshot, Cpu68000StepRecord } from "../../../src/components/cpus/generated/68000-cpu.js";
 import { ByteInput } from "../../../src/components/devices/byte-input.js";
 import { ByteOutput } from "../../../src/components/devices/byte-output.js";
 import { MemoryMap } from "../../../src/components/memory/memory-map.js";

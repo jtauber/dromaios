@@ -13,12 +13,9 @@ in the CPU class:
 
 | Location under `src/components/cpus/` | Responsibility |
 | --- | --- |
-| `<cpu>.ts` and CPU-specific support modules | Public execution contract, native decoding, generated-body binding, recording, and lifecycle orchestration |
-| `state/<cpu>.ts` | Stored-state declarations or generated-schema re-exports, public types, and packed-status layouts |
-| `semantics/definitions/<cpu>.ts` | TypeScript-authored instruction definitions, explanations, and chapter integration |
-| `specifications/*.md` | Executable literate chapters that own instruction families, encodings, and optionally stored state, views, actions, execution contracts, and public interfaces |
-| `semantics/` shared builders | Reusable operand sources, ordered effects, calculations, and CPU policies |
-| Encoding inventories beside the cores | Selector mappings shared by definition construction and execution binding |
+| `specifications/*.md` | Sole CPU-specific authored implementations: state, views, actions, encodings, behavior, execution, public interfaces, and model contracts |
+| Shared runtime modules | Recording, guards, fetching, dispatch, and entry sequencing selected by chapter contracts |
+| `semantics/` shared builders | Reusable operand sources, ordered effects, calculations, and policies |
 | `semantics/{model,validate,generate,describe}.ts` | Definition representation, validation, executable generation, and explanation generation |
 | `generated/` | Regenerated instruction bodies, public classes, and chapter execution bindings; never edit these by hand |
 | `semantics/generated/` | Regenerated chapter data, catalogues, interface metadata, and small `state/` schema modules; never edit these by hand |
@@ -26,9 +23,9 @@ in the CPU class:
 The [instruction semantics guide](instruction-semantics.md) defines the language
 contracts. The [development workflow](../../README.md#development) explains
 generation, the separately generated instruction listing, and test selection.
-Keep instruction behavior in definitions and shared construction; retain native
-decoding and boundary orchestration in the cores unless a reviewed abstraction
-represents their complete behavior.
+Keep processor-specific behavior in chapters and reusable mechanics in shared
+runtimes. All eight current models generate their public interfaces and
+catalogue entries; no handwritten CPU core or adapter remains.
 
 ### Following the 8008 files
 
@@ -86,33 +83,33 @@ IRQ/FIRQ masks, NMI arming, and masked SYNC release. Chapter actions select
 full/short frames, reuse CWAI's saved frame, and read vectors. The chapter also
 owns its public contract and hardware references.
 
-The 68000 also generates `generated/68000-reset.ts` from its chapter's standalone
-[reset contract](../../src/components/cpus/specifications/68000.md#external-reset).
-Its attempt action reads and checks vectors; its completion action defines the
-state changes after success or a modeled fault. The shared
-[reset sequence](../../src/components/cpus/reset-sequence.ts) handles that ordering.
-The native reset wrapper supplies guarded snapshots, recorded memory, and its
-private bus-fault classifier. Its word execution declaration also generates
-`generated/68000-execution.ts`: encoded-field bindings, exception selection, and
-hooks for fetching, retirement, and tracing. The shared
-[word executor](../../src/components/cpus/word-execution.ts) retains a sequential
-cursor independently of branch targets and commits whole fetched words. The
-native wrapper supplies snapshots, recording, bus-fault classification, and
-generated event binding; no instruction dispatch or exception-frame policy remains
-in the core. `generated/68000-events.ts` binds chapter frame actions and recovery
-sources to the shared [word entry sequence](../../src/components/cpus/word-events.ts).
-The chapter selects frame contents and order, interrupt gates and acknowledgement
-vectors, initial-fetch recovery, and terminal halt after a second modeled fault.
+The [68000 chapter](../../src/components/cpus/specifications/68000.md) follows
+that ownership model too. It generates `68000-cpu.ts`, state/schema modules,
+reset, word-execution, and event bindings. The instruction generator partitions
+word bodies by their declared numeric input signatures; chapter authors do not
+maintain a module catalogue. `68000.ts` contains generated input-free bodies,
+and suffixes such as `68000-mode-code.ts` identify captured fields.
+
+The shared [word executor](../../src/components/cpus/word-execution.ts) keeps
+a sequential cursor independently of branch targets and commits complete
+fetched words. [Word entry](../../src/components/cpus/word-events.ts) sequences
+the declared frame/recovery hooks; [word memory](../../src/components/cpus/word-memory.ts)
+projects the declared bus width and classifies explicit transfer failures.
+[Word boundaries](../../src/components/cpus/word-runtime.ts) guard calls and
+record completed effects. The chapter supplies addresses, frame layout, gates,
+vectors, commit actions, snapshot fields, and public names. Public consumers
+import `generated/68000-cpu.ts`; no native wrapper or separate model document remains.
 
 ## Reading order
 
-Within a CPU core, use this order where the corresponding code exists:
+Follow the [literate specification guide](literate-specifications.md) when
+organizing authored chapters. For generated CPU modules and shared runtimes,
+use this reading order where the corresponding code exists:
 
 1. **State descriptions and types.** Import and re-export the CPU-owned state
    declarations and derived types. Define snapshots, instruction/access records,
    and outcomes near the top.
-   Keep CPU-specific instruction-context extensions and small snapshot-view
-   helpers nearby; import the shared contexts where they fit.
+   Keep execution-context types and small snapshot-view helpers nearby.
 2. **Stored fields and public API.** Start the class with its owned state and
    memory connection, then the constructor, `snapshot()`, `reset()`, `step()`,
    and the CPU's external interrupt API.
@@ -127,24 +124,21 @@ Within a CPU core, use this order where the corresponding code exists:
    decoding, retirement, and interrupt/exception orchestration. Binding methods
    select generated bodies and supply their decoded inputs.
 6. **Memory access.** Use the shared recorder for byte reads and writes. Keep
-   CPU-specific bus mapping and multi-byte access helpers together at the end
-   of the class when needed.
+   bus mapping and multi-byte access helpers together after execution logic
+   when needed.
 
 Use short section comments where they help navigation, and omit empty sections.
-Keep each core compact; it need not grow selectors or wrappers merely to
-resemble a larger core. In authored definitions, group related operand sources
+Keep each module compact; it need not grow selectors or wrappers merely to
+resemble a larger module. In authored definitions, group related operand sources
 and instruction families so their shared behavior and exceptions can be read
 together even when their opcodes occupy different encoding groups.
 
 ## Stored-state descriptions
 
-Each CPU module exports a `cpu…StateDescription` beside its public state
-type. For all eight CPUs, the schema and public types are exposed through
-CPU-owned modules under [`state/`](../../src/components/cpus/state), or generated
-schema modules for complete chapters, and are re-exported by the public CPU
-module. All eight stored-state schemas are generated from their chapters. The 8008,
-8080, 6502, 6800, 6809, Z80, and 8088 also generate their public types without
-handwritten adapters. The 68000 retains a public-state adapter.
+Each public CPU module exports a `cpu…StateDescription` beside its state
+type. All eight chapters generate their stored-state schemas and public types
+under `semantics/generated/state/`, then re-export them through the generated
+public CPU module. No handwritten state adapter remains.
 This lets instruction generation load schemas without loading execution. The description
 owns stored field names, types, and constraints. The
 [shared state helpers](../../src/components/cpus/state.ts) provide:
@@ -225,7 +219,7 @@ Choose the grouping from the CPU's encoding:
 | [6809](../../src/components/cpus/specifications/6809.md) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, `0110 oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte; pages `10`/`11` share chapter word families, with long conditions on page `10` |
 | [Z80](../../src/components/cpus/specifications/z80.md) | Chapter-owned instruction families and prefix layouts; decoded execution commits PC/refresh after complete validation; chapter-defined mixed entries select NMI and IRQ modes; the public interface and both bank snapshots are generated |
 | [8088](../../src/components/cpus/specifications/8088.md) | Family-specific fields: `00 ooo 0 d w` / `00 ooo 10 w` for ALU families, `mm ggg rrr` for ModR/M operands or operation extensions, `0101 p rrr` for register stacks, `0111 ttt p` for conditional jumps, and `1010 00 d w` / `1011 w rrr` for transfers; wrap byte offsets within the selected segment before mapping to the physical bus |
-| [68000](../../src/components/cpus/68000.ts) | Sixteen-bit operation words; MOVE encodes destination register/mode before source mode/register; immediate ALU families encode operation, size, and a data-alterable effective address |
+| [68000](../../src/components/cpus/specifications/68000.md) | Sixteen-bit operation words; MOVE encodes destination register/mode before source mode/register; immediate ALU families encode operation, size, and a data-alterable effective address |
 
 Keep each encoded subgroup contiguous, including its alternate selector cases
 and exceptions. For example, the 8080's `11 pp q 001` group contains both the
@@ -262,7 +256,7 @@ For 68000 register instructions, patterns live in the
 adds generated entries to its shared static table, passing the executing CPU's
 state to each body. The same chapter owns every MOVE/MOVEA encoding.
 `instructionAliases` groups identical named definitions and rejects conflicting
-bodies; generation emits an opcode-to-body table. The native binding extracts
+bodies; generation emits an opcode-to-body table. The generated binding extracts
 the four mode/register fields, while the chapter determines opcode legality.
 MOVEQ retains its embedded-byte selector and supplies the immediate to one
 parameterized body per destination. Literal values do not multiply coverage.
@@ -273,12 +267,12 @@ MOVE/MOVEQ/EXT's write-before-flags order.
 
 For memory/immediate MOVE forms, the definition requests EA resolution at the
 source and destination stages separately. The [chapter decoder](../../src/components/cpus/specifications/68000.md#effective-address-decoding)
-implements `Cpu68000AddressContext` through generated source readers. It owns
+implements `WordAddressContext` through generated source readers. It owns
 register selection, extension decoding, and pending-value calculations. The
 shared [register-update helper](../../src/components/cpus/register-updates.ts)
 only stores pending values and their generated write callbacks; commit preserves
 first-stage order and the latest value for each register. The [logical/unary chapter families](../../src/components/cpus/specifications/68000.md#logical-operations-and-readmodifywrite)
-use the same context, but their native binding supplies only the one encoded
+use the same context, but their generated binding supplies only the one encoded
 EA (`mode/code`); the chapter binds other registers and the calculation.
 MOVE and logic share chapter-owned memory sources, immediate fetches,
 byte transfers, partial Dn writes, and result policies.

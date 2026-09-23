@@ -45,13 +45,13 @@ execution conventions.
 
 ## Authored and generated sources
 
-Instruction behavior is authored in `src/components/cpus/semantics/`, using
-CPU definitions and shared builders, and in executable Markdown chapters under
-`src/components/cpus/specifications/`. Follow the
+The eight CPU models are authored in executable Markdown chapters under
+`src/components/cpus/specifications/`. Shared representations, builders, and
+generation live in `src/components/cpus/semantics/`. Follow the
 [literate specification guide](docs/cpus/literate-specifications.md) for chapters and the
 [instruction semantics guide](docs/cpus/instruction-semantics.md) when changing
-these definitions. Decoding and execution boundaries live in CPU cores or in
-shared runtimes selected by chapter execution contracts. Complete chapters also
+these definitions. Chapter contracts select shared decoding and execution
+runtimes. Complete chapters also
 generate public CPU modules; edit their `interface` declarations instead of
 adding handwritten wrappers. For generated machine
 factories, edit the `.machine` sources under

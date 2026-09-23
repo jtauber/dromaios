@@ -46,7 +46,7 @@ Executable chapters are maintained CPU sources:
   Reset, segmented fetching, prefix choices, trap/fault delivery, retirement,
   and ordered INTR/NMI offers are declared here. The class, connections, records,
   snapshots, and integration metadata are generated; no handwritten adapter remains.
-- [Motorola 68000: complete instructions and stored state](../../src/components/cpus/specifications/68000.md)
+- [Motorola 68000: complete model and public interface](../../src/components/cpus/specifications/68000.md)
   owns all 36,029 documented instruction forms, their encodings, stored state,
   and A7/status views and writes. Sources, actions, and bounded iteration keep
   control-flow ordering, register-mask transfers, and status/system effects
@@ -55,14 +55,14 @@ Executable chapters are maintained CPU sources:
   fault completion, and preserved state. A word execution contract owns fetching,
   encoded inputs, dispatch, retirement, and trace scheduling. Its event contract owns
   frame layouts, interrupt gates and acknowledgement, and fault recovery. The
-  native wrapper retains public types, snapshots, and connection validation; the
-  TypeScript definition adapter only groups chapter families.
+  public class, records, snapshots, connection validation, and catalogue are
+  generated too; no handwritten CPU adapter remains.
 
 This is an authoring-language prototype over the existing
 [instruction representation](instruction-semantics.md), with a deliberately
 small vocabulary. It now describes the instruction-level behavior of all eight
-CPU models. The 68000 still needs public-interface generation and removal of its
-remaining handwritten adapters.
+CPU models, including their public interfaces and integration metadata. No
+CPU-specific handwritten implementation remains for these eight models.
 Current counts and milestone evidence belong in the
 [coverage report](coverage.md#literate-authoring-milestone).
 
@@ -137,8 +137,8 @@ A small generated `interfaces.ts` manifest supplies class names, module paths,
 state schemas and caller types, RAM sizes, and public-PC bounds. A stored
 unsigned `pc` supplies those bounds directly; a derived snapshot `pc` uses its
 view width. The shared
-[model catalogue](../../src/components/cpus/models.ts) combines those entries
-with integration metadata for handwritten cores. Machine parsing, flat and
+[model catalogue](../../src/components/cpus/models.ts) exposes those entries.
+Machine parsing, flat and
 composed machine generation, and CPU test selection use that catalogue.
 `catalogue.ts` integrates complete chapters into the instruction registry. Both live under `semantics/generated/`.
 `node scripts/describe-cpu-semantics.ts` also refreshes chapter data before
@@ -188,7 +188,7 @@ Quoted descriptions use JSON string escaping.
 | `index = register X`, `carry = flag C` | Read and capture a register or flag at this point; the capture retains its numeric or flag type. |
 | `address = source zeroPage`, `byte = source readAt(segment, offset)` | Evaluate a declared source with numeric arguments in parameter order, capturing its result. |
 | `memory(projectAddress(segment, offset, 4, 20))` | Project a captured word pair onto a physical address bus; available only as a memory address. |
-| `byte = program memory(address)` | Read one program-space byte at a 32-bit logical address, through the existing 68000 connection. |
+| `byte = program memory(address)` | Read one program-space byte at a 32-bit logical address, through a word-boundary connection. |
 | `byte = memory(address)`, `byte = port(selector)` | Read and capture one memory or port byte. Port selectors have sixteen-bit width. |
 | `saved = array ADDRESS[slot]`, `stopped = latch STOPPED` | Capture an array element or latch at this point. |
 | `pointer = add(offset, index)` | Capture a pure numeric expression. Addition wraps at the operands' equal width. |
@@ -411,9 +411,10 @@ family load (segment: 16) "10001000" {
 ```
 
 Family parameters follow the family name, before the encoding or multi-encoding
-body. The native adapter supplies them at execution time; current shared opcode
-bindings accept only their declared page operands, so arbitrary family inputs
-require an explicit adapter. Page operand names cannot duplicate these inputs.
+body. Execution bindings supply them at runtime. Byte opcode bindings accept
+only their declared page operands; word contracts bind inputs to encoded fields.
+Other family signatures require a matching execution binding. Page operand names
+cannot duplicate these inputs.
 The 8088 segmented contract binds three explicit family signatures: no inputs,
 `(overridden: 8, segmentOverride: 16)`, or those inputs followed by
 `repeatMode: 8, startIP: 16`. No temporary prefix fields enter stored CPU state.
@@ -538,7 +539,7 @@ The original fault is returned after completion; the completion action cannot
 perform memory effects or return another fault.
 
 The generated `<cpu>-reset.ts` module binds those actions to the shared
-[reset sequence](../../src/components/cpus/reset-sequence.ts). The native memory
+[reset sequence](../../src/components/cpus/reset-sequence.ts). The shared word-memory
 boundary recognizes its private bus-failure signal; unrelated thrown values
 propagate unchanged and skip completion. Completion errors also propagate,
 without classification or a second completion attempt. Snapshot assembly,
@@ -1203,11 +1204,11 @@ CPU-specific decoder built into the language.
 
 `resolve`, `commit addresses`, alignment faults, `next address`,
 `select target(...)`, and `reset devices` lower to existing IR effects,
-whose validator currently requires the 68000 address/exception boundary.
-The context calls the chapter-generated address source; exception delivery
-remains native. The compiler contains no processor-specific addressing rules.
+whose validator requires a declared `boundary word`.
+The context calls the chapter-generated address source; the event contract
+defines exception delivery. The compiler contains no processor-specific addressing rules.
 Ordinary `memory` reads and writes still transfer one byte, including at 32-bit
-logical addresses on the 68000. Its core projects them onto the physical bus.
+logical addresses on the 68000. Shared word memory projects them onto the declared physical bus.
 Word transfers explicitly combine or split those bytes. A false fault condition
 continues normally; a true one returns the fault to the CPU boundary without
 undoing completed effects. Value sources cannot contain explicit fault/rejection
@@ -1217,12 +1218,12 @@ Cursor and target effects keep sequential fetching separate from retirement.
 A branch can capture its base before fetching an extension and validate a taken
 target afterward. Fetch faults always describe program space; data/program reads
 retain their separate address-fault forms. Device reset is an explicit callback,
-not CPU-state reset. All three effects require the existing 68000 context and
+not CPU-state reset. All three effects require the word context and
 remain unavailable to views and actions, including actions declaring `boundary`.
-This retains the native word-execution boundary pending its later migration.
+The generated word binding supplies this context from the execution contract.
 `next`, `target`, `select`, and `reset` remain valid local capture names.
 [Boundary-language tests](../../tests/components/cpus/semantics/literate-control-boundary.test.ts)
-check callback ordering, partial failures, widths, CPU ownership, transitive
+check callback ordering, partial failures, widths, boundary capabilities, transitive
 restrictions, and document-located errors.
 
 ### Pending register reads and writes
@@ -1276,7 +1277,7 @@ composed actions cannot return these faults.
 When multiple encodings have identical named definitions, chapter generation
 serializes that definition once. The instruction-alias builder rejects a name
 reused with different behavior. Generated opcode aliases select these shared
-bodies without performing effects; native word decoding still supplies captured
+bodies without performing effects; generated word decoding supplies captured
 EA fields. This changes neither instruction coverage nor the authored patterns.
 
 Family explanations should describe their particular operation and stand on
@@ -1296,8 +1297,8 @@ remains; the chapter supplies all of its model and public-interface choices.
 Shared runtime services enforce the declared execution contract. Chapters
 without owned state validate declarations against an external schema. The
 68000 owns all instructions, stored state, views/writes, effective-address
-decoding, reset, word execution, and event delivery. Its public interface and
-connection wrappers still await generation.
+decoding, reset, word execution, event delivery, and its public interface.
+Its generated connection wrapper uses shared bus recording and execution guards.
 
 The eight chapters now exercise contrasting widths, ordered effects, and
 interrupt-recognition policies. The 6502 now owns its complete state, status
@@ -1314,7 +1315,7 @@ operations, bit/shift/rotate/TAS families, word products/division, signed bounds
 packed decimal arithmetic, control flow, MOVEP/MOVEM, and status/system instructions.
 A7 selection, status packing/restoration, effective-address decoding, and staged
 auto-updates are chapter-owned too. All documented instruction bodies are chapter-owned;
-reset and normal execution are chapter-owned too. Exception delivery remains native.
+reset, normal execution, exception delivery, and public integration are chapter-owned too.
 
 The 68000 arithmetic families reuse source bindings for calculations that return
 a result after applying flags. This differs from the pure logical calculations:
@@ -1492,7 +1493,7 @@ renamed model with the same device contract.
 ## Word execution
 
 The [68000 execution section](../../src/components/cpus/specifications/68000.md#fetching-dispatch-and-retirement)
-uses `execution word { … }`. It binds chapter families to an atomic 16-bit fetch
+declares `cpu "68000" boundary word` and uses `execution word { … }`. It binds chapter families to an atomic 16-bit fetch
 stream through the [shared word executor](../../src/components/cpus/word-execution.ts).
 The sequential cursor and a selected branch target stay independent. The cursor
 and recorded instruction bytes advance only after both reads of a word succeed;
@@ -1502,6 +1503,7 @@ prefetch or cycle timing.
 
 | Declaration | Contract |
 | --- | --- |
+| `memory 24` | Physical memory address width, from 1 through the logical counter width; public construction validates the corresponding address-space size. |
 | `counter FETCHPC` | Read an input-free state view; its width defines cursor wrapping. |
 | `fetch big advance after word` | Assemble a complete word high byte first; `little` selects low byte first. |
 | `alignment 2` | Reject an odd initial fetch before memory access; `1` allows either parity. |
@@ -1512,7 +1514,7 @@ prefetch or cycle timing.
 | `address source effectiveAddress` | Bind a source taking size (8 bits), mode (3), and code (3), returning a 32-bit address. Each instruction has its own pending-register update set. |
 | `unknown "illegal-instruction"`, `unsupported "illegal-instruction"` | Select declared exceptions for unmatched words and rejected operand selections. |
 | `interrupt external` | Leave frame delivery and external offers at the native boundary. |
-| `interrupt events` and `events { … }` | Bind the chapter-owned entry contract below. Word public-interface generation is a separate, unfinished boundary. |
+| `interrupt events` and `events { … }` | Bind the chapter-owned entry contract below. Together with an earlier reset declaration, this supports public-interface generation. |
 
 `inputs { … }` binds each numeric family parameter to a quoted 16-bit mask,
 for example `mode = "xxxx xxxx xxmmm xxx"`. The single contiguous named field
@@ -1593,3 +1595,23 @@ program-space reads; their declared calls determine the recorded space. Runtime
 checks reject function codes and gate selectors outside their declared choices.
 [Language tests](../../tests/components/cpus/semantics/literate-word-events.test.ts)
 check invalid bindings and prove chapter changes alter public execution.
+
+### Word public interfaces and catalogue binding
+
+`boundary word` enables 32-bit logical memory, separate fetch/target control,
+staged addressing, program-space reads, alignment faults, and device reset; these
+capabilities are independent of the CPU name. A word chapter declares its public
+`interface` after its state, execution/event,
+and reset contracts. The same snapshot and bank declarations used by byte models
+apply. Public interrupt-level, ignored-reason, exception-source, vector, and
+function-code types derive from the execution/event declarations. The public
+constructor accepts a memory connection and optional device-reset connection.
+Connection validation is lazy for RESET; memory size is checked at construction.
+Shared word services own guards and records, while the chapter owns CPU choices.
+
+Word instruction output is partitioned automatically by ordered encoded input
+names. Input-free bodies have numeric opcode keys; parameterized bodies share
+named definitions and opcode aliases. Generation checks opcode collisions across
+all partitions, validates each input against its declared mask, and emits the
+field captures once per binding. Output filenames are disposable implementation
+details rather than additional chapter syntax or a handwritten registry.

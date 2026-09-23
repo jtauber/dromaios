@@ -1,6 +1,6 @@
 # 68000 buffer processing through nested calls
 
-[Model contract](../model.md#control-flow-and-subroutines) ·
+[Model contract](../../../../src/components/cpus/specifications/68000.md#conditions-and-control-flow) ·
 [Machine definition](../../../../src/machines/68000/control-flow-example.machine) ·
 [Example tests](../../../../tests/machines/68000/control-flow-example.test.ts)
 

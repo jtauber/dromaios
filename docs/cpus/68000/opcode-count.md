@@ -118,7 +118,7 @@ alone does not define documented support.
 The implementation covers **all 36,029 forms** (45,816 expanded operation words).
 RESET completes the final form through its explicit device-reset connection.
 Native synchronous exceptions, trace, external interrupt offers, STOP wakeup,
-and RTE are implemented within the [model contract](model.md). Illegal encodings
+and RTE are implemented within the [model contract](../../../src/components/cpus/specifications/68000.md). Illegal encodings
 and line-A/line-F words also deliver their exceptions, without adding opcode forms.
 Bus/address-error delivery is also implemented under the instruction-level
 recovery contract. Timing, prefetch, hardware fault sequencing, and complete

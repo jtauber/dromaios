@@ -35,7 +35,7 @@ export async function generateChapterExecutionModule(text: string, name: string,
 export async function generateChapterModule(text: string, name: string, file: string) {
   const { chapter, state, api, url, schema, actions, execution } = chapterLayers(text, name, file);
   if (!api) throw new Error("The chapter must declare its public interface.");
-  const exports = await import(url(generateChapterInterface(name, state, api, chapter.execution!), {
+  const exports = await import(url(generateChapterInterface(name, state, api, chapter.execution!, chapter.reset), {
     [`../semantics/generated/state/${name}.ts`]: schema, [`./${name}-state.ts`]: actions, [`./${name}-execution.ts`]: execution,
   }));
   return exports;

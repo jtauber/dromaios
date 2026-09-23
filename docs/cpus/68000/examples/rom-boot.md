@@ -1,6 +1,6 @@
 # 68000 ROM boot and mapped memory
 
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/68000.md) ·
 [Machine composition](../../../../src/machines/68000/rom-boot-example.machine) ·
 [Example tests](../../../../tests/machines/68000/rom-boot-example.test.ts) ·
 [Memory-map contract](../../../machines/memory-map.md)
@@ -84,7 +84,7 @@ Vector-2 entry leaves SSP at `00010FF2` and creates this frame:
 | `00020E` | `4E 73` | `RTE` — restore SR/PC and the original SSP |
 
 The handler uses the saved cursor to skip the failed load. That cursor is an
-explicit [instruction-level model policy](../model.md#bus-errors); hardware
+explicit [instruction-level model policy](../../../../src/components/cpus/specifications/68000.md#bus-errors); hardware
 prefetch can produce a different saved PC. This is not an automatically
 restartable instruction or a portable hardware bus-error handler.
 

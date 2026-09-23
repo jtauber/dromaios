@@ -6,12 +6,9 @@ export interface WordMemory extends ByteMemory {
   readonly fetchByte: (address: number) => number;
   readonly readProgramByte: (address: number) => number;
 }
-export interface WordInstructionContext extends ByteMemory {
+export interface WordInstructionContext extends ByteMemory, WordControlContext, DeviceResetContext {
   readonly readProgramByte: (address: number) => number;
   readonly fetchWord: () => number;
-  readonly nextAddress: () => number;
-  readonly jump: (address: number) => void;
-  readonly resetDevices: () => void;
 }
 /** Chapter-generated address decoding stages updates locally; instruction definitions choose when to commit. */
 export interface WordAddressContext {
@@ -117,4 +114,29 @@ export function wordExecution<Source extends string, Exception, Fault>(policy: W
       return { instruction, ...result, outcome: outcome() };
     }
   };
+}
+
+
+/** A rejected operand access; the CPU boundary owns exception delivery. */
+export interface OperandAlignmentFault {
+  readonly operation: "read" | "write";
+  readonly address: number;
+  readonly programSpace?: boolean;
+}
+
+/** Control flow selects a target independently of the sequential instruction-fetch cursor. */
+export interface WordControlContext {
+  readonly nextAddress: () => number;
+  readonly jump: (address: number) => void;
+}
+
+/** A taken odd target is rejected before selection; no instruction byte is fetched there. */
+export interface TargetAlignmentFault {
+  readonly operation: "fetch";
+  readonly address: number;
+}
+
+/** RESET asserts the connected device reset signal; it does not reset CPU state. */
+export interface DeviceResetContext {
+  readonly resetDevices: () => void;
 }

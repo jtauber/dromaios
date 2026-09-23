@@ -2,14 +2,17 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
-import { opcodeInstructions } from "../../../../src/components/cpus/generated/68000-arithmetic.js";
-import { arithmetic68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
+import * as arithmeticModule from "../../../../src/components/cpus/generated/68000-mode-code-upper-code.js";
+import { selectFamily } from "../../../helpers/68000-families.js";
+const arithmeticFamily = selectFamily(arithmeticModule, "operandArithmetic");
+const { opcodeInstructions } = arithmeticFamily;
+import { arithmetic68000 } from "../../../helpers/68000-families.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
 import type { InstructionDefinition } from "../../../../src/components/cpus/semantics/model.js";
-import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
-import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
+import type { WordAddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/word-execution.js";
+import type { Cpu68000State } from "../../../../src/components/cpus/semantics/generated/state/68000.js";
 import { initialState } from "../../../helpers/68000-state.js";
 
 const file = "src/components/cpus/specifications/68000.md";
@@ -43,7 +46,7 @@ test("arithmetic immediate and quick literals select shared bodies", () => {
   }
 });
 
-type Context = Pick<Cpu68000AddressContext, "resolveAddress" | "commitAddressUpdates"> & { readByte(address: number): number };
+type Context = Pick<WordAddressContext, "resolveAddress" | "commitAddressUpdates"> & { readByte(address: number): number };
 async function generated(definition: InstructionDefinition) {
   const alu = new URL("../../../../src/components/cpus/alu.js", import.meta.url).href;
   const source = stripTypeScriptTypes(generateInstructions("68000", { run: definition })).replace('"../alu.ts"', JSON.stringify(alu));

@@ -1,6 +1,6 @@
 # 68000 stack-frame and register-list example
 
-[Model contract](../model.md#stack-frames) ·
+[Model contract](../../../../src/components/cpus/specifications/68000.md#control-addresses-and-frames) ·
 [Machine definition](../../../../src/machines/68000/stack-frame-example.machine) ·
 [Example tests](../../../../tests/machines/68000/stack-frame-example.test.ts)
 

@@ -2,20 +2,27 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
-import { opcodeInstructions as control } from "../../../../src/components/cpus/generated/68000-control.js";
-import { opcodeInstructions as transfers } from "../../../../src/components/cpus/generated/68000-transfers.js";
-import { opcodeInstructions as system } from "../../../../src/components/cpus/generated/68000-system.js";
-import { control68000, transfers68000, system68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
+import * as controlModule from "../../../../src/components/cpus/generated/68000-mode-code-displacement.js";
+import { selectFamily } from "../../../helpers/68000-families.js";
+const controlFamily = selectFamily(controlModule, "operandControl");
+const { opcodeInstructions: control } = controlFamily;
+import * as transfersModule from "../../../../src/components/cpus/generated/68000-mode-code.js";
+const transfersFamily = selectFamily(transfersModule, "operandTransfer");
+const { opcodeInstructions: transfers } = transfersFamily;
+import * as systemModule from "../../../../src/components/cpus/generated/68000-mode-code.js";
+const systemFamily = selectFamily(systemModule, "operandSystem");
+const { opcodeInstructions: system } = systemFamily;
+import { control68000, transfers68000, system68000 } from "../../../helpers/68000-families.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
-import type { Cpu68000AddressContext, Cpu68000ControlContext, Cpu68000ResetContext } from "../../../../src/components/cpus/68000-context.js";
+import type { WordAddressContext, WordControlContext, DeviceResetContext } from "../../../../src/components/cpus/word-execution.js";
 import type { WordInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
-import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
+import type { Cpu68000State } from "../../../../src/components/cpus/semantics/generated/state/68000.js";
 import { initialState } from "../../../helpers/68000-state.js";
 
 const file = "src/components/cpus/specifications/68000.md", markdown = readFileSync(file, "utf8");
 const compile = (text = markdown) => compileCpuChapter(text, {}, file);
-type Context = Cpu68000AddressContext & Cpu68000ControlContext & Cpu68000ResetContext
+type Context = WordAddressContext & WordControlContext & DeviceResetContext
   & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
 const context = (effects: Partial<Context> = {}): Context => ({
   fetchWord: () => 0, readByte: () => 0, readProgramByte: () => 0, writeByte: () => {},

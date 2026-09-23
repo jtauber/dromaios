@@ -194,7 +194,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
       if (!Number.isInteger(expr.baseShift) || expr.baseShift < 0 || expr.baseShift > 16) fail(where, "address base shift must be a constant from 0 through 16");
       if (!Number.isInteger(expr.addressBits) || expr.addressBits < 1 || expr.addressBits > 32) fail(where, "physical address width must be a constant from 1 through 32");
     } else {
-      const bits = cpu.name === "68000" ? 32 : 16;
+      const bits = cpu.wordBoundary === true ? 32 : 16;
       if (expression(expr, scope, where) !== bits) fail(where, `expected ${bits}-bit value`);
     }
   }
@@ -312,26 +312,26 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         case "fetch-byte": captured = 8; break;
         case "fetch-word": captured = 16; break;
         case "read-next-address":
-          if (cpu.name !== "68000") fail(where, "a separate fetch cursor requires a 68000 context");
+          if (!cpu.wordBoundary) fail(where, "a separate fetch cursor requires a word context");
           captured = 32; break;
         case "select-target":
-          if (cpu.name !== "68000") fail(where, "separate target selection requires a 68000 context");
+          if (!cpu.wordBoundary) fail(where, "separate target selection requires a word context");
           expect(step.address, 32); return;
         case "resolve-address":
-          if (cpu.name !== "68000") fail(where, "staged address decoding requires a 68000 context");
+          if (!cpu.wordBoundary) fail(where, "staged address decoding requires a word context");
           if (![8, 16, 32].includes(step.size)) fail(where, "operand size must be 8, 16, or 32");
           expect(step.mode, 3); expect(step.code, 3); captured = 32; break;
         case "commit-address-updates":
-          if (cpu.name !== "68000") fail(where, "staged address updates require a 68000 context");
+          if (!cpu.wordBoundary) fail(where, "staged address updates require a word context");
           return;
         case "alignment-fault":
-          if (cpu.name !== "68000") fail(where, "alignment faults require a 68000 boundary");
+          if (!cpu.wordBoundary) fail(where, "alignment faults require a word boundary");
           if (allowRejection !== true) fail(where, "value sources and composed actions cannot reject an instruction");
           if (!["read", "write", "fetch"].includes(step.operation) || !["data", "program"].includes(step.space)
             || (step.operation === "write" && step.space === "program") || (step.operation === "fetch" && step.space !== "program")) fail(where, "invalid alignment fault access space");
           expect(step.address, 32); return;
         case "read-program-memory":
-          if (cpu.name !== "68000") fail(where, "program-space reads require a 68000 context");
+          if (!cpu.wordBoundary) fail(where, "program-space reads require a word context");
           expect(step.address, 32); captured = 8; break;
         case "read-port": expect(step.port, 16); captured = 8; break;
         case "read-memory": address(step.address, scope, where); captured = 8; break;
@@ -363,7 +363,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
           if (cpu.segmentedBoundary !== true) fail(where, "software delivery reporting requires a segmented boundary");
           expect(step.vector, 8); return;
         case "reset-devices":
-          if (cpu.name !== "68000") fail(where, "device reset requires a 68000 connection");
+          if (!cpu.wordBoundary) fail(where, "device reset requires a word connection");
           return;
         case "read-test":
           if (cpu.segmentedBoundary !== true) fail(where, "TEST sampling requires a segmented coprocessor connection");

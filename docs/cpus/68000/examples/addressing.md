@@ -1,6 +1,6 @@
 # 68000 mixed-size transfers and effective addresses
 
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/68000.md) ·
 [Machine definition](../../../../src/machines/68000/addressing-example.machine) ·
 [Example tests](../../../../tests/machines/68000/addressing-example.test.ts)
 

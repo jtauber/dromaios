@@ -134,9 +134,10 @@ validation against each machine's requirements.
 Instruction-definition migration is now complete for all eight documented
 instruction inventories. The [typed definitions](docs/cpus/instruction-semantics.md)
 generate execution and explanations. Chapter execution contracts bind decoding,
-reset, and retirement policies to shared runtimes; native cores retain policies
-that have not yet migrated. Completing this across all eight architectures and
-refining the literate authoring format remain ongoing work; the
+reset, retirement, and external-event policies to shared runtimes. All eight
+chapters now generate their public interfaces and integration metadata, with
+no CPU-specific handwritten implementation remaining. Refining the literate
+authoring format and simplifying shared generation remain ongoing work; the
 [shared-building-blocks proposal](docs/cpus/shared-building-blocks.md) records
 the broader goal. Neither further language work nor another CPU target is a
 prerequisite for browser or machine development.

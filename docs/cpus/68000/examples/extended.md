@@ -1,6 +1,6 @@
 # 68000 extended arithmetic and memory comparison example
 
-[Model contract](../model.md#extended-arithmetic-and-memory-comparison) ·
+[Model contract](../../../../src/components/cpus/specifications/68000.md#addition-subtraction-and-comparison) ·
 [Machine definition](../../../../src/machines/68000/extended-example.machine) ·
 [Example tests](../../../../tests/machines/68000/extended-example.test.ts)
 

@@ -88,7 +88,7 @@ test("conditional effects expose memory needs and recheck both branches at execu
   assert.equal(usesMemory(definition.steps), true);
   assert.doesNotThrow(() => checkByteExecution(definition.steps));
   assert.throws(() => checkSegmentedEffects(definition.steps, "", true), /read-memory/);
-  const native = compile(source.replace('cpu "probe"', 'cpu "68000"').replace("original = memory(u16(0))", "address = resolve(16, u3(2), u3(0))\n      original = u8(0)")).families.copy![0]![1];
+  const native = compile(source.replace('cpu "probe"', 'cpu "68000" boundary word').replace("original = memory(u16(0))", "address = resolve(16, u3(2), u3(0))\n      original = u8(0)")).families.copy![0]![1];
   assert.throws(() => checkByteExecution(native.steps), /resolve-address/);
   assert.throws(() => checkSegmentedEffects(native.steps, ""), /resolve-address/);
   const hidden = source.replace("family copy", 'view HIDDEN "transitive view" : 8 {\n  byte = source ACTIVE\n  return byte\n}\nfamily copy');

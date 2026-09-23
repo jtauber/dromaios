@@ -7,7 +7,7 @@ import { ChapterError } from "../../../../src/components/cpus/semantics/literate
 import { generateChapterReset } from "../../../../src/components/cpus/semantics/literate/reset.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { checkStateEffects } from "../../../../src/components/cpus/semantics/literate/statements.js";
-import type { Cpu68000 } from "../../../../src/components/cpus/68000.js";
+import type { Cpu68000 } from "../../../../src/components/cpus/generated/68000-cpu.js";
 import { initialState } from "../../../helpers/68000-state.js";
 
 const base = new URL("../../../../src/components/cpus/generated/", import.meta.url);
@@ -85,13 +85,8 @@ test("reset declarations reject missing, duplicate, mismatched, or hidden effect
   assert.throws(() => compileCpuChapter(byte + '\n```cpu\naction finish "finish" (failed: 8) {\n}\nreset {\n  attempt action reset\n  complete action finish with failure\n}\n```'), /duplicate an execution/);
 });
 
-const file = "src/components/cpus/specifications/68000.md", markdown = readFileSync(file, "utf8");
-async function edited(replacements: readonly (readonly [string, string])[]): Promise<typeof Cpu68000> {
-  let text = markdown;
-  for (const [before, after] of replacements) { assert.ok(text.includes(before), before); text = text.replace(before, after); }
-  const core = readFileSync("src/components/cpus/68000.ts", "utf8");
-  return (await import(moduleUrl(core, { "./generated/68000-reset.ts": resetModule(text) }, new URL("../", base)))).Cpu68000;
-}
+import { edited68000 as edited } from "../../../helpers/68000-chapter.js";
+const markdown = readFileSync("src/components/cpus/specifications/68000.md", "utf8");
 
 test("chapter edits change the public 68000 reset vectors, completion effects, and alignment policy", async () => {
   const Cpu = await edited([

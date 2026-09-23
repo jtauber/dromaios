@@ -2,15 +2,20 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
-import { Cpu68000 } from "../../../../src/components/cpus/68000.js";
-import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
+import { Cpu68000 } from "../../../../src/components/cpus/generated/68000-cpu.js";
+import type { WordAddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/word-execution.js";
 import type { ByteMemory } from "../../../../src/components/cpus/memory-access.js";
-import { cpu68000StateDescription } from "../../../../src/components/cpus/state/68000.js";
-import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
+import { cpu68000StateDescription } from "../../../../src/components/cpus/semantics/generated/state/68000.js";
+import type { Cpu68000State } from "../../../../src/components/cpus/semantics/generated/state/68000.js";
 import { instructions as registerBodies } from "../../../../src/components/cpus/generated/68000.js";
-import { opcodeInstructions as memoryBodies } from "../../../../src/components/cpus/generated/68000-moves.js";
-import { opcodeInstructions as quickBodies } from "../../../../src/components/cpus/generated/68000-quick.js";
-import { instructions68000, moves68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
+import * as movesModule from "../../../../src/components/cpus/generated/68000-source-mode-source-code-destination-mode-destination-code.js";
+import { selectFamily } from "../../../helpers/68000-families.js";
+const movesFamily = selectFamily(movesModule, "operandMove");
+const { opcodeInstructions: memoryBodies } = movesFamily;
+import * as quickModule from "../../../../src/components/cpus/generated/68000-immediate.js";
+const quickFamily = selectFamily(quickModule, "moveQuick");
+const { opcodeInstructions: quickBodies } = quickFamily;
+import { instructions68000, moves68000 } from "../../../helpers/68000-families.js";
 import { instructionAliases } from "../../../../src/components/cpus/semantics/builders.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
@@ -22,10 +27,10 @@ const markdown = readFileSync(file, "utf8");
 const compile = (text = markdown) => compileCpuChapter(text, { name: "68000" }, file);
 const data = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
 const addressRegisters = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
-type Context = ByteMemory & Pick<Cpu68000AddressContext, "resolveAddress" | "commitAddressUpdates">;
+type Context = ByteMemory & Pick<WordAddressContext, "resolveAddress" | "commitAddressUpdates">;
 type Body = (state: Cpu68000State, context: Context) => OperandAlignmentFault | "unsupported" | void;
 const allMemoryBodies: Readonly<Record<number, (state: Cpu68000State, sm: number, sc: number, dm: number, dc: number,
-  context: Context & Pick<Cpu68000AddressContext, "readProgramByte"> & { fetchWord(): number }) => OperandAlignmentFault | "unsupported" | void>> = memoryBodies;
+  context: Context & Pick<WordAddressContext, "readProgramByte"> & { fetchWord(): number }) => OperandAlignmentFault | "unsupported" | void>> = memoryBodies;
 const bodies: Readonly<Record<number, Body>> = { ...registerBodies, ...Object.fromEntries(Object.entries(allMemoryBodies).map(([word, execute]) => {
   const opcode = Number(word);
   return [opcode, (state: Cpu68000State, context: Context) => execute(state, (opcode >>> 3) & 7, opcode & 7, (opcode >>> 6) & 7, (opcode >>> 9) & 7,
@@ -69,7 +74,7 @@ test("MOVEQ opcode entries follow a chapter encoding edit without changing its s
   const changed = markdown.replace('"0111 ddd 0 xxxxxxxx"', '"0111 ddd 1 xxxxxxxx"');
   const { definitions, opcodeAliases } = instructionAliases(compile(changed).families.moveQuick!);
   const alu = new URL("../../../../src/components/cpus/alu.js", import.meta.url).href;
-  const javascript = stripTypeScriptTypes(generateInstructions("68000", definitions, { opcodeAliases }))
+  const javascript = stripTypeScriptTypes(generateInstructions("68000", definitions, { opcodeBits: 16, opcodeAliases }))
     .replace('"../alu.ts"', JSON.stringify(alu));
   const compiled: { opcodeInstructions: Readonly<Record<number, (state: Cpu68000State, immediate: number) => void>> } =
     await import(`data:text/javascript,${encodeURIComponent(javascript)}`);
@@ -242,7 +247,7 @@ test("formal edits change bank selection, register execution, and status views w
     .replaceAll('C = 0', 'C = 1').replace('u16($8000)', 'u16($4000)');
   const chapter = compile(changed), definitions = Object.fromEntries(Object.values(chapter.families).flat());
   const source = generateInstructions("68000", { move: definitions[0x300f]!, exchange: definitions[0xcf4f]! }, {
-    sources: { cpu: { name: "68000", state: chapter.state! }, groups: { views: chapter.views } },
+    sources: { cpu: { name: "68000", state: chapter.state!, wordBoundary: true }, groups: { views: chapter.views } },
   });
   const alu = new URL("../../../../src/components/cpus/alu.js", import.meta.url).href;
   const javascript = stripTypeScriptTypes(source).replace('"../alu.ts"', JSON.stringify(alu));

@@ -1,3 +1,4 @@
+import { instructionAliases, instructionSet } from "../builders.ts";
 import { chapterWordEvents } from "./word-events.ts";
 import type { WordEvents } from "./word-events.ts";
 import type { Flag, InstructionDefinition, Latch, Statement, ValueSource } from "../model.ts";
@@ -14,6 +15,7 @@ export interface WordExecution {
   readonly events?: WordEvents;
   readonly counter: string;
   readonly bits: number;
+  readonly memoryBits: number;
   readonly order: "big" | "little";
   readonly alignment: 1 | 2;
   readonly terminal: string;
@@ -66,6 +68,8 @@ export function chapterWordExecution(header: ChapterTokens, lines: readonly Chap
   };
   const pc = required("counter"), counter = pc.word(), view = symbols.views.get(counter) ?? pc.fail(`Unknown counter view ${counter}.`); pc.end();
   const bits = view.width;
+  const memory = required("memory"), memoryBits = memory.number(); memory.end();
+  if (!Number.isInteger(memoryBits) || memoryBits < 1 || memoryBits > bits) memory.fail("Word memory width must be an integer within the logical address width.");
   const fetch = required("fetch"), order = fetch.take("big") ? "big" : fetch.take("little") ? "little" : fetch.fail("Expected big or little word order.");
   fetch.expect("advance"); fetch.expect("after"); fetch.expect("word"); fetch.end();
   const align = required("alignment"), alignment = align.take("1") ? 1 : align.take("2") ? 2 : align.fail("Word alignment must be 1 or 2."); align.end();
@@ -102,7 +106,7 @@ export function chapterWordExecution(header: ChapterTokens, lines: readonly Chap
   if (!owned) interrupt.expect("external"); interrupt.end();
   const events = owned ? chapterWordEvents(required("events"), blocks.get("events")!, symbols) : undefined;
   for (const [name, tokens] of fields) tokens.fail(`Unknown word execution field ${name}.`);
-  return { mode: "word", interrupt: owned ? "events" : "external", ...(events ? { events } : {}), counter, bits, order, alignment, terminal, stopped, pending, sample,
+  return { mode: "word", interrupt: owned ? "events" : "external", ...(events ? { events } : {}), counter, bits, memoryBits, order, alignment, terminal, stopped, pending, sample,
     pendingException, fetched, retire, trace, address, unknown, unsupported, inputs: Object.fromEntries(inputs), exceptions: Object.fromEntries(exceptions) };
 }
 
@@ -135,6 +139,27 @@ export interface WordInstructionModule {
   readonly name: string;
   readonly definitions: Readonly<Record<string, InstructionDefinition>>;
   readonly options?: { readonly opcodeAliases?: readonly OpcodeEntry<string>[] };
+}
+
+/** Encoded inputs determine calling conventions; chapter families need no manual module registry. */
+export function wordInstructionGroups(module: string, entries: readonly OpcodeEntry<InstructionDefinition>[]) {
+  const groups = new Map<string, OpcodeEntry<InstructionDefinition>[]>();
+  instructionSet(entries, 16); // Check collisions across every signature, not just within a group.
+  for (const entry of entries) {
+    const signature = Object.keys(entry[1].inputs ?? {}).join("-");
+    const group = groups.get(signature) ?? []; group.push(entry); groups.set(signature, group);
+  }
+  return [...groups].map(([signature, entries]) => ({
+    name: module + (signature ? "-" + signature.replace(/[A-Z]/g, letter => "-" + letter.toLowerCase()) : ""),
+    ...(signature ? instructionAliases(entries) : { definitions: instructionSet(entries, 16) }),
+  }));
+}
+
+/** Only sources referenced by execution or entry contracts need standalone runtime readers. */
+export function wordExecutionSources(policy: WordExecution): readonly string[] {
+  const events = policy.events;
+  return [policy.address, ...(events ? [events.entryReturn, events.functionCode, events.initialTerminal,
+    events.initialReturn, events.initialProcessing, events.gate, events.autovector] : [])];
 }
 
 /** Existing body modules retain their narrow APIs; this generated adapter binds their encoded inputs once. */

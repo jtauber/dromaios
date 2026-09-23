@@ -1,21 +1,42 @@
 import { instructions as indexedZ80 } from "../../src/components/cpus/generated/z80.js";
 import { instructions as actions6809 } from "../../src/components/cpus/generated/6809-state.js";
 import { instructions as base6809 } from "../../src/components/cpus/generated/6809.js";
-import { instructions as system68000 } from "../../src/components/cpus/generated/68000-system.js";
-import { instructions as transfers68000 } from "../../src/components/cpus/generated/68000-transfers.js";
-import { instructions as control68000 } from "../../src/components/cpus/generated/68000-control.js";
-import { instructions as arithmetic68000 } from "../../src/components/cpus/generated/68000-arithmetic.js";
-import { instructions as bits68000 } from "../../src/components/cpus/generated/68000-bits.js";
-import { instructions as wordArithmetic68000 } from "../../src/components/cpus/generated/68000-word-arithmetic.js";
-import { instructions as decimal68000 } from "../../src/components/cpus/generated/68000-decimal.js";
-import { instructions as logic68000 } from "../../src/components/cpus/generated/68000-logic.js";
-import { instructions as moves68000 } from "../../src/components/cpus/generated/68000-moves.js";
-import type { Cpu68000AddressContext, Cpu68000ControlContext, OperandAlignmentFault, TargetAlignmentFault } from "../../src/components/cpus/68000-context.js";
+import * as systemModule from "../../src/components/cpus/generated/68000-mode-code.js";
+import { selectFamily } from "../helpers/68000-families.js";
+const systemFamily = selectFamily(systemModule, "operandSystem");
+const { instructions: system68000 } = systemFamily;
+import * as transfersModule from "../../src/components/cpus/generated/68000-mode-code.js";
+const transfersFamily = selectFamily(transfersModule, "operandTransfer");
+const { instructions: transfers68000 } = transfersFamily;
+import * as controlModule from "../../src/components/cpus/generated/68000-mode-code-displacement.js";
+const controlFamily = selectFamily(controlModule, "operandControl");
+const { instructions: control68000 } = controlFamily;
+import * as arithmeticModule from "../../src/components/cpus/generated/68000-mode-code-upper-code.js";
+const arithmeticFamily = selectFamily(arithmeticModule, "operandArithmetic");
+const { instructions: arithmetic68000 } = arithmeticFamily;
+import * as bitsModule from "../../src/components/cpus/generated/68000-mode-code-upper-code.js";
+const bitsFamily = selectFamily(bitsModule, "operandBits");
+const { instructions: bits68000 } = bitsFamily;
+import * as wordArithmeticModule from "../../src/components/cpus/generated/68000-mode-code-upper-code.js";
+const wordArithmeticFamily = selectFamily(wordArithmeticModule, "operandWord");
+const { instructions: wordArithmetic68000 } = wordArithmeticFamily;
+import * as decimalModule from "../../src/components/cpus/generated/68000-mode-code-upper-code.js";
+const decimalFamily = selectFamily(decimalModule, "operandDecimal");
+const { instructions: decimal68000 } = decimalFamily;
+import * as logicModule from "../../src/components/cpus/generated/68000-mode-code.js";
+const logicFamily = selectFamily(logicModule, "operandLogic");
+const { instructions: logic68000 } = logicFamily;
+import * as movesModule from "../../src/components/cpus/generated/68000-source-mode-source-code-destination-mode-destination-code.js";
+const movesFamily = selectFamily(movesModule, "operandMove");
+const { instructions: moves68000 } = movesFamily;
+import type { WordAddressContext, WordControlContext, OperandAlignmentFault, TargetAlignmentFault } from "../../src/components/cpus/word-execution.js";
 import { alignmentFault, commitAddressUpdates, fetchWord, readProgramMemory, resolveAddress } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated68000 } from "../../src/components/cpus/generated/68000.js";
-import { instructions as quick68000 } from "../../src/components/cpus/generated/68000-quick.js";
-import { cpu68000StateDescription } from "../../src/components/cpus/state/68000.js";
-import type { Cpu68000State } from "../../src/components/cpus/68000.js";
+import * as quickModule from "../../src/components/cpus/generated/68000-immediate.js";
+const quickFamily = selectFamily(quickModule, "moveQuick");
+const { instructions: quick68000 } = quickFamily;
+import { cpu68000StateDescription } from "../../src/components/cpus/semantics/generated/state/68000.js";
+import type { Cpu68000State } from "../../src/components/cpus/generated/68000-cpu.js";
 import { instructions as strings8088 } from "../../src/components/cpus/generated/8088-strings.js";
 import { instructions as operand8088 } from "../../src/components/cpus/generated/8088-operands.js";
 import { instructions as actions8088 } from "../../src/components/cpus/generated/8088-state.js";
@@ -46,7 +67,7 @@ import type { Cpu8080State } from "../../src/components/cpus/generated/8080-cpu.
 import type { Cpu6809State } from "../../src/components/cpus/generated/6809-cpu.js";
 
 // Compiled, never called: names come from CPU schemas; reads, expressions, and writes have distinct roles.
-export function check68000MoveTypes(state: Cpu68000State, context: Cpu68000AddressContext & {
+export function check68000MoveTypes(state: Cpu68000State, context: WordAddressContext & {
   readByte(address: number): number; writeByte(address: number, byte: number): void;
 }): void {
   moves68000["MOVE.B IMMEDIATE,D0"](state, 7, 4, 0, 0, { fetchWord: () => 0xffff });
@@ -999,7 +1020,7 @@ export function check68000WordAndDecimalTypes(state: Cpu68000State): void {
 }
 
 
-export function check68000ControlTypes(state: Cpu68000State, flow: Cpu68000ControlContext): void {
+export function check68000ControlTypes(state: Cpu68000State, flow: WordControlContext): void {
   const operand = { resolveAddress: () => 0, commitAddressUpdates: () => {}, readByte: () => 0, writeByte: () => {} };
   control68000["SNE D0"](state, 0, 0, 0);
   const lea: void | "unsupported" = control68000["LEA control EA,A7"](state, 7, 2, 0, { resolveAddress: () => 0 });

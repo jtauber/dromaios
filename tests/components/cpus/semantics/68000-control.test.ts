@@ -1,21 +1,24 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { stripTypeScriptTypes } from "node:module";
-import { cpu68000StateDescription } from "../../../../src/components/cpus/state/68000.js";
+import { cpu68000StateDescription } from "../../../../src/components/cpus/semantics/generated/state/68000.js";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/semantics/generated/state/6502.js";
 import { alignmentFault, cpuSymbols, fetchWord, flagLiteral, literal, lowBit, readNextAddress, readSource, selectTarget, value, when, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
 import type { Statement } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { initialState } from "../../../helpers/68000-state.js";
-import { opcodeInstructions as instructions } from "../../../../src/components/cpus/generated/68000-control.js";
-import { control68000, controlOpcodes68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
+import * as controlModule from "../../../../src/components/cpus/generated/68000-mode-code-displacement.js";
+import { selectFamily } from "../../../helpers/68000-families.js";
+const controlFamily = selectFamily(controlModule, "operandControl");
+const { opcodeInstructions: instructions } = controlFamily;
+import { control68000, controlOpcodes68000 } from "../../../helpers/68000-families.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
-import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
-import type { Cpu68000AddressContext, Cpu68000ControlContext, OperandAlignmentFault, TargetAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
+import type { Cpu68000State } from "../../../../src/components/cpus/semantics/generated/state/68000.js";
+import type { WordAddressContext, WordControlContext, OperandAlignmentFault, TargetAlignmentFault } from "../../../../src/components/cpus/word-execution.js";
 import type { WordInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 
-type Context = Cpu68000AddressContext & Cpu68000ControlContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
+type Context = WordAddressContext & WordControlContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
 type Outcome = OperandAlignmentFault | TargetAlignmentFault | "unsupported" | void;
 type Body = (state: Cpu68000State, mode: number, code: number, displacement: number, context: Context) => Outcome;
 const bodies: Readonly<Record<number, Body>> = instructions;
@@ -237,10 +240,10 @@ test("control explanations expose target selection separately from cursor, write
 
 test("cursor and target statements validate widths, scope, CPU context, and fetch-fault space", () => {
   const cpu = cpuSymbols("68000", cpu68000StateDescription), other = cpuSymbols("6502", cpu6502StateDescription);
-  const base = { cpu: cpu.declaration, name: "cursor probe", explanation: "Explicit control boundary.", steps: [] as readonly Statement[] };
+  const base = { cpu: { ...cpu.declaration, wordBoundary: true as const }, name: "cursor probe", explanation: "Explicit control boundary.", steps: [] as readonly Statement[] };
   for (const steps of [[readNextAddress("cursor")], [selectTarget(literal(32, 0))], [alignmentFault("fetch", literal(32, 1))]]) {
     defineInstruction({ ...base, steps });
-    assert.throws(() => defineInstruction({ ...base, cpu: other.declaration, steps }), /68000/);
+    assert.throws(() => defineInstruction({ ...base, cpu: other.declaration, steps }), /word/);
   }
   assert.throws(() => defineInstruction({ ...base, steps: [selectTarget(literal(16, 0))] }), /32-bit/);
   assert.throws(() => defineInstruction({ ...base, steps: [readNextAddress("cursor"), readNextAddress("cursor")] }), /duplicate/);
@@ -253,14 +256,14 @@ test("cursor and target statements validate widths, scope, CPU context, and fetc
 
 test("nested cursor and target effects infer narrow capabilities and propagate faults before retirement", async () => {
   const cpu = cpuSymbols("68000", cpu68000StateDescription);
-  const definition = defineInstruction({ cpu: cpu.declaration, name: "target probe", explanation: "Independent cursor and target.", inputs: { target: 32 },
+  const definition = defineInstruction({ cpu: { ...cpu.declaration, wordBoundary: true as const }, name: "target probe", explanation: "Independent cursor and target.", inputs: { target: 32 },
     steps: [readNextAddress("before"), when(flagLiteral(true), [fetchWord("word"), readNextAddress("after"),
       when(lowBit(value("target")), [alignmentFault("fetch", value("target"))]), selectTarget(value("target")),
       writeRegister(cpu.register("d0"), value("before")), writeRegister(cpu.register("d1"), value("after"))]), writeRegister(cpu.register("d2"), literal(32, 123))] });
   const source = generateInstructions("68000", { probe: definition });
   assert.match(source, /"nextAddress" \| "fetchWord" \| "jump"/);
   assert.match(source, /void \| TargetAlignmentFault/); assert.doesNotMatch(source, /OperandAlignmentFault/);
-  const compiled: { instructions: { probe(state: Cpu68000State, target: number, context: Cpu68000ControlContext & Pick<WordInstructionContext, "fetchWord">): TargetAlignmentFault | void } } =
+  const compiled: { instructions: { probe(state: Cpu68000State, target: number, context: WordControlContext & Pick<WordInstructionContext, "fetchWord">): TargetAlignmentFault | void } } =
     await import(`data:text/javascript,${encodeURIComponent(stripTypeScriptTypes(source))}`);
   for (const address of [0, 1, 2, 0x7ffffffe, 0x80000000, 0xfffffffe, 0xffffffff]) for (const failAt of [-1, 0, 1, 2, 3]) {
     const state = initialState(), before = structuredClone(state), events: unknown[][] = [], failure = Error("failed control capability");

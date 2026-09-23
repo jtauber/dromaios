@@ -1,15 +1,20 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { initialState } from "../../../helpers/68000-state.js";
-import { opcodeInstructions as words } from "../../../../src/components/cpus/generated/68000-word-arithmetic.js";
-import { opcodeInstructions as decimals } from "../../../../src/components/cpus/generated/68000-decimal.js";
-import { wordArithmetic68000, decimal68000 } from "../../../../src/components/cpus/semantics/definitions/68000.js";
+import * as wordArithmeticModule from "../../../../src/components/cpus/generated/68000-mode-code-upper-code.js";
+import { selectFamily } from "../../../helpers/68000-families.js";
+const wordArithmeticFamily = selectFamily(wordArithmeticModule, "operandWord");
+const { opcodeInstructions: words } = wordArithmeticFamily;
+import * as decimalModule from "../../../../src/components/cpus/generated/68000-mode-code-upper-code.js";
+const decimalFamily = selectFamily(decimalModule, "operandDecimal");
+const { opcodeInstructions: decimals } = decimalFamily;
+import { wordArithmetic68000, decimal68000 } from "../../../helpers/68000-families.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
-import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
+import type { WordAddressContext, OperandAlignmentFault } from "../../../../src/components/cpus/word-execution.js";
 import type { WordInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
-import type { Cpu68000State } from "../../../../src/components/cpus/state/68000.js";
+import type { Cpu68000State } from "../../../../src/components/cpus/semantics/generated/state/68000.js";
 
-type Context = Cpu68000AddressContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
+type Context = WordAddressContext & Pick<WordInstructionContext, "fetchWord" | "readByte" | "writeByte">;
 type Outcome = OperandAlignmentFault | "divide-by-zero" | "bounds-check" | "unsupported" | void;
 type Body = (state: Cpu68000State, mode: number, code: number, upperCode: number, context: Context) => Outcome;
 const bodies: Readonly<Record<number, Body>> = { ...words, ...decimals };

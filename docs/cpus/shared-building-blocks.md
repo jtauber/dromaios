@@ -173,7 +173,7 @@ a generic framework.
 
 There are also several promising abstractions inside individual CPUs. The
 [8088](../../src/components/cpus/specifications/8088.md) represents resolved operands with
-`read` and `write` callbacks. The [68000](../../src/components/cpus/68000.ts)
+`read` and `write` callbacks. The [68000](../../src/components/cpus/specifications/68000.md)
 separates operand kinds and holds pending address updates while validating an
 instruction. These offer concrete starting points for testing the vocabulary
 against more than the simpler byte CPUs.
@@ -760,7 +760,7 @@ An odd destination can therefore reject after source data has already been
 read. Those reads remain in the record. Prevalidating every address before any
 read would alter the model's access sequence; committing all source updates
 immediately would alter its rejection behavior. See the
-[effective-address contract](68000/model.md#effective-addresses).
+[effective-address contract](../../src/components/cpus/specifications/68000.md#effective-address-decoding).
 
 The vocabulary should allow this recipe to invoke explicit pending-update
 and validation operations with a documented 68000 contract. It should not

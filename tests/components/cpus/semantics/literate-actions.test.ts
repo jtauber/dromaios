@@ -144,7 +144,7 @@ family probe "00000000" {
 }`);
   // Supply this arbitrary CPU's state locally; the generated body is unchanged.
   const source = generateInstructions("probe", { probe: chapter.families.probe![0]![1] })
-    .replace(/^import type .*;\n/gm, "") + "\ninterface CpuprobeState { a: number; b: number; sp: number }\n";
+    .replace(/^import type .*;\n/gm, "") + "\ninterface StoredState { a: number; b: number; sp: number }\n";
   const directory = mkdtempSync(join(tmpdir(), "dromaios-action-types-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const file = join(directory, "probe.ts"); writeFileSync(file, source);

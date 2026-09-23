@@ -1,6 +1,6 @@
 # 68000 polling echo
 
-[Model contract](../model.md) ·
+[Model contract](../../../../src/components/cpus/specifications/68000.md) ·
 [Machine composition](../../../../src/machines/68000/echo-example.machine) ·
 [Example tests](../../../../tests/machines/68000/echo-example.test.ts) ·
 [Byte input](../../../devices/byte-input.md) ·

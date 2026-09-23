@@ -1,6 +1,6 @@
 # 68000 immediate arithmetic and logic example
 
-[Model contract](../model.md#immediate-arithmetic-and-logic) ·
+[Model contract](../../../../src/components/cpus/specifications/68000.md#logical-operations-and-readmodifywrite) ·
 [Machine definition](../../../../src/machines/68000/alu-example.machine) ·
 [Example tests](../../../../tests/machines/68000/alu-example.test.ts)
 

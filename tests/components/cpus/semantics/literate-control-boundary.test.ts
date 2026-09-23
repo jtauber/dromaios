@@ -4,11 +4,11 @@ import { test } from "node:test";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
-import type { TargetAlignmentFault } from "../../../../src/components/cpus/68000-context.js";
+import type { TargetAlignmentFault } from "../../../../src/components/cpus/word-execution.js";
 
 const chapter = (body: string, name = "68000") => `Control boundaries remain ordered instruction effects.
 \`\`\`cpu
-cpu "${name}"
+cpu "${name}"${name === "68000" ? " boundary word" : ""}
 state {
   register PC: 32
   register D0: 32

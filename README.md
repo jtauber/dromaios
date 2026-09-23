@@ -73,8 +73,9 @@ machines are still planned.
 All eight documented instruction sets now use shared definitions that generate
 execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)
 tracks literate authoring, source footprint, supported features, and remaining
-gaps, including timing. An executable [literate CPU chapter](docs/cpus/literate-specifications.md)
-now feeds the same definition pipeline. The [roadmap](ROADMAP.md) describes the
+gaps, including timing. Executable [literate CPU chapters](docs/cpus/literate-specifications.md)
+now define all eight complete models, including public classes and integration
+metadata; no CPU-specific handwritten implementation remains. The [roadmap](ROADMAP.md) describes the
 development stages.
 
 The implementation uses **TypeScript**, compiled to JavaScript ES modules,

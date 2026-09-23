@@ -8,7 +8,7 @@ import { ChapterError } from "../../../../src/components/cpus/semantics/literate
 import { generateChapterExecution } from "../../../../src/components/cpus/semantics/literate/execution.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
-import type { Cpu68000 } from "../../../../src/components/cpus/68000.js";
+import type { Cpu68000 } from "../../../../src/components/cpus/generated/68000-cpu.js";
 import { initialState } from "../../../helpers/68000-state.js";
 
 const base = new URL("../../../../src/components/cpus/generated/", import.meta.url);
@@ -20,7 +20,7 @@ function moduleUrl(source: string, bindings: Readonly<Record<string, string>> = 
 const toy = `Read an extension word and add the captured low three bits.
 
 \`\`\`cpu
-cpu "probe"
+cpu "probe" boundary word
 state {
   register COUNTER: 16
   register VALUE: 8
@@ -47,6 +47,7 @@ action retire "next position" (pc: 16, sample: 8) {
   perform trace(sample)
 }
 execution word {
+  memory 16
   counter POSITION
   fetch little advance after word
   alignment 1
@@ -79,7 +80,7 @@ test("a word contract binds unrelated state and a different fetch order without 
   const chapter = compileCpuChapter(toy), definitions = instructionSet(Object.values(chapter.families).flat(), 16);
   const modules = [{ name: "probe", definitions }];
   const state = moduleUrl(generateInstructions(chapter.cpu, chapter.actions, {
-    sources: { cpu: { name: chapter.cpu, state: chapter.state! }, groups: { views: chapter.views, sources: chapter.sources } },
+    sources: { cpu: { name: chapter.cpu, state: chapter.state!, wordBoundary: true }, groups: { views: chapter.views, sources: chapter.sources } },
   }));
   const execution = moduleUrl(generateChapterExecution(chapter.cpu, "probe", chapter.execution!, modules), {
     "./probe-state.ts": state, "./probe.ts": moduleUrl(generateInstructions(chapter.cpu, definitions)),
@@ -125,7 +126,7 @@ test("word declarations reject malformed fields, input widths, lifecycle effects
     else assert.doesNotThrow(() => compileCpuChapter(division));
   }
   assert.throws(() => checkWordEffects([{ kind: "commit-address-updates" }], {}, "address"), /cannot resolve or commit/);
-  const hidden = toy.replace('action fetched "capture opcode"', 'action hidden "hidden memory" using memory {\n  value = memory(u16(0))\n}\naction fetched "capture opcode"')
+  const hidden = toy.replace('action fetched "capture opcode"', 'action hidden "hidden memory" using memory {\n  value = memory(u32(0))\n}\naction fetched "capture opcode"')
     .replace("VALUE <- lowByte(opcode)", "perform hidden()");
   assert.throws(() => compileCpuChapter(hidden), /cannot fetch instructions or access memory/);
 });

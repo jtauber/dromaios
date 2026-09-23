@@ -18,7 +18,7 @@ slots. These examples exercise several encoding relationships:
 | [6809](../../src/components/cpus/specifications/6809.md) | `0010 ttt p` | `ttt` selects a condition; `p` selects whether to invert it |
 | [Z80](../../src/components/cpus/specifications/z80.md) | `01 ddd sss` | Both fields select B/C/D/E/H/L/(HL)/A; the `(HL),(HL)` combination binds HALT instead of a transfer |
 | [8088](../../src/components/cpus/specifications/8088.md) | `1011 w rrr` | `w` selects byte/word width; separate `rrr` mappings expose byte halves versus full word registers |
-| [68000](../../src/components/cpus/68000.ts) | `0111 rrr 0 iiiiiiii` | MOVEQ selects D0–D7 with `rrr` and embeds its signed immediate in `iiiiiiii` |
+| [68000](../../src/components/cpus/specifications/68000.md) | `0111 rrr 0 iiiiiiii` | MOVEQ selects D0–D7 with `rrr` and embeds its signed immediate in `iiiiiiii` |
 
 The 68000 uses `00 ss ddd mmm MMM rrr` for MOVE: destination register then
 mode, source mode then register. Its current families expand the data-register

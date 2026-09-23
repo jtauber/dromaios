@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Cpu68000 } from "../../../../src/components/cpus/68000.js";
-import type { Cpu68000Snapshot } from "../../../../src/components/cpus/68000.js";
+import { Cpu68000 } from "../../../../src/components/cpus/generated/68000-cpu.js";
+import type { Cpu68000Snapshot } from "../../../../src/components/cpus/generated/68000-cpu.js";
 import { initialState } from "../../../helpers/68000-state.js";
 
 const vectorBytes = [0xfe, 0xdc, 0xba, 0x99, 0x89, 0xab, 0xcd, 0xee];

@@ -177,7 +177,7 @@ test("8088 generation retains word registers, one MiB RAM, and physical addresse
 test("68000 generation preserves unsigned long values and logical completion with 16 MiB RAM", () => {
   const source = readFileSync("src/machines/68000/example.machine", "utf8");
   const generated = compileMachine(source, "68000/example.machine");
-  assert.ok(generated.includes('import { Cpu68000 } from "../../../components/cpus/68000.js";'));
+  assert.ok(generated.includes('import { Cpu68000 } from "../../../components/cpus/generated/68000-cpu.js";'));
   assert.ok(generated.includes("create: create68000Example, createMemory: create68000ExampleMemory"));
   assert.ok(generated.includes('"ramSize": 16777216'));
   assert.ok(generated.includes(`"pc": ${0xab001000}`));

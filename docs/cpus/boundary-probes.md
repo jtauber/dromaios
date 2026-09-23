@@ -83,7 +83,7 @@ distinction if the location becomes structured data.
 
 Use `MOVE.L (A0)+,(A1)+` (`22D8`), PC=`AB001000`, A0=`AB020000`,
 A1=`CD030000`, source bytes `12 34 56 78`, and destination bytes all `CC`.
-The [current MOVE body](../../src/components/cpus/68000.ts) orders effects as follows:
+The [current MOVE body](../../src/components/cpus/specifications/68000.md) orders effects as follows:
 
 1. Fetch `22 D8` at bus addresses `001000`, `001001`; advance the local cursor and store IR=`22D8`.
 2. Resolve source=`AB020000`; propose A0=`AB020004`; check source alignment.

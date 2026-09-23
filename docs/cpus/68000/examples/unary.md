@@ -1,6 +1,6 @@
 # 68000 unary and quick arithmetic example
 
-[Model contract](../model.md#quick-arithmetic-unary-operations-and-condition-bytes) ·
+[Model contract](../../../../src/components/cpus/specifications/68000.md#setting-a-byte-and-decrementing-a-counter) ·
 [Machine definition](../../../../src/machines/68000/unary-example.machine) ·
 [Example tests](../../../../tests/machines/68000/unary-example.test.ts)
 
