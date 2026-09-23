@@ -35,8 +35,8 @@ const declarations = `action readVector "read vector" using memory {
   second = memory(u16(13))
   A <- second
 }
-action finish "record reset failure" (failed: 8) {
-  FAILED <- not(zero(failed))
+action finish "record reset failure" (failed: flag) {
+  FAILED <- failed
 }
 reset {
   attempt action readVector
@@ -70,10 +70,11 @@ test("reset declarations reject missing, duplicate, mismatched, or hidden effect
     declarations.replace("  complete action finish with failure\n", ""),
     declarations.replace("attempt action readVector", "attempt action readVector\n  attempt action readVector"),
     declarations.replace("complete action finish", "unknown action finish"),
-    declarations.replace("(failed: 8)", "(failed: 16)"),
+    declarations.replace("(failed: flag)", "(failed: 8)"),
+    declarations.replace("(failed: flag)", "(failed: 16)"),
     declarations.replace('"read vector"', '"read vector" (address: 16)'),
-    declarations.replace('"record reset failure" (failed: 8)', '"record reset failure" (failed: 8) using memory')
-      .replace("FAILED <- not(zero(failed))", "perform readVector()"),
+    declarations.replace('"record reset failure" (failed: flag)', '"record reset failure" (failed: flag) using memory')
+      .replace("FAILED <- failed", "perform readVector()"),
     declarations.replace("first = memory(u16(12))", "first = fetch"),
     declarations.replace("first = memory(u16(12))", "first = port(u16(12))"),
     declarations.replace("first = memory(u16(12))", "first = match u8(0) : 8 {\n    case \"00000000\" {\n      return u8(0)\n    }\n    otherwise unsupported\n  }"),
@@ -81,8 +82,10 @@ test("reset declarations reject missing, duplicate, mismatched, or hidden effect
   ];
   for (const text of invalid) assert.throws(() => compileCpuChapter(toy(text), {}, "reset.md"),
     error => error instanceof ChapterError && error.file === "reset.md" && error.line > 0 && error.column > 0, text);
+  const numeric = declarations.replace("(failed: flag)", "(failed: 8)").replace("FAILED <- failed", "FAILED <- not(zero(failed))");
+  assert.throws(() => compileCpuChapter(toy(numeric)), /Reset completion actions require one flag failure input/);
   const byte = readFileSync("src/components/cpus/specifications/6502.md", "utf8");
-  assert.throws(() => compileCpuChapter(byte + '\n```cpu\naction finish "finish" (failed: 8) {\n}\nreset {\n  attempt action reset\n  complete action finish with failure\n}\n```'), /duplicate an execution/);
+  assert.throws(() => compileCpuChapter(byte + '\n```cpu\naction finish "finish" (failed: flag) {\n}\nreset {\n  attempt action reset\n  complete action finish with failure\n}\n```'), /duplicate an execution/);
 });
 
 import { edited68000 as edited } from "../../../helpers/68000-chapter.js";
@@ -107,7 +110,7 @@ test("chapter edits change the public 68000 reset vectors, completion effects, a
 test("chapter edits change vector commit order and completion after a bus fault", async () => {
   const Cpu = await edited([
     ["SSP <- stack\n  start = source readProgramLong(u32(4))", "start = source readProgramLong(u32(4))\n  SSP <- stack"],
-    ["FAULTED <- not(zero(failed))", "FAULTED <- 0"],
+    ["FAULTED <- failed", "FAULTED <- 0"],
   ]);
   const cpu = new Cpu({ size: 0x1000000, read: address => address === 5 ? "bus-error" : 0, write() { assert.fail(); } }, initialState());
   const before = cpu.snapshot(), record = cpu.reset();

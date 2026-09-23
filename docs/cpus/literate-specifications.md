@@ -583,7 +583,7 @@ optional alignment-fault returns. It may use program-space memory when its CPU
 context supplies it. Fetches, ports, address decoding, staged updates, byte-match
 rejections, and other boundary effects are rejected transitively. The attempt
 retains all completed effects on failure. `complete` names a state-only action
-with one eight-bit input: zero for success, one for a modeled fault. It runs once
+with one `flag` input: clear for success, set for a modeled fault. It runs once
 after normal return, an explicit alignment fault, or a classified bus failure.
 The original fault is returned after completion; the completion action cannot
 perform memory effects or return another fault.
@@ -1575,9 +1575,9 @@ prefetch or cycle timing.
 | `fetch big advance after word` | Assemble a complete word high byte first; `little` selects low byte first. |
 | `alignment 2` | Reject an odd initial fetch before memory access; `1` allows either parity. |
 | `terminal FAULTED`, `stopped HALTED` | Terminal halt prevents all work; pending entry takes precedence over an ordinary stop. |
-| `trace T pending TRACEPENDING exception "trace" action scheduleTrace` | Sample a declared flag before callbacks. The pending latch requests the named exception before fetching; the state-only action takes the sampled value as an eight-bit zero/one. |
+| `trace T pending TRACEPENDING exception "trace" action scheduleTrace` | Sample a declared flag before callbacks. The pending latch requests the named exception before fetching; the state-only action takes the sampled `flag` value. |
 | `fetched action beginInstruction` | Invoke a state-only action with the complete 16-bit operation word, before lookup. |
-| `retire action finishInstruction` | Pass the target or sequential cursor, then the eight-bit sample, to a state-only action. |
+| `retire action finishInstruction` | Pass the target or sequential cursor, then the sampled `flag`, to a state-only action. |
 | `address source effectiveAddress` | Bind a source taking size (8 bits), mode (3), and code (3), returning a 32-bit address. Each instruction has its own pending-register update set. |
 | `unknown "illegal-instruction"`, `unsupported "illegal-instruction"` | Select declared exceptions for unmatched words and rejected operand selections. |
 | `interrupt external` | Leave frame delivery and external offers at the native boundary. |
@@ -1625,14 +1625,14 @@ calculation. Existing sources and actions express those details in the chapter.
 | `stack check action checkExceptionStack` | Captured stack (32); may return an alignment fault but cannot access memory. |
 | `short frame action writeExceptionFrame bytes 6` | Stack (32), status (16), saved PC (32); ordered memory effects. |
 | `vector action loadExceptionVector` | Vector (8); memory effects and an optional alignment fault. |
-| `complete action finishException` | Processing zero/one (8), vector (8); state-only success effects. |
-| `entry return source exceptionFaultReturn` | Requested PC (32), vector (8), vector-phase zero/one (8); returns the recovery PC (32). |
-| `fault frame action writeMemoryErrorFrame bytes 14` | Stack (32), status (16), PC (32), fault address (32), write/processing/function-code values (8 each); ordered memory effects. |
+| `complete action finishException` | Processing (`flag`), vector (8); state-only success effects. |
+| `entry return source exceptionFaultReturn` | Requested PC (32), vector (8), vector phase (`flag`); returns the recovery PC (32). |
+| `fault frame action writeMemoryErrorFrame bytes 14` | Stack (32), status (16), PC (32), fault address (32), write and processing (`flag` each), function code (8); ordered memory effects. |
 | `fault vectors address 3 bus 2` | Byte vectors for the two classified memory-error sources. |
-| `function code source faultFunctionCode values 1, 2, 5, 6` | Program-space zero/one (8); returns one declared byte value. The generated binding preserves that literal union in public records. |
+| `function code source faultFunctionCode values 1, 2, 5, 6` | Program space (`flag`); returns one declared byte value. The generated binding preserves that literal union in public records. |
 | `fault begin action beginMemoryError` | Vector (8); state-only effects after reserving the error frame. |
 | `halt action haltMemoryError` | No inputs; state-only effects after a fault during error entry. |
-| `initial fetch terminal source terminalInitialFetch return source initialFaultReturn processing source initialFaultProcessing` | Three input-free read-only sources: halt-without-frame (8), saved PC (32), processing zero/one (8). |
+| `initial fetch terminal source terminalInitialFetch return source initialFaultReturn processing source initialFaultProcessing` | Three input-free read-only sources: halt-without-frame (`flag`), saved PC (32), processing (`flag`). |
 | `levels 1 7` | Inclusive validated interrupt-offer range, within a byte. |
 | `gate source interruptGate reasons "faulted", "trace-pending", "masked"` | Level (8); zero admits, positive byte values select a one-based reason. |
 | `accept action acceptInterrupt` | Level (8); state-only effects before acknowledgement. |
@@ -1654,12 +1654,15 @@ stack check runs once, before the callback. An invalid callback/result or any
 host throw escapes with completed effects retained. Only the connection adapter's
 classified bus failure enters recovery; fault-shaped host objects are not trusted.
 
-Sources must be read-only and return the documented widths. Actions are checked
-transitively for their declared state, memory, and alignment capabilities; hidden
-fetches, ports, staging, or CPU callbacks are rejected. Hooks without memory
-effects do not receive a memory argument. Frame actions can use data- or
-program-space reads; their declared calls determine the recorded space. Runtime
-checks reject function codes and gate selectors outside their declared choices.
+Sources must be read-only and return the documented numeric or `flag` type.
+Decisions remain Boolean through the runtime and chapter hooks; chapter expressions
+convert them to bit masks when constructing function codes and status words.
+Actions are checked transitively for their declared state, memory, and alignment
+capabilities. Hidden fetches, ports, staging, or CPU callbacks are rejected.
+Hooks without memory effects do not receive a memory argument. Frame actions can
+use data- or program-space reads; their declared calls determine the recorded
+space. Runtime checks reject function codes and gate selectors outside their
+declared choices.
 [Language tests](../../tests/components/cpus/semantics/literate-word-events.test.ts)
 check invalid bindings and prove chapter changes alter public execution.
 

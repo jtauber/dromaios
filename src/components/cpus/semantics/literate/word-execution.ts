@@ -1,7 +1,7 @@
 import { instructionAliases, instructionSet } from "../builders.ts";
 import { chapterWordEvents } from "./word-events.ts";
 import type { WordEvents } from "./word-events.ts";
-import type { Flag, InstructionDefinition, Latch, Statement, ValueSource } from "../model.ts";
+import type { Flag, InstructionDefinition, Latch, Statement, ValueSource, ValueType } from "../model.ts";
 import type { OpcodeEntry } from "../../opcodes.ts";
 import type { WordExceptionPolicy } from "../../word-execution.ts";
 import { checkStateEffects } from "./statements.ts";
@@ -61,9 +61,9 @@ export function chapterWordExecution(header: ChapterTokens, lines: readonly Chap
     const tokens = fields.get(name) ?? header.fail(`Word execution needs ${name}.`);
     fields.delete(name); return tokens;
   };
-  const action = (tokens: ChapterTokens, widths: readonly number[]): string => {
+  const action = (tokens: ChapterTokens, types: readonly ValueType[]): string => {
     tokens.expect("action"); const name = tokens.word(), definition = symbols.actions.get(name) ?? tokens.fail(`Unknown state action ${name}.`);
-    if (JSON.stringify(Object.values(definition.inputs ?? {})) !== JSON.stringify(widths)) tokens.fail(`Execution action needs inputs [${widths.join(", ")}].`);
+    if (JSON.stringify(Object.values(definition.inputs ?? {})) !== JSON.stringify(types)) tokens.fail(`Execution action needs inputs [${types.join(", ")}].`);
     tokens.checked(() => checkStateEffects(definition.steps, "state", false)); return name;
   };
   const pc = required("counter"), counter = pc.word(), view = symbols.views.get(counter) ?? pc.fail(`Unknown counter view ${counter}.`); pc.end();
@@ -78,9 +78,9 @@ export function chapterWordExecution(header: ChapterTokens, lines: readonly Chap
   const stoppedAt = required("stopped"), stopped = stoppedAt.lookup(symbols.latches).field; stoppedAt.end();
   const tracing = required("trace"), sample = tracing.lookup(symbols.flags);
   tracing.expect("pending"); const pending = tracing.lookup(symbols.latches).field;
-  tracing.expect("exception"); const pendingException = tracing.quoted(), trace = action(tracing, [8]); tracing.end();
+  tracing.expect("exception"); const pendingException = tracing.quoted(), trace = action(tracing, ["flag"]); tracing.end();
   const fetchedAt = required("fetched"), fetched = action(fetchedAt, [16]); fetchedAt.end();
-  const retireAt = required("retire"), retire = action(retireAt, [bits, 8]); retireAt.end();
+  const retireAt = required("retire"), retire = action(retireAt, [bits, "flag"]); retireAt.end();
   const addressAt = required("address"); addressAt.expect("source");
   const address = addressAt.word(), source = symbols.sources.get(address) ?? addressAt.fail(`Unknown address source ${address}.`); addressAt.end();
   if (source.type !== 32 || JSON.stringify(Object.values(source.inputs ?? {})) !== "[8,3,3]") addressAt.fail("Address source needs [8, 3, 3] inputs and a 32-bit result.");

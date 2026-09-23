@@ -23,7 +23,7 @@ export function chapterReset(header: ChapterTokens, lines: readonly ChapterToken
       tokens.checked(() => checkStateEffects(definition.steps, ["memory", "alignment"], false));
     } else {
       tokens.expect("with"); tokens.expect("failure");
-      if (inputs.length !== 1 || inputs[0] !== 8) tokens.fail("Reset completion actions require one 8-bit failure input.");
+      if (inputs.length !== 1 || inputs[0] !== "flag") tokens.fail("Reset completion actions require one flag failure input.");
       tokens.checked(() => checkStateEffects(definition.steps, "state", false));
     }
     tokens.end(); fields.set(field, { name, definition });
@@ -43,7 +43,7 @@ import { instructions as actions } from "./${module}-state.ts";
 export function reset<Fault>(state: Parameters<typeof ${attempt}>[0],
   ${reset.memory ? `memory: Parameters<typeof ${attempt}>[1],\n  ` : ""}faultFromError: (error: unknown) => Fault | undefined) {
   return resetSequence(() => ${attempt}(state${reset.memory ? ", memory" : ""}),
-    failed => ${complete}(state, failed ? 1 : 0), faultFromError);
+    failed => ${complete}(state, failed), faultFromError);
 }
 `;
 }

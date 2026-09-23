@@ -17,8 +17,8 @@ function fixture() {
   const policy: WordExecutionPolicy<Source> = {
     bits: 16, order: "big", alignment: 2, counter: () => state.pc, terminal: () => state.terminal,
     stopped: () => state.stopped, pending: () => state.pending, sample: () => state.trace, pendingException: "trace",
-    fetched(opcode) { state.ir = opcode; }, retire(pc, sample) { state.pc = pc; state.pending = Boolean(sample); },
-    trace(sample) { state.pending = Boolean(sample); }, unsupported: "illegal", exceptions,
+    fetched(opcode) { state.ir = opcode; }, retire(pc, sample) { state.pc = pc; state.pending = sample; },
+    trace(sample) { state.pending = sample; }, unsupported: "illegal", exceptions,
     dispatch(opcode, context) { assert.equal(opcode, 0x1234); events.push(["extension", context.fetchWord()]); },
   };
   const execute = (overrides: Partial<WordExecutionPolicy<Source>> = {}) => wordExecution<Source, WordException<string>, WordMemoryFault>({ ...policy, ...overrides }, {
@@ -68,11 +68,11 @@ test("targets do not replace the fetch cursor, and trace is sampled before memor
 });
 
 test("exception policy controls restart/complete PCs, vector fields, unsupported decoding, and successful trace scheduling", () => {
-  for (const source of ["illegal", "trap", "unsupported"] as const) for (const failed of [false, true]) {
-    const f = fixture(); if (failed) f.deliveryFails();
+  for (const source of ["illegal", "trap", "unsupported"] as const) for (const failed of [false, true]) for (const sampled of [false, true]) {
+    const f = fixture(); if (failed) f.deliveryFails(); f.state.trace = sampled;
     const result = f.execute({ dispatch(_opcode, context) { context.fetchWord(); return source; } });
     assert.deepEqual(result.exception, source === "trap" ? { source: "trap", vector: 36, returnPc: 0x104 } : { source: "illegal", vector: 4, returnPc: 0x100 });
-    assert.equal(f.state.pending, source === "trap" && !failed);
+    assert.equal(f.state.pending, source === "trap" && !failed && sampled);
   }
 });
 

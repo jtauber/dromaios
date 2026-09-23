@@ -82,8 +82,9 @@ family probe (forced: flag) "00000000" {
   assert.equal(state.out, 0x11);
   const description = describeInstruction(definition);
   assert.match(description, /aboveNine:flag :=/);
-  assert.match(description, /forced:flag :=/);
+  assert.match(description, /forced:flag := input/);
   assert.match(description, /decision:flag :=/);
+  assert.match(describeInstruction(chapter.actions.remember!), /decision:flag := input\nmarker:u8 := input/);
 });
 
 test("Boolean matching sources distinguish false from unsupported and preserve partial effects", async () => {

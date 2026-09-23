@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { chapterWordEvents } from "../../../../src/components/cpus/semantics/literate/word-events.js";
 import { ChapterError, ChapterTokens } from "../../../../src/components/cpus/semantics/literate/document.js";
+import type { InstructionDefinition, ValueSource } from "../../../../src/components/cpus/semantics/model.js";
 import { actions, sources, views } from "../../../../src/components/cpus/semantics/generated/68000.js";
 import { edited68000 } from "../../../helpers/68000-chapter.js";
 import { initialState } from "../../../helpers/68000-state.js";
@@ -10,12 +11,14 @@ import { initialState } from "../../../helpers/68000-state.js";
 const markdown = readFileSync("src/components/cpus/specifications/68000.md", "utf8");
 const contract = markdown.split("  events {\n")[1]!.split("\n  }")[0]!;
 
-test("event hooks reject missing fields, wrong widths, hidden effects, and invalid choices with document locations", () => {
-  const parse = (text: string, actionMap = actions, sourceMap = sources) => chapterWordEvents(
-    new ChapterTokens({ text: "events", line: 100 }, "events.md"),
-    text.split("\n").map((text, index) => new ChapterTokens({ text, line: 101 + index }, "events.md")),
-    { actions: new Map(Object.entries(actionMap)), sources: new Map(Object.entries(sourceMap)), views: new Map(Object.entries(views)), latches: new Map() },
-  );
+const parse = (text: string, actionMap: Readonly<Record<string, InstructionDefinition>> = actions,
+  sourceMap: Readonly<Record<string, ValueSource>> = sources) => chapterWordEvents(
+  new ChapterTokens({ text: "events", line: 100 }, "events.md"),
+  text.split("\n").map((text, index) => new ChapterTokens({ text, line: 101 + index }, "events.md")),
+  { actions: new Map(Object.entries(actionMap)), sources: new Map(Object.entries(sourceMap)), views: new Map(Object.entries(views)), latches: new Map() },
+);
+
+test("event hooks reject missing fields, wrong types, hidden effects, and invalid choices with document locations", () => {
   assert.equal(parse(contract).shortBytes, 6);
   for (const [before, after] of [
     ["    prepare action prepareException\n", ""], ["prepare action prepareException", "prepare action finishReset"],
@@ -34,6 +37,36 @@ test("event hooks reject missing fields, wrong widths, hidden effects, and inval
   assert.throws(() => parse(contract, badAction), /memory/);
   const badSource = { ...sources, interruptGate: { ...sources.interruptGate, steps: actions.haltMemoryError.steps } };
   assert.throws(() => parse(contract, actions, badSource), /Views may only read/);
+});
+
+test("event hooks distinguish Boolean decisions from numeric inputs and results", () => {
+  const rejects = (run: () => unknown, field: string, message: string) => assert.throws(run, error =>
+    error instanceof ChapterError && error.file === "events.md" &&
+    error.line === 101 + contract.split("\n").findIndex(line => line.trimStart().startsWith(field)) && error.message.includes(message));
+  for (const [name, parameter, type, field, expected] of [
+    ["finishException", "processing", 8, "complete", "flag, 8"],
+    ["writeMemoryErrorFrame", "write", 8, "fault frame", "32, 16, 32, 32, flag, flag, 8"],
+    ["writeMemoryErrorFrame", "processing", 8, "fault frame", "32, 16, 32, 32, flag, flag, 8"],
+    ["prepareException", "bytes", "flag", "prepare", "32, 8"],
+  ] as const) {
+    const original = actions[name];
+    const changed = { ...actions, [name]: { ...original, inputs: { ...original.inputs, [parameter]: type } } };
+    rejects(() => parse(contract, changed), field, `Event hook needs inputs [${expected}].`);
+  }
+  for (const [name, parameter, field, expected] of [
+    ["exceptionFaultReturn", "vectorPhase", "entry return", "32, 8, flag"],
+    ["faultFunctionCode", "program", "function code", "flag"],
+  ] as const) {
+    const original = sources[name];
+    const changed = { ...sources, [name]: { ...original, inputs: { ...original.inputs, [parameter]: 8 as const } } };
+    rejects(() => parse(contract, actions, changed), field, `Event hook needs inputs [${expected}].`);
+  }
+  for (const name of ["terminalInitialFetch", "initialFaultProcessing"] as const) {
+    const changed = { ...sources, [name]: { ...sources[name], type: 8 as const } };
+    rejects(() => parse(contract, actions, changed), "initial fetch", "Event source needs type flag.");
+  }
+  const changed = { ...sources, faultFunctionCode: { ...sources.faultFunctionCode, type: "flag" as const } };
+  rejects(() => parse(contract, actions, changed), "function code", "Event source needs type 8.");
 });
 
 test("chapter edits control short-frame reservation, transfer addresses, and vector geometry through the public CPU", async () => {
@@ -76,10 +109,10 @@ test("chapter edits control interrupt gates, level validation, acknowledgement s
 
 test("chapter edits control initial-fetch recovery, fault vectors, function codes, and special-status bits", async () => {
   const Cpu = await edited68000([
-    ["return select(or(reset, memoryError), u8(1), u8(0))", "return u8(0)"],
+    ["return or(reset, memoryError)", "return 0"],
     ["return select(ordinary, pc, address)", "return u32($BEEF)"],
-    ["return or(select(supervisor, u8(4), u8(0)), select(zero(program), u8(1), u8(2)))", "return u8(6)"],
-    ["select(zero(write), u8($10), u8(0))", "select(zero(write), u8($20), u8(0))"],
+    ["return or(select(supervisor, u8(4), u8(0)), select(program, u8(2), u8(1)))", "return u8(6)"],
+    ["select(not(write), u8($10), u8(0))", "select(not(write), u8($20), u8(0))"],
     ["fault vectors address 3 bus 2", "fault vectors address 11 bus 10"],
   ]);
   const state = initialState(0); state.pc = 0x1001; state.ssp = 0x8000; state.entry = { kind: "reset", vector: 0 };

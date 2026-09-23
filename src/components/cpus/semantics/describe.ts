@@ -176,7 +176,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
       }
     }
   }
-  for (const [name, bits] of Object.entries(definition.inputs ?? {})) lines.push(`${name}:u${bits} := input`);
+  for (const [name, type] of Object.entries(definition.inputs ?? {})) lines.push(`${name}:${typeName(type)} := input`);
   body(definition.steps);
   const fields = definition.cpu.state.flags;
   const preserved = fields?.kind === "group" ? Object.entries(fields.fields)

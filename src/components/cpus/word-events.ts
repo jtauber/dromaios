@@ -26,18 +26,18 @@ export interface WordEventPolicy<S extends string, R extends string, A extends n
   readonly shortBytes: number;
   readonly shortFrame: (stack: number, status: number, returnPc: number, memory: WordMemory) => void;
   readonly vector: (vector: number, memory: WordMemory) => WordMemoryFault | void;
-  readonly complete: (processing: number, vector: number) => void;
-  readonly entryReturn: (returnPc: number, vector: number, vectorPhase: number) => number;
+  readonly complete: (processing: boolean, vector: number) => void;
+  readonly entryReturn: (returnPc: number, vector: number, vectorPhase: boolean) => number;
   readonly memory: {
     readonly addressVector: A; readonly busVector: B; readonly bytes: number;
     readonly codes: readonly C[];
-    readonly functionCode: (program: number) => number;
+    readonly functionCode: (program: boolean) => number;
     readonly begin: (vector: number) => void;
-    readonly frame: (stack: number, status: number, returnPc: number, address: number, write: number, processing: number, code: number, memory: WordMemory) => void;
+    readonly frame: (stack: number, status: number, returnPc: number, address: number, write: boolean, processing: boolean, code: number, memory: WordMemory) => void;
   };
   readonly terminal: () => boolean;
   readonly halt: () => void;
-  readonly initial: { readonly terminal: () => number; readonly returnPc: () => number; readonly processing: () => number };
+  readonly initial: { readonly terminal: () => boolean; readonly returnPc: () => number; readonly processing: () => boolean };
   readonly interrupt: {
     readonly minimum: number; readonly maximum: number;
     /** Zero admits an offer; positive selectors index the declared reasons. */
@@ -63,7 +63,7 @@ export function wordEvents<S extends string, R extends string, A extends number,
     const frame = policy.capture(); policy.prepare(frame.stack, bytes); return frame;
   };
   const memoryError = (fault: WordFault, returnPc: number, processing: boolean, memory: WordMemory): MemoryError => {
-    const code = policy.memory.functionCode(Number(fault.operation === "fetch" || !!fault.programSpace));
+    const code = policy.memory.functionCode(fault.operation === "fetch" || (fault.programSpace ?? false));
     const functionCode = policy.memory.codes.find(candidate => candidate === code);
     if (functionCode === undefined) throw new Error("Fault function code is outside the declared choices.");
     const exception: MemoryError = {
@@ -75,7 +75,7 @@ export function wordEvents<S extends string, R extends string, A extends number,
     policy.memory.begin(exception.vector);
     const entryFault = attempt(() => {
       const alignment = policy.checkStack(frame.stack); if (alignment) return alignment;
-      policy.memory.frame(frame.stack, frame.status, returnPc, fault.address, Number(fault.operation === "write"), Number(processing), functionCode, memory);
+      policy.memory.frame(frame.stack, frame.status, returnPc, fault.address, fault.operation === "write", processing, functionCode, memory);
       return policy.vector(exception.vector, memory);
     });
     if (!entryFault) return exception;
@@ -89,8 +89,8 @@ export function wordEvents<S extends string, R extends string, A extends number,
       vectorPhase = true;
       return policy.vector(vector, memory);
     });
-    if (fault) return memoryError(fault, policy.entryReturn(returnPc, vector, Number(vectorPhase)), processing, memory);
-    policy.complete(Number(processing), vector);
+    if (fault) return memoryError(fault, policy.entryReturn(returnPc, vector, vectorPhase), processing, memory);
+    policy.complete(processing, vector);
     return undefined;
   };
   const exception = (request: WordException<S>, memory: WordMemory) => {
@@ -99,7 +99,7 @@ export function wordEvents<S extends string, R extends string, A extends number,
   };
   const initialFetch = (fault: WordFault, memory: WordMemory) => {
     if (policy.initial.terminal()) { policy.halt(); return { fault: publicFault(fault) }; }
-    return { exception: memoryError(fault, policy.initial.returnPc(), !!policy.initial.processing(), memory) };
+    return { exception: memoryError(fault, policy.initial.returnPc(), policy.initial.processing(), memory) };
   };
   const interrupt = (level: number, acknowledge: () => number | "autovector" | "spurious", memory: WordMemory,
     onAcknowledge: (value: number | "autovector" | "spurious") => void) => {

@@ -742,7 +742,7 @@ judging source reduction; all counts include comments and blank lines.
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 24,489 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
 | Generated executable CPU output, counted separately | 604,939 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,000,777 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,000,721 |
 | Generated state schemas/types, counted separately | 213 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are

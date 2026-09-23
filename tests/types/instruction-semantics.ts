@@ -1103,13 +1103,15 @@ export function check68000DecoderTypes(state: Cpu68000State): void {
 export function check68000ResetTypes(state: Cpu68000State): void {
   const memory = { readProgramByte: () => 0 };
   const fault: void | TargetAlignmentFault | "bus-error" = reset68000(state, memory, () => "bus-error" as const);
+  state68000.finishReset(state, true);
+  // @ts-expect-error Reset completion takes a Boolean decision, not a numeric byte.
   state68000.finishReset(state, 1);
   // @ts-expect-error Reset vectors require program-space reads.
   reset68000(state, { readByte: () => 0 }, () => undefined);
   // @ts-expect-error Reset does not fetch an instruction or invoke the RESET connection.
   reset68000(state, { ...memory, fetchWord: () => 0, resetDevices: () => {} }, () => undefined);
   // @ts-expect-error The completion action is state-only.
-  state68000.finishReset(state, 0, memory);
+  state68000.finishReset(state, false, memory);
   // @ts-expect-error A modeled reset fault is observable, rather than silently discarded.
   const success: void = fault;
 }

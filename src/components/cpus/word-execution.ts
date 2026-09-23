@@ -50,8 +50,8 @@ export interface WordExecutionPolicy<Source extends string> {
   readonly sample: () => boolean;
   readonly pendingException: Source;
   readonly fetched: (opcode: number) => void;
-  readonly retire: (address: number, sample: number) => void;
-  readonly trace: (sample: number) => void;
+  readonly retire: (address: number, sample: boolean) => void;
+  readonly trace: (sample: boolean) => void;
   readonly unsupported: Source;
   readonly exceptions: Readonly<Record<Source, WordExceptionPolicy>>;
   readonly dispatch: (opcode: number, context: WordInstructionContext) => Source | "unsupported" | WordMemoryFault | void;
@@ -101,11 +101,11 @@ export function wordExecution<Source extends string, Exception, Fault>(policy: W
       if (typeof result === "string") {
         const source = result === "unsupported" ? policy.unsupported : result;
         const { exception, delivered } = delivery.exception(request(source, opcode, cursor), memory);
-        if (delivered) policy.trace(sample && policy.exceptions[source].completed ? 1 : 0);
+        if (delivered) policy.trace(sample && policy.exceptions[source].completed);
         return { instruction, exception, outcome: outcome() };
       }
       if (result) return { instruction, exception: delivery.memoryError(result, cursor, memory), outcome: outcome() };
-      policy.retire(target ?? cursor, sample ? 1 : 0);
+      policy.retire(target ?? cursor, sample);
       return { instruction, outcome: policy.stopped() && !policy.pending() ? "halted" : "executed" };
     } catch (error) {
       const fault = delivery.faultFromError(error);

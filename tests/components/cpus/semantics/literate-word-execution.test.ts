@@ -39,10 +39,10 @@ source address "address" (size: 8, mode: 3, code: 3) : 32 {
 action fetched "capture opcode" (opcode: 16) {
   VALUE <- lowByte(opcode)
 }
-action trace "trace sample" (sample: 8) {
-  OWED <- not(zero(sample))
+action trace "trace sample" (sample: flag) {
+  OWED <- sample
 }
-action retire "next position" (pc: 16, sample: 8) {
+action retire "next position" (pc: 16, sample: flag) {
   COUNTER <- pc
   perform trace(sample)
 }
@@ -120,6 +120,13 @@ test("word declarations reject malformed fields, input widths, lifecycle effects
     const changed = toy.replace(before!, after!);
     assert.throws(() => compileCpuChapter(changed, {}, "word.md"), error => error instanceof ChapterError && error.file === "word.md" && error.line > 0, before);
   }
+  const numericTrace = toy.replace('"trace sample" (sample: flag)', '"trace sample" (sample: 8)')
+    .replace("OWED <- sample", "OWED <- not(zero(sample))")
+    .replace("perform trace(sample)", "perform trace(select(sample, u8(1), u8(0)))");
+  assert.throws(() => compileCpuChapter(numericTrace), /Execution action needs inputs \[flag\]/);
+  const numericRetire = toy.replace("(pc: 16, sample: flag)", "(pc: 16, sample: 8)")
+    .replace("perform trace(sample)", "perform trace(not(zero(sample)))");
+  assert.throws(() => compileCpuChapter(numericRetire), /Execution action needs inputs \[16, flag\]/);
   for (const reason of ["bad", "unsupported", "missing"]) {
     const division = toy.replace("extension = fetch word", `quotient, remainder = divide(u16(1), u8(0), unsigned) otherwise "${reason}"\n  extension = fetch word`);
     if (reason === "missing") assert.throws(() => compileCpuChapter(division), /Unknown word exception/);

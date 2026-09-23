@@ -1,4 +1,4 @@
-import type { InstructionDefinition, Latch, ValueSource } from "../model.ts";
+import type { InstructionDefinition, Latch, ValueSource, ValueType, Width } from "../model.ts";
 import { checkStateEffects, usesMemory } from "./statements.ts";
 import type { ChapterTokens } from "./document.ts";
 
@@ -39,24 +39,24 @@ export function chapterWordEvents(header: ChapterTokens, lines: readonly Chapter
     if (!Number.isInteger(value) || value < 0 || value > maximum) tokens.fail(`Expected an integer from 0 to ${maximum}.`);
     return value;
   };
-  const signature = (tokens: ChapterTokens, inputs: InstructionDefinition["inputs"], widths: readonly number[]) => {
-    if (JSON.stringify(Object.values(inputs ?? {})) !== JSON.stringify(widths)) tokens.fail(`Event hook needs inputs [${widths.join(", ")}].`);
+  const signature = (tokens: ChapterTokens, inputs: InstructionDefinition["inputs"], types: readonly ValueType[]) => {
+    if (JSON.stringify(Object.values(inputs ?? {})) !== JSON.stringify(types)) tokens.fail(`Event hook needs inputs [${types.join(", ")}].`);
   };
-  const view = (tokens: ChapterTokens, width: number) => {
+  const view = (tokens: ChapterTokens, width: Width) => {
     tokens.expect("view"); const name = tokens.word(), source = symbols.views.get(name) ?? tokens.fail(`Unknown view ${name}.`);
     signature(tokens, source.inputs, []);
     if (source.type !== width) tokens.fail(`Event view needs width ${width}.`);
     return name;
   };
-  const source = (tokens: ChapterTokens, widths: readonly number[], width: number) => {
+  const source = (tokens: ChapterTokens, types: readonly ValueType[], type: ValueType) => {
     tokens.expect("source"); const name = tokens.word(), definition = symbols.sources.get(name) ?? tokens.fail(`Unknown source ${name}.`);
-    signature(tokens, definition.inputs, widths);
-    if (definition.type !== width) tokens.fail(`Event source needs width ${width}.`);
+    signature(tokens, definition.inputs, types);
+    if (definition.type !== type) tokens.fail(`Event source needs type ${type}.`);
     tokens.checked(() => checkStateEffects(definition.steps, "view", false)); return name;
   };
-  const action = (tokens: ChapterTokens, widths: readonly number[], effects: "state" | "alignment" | "memory" | "vector") => {
+  const action = (tokens: ChapterTokens, types: readonly ValueType[], effects: "state" | "alignment" | "memory" | "vector") => {
     tokens.expect("action"); const name = tokens.word(), definition = symbols.actions.get(name) ?? tokens.fail(`Unknown state action ${name}.`);
-    signature(tokens, definition.inputs, widths);
+    signature(tokens, definition.inputs, types);
     tokens.checked(() => checkStateEffects(definition.steps, effects === "vector" ? ["memory", "alignment"] : effects === "alignment" ? ["alignment"] : effects, false));
     if (usesMemory(definition.steps)) memoryActions.add(name);
     return name;
@@ -66,18 +66,18 @@ export function chapterWordEvents(header: ChapterTokens, lines: readonly Chapter
   const checkAt = required("stack-check"), checkStack = action(checkAt, [32], "alignment"); checkAt.end();
   const short = required("short-frame"), shortFrame = action(short, [32, 16, 32], "memory"); short.expect("bytes"); const shortBytes = number(short); short.end();
   const vectorAt = required("vector"), vector = action(vectorAt, [8], "vector"); vectorAt.end();
-  const completeAt = required("complete"), complete = action(completeAt, [8, 8], "state"); completeAt.end();
-  const returnAt = required("entry-return"), entryReturn = source(returnAt, [32, 8, 8], 32); returnAt.end();
-  const frame = required("fault-frame"), memoryFrame = action(frame, [32, 16, 32, 32, 8, 8, 8], "memory"); frame.expect("bytes"); const memoryBytes = number(frame); frame.end();
+  const completeAt = required("complete"), complete = action(completeAt, ["flag", 8], "state"); completeAt.end();
+  const returnAt = required("entry-return"), entryReturn = source(returnAt, [32, 8, "flag"], 32); returnAt.end();
+  const frame = required("fault-frame"), memoryFrame = action(frame, [32, 16, 32, 32, "flag", "flag", 8], "memory"); frame.expect("bytes"); const memoryBytes = number(frame); frame.end();
   const vectors = required("fault-vectors"); vectors.expect("address"); const addressVector = number(vectors); vectors.expect("bus"); const busVector = number(vectors); vectors.end();
-  const code = required("function-code"), functionCode = source(code, [8], 8); code.expect("values");
+  const code = required("function-code"), functionCode = source(code, ["flag"], 8); code.expect("values");
   const codes: number[] = []; do { codes.push(number(code)); } while (code.take(",")); code.end();
   if (new Set(codes).size !== codes.length) code.fail("Duplicate function code.");
   const begin = required("fault-begin"), beginFault = action(begin, [8], "state"); begin.end();
   const haltAt = required("halt"), halt = action(haltAt, [], "state"); haltAt.end();
-  const initial = required("initial-fetch"); initial.expect("terminal"); const initialTerminal = source(initial, [], 8);
+  const initial = required("initial-fetch"); initial.expect("terminal"); const initialTerminal = source(initial, [], "flag");
   initial.expect("return"); const initialReturn = source(initial, [], 32);
-  initial.expect("processing"); const initialProcessing = source(initial, [], 8); initial.end();
+  initial.expect("processing"); const initialProcessing = source(initial, [], "flag"); initial.end();
   const levels = required("levels"), minimum = number(levels), maximum = number(levels); levels.end();
   if (minimum > maximum) levels.fail("Interrupt level range is reversed.");
   const gateAt = required("gate"), gate = source(gateAt, [8], 8); gateAt.expect("reasons");
