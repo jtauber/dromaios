@@ -17,9 +17,10 @@ are pinned in `pyproject.toml` and `uv.lock`; they are separate from the emulato
 npm dependencies.
 
 Sauvignon currently has no published Python distribution. Set `SAUVIGNON_PATH`
-to an existing checkout containing the `sauvignon/` package. The site has been
-checked with revision `b5a85cad3179e7cb087ee785c17b6547d2e80efd` (version 0.8.0).
-It uses `compile_string`; the compiler’s source is not copied into this repository.
+to an existing checkout containing the `sauvignon/` package. Automated builds use
+the exact revision pinned in the [Pages workflow](../.github/workflows/pages.yml);
+use the same revision locally when checking a release. The site uses
+`compile_string`; the compiler’s source is not copied into this repository.
 
 From the Dromaios root:
 
@@ -41,9 +42,74 @@ npm run build:site -- --base /dromaios/
 ```
 
 Serve the output at that path when previewing it. The build checks links using
-the configured prefix. No deployment is configured in this change; the current
-private Sauvignon dependency must be made available to a build host before
-adding a public CI publishing workflow.
+the configured prefix. The publishing workflow reads its base path from GitHub
+Pages, using `/` for the custom domain and `/dromaios/` for the default project URL.
+
+## Automated publishing
+
+The [Pages workflow](../.github/workflows/pages.yml) builds on pushes to `main`
+and can also be run manually from `main`. It checks out the pinned Sauvignon
+revision with a dedicated read-only SSH deploy key, installs locked dependencies,
+runs the site tests, compiles the complete site, and checks its local links.
+Only `site/output/` is uploaded. The private compiler stays outside that artifact.
+A separate deploy job receives Pages write and OIDC permissions after the build
+succeeds; publishing runs are serialized.
+
+The [CI workflow](../.github/workflows/ci.yml) also runs the site tests on pull
+requests, including forks. These tests require neither Sauvignon nor secrets.
+The complete diagram build runs only in the trusted publishing workflow.
+
+### Repository setup
+
+These settings must exist before the publishing workflow can run:
+
+1. Create a `site-build` environment in `jtauber/dromaios`, with deployment branch
+   rules allowing only the `main` branch (no tags). Add a dedicated **read-only**
+   deploy key to `jtauber/sauvignon-new`; save its private half as the environment
+   secret `SAUVIGNON_DEPLOY_KEY`. Its only recipient is the protected Dromaios
+   site build. It grants no write access to Sauvignon and no access to other repos.
+2. Create a `github-pages` environment, also restricted to the `main` branch.
+   The deployment uses the workflow's temporary GitHub token, not the SSH key.
+3. Set the Dromaios repository’s Pages source to **GitHub Actions**. Set its
+   custom domain to `microcomputer.world` before pointing DNS at GitHub.
+4. Configure DNS as below. After GitHub provisions the certificate, enable
+   **Enforce HTTPS** in the Pages settings.
+
+Use the repository’s [Pages settings](https://github.com/jtauber/dromaios/settings/pages)
+and [environments](https://github.com/jtauber/dromaios/settings/environments).
+See GitHub’s [custom workflow guide](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
+for the artifact/deployment contract.
+
+### Domain and HTTPS
+
+For the domain’s current Name.com DNS service, replace the apex parking A record
+with these four A records and add the `www` CNAME:
+
+| Type | Name.com Host | Answer |
+| --- | --- | --- |
+| A | *(leave blank)* | `185.199.108.153` |
+| A | *(leave blank)* | `185.199.109.153` |
+| A | *(leave blank)* | `185.199.110.153` |
+| A | *(leave blank)* | `185.199.111.153` |
+| CNAME | `www` | `jtauber.github.io` |
+
+Name.com uses an empty Host field for an apex A record; see its
+[A record instructions](https://www.name.com/support/articles/115004893508-adding-an-a-record).
+The addresses and `www` target follow GitHub’s
+[custom-domain instructions](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site).
+The canonical site is `https://microcomputer.world/`; GitHub redirects the
+configured `www` alias to it. DNS and certificate provisioning may take time,
+so verify both hostnames before considering publishing complete.
+
+For domain verification, add `microcomputer.world` in the GitHub account’s
+[Pages settings](https://github.com/settings/pages) and retain the TXT record
+GitHub supplies. Use the account-specific TXT value shown there. See
+[GitHub’s verification instructions](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/verifying-your-custom-domain-for-github-pages).
+
+After setup and a reviewed commit, the next push to `main` publishes the site.
+To republish the same source, run the **Pages** workflow manually. To roll back,
+review and revert the relevant source change on `main`, then let that push build
+and deploy. The site follows the same maintainer-review rule as other changes.
 
 ## Authoring
 

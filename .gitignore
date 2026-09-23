@@ -7,3 +7,4 @@ src/components/cpus/semantics/generated/
 site/.venv/
 site/output/
 __pycache__/
+.site-dependencies/

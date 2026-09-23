@@ -25,10 +25,12 @@ path from individual calculations to understanding substantial programs.
 
 ## Reading site
 
-[microcomputer.world](site/README.md), the static reading site, presents a home page and all eight executable
-processor chapters. Ryland builds the pages; Sauvignon renders architecture
-diagrams and state maps derived from the specifications. Build and preview it
-locally with the separate site toolchain. Interactive execution remains ahead.
+[microcomputer.world](site/README.md), the static reading site, presents a home
+page and all eight executable processor chapters. Ryland builds the pages;
+Sauvignon renders architecture diagrams and state maps derived from the
+specifications. Build and preview it locally with the separate site toolchain.
+GitHub Actions validates and publishes pushes to `main` through GitHub Pages.
+Interactive execution remains ahead.
 
 ## The name
 
