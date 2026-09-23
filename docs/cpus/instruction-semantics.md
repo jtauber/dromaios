@@ -783,8 +783,9 @@ Jcc, LOOP/JCXZ, and relative JMP use the chapter's `relativeJump` action.
 It reads and writes live IP only on the taken path, after the complete
 displacement fetch. The CPU still owns per-byte CS:IP fetching. The chapter's
 `branchDecision` source exposes the condition code's three-bit selector and
-low inversion bit. Ordered matches retain JBE/JA's CF-before-ZF and JLE/JG's
-ZF-before-SF/OF short circuits; they never capture every flag eagerly.
+low inversion bit. A byte-pattern match selects a Boolean condition; `choose`
+retains JBE/JA's CF-before-ZF and JLE/JG's ZF-before-SF/OF short circuits.
+The returned decision needs no conversion to or from a byte.
 LOOP variants fetch, read/decrement/write CX, then reread it; a zero count
 skips ZF. JCXZ reads CX once and never changes it.
 

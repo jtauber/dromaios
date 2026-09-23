@@ -63,7 +63,7 @@ test("Z80 chapter edits reach construction, both snapshots, byte/word dispatch, 
     .replace("B <- highByte(word)\n  C <- lowByte(word)", "B <- lowByte(word)\n  C <- highByte(word)")
     .replace("PC <- add(pc, signExtend(offset, 16))", "PC <- add(add(pc, u16(1)), signExtend(offset, 16))")
     .replace("SP <- subtract(pointer, u16(1))", "SP <- subtract(pointer, u16(2))")
-    .replace("C = or(not(lessThan(original, u8($9A), unsigned)), carry)", "C = 0"));
+    .replace("C = decimalCarry", "C = 0"));
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
     import { CpuZ80, cpuZ80StateDescription } from ${url("src/components/cpus/generated/z80-cpu.ts")};

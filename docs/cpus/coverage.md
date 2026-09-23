@@ -19,13 +19,13 @@ emulators do not count toward implementation here.
 | Model | Introduced | Transistors (approx.) | Handwritten CPU core lines | Literate spec lines | `cpu` fence lines | Literate / documented forms | Literate instruction coverage | [Literate model milestones](#literate-model-milestones) |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [0](../../src/components/cpus/specifications/8008.md) | [1,436](../../src/components/cpus/specifications/8008.md) | 341 | 250 / 250 | 100% | 6 / 6 |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [0](../../src/components/cpus/specifications/8080.md) | [1,601](../../src/components/cpus/specifications/8080.md) | 511 | 244 / 244 | 100% | 6 / 6 |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [0](../../src/components/cpus/specifications/8080.md) | [1,602](../../src/components/cpus/specifications/8080.md) | 512 | 244 / 244 | 100% | 6 / 6 |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [0](../../src/components/cpus/specifications/6800.md) | [1,789](../../src/components/cpus/specifications/6800.md) | 753 | 197 / 197 | 100% | 6 / 6 |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,759](../../src/components/cpus/specifications/6502.md) | 601 | 151 / 151 | 100% | 6 / 6 |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,761](../../src/components/cpus/specifications/6502.md) | 603 | 151 / 151 | 100% | 6 / 6 |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,911](../../src/components/cpus/specifications/z80.md) | 1,509 | 698 / 698 | 100% | 6 / 6 |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,566](../../src/components/cpus/specifications/6809.md) | 1,322 | 268 / 268 | 100% | 6 / 6 |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,115](../../src/components/cpus/specifications/8088.md) | 2,714 | 291 / 291 | 100% | 6 / 6 |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [0](../../src/components/cpus/specifications/68000.md) | [8,313](../../src/components/cpus/specifications/68000.md) | 4,836 | 36,029 / 36,029 | 100% | 6 / 6 |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,113](../../src/components/cpus/specifications/8088.md) | 2,712 | 291 / 291 | 100% | 6 / 6 |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [0](../../src/components/cpus/specifications/68000.md) | [8,311](../../src/components/cpus/specifications/68000.md) | 4,834 | 36,029 / 36,029 | 100% | 6 / 6 |
 
 **Literate instruction coverage** measures documented opcode forms authored in
 executable chapters. This percentage alone does not measure the wider CPU
@@ -739,10 +739,10 @@ judging source reduction; all counts include comments and blank lines.
 | CPU-specific instruction definition files | 0 |
 | Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,465 |
 | **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,465** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,490 |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,489 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
-| Generated executable CPU output, counted separately | 604,924 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,002,159 |
+| Generated executable CPU output, counted separately | 604,939 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,000,777 |
 | Generated state schemas/types, counted separately | 213 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are

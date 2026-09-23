@@ -24,6 +24,18 @@ function state(a: number, decimal = true): Cpu6502State {
 }
 const forbidden = () => { assert.fail("Unexpected memory access"); };
 
+test("one decimal high-digit decision controls both 6502 ADC correction and carry", async () => {
+  const decision = "adjustHigh: flag = not(lessThan(intermediate, u16($A0), unsigned))";
+  assert.ok(markdown.includes(decision));
+  for (const changed of [false, true]) {
+    const execute = await probes(changed ? markdown.replace(decision, "adjustHigh: flag = 0") : markdown, [0x69]);
+    const current = state(0x50);
+    execute[0x69]!(current, { fetchByte: () => 0x50, readByte: forbidden, writeByte: forbidden });
+    assert.equal(current.a, changed ? 0xa0 : 0);
+    assert.deepEqual(current.flags, { n: true, v: true, d: true, i: true, z: false, c: !changed });
+  }
+});
+
 test("decimal corrections and overflow flags change when their chapter expressions change", async () => {
   for (const [opcode, before, after, a, byte, carry, field, expected] of [
     [0x69, "add(low, u16($06))", "add(low, u16($05))", 0x09, 1, false, "a", [0x10, 0x1f]],

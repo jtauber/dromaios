@@ -30,7 +30,7 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
     .replace("SP <- subtract(pointer, u16(2))", "SP <- subtract(pointer, u16(4))")
     .replace("SP <- add(pointer, u16(2))", "SP <- add(pointer, u16(4))")
     .replace("IP <- add(position, offset)", "IP <- add(add(position, offset), u16(1))")
-    .replace("return xor(positive, and(condition, u8(1)))", "return xor(positive, xor(and(condition, u8(1)), u8(1)))")
+    .replace("return xor(positive, lowBit(condition))", "return xor(positive, not(lowBit(condition)))")
     .replaceAll("defer all", "defer intr")
     .replaceAll("port(add(selector, u16(1)))", "port(add(selector, u16(2)))")
     .replace("size = add(extend(width, 16), u16(1))", "size = add(extend(width, 16), u16(2))")

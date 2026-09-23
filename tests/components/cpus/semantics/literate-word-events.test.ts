@@ -55,7 +55,7 @@ test("chapter edits control short-frame reservation, transfer addresses, and vec
 test("chapter edits control interrupt gates, level validation, acknowledgement selection, and callback-visible acceptance", async () => {
   const Cpu = await edited68000([
     ["levels 1 7", "levels 2 5"],
-    ["return select(faulted, u8(1), select(trace, u8(2), select(not(zero(masked)), u8(3), u8(0))))", "return u8(0)"],
+    ["return select(faulted, u8(1), select(trace, u8(2), select(masked, u8(3), u8(0))))", "return u8(0)"],
     ["INTERRUPTMASK <- truncate(level, 3)", "INTERRUPTMASK <- u3(0)"],
     ["return add(u8(24), level)", "return add(u8(40), level)"],
     ["spurious 24 maximum 255", "spurious 30 maximum 255"],

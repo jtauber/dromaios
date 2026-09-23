@@ -61,7 +61,7 @@ function section(name: string): string {
 }
 
 test("editing a compound condition changes its generated result", async () => {
-  const run = await edited(0x52c0, "return select(not(or(c, z)), u8(1), u8(0))", "return select(or(c, z), u8(1), u8(0))");
+  const run = await edited(0x52c0, "return not(or(c, z))", "return or(c, z)");
   const state = initialState(0); state.d0 = 0x123456ff;
   assert.equal(run(state, 0, 0, 0), undefined);
   assert.equal(state.d0, 0x12345600);

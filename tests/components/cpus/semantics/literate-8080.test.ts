@@ -119,3 +119,15 @@ test("decimal predicates, conditional values, and flag replacement come from the
   assert.deepEqual(stored.flags, { s: true, z: false, p: false, ac: true, cy: true });
   assert.notEqual(stored.flags, originalFlags); assert.deepEqual(originalFlags, before);
 });
+
+test("one decimal high-digit decision controls both 8080 DAA correction and carry", async () => {
+  const decision = "adjustHigh: flag = or(not(lessThan(original, u8($9a), unsigned)), carry)";
+  assert.ok(markdown.includes(decision));
+  for (const changed of [false, true]) {
+    const execute = await probes(changed ? markdown.replace(decision, "adjustHigh: flag = 0") : markdown, [0x27]);
+    const stored = state(); stored.a = 0x9a; stored.flags.ac = stored.flags.cy = false;
+    execute[0x27]!(stored, { fetchByte: () => assert.fail("DAA has no operands") });
+    assert.equal(stored.a, changed ? 0xa0 : 0);
+    assert.deepEqual(stored.flags, { s: changed, z: !changed, p: true, ac: true, cy: !changed });
+  }
+});
