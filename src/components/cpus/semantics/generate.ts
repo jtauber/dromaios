@@ -147,6 +147,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
         case "xor": return `(${flag(expr.left, scope)}) !== (${flag(expr.right, scope)})`;
         case "or": return `(${flag(expr.left, scope)}) || (${flag(expr.right, scope)})`;
         case "and": return `(${flag(expr.left, scope)}) && (${flag(expr.right, scope)})`;
+        case "bit": return `(${number(expr.value, scope).code} & 0x${(2 ** expr.position).toString(16)}) !== 0`;
         case "negative": case "low-bit": case "zero": case "even-parity": {
           const value = number(expr.value, scope);
           if (expr.kind === "negative" || expr.kind === "low-bit") return `(${value.code} & 0x${(expr.kind === "low-bit" ? 1 : 2 ** (value.type - 1)).toString(16)}) !== 0`;

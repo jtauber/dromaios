@@ -21,7 +21,7 @@ test("6809 chapter state, view, and stack edits reach public instructions, index
     .replace("select(c, u8($01)", "select(c, u8($02)")
     .replace("S <- subtract(pointer, u16($0001))", "S <- subtract(pointer, u16($0002))")
     .replace("operand r <- add(base, u16($0002))", "operand r <- add(base, u16($0003))")
-    .replace("I = not(zero(and(status, u8($10))))", "I = zero(and(status, u8($10)))"));
+    .replace("I = bit(status, 4)", "I = not(bit(status, 4))"));
   const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
   assert.equal(generated.status, 0, generated.stderr);
   const url = (path: string) => JSON.stringify(pathToFileURL(join(directory, path)).href);
@@ -89,7 +89,7 @@ test("6800 chapter state and condition-code edits reach the public core, machine
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const chapter = join(directory, "src/components/cpus/specifications/6800.md");
   writeFileSync(chapter, readFileSync(chapter, "utf8").replace("register SP: 16", "register SP: 16\n  register SCRATCH: 8")
-    .replace("return or(u8($C0),", "return or(u8($80),").replace("I = not(zero(and(status, u8($10))))", "I = zero(and(status, u8($10)))"));
+    .replace("return or(u8($C0),", "return or(u8($80),").replace("I = bit(status, 4)", "I = not(bit(status, 4))"));
   const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
   assert.equal(generated.status, 0, generated.stderr);
   const url = (path: string) => JSON.stringify(pathToFileURL(join(directory, path)).href);

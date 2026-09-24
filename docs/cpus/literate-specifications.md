@@ -845,6 +845,7 @@ Flag expressions are captured flags or policy parameters, literal `0`/`1`, or:
 | `lessThan(left, right, unsigned)` | Compare equal-width numbers as unsigned integers. |
 | `lessThan(left, right, signed)` | Compare equal-width numbers as two's-complement integers. Signedness is required for ordering and does not change the operands' stored bits. |
 | `negative(value)`, `zero(value)`, `lowBit(value)` | Test the top bit at the value's width, zero, or bit zero. |
+| `bit(value, position)` | Test one constant bit position in a numeric value; zero is the least significant bit. |
 | `evenParity(byte)` | Test even parity of a byte, including zero. |
 | `carry(left, right[, incoming])`, `borrow(left, right[, incoming])` | Test unsigned carry or borrow at the operands' equal width, with an optional incoming flag. |
 | `addOverflow(left, right[, incoming])`, `overflow(left, right[, incoming])` | Test signed addition or subtraction overflow at the operands' equal width; the optional incoming carry/borrow is a flag expression and defaults to zero. |
@@ -861,6 +862,17 @@ Keep `zero(result)` for a zero test and carry/borrow operations where they expla
 arithmetic flag calculations, including incoming carry or borrow.
 The [comparison tests](../../tests/components/cpus/semantics/literate-comparisons.test.ts)
 check signed and unsigned boundaries, explicit reads, and source-located errors.
+
+Use `bit(status, 7)` to test a named bit directly, and `not(bit(status, 7))`
+to test that it is clear. The position is a bare integer constant, decimal or
+`$`-prefixed hexadecimal, from zero through the value's width minus one. All
+supported widths are accepted, including bit 31 of a 32-bit value. Dynamic
+positions require an explicit mask calculation. The result is a `flag`, so a
+capture uses `selected: flag = bit(status, 7)`. Testing a captured value never
+rereads its original register or memory location. Keep `negative(result)` and
+`lowBit(original)` where they explain arithmetic sign or shifted-out carry.
+[Bit predicate tests](../../tests/components/cpus/semantics/literate-bits.test.ts)
+check every position, Boolean composition, capture ordering, and invalid bounds.
 
 Flag constants use `0` and `1`, not spelled-out booleans. Updates take effect
 together. `apply` preserves unlisted flags and the current flag object; `replace`

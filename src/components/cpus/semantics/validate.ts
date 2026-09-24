@@ -164,6 +164,11 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         if (expr.kind === "even-parity" && bits !== 8) fail(where, "even parity requires a byte");
         return;
       }
+      case "bit": {
+        const bits = expression(expr.value, scope, where);
+        if (!Number.isInteger(expr.position) || expr.position < 0 || expr.position >= bits) fail(where, `bit position must be an integer from 0 through ${bits - 1}`);
+        return;
+      }
       case "equal": case "less-than":
         if (expression(expr.left, scope, where) !== expression(expr.right, scope, where)) fail(where, "comparison operands must have equal widths");
         if (expr.kind === "less-than" && typeof expr.signed !== "boolean") fail(where, "comparison signedness must be Boolean");

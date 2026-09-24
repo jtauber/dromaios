@@ -129,12 +129,12 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,529 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,529** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,541 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,541** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 23,845 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
 | Generated executable CPU output, counted separately | 604,939 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,000,712 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 999,362 |
 | Generated state schemas/types, counted separately | 213 |
 
 Chapter-data generation compares ordered plain data before formatting a shared
@@ -145,8 +145,8 @@ selections match. The 68000's **54,008 expanded opcode entries** now require
 **9,671 compiled family bodies**. Exclusions and collisions still check every
 opcode, and different encoding declarations retain independent bindings.
 
-Local measurements of body sharing on macOS ARM64 with Node 24.20.0, using
-medians from three fresh processes per version:
+Local measurements of the body-sharing change (`b7b374f` → `e94eb53`) on macOS
+ARM64 with Node 24.20.0, using medians from three fresh processes per version:
 
 | CPU generation stage | Before body sharing | After body sharing |
 | --- | ---: | ---: |
@@ -159,12 +159,12 @@ medians from three fresh processes per version:
 Stage timers surround compilation, chapter-module serialization, registry
 import, and instruction emission. Complete generation is **36% faster**; median
 process peak RSS falls from **1,367 to 1,078 MiB** (about 21%), measured with
-`process.resourceUsage().maxRSS`. All **132 checked files**—generated CPU and
-machine sources and the expanded instruction listing—remain byte-identical.
+`process.resourceUsage().maxRSS`. Across those versions, all **132 checked files**—generated
+CPU and machine sources and the expanded instruction listing—were byte-identical.
 Separate TypeScript 7.0.2 processes take **11.6 s / 2,026 MiB peak RSS** for
 `tsc --project tsconfig.src.json` and **13.5 s / 3,359 MiB** for `tsc`. These are
 single-run compilation measurements; RSS is the whole process's peak, not a
-per-stage heap measurement. Generated file sizes and emulator behavior are unchanged.
+per-stage heap measurement. That change preserved generated file sizes and emulator behavior.
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
 outside this source count. Generated TypeScript is reproducible build output,

@@ -1,4 +1,4 @@
-import { addOverflow, addWrap, and, or, xor, select, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
+import { addOverflow, addWrap, and, or, xor, select, bit, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
   equal, flagValue, halfBorrow, halfCarry, highByte, isWidth, lessThan, literal, lowBit, lowByte, multiply, negative, not, shiftLeft, shiftRight,
   overflow, projectAddress, shiftBits, signExtend, subtract, truncate, value, zero } from "../model.ts";
 import type { AddressExpression, Expression, FlagExpression, NumberExpression, ValueType, Width } from "../model.ts";
@@ -85,6 +85,9 @@ export function flagExpression(tokens: ChapterTokens): FlagExpression {
     const left = expression(tokens); tokens.expect(","); const right = expression(tokens);
     if (name === "equal") result = equal(left, right);
     else { tokens.expect(","); result = lessThan(left, right, signedness(tokens)); }
+  } else if (name === "bit") {
+    const contents = expression(tokens); tokens.expect(",");
+    result = bit(contents, tokens.number());
   } else if (["carry", "borrow", "halfCarry", "halfBorrow", "addOverflow", "overflow"].includes(name)) {
     const left = expression(tokens); tokens.expect(","); const right = expression(tokens);
     const incoming = tokens.take(",") ? flagExpression(tokens) : undefined;

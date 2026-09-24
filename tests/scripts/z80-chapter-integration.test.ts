@@ -59,7 +59,7 @@ test("Z80 chapter edits reach construction, both snapshots, byte/word dispatch, 
     .replaceAll("return concat(high, low)", "return concat(low, high)")
     .replace("  Z = zero(result)", "  Z = not(zero(result))")
     .replace("select(carry, u8($01)", "select(carry, u8($20)")
-    .replace("C = not(zero(and(status, u8($01))))", "C = zero(and(status, u8($01)))")
+    .replace("C = bit(status, 0)", "C = not(bit(status, 0))")
     .replace("B <- highByte(word)\n  C <- lowByte(word)", "B <- lowByte(word)\n  C <- highByte(word)")
     .replace("PC <- add(pc, signExtend(offset, 16))", "PC <- add(add(pc, u16(1)), signExtend(offset, 16))")
     .replace("SP <- subtract(pointer, u16(1))", "SP <- subtract(pointer, u16(2))")

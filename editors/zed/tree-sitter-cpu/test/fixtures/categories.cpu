@@ -95,6 +95,12 @@ policy comparisons "numeric relations" (left: 8, right: 8) {
   S = lessThan(left, right, signed)
 }
 
+// Constant bit positions are ordinary calls; their width is checked by the compiler.
+policy selectedBits "packed status" (status: 8) {
+  C = bit(status, 0)
+  S = bit(status, 7)
+}
+
 // Recognition and retirement syntax used by the 8080 chapter.
 action enable "request deferral" {
   ENABLED <- 1

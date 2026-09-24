@@ -182,7 +182,7 @@ test("index addressing, comparison carry, and BIT flags are controlled by chapte
       byte: 0xff, expected: [2, 1], result: (state: Cpu6502State) => state.x },
     { family: "CMP", opcode: 0xc9, before: "C = not(borrow(left, right))", after: "C = borrow(left, right)",
       byte: 0x45, expected: [true, false], result: (state: Cpu6502State) => state.flags.c },
-    { family: "BIT", opcode: 0x24, before: "V = not(zero(and(operand, u8($40))))", after: "V = not(zero(and(operand, u8($80))))",
+    { family: "BIT", opcode: 0x24, before: "V = bit(operand, 6)", after: "V = bit(operand, 7)",
       byte: 0x40, expected: [true, false], result: (state: Cpu6502State) => state.flags.v },
   ];
   for (const entry of cases) for (const changed of [false, true]) {

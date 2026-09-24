@@ -199,7 +199,7 @@ test("6502 logic explanations separate result flags from BIT's memory bits and o
   const bit = description("6502", "BIT zero page");
   assert.ok(bit.indexOf("read memory[address]") < bit.indexOf("read A"));
   assert.match(bit, /N := topBit\(right\)/);
-  assert.match(bit, /V := not\(isZero\(bitAnd\(right, 40:u8\)\)\)/);
+  assert.match(bit, /V := bit\(right, 6\)/);
   assert.match(bit, /Z := isZero\(bitAnd\(left, right\)\)/);
   assert.match(bit, /Flags preserved throughout: D, I, C\./);
   assert.doesNotMatch(bit, /write A|write memory/);
@@ -324,7 +324,7 @@ test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary car
     assert.match(text, name.startsWith("A") ? /AC := halfCarry4\(left, right, carry\)/ : /AC := not\(halfBorrow4\(left, right, carry\)\)/);
   }
   for (const name of ["ADD H", "SUI byte", "ANA L", "XRI byte", "ORA M"]) assert.doesNotMatch(description("8080", name), /:= read CY/);
-  assert.match(description("8080", "ANA M"), /AC := not\(isZero\(bitAnd\(bitOr\(left, right\), 08:u8\)\)\)/);
+  assert.match(description("8080", "ANA M"), /AC := bit\(bitOr\(left, right\), 3\)/);
   for (const name of ["XRA A", "ORA A"]) {
     const text = description("8080", name);
     assert.match(text, /AC := 0:flag/); assert.match(text, /CY := 0:flag/);

@@ -39,7 +39,8 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
     .replace("shiftBits(highOpcode, left, 3)", "shiftBits(highOpcode, left, 2)")
     .replace("shiftBits(extend(vector, 16), left, 2)", "shiftBits(extend(vector, 16), left, 3)")
     .replace("select(cf, u16($0001), u16(0))", "select(not(cf), u16($0001), u16(0))")
-    .replace("CF = not(zero(and(status, u16($0001))))", "CF = zero(and(status, u16($0001)))");
+    .replace('policy RESTOREFLAGS "restore FLAGS" (status: 16) {\n  CF = bit(status, 0)',
+      'policy RESTOREFLAGS "restore FLAGS" (status: 16) {\n  CF = not(bit(status, 0))');
   writeFileSync(file, chapter);
   const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
   assert.equal(generated.status, 0, generated.stderr);

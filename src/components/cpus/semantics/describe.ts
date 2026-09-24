@@ -46,6 +46,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
       case "xor": return `xor(${flag(expr.left, parameters)}, ${flag(expr.right, parameters)})`;
       case "or": return `or(${flag(expr.left, parameters)}, ${flag(expr.right, parameters)})`;
       case "and": return `and(${flag(expr.left, parameters)}, ${flag(expr.right, parameters)})`;
+      case "bit": return `bit(${number(expr.value, parameters)}, ${expr.position})`;
       case "negative": case "low-bit": case "zero": case "even-parity":
         return `${{ negative: "topBit", "low-bit": "lowBit", zero: "isZero", "even-parity": "evenParity8" }[expr.kind]}(${number(expr.value, parameters)})`;
       case "equal": return `equal(${number(expr.left, parameters)}, ${number(expr.right, parameters)})`;
