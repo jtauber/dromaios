@@ -11,7 +11,7 @@ Every commit requires maintainer review and an explicit go-ahead.
 The introductory examples were built in the order **8080 → 6502 → 6809**.
 All eight initial targets now have **complete documented opcode coverage** and
 use shared instruction definitions that generate execution and explanations.
-The [capability audit](docs/cpus/completion.md#cpu-only-checkpoint-review) records
+The [capability audit](docs/cpus/coverage.md#cpu-only-checkpoint-review) records
 the earlier CPU-only checkpoint; [CPU implementation coverage](docs/cpus/coverage.md)
 tracks current support, source footprint, and remaining fidelity limits.
 
@@ -114,11 +114,9 @@ Zilog Z80, Motorola 6809, Intel 8088, and Motorola 68000**. Each now has:
 - A useful combined CPU-and-RAM program with independently checked execution
   records and bounded running through the shared runner.
 
-The [checkpoint audit](docs/cpus/completion.md#cpu-only-checkpoint-review)
-records passing evidence for all eight. This was an intermediate capability
-milestone; interrupts and I/O were deferred until after it. Their subsequent
-implementation is recorded in the
-[CPU completion sequence](docs/cpus/completion.md#completion-sequence).
+The [checkpoint audit](docs/cpus/coverage.md#cpu-only-checkpoint-review)
+records evidence for all eight. This was an intermediate capability milestone;
+complete opcode coverage and external-event support followed it.
 
 The [example catalog](docs/README.md#cpu-examples) links to the introductory
 and combined programs, their behavior specifications, and acceptance checks.
@@ -129,9 +127,8 @@ Further examples can continue to test the models and their shared interfaces.
 This milestone is complete for all eight, including their documented I/O,
 interrupt-control, and system instructions. The models also provide explicit
 interrupt and exception delivery and the external connections required by
-their declared contracts. The [completion sequence](docs/cpus/completion.md#completion-sequence)
-records that work; the [coverage inventory](docs/cpus/coverage.md) owns current
-counts and limitations.
+their declared contracts. The [coverage inventory](docs/cpus/coverage.md) owns
+current counts and links to each model's limits and acceptance evidence.
 
 Timing, signal scheduling, full bus behavior, and other processor features
 remain separate work. Complete opcode coverage establishes the instruction
@@ -147,8 +144,8 @@ reset, retirement, and external-event policies to shared runtimes. All eight
 chapters now generate their public interfaces and integration metadata, with
 no CPU-specific handwritten implementation remaining. Refining the literate
 authoring format and simplifying shared generation remain ongoing work; the
-[shared-building-blocks proposal](docs/cpus/shared-building-blocks.md) records
-the earlier design exploration. Neither further language work nor another CPU target is a
+[CPU language design notes](docs/cpus/design.md) preserve the rationale and
+open questions. Neither further language work nor another CPU target is a
 prerequisite for browser or machine development.
 
 ## 3. Make the examples explorable in the browser

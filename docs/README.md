@@ -19,23 +19,17 @@ see the [development instructions](../README.md#development).
 - [CPU implementation coverage](cpus/coverage.md): literate authoring progress,
   source footprint, supported forms, features, and remaining gaps.
   The [68000 count audit](cpus/68000/opcode-count.md) details its denominator.
-- [CPU completion record](cpus/completion.md): evidence for the eight-CPU
-  capability checkpoint and the completed interrupt and I/O implementation sequence.
-- [CPU source organization](cpus/implementation.md): reading order, bit-encoding
-  layout, and the separation of handler construction from instruction behavior.
-- [Opcode definition experiment](cpus/opcode-definitions.md): typed encoding
-  patterns for explicit opcodes, aliases, and instruction families.
-- [CPUs assembled from shared building blocks](cpus/shared-building-blocks.md):
-  earlier design exploration for shared CPU semantics and the specification
-  language. Its staged migration plan is historical; the project roadmap owns
-  current priorities and the literate specification guide describes the
-  implemented language.
-- [Instruction semantics experiment](cpus/instruction-semantics.md): typed,
-  inspectable definitions that drive validation, generated instruction bodies,
-  and [generated explanations](cpus/semantic-examples.md).
-
-- [Literate CPU specifications](cpus/literate-specifications.md): executable
-  Markdown chapters, their current syntax, build pipeline, and limits.
+- [Literate CPU language](cpus/literate-specifications.md): authoritative syntax
+  reference and guidance for executable Markdown specifications.
+- [CPU implementation guide](cpus/implementation.md): source map, generation
+  pipeline, shared runtimes, opcode helpers, and contributor workflow.
+- [Instruction representation contract](cpus/instruction-semantics.md): typed
+  data, capture scopes, ordered effects, validation, and
+  [generated explanations](cpus/semantic-examples.md).
+- [CPU language design](cpus/design.md): enduring rationale and open work on
+  reusable libraries, future processors, component interfaces, and further outputs.
+- [Boundary probes](cpus/boundary-probes.md): difficult ordering/failure cases
+  and acceptance traces for future 6507 and 4004 models.
 
 ## CPU models
 

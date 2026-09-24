@@ -1,12 +1,11 @@
 # CPU boundary probes
 
-This reviews the [first shared operations](shared-operation-blocks.md) against
-[stage 3 of the proposal](shared-building-blocks.md#3-review-the-boundaries-and-probe-future-cpus).
-Existing cores remain unchanged. Three new regression tests cover partial
-execution; the 6507 and 4004 examples below are **hand-worked design traces**,
-not implemented CPUs. These probes do not implement I/O, interrupts, or
-exception delivery; that work follows the separate [completion plan](completion.md).
-Numbers in traces are hexadecimal, except widths and numbered steps.
+These cases constrain shared CPU semantics: when values are captured, how
+addresses are projected, and which effects survive a failure. Existing models
+have executable regression tests; the 6507 and 4004 examples are **hand-worked
+design traces**, not implemented CPUs. The [design notes](design.md) explain
+the future specification-only addition experiment. Numbers in traces are
+hexadecimal, except widths and numbered steps.
 
 The useful distinction is between a **register view**, a **resolved location**,
 and a **captured value**. They have different lifetimes. Neither an address
@@ -16,11 +15,11 @@ nor a callback alone establishes when a value was read or when an update commits
 
 | Probe | Evidence | Constraint on sharing |
 | --- | --- | --- |
-| 6502 JSR with stack/code overlap | Existing success tests; new failures at both pushes and the final fetch | Fetch operands where the instruction requires them |
-| 6502 memory ASL | Existing failures at both writes | Apply C and N/Z at separate points |
-| 6809 CMPX/STX with `,X++` | Existing alias and failure tests | Resolve the address before capturing the register value |
-| 8088 word moves at address boundaries | Existing wrapping tests; new failures at either data byte | Advance the logical offset before mapping each byte |
-| 68000 MOVE with auto-updates | Existing alias/alignment tests; new failures at every source/destination byte | Distinguish pending updates, committed updates, and completed memory accesses |
+| 6502 JSR with stack/code overlap | Success and failure tests at both pushes and the final fetch | Fetch operands where the instruction requires them |
+| 6502 memory ASL | Failures at both writes | Apply C and N/Z at separate points |
+| 6809 CMPX/STX with `,X++` | Alias and failure tests | Resolve the address before capturing the register value |
+| 8088 word moves at address boundaries | Wrapping and failure tests at either data byte | Advance the logical offset before mapping each byte |
+| 68000 MOVE with auto-updates | Alias/alignment and failure tests at every source/destination byte | Distinguish pending updates, committed updates, and completed memory accesses |
 
 The [6502 tests](../../tests/components/cpus/6502.test.ts),
 [6809 tests](../../tests/components/cpus/6809.test.ts),
@@ -45,7 +44,7 @@ The [current instruction](../../src/components/cpus/specifications/6502.md) perf
 | 5 | Read `01FF` → `01` | Fetch advances PC to `0200`; jump then sets PC=`0144` |
 
 The returned instruction bytes are `20 44 01`. All flags remain unchanged.
-The new test injects failure before each of steps 3–5. PC remains `01FF`;
+The regression test injects failure before each of steps 3–5. PC remains `01FF`;
 SP is respectively `FF`, `FE`, or `FD`. Only earlier writes survive.
 
 A resolved location for `01FE` cannot substitute for the captured `44`.
@@ -69,15 +68,15 @@ IP=`0100`, AX=`A55A`, and data bytes initially `34 12`:
 3. Access the low byte, then the high byte, mapping each logical offset.
 4. A load writes AX only after both reads succeed; a store preserves AX.
 
-The new test fails either data access in both mappings and both directions.
+The regression test fails either data access in both mappings and both directions.
 IP remains `0103`, AX and all flags remain unchanged. A failed second store
 leaves the first byte `5A`; a failed first store leaves both bytes intact.
 No failed access or later access appears in the observer's log.
 
-The existing XCHG test also checks that writing an address register does not
-retarget an already resolved memory destination. The current callback operand
-captures its location and reads its value only when invoked. Preserve that
-distinction if the location becomes structured data.
+The XCHG test also checks that writing an address register does not retarget an
+already resolved memory destination. Resolving its location and reading its
+value are separate effects; a shared operand representation must preserve that
+distinction.
 
 ### 68000: validation and host failure have different boundaries
 
@@ -100,7 +99,7 @@ The [current MOVE body](../../src/components/cpus/specifications/68000.md) order
 | Any source read throws | IR fetched; other state unchanged | Earlier reads only |
 | Any destination write throws | IR fetched and A0/A1 advanced; PC and flags unchanged | All source reads and earlier destination writes |
 
-The new test covers all eight data-access failure positions. Existing tests
+The regression test covers all eight data-access failure positions. Existing tests
 cover odd addresses and later addressing that uses a pending source increment.
 `MOVEA.W (A0)+,A0` also verifies that the final destination write wins over the
 increment. Pending values need a defined lookup and commit scope; they are
@@ -110,7 +109,7 @@ neither ordinary live register values nor general instruction transactions.
 
 The manufacturer's [6507 pinout and features][mos] (printed page 2-23) show
 an eight-bit data bus, A0–A12, and no IRQ/NMI inputs. The following is a
-proposed binding of our current instruction-level 6502 subset:
+proposed binding of our instruction-level 6502 model:
 
 ```text
 family MOS6507 uses MOS6502 {
@@ -124,8 +123,8 @@ This is illustrative syntax. Inherit the full stored state, including the
 before the external memory operation. Do not map values loaded into PC.
 For this probe, ordinary access records contain bus addresses; the instruction
 start and snapshots retain logical addresses. Dummy reads remain outside the
-inherited model. A complete future family must retain software BRK semantics;
-the current subset still defers BRK and interrupt delivery.
+inherited model. The variant must retain software BRK semantics even though
+it has no external IRQ/NMI inputs.
 
 These independent traces derive from that binding and the
 [current 6502 contract](../../src/components/cpus/specifications/6502.md). `R logical/bus → value` and
@@ -139,11 +138,11 @@ unmentioned state; N/Z entries below replace only those two flags.
 | PHA at `B000`, A=`5A`, SP=`00` | R `B000/1000` → `48`; W `0100/0100` ← `5A` | PC=`B001` after fetch; SP=`FF` after write; flags preserved |
 | Reset, SP=`02` | R `FFFC/1FFC` → `78`; R `FFFD/1FFD` → `F0` | After both reads: PC=`F078`, I=1, SP=`FF` |
 
-This exposes a concrete integration gap: `Cpu6502` requires 64 KiB RAM and
-records addresses before any external RAM subclass could project them. A
-subclass masking RAM accesses alone would retain logical addresses in records.
-A future family binding needs mapping at the recording boundary for **step
-and reset**, with an 8 KiB memory contract. No such binding is added here.
+A future family binding needs projection at the recording boundary for both
+**step and reset**, with an 8 KiB memory contract and the full logical PC.
+Masking accesses only inside an external RAM adapter would leave logical
+addresses in CPU records. The variant must test both memory behavior and
+recorded addresses; no 6507 binding is implemented here.
 
 ## 4004: independent widths and retained selection
 
@@ -162,9 +161,10 @@ For `FIM 0P,95` at PC=`FFE`, fetch bytes `20 95` at `FFE`, `FFF`;
 PC wraps to `000`, R0 becomes `9`, R1 becomes `5`. A and C are preserved.
 Then writing R1=`6` makes the pair view `96`, with R0 still `9`.
 
-The current state schema can express these widths, but `ArithmeticWidth`
-excludes 4 and the pair helpers assume named eight-bit halves. Byte storage
-for host convenience must not dictate calculation or view widths.
+The current state schema can express these widths, but the semantic value
+vocabulary excludes 4 and 12, and `ArithmeticWidth` excludes 4. New state
+declarations alone therefore cannot express this model. Byte storage for host
+convenience must not dictate calculation or view widths.
 
 ### Return-stack overflow
 
@@ -227,16 +227,12 @@ The trace makes three incorrect simplifications visible: rereading the live
 pair for WRM, using one SRC latch for all banks, or treating a status/port
 operation as an access to a flat byte address. This is a paper I/O probe only.
 
-## Decision: explicit reads before a general operand framework
+## Constraints on shared definitions
 
-| Candidate | Evidence from the probes | Decision |
-| --- | --- | --- |
-| Pure register slices and concatenation | 8080/Z80 BC, 6809 D, 8088 AL/AH, and the hypothetical nibble pair describe related layouts | Useful declaration vocabulary; evaluate writes that preserve other slices and live bank selection |
-| A universal resolved-operand object | Segmented locations, delayed reads, and 68000 pending updates need different contracts | Keep current local representations; a `read`/`write` callback pair alone does not explain them |
-| Generic instruction transaction | 6502/8088 partial effects and 68000 checked rejection differ | Keep lifecycle and commit policies explicit |
-| Named ordered bodies plus pure expressions | Every trace can identify reads, captures, mutations, and failures separately | Proceed to a minimal inspectable representation of the comparison slice |
-
-For example, the next representation must distinguish these schematic bodies:
+The current [representation](instruction-semantics.md) distinguishes pure
+expressions, explicit reads, and ordered effects. Existing CPU specifications
+use those distinctions throughout their models. These schematic sequences
+summarize the constraints; they are not executable language syntax:
 
 ```text
 6502 JSR:  fetch LOW; capture RETURN=PC; push RETURN.high; push RETURN.low;
@@ -246,27 +242,16 @@ For example, the next representation must distinguish these schematic bodies:
 4004 SRC:  read ADDRESS from pair; send ADDRESS to the selected interfaces
 ```
 
-These sketches summarize the explicit contracts above; their named effects
-still need represented definitions. They are not an executable DSL or opaque
-builtins proposed for one. Register views describe storage relationships;
-explicit reads turn views or locations into captured values. Address mapping,
-external selection, and pending updates require separate definitions.
+Register views describe storage relationships; explicit reads capture values.
+Segmented locations, pending writes, and persistent external selection need
+their own contracts. A universal operand callback or instruction transaction
+would not explain their different ordering and failure behavior.
 
-The [stage 4 representation experiment](instruction-semantics.md) now provides
-typed declarations, pure expressions, and ordered statements for a bounded
-comparison slice on 6502/8080/6809, plus transfers and split-flag memory
-modification. Its [expanded examples](semantic-examples.md) are generated from
-the definitions. Review those with the validator before connecting them to
-execution; the existing CPUs still run their original TypeScript bodies.
-The 6507/4004 traces remain acceptance requirements; they are not evidence that the current helpers already support
-those processors. Additional TypeScript sharing should follow demonstrated
-benefit rather than becoming a prerequisite for the language experiment.
-
-The project's [eight-CPU completion milestone](../../ROADMAP.md#complete-opcode-coverage-for-all-eight)
-continues alongside these experiments. The [checkpoint review and completion
-sequence](completion.md) now direct the remaining instruction work.
-Completing a DSL or adding the probe CPUs must not delay finishing the eight
-current instruction sets.
+The 6507/4004 traces remain acceptance requirements for future models. They do
+not establish that current language primitives or connections already support
+those processors. See the [fixed-language experiment](design.md#proving-specification-only-additions)
+for the scope, extension audit, and independent checks required before claiming
+specification-only support.
 
 [mos]: https://bitsavers.org/components/mosTechnology/_dataBooks/1982_MOS_Technology_Data_Catalog.pdf
 [mcs4]: https://bitsavers.trailing-edge.com/components/intel/MCS4/MCS-4_Assembly_Language_Programming_Manual_Dec73.pdf

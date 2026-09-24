@@ -1,76 +1,28 @@
 # Literate CPU specifications
 
-Executable chapters are maintained CPU sources:
+This is the reference for the executable `cpu` language. All eight initial
+CPU models are authored in [Markdown specifications](../README.md#cpu-models),
+including their instructions, state, lifecycle, external events, and public
+interfaces. The [coverage report](coverage.md) records inventories and milestones;
+the [implementation guide](implementation.md) explains validation and generation;
+[design notes](design.md) distinguish future proposals from current syntax.
 
-- [MOS 6502: the complete model](../../src/components/cpus/specifications/6502.md)
-  owns stored state, packed status, all 151 documented forms, reset vector reads,
-  ordinary execution, IRQ/NMI entry, and the generated public interface. Its
-  chapter also owns the public contracts and hardware references; no separate
-  model document or handwritten 6502 implementation remains.
-- [Intel 8008: the complete model](../../src/components/cpus/specifications/8008.md)
-  defines every documented instruction, including control flow, restarts,
-  halts, and port transfers. The chapter owns behavior, encodings, and stored-state
-  declarations, PC/HL views, reset effects, and ordinary/interrupt execution
-  policies, and the public interface. Generated modules connect those policies
-  to shared runtime services; no handwritten 8008 implementation remains. Its
-  API contracts, hardware references, checks, and limitations also live in the
-  chapter; there is no separate model document.
-- [Intel 8080: the complete model](../../src/components/cpus/specifications/8080.md)
-  owns stored fields, register-pair views, reset, normal execution, interrupt
-  recognition and EI retirement, every instruction, and its generated public
-  interface. Its API contracts and hardware guide live in the same chapter; no
-  handwritten 8080 implementation remains.
-- [Motorola 6800: the complete model](../../src/components/cpus/specifications/6800.md)
-  owns the complete stored schema, packed condition codes, and all 197 instruction
-  forms with their addressing and encodings. Composed actions share stack and
-  interrupt-frame effects with external entry. Reset, IRQ/NMI recognition,
-  WAI suspension and wake-up, and the public interface are chapter-owned too.
-  Its model contracts and hardware guide live beside the formal definitions;
-  no handwritten 6800 implementation remains.
-- [Motorola 6809: complete model and public interface](../../src/components/cpus/specifications/6809.md)
-  owns all 268 instruction forms, stored fields, and D/CC views and writes.
-  Named pages and byte matches own prefix/indexed/transfer decoding. Writable
-  views preserve D/CC/S write rules; chapter actions share stack and interrupt-frame
-  effects. Reset, execution, IRQ/FIRQ/NMI recognition, waiting/resume rules,
-  and the public interface are chapter-owned; no handwritten implementation remains.
-- [Zilog Z80: complete model and public interface](../../src/components/cpus/specifications/z80.md)
-  owns both register banks, numeric interrupt-mode storage, pair/status views and
-  writes, all 698 instruction forms and their prefix layouts, reset, PC/refresh
-  commitment, retirement, and IRQ/NMI entry. Mixed named interrupt entries select
-  direct vectors or supplied instructions. Its public class, bank types, and
-  nested snapshot views are generated; no handwritten implementation remains.
-- [Intel 8088: complete model and public interface](../../src/components/cpus/specifications/8088.md)
-  owns stored state, writable byte aliases, physical PC and packed FLAGS views,
-  and all 291 instruction forms, including strings, ports, WAIT/ESC, and software
-  interrupts/IRET. Chapter actions also serve external entry and WAIT resumption.
-  Reset, segmented fetching, prefix choices, trap/fault delivery, retirement,
-  and ordered INTR/NMI offers are declared here. The class, connections, records,
-  snapshots, and integration metadata are generated; no handwritten adapter remains.
-- [Motorola 68000: complete model and public interface](../../src/components/cpus/specifications/68000.md)
-  owns all 36,029 documented instruction forms, their encodings, stored state,
-  and A7/status views and writes. Sources, actions, and bounded iteration keep
-  control-flow ordering, register-mask transfers, and status/system effects
-  explicit. Its effective-address sources own mode and index decoding, register
-  selection, and staged updates. A standalone reset contract owns vector reads,
-  fault completion, and preserved state. A word execution contract owns fetching,
-  encoded inputs, dispatch, retirement, and trace scheduling. Its event contract owns
-  frame layouts, interrupt gates and acknowledgement, and fault recovery. The
-  public class, records, snapshots, connection validation, and catalogue are
-  generated too; no handwritten CPU adapter remains.
+The [reading site](../../site/README.md) renders the specifications directly.
+`sauvignon` fences compile to SVG without affecting CPU execution. Storage maps
+come from compiled state declarations, so widths and groups have one source.
 
-This is an authoring-language prototype over the existing
-[instruction representation](instruction-semantics.md), with a deliberately
-small vocabulary. It now describes the instruction-level behavior of all eight
-CPU models, including their public interfaces and integration metadata. No
-CPU-specific handwritten implementation remains for these eight models.
-Current counts and milestone evidence belong in the
-[coverage report](coverage.md#literate-authoring-milestone).
+## Reference map
 
-The [reading site](../../site/README.md) renders these chapters directly. Use
-`sauvignon` fences for architecture diagrams; they compile to SVG during the
-site build and do not affect CPU execution. Generated storage maps use the
-compiled state declarations, so register widths and groups are not maintained
-in a second diagram source.
+| Topic | Reference |
+| --- | --- |
+| Chapter conventions | [Reading and building](#reading-and-building-a-chapter), [syntax](#syntax) |
+| Stored and derived state | [State ownership](#state-ownership), [views and actions](#views-and-state-actions) |
+| Values and reuse | [Typed inputs](#typed-values-and-inputs), [conditional values](#conditional-values), [width parameters](#width-parameters) |
+| Calculations and instruction families | [Expressions, operands, encodings, and policies](#expressions-and-policies), [bounded iteration](#bounded-iteration-and-arithmetic-outcomes) |
+| Conditions and decoding | [Conditions and control state](#conditions-and-stored-control-state), [opcode pages](#opcode-pages), [byte-pattern matches](#byte-pattern-matches) |
+| Lifecycle and public API | [Execution contracts](#execution-contracts), [reset with modeled faults](#reset-sequences-with-modeled-faults), [public interfaces](#public-interfaces) |
+| Segmented models | [Segmented execution](#segmented-execution), [vector offers](#fixed-and-acknowledged-vector-offers) |
+| Word models | [Address boundaries and pending writes](#address-decoder-and-execution-boundaries), [word execution](#word-execution), [events](#word-exception-and-interrupt-entry), [public interfaces](#word-public-interfaces-and-catalogue-binding) |
 
 ## Reading and building a chapter
 
@@ -83,12 +35,15 @@ to formal definitions, linking to example specifications for complete program
 images and acceptance traces.
 
 Keep hardware references, state and execution contracts, failure behavior,
-model choices, and limitations beside the definitions they explain. When a
-chapter takes over a CPU, merge any remaining material from its `model.md`,
-remove that separate document, and update incoming links. Partial chapters
-still rely on their CPU's model document for the wider contract. Example
-programs retain their own behavior and acceptance specifications, and shared
-language and runtime documentation stays in the common guides.
+model choices, and limitations beside the definitions they explain. Example
+programs retain their own behavior and acceptance specifications; shared
+language and runtime contracts belong in the common guides.
+
+Keep captures and effects explicit: a live register read, a resolved address,
+and a captured value have different lifetimes. Put flag assignments and pending
+register commits at their intended point in the access sequence. Family
+explanations should describe their particular operation and stand on their own
+in the expanded listing.
 
 A chapter is ordinary Markdown with executable `cpu` fences. Prose explains
 the hardware and the model's choices. The paragraph immediately before a family
@@ -100,77 +55,19 @@ block quotes and indented code, including fences inside lists, are not executed.
 The optional [Zed extension](../../editors/zed/README.md) highlights the `cpu`
 fences alongside the surrounding Markdown, and also supports `.cpu` snippets.
 
-The build discovers Markdown files directly under `specifications/` in filename
-order and takes each model's identity from its `cpu` declaration. CPU identifiers
-contain lowercase letters or digits. Complete chapters need no handwritten
-registration entry; chapters without their own state still have explicit
-external-schema bindings.
-Chapter filenames use lowercase letters, digits, and single hyphen separators;
-`catalogue`, `interfaces`, and `state` are reserved output names. Duplicate complete
-models are rejected before replacing chapter output.
+`npm run generate:cpus` validates chapters and generates CPU modules;
+`npm run build` and `npm test` include generation. Refresh the tracked expanded
+listing separately with `node scripts/describe-cpu-semantics.ts`. See the
+[implementation guide](implementation.md#generation-pipeline) for discovery,
+output ownership, and the complete pipeline. Diagnostics identify the source
+filename, line, and column. There is no TypeScript escape hatch.
 
-The build proceeds through:
+Examples below are declaration fragments unless explicitly described otherwise;
+read them in a chapter with the referenced state, sources, and policies already
+declared. The [8008 specification](../../src/components/cpus/specifications/8008.md)
+is a compact complete model.
 
-```text
-Markdown chapter
-  → extracted cpu blocks with document locations
-  → validated instruction representation
-  → generated chapter data imported by existing CPU definitions
-  → generated instruction bodies and expanded explanations
-```
-
-`npm run generate:cpus` performs both generation stages; `npm run build` and
-`npm test` include them. Chapter data is generated under
-`src/components/cpus/semantics/generated/`; executable bodies remain under
-`src/components/cpus/generated/`. Both directories are ignored and disposable.
-Within each encoding declaration, the compiler reuses a frozen instruction body
-for matching operand and condition selections. Ignored bits can therefore add
-aliases without rebuilding the body. Exclusions and collisions are still checked
-for every opcode; reuse does not cross encoding declarations or compilations.
-Chapter data keeps CPU declarations, schemas, value sources, flag policies,
-actions, and instruction definitions as shared typed constants. Dependencies
-precede their users; structural equality includes field order and boundary
-capabilities, so matching names alone never merge different behavior. Equality
-is checked on ordered plain data before formatting each distinct definition.
-Sharing is local to one generation, so subsequent edits are always reflected. This
-preserves the chapter's reusable building blocks in the intermediate representation.
-Chapters with a `state` block also generate small schema/type modules under
-`semantics/generated/state/`. These modules import only the shared state helpers,
-so runtime consumers need not load the expanded instruction data. Chapter
-generation takes no pre-existing schema for these CPUs and writes their state
-modules before the instruction registry is loaded. All chapters and schemas
-are checked before replacing existing output.
-Only model bindings pass to the executable-generation stage, allowing compiled
-instruction graphs and rendered chapter text to be reclaimed before that stage
-loads the generated registry.
-An `execution` contract also generates `generated/<chapter>-execution.ts`,
-binding named views/actions and the instruction table to the shared byte runtime.
-Chapters with owned state and execution generate instruction catalogue entries
-automatically. During a partial migration, the registry may combine a chapter's
-forms with its remaining TypeScript definitions.
-An `interface` declaration also generates `generated/<chapter>-cpu.ts`, the
-public class and result types, plus public state aliases in the schema module.
-A small generated `interfaces.ts` manifest supplies class names, module paths,
-state schemas and caller types, RAM sizes, and public-PC bounds. A stored
-unsigned `pc` supplies those bounds directly; a derived snapshot `pc` uses its
-view width. The shared
-[model catalogue](../../src/components/cpus/models.ts) exposes those entries.
-Machine parsing, flat and
-composed machine generation, and CPU test selection use that catalogue.
-`catalogue.ts` integrates complete chapters into the instruction registry. Both live under `semantics/generated/`.
-`node scripts/describe-cpu-semantics.ts` also refreshes chapter data before
-generating the tracked explanation listing; add `--check` to check that listing.
-No Markdown parser or filesystem access is required to execute a CPU.
-
-The [front end](../../src/components/cpus/semantics/literate/compile.ts) lowers
-formal statements into the same typed representation as TypeScript-authored
-definitions. It uses the existing width, scope, state-reference, and ordered
-effect validator. Diagnostics include the Markdown filename, line, and column.
-Statement errors identify the statement; declaration-wide errors identify the
-declaration. All chapters must compile successfully before any existing output
-is removed. There is no host-language evaluation or TypeScript escape hatch.
-
-## Syntax in this slice
+## Syntax
 
 Each declaration or statement occupies one line. Braced bodies close on their
 own line, within the same fence; conditional blocks can nest. Blank lines and `//` comments are allowed.
@@ -890,8 +787,7 @@ supplies the processor's fields, constraints, names, and view selections.
 
 Public modules import only generated execution, small state modules, and shared
 runtime helpers. They never parse Markdown or load expanded chapter data at
-runtime. Import the generated entry point after building; there is no maintained
-compatibility wrapper at the old handwritten path.
+runtime. Import the generated entry point after building.
 
 For machine integration, RAM size is derived from the execution contract's
 `memory` width. Completion bounds are derived from the width of the view exposed
@@ -985,8 +881,8 @@ view; writes capture their value and perform that action. This keeps complete
 flag replacement and S-write NMI arming beside their declared behavior.
 An `unsupported` entry marks a reserved selector slot; family and match expansion
 omit combinations selecting that slot. No dummy source or write is generated.
-Value-only operands cannot be written. For this slice, memory sources return
-sixteen-bit addresses and memory accesses transfer one byte. Every supported operand
+Value-only operands cannot be written. These byte-memory operands use
+sixteen-bit address sources and transfer one byte. Every supported operand
 supplies `.read`; only a memory operand supplies `.address`. A family can select
 a source view from a catalogue:
 
@@ -998,7 +894,12 @@ family LDA "101 bbb 01" for b in accumulator.read {
 }
 ```
 
-The existing [opcode-pattern rules](opcode-definitions.md) expand the bits.
+Patterns are eight or sixteen bits, read most significant bit first. Spaces
+and underscores separate fields. `0` and `1` are fixed bits; `x` is ignored;
+other lowercase letters name fields. Repeated letters form one selector value
+in significance order, including noncontiguous bits. Ignored bits create aliases
+of the same selected body. The [opcode helpers](implementation.md#opcode-patterns)
+implement these rules.
 Each selector must match its encoding field's cardinality. `.address` excludes
 non-memory operands, which explains the missing immediate STA form. Duplicate
 opcodes are rejected, including collisions between families. With one selector,
@@ -1077,7 +978,7 @@ width come from the binary codes. Every code must appear in order, and the
 result width must be supported by the instruction representation. Labels supply instruction
 names; they do not declare or read stored registers. The 68000 reads the selected
 three-bit value with `code = operand r`, then uses `resolve(16, u3(2), code)`
-for address-register indirect mode. That boundary now calls the chapter's
+for address-register indirect mode. That boundary calls the chapter's
 generated effective-address source, including A7 banking and staged updates.
 Word size, address checks, byte order, destination preservation, and flag timing
 remain explicit in the chapter.
@@ -1238,11 +1139,6 @@ generator provides three bindings:
 Flat opcode catalogues also expose `opcodeDecoder(state)`, reporting one opcode
 fetch without executing the selected body.
 
-During partial migration, optional additional bodies can occupy unused slots
-under declared page names. Changing a prefix also moves those bodies. Duplicates,
-out-of-range opcodes, and collisions with nested prefixes are rejected. The
-complete 6809 and Z80 instruction chapters need no native additions.
-
 An encoding can also bind a stored register as a writable operand:
 
 ```cpu
@@ -1371,158 +1267,6 @@ repeated commits retain the established behavior. The 68000's existing
 `commit addresses` boundary invokes this helper. Its chapter supplies all bank,
 width, step, extension, and address-wrap rules; the declared word-fetch boundary
 still records complete words and advances the cursor only after both bytes.
-
-## Review of the three chapters
-
-The initial three examples support a common vocabulary without hiding their different
-access rules. `operands` replaces the prototype's `modes` keyword: it describes
-6502 addressing choices, 8008 byte registers and memory, and 68000 data registers
-equally well. `codes` remains distinct because selecting an encoded register
-number does not read the register. All three chapters use the new spelling;
-there is no compatibility alias for the prototype keyword.
-
-Keep effects and captures explicit. The 6502 resolves a store's address before
-reading A; the 8008 captures the source before resolving a memory destination.
-The 68000 reads the destination's preserved upper bits only at writeback.
-A shorter assignment notation that conceals these reads would make those
-differences harder to see. Sized literals and explicit width conversions also
-make wrapping and byte order visible.
-
-The 68000 uses named data-register write actions for memory/immediate MOVE
-and logical/unary forms. Their calls occur at writeback, after pending address updates commit;
-logical operations apply flags before that preserved-bit read, while MOVE
-applies flags afterward. The actions explicitly read the live upper bits. Ordered memory
-sources/actions expose every transferred byte. The chapter now owns address
-resolution and pending-value calculations; commit and fault returns remain
-explicit at each instruction stage. Alignment faults stay at instruction level because sources and
-composed actions cannot return these faults.
-
-When multiple encodings have identical named definitions, chapter generation
-serializes that definition once. The instruction-alias builder rejects a name
-reused with different behavior. Generated opcode aliases select these shared
-bodies without performing effects; generated word decoding supplies captured
-EA fields. This changes neither instruction coverage nor the authored patterns.
-
-Family explanations should describe their particular operation and stand on
-their own in the expanded listing. The 8008 transfer and immediate-load families
-now have separate explanations, without repeating the same general paragraph.
-Author feedback follows the same principle of locality: unknown declarations
-are rejected before searching for a body, and policy expression errors point
-to their flag update rather than the policy header.
-
-## Boundaries and next evidence
-
-The 8008 chapter now generates its authoritative stored-state schema and type,
-derived PC/HL views, state actions, and bindings for ordinary and interrupt
-execution, plus its public class, snapshot assembly, state aliases, and
-instruction catalogue bindings. No processor-specific TypeScript implementation
-remains; the chapter supplies all of its model and public-interface choices.
-Shared runtime services enforce the declared execution contract. Chapters
-without owned state validate declarations against an external schema. The
-68000 owns all instructions, stored state, views/writes, effective-address
-decoding, reset, word execution, event delivery, and its public interface.
-Its generated connection wrapper uses shared bus recording and execution guards.
-
-The eight chapters now exercise contrasting widths, ordered effects, and
-interrupt-recognition policies. The 6502 now owns its complete state, status
-view/restoration, and all 151 documented instruction forms. Existing selector/source
-bindings express its irregular index-load/store encodings and cross-indexing.
-ADC/SBC retain explicit digit correction; memory updates retain two writes and
-separate carry/N/Z stages. Branches use signed widening, JSR interleaves its final
-operand fetch with pushes, and RTI restores flags before PC. The chapter also
-owns reset bus effects, ordinary execution, named IRQ/NMI entry, and its public
-interface. No handwritten 6502 implementation remains.
-The 8008 now expresses its address-stack selector, array, and port effects;
-the 68000 now owns its schema, transfers, logical/unary and binary arithmetic
-operations, bit/shift/rotate/TAS families, word products/division, signed bounds,
-packed decimal arithmetic, control flow, MOVEP/MOVEM, and status/system instructions.
-A7 selection, status packing/restoration, effective-address decoding, and staged
-auto-updates are chapter-owned too. All documented instruction bodies are chapter-owned;
-reset, normal execution, exception delivery, and public integration are chapter-owned too.
-
-The 68000 arithmetic families reuse source bindings for calculations that return
-a result after applying flags. This differs from the pure logical calculations:
-comparisons preserve X, extended operations capture Z then X and apply a separate
-cumulative-zero stage, and address addition/subtraction preserves all flags.
-Families expose operand reads, alignment checks, pending commits, and writeback;
-raw `mode/code/upperCode` inputs keep paired modes and quick amounts in the chapter.
-[Arithmetic chapter tests](../../tests/components/cpus/semantics/literate-68000-arithmetic.test.ts)
-verify production ownership and executable edits to each of those rules.
-
-The 8008 supplies the first whole-CPU description at its declared instruction-level
-fidelity. The 8080 now reuses its execution services with chapter-defined
-interrupt enable, delayed recognition, and retirement. It also owns all word,
-stack/control, and status instructions, its generated public interface, and
-the full model contract. Both CPUs have zero handwritten implementation.
-The 6502 now supplies that different execution architecture: reset and interrupt
-vector reads, masked named entry, no acknowledgement stream, and no halted state.
-The 6800 reuses that boundary with explicit WAI waiting and wake-up rules. Its
-reset, stack frame, and vector actions remain visible in the chapter; its public
-class and records are generated without a handwritten adapter.
-The 6809 adds named-choice storage for its three wait modes. Its chapter supplies
-the complete stored schema, D/CC views and writes, base-page operand families,
-unary operations, register/flag operations, every branch, LEA, and
-calls/jumps/returns, plus prefixed word comparisons and transfers. Byte-pattern matches now describe its indexed decoder,
-including unsupported postbytes, auto-updates, and indirect pointer reads.
-Unsigned `multiply` exposes the existing full-width multiplication expression.
-Named pages supply prefix dispatch, including SWI2/SWI3. Effect matches and
-writable view operands describe transfer postbytes and their special writes.
-Chapter actions now express all masked stacks and software frames, and named
-choice reads/writes express SYNC/CWAI waiting. All 268 instruction forms are
-chapter-owned. Its execution contract now also owns reset, IRQ/FIRQ/NMI gates,
-masked SYNC release, CWAI frame reuse, and FIRQ short frames. Named-choice
-waiting and latch gates extend the shared vector runtime without CPU-name
-branches. Public types and snapshots are generated, and the complete contract
-and hardware background live in the chapter. No handwritten 6809 implementation
-or separate model document remains.
-The Z80 also owns its complete model. Its execution contract selects full-encoding
-validation, refresh effects, retirement, and mixed named IRQ/NMI entries.
-Chapter actions define acceptance, stacking, and mode-specific vector reads;
-mode 0 shares its chapter decoder. Public bank types and nested snapshot views
-are declared alongside the interface, and its complete contract lives in the
-chapter. No handwritten Z80 implementation remains.
-The 8088 also owns its complete model: segmented fetching and prefix captures,
-WAIT and trap/fault boundaries, ordered external vector offers, and its public
-interface. Its chapter now includes the hardware and host contracts, and its
-class, types, state schema, and integration metadata are generated.
-A differently named test CPU already exercises different storage, address width, views, and
-actions through the same compiler and runtime. This is evidence for the current
-contract, not proof that it covers the remaining architectures. Each further
-slice should replace its corresponding maintained TypeScript, preserve explicit
-hardware differences, and retain independent execution tests.
-These chapters establish an executable authoring path, not a percentage
-estimate of the work remaining toward that goal.
-
-The [6502 language tests](../../tests/components/cpus/semantics/literate.test.ts),
-[6502 control/stack chapter tests](../../tests/components/cpus/semantics/literate-6502-control.test.ts),
-[6502 lifecycle chapter tests](../../tests/components/cpus/semantics/literate-6502-lifecycle.test.ts),
-[6800 lifecycle chapter tests](../../tests/components/cpus/semantics/literate-6800-lifecycle.test.ts),
-[6809 chapter tests](../../tests/components/cpus/semantics/literate-6809.test.ts),
-[6809 lifecycle tests](../../tests/components/cpus/semantics/literate-6809-lifecycle.test.ts),
-[state-authoring tests](../../tests/components/cpus/semantics/literate-state.test.ts),
-[8008 transfer tests](../../tests/components/cpus/semantics/literate-8008.test.ts),
-[8008 arithmetic language tests](../../tests/components/cpus/semantics/literate-8008-arithmetic.test.ts),
-[8008 control/port language tests](../../tests/components/cpus/semantics/literate-8008-control.test.ts),
-[8008 view/reset tests](../../tests/components/cpus/semantics/literate-8008-state.test.ts),
-[execution-language tests](../../tests/components/cpus/semantics/literate-execution.test.ts),
-[named-entry language tests](../../tests/components/cpus/semantics/literate-interrupt-entries.test.ts),
-and [68000 language tests](../../tests/components/cpus/semantics/literate-68000.test.ts)
-check inventories, runtime integration, document diagnostics, malformed selectors
-and exclusions, capture isolation, and formal edits that change execution.
-Independent CPU tests retain their expected values, wrapping, access-order,
-live-state, and failure-boundary checks. The 8008 migration also compared the
-old and new CPU execution across all 256 opcode slots, flags, address-stack
-selectors, ordinary and supplied instruction streams, and transfer failures.
-The chapter replaces every maintained 8008 instruction definition and encoding
-inventory. Its control/port tests also mutate formal conditions, vectors, ports,
-and latches, and check nested scopes, array bounds, and schema diagnostics.
-The 68000 checks include independent ordered-effect expectations, failure at
-each observable stage, live upper-word preservation, both A7 banks, physical
-projection, exhaustive status restoration, and formal edits that change bank
-selection, byte order, and flag behavior. Its logical chapter checks also edit
-calculation expressions and opcode register fields, check shared immediate
-aliases, and reject wrong-width or uncaptured arguments. Named-group and conditional-value tests
-also check generated storage, isolated captures, and transitive effect limits.
 
 ## Segmented execution
 

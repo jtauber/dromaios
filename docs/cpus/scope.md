@@ -23,12 +23,12 @@ will be organized for learning, exploration, and reference as support develops.
 - The **eight initial CPU targets** meet the roadmap's
   [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint): Intel 8008,
   Intel 8080, Motorola 6800, MOS 6502, Zilog Z80, Motorola 6809, Intel 8088,
-  and Motorola 68000. The [capability audit](completion.md#cpu-only-checkpoint-review)
+  and Motorola 68000. The [capability audit](coverage.md#cpu-only-checkpoint-review)
   records the evidence across their models and combined examples.
 - All eight have complete documented opcode coverage and instruction-definition
-  migration. The [completion sequence](completion.md#completion-sequence)
-  records the interrupt, exception, and I/O work; the [coverage tracker](coverage.md)
-  owns support details, source footprint, and remaining processor limitations.
+  migration, including their interrupt, exception, and I/O contracts. The
+  [coverage tracker](coverage.md) owns support details and source footprint,
+  linking to the specifications for remaining processor limitations.
   Timing and complete machine behavior remain separate work.
 - The **Z80 was the fourth CPU**, introduced after substantial 8080 opcode
   coverage. Its initial arithmetic example tests common encodings and distinct

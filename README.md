@@ -106,7 +106,7 @@ npm test
 ```
 
 `npm ci` installs the locked development dependencies. `npm test` cleans generated
-code, generates instruction bodies from the [CPU definitions](docs/cpus/instruction-semantics.md)
+code, generates instruction bodies from the [CPU specifications](docs/cpus/literate-specifications.md)
 and factories from the [machine definitions](docs/machines/definitions.md),
 checks the simulation without Node or browser ambient types, compiles the source,
 scripts, and tests, and runs the compiled tests.
