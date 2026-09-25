@@ -23,12 +23,20 @@ A CPU declaration identifies its stored-state schema and permitted boundary
 capabilities. Register, flag, array, latch, and choice references name fields
 in that schema. A reference identifies a location; it does not read it.
 
-`defineInstruction` validates and owns its data. It clones and deeply freezes
-plain definitions, rejecting functions, accessors, class instances, and cycles.
-Shared nodes within a copied graph retain sharing. Validated immutable nodes
-already owned by the semantic model may be reused; merely freezing a caller's
-object does not establish validation or ownership. Mutating a builder's input
-must not change a definition after construction.
+`ownData` copies and deeply freezes a reusable unit of plain semantic data,
+rejecting functions, accessors, class instances, and cycles. It privately
+remembers the returned value so later copies can reuse it. Shared nodes within
+each copied graph retain sharing. Caller objects are neither frozen nor cached;
+even an externally frozen object is copied. Mutating a builder's input must not
+change data already owned by the model.
+
+`defineInstruction` owns and validates a complete definition. Its CPU declaration
+and instruction body also become reusable units, supporting derived definitions
+and composed actions. Reuse skips copying, not semantic validation: each new
+instruction still checks CPU identity, capabilities, widths, arguments, and
+capture scopes. An owned value can contain an invalid formula; ownership alone
+does not make it a valid instruction. Private weak references keep ownership
+tracking from retaining otherwise unused compilations.
 
 Construction is inert: validation and binding never perform CPU memory or device
 accesses. Generated handlers obtain live state only when executed. Shared

@@ -5,7 +5,7 @@ import type { OpcodeEntry } from "../../opcodes.ts";
 import { memorySource, registerSource } from "../builders.ts";
 import { concat, isWidth, literal, readRegister, readSource, value } from "../model.ts";
 import type { Choice, CpuDeclaration, Flag, FlagGroup, FlagPolicy, InstructionDefinition, Latch, Register, RegisterArray, ValueSource, ValueType, Width } from "../model.ts";
-import { defineInstruction, validateFlagPolicy, validateInstruction } from "../validate.ts";
+import { defineInstruction, ownData, validateFlagPolicy, validateInstruction } from "../validate.ts";
 import { opcodePageLayouts } from "../opcode-pages.ts";
 import type { OpcodePage } from "../opcode-pages.ts";
 import type { WidthParameter } from "./document.ts";
@@ -105,7 +105,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
       if (last.next !== "return") header.fail("A source must end with return.");
       const bodySteps = steps(body.slice(0, -1), { inputs, effects: kind === "view" ? "view" : undefined });
       last.expect("return"); const result = typedExpression(last, type); last.end();
-      const source = { name: description, type, ...(Object.keys(inputs).length ? { inputs } : {}), steps: bodySteps, result };
+      const source = ownData({ name: description, type, ...(Object.keys(inputs).length ? { inputs } : {}), steps: bodySteps, result });
       last.checked(() => validateInstruction({ cpu, name, explanation: "", inputs,
         steps: [readSource("result", source, Object.keys(inputs).length ? Object.fromEntries(Object.entries(inputs).map(([name, type]) => [name, reference(name, type)])) : undefined)] }));
       sources.set(name, source);
@@ -131,7 +131,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         updates.push({ flag, value: flagExpression(tokens) }); tokens.end();
         tokens.checked(validate);
       }
-      policies.set(name, policy);
+      policies.set(name, ownData(policy));
     }
   }
 
@@ -183,6 +183,8 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         continue;
       }
       if (!ownsState && target.state === undefined) header.fail("Define state before other declarations.");
+      // Reuse the current CPU declaration; execution declarations can replace its capabilities.
+      cpu = header.checked(() => ownData(cpu));
       if (kind === "reset") {
         if (reset) header.fail("Reset is already declared.");
         header.expect("{"); header.end();

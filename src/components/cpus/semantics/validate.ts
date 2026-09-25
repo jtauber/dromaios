@@ -3,12 +3,23 @@ import { flagValue, isWidth, value } from "./model.ts";
 
 // Only definitions validated here are trusted; caller freezes cannot bypass checking.
 const validatedDefinitions = new WeakSet<InstructionDefinition>();
+const ownedData = new WeakSet<object>();
+
+/** Copy and freeze plain semantic data. Ownership alone does not establish validity in any CPU or scope. */
+export function ownData<Value>(value: Value): Value {
+  const owned = copyData(value);
+  if (owned !== null && typeof owned === "object") ownedData.add(owned);
+  return owned;
+}
 
 /** Own and freeze a validated definition. Captures and source scopes are instruction-local. */
 export function defineInstruction(definition: InstructionDefinition): InstructionDefinition {
   if (validatedDefinitions.has(definition)) return definition;
-  const owned = copyData(definition);
+  const owned = ownData(definition);
   validateInstruction(owned);
+  // Composed actions and derived definitions reuse these complete immutable units.
+  ownedData.add(owned.cpu);
+  ownedData.add(owned.steps);
   validatedDefinitions.add(owned);
   return owned;
 }
@@ -458,6 +469,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
 /** Plain data only: cloning must neither retain mutable caller objects nor hide host functions. */
 function copyData<Value>(value: Value, ancestors = new Set<object>(), copies = new Map<object, object>()): Value {
   if (value === null || ["string", "number", "boolean"].includes(typeof value)) return value;
+  if (typeof value === "object" && ownedData.has(value)) return value;
   const array = Array.isArray(value);
   if (typeof value !== "object" || Object.getPrototypeOf(value) !== (array ? Array.prototype : Object.prototype)) {
     throw new Error("Instruction definitions must contain plain data, without host functions or instances.");

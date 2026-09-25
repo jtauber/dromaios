@@ -3,8 +3,8 @@ import { test } from "node:test";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/generated/6502-cpu.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/generated/6809-cpu.js";
 import { addOverflow, borrow, carry, halfBorrow, halfCarry, overflow, subtract, updateFlags, addWrap, bitAnd, bitOr, bitXor, capture, concat, cpuSymbols, evenParity, extend, flagLiteral, flagValue, highByte, lowByte, literal, readFlag, readMemory, shiftLeft, value, writeLatch, writeRegister, xor, zero } from "../../../../src/components/cpus/semantics/model.js";
-import type { Expression, FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement } from "../../../../src/components/cpus/semantics/model.js";
-import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
+import type { Expression, FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement, ValueSource } from "../../../../src/components/cpus/semantics/model.js";
+import { defineInstruction, ownData } from "../../../../src/components/cpus/semantics/validate.js";
 
 const mos = cpuSymbols("6502", cpu6502StateDescription), motorola = cpuSymbols("6809", cpu6809StateDescription);
 const policy: FlagPolicy = {
@@ -210,9 +210,10 @@ test("owned definitions and shared input data avoid repeated copying without tru
   const original = define([capture("byte", literal(8, 12))]);
   assert.equal(defineInstruction(original), original);
   const extended = defineInstruction({ ...original, name: "extended", steps: [...original.steps, writeRegister(mos.register("a"), value("byte"))] });
-  assert.deepEqual(extended.cpu, original.cpu);
+  assert.equal(extended.cpu, original.cpu);
   assert.deepEqual(extended.steps[0], original.steps[0]);
   assert.notEqual(extended.steps, original.steps);
+  assert.equal(defineInstruction({ ...original, name: "renamed" }).steps, original.steps);
   assert.throws(() => defineInstruction({ ...original, steps: [writeRegister(mos.register("a"), value("byte"))] }), /not been captured/);
   const shared = literal(8, 12);
   const dag = define([capture("left", shared), capture("right", shared)]);
@@ -227,6 +228,64 @@ test("owned definitions and shared input data avoid repeated copying without tru
   assert.throws(() => defineInstruction(Object.freeze({ ...original, steps: [capture("byte", literal(16, 1)), writeRegister(mos.register("a"), value("byte"))] })), /expected 8-bit value/);
 });
 
+test("owned data detaches caller graphs, retains shared values, and never caches mutable inputs", () => {
+  const byte = { kind: "literal" as const, width: 8 as const, value: 12 };
+  const input = { left: byte, right: byte, list: [byte] };
+  const owned = ownData(input);
+  assert.equal(ownData(owned), owned);
+  assert.equal(owned.left, owned.right);
+  assert.equal(owned.list[0], owned.left);
+  assert.notEqual(owned.left, byte);
+  assert.ok(Object.isFrozen(owned.left));
+  assert.ok(Object.isFrozen(owned.list));
+  assert.equal(Object.isFrozen(input), false);
+  assert.equal(Object.isFrozen(byte), false);
+  byte.value = 99; input.list.length = 0;
+  assert.equal(owned.left.value, 12);
+  assert.equal(owned.list.length, 1);
+  assert.equal(ownData(input).left.value, 99);
+  assert.equal(ownData(input).list.length, 0);
+  assert.throws(() => Object.assign(owned.left, { value: 0 }), TypeError);
+  const foreign = Object.freeze({ child: Object.freeze({ value: 1 }) });
+  const copied = ownData(foreign);
+  assert.notEqual(copied, foreign);
+  assert.notEqual(copied.child, foreign.child);
+});
+
+test("owned sources and policies share data while each use checks CPU identity, arguments, and scope", () => {
+  const source = ownData<ValueSource>({ name: "read accumulator", type: 8, inputs: { byte: 8 },
+    steps: [{ kind: "read-register", name: "saved", register: mos.register("a") }], result: value("byte") });
+  const flags = ownData(policy);
+  const shared = ownData<readonly Statement[]>([
+    { kind: "read-source", name: "result", source, arguments: { byte: value("input") } },
+    updateFlags(flags, { byte: value("result") }),
+  ]);
+  const definition = { name: "shared", cpu: mos.declaration, explanation: "Shared inputs.", inputs: { input: 8 as const }, steps: shared };
+  const first = defineInstruction(definition), second = defineInstruction({ ...definition, name: "second" });
+  assert.equal(first.steps, shared);
+  assert.equal(second.steps, shared);
+  assert.equal(first.steps[0]!.kind === "read-source" && first.steps[0].source, source);
+  assert.equal(first.steps[1]!.kind === "update-flags" && first.steps[1].policy, flags);
+  assert.throws(() => defineInstruction({ ...definition, inputs: {} }), /not been captured/);
+  assert.throws(() => defineInstruction({ ...definition, inputs: { input: 16 } }), /expected 8-bit value/);
+  assert.throws(() => defineInstruction({ ...definition, cpu: motorola.declaration }), /CPU schema/);
+  const wrongFlags = { ...definition, cpu: motorola.declaration, steps: [updateFlags(flags, { byte: literal(8, 0) })] };
+  assert.throws(() => defineInstruction(wrongFlags), /unknown flag/);
+  const invalid = ownData({ ...definition, steps: [capture("bad", literal(8, 256))] });
+  for (let attempt = 0; attempt < 2; attempt++) assert.throws(() => defineInstruction(invalid), /literal does not fit/);
+});
+
+test("reused instruction bodies validate their current inputs and CPU capabilities", () => {
+  const original = defineInstruction({ name: "write", cpu: mos.declaration, explanation: "Write an input.", inputs: { byte: 8 },
+    steps: [writeRegister(mos.register("a"), value("byte"))] });
+  assert.throws(() => defineInstruction({ ...original, inputs: {} }), /not been captured/);
+  assert.throws(() => defineInstruction({ ...original, inputs: { byte: 16 } }), /expected 8-bit value/);
+  const changedState = { ...original.cpu, state: { ...original.cpu.state, a: { kind: "unsigned" as const, bits: 16, maximum: 65535 } } };
+  assert.throws(() => defineInstruction({ ...original, cpu: changedState }), /CPU schema/);
+  const deferred = defineInstruction({ ...original, cpu: { ...original.cpu, irqDeferral: true }, steps: [{ kind: "defer-interrupt", scope: "irq" }] });
+  assert.throws(() => defineInstruction({ ...deferred, cpu: original.cpu }), /deferral/);
+});
+
 test("definitions reject hidden host behavior, instances, and recursive data", () => {
   let called = false;
   const base = { name: "bad", cpu: mos.declaration, explanation: "Bad definition.", steps: [] };
@@ -236,12 +295,14 @@ test("definitions reject hidden host behavior, instances, and recursive data", (
   }
   const accessor = Object.defineProperty({ ...base }, "steps", { get: () => { called = true; return []; } });
   assert.throws(() => defineInstruction(accessor), /without accessors/);
+  assert.throws(() => ownData(Object.freeze(accessor)), /without accessors/);
   const array: Statement[] = [];
   Object.defineProperty(array, "map", { value: () => { called = true; return []; } });
   assert.throws(() => defineInstruction({ ...base, steps: array }), /only indexed data/);
   const cycle: Record<string, unknown> = { ...base };
   cycle.self = cycle;
   assert.throws(() => defineInstruction(cycle as unknown as InstructionDefinition), /cannot contain cycles/);
+  assert.throws(() => ownData(Object.freeze(cycle)), /cannot contain cycles/);
   assert.equal(called, false);
 });
 

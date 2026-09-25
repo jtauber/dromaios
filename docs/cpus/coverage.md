@@ -129,8 +129,8 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,613 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,613** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,627 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,627** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 23,814 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
 | Generated executable CPU output, counted separately | 604,686 |
@@ -150,22 +150,25 @@ data. Expanded encodings already share immutable definitions, so registering
 their aliases does not need to serialize the same body repeatedly. Distinct
 objects with the same name still require equal data; conflicting aliases fail.
 
-Local measurements of the expression-compiler cleanup and alias comparison on
+Owned declarations and instruction bodies also retain their identity when
+another instruction uses them. The chapter compiler owns shared CPU declarations,
+sources, and policies once; per-instruction validation still checks every use.
+
+Local measurements of this ownership change on
 macOS ARM64 with Node 24.20.0, using medians from three fresh processes per version:
 
-| CPU generation stage | Before (`32bb7ed`) | After cleanup |
+| CPU generation stage | Before (`dc00ad4`) | After ownership sharing |
 | --- | ---: | ---: |
-| Compile chapters | 2.51 s | 2.53 s |
-| Serialize chapter modules | 1.66 s | 1.67 s |
-| Load generated instruction registry | 3.61 s | 2.10 s |
-| Emit instruction bodies and lifecycle bindings | 0.21 s | 0.20 s |
-| **Complete CPU generation, including startup and file writes** | **8.12 s** | **6.56 s** |
+| Compile chapters | 2.48 s | 1.28 s |
+| Serialize chapter modules | 1.65 s | 1.57 s |
+| Load generated instruction registry | 2.02 s | 1.98 s |
+| Emit instruction bodies and lifecycle bindings | 0.20 s | 0.20 s |
+| **Complete CPU generation, including startup and file writes** | **6.45 s** | **5.12 s** |
 
 Stage timers surround compilation, chapter-module serialization, registry
-import, and executable emission. Complete generation is **19% faster**, chiefly
-from avoiding repeated alias serialization. Expression parsing, validation, and
-emission are clearer but show no substantial timing change. Median process peak
-RSS is roughly unchanged (**1,026 to 1,014 MiB**), measured with
+import, and executable emission. Complete generation is **21% faster**, chiefly
+from avoiding repeated copies during chapter compilation, which takes about
+half the time. Median process peak RSS falls from **1,005 to 968 MiB**, measured with
 `process.resourceUsage().maxRSS`; this is a whole-process peak, not a per-stage
 heap measurement. All **132 checked files**—generated CPU and machine sources
 and the expanded instruction listing—remain byte-identical. These timings cover

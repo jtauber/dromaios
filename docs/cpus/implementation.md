@@ -206,6 +206,12 @@ mechanisms cannot be collapsed into one transactional read/modify/write helper.
 
 ## Safe sharing and performance
 
+The chapter compiler owns finalized sources, policies, and the current CPU
+declaration before instruction families use them. Composed actions reuse their
+owned bodies. New execution capabilities replace the CPU declaration while
+earlier definitions retain their original contract. See the
+[ownership boundary](instruction-semantics.md#representation-and-ownership).
+
 Within one encoding declaration, the chapter compiler reuses an immutable body
 when operand and condition selections match. Ignored bits can add aliases
 without recompiling that body; exclusions and collisions still check every
