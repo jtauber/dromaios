@@ -227,6 +227,13 @@ specializations; diagnostics retain both the declaration and the failing width.
 Views keep their read-only restrictions, and actions check their declared
 capabilities before lifecycle bindings apply narrower rules.
 
+Statement parsing retains the captured-value scope after each completed outer
+statement. Pending branches are checked against a copy of that scope, preserving
+statement numbers and Markdown locations without revisiting the completed prefix.
+Checks and failed appends leave the previous scope unchanged. Unfinished nested
+blocks still receive full checks; complete definitions still undergo independent
+validation through `defineInstruction`.
+
 The chapter compiler also owns the current CPU declaration before instruction
 families use it. Composed actions reuse their owned bodies. New execution
 capabilities replace the CPU declaration while earlier definitions retain their

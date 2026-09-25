@@ -2,7 +2,7 @@ import { divide, iterate, reject, alignmentFault, capture, commitAddressUpdates,
   readFlag, readLatch, readMemory, readProgramMemory, readPort, readRegister, readPendingRegister, stageRegister, readSource, readTest, reportInterrupt, sendEscape, resolveAddress, readNextAddress, selectTarget, resetDevices, updateFlags,
   testChoice, value, when, writeChoice, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
 import type { Choice, CpuDeclaration, Flag, FlagGroup, FlagExpression, FlagPolicy, InstructionDefinition, Latch, Register, RegisterArray, Statement, ValueSource, ValueType } from "../model.ts";
-import { validateInstruction } from "../validate.ts";
+import { statementValidator } from "../validate.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
 import { address, callArguments, definitionReference, expression, flagExpression, signedness, typedExpression, valueType } from "./expressions.ts";
@@ -85,7 +85,7 @@ export function checkStateEffects(steps: readonly Statement[], effects: Effects,
   }
 }
 
-/** Lower ordered effects, checking each prefix in its enclosing lexical scopes. */
+/** Lower ordered effects, advancing completed statements while checking pending blocks in their enclosing scopes. */
 export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symbols, options: StatementOptions = {}): Statement[] {
   const { cpu, registers, arrays, latches, choices, flags, flagGroups, policies, actions, sources, operands, conditions } = symbols;
   // Compiler captures cannot collide with, or be referenced by, any authored name,
@@ -98,7 +98,8 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
     return name;
   };
   function parse(lines: readonly ChapterTokens[], validate: (steps: readonly Statement[]) => void,
-    selectedOperands: ReadonlyMap<string, ChapterOperand> = operands): Statement[] {
+    selectedOperands: ReadonlyMap<string, ChapterOperand> = operands,
+    complete = validate): Statement[] {
     const storedOperand = (tokens: ChapterTokens): Register => {
       const operand = tokens.lookup(selectedOperands);
       if (operand.kind !== "register") return tokens.fail("Staging requires a stored register operand.");
@@ -290,15 +291,21 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         }
       }
       tokens.end();
-      tokens.checked(() => validate(result));
+      tokens.checked(() => complete(result));
     }
     return result;
   }
-  const validate = (steps: readonly Statement[]) => {
-    validateInstruction({ cpu, name: "chapter", explanation: "", inputs: options.inputs, steps });
-    if (options.effects) checkStateEffects(steps, options.effects);
+  // Nested callbacks check unfinished blocks; only the outer parse advances the captured-value scope.
+  const validator = statementValidator(cpu, "chapter", options.inputs);
+  let completed = 0;
+  const validate = (steps: readonly Statement[], append = false) => {
+    const pending = steps.slice(completed);
+    if (append) validator.append(pending);
+    else validator.check(pending);
+    if (options.effects) checkStateEffects(pending, options.effects);
+    if (append) completed = steps.length;
   };
-  return parse(lines, validate);
+  return parse(lines, validate, operands, steps => validate(steps, true));
 }
 
 /** Whether a lifecycle binding needs byte memory after its effect contract has been checked. */

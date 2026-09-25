@@ -29,6 +29,13 @@ export function validateInstruction(definition: InstructionDefinition): void {
   validation(definition.cpu, `${definition.cpu.name} ${definition.name}`).instruction(definition);
 }
 
+/** Check a pending suffix, or append completed statements to an instruction's captured-value scope.
+ * Appended statements must be complete; whole-definition validation remains independent.
+ */
+export function statementValidator(cpu: CpuDeclaration, name: string, inputs: Readonly<Record<string, ValueType>> = {}) {
+  return validation(cpu, `${cpu.name} ${name}`).statements(inputs);
+}
+
 /** Check a policy in its own typed parameter scope, before an instruction applies it. */
 export function validateFlagPolicy(cpu: CpuDeclaration, policy: FlagPolicy): void {
   const parameters = new Map(Object.entries(policy.parameters));
@@ -248,9 +255,9 @@ function validation(cpu: CpuDeclaration, prefix: string) {
       if (expression(expr, scope, where) !== bits) fail(where, `expected ${bits}-bit value`);
     }
   }
-  function steps(body: readonly Statement[], scope: Map<string, ValueType>, parent: string, allowRejection: boolean | "match" = true): void {
+  function steps(body: readonly Statement[], scope: Map<string, ValueType>, parent: string, allowRejection: boolean | "match" = true, offset = 0): void {
     body.forEach((step, index) => {
-      const where = `${parent} / ${index + 1} ${step.kind}`;
+      const where = `${parent} / ${offset + index + 1} ${step.kind}`;
       const number = (expr: Expression): Width => expression(expr, scope, where);
       const expect = (expr: NumberExpression, bits: Width): void => {
         if (number(expr) !== bits) fail(where, `expected ${bits}-bit value`);
@@ -456,13 +463,27 @@ function validation(cpu: CpuDeclaration, prefix: string) {
       bind(step.name, captured);
     });
   }
-  return { policy, instruction(definition: InstructionDefinition) {
+  function inputScope(parameters: Readonly<Record<string, ValueType>>) {
     const inputs = new Map<string, ValueType>();
-    for (const [name, bits] of Object.entries(definition.inputs ?? {})) {
+    for (const [name, bits] of Object.entries(parameters)) {
       identifier(name, "inputs");
       inputs.set(name, valueType(bits, "inputs"));
     }
-    steps(definition.steps, inputs, "body");
+    return inputs;
+  }
+  return { policy, instruction(definition: InstructionDefinition) {
+    steps(definition.steps, inputScope(definition.inputs ?? {}), "body");
+  }, statements(inputs: Readonly<Record<string, ValueType>>) {
+    let scope: Map<string, ValueType> | undefined, offset = 0;
+    const checkedScope = (body: readonly Statement[]) => {
+      const local = scope ? new Map(scope) : inputScope(inputs);
+      steps(body, local, "body", true, offset);
+      return local;
+    };
+    return {
+      check(body: readonly Statement[]): void { checkedScope(body); },
+      append(body: readonly Statement[]): void { scope = checkedScope(body); offset += body.length; },
+    };
   } };
 }
 

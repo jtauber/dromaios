@@ -84,8 +84,8 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,747 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,747** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,775 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,775** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 24,074 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 162 |
 | Generated executable CPU output, counted separately | 604,686 |
@@ -115,27 +115,34 @@ so loading instructions preserves their shared dependencies.
 Family expansion, match branches, and width specialization now reuse each
 line's tokens with independent parsing positions and width bindings. Across
 the eight chapters, this reduces tokenizations from **97,429 to 12,036**.
+
+Statement parsing retains the captured-value scope after completed outer
+statements, while checking pending blocks against a copy. This reduces statement
+visits during parsing from **2,466,765 to 1,725,181**. Unfinished nested blocks
+and final complete definitions retain their full validation.
+
 Local measurements on macOS ARM64 with Node 24.20.0, using medians from five
 paired runs with a fresh process for each version:
 
-| CPU generation stage | Before (`7ae3867`) | After token reuse |
+| CPU generation stage | Before (`806627a`) | After advancing statement validation |
 | --- | ---: | ---: |
-| Compile chapters | 1.266 s | 1.229 s |
-| Serialize chapter modules | 0.617 s | 0.620 s |
-| Load generated instruction registry | 0.798 s | 0.793 s |
-| Emit instruction bodies and lifecycle bindings | 0.210 s | 0.199 s |
-| **Complete CPU generation, including startup and file writes** | **3.019 s** | **2.944 s** |
+| Compile chapters | 1.214 s | 1.065 s |
+| Serialize chapter modules | 0.616 s | 0.625 s |
+| Load generated instruction registry | 0.804 s | 0.805 s |
+| Emit instruction bodies and lifecycle bindings | 0.198 s | 0.204 s |
+| **Complete CPU generation, including startup and file writes** | **2.931 s** | **2.809 s** |
 
 Stage timers surround compilation, chapter-module serialization, registry
-import, and executable emission. Chapter compilation is about **3% faster**;
-complete generation improves by about **2.5%**. The other stages do not change
+import, and executable emission. Chapter compilation is about **12% faster**;
+complete generation improves by about **4%**. The other stages do not change
 their algorithms, and their timings vary between runs. Median process peak RSS
-is **921 MiB before and 915 MiB after**, a small difference measured with
+is **916 MiB before and 915 MiB after**, effectively unchanged, measured with
 `process.resourceUsage().maxRSS`; this is a whole-process peak, not a per-stage
 heap measurement. All **132 checked files**, including generated chapter data,
 executable CPU and machine sources, and the expanded instruction listing,
-remain byte-identical. These timings cover CPU generation, excluding TypeScript
-compilation and emulator execution.
+remain byte-identical. A comparison of **400 diagnostics** also preserves their
+locations, details, and declaration/family context. These timings cover CPU
+generation, excluding TypeScript compilation and emulator execution.
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
 outside this source count. Generated TypeScript is reproducible build output,
