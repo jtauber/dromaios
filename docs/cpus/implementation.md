@@ -86,6 +86,7 @@ Paths below are relative to `src/components/cpus/`.
 | Responsibility | Main sources |
 | --- | --- |
 | Markdown extraction and diagnostics | `semantics/literate/document.ts`, `compile.ts` |
+| Reusable sources, views, actions, flag policies, and width specialization | `semantics/literate/declarations.ts` |
 | Instruction-family headers, selector bindings, exclusions, and aliases | `semantics/literate/families.ts` |
 | Language expressions and ordered statements | `semantics/literate/expressions.ts`, `statements.ts`, `choose.ts`, `iterations.ts`, `matches.ts` |
 | State, reset, execution, and interface declarations | Corresponding modules under `semantics/literate/` |
@@ -210,10 +211,18 @@ mechanisms cannot be collapsed into one transactional read/modify/write helper.
 
 ## Safe sharing and performance
 
-The chapter compiler owns finalized sources, policies, and the current CPU
-declaration before instruction families use them. Composed actions reuse their
-owned bodies. New execution capabilities replace the CPU declaration while
-earlier definitions retain their original contract. See the
+[`declarations.ts`](../../src/components/cpus/semantics/literate/declarations.ts)
+compiles sources, views, actions, and flag policies using the shared input
+parser. Each completed definition is owned and registered before later
+declarations can use it. Every listed width is checked, including unused
+specializations; diagnostics retain both the declaration and the failing width.
+Views keep their read-only restrictions, and actions check their declared
+capabilities before lifecycle bindings apply narrower rules.
+
+The chapter compiler also owns the current CPU declaration before instruction
+families use it. Composed actions reuse their owned bodies. New execution
+capabilities replace the CPU declaration while earlier definitions retain their
+original contract. See the
 [ownership boundary](instruction-semantics.md#representation-and-ownership).
 
 Within one encoding declaration, the chapter compiler reuses an immutable body

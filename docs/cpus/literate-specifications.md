@@ -81,6 +81,12 @@ omitting intervening operand bytes. Aliases report the first included opcode
 that fails compilation. Errors before expansion report only the context already
 known; checks across completed families retain their declaration locations.
 
+Sources, views, actions, and flag policies also report their authored name and
+declaration location. Width-specialized definitions include the concrete width,
+such as `source increment<16>`, while retaining the original error's width
+binding (`with bits = 16`). Header and nested-body errors use the same context;
+the first location still identifies the failing token or statement.
+
 Examples below are declaration fragments unless explicitly described otherwise;
 read them in a chapter with the referenced state, sources, and policies already
 declared. The [8008 specification](../../src/components/cpus/specifications/8008.md)

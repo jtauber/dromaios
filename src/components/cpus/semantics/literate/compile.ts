@@ -2,14 +2,13 @@ import { chapterWordExecution, checkWordEffects } from "./word-execution.ts";
 import type { StateFields } from "../../state.ts";
 import type { OpcodeEntry } from "../../opcodes.ts";
 import { memorySource, registerSource } from "../builders.ts";
-import { concat, isWidth, literal, readRegister, readSource, value } from "../model.ts";
-import type { Choice, CpuDeclaration, Flag, FlagGroup, FlagPolicy, InstructionDefinition, Latch, Register, RegisterArray, ValueSource, ValueType, Width } from "../model.ts";
-import { defineInstruction, ownData, validateFlagPolicy, validateInstruction } from "../validate.ts";
+import { concat, isWidth, literal, readRegister, value } from "../model.ts";
+import type { Choice, CpuDeclaration, Flag, FlagGroup, FlagPolicy, InstructionDefinition, Latch, Register, RegisterArray, ValueSource } from "../model.ts";
+import { ownData } from "../validate.ts";
 import { opcodePageLayouts } from "../opcode-pages.ts";
 import type { OpcodePage } from "../opcode-pages.ts";
-import type { WidthParameter } from "./document.ts";
 import { chapterBlocks, chapterBody, chapterContext, ChapterError, ChapterTokens } from "./document.ts";
-import { definitionReference, expression, flagExpression, parameters, reference, typedExpression, valueType, width } from "./expressions.ts";
+import { definitionReference, flagExpression, width } from "./expressions.ts";
 import { chapterSegmentedExecution, checkSegmentedEffects } from "./segmented-execution.ts";
 import { chapterExecution, checkByteExecution } from "./execution.ts";
 import type { ChapterExecution } from "./execution.ts";
@@ -20,8 +19,9 @@ import type { ChapterInterface } from "./interface.ts";
 import { chapterState, checkStateSymbol, stateSymbol } from "./state.ts";
 import { chapterStatements } from "./statements.ts";
 import { chapterFamily } from "./families.ts";
+import { chapterDeclaration } from "./declarations.ts";
 import type { FamilyBindings } from "./families.ts";
-import type { ActionCapability, ChapterCondition, ChapterOperand, StatementOptions } from "./statements.ts";
+import type { ChapterCondition, ChapterOperand, StatementOptions } from "./statements.ts";
 export type { ChapterCondition, ChapterOperand } from "./statements.ts";
 
 export interface CpuChapter {
@@ -87,47 +87,6 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
   function steps(lines: readonly ChapterTokens[], options: StatementOptions & Partial<FamilyBindings> = {}) {
     return chapterStatements(lines, { cpu, registers, arrays, latches, choices, flags, flagGroups, policies, actions, catalogues,
       sources: options.bindings ?? sources, operands: options.operands ?? new Map(), conditions: options.conditions ?? new Map() }, options);
-  }
-
-  function defineValue(kind: "source" | "view" | "policy", name: string, header: ChapterTokens, body: readonly ChapterTokens[]) {
-    const open = () => { header.expect("{"); header.end(); };
-    if (kind === "source" || kind === "view") {
-      if (kind === "view" && name !== name.toUpperCase()) header.fail("View names must be uppercase.");
-      const description = header.quoted(), inputs = parameters(header);
-      if (kind === "view" && Object.keys(inputs).length) header.fail("Views cannot require inputs.");
-      header.expect(":"); const type = valueType(header); open();
-      const last = body.at(-1) ?? header.fail("A source must end with return.");
-      if (last.next !== "return") header.fail("A source must end with return.");
-      const bodySteps = steps(body.slice(0, -1), { inputs, effects: kind === "view" ? "view" : undefined });
-      last.expect("return"); const result = typedExpression(last, type); last.end();
-      const source = ownData({ name: description, type, ...(Object.keys(inputs).length ? { inputs } : {}), steps: bodySteps, result });
-      last.checked(() => validateInstruction({ cpu, name, explanation: "", inputs,
-        steps: [readSource("result", source, Object.keys(inputs).length ? Object.fromEntries(Object.entries(inputs).map(([name, type]) => [name, reference(name, type)])) : undefined)] }));
-      sources.set(name, source);
-      if (kind === "view") views.set(name, source);
-    } else {
-      const description = header.quoted(); header.expect("(");
-      const parameters: Record<string, ValueType> = {};
-      if (header.next !== ")") do {
-        const parameter = header.word(); header.expect(":");
-        if (Object.hasOwn(parameters, parameter)) header.fail(`Duplicate parameter ${parameter}.`);
-        parameters[parameter] = header.take("flag") ? "flag" : width(header);
-      } while (header.take(","));
-      header.expect(")"); open();
-      const updates: FlagPolicy["updates"][number][] = [], seen = new Set<string>();
-      const policy: FlagPolicy = { name: description, parameters, unlisted: "preserve", updates };
-      const validate = () => validateFlagPolicy(cpu, policy);
-      header.checked(validate);
-      for (const tokens of body) {
-        const flag = tokens.lookup(flags, true); tokens.expect("=");
-        const key = `${flag.bank ?? ""}.${flag.field}`;
-        if (seen.has(key)) tokens.fail(`Duplicate update of ${flag.field}.`);
-        seen.add(key);
-        updates.push({ flag, value: flagExpression(tokens) }); tokens.end();
-        tokens.checked(validate);
-      }
-      policies.set(name, ownData(policy));
-    }
   }
 
   const blocks = chapterBlocks(markdown, file);
@@ -237,42 +196,15 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         const key = layouts.at(-1)!.key;
         pages.set(name, page); pageTokens.set(key, header); continue;
       }
-      const variants: WidthParameter[] = [];
-      if (header.take("<")) {
-        if (kind !== "source" && kind !== "policy") header.fail("Only sources and policies can declare a width parameter.");
-        const parameter = header.word(); header.expect(":");
-        if (parameter === "flag") header.fail("A width parameter cannot be named flag.");
-        do {
-          const value = width(header);
-          if (variants.some(item => item.value === value)) header.fail(`Duplicate width ${value}.`);
-          variants.push({ name: parameter, value });
-        } while (header.take(","));
-        header.expect(">");
+      if (kind === "source" || kind === "view" || kind === "action" || kind === "policy") {
+        index = chapterDeclaration(kind, name, lines, index, block.explanation,
+          { cpu, flags, sources, views, actions, policies }, steps);
+        continue;
       }
-      // Families and width variants reparse their original lines, including nested blocks.
+      if (header.take("<")) header.fail("Only sources and policies can declare a width parameter.");
       const { body, end } = chapterBody(lines, index); index = end;
       const open = () => { header.expect("{"); header.end(); };
-      if (kind === "source" || kind === "view" || kind === "policy") {
-        if (!variants.length) defineValue(kind, name, header, body);
-        for (const parameter of variants) {
-          defineValue(kind, `${name}<${parameter.value}>`, header.specialize(parameter),
-            body.map(tokens => new ChapterTokens(tokens.source, file, parameter)));
-        }
-      } else if (kind === "action") {
-        const description = header.quoted(), inputs = parameters(header);
-        const capabilities: ActionCapability[] = [];
-        if (header.take("using")) do {
-          const capability = header.word();
-          if (capability !== "memory" && capability !== "boundary" && capability !== "staging" && capability !== "alignment") return header.fail("Expected memory, boundary, staging, or alignment capability.");
-          if (capabilities.includes(capability)) header.fail(`Duplicate action capability ${capability}.`);
-          capabilities.push(capability);
-        } while (header.take(","));
-        open();
-        const definition = { cpu, name: description, explanation: block.explanation, inputs, steps: [] };
-        header.checked(() => validateInstruction(definition));
-        const bodySteps = steps(body, { inputs, effects: capabilities });
-        actions.set(name, header.checked(() => defineInstruction({ ...definition, steps: bodySteps })));
-      } else if (kind === "operands" || kind === "codes" || kind === "conditions") {
+      if (kind === "operands" || kind === "codes" || kind === "conditions") {
         const valueWidth = kind === "codes" && header.take(":") ? width(header) : undefined;
         open(); const entries: ChapterOperand[] = [], tests: ChapterCondition[] = []; let digits: number | undefined;
         for (const tokens of body) {

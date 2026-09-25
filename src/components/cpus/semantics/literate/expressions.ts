@@ -129,9 +129,10 @@ export function address(tokens: ChapterTokens): AddressExpression {
 }
 
 /** Ordered typed inputs shared by sources, actions, policies, and instruction families. */
-export function parameters(tokens: ChapterTokens): Record<string, ValueType> {
+export function parameters(tokens: ChapterTokens, required = false): Record<string, ValueType> {
   const inputs: Record<string, ValueType> = {};
-  if (!tokens.take("(")) return inputs;
+  if (required) tokens.expect("(");
+  else if (!tokens.take("(")) return inputs;
   if (tokens.next !== ")") do {
     const name = tokens.word(); tokens.expect(":");
     if (Object.hasOwn(inputs, name)) tokens.fail(`Duplicate parameter ${name}.`);

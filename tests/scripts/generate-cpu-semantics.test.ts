@@ -72,6 +72,9 @@ test("native CPU generation bootstraps without generated files and removes obsol
       assert.equal(chapters.status, 1);
       assert.equal(chapters.stderr, result.stderr);
     }
+    if (name === "68000" && before === "return concat(high, low)") {
+      assert.match(result.stderr, /\n  source effectiveAddress at .*68000\.md:\d+\n$/);
+    }
     assert.equal(readFileSync(join(output, "6502.ts"), "utf8"), readFileSync("src/components/cpus/generated/6502.ts", "utf8"));
     assert.equal(readFileSync(join(output, "68000-reset.ts"), "utf8"), readFileSync("src/components/cpus/generated/68000-reset.ts", "utf8"));
     assert.equal(readFileSync(join(output, "8008.ts"), "utf8"), readFileSync("src/components/cpus/generated/8008.ts", "utf8"));
