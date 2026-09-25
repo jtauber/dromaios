@@ -5,7 +5,8 @@ import type { CpuDeclaration, Flag, InstructionDefinition, Register, Statement, 
 import { opcodePageLayouts } from "../opcode-pages.ts";
 import type { OpcodePage } from "../opcode-pages.ts";
 import { defineInstruction } from "../validate.ts";
-import { chapterContext, ChapterTokens } from "./document.ts";
+import { chapterContext } from "./document.ts";
+import type { ChapterTokens } from "./document.ts";
 import { definitionReference, parameters } from "./expressions.ts";
 import type { ChapterCondition, ChapterOperand, StatementOptions } from "./statements.ts";
 
@@ -122,7 +123,7 @@ export function chapterFamily(header: ChapterTokens, lines: readonly ChapterToke
           const identity = JSON.stringify(selected);
           let definition = bodies.get(identity);
           if (definition === undefined) {
-            const steps = compileBody(body.map(tokens => new ChapterTokens(tokens.source, header.file)), { ...bindings, inputs });
+            const steps = compileBody(body.map(tokens => tokens.replay()), { ...bindings, inputs });
             definition = form.checked(() => defineInstruction({ cpu, name: instructionName({ ...Object.fromEntries(boundOperands), ...selected }),
               explanation, ...(Object.keys(inputs).length ? { inputs } : {}), steps }));
             bodies.set(identity, definition);

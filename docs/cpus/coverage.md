@@ -84,8 +84,8 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,737 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,737** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,747 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,747** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 24,074 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 162 |
 | Generated executable CPU output, counted separately | 604,686 |
@@ -112,25 +112,28 @@ sources, and policies once; per-instruction validation still checks every use.
 Generated shared constants restore that ownership when the registry loads,
 so loading instructions preserves their shared dependencies.
 
-Local measurements of serialization and registry sharing on
-macOS ARM64 with Node 24.20.0, using medians from three fresh processes per version:
+Family expansion, match branches, and width specialization now reuse each
+line's tokens with independent parsing positions and width bindings. Across
+the eight chapters, this reduces tokenizations from **97,429 to 12,036**.
+Local measurements on macOS ARM64 with Node 24.20.0, using medians from five
+paired runs with a fresh process for each version:
 
-| CPU generation stage | Before (`86f23f5`) | After registry sharing |
+| CPU generation stage | Before (`7ae3867`) | After token reuse |
 | --- | ---: | ---: |
-| Compile chapters | 1.30 s | 1.29 s |
-| Serialize chapter modules | 1.63 s | 0.63 s |
-| Load generated instruction registry | 2.21 s | 0.80 s |
-| Emit instruction bodies and lifecycle bindings | 0.19 s | 0.20 s |
-| **Complete CPU generation, including startup and file writes** | **5.56 s** | **3.06 s** |
+| Compile chapters | 1.266 s | 1.229 s |
+| Serialize chapter modules | 0.617 s | 0.620 s |
+| Load generated instruction registry | 0.798 s | 0.793 s |
+| Emit instruction bodies and lifecycle bindings | 0.210 s | 0.199 s |
+| **Complete CPU generation, including startup and file writes** | **3.019 s** | **2.944 s** |
 
 Stage timers surround compilation, chapter-module serialization, registry
-import, and executable emission. Complete generation is **45% faster**, with the
-gain in serialization and registry loading. Median process peak RSS falls from
-**962 to 921 MiB**, measured with
+import, and executable emission. Chapter compilation is about **3% faster**;
+complete generation improves by about **2.5%**. The other stages do not change
+their algorithms, and their timings vary between runs. Median process peak RSS
+is **921 MiB before and 915 MiB after**, a small difference measured with
 `process.resourceUsage().maxRSS`; this is a whole-process peak, not a per-stage
-heap measurement. Of **132 checked files**, only the eight generated chapter
-initializers change to establish ownership. The other **124 files**, including
-all executable CPU and machine sources and the expanded instruction listing,
+heap measurement. All **132 checked files**, including generated chapter data,
+executable CPU and machine sources, and the expanded instruction listing,
 remain byte-identical. These timings cover CPU generation, excluding TypeScript
 compilation and emulator execution.
 

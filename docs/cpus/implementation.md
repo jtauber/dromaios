@@ -211,6 +211,14 @@ mechanisms cannot be collapsed into one transactional read/modify/write helper.
 
 ## Safe sharing and performance
 
+[`ChapterTokens`](../../src/components/cpus/semantics/literate/document.ts)
+tokenizes each source line once. Family expansion, match branches, and width
+specialization share that private, immutable token sequence while retaining
+independent parsing positions and width bindings. `replay()` starts at the first
+token; `specialize()` resumes at the current position with a concrete width.
+Both preserve the original Markdown location. No token cache outlives the
+compilation.
+
 [`declarations.ts`](../../src/components/cpus/semantics/literate/declarations.ts)
 compiles sources, views, actions, and flag policies using the shared input
 parser. Each completed definition is owned and registered before later

@@ -56,15 +56,18 @@ export function chapterBlocks(markdown: string, file: string): readonly ChapterB
 interface Token { readonly text: string; readonly column: number }
 export interface WidthParameter { readonly name: string; readonly value: Width }
 
-/** A statement occupies one line; expressions use explicit calls instead of implicit precedence. */
+/** An independent parsing position over one line's immutable tokens. */
 export class ChapterTokens {
-  readonly #tokens: Token[] = [];
+  readonly #tokens: readonly Token[];
   #index = 0;
   readonly source: ChapterLine;
   readonly file: string;
   readonly widthParameter?: WidthParameter;
-  constructor(source: ChapterLine, file: string, widthParameter?: WidthParameter) {
-    this.source = source; this.file = file; this.widthParameter = widthParameter;
+  constructor(source: ChapterLine | ChapterTokens, file: string, widthParameter?: WidthParameter) {
+    this.source = source instanceof ChapterTokens ? source.source : source;
+    this.file = file; this.widthParameter = widthParameter;
+    if (source instanceof ChapterTokens) { this.#tokens = source.#tokens; return; }
+    const tokens: Token[] = [];
     const pattern = /\s+|\/\/.*|"(?:[^"\\]|\\.)*"|[A-Za-z][A-Za-z0-9_]*|\$[\da-fA-F]+|\d+|<-|[{}\[\]():=.,<>]/y;
     let offset = 0;
     while (offset < source.text.length) {
@@ -72,13 +75,18 @@ export class ChapterTokens {
       const match = pattern.exec(source.text);
       if (!match) this.fail("Unexpected character.", offset + 1);
       const text = match[0];
-      if (!/^\s|^\/\//.test(text)) this.#tokens.push({ text, column: offset + 1 });
+      if (!/^\s|^\/\//.test(text)) tokens.push({ text, column: offset + 1 });
       offset = pattern.lastIndex;
     }
+    this.#tokens = tokens;
   }
-  /** Reparse a declaration at the same position with one concrete width binding. */
+  /** Begin a new parse of the line, retaining its location and optional width binding. */
+  replay(parameter = this.widthParameter): ChapterTokens {
+    return new ChapterTokens(this, this.file, parameter);
+  }
+  /** Resume a declaration at the same position with one concrete width binding. */
   specialize(parameter: WidthParameter): ChapterTokens {
-    const tokens = new ChapterTokens(this.source, this.file, parameter);
+    const tokens = this.replay(parameter);
     tokens.#index = this.#index;
     return tokens;
   }

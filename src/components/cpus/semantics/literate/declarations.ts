@@ -1,8 +1,8 @@
 import { readSource } from "../model.ts";
 import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Statement, ValueSource } from "../model.ts";
 import { defineInstruction, ownData, validateFlagPolicy, validateInstruction } from "../validate.ts";
-import { chapterBody, chapterContext, ChapterTokens } from "./document.ts";
-import type { WidthParameter } from "./document.ts";
+import { chapterBody, chapterContext } from "./document.ts";
+import type { ChapterTokens, WidthParameter } from "./document.ts";
 import { flagExpression, parameters, reference, typedExpression, valueType, width } from "./expressions.ts";
 import type { ActionCapability, StatementOptions } from "./statements.ts";
 
@@ -39,7 +39,7 @@ export function chapterDeclaration(kind: DeclarationKind, name: string, lines: r
     if (!variants.length) define(header, body);
     for (const parameter of variants) {
       definitionName = `${name}<${parameter.value}>`;
-      define(header.specialize(parameter), body.map(tokens => new ChapterTokens(tokens.source, header.file, parameter)));
+      define(header.specialize(parameter), body.map(tokens => tokens.replay(parameter)));
     }
     return end;
   });

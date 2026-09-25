@@ -1,6 +1,7 @@
 import { opcodeFamily } from "../../opcodes.ts";
 import type { DispatchCase, MatchCase, Statement } from "../model.ts";
-import { chapterBody, ChapterTokens } from "./document.ts";
+import { chapterBody } from "./document.ts";
+import type { ChapterTokens } from "./document.ts";
 import { expression, initialValue, typedExpression, valueType } from "./expressions.ts";
 import type { ChapterOperand } from "./statements.ts";
 
@@ -39,7 +40,7 @@ export function chapterMatch(header: ChapterTokens, lines: readonly ChapterToken
       const value = opcode & mask;
       if (seen.has(value)) continue;
       seen.add(value);
-      const branch = body.map(line => new ChapterTokens(line.source, line.file, line.widthParameter));
+      const branch = body.map(line => line.replay());
       const last = name === undefined ? undefined : branch.pop();
       if (name !== undefined && last?.next !== "return") (last ?? tokens).fail("A match case must end with return.");
       const current: MatchCase = { mask, value, steps: [], result: initialValue(type ?? 8) };
