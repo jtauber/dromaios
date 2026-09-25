@@ -118,12 +118,15 @@ function validation(cpu: CpuDeclaration, prefix: string) {
       case "low-byte":
         if (expression(expr.value, scope, where) < 8) fail(where, "low byte requires at least eight bits");
         return 8;
-      case "bits": {
+      case "bits": case "with-bits": {
         const from = expression(expr.value, scope, where);
         if (!Number.isInteger(expr.high) || !Number.isInteger(expr.low) || expr.low < 0 || expr.high < expr.low || expr.high >= from) {
           fail(where, `bit range requires integer bounds with 0 <= low <= high < ${from}`);
         }
-        return width(expr.high - expr.low + 1, where);
+        const selected = width(expr.high - expr.low + 1, where);
+        if (expr.kind === "bits") return selected;
+        if (expression(expr.replacement, scope, where) !== selected) fail(where, `replacement must have width ${selected}`);
+        return from;
       }
       case "extend": case "sign-extend": {
         const from = expression(expr.value, scope, where), to = width(expr.width, where);

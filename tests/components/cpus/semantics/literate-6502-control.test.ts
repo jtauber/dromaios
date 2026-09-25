@@ -60,7 +60,7 @@ test("moving JSR's final fetch in the chapter changes an overlapping stack/opera
 
 test("indirect pointer wrapping, return increments, and the stacked B marker are chapter rules", async () => {
   const cases = [
-    { opcode: 0x6c, before: "or(and(pointer, u16($FF00)), extend(add(lowByte(pointer), u8($01)), 16))",
+    { opcode: 0x6c, before: "withBits(pointer, 7, 0, add(lowByte(pointer), u8($01)))",
       after: "add(pointer, u16($0001))", expected: [0x1234, 0x5634] },
     { opcode: 0x60, before: "PC <- add(returnPC, u16($0001))", after: "PC <- returnPC", expected: [0x1235, 0x1234] },
     { opcode: 0x08, before: "original = or(status, u8($10))", after: "original = status", expected: [0x79, 0x69] },

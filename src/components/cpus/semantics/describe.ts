@@ -15,6 +15,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
       case "literal": return `${expr.value.toString(16).toUpperCase().padStart(Math.ceil(expr.width / 4), "0")}:u${expr.width}`;
       case "pack": return `pack<${expr.width}>(${expr.bits.map(bit => flag(bit, parameters)).join(", ")})`;
       case "bits": return `bits(${number(expr.value, parameters)}, ${expr.high}, ${expr.low})`;
+      case "with-bits": return `withBits(${number(expr.value, parameters)}, ${expr.high}, ${expr.low}, ${number(expr.replacement, parameters)})`;
       case "truncate": return `low${expr.width}(${number(expr.value, parameters)})`;
       case "extend": return `zeroExtend${expr.width}(${number(expr.value, parameters)})`;
       case "sign-extend": return `signExtend${expr.width}(${number(expr.value, parameters)})`;

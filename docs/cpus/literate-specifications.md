@@ -815,6 +815,7 @@ Numeric expressions are capture names, explicitly sized literals such as
 | `select(condition, yes, no)` | Choose between two equal-width numeric expressions using a flag expression. |
 | `pack<width>(bits...)` | Form an unsigned value from exactly `width` flag expressions, most significant bit first. |
 | `bits(value, high, low)` | Extract an inclusive bit range as an unsigned value of width `high - low + 1`. |
+| `withBits(original, high, low, replacement)` | Replace an inclusive bit range, preserving the original width and every bit outside the range. |
 | `concat(high, low)` | Join two equal-width values, with high first. |
 | `extend(value, width)`, `signExtend(value, width)`, `truncate(value, width)` | Widen unsigned, widen signed, or narrow explicitly. |
 | `highByte(word)` | Extract bits 15–8 of a sixteen-bit word. |
@@ -855,6 +856,26 @@ remain useful when byte roles explain the intent. Extraction reads only its
 captured operand, and every width specialization checks the same bounds.
 The [bit-field tests](../../tests/components/cpus/semantics/literate-bit-fields.test.ts)
 check every supported range, nested calculations, capture ordering, and errors.
+
+Use `withBits` to describe a partial update to a captured numeric value:
+
+```text
+preserved = operand d
+operand d <- withBits(preserved, 7, 0, result)
+```
+
+Here an eight-bit `result` replaces bits 7–0 of the captured register value.
+For example, replacing the low byte of `$12345678` with `$AB` yields `$123456AB`.
+Bounds follow the same rules as `bits`; the replacement must have exactly
+`high - low + 1` bits, even if a wider value would happen to fit. A full-width
+replacement is allowed. The returned value retains the original's unsigned
+width, including when bit 31 is set. Both operands are pure numeric expressions;
+the surrounding statements determine when state is captured and written.
+For a byte alias, capture its live word at writeback before replacing that byte,
+so intervening callbacks' changes to the other byte are preserved.
+The [replacement tests](../../tests/components/cpus/semantics/literate-with-bits.test.ts)
+check preservation across every supported range, explicit read order, failed
+reads, source and policy composition, and width errors.
 
 A policy has zero or more typed parameters and named flag updates. Parameters
 can be numeric widths or `flag`:

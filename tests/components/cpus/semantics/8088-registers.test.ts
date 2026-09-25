@@ -160,5 +160,5 @@ test("8088 descriptions expose byte preservation, low-byte parity, and carry aft
   assert.match(text, /PF := evenParity8\(lowByte\(result\)\)/);
   assert.match(text, /Flags preserved throughout: TF, IF, DF\./);
   const move = describeInstruction(instructions8088[0xb4]!);
-  assert.match(move, /concatHighLow\(byte, lowByte\(preservedWord\)\)/);
+  assert.match(move, /withBits\(preservedWord, 15, 8, byte\)/);
 });

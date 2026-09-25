@@ -177,7 +177,7 @@ test("all 192 literate encodings execute through the CPU, including both A7 bank
 const invalid: readonly [string, string, string, RegExp][] = [
   ["unknown captured value", "truncate(originalSource, 16)", "truncate(missing, 16)", /not been captured/],
   ["non-narrowing truncation", "truncate(originalSource, 16)", "truncate(originalSource, 32)", /truncation must narrow/],
-  ["mixed widths", "u32($FFFF0000)", "u16($FFFF)", /equal widths/],
+  ["replacement width", "withBits(preserved, 7, 0, result)", "withBits(preserved, 7, 0, extend(result, 16))", /replacement must have width 8/],
   ["wide byte extraction", "truncate(contents, 8)", "highByte(extend(contents, 32))", /requires a word/],
   ["short program address", "program memory(address)", "program memory(truncate(address, 16))", /32-bit/],
   ["program-space alignment write", "alignment program read(sourceAddress)", "alignment program write(sourceAddress)", /access space/],

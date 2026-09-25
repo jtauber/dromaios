@@ -103,6 +103,14 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           const shifted = `(${number(expr.value, scope).code} >>> ${expr.low})`;
           return { code: width === 32 ? shifted : `(${shifted} & 0x${(2 ** width - 1).toString(16)})`, type: width };
         }
+        case "with-bits": {
+          const original = number(expr.value, scope), replacement = number(expr.replacement, scope);
+          // Arithmetic mask construction also covers fields containing bit 31.
+          const fieldMask = (2 ** (expr.high - expr.low + 1) - 1) * 2 ** expr.low;
+          const preservedMask = 2 ** original.type - 1 - fieldMask;
+          const code = `((${original.code} & 0x${preservedMask.toString(16)}) | (${replacement.code} << ${expr.low}))`;
+          return { code: original.type === 32 ? `(${code} >>> 0)` : code, type: original.type };
+        }
         case "extend": return { code: number(expr.value, scope).code, type: expr.width };
         case "truncate": return { code: `(${number(expr.value, scope).code} & 0x${(2 ** expr.width - 1).toString(16)})`, type: expr.width };
         case "sign-extend": {

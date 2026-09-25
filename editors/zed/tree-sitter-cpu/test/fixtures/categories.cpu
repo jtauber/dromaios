@@ -406,6 +406,9 @@ source packed<bits: 3> "captured bits" (high: flag, low: flag): bits {
 source selector<bits: 16, 32> "three-bit field" (input: bits): 3 {
   return bits(input, 10, 8)
 }
+source replaceLow<bits: 8, 16, 32> "replace low byte" (input: bits, byte: 8): bits {
+  return withBits(input, 7, 0, byte)
+}
 view STATUS "packed flags": 8 {
   carry = flag C
   return pack<8>(0, 0, 0, 0, 0, 0, 1, carry)

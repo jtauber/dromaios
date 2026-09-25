@@ -18,7 +18,7 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
   const chapter = readFileSync(file, "utf8")
     .replace("register AX: 16", "register SCRATCH: 8\n  register AX: 16")
     .replace("return lowByte(word)", "return highByte(word)")
-    .replace("AX <- concat(highByte(preservedWord), byte)", "AX <- concat(lowByte(preservedWord), byte)")
+    .replace("AX <- withBits(preservedWord, 7, 0, byte)", "AX <- concat(lowByte(preservedWord), byte)")
     .replace("u32($FFFFF)", "u32($FFFF)")
     .replace('source baseBXSI "DS:BX+SI": 32 {\n  segment = register DS',
       'source baseBXSI "DS:BX+SI": 32 {\n  segment = register ES')
