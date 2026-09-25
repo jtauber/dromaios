@@ -1,6 +1,6 @@
 import { addOverflow, addWrap, and, or, xor, select, bit, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
   equal, flagValue, halfBorrow, halfCarry, highByte, isWidth, lessThan, literal, lowBit, lowByte, multiply, negative, not, shiftLeft, shiftRight,
-  overflow, projectAddress, shiftBits, signExtend, subtract, truncate, value, zero } from "../model.ts";
+  overflow, pack, projectAddress, shiftBits, signExtend, subtract, truncate, value, zero } from "../model.ts";
 import type { AddressExpression, Expression, FlagExpression, NumberExpression, ValueType, Width } from "../model.ts";
 import type { ChapterTokens } from "./document.ts";
 
@@ -29,6 +29,15 @@ export function expression(tokens: ChapterTokens): NumberExpression {
   if (name === "u" && tokens.take("<")) {
     const bits = width(tokens); tokens.expect(">"); tokens.expect("(");
     const result = literal(bits, tokens.number()); tokens.expect(")"); return result;
+  }
+  if (name === "pack" && tokens.take("<")) {
+    const bits = width(tokens); tokens.expect(">"); tokens.expect("(");
+    const flags: FlagExpression[] = [];
+    if (!tokens.take(")")) {
+      do { flags.push(flagExpression(tokens)); } while (tokens.take(","));
+      tokens.expect(")");
+    }
+    return pack(bits, flags);
   }
   if (!tokens.take("(")) return value(name);
   let result: NumberExpression;

@@ -58,7 +58,7 @@ test("Z80 chapter edits reach construction, both snapshots, byte/word dispatch, 
   const url = editedChapter(t, chapter => chapter.replace("register PC: 16", "register SCRATCH: 8\n  register PC: 16")
     .replaceAll("return concat(high, low)", "return concat(low, high)")
     .replace("  Z = zero(result)", "  Z = not(zero(result))")
-    .replace("select(carry, u8($01)", "select(carry, u8($20)")
+    .replace("pack<8>(sign, zero, 0, half, 0, parity, subtract, carry)", "pack<8>(sign, zero, carry, half, 0, parity, subtract, 0)")
     .replace("C = bit(status, 0)", "C = not(bit(status, 0))")
     .replace("B <- highByte(word)\n  C <- lowByte(word)", "B <- lowByte(word)\n  C <- highByte(word)")
     .replace("PC <- add(pc, signExtend(offset, 16))", "PC <- add(add(pc, u16(1)), signExtend(offset, 16))")

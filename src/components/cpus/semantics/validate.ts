@@ -106,6 +106,12 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         if (!Number.isSafeInteger(expr.value) || expr.value < 0 || expr.value >= 2 ** bits) fail(where, `literal does not fit ${bits} bits`);
         return bits;
       }
+      case "pack": {
+        const bits = width(expr.width, where);
+        if (!Array.isArray(expr.bits) || expr.bits.length !== bits) fail(where, `pack requires exactly ${bits} flag expressions, most significant bit first`);
+        for (const bit of expr.bits) flagExpression(bit, scope, where);
+        return bits;
+      }
       case "high-byte":
         if (expression(expr.value, scope, where) !== 16) fail(where, "high byte requires a word");
         return 8;

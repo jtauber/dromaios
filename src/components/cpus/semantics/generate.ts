@@ -91,6 +91,11 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
         }
         case "value": return scope.get(expr.name)! as CapturedNumber; // Validation has resolved names and types.
         case "literal": return { code: `0x${expr.value.toString(16)}`, type: expr.width };
+        case "pack": {
+          // Disjoint positive weights also keep bit 31 unsigned, without host bitwise coercion.
+          const terms = expr.bits.map((bit, index) => `((${flag(bit, scope)}) ? 0x${(2 ** (expr.width - index - 1)).toString(16)} : 0)`);
+          return { code: `(${terms.join(" + ")})`, type: expr.width };
+        }
         case "high-byte": return { code: `(${number(expr.value, scope).code} >>> 8)`, type: 8 };
         case "low-byte": return { code: `(${number(expr.value, scope).code} & 0xff)`, type: 8 };
         case "extend": return { code: number(expr.value, scope).code, type: expr.width };

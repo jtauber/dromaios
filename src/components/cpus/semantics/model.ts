@@ -34,6 +34,7 @@ export type NumberExpression =
   | { readonly kind: "select"; readonly condition: FlagExpression; readonly yes: NumberExpression; readonly no: NumberExpression }
   | { readonly kind: "value"; readonly name: string }
   | { readonly kind: "literal"; readonly width: Width; readonly value: number }
+  | { readonly kind: "pack"; readonly width: Width; readonly bits: readonly FlagExpression[] }
   | { readonly kind: "high-byte" | "low-byte"; readonly value: NumberExpression }
   | ({ readonly kind: "subtract" | "add-wrap" } & ArithmeticOperands)
   | { readonly kind: "concat" | "bit-and" | "bit-or" | "bit-xor"; readonly left: NumberExpression; readonly right: NumberExpression }
@@ -215,6 +216,8 @@ function arithmetic<Kind extends NumberExpression["kind"] | FlagExpression["kind
 export const select = (condition: FlagExpression, yes: NumberExpression, no: NumberExpression): NumberExpression => ({ kind: "select", condition, yes, no });
 export const value = (name: string): NumberExpression => ({ kind: "value", name });
 export const literal = (width: Width, value: number): NumberExpression => ({ kind: "literal", width, value });
+/** Pack exactly width flags, most significant first, into an unsigned value. */
+export const pack = (width: Width, bits: readonly FlagExpression[]): NumberExpression => ({ kind: "pack", width, bits });
 export const subtract = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): NumberExpression => arithmetic("subtract", left, right, incoming);
 export const addWrap = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): NumberExpression => arithmetic("add-wrap", left, right, incoming);
 export const bitAnd = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "bit-and", left, right });

@@ -813,6 +813,7 @@ Numeric expressions are capture names, explicitly sized literals such as
 | `shiftBits(value, left, count)`, `shiftBits(value, right, count)` | Logical shift with zero insertion and unchanged width; count is a constant from zero through that width. Shifting by the full width yields zero. |
 | `shiftLeft(value, bit)`, `shiftRight(value, bit)` | Shift one place, inserting the flag expression at the vacated end. |
 | `select(condition, yes, no)` | Choose between two equal-width numeric expressions using a flag expression. |
+| `pack<width>(bits...)` | Form an unsigned value from exactly `width` flag expressions, most significant bit first. |
 | `concat(high, low)` | Join two equal-width values, with high first. |
 | `extend(value, width)`, `signExtend(value, width)`, `truncate(value, width)` | Widen unsigned, widen signed, or narrow explicitly. |
 | `highByte(word)` | Extract bits 15–8 of a sixteen-bit word. |
@@ -822,6 +823,23 @@ Calls can nest. Numbers are decimal unless prefixed with `$`; widths are decimal
 Captures and literals retain their widths, so zero-page wrapping follows from
 eight-bit addition rather than a special 6502 operation. Expressions never
 read state implicitly; register and flag reads remain separate statements.
+
+Use `pack` when a value is best explained by its bit layout. For example, the
+Z80's documented F register is `S Z 0 H 0 PV N C`:
+
+```text
+return pack<8>(sign, zero, 0, half, 0, parity, subtract, carry)
+```
+
+Arguments are captured flags, Boolean predicates such as `bit(mask, 2)`, or
+the flag constants `0` and `1`. Numeric values require an explicit predicate;
+there is no implicit conversion. Widths are `3`, `8`, `14`, `16`, or `32`,
+or a declaration's width parameter, and the argument count must match exactly.
+The first argument supplies bit `width - 1`; the last supplies bit zero.
+Even a set bit 31 produces an unsigned value. Packing never reads state itself:
+keep the preceding flag reads in the processor's required order, independently
+of their positions in the result. The [packing tests](../../tests/components/cpus/semantics/literate-pack.test.ts)
+check bit order, fixed bits, Boolean composition, explicit reads, and diagnostics.
 
 A policy has zero or more typed parameters and named flag updates. Parameters
 can be numeric widths or `flag`:

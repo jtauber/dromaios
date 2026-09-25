@@ -18,7 +18,7 @@ test("6809 chapter state, view, and stack edits reach public instructions, index
     .replace("page secondary = $10", "page secondary = $14").replace("page tertiary = $11", "page tertiary = $15")
     .replace("return concat(high, low)", "return concat(low, high)")
     .replace("A <- highByte(word)\n  B <- lowByte(word)", "A <- lowByte(word)\n  B <- highByte(word)")
-    .replace("select(c, u8($01)", "select(c, u8($02)")
+    .replace("pack<8>(e, f, h, i, n, z, v, c)", "pack<8>(e, f, h, i, n, z, or(v, c), 0)")
     .replace("S <- subtract(pointer, u16($0001))", "S <- subtract(pointer, u16($0002))")
     .replace("operand r <- add(base, u16($0002))", "operand r <- add(base, u16($0003))")
     .replace("I = bit(status, 4)", "I = not(bit(status, 4))"));
@@ -89,7 +89,7 @@ test("6800 chapter state and condition-code edits reach the public core, machine
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const chapter = join(directory, "src/components/cpus/specifications/6800.md");
   writeFileSync(chapter, readFileSync(chapter, "utf8").replace("register SP: 16", "register SP: 16\n  register SCRATCH: 8")
-    .replace("return or(u8($C0),", "return or(u8($80),").replace("I = bit(status, 4)", "I = not(bit(status, 4))"));
+    .replace("pack<8>(1, 1, h, i, n, z, v, c)", "pack<8>(1, 0, h, i, n, z, v, c)").replace("I = bit(status, 4)", "I = not(bit(status, 4))"));
   const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
   assert.equal(generated.status, 0, generated.stderr);
   const url = (path: string) => JSON.stringify(pathToFileURL(join(directory, path)).href);
@@ -171,8 +171,8 @@ test("the 6502 chapter's status view and mask policy drive both software and ext
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
   const chapter = join(directory, "src/components/cpus/specifications/6502.md");
   const original = readFileSync(chapter, "utf8");
-  assert.ok(original.includes("return or(u8($20),")); assert.ok(original.includes("I = value"));
-  writeFileSync(chapter, original.replace("return or(u8($20),", "return or(u8($00),").replace("I = value", "I = not(value)"));
+  assert.ok(original.includes("pack<8>(n, v, 1, 0, d, i, z, c)")); assert.ok(original.includes("I = value"));
+  writeFileSync(chapter, original.replace("pack<8>(n, v, 1, 0, d, i, z, c)", "pack<8>(n, v, 0, 0, d, i, z, c)").replace("I = value", "I = not(value)"));
   const generated = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
   assert.equal(generated.status, 0, generated.stderr);
   const url = JSON.stringify(pathToFileURL(join(directory, "src/components/cpus/generated/6502-cpu.ts")).href);

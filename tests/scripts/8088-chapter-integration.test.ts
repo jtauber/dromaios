@@ -38,7 +38,8 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
     .replace("WAITING <- high", "WAITING <- not(high)")
     .replace("shiftBits(highOpcode, left, 3)", "shiftBits(highOpcode, left, 2)")
     .replace("shiftBits(extend(vector, 16), left, 2)", "shiftBits(extend(vector, 16), left, 3)")
-    .replace("select(cf, u16($0001), u16(0))", "select(not(cf), u16($0001), u16(0))")
+    .replace("pack<16>(1, 1, 1, 1, of, df, if, tf, sf, zf, 0, af, 0, pf, 1, cf)",
+      "pack<16>(1, 1, 1, 1, of, df, if, tf, sf, zf, 0, af, 0, pf, 1, not(cf))")
     .replace('policy RESTOREFLAGS "restore FLAGS" (status: 16) {\n  CF = bit(status, 0)',
       'policy RESTOREFLAGS "restore FLAGS" (status: 16) {\n  CF = not(bit(status, 0))');
   writeFileSync(file, chapter);

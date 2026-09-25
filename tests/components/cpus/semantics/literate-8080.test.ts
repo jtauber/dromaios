@@ -70,8 +70,8 @@ for (const [before, after, message] of [
   ["pair B C", "pair B UNKNOWN", /Unknown name UNKNOWN/],
   ["operand p <- add(original, u16(1))", "operand p <- u8(1)", /16-bit|word/],
   ["replace PSW(lowByte(result))", "replace CARRY(1)", /every stored flag/],
-  ["select(sign, u8($80), u8(0))", "select(accumulator, u8($80), u8(0))", /flag accumulator/],
-  ["select(sign, u8($80), u8(0))", "select(sign, u16($80), u8(0))", /equal widths|same width/],
+  ["select(adjustLow, u8($06), u8(0))", "select(original, u8($06), u8(0))", /flag original/],
+  ["select(adjustLow, u8($06), u8(0))", "select(adjustLow, u16($06), u8(0))", /equal widths|same width/],
   ["or(not(lessThan(original, u8($9a), unsigned)), carry)", "or(original, carry)", /flag original/],
 ] as const) test(`8080 word/status syntax rejects ${after}`, () => {
   assert.ok(markdown.includes(before));

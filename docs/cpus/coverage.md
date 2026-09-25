@@ -18,13 +18,13 @@ emulators do not count toward implementation here.
 | Model | Introduced | Transistors (approx.) | Handwritten CPU core lines | Literate spec lines | `cpu` fence lines | Literate / documented forms | Literate instruction coverage | [Literate model milestones](#literate-model-milestones) |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [0](../../src/components/cpus/specifications/8008.md) | [1,436](../../src/components/cpus/specifications/8008.md) | 341 | 250 / 250 | 100% | 6 / 6 |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [0](../../src/components/cpus/specifications/8080.md) | [1,602](../../src/components/cpus/specifications/8080.md) | 512 | 244 / 244 | 100% | 6 / 6 |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [0](../../src/components/cpus/specifications/6800.md) | [1,784](../../src/components/cpus/specifications/6800.md) | 748 | 197 / 197 | 100% | 6 / 6 |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,761](../../src/components/cpus/specifications/6502.md) | 603 | 151 / 151 | 100% | 6 / 6 |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,911](../../src/components/cpus/specifications/z80.md) | 1,509 | 698 / 698 | 100% | 6 / 6 |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,552](../../src/components/cpus/specifications/6809.md) | 1,311 | 268 / 268 | 100% | 6 / 6 |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,075](../../src/components/cpus/specifications/8088.md) | 2,673 | 291 / 291 | 100% | 6 / 6 |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [0](../../src/components/cpus/specifications/68000.md) | [7,724](../../src/components/cpus/specifications/68000.md) | 4,369 | 36,029 / 36,029 | 100% | 6 / 6 |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [0](../../src/components/cpus/specifications/8080.md) | [1,600](../../src/components/cpus/specifications/8080.md) | 510 | 244 / 244 | 100% | 6 / 6 |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [0](../../src/components/cpus/specifications/6800.md) | [1,781](../../src/components/cpus/specifications/6800.md) | 745 | 197 / 197 | 100% | 6 / 6 |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,758](../../src/components/cpus/specifications/6502.md) | 600 | 151 / 151 | 100% | 6 / 6 |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,908](../../src/components/cpus/specifications/z80.md) | 1,506 | 698 / 698 | 100% | 6 / 6 |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,548](../../src/components/cpus/specifications/6809.md) | 1,307 | 268 / 268 | 100% | 6 / 6 |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,059](../../src/components/cpus/specifications/8088.md) | 2,657 | 291 / 291 | 100% | 6 / 6 |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [0](../../src/components/cpus/specifications/68000.md) | [7,725](../../src/components/cpus/specifications/68000.md) | 4,370 | 36,029 / 36,029 | 100% | 6 / 6 |
 
 **Literate instruction coverage** measures documented opcode forms authored in
 executable chapters. This percentage alone does not measure the wider CPU
@@ -129,12 +129,12 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,541 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,541** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 23,845 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,565 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,565** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 23,815 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
-| Generated executable CPU output, counted separately | 604,939 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 999,362 |
+| Generated executable CPU output, counted separately | 604,686 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 998,446 |
 | Generated state schemas/types, counted separately | 213 |
 
 Chapter-data generation compares ordered plain data before formatting a shared

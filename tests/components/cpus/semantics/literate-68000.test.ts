@@ -244,7 +244,7 @@ test("chapter status views preserve reserved bits, every flag/mask combination, 
 
 test("formal edits change bank selection, register execution, and status views without native definitions", async () => {
   const changed = markdown.replace('return select(supervisor, u8(1), u8(0))', 'return select(supervisor, u8(0), u8(1))')
-    .replaceAll('C = 0', 'C = 1').replace('u16($8000)', 'u16($4000)');
+    .replaceAll('C = 0', 'C = 1').replace('pack<8>(trace, 0, supervisor,', 'pack<8>(0, trace, supervisor,');
   const chapter = compile(changed), definitions = Object.fromEntries(Object.values(chapter.families).flat());
   const source = generateInstructions("68000", { move: definitions[0x300f]!, exchange: definitions[0xcf4f]! }, {
     sources: { cpu: { name: "68000", state: chapter.state!, wordBoundary: true }, groups: { views: chapter.views } },

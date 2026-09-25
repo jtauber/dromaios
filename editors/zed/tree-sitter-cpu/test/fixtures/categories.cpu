@@ -400,6 +400,13 @@ source increment<bits: 8, 16> "width-specific addition" (value: bits): bits {
   apply wideFlags<bits>(result)
   return result
 }
+source packed<bits: 3> "captured bits" (high: flag, low: flag): bits {
+  return pack<bits>(high, 0, low)
+}
+view STATUS "packed flags": 8 {
+  carry = flag C
+  return pack<8>(0, 0, 0, 0, 0, 0, 1, carry)
+}
 family incrementByte "00000000" {
   result = source increment<8>(u8(1))
   A <- result
