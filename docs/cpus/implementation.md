@@ -29,7 +29,10 @@ Executable Markdown
 2. [`compile.ts`](../../src/components/cpus/semantics/literate/compile.ts) extracts
    declarations with document locations, resolves names and operand selections,
    and validates types, scopes, effects, and encodings. Diagnostics retain the
-   Markdown filename, line, and column. There is no host-language evaluation.
+   Markdown filename, line, and column, with [family expansion context](literate-specifications.md#reading-and-building-a-chapter)
+   for failures while compiling a family. Both CPU generation commands print
+   chapter diagnostics without internal stack traces; unexpected implementation
+   errors still propagate. There is no host-language evaluation.
 3. [`chapter-data.ts`](../../src/components/cpus/semantics/literate/chapter-data.ts)
    serializes shared definitions into typed constants. The chapter stage also
    emits small stored-state modules, instruction registration, and public-interface

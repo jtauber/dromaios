@@ -196,3 +196,102 @@ page later = $20`, "page later = $20", "end", /collides with an instruction opco
     });
   }
 });
+
+function diagnostic(body: string): ChapterError {
+  try { compile(body); } catch (error) {
+    assert.ok(error instanceof ChapterError);
+    return error;
+  }
+  return assert.fail("Expected a chapter diagnostic.");
+}
+
+test("family diagnostics identify the failing operand codes even when labels match", () => {
+  const body = copies.replace('1 "same label" = register B', '1 "same label" = register W');
+  const error = diagnostic(body);
+  assert.equal(error.file, "families.md");
+  assert.equal(error.line, document(body).split("\n").indexOf("  operand d <- byte") + 1);
+  assert.equal(error.column, 1);
+  assert.deepEqual(error.context, ["family copy", 'encoding "0s0d x000" at families.md:15',
+    'opcode $10 with s=0 ("same label"), d=1 ("same label")']);
+  assert.match(error.detail, /expected 16-bit value/);
+  assert.equal(error.message, `families.md:${error.line}:1: ${error.detail}\n  ${error.context.join("\n  ")}`);
+  let cause = error;
+  while (cause.cause instanceof ChapterError) {
+    const original = cause.cause;
+    assert.deepEqual([original.file, original.line, original.column, original.detail],
+      [error.file, error.line, error.column, error.detail]);
+    cause = original;
+  }
+  assert.deepEqual(cause.context, []);
+  assert.equal(cause.message, `families.md:${error.line}:1: ${error.detail}`);
+});
+
+test("family diagnostics keep the current encoding and page after earlier bindings succeed", () => {
+  const body = `page first = $20
+page nested = $30 on first {
+  offset:8 = read
+  opcode = read
+}
+family load {
+  encoding "0000 00xx" with r = register A
+  encoding "0000 00xx" on nested with r = register W
+  operand r <- u8(1)
+}`;
+  const error = diagnostic(body);
+  assert.equal(error.line, 19);
+  assert.equal(error.column, 1);
+  assert.deepEqual(error.context, ["family load", 'encoding "0000 00xx" at families.md:18',
+    "opcode $203000 on nested"]);
+  assert.match(error.detail, /expected 16-bit value/);
+  // Failed compilations must not leave a family or opcode attached to the next error.
+  const next = diagnostic('family other "1111 1111" {\n  A <- missing\n}');
+  assert.deepEqual(next.context, ["family other", 'encoding "1111 1111" at families.md:11', "opcode $FF"]);
+  assert.match(next.detail, /missing has not been captured/);
+});
+
+test("word diagnostics report separated selector bits and the first included alias", () => {
+  const error = diagnostic(`operands words {
+  00 "A" = register A
+  01 "absent" = unsupported
+  10 "word" = register W
+  11 "word" = register W
+}
+family copy "0000 rxxx 0000 rxxx" for r in words except "0000 1000 0000 0000" {
+  operand r <- u8(1)
+}`);
+  assert.deepEqual(error.context, ["family copy", 'encoding "0000 rxxx 0000 rxxx" at families.md:17',
+    'opcode $0801 with r=10 ("word")']);
+  assert.match(error.detail, /expected 16-bit value/);
+});
+
+test("family header diagnostics supply only the context known before expansion", () => {
+  const cases: readonly [string, readonly string[], RegExp][] = [
+    ['family empty {\n}', ["family empty"], /at least one encoding/],
+    ['family invalid "00" {\n}', ["family invalid", 'encoding "00" at families.md:11'], /eight bits or sixteen bits/],
+    ['family unknown "0000 0000" with byte = missing {\n}',
+      ["family unknown", 'encoding "0000 0000" at families.md:11'], /Unknown name missing/],
+    ['family excluded "0000 0000" except "0000 0001" {\n}',
+      ["family excluded", 'encoding "0000 0000" at families.md:11'], /outside this family/],
+    ['family absent "0000 0000" except "0000 0000" {\n  A <- missing\n}',
+      ["family absent", 'encoding "0000 0000" at families.md:11'], /at least one instruction/],
+  ];
+  for (const [body, context, detail] of cases) {
+    const error = diagnostic(body);
+    assert.deepEqual(error.context, context);
+    assert.match(error.detail, detail);
+  }
+});
+
+test("collision diagnostics include the colliding alias and name-template errors retain their encoding location", () => {
+  const error = diagnostic(`family first "0000 0011" {
+}
+family aliases "0000 00xx" {
+}`);
+  assert.deepEqual(error.context, ["family aliases", 'encoding "0000 00xx" at families.md:13', "opcode $03"]);
+  assert.match(error.detail, /Duplicate opcode \$3/);
+  const invalid = diagnostic(copies.replace('named "copy {s}, {d}"', 'named "copy {missing}"'));
+  assert.equal(invalid.line, 15);
+  assert.deepEqual(invalid.context, ["family copy", 'encoding "0s0d x000" at families.md:15',
+    'opcode $00 with s=0 ("same label"), d=0 ("same label")']);
+  assert.match(invalid.detail, /Unknown name placeholder/);
+});

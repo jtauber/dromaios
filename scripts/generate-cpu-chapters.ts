@@ -7,6 +7,7 @@ import { generateChapterData } from "../src/components/cpus/semantics/literate/c
 import { wordExecutionSources } from "../src/components/cpus/semantics/literate/word-execution.ts";
 import { opcodePageLayouts } from "../src/components/cpus/semantics/opcode-pages.ts";
 import type { CpuChapter } from "../src/components/cpus/semantics/literate/compile.ts";
+import { ChapterError } from "../src/components/cpus/semantics/literate/document.ts";
 
 /** Bind validated chapter data to the shared instruction catalogue. */
 function chapterModule(chapter: CpuChapter, name: string, cpu: string): string {
@@ -112,4 +113,10 @@ export function generateCpuChapters() {
   }));
 }
 
-if (import.meta.main) generateCpuChapters();
+if (import.meta.main) {
+  try { generateCpuChapters(); } catch (error) {
+    if (!(error instanceof ChapterError)) throw error;
+    console.error(error.message);
+    process.exitCode = 1;
+  }
+}

@@ -65,6 +65,13 @@ test("native CPU generation bootstraps without generated files and removes obsol
     const result = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { encoding: "utf8" });
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, new RegExp(`${name}\\.md:\\d+:\\d+: .*(missing|Duplicate stored field)`));
+    assert.doesNotMatch(result.stderr, /\n\s+at .*\(/); // The CLI prints the diagnostic, not an internal stack trace.
+    if (name === "6800") {
+      assert.match(result.stderr, /\n  family LDA\n  encoding "1 r mm 0110" at .*6800\.md:\d+\n  opcode \$86 with r=0 \("A"\), m=00 \("#byte"\)/);
+      const chapters = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-chapters.ts")], { encoding: "utf8" });
+      assert.equal(chapters.status, 1);
+      assert.equal(chapters.stderr, result.stderr);
+    }
     assert.equal(readFileSync(join(output, "6502.ts"), "utf8"), readFileSync("src/components/cpus/generated/6502.ts", "utf8"));
     assert.equal(readFileSync(join(output, "68000-reset.ts"), "utf8"), readFileSync("src/components/cpus/generated/68000-reset.ts", "utf8"));
     assert.equal(readFileSync(join(output, "8008.ts"), "utf8"), readFileSync("src/components/cpus/generated/8008.ts", "utf8"));

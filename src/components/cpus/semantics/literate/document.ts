@@ -8,10 +8,23 @@ export class ChapterError extends Error {
   readonly file: string;
   readonly line: number;
   readonly column: number;
-  constructor(file: string, line: number, column: number, message: string) {
-    super(`${file}:${line}:${column}: ${message}`);
+  readonly detail: string;
+  readonly context: readonly string[];
+  constructor(file: string, line: number, column: number, detail: string, options?: ErrorOptions & { readonly context?: readonly string[] }) {
+    const context = options?.context ?? [];
+    super(`${file}:${line}:${column}: ${detail}${context.map(part => `\n  ${part}`).join("")}`, options);
     this.name = "ChapterError";
     this.file = file; this.line = line; this.column = column;
+    this.detail = detail; this.context = context;
+  }
+}
+
+/** Add authoring context only on failure, preserving the original location and cause. */
+export function chapterContext<T>(describe: () => string, compile: () => T): T {
+  try { return compile(); } catch (error) {
+    if (!(error instanceof ChapterError)) throw error;
+    throw new ChapterError(error.file, error.line, error.column, error.detail,
+      { cause: error, context: [describe(), ...error.context] });
   }
 }
 

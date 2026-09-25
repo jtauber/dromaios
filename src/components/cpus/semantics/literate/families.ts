@@ -5,7 +5,7 @@ import type { CpuDeclaration, Flag, InstructionDefinition, Register, Statement, 
 import { opcodePageLayouts } from "../opcode-pages.ts";
 import type { OpcodePage } from "../opcode-pages.ts";
 import { defineInstruction } from "../validate.ts";
-import { ChapterTokens } from "./document.ts";
+import { chapterContext, ChapterTokens } from "./document.ts";
 import { definitionReference, parameters } from "./expressions.ts";
 import type { ChapterCondition, ChapterOperand, StatementOptions } from "./statements.ts";
 
@@ -44,8 +44,7 @@ export function chapterFamily(header: ChapterTokens, lines: readonly ChapterToke
     body = body.slice(forms.length);
   } else forms.push(header);
 
-  function readEncoding(form: ChapterTokens) {
-    const pattern = form.quoted();
+  function readEncoding(form: ChapterTokens, pattern: string) {
     const pageName = form.take("on") ? form.word() : undefined;
     const page = pageName === undefined ? undefined : opcodePageLayouts(Object.fromEntries(pages)).find(page => page.name === pageName)
       ?? form.fail(`Unknown name ${pageName}.`);
@@ -98,38 +97,55 @@ export function chapterFamily(header: ChapterTokens, lines: readonly ChapterToke
     } while (form.take(","));
     if (form === header) { header.expect("{"); header.end(); } else form.end();
     if (!explanation) form.fail("A family needs an explanatory paragraph before its cpu fence.");
-    return { pattern, prefix, inputs, selectors, boundSources, boundOperands, instructionName, excluded };
+    return { pageName, prefix, inputs, selectors, boundSources, boundOperands, instructionName, excluded };
   }
 
   const definitions: OpcodeEntry<InstructionDefinition>[] = [];
   for (const form of forms) {
-    const firstDefinition = definitions.length;
-    const { pattern, prefix, inputs, selectors, boundSources, boundOperands, instructionName, excluded } = readEncoding(form);
-    const choices = Object.fromEntries([...selectors].map(([selector, { choices }]) => [selector, choices]));
-    const entries = form.checked(() => opcodeFamily(pattern, choices, selected => selected));
-    for (const opcode of excluded) if (!entries.some(([candidate]) => opcode === candidate)) form.fail(`Excluded opcode $${opcode.toString(16)} is outside this family.`);
-    // Ignored bits add encodings, not new bindings. Share only within this encoding declaration.
-    const bodies = new Map<string, InstructionDefinition>();
-    for (const [byte, selected] of entries) {
-      if (excluded.has(byte)) continue;
-      const bindings = bindSelection(selected, selectors, boundSources, boundOperands);
-      if (!bindings) continue;
-      const opcode = prefix === undefined ? byte : prefix * 256 + byte;
-      if (opcodes.has(opcode)) form.fail(`Duplicate opcode $${opcode.toString(16)}.`);
-      opcodes.set(opcode, form);
-      const identity = JSON.stringify(selected);
-      let definition = bodies.get(identity);
-      if (definition === undefined) {
-        const steps = compileBody(body.map(tokens => new ChapterTokens(tokens.source, header.file)), { ...bindings, inputs });
-        definition = form.checked(() => defineInstruction({ cpu, name: instructionName({ ...Object.fromEntries(boundOperands), ...selected }),
-          explanation, ...(Object.keys(inputs).length ? { inputs } : {}), steps }));
-        bodies.set(identity, definition);
+    const pattern = form.quoted();
+    chapterContext(() => `encoding ${JSON.stringify(pattern)} at ${form.file}:${form.source.line}`, () => {
+      const firstDefinition = definitions.length;
+      const { pageName, prefix, inputs, selectors, boundSources, boundOperands, instructionName, excluded } = readEncoding(form, pattern);
+      const choices = Object.fromEntries([...selectors].map(([selector, { choices }]) => [selector, choices]));
+      const entries = form.checked(() => opcodeFamily(pattern, choices, selected => selected));
+      for (const opcode of excluded) if (!entries.some(([candidate]) => opcode === candidate)) form.fail(`Excluded opcode $${opcode.toString(16)} is outside this family.`);
+      // Ignored bits add encodings, not new bindings. Share only within this encoding declaration.
+      const bodies = new Map<string, InstructionDefinition>();
+      for (const [byte, selected] of entries) {
+        if (excluded.has(byte)) continue;
+        const bindings = bindSelection(selected, selectors, boundSources, boundOperands);
+        if (!bindings) continue;
+        const opcode = prefix === undefined ? byte : prefix * 256 + byte;
+        chapterContext(() => selectionDescription(pattern, opcode, selected, selectors, pageName), () => {
+          if (opcodes.has(opcode)) form.fail(`Duplicate opcode $${opcode.toString(16)}.`);
+          opcodes.set(opcode, form);
+          const identity = JSON.stringify(selected);
+          let definition = bodies.get(identity);
+          if (definition === undefined) {
+            const steps = compileBody(body.map(tokens => new ChapterTokens(tokens.source, header.file)), { ...bindings, inputs });
+            definition = form.checked(() => defineInstruction({ cpu, name: instructionName({ ...Object.fromEntries(boundOperands), ...selected }),
+              explanation, ...(Object.keys(inputs).length ? { inputs } : {}), steps }));
+            bodies.set(identity, definition);
+          }
+          definitions.push([opcode, definition]);
+        });
       }
-      definitions.push([opcode, definition]);
-    }
-    if (definitions.length === firstDefinition) form.fail("An encoding must define at least one instruction.");
+      if (definitions.length === firstDefinition) form.fail("An encoding must define at least one instruction.");
+    });
   }
   return definitions;
+}
+
+function selectionDescription(pattern: string, opcode: number, selected: Readonly<Record<string, Selection>>,
+  selectors: ReadonlyMap<string, Selector>, page?: string): string {
+  const digits = pattern.replace(/[\s_]/g, "").length / 4;
+  const fields = [...selectors].map(([name, { choices }]) => {
+    const operand = selected[name]!;
+    const code = choices.indexOf(operand).toString(2).padStart(Math.log2(choices.length), "0");
+    return `${name}=${code} (${JSON.stringify(operand.name)})`;
+  });
+  return `opcode $${opcode.toString(16).toUpperCase().padStart(digits, "0")}${page === undefined ? "" : ` on ${page}`}`
+    + (fields.length ? ` with ${fields.join(", ")}` : "");
 }
 
 /** Bind sources without reading them; unsupported selections emit no opcode. */

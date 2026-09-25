@@ -8,7 +8,7 @@ import { defineInstruction, ownData, validateFlagPolicy, validateInstruction } f
 import { opcodePageLayouts } from "../opcode-pages.ts";
 import type { OpcodePage } from "../opcode-pages.ts";
 import type { WidthParameter } from "./document.ts";
-import { chapterBlocks, chapterBody, ChapterError, ChapterTokens } from "./document.ts";
+import { chapterBlocks, chapterBody, chapterContext, ChapterError, ChapterTokens } from "./document.ts";
 import { definitionReference, expression, flagExpression, parameters, reference, typedExpression, valueType, width } from "./expressions.ts";
 import { chapterSegmentedExecution, checkSegmentedEffects } from "./segmented-execution.ts";
 import { chapterExecution, checkByteExecution } from "./execution.ts";
@@ -324,8 +324,8 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         if (digits === undefined || entries.length + tests.length !== 2 ** digits) header.fail("A catalogue must describe every value of its selector.");
         if (kind === "conditions") conditions.set(name, tests); else catalogues.set(name, entries);
       } else if (kind === "family") {
-        families.set(name, chapterFamily(header, body, name, block.explanation,
-          { cpu, names, registers, flags, catalogues, conditions, sources, pages, opcodes, wordPatterns }, steps));
+        families.set(name, chapterContext(() => `family ${name}`, () => chapterFamily(header, body, name, block.explanation,
+          { cpu, names, registers, flags, catalogues, conditions, sources, pages, opcodes, wordPatterns }, steps)));
       }
     }
   }

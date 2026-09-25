@@ -62,6 +62,25 @@ listing separately with `node scripts/describe-cpu-semantics.ts`. See the
 output ownership, and the complete pipeline. Diagnostics identify the source
 filename, line, and column. There is no TypeScript escape hatch.
 
+When a family fails to compile, the diagnostic also identifies the family and,
+once known, its encoding declaration, opcode, page, and selected operands. For
+example, copying an eight-bit source into a sixteen-bit destination reports:
+
+```text
+families.md:17:1: probe chapter / body / 2 write-register: expected 16-bit value
+  family copy
+  encoding "0s0d x000" at families.md:15
+  opcode $10 with s=0 ("same label"), d=1 ("same label")
+```
+
+The first location is the failing statement; the encoding location identifies
+which form supplied its bindings. Selector codes are binary, as in operand and
+condition catalogues, so even identical display labels remain distinguishable.
+For opcode pages, the hexadecimal key includes the prefixes and final opcode,
+omitting intervening operand bytes. Aliases report the first included opcode
+that fails compilation. Errors before expansion report only the context already
+known; checks across completed families retain their declaration locations.
+
 Examples below are declaration fragments unless explicitly described otherwise;
 read them in a chapter with the referenced state, sources, and policies already
 declared. The [8008 specification](../../src/components/cpus/specifications/8008.md)
