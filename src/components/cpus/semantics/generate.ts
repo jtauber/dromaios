@@ -1,4 +1,4 @@
-import type { AddressExpression, Expression, FlagExpression, InstructionDefinition, SourceDefinitions, Statement, ValueType, Width } from "./model.ts";
+import type { AddressExpression, ArithmeticOperands, Expression, InstructionDefinition, SourceDefinitions, Statement, ValueType, Width } from "./model.ts";
 import { flagValue, readSource, value } from "./model.ts";
 import { defineInstruction } from "./validate.ts";
 import { generatePageBindings } from "./generate-pages.ts";
@@ -10,11 +10,12 @@ import type { OpcodeEntry } from "../opcodes.ts";
 interface CapturedValue { readonly code: string; readonly type: ValueType }
 type CapturedNumber = CapturedValue & { readonly type: Width };
 const typeName = (type: ValueType): string => type === "flag" ? "boolean" : "number";
+const unsigned = (code: string, width: Width): string => width === 32 ? `(${code} >>> 0)` : code;
 type Scope = ReadonlyMap<string, CapturedValue>;
 type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePort" | "deferInterrupt" | "notifyReti" | "reportInterrupt" | "readTest" | "sendEscape"
   | "fetchWord" | "resolveAddress" | "commitAddressUpdates" | "readProgramByte" | "nextAddress" | "jump" | "resetDevices" | "readPendingRegister" | "stageRegister";
 
-/** Compile the bounded experiment to ordinary typed statements, without executing any effects. */
+/** Compile validated definitions to ordinary typed statements, without executing any effects. */
 export function generateInstructions(cpu: string, definitions: Readonly<Record<string, InstructionDefinition>>,
   { opcodeBits = 8, bindOpcodes = false, opcodeAliases = [], pages = {}, sources, state, origin = `semantics/definitions/${cpu}.ts` }: {
     opcodeBits?: 8 | 16 | 24; bindOpcodes?: boolean | readonly number[]; opcodeAliases?: readonly OpcodeEntry<string>[]; pages?: Readonly<Record<string, OpcodePage>>; sources?: SourceDefinitions;
@@ -109,7 +110,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           const fieldMask = (2 ** (expr.high - expr.low + 1) - 1) * 2 ** expr.low;
           const preservedMask = 2 ** original.type - 1 - fieldMask;
           const code = `((${original.code} & 0x${preservedMask.toString(16)}) | (${replacement.code} << ${expr.low}))`;
-          return { code: original.type === 32 ? `(${code} >>> 0)` : code, type: original.type };
+          return { code: unsigned(code, original.type), type: original.type };
         }
         case "extend": return { code: number(expr.value, scope).code, type: expr.width };
         case "truncate": return { code: `(${number(expr.value, scope).code} & 0x${(2 ** expr.width - 1).toString(16)})`, type: expr.width };
@@ -131,7 +132,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           const left = number(expr.left, scope), right = number(expr.right, scope);
           const operator = { "bit-and": "&", "bit-or": "|", "bit-xor": "^" }[expr.kind];
           const code = `(${left.code} ${operator} ${right.code})`;
-          return { code: left.type === 32 ? `(${code} >>> 0)` : code, type: left.type };
+          return { code: unsigned(code, left.type), type: left.type };
         }
         case "concat": {
           const high = number(expr.left, scope), low = number(expr.right, scope);
@@ -144,9 +145,8 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           return { code: expr.signed ? `(${product} ${width === 32 ? ">>> 0" : "& 0xffff"})` : product, type: width };
         }
         case "subtract": case "add-wrap": {
-          const left = number(expr.left, scope), right = number(expr.right, scope);
-          const operation = helper(expr.kind === "subtract" ? "subtract" : "add");
-          return { code: `${operation}(${left.type}, ${left.code}, ${right.code}${incoming(expr.incoming, scope)}).result`, type: left.type };
+          const { code, type } = arithmetic(expr.kind === "subtract" ? "subtract" : "add", expr, scope);
+          return { code: `${code}.result`, type };
         }
         default: throw new Error("Expected a validated numeric expression.");
       }
@@ -154,8 +154,12 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     function evaluated(expr: Expression, type: ValueType | undefined, scope: Scope): CapturedValue {
       return type === "flag" ? { code: flag(expr, scope), type } : number(expr, scope);
     }
-    function incoming(expr: FlagExpression | undefined, scope: Scope): string {
-      return expr === undefined ? "" : `, (${flag(expr, scope)}) ? 1 : 0`;
+    // The ALU call returns both a result and flag facts; callers select the needed property.
+    function arithmetic(operation: "add" | "subtract", expr: ArithmeticOperands, scope: Scope): { readonly code: string; readonly type: Width } {
+      const left = number(expr.left, scope), right = number(expr.right, scope);
+      const name = helper(operation);
+      const incoming = expr.incoming === undefined ? "" : `, (${flag(expr.incoming, scope)}) ? 1 : 0`;
+      return { code: `${name}(${left.type}, ${left.code}, ${right.code}${incoming})`, type: left.type };
     }
     function flag(expr: Expression, scope: Scope): string {
       switch (expr.kind) {
@@ -178,11 +182,10 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
             : `${integer(left, expr.signed)} < ${integer(right, expr.signed)}`;
         }
         case "borrow": case "half-borrow": case "subtract-overflow": case "carry": case "half-carry": case "add-overflow": {
-          const left = number(expr.left, scope), right = number(expr.right, scope);
           const property = { borrow: "borrow", "half-borrow": "halfBorrow", "subtract-overflow": "overflow",
             carry: "carry", "half-carry": "halfCarry", "add-overflow": "overflow" }[expr.kind];
           const operation = ["carry", "half-carry", "add-overflow"].includes(expr.kind) ? "add" : "subtract";
-          return `${helper(operation)}(${left.type}, ${left.code}, ${right.code}${incoming(expr.incoming, scope)}).${property}`;
+          return `${arithmetic(operation, expr, scope).code}.${property}`;
         }
         default: throw new Error("Expected a validated flag expression.");
       }

@@ -24,11 +24,12 @@ export function instructionBodies<Form extends { readonly body: string }>(forms:
 /** Chapter aliases share a named body only when their complete definitions agree. */
 export function instructionAliases(entries: readonly OpcodeEntry<InstructionDefinition>[]) {
   const definitions = new Map<string, InstructionDefinition>();
-  const serialized = new Map<string, string>();
   const opcodeAliases = entries.map(([opcode, definition]): OpcodeEntry<string> => {
-    const text = JSON.stringify(definition), previous = serialized.get(definition.name);
-    if (previous !== undefined && previous !== text) throw new Error(`Conflicting instruction alias ${definition.name}.`);
-    serialized.set(definition.name, text);
+    const previous = definitions.get(definition.name);
+    // Expanded encodings already share immutable definitions; compare data only for distinct objects.
+    if (previous !== undefined && previous !== definition && JSON.stringify(previous) !== JSON.stringify(definition)) {
+      throw new Error(`Conflicting instruction alias ${definition.name}.`);
+    }
     definitions.set(definition.name, definition);
     return [opcode, definition.name];
   });

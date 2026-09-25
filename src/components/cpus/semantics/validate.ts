@@ -88,6 +88,12 @@ function validation(cpu: CpuDeclaration, prefix: string) {
     if (maximum >= ref.length) fail(where, `index may exceed the ${ref.length}-element register array`);
     return elementWidth;
   }
+  function matchingOperands(expr: { readonly left: Expression; readonly right: Expression },
+    scope: ReadonlyMap<string, ValueType>, where: string, message: string): Width {
+    const left = expression(expr.left, scope, where), right = expression(expr.right, scope, where);
+    if (left !== right) fail(where, message);
+    return left;
+  }
   function expression(expr: Expression, scope: ReadonlyMap<string, ValueType>, where: string): Width {
     switch (expr.kind) {
       case "select": {
@@ -147,8 +153,7 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         return bits;
       }
       case "subtract": case "add-wrap": case "concat": case "multiply": case "bit-and": case "bit-or": case "bit-xor": {
-        const left = expression(expr.left, scope, where), right = expression(expr.right, scope, where);
-        if (left !== right) fail(where, "operands must have equal widths; conversions are explicit");
+        const left = matchingOperands(expr, scope, where, "operands must have equal widths; conversions are explicit");
         if (expr.kind === "subtract" || expr.kind === "add-wrap") {
           arithmeticWidth(left, where);
           if (expr.incoming !== undefined) flagExpression(expr.incoming, scope, where);
@@ -186,12 +191,11 @@ function validation(cpu: CpuDeclaration, prefix: string) {
         return;
       }
       case "equal": case "less-than":
-        if (expression(expr.left, scope, where) !== expression(expr.right, scope, where)) fail(where, "comparison operands must have equal widths");
+        matchingOperands(expr, scope, where, "comparison operands must have equal widths");
         if (expr.kind === "less-than" && typeof expr.signed !== "boolean") fail(where, "comparison signedness must be Boolean");
         return;
       case "borrow": case "half-borrow": case "subtract-overflow": case "carry": case "half-carry": case "add-overflow":
-        if (expression(expr.left, scope, where) !== expression(expr.right, scope, where)) fail(where, "flag operands must have equal widths");
-        arithmeticWidth(expression(expr.left, scope, where), where);
+        arithmeticWidth(matchingOperands(expr, scope, where, "flag operands must have equal widths"), where);
         if (expr.incoming !== undefined) flagExpression(expr.incoming, scope, where);
         return;
       default: fail(where, "unknown flag expression");

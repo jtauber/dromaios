@@ -40,47 +40,12 @@ export function expression(tokens: ChapterTokens): NumberExpression {
     return pack(bits, flags);
   }
   if (!tokens.take("(")) return value(name);
-  let result: NumberExpression;
   if (/^u(?:3|8|14|16|32)$/.test(name)) {
     const bits = Number(name.slice(1));
     if (!isWidth(bits)) return tokens.fail("Unsupported literal width.");
-    result = literal(bits, tokens.number());
-  } else if (name === "select") {
-    const condition = flagExpression(tokens); tokens.expect(",");
-    const yes = expression(tokens); tokens.expect(",");
-    result = select(condition, yes, expression(tokens));
-  } else if (name === "highByte" || name === "lowByte") {
-    result = (name === "highByte" ? highByte : lowByte)(expression(tokens));
-  } else if (name === "bits" || name === "withBits") {
-    const contents = expression(tokens); tokens.expect(","); const high = tokens.number(); tokens.expect(",");
-    const low = tokens.number();
-    if (name === "bits") result = bits(contents, high, low);
-    else { tokens.expect(","); result = withBits(contents, high, low, expression(tokens)); }
-  } else if (["extend", "signExtend", "truncate"].includes(name)) {
-    const contents = expression(tokens); tokens.expect(",");
-    const operations = { extend, signExtend, truncate };
-    result = operations[name as keyof typeof operations](contents, width(tokens));
-  } else if (name === "shiftBits") {
-    const contents = expression(tokens); tokens.expect(","); const direction = tokens.word(); tokens.expect(",");
-    if (direction !== "left" && direction !== "right") tokens.fail("Shift direction must be left or right.");
-    result = shiftBits(contents, direction, tokens.number());
-  } else if (name === "shiftLeft" || name === "shiftRight") {
-    const contents = expression(tokens); tokens.expect(",");
-    result = (name === "shiftLeft" ? shiftLeft : shiftRight)(contents, flagExpression(tokens));
-  } else if (name === "add" || name === "subtract") {
-    const left = expression(tokens); tokens.expect(","); const right = expression(tokens);
-    const incoming = tokens.take(",") ? flagExpression(tokens) : undefined;
-    result = (name === "add" ? addWrap : subtract)(left, right, incoming);
-  } else if (name === "multiply") {
-    const left = expression(tokens); tokens.expect(","); const right = expression(tokens);
-    result = multiply(left, right, tokens.take(",") ? signedness(tokens) : false);
-  } else {
-    const operations = { and: bitAnd, or: bitOr, xor: bitXor, concat };
-    if (!Object.hasOwn(operations, name)) tokens.fail(`Unknown numeric operation ${name}.`);
-    const left = expression(tokens); tokens.expect(",");
-    result = operations[name as keyof typeof operations](left, expression(tokens));
+    const result = literal(bits, tokens.number()); tokens.expect(")"); return result;
   }
-  tokens.expect(")"); return result;
+  return operation(tokens, name, "numeric", numericOperations);
 }
 
 /** Flag expressions retain their type, including captured inputs to arithmetic and shifts. */
@@ -90,31 +55,69 @@ export function flagExpression(tokens: ChapterTokens): FlagExpression {
   const name = tokens.word();
   if (name === "true" || name === "false") tokens.fail("Write flag literals as 0 or 1.");
   if (!tokens.take("(")) return flagValue(name);
-  let result: FlagExpression;
-  if (name === "not") result = not(flagExpression(tokens));
-  else if (name === "and" || name === "or" || name === "xor") {
-    const left = flagExpression(tokens); tokens.expect(",");
-    result = { and, or, xor }[name](left, flagExpression(tokens));
-  } else if (name === "equal" || name === "lessThan") {
-    const left = expression(tokens); tokens.expect(","); const right = expression(tokens);
-    if (name === "equal") result = equal(left, right);
-    else { tokens.expect(","); result = lessThan(left, right, signedness(tokens)); }
-  } else if (name === "bit") {
-    const contents = expression(tokens); tokens.expect(",");
-    result = bit(contents, tokens.number());
-  } else if (["carry", "borrow", "halfCarry", "halfBorrow", "addOverflow", "overflow"].includes(name)) {
-    const left = expression(tokens); tokens.expect(","); const right = expression(tokens);
-    const incoming = tokens.take(",") ? flagExpression(tokens) : undefined;
-    const operations = { carry, borrow, halfCarry, halfBorrow, addOverflow, overflow };
-    const operation = operations[name as keyof typeof operations];
-    result = operation(left, right, incoming);
-  } else {
-    const operations = { negative, zero, lowBit, evenParity };
-    if (!Object.hasOwn(operations, name)) tokens.fail(`Unknown flag operation ${name}.`);
-    result = operations[name as keyof typeof operations](expression(tokens));
-  }
-  tokens.expect(")"); return result;
+  return operation(tokens, name, "flag", flagOperations);
 }
+
+type Parser<T> = (tokens: ChapterTokens) => T;
+
+function operation<T>(tokens: ChapterTokens, name: string, type: string, operations: Readonly<Record<string, Parser<T>>>): T {
+  if (!Object.hasOwn(operations, name)) tokens.fail(`Unknown ${type} operation ${name}.`);
+  const result = operations[name]!(tokens); tokens.expect(")"); return result;
+}
+
+function pair<T>(tokens: ChapterTokens, parse: Parser<T>): [T, T] {
+  const left = parse(tokens); tokens.expect(","); return [left, parse(tokens)];
+}
+
+function arithmetic<T>(build: (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression) => T): Parser<T> {
+  return tokens => {
+    const operands = pair(tokens, expression);
+    return build(...operands, tokens.take(",") ? flagExpression(tokens) : undefined);
+  };
+}
+
+function conversion(build: (contents: NumberExpression, width: Width) => NumberExpression): Parser<NumberExpression> {
+  return tokens => { const contents = expression(tokens); tokens.expect(","); return build(contents, width(tokens)); };
+}
+
+function bitRange(tokens: ChapterTokens): [NumberExpression, number, number] {
+  const contents = expression(tokens); tokens.expect(",");
+  const high = tokens.number(); tokens.expect(","); return [contents, high, tokens.number()];
+}
+
+// Each table gives the argument grammar for one result type. In particular,
+// and/or/xor parse numeric operands here and Boolean operands in flagOperations.
+const numericOperations: Readonly<Record<string, Parser<NumberExpression>>> = {
+  highByte: tokens => highByte(expression(tokens)), lowByte: tokens => lowByte(expression(tokens)),
+  and: tokens => bitAnd(...pair(tokens, expression)), or: tokens => bitOr(...pair(tokens, expression)),
+  xor: tokens => bitXor(...pair(tokens, expression)), concat: tokens => concat(...pair(tokens, expression)),
+  add: arithmetic(addWrap), subtract: arithmetic(subtract),
+  extend: conversion(extend), signExtend: conversion(signExtend), truncate: conversion(truncate),
+  bits: tokens => bits(...bitRange(tokens)),
+  withBits: tokens => { const range = bitRange(tokens); tokens.expect(","); return withBits(...range, expression(tokens)); },
+  select: tokens => { const condition = flagExpression(tokens); tokens.expect(","); return select(condition, ...pair(tokens, expression)); },
+  multiply: tokens => multiply(...pair(tokens, expression), tokens.take(",") ? signedness(tokens) : false),
+  shiftLeft: tokens => { const contents = expression(tokens); tokens.expect(","); return shiftLeft(contents, flagExpression(tokens)); },
+  shiftRight: tokens => { const contents = expression(tokens); tokens.expect(","); return shiftRight(contents, flagExpression(tokens)); },
+  shiftBits: tokens => {
+    const contents = expression(tokens); tokens.expect(","); const direction = tokens.word(); tokens.expect(",");
+    if (direction !== "left" && direction !== "right") return tokens.fail("Shift direction must be left or right.");
+    return shiftBits(contents, direction, tokens.number());
+  },
+};
+
+const flagOperations: Readonly<Record<string, Parser<FlagExpression>>> = {
+  not: tokens => not(flagExpression(tokens)),
+  and: tokens => and(...pair(tokens, flagExpression)), or: tokens => or(...pair(tokens, flagExpression)),
+  xor: tokens => xor(...pair(tokens, flagExpression)),
+  negative: tokens => negative(expression(tokens)), zero: tokens => zero(expression(tokens)),
+  lowBit: tokens => lowBit(expression(tokens)), evenParity: tokens => evenParity(expression(tokens)),
+  carry: arithmetic(carry), borrow: arithmetic(borrow),
+  halfCarry: arithmetic(halfCarry), halfBorrow: arithmetic(halfBorrow), addOverflow: arithmetic(addOverflow), overflow: arithmetic(overflow),
+  bit: tokens => { const contents = expression(tokens); tokens.expect(","); return bit(contents, tokens.number()); },
+  equal: tokens => equal(...pair(tokens, expression)),
+  lessThan: tokens => { const operands = pair(tokens, expression); tokens.expect(","); return lessThan(...operands, signedness(tokens)); },
+};
 
 /** Physical projection preserves the distinction between logical words and bus addresses. */
 export function address(tokens: ChapterTokens): AddressExpression {

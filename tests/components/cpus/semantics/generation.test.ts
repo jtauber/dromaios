@@ -53,15 +53,20 @@ test("shared body keys build only their first form and retain encounter order, i
 
 test("chapter aliases preserve named bodies, decoded inputs, and explicit opcode legality", async () => {
   const definition = { ...instructions6502[0xea]!, name: "__proto__", inputs: { contents: 8 as const } };
-  const aliases = instructionAliases([[0xea, definition], [0xeb, structuredClone(definition)]]);
+  const aliases = instructionAliases([[0xea, definition], [0xeb, definition], [0xec, structuredClone(definition)]]);
   assert.deepEqual(Object.keys(aliases.definitions), ["__proto__"]);
-  assert.deepEqual(aliases.opcodeAliases, [[0xea, "__proto__"], [0xeb, "__proto__"]]);
-  assert.throws(() => instructionAliases([[0xea, definition], [0xeb, { ...definition, explanation: "Different definition." }]]), /Conflicting instruction alias/);
+  assert.deepEqual(aliases.opcodeAliases, [[0xea, "__proto__"], [0xeb, "__proto__"], [0xec, "__proto__"]]);
+  for (const changed of [
+    { ...definition, explanation: "Different definition." },
+    { ...definition, inputs: { contents: 16 as const } },
+    { ...definition, steps: [capture("different", literal(8, 1))] },
+  ]) assert.throws(() => instructionAliases([[0xea, definition], [0xeb, definition], [0xec, changed]]), /Conflicting instruction alias/);
   const source = generateInstructions("6502", aliases.definitions, { opcodeAliases: aliases.opcodeAliases });
   const generated = await import(`data:text/javascript,${encodeURIComponent(stripTypeScriptTypes(source))}`);
-  assert.deepEqual(Object.keys(generated.opcodeInstructions), ["234", "235"]);
+  assert.deepEqual(Object.keys(generated.opcodeInstructions), ["234", "235", "236"]);
   assert.equal(generated.opcodeInstructions[0xea], generated.instructions.__proto__);
   assert.equal(generated.opcodeInstructions[0xeb], generated.instructions.__proto__);
+  assert.equal(generated.opcodeInstructions[0xec], generated.instructions.__proto__);
   generated.opcodeInstructions[0xea](mosState(), 42);
   assert.throws(() => generateInstructions("6502", aliases.definitions, { opcodeAliases: [[0xea, "missing"]] }), /no definition/);
   assert.throws(() => generateInstructions("6502", aliases.definitions, { opcodeAliases: [[0xea, "__proto__"], [0xea, "__proto__"]] }), /Duplicate opcode/);

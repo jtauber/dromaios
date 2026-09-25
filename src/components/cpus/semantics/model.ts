@@ -23,7 +23,7 @@ export interface CpuDeclaration {
   readonly retiNotification?: true;
 }
 
-interface ArithmeticOperands {
+export interface ArithmeticOperands {
   readonly left: NumberExpression;
   readonly right: NumberExpression;
   readonly incoming?: FlagExpression;
