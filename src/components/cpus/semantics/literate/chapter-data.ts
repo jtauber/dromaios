@@ -5,24 +5,30 @@ type SharedType = "CpuDeclaration" | "StateFields" | "ValueSource" | "FlagPolicy
 /** Preserve named IR building blocks as typed references instead of expanding them at every use. */
 export function generateChapterData(chapter: CpuChapter): string {
   const declarations: string[] = [], shared = new Map<string, string>();
+  const referencesByType = new Map<SharedType, Map<unknown, string>>();
   const counts = new Map<SharedType, number>();
   const indent = (text: string) => text.replace(/^/gm, "  ");
   const key = (name: string) => name === "__proto__" ? `[${JSON.stringify(name)}]` : JSON.stringify(name);
 
   function reference(type: SharedType, value: unknown): string {
-    // Compare ordered plain data first; only distinct blocks need formatted declarations.
+    // Repeated immutable nodes need no serialization; distinct nodes still compare ordered data.
+    let known = referencesByType.get(type);
+    if (!known) referencesByType.set(type, known = new Map());
+    const previous = known.get(value);
+    if (previous !== undefined) return previous;
     const identity = `${type}:${JSON.stringify(value)}`;
     const existing = shared.get(identity);
-    if (existing !== undefined) return existing;
+    if (existing !== undefined) { known.set(value, existing); return existing; }
     const fields: Record<string, SharedType> = type === "InstructionDefinition" ? { cpu: "CpuDeclaration" }
       : type === "CpuDeclaration" ? { state: "StateFields" } : {};
     const body = render(value, fields);
     const index = counts.get(type) ?? 0;
     const name = type[0]!.toLowerCase() + type.slice(1) + index;
     counts.set(type, index + 1); shared.set(identity, name);
+    known.set(value, name);
     declarations.push(type === "InstructionDefinition"
       ? `const ${name} = defineInstruction(${body});`
-      : `const ${name}: ${type} = ${body};`);
+      : `const ${name} = ownData<${type}>(${body});`);
     return name;
   }
 
@@ -62,7 +68,7 @@ export function generateChapterData(chapter: CpuChapter): string {
     'import type { StateFields } from "../../state.ts";',
     'import type { OpcodeEntry } from "../../opcodes.ts";',
     'import type { ChapterOperand, ChapterCondition } from "../literate/compile.ts";',
-    'import { defineInstruction } from "../validate.ts";', "",
+    'import { defineInstruction, ownData } from "../validate.ts";', "",
     declarations.join("\n\n"), "", exports.join("\n\n"), "",
   ].join("\n");
 }

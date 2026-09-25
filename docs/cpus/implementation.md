@@ -217,9 +217,13 @@ when operand and condition selections match. Ignored bits can add aliases
 without recompiling that body; exclusions and collisions still check every
 opcode. Reuse does not cross declarations or compilations.
 
-Chapter serialization compares ordered plain data before formatting shared
-constants and emits dependencies before users. Equality includes field order
-and execution capabilities, not just names. Only model bindings pass between
+Chapter serialization recognizes repeated objects within each semantic type,
+then compares ordered plain data for distinct objects. These reference caches
+last for one generation call; equality includes field order and execution
+capabilities, not just names. Dependencies are emitted before their users.
+Generated shared constants initialize through `ownData`, preserving sharing
+when the registry loads. Complete instructions still use `defineInstruction`
+and receive independent semantic validation. Only model bindings pass between
 generation stages, allowing the first stage's large instruction graphs to be
 reclaimed before the generated registry loads.
 

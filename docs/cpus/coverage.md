@@ -129,17 +129,18 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,627 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,627** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,633 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,633** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 23,814 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
 | Generated executable CPU output, counted separately | 604,686 |
 | Generated chapter data, catalogues, and entry-point metadata, counted separately | 995,540 |
 | Generated state schemas/types, counted separately | 213 |
 
-Chapter-data generation compares ordered plain data before formatting a shared
-definition and its dependencies. This avoids rendering duplicates just to
-discover they already have a reference. The chapter compiler also reuses frozen
+Chapter-data generation reuses an existing reference when it encounters the same
+object with the same semantic type. Distinct objects still compare ordered plain
+data before formatting a shared definition and its dependencies. These caches
+last for one generation call. The chapter compiler also reuses frozen
 instruction bodies within each encoding declaration when operand and condition
 selections match. The 68000's **54,008 expanded opcode entries** now require
 **9,671 compiled family bodies**. Exclusions and collisions still check every
@@ -153,26 +154,30 @@ objects with the same name still require equal data; conflicting aliases fail.
 Owned declarations and instruction bodies also retain their identity when
 another instruction uses them. The chapter compiler owns shared CPU declarations,
 sources, and policies once; per-instruction validation still checks every use.
+Generated shared constants restore that ownership when the registry loads,
+so loading instructions preserves their shared dependencies.
 
-Local measurements of this ownership change on
+Local measurements of serialization and registry sharing on
 macOS ARM64 with Node 24.20.0, using medians from three fresh processes per version:
 
-| CPU generation stage | Before (`dc00ad4`) | After ownership sharing |
+| CPU generation stage | Before (`86f23f5`) | After registry sharing |
 | --- | ---: | ---: |
-| Compile chapters | 2.48 s | 1.28 s |
-| Serialize chapter modules | 1.65 s | 1.57 s |
-| Load generated instruction registry | 2.02 s | 1.98 s |
-| Emit instruction bodies and lifecycle bindings | 0.20 s | 0.20 s |
-| **Complete CPU generation, including startup and file writes** | **6.45 s** | **5.12 s** |
+| Compile chapters | 1.30 s | 1.29 s |
+| Serialize chapter modules | 1.63 s | 0.63 s |
+| Load generated instruction registry | 2.21 s | 0.80 s |
+| Emit instruction bodies and lifecycle bindings | 0.19 s | 0.20 s |
+| **Complete CPU generation, including startup and file writes** | **5.56 s** | **3.06 s** |
 
 Stage timers surround compilation, chapter-module serialization, registry
-import, and executable emission. Complete generation is **21% faster**, chiefly
-from avoiding repeated copies during chapter compilation, which takes about
-half the time. Median process peak RSS falls from **1,005 to 968 MiB**, measured with
+import, and executable emission. Complete generation is **45% faster**, with the
+gain in serialization and registry loading. Median process peak RSS falls from
+**962 to 921 MiB**, measured with
 `process.resourceUsage().maxRSS`; this is a whole-process peak, not a per-stage
-heap measurement. All **132 checked files**—generated CPU and machine sources
-and the expanded instruction listing—remain byte-identical. These timings cover
-CPU generation, excluding TypeScript compilation and emulator execution.
+heap measurement. Of **132 checked files**, only the eight generated chapter
+initializers change to establish ownership. The other **124 files**, including
+all executable CPU and machine sources and the expanded instruction listing,
+remain byte-identical. These timings cover CPU generation, excluding TypeScript
+compilation and emulator execution.
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
 outside this source count. Generated TypeScript is reproducible build output,

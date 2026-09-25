@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { defineState, flag, group, unsigned } from "../../../../src/components/cpus/state.js";
 import { literal, perform, readSource, updateFlags, value, writeRegister, zero } from "../../../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, InstructionDefinition, ValueSource } from "../../../../src/components/cpus/semantics/model.js";
-import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
+import { defineInstruction, ownData } from "../../../../src/components/cpus/semantics/validate.js";
 import type { CpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { generateChapterData } from "../../../../src/components/cpus/semantics/literate/chapter-data.js";
 
@@ -52,10 +52,10 @@ test("chapter data preserves nested semantics, aliases, quoted text, and argumen
   assert.equal(operand.read, data.sources.source);
   assert.equal(operand.write, data.actions.action);
   assert.equal(Object.isFrozen(data.families.copy![0]![1].steps), true);
-  assert.equal(source.match(/: StateFields =/g)?.length, 1);
-  assert.equal(source.match(/: CpuDeclaration =/g)?.length, 1);
-  assert.equal(source.match(/: ValueSource =/g)?.length, 3);
-  assert.equal(source.match(/: FlagPolicy =/g)?.length, 1);
+  assert.equal(source.match(/ownData<StateFields>/g)?.length, 1);
+  assert.equal(source.match(/ownData<CpuDeclaration>/g)?.length, 1);
+  assert.equal(source.match(/ownData<ValueSource>/g)?.length, 3);
+  assert.equal(source.match(/ownData<FlagPolicy>/g)?.length, 1);
 });
 
 test("chapter data preserves distinct boundary capabilities and record keys without treating them as host syntax", async () => {
@@ -68,6 +68,34 @@ test("chapter data preserves distinct boundary capabilities and record keys with
   assert.equal(Object.hasOwn(data.sources, "__proto__"), true);
   assert.deepEqual(data.families.byte![0]![1].cpu, cpu);
   assert.deepEqual(data.families.word![0]![1].cpu, word.cpu);
+  assert.notEqual(data.families.byte![0]![1].cpu, data.families.word![0]![1].cpu);
+  assert.equal(data.families.byte![0]![1].cpu.state, data.families.word![0]![1].cpu.state);
+});
+
+test("loaded definitions retain shared immutable sources, policies, CPU declarations, and composed actions", async () => {
+  const second = defineInstruction({ ...definition, name: "second" });
+  const { data } = await load({ ...chapter, families: { first: [[0, definition]], second: [[1, second]] } });
+  const first = data.families.first![0]![1], next = data.families.second![0]![1];
+  assert.notEqual(first, next);
+  assert.equal(first.cpu, next.cpu);
+  assert.equal(first.cpu, data.actions.action!.cpu);
+  const [read, update, perform] = first.steps, otherAction = next.steps[2];
+  assert.ok(read?.kind === "read-source" && update?.kind === "update-flags" && perform?.kind === "perform" && otherAction?.kind === "perform");
+  assert.equal(read.source, data.sources.nested);
+  assert.equal(update.policy, data.policies.policy);
+  assert.equal(perform.action, otherAction.action);
+  const [left, right] = read.source.steps;
+  assert.ok(left?.kind === "read-source" && right?.kind === "read-source");
+  assert.equal(left.source, data.sources.source);
+  assert.equal(right.source, data.sources.other);
+  for (const owned of [first.cpu, first.cpu.state, read.source, read.source.steps, read.source.result,
+    update.policy, update.policy.updates, perform.action, perform.action.steps]) {
+    assert.ok(Object.isFrozen(owned));
+    assert.throws(() => Object.assign(owned, { changed: true }), TypeError);
+  }
+  for (const owned of [first.cpu, first.cpu.state, read.source, update.policy, perform.action]) {
+    assert.equal(ownData(owned), owned, "generated constants remain recognized at later ownership boundaries");
+  }
 });
 
 test("chapter data sharing ignores object identity but preserves field order", async () => {
@@ -96,4 +124,13 @@ test("chapter data sharing is local to each generation", async () => {
 test("serialized instruction bodies still pass through independent validation", async () => {
   const invalid: InstructionDefinition = { ...definition, steps: [writeRegister(register, value("missing"))] };
   await assert.rejects(() => load({ ...chapter, families: { invalid: [[0, invalid]] } }), /not been captured/);
+});
+
+test("a shared action cannot bypass standalone instruction validation by reusing its serialized reference", async () => {
+  // Actions execute in the caller's CPU; the same object's own CPU must be checked as an instruction.
+  const shared = ownData({ ...action, cpu: { ...cpu, name: "other" } });
+  const invoking: ValueSource = { name: "invoke action", type: 8,
+    steps: [{ kind: "perform", action: shared, arguments: { source: literal(8, 1) } }], result: literal(8, 0) };
+  defineInstruction({ ...definition, steps: [readSource("result", invoking)] });
+  await assert.rejects(() => load({ ...chapter, sources: { invoking }, actions: {}, families: { invalid: [[0, shared]] } }), /CPU schema/);
 });
