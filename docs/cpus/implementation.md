@@ -91,6 +91,7 @@ Paths below are relative to `src/components/cpus/`.
 | Language expressions and ordered statements | `semantics/literate/expressions.ts`, `statements.ts`, `choose.ts`, `iterations.ts`, `matches.ts` |
 | State, reset, execution, and interface declarations | Corresponding modules under `semantics/literate/` |
 | Typed representation and ownership | `semantics/model.ts`, `builders.ts`, `validate.ts` |
+| Numeric, flag, and address expression emission | `semantics/generate-expressions.ts` |
 | Instruction emission and descriptions | `semantics/generate.ts`, `generate-pages.ts`, `describe.ts` |
 | Opcode expansion and page layouts | `opcodes.ts`, `semantics/opcode-pages.ts` |
 | Stored-state validation and copying | `state.ts` |
@@ -260,6 +261,13 @@ when the registry loads. Complete instructions still use `defineInstruction`
 and receive independent semantic validation. Only model bindings pass between
 generation stages, allowing the first stage's large instruction graphs to be
 reclaimed before the generated registry loads.
+
+[`generate-expressions.ts`](../../src/components/cpus/semantics/generate-expressions.ts)
+renders validated expressions using read-only capture scopes and collects required
+ALU imports. One emitter serves each generated module; every expression receives
+its current scope explicitly. It has no CPU state or instruction context. Ordered
+reads, writes, captures, and control flow remain in `generate.ts`, which also
+owns local naming, capabilities, outcomes, and module assembly.
 
 Keep these optimizations local and behavior-preserving. The
 [footprint report](coverage.md#source-footprint) records measurements and their

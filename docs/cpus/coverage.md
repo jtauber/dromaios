@@ -84,8 +84,8 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,775 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,775** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,785 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,785** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 24,074 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 162 |
 | Generated executable CPU output, counted separately | 604,686 |
@@ -121,28 +121,33 @@ statements, while checking pending blocks against a copy. This reduces statement
 visits during parsing from **2,466,765 to 1,725,181**. Unfinished nested blocks
 and final complete definitions retain their full validation.
 
-Local measurements on macOS ARM64 with Node 24.20.0, using medians from five
-paired runs with a fresh process for each version:
+Expression rendering now has its own module, shared by the instruction, source,
+and decoder emitters. `generate.ts` falls from **505 to 387 lines**, with **128
+lines** in `generate-expressions.ts`: ten additional authored lines overall.
+The separation makes capture scopes and expression types explicit while keeping
+ordered effects in the instruction emitter.
 
-| CPU generation stage | Before (`806627a`) | After advancing statement validation |
+Local measurements of this extraction on macOS ARM64 with Node 24.20.0, using
+medians from five paired runs with a fresh process for each version:
+
+| CPU generation stage | Before (`f3a7611`) | After extracting expression emission |
 | --- | ---: | ---: |
-| Compile chapters | 1.214 s | 1.065 s |
-| Serialize chapter modules | 0.616 s | 0.625 s |
-| Load generated instruction registry | 0.804 s | 0.805 s |
-| Emit instruction bodies and lifecycle bindings | 0.198 s | 0.204 s |
-| **Complete CPU generation, including startup and file writes** | **2.931 s** | **2.809 s** |
+| Compile chapters | 1.251 s | 1.243 s |
+| Serialize chapter modules | 0.670 s | 0.680 s |
+| Load generated instruction registry | 0.927 s | 0.896 s |
+| Emit instruction bodies and lifecycle bindings | 0.229 s | 0.229 s |
+| **Complete CPU generation, including startup and file writes** | **3.186 s** | **3.129 s** |
 
 Stage timers surround compilation, chapter-module serialization, registry
-import, and executable emission. Chapter compilation is about **12% faster**;
-complete generation improves by about **4%**. The other stages do not change
-their algorithms, and their timings vary between runs. Median process peak RSS
-is **916 MiB before and 915 MiB after**, effectively unchanged, measured with
+import, and executable emission. Emission time is effectively unchanged, with no
+observed generation slowdown. The other stages do not change their algorithms,
+and their timings vary between runs. Median process peak RSS is **918 MiB before
+and 917 MiB after**, effectively unchanged, measured with
 `process.resourceUsage().maxRSS`; this is a whole-process peak, not a per-stage
 heap measurement. All **132 checked files**, including generated chapter data,
 executable CPU and machine sources, and the expanded instruction listing,
-remain byte-identical. A comparison of **400 diagnostics** also preserves their
-locations, details, and declaration/family context. These timings cover CPU
-generation, excluding TypeScript compilation and emulator execution.
+remain byte-identical. These timings cover CPU generation, excluding TypeScript
+compilation and emulator execution.
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
 outside this source count. Generated TypeScript is reproducible build output,

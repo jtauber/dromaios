@@ -1,5 +1,7 @@
-import type { AddressExpression, ArithmeticOperands, Expression, InstructionDefinition, SourceDefinitions, Statement, ValueType, Width } from "./model.ts";
+import type { Expression, InstructionDefinition, SourceDefinitions, Statement, ValueType } from "./model.ts";
 import { flagValue, readSource, value } from "./model.ts";
+import { expressionEmitter, integer } from "./generate-expressions.ts";
+import type { EmittedValue } from "./generate-expressions.ts";
 import { defineInstruction } from "./validate.ts";
 import { generatePageBindings } from "./generate-pages.ts";
 import { opcodePageLayouts } from "./opcode-pages.ts";
@@ -7,11 +9,7 @@ import type { OpcodePage } from "./opcode-pages.ts";
 import { opcodeTable } from "../opcodes.ts";
 import type { OpcodeEntry } from "../opcodes.ts";
 
-interface CapturedValue { readonly code: string; readonly type: ValueType }
-type CapturedNumber = CapturedValue & { readonly type: Width };
 const typeName = (type: ValueType): string => type === "flag" ? "boolean" : "number";
-const unsigned = (code: string, width: Width): string => width === 32 ? `(${code} >>> 0)` : code;
-type Scope = ReadonlyMap<string, CapturedValue>;
 type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePort" | "deferInterrupt" | "notifyReti" | "reportInterrupt" | "readTest" | "sendEscape"
   | "fetchWord" | "resolveAddress" | "commitAddressUpdates" | "readProgramByte" | "nextAddress" | "jump" | "resetDevices" | "readPendingRegister" | "stageRegister";
 
@@ -39,6 +37,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
   }), opcodeBits);
   const stateType = state?.name ?? "StoredState";
   const helpers = new Set<string>();
+  const { number, flag, typed, address } = expressionEmitter(helpers);
   const outcomes = new Set<string>();
   let alignmentFaults = false, targetFaults = false;
   const allCapabilities = new Set<Capability>();
@@ -72,7 +71,6 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     let depth = "";
     const emit = (line: string): void => { lines.push(`${indent}  ${depth}${line}`); };
     const local = (hint: string): string => `v${nextValue++}_${hint}`;
-    const helper = (name: string): string => { helpers.add(name); return name; };
     const access = (name: Capability): string => { capabilities.add(name); return `instruction.${name}`; };
     const field = (name: string): string => /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name) ? `.${name}` : `[${JSON.stringify(name)}]`;
     const bank = (ref: { readonly bank?: string }): string => `state${ref.bank === undefined ? "" : field(ref.bank)}`;
@@ -80,124 +78,9 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     const registerKeyLiteral = (ref: { readonly bank?: string; readonly field: string }): string => JSON.stringify(JSON.stringify([ref.bank ?? null, ref.field]));
     const comment = (text: string): void => { emit(`// ${JSON.stringify(text)}`); };
     const reject = (reason: string): string => { rejections.add(reason); outcomes.add(reason); return `return ${JSON.stringify(reason)};`; };
-    const signed = (operand: CapturedNumber): string => `((${operand.code} ^ ${2 ** (operand.type - 1)}) - ${2 ** (operand.type - 1)})`;
-    const integer = (operand: CapturedNumber, isSigned: boolean): string => !isSigned ? operand.code
-      : operand.type === 32 ? `(${operand.code} | 0)` : signed(operand);
-
-    function number(expr: Expression, scope: Scope): CapturedNumber {
-      switch (expr.kind) {
-        case "select": {
-          const yes = number(expr.yes, scope), no = number(expr.no, scope);
-          return { code: `((${flag(expr.condition, scope)}) ? ${yes.code} : ${no.code})`, type: yes.type };
-        }
-        case "value": return scope.get(expr.name)! as CapturedNumber; // Validation has resolved names and types.
-        case "literal": return { code: `0x${expr.value.toString(16)}`, type: expr.width };
-        case "pack": {
-          // Disjoint positive weights also keep bit 31 unsigned, without host bitwise coercion.
-          const terms = expr.bits.map((bit, index) => `((${flag(bit, scope)}) ? 0x${(2 ** (expr.width - index - 1)).toString(16)} : 0)`);
-          return { code: `(${terms.join(" + ")})`, type: expr.width };
-        }
-        case "high-byte": return { code: `(${number(expr.value, scope).code} >>> 8)`, type: 8 };
-        case "low-byte": return { code: `(${number(expr.value, scope).code} & 0xff)`, type: 8 };
-        case "bits": {
-          const width = (expr.high - expr.low + 1) as Width; // Validation checks the range and resulting width.
-          const shifted = `(${number(expr.value, scope).code} >>> ${expr.low})`;
-          return { code: width === 32 ? shifted : `(${shifted} & 0x${(2 ** width - 1).toString(16)})`, type: width };
-        }
-        case "with-bits": {
-          const original = number(expr.value, scope), replacement = number(expr.replacement, scope);
-          // Arithmetic mask construction also covers fields containing bit 31.
-          const fieldMask = (2 ** (expr.high - expr.low + 1) - 1) * 2 ** expr.low;
-          const preservedMask = 2 ** original.type - 1 - fieldMask;
-          const code = `((${original.code} & 0x${preservedMask.toString(16)}) | (${replacement.code} << ${expr.low}))`;
-          return { code: unsigned(code, original.type), type: original.type };
-        }
-        case "extend": return { code: number(expr.value, scope).code, type: expr.width };
-        case "truncate": return { code: `(${number(expr.value, scope).code} & 0x${(2 ** expr.width - 1).toString(16)})`, type: expr.width };
-        case "sign-extend": {
-          const operand = number(expr.value, scope);
-          return { code: expr.width === 32 ? `(${signed(operand)} >>> 0)` : `(${signed(operand)} & ${2 ** expr.width - 1})`, type: expr.width };
-        }
-        case "shift-left": case "shift-right": {
-          const operand = number(expr.value, scope), operation = helper(expr.kind === "shift-left" ? "shiftLeft" : "shiftRight");
-          return { code: `${operation}(${operand.type}, ${operand.code}, (${flag(expr.incoming, scope)}) ? 1 : 0).result`, type: operand.type };
-        }
-        case "shift-bits": {
-          const operand = number(expr.value, scope);
-          return { code: expr.count === 32 ? "0" : expr.direction === "right" ? `(${operand.code} >>> ${expr.count})`
-            : operand.type === 32 ? `((${operand.code} << ${expr.count}) >>> 0)`
-            : `((${operand.code} << ${expr.count}) & 0x${(2 ** operand.type - 1).toString(16)})`, type: operand.type };
-        }
-        case "bit-and": case "bit-or": case "bit-xor": {
-          const left = number(expr.left, scope), right = number(expr.right, scope);
-          const operator = { "bit-and": "&", "bit-or": "|", "bit-xor": "^" }[expr.kind];
-          const code = `(${left.code} ${operator} ${right.code})`;
-          return { code: unsigned(code, left.type), type: left.type };
-        }
-        case "concat": {
-          const high = number(expr.left, scope), low = number(expr.right, scope);
-          return high.type === 8 ? { code: `((${high.code} << 8) | ${low.code})`, type: 16 }
-            : { code: `(${high.code} * 0x10000 + ${low.code})`, type: 32 };
-        }
-        case "multiply": {
-          const left = number(expr.left, scope), right = number(expr.right, scope), width = left.type === 8 ? 16 : 32;
-          const product = `(${integer(left, expr.signed ?? false)} * ${integer(right, expr.signed ?? false)})`;
-          return { code: expr.signed ? `(${product} ${width === 32 ? ">>> 0" : "& 0xffff"})` : product, type: width };
-        }
-        case "subtract": case "add-wrap": {
-          const { code, type } = arithmetic(expr.kind === "subtract" ? "subtract" : "add", expr, scope);
-          return { code: `${code}.result`, type };
-        }
-        default: throw new Error("Expected a validated numeric expression.");
-      }
-    }
-    function evaluated(expr: Expression, type: ValueType | undefined, scope: Scope): CapturedValue {
-      return type === "flag" ? { code: flag(expr, scope), type } : number(expr, scope);
-    }
-    // The ALU call returns both a result and flag facts; callers select the needed property.
-    function arithmetic(operation: "add" | "subtract", expr: ArithmeticOperands, scope: Scope): { readonly code: string; readonly type: Width } {
-      const left = number(expr.left, scope), right = number(expr.right, scope);
-      const name = helper(operation);
-      const incoming = expr.incoming === undefined ? "" : `, (${flag(expr.incoming, scope)}) ? 1 : 0`;
-      return { code: `${name}(${left.type}, ${left.code}, ${right.code}${incoming})`, type: left.type };
-    }
-    function flag(expr: Expression, scope: Scope): string {
-      switch (expr.kind) {
-        case "flag-value": return scope.get(expr.name)!.code;
-        case "flag-literal": return String(expr.value);
-        case "not": return `!(${flag(expr.value, scope)})`;
-        case "xor": return `(${flag(expr.left, scope)}) !== (${flag(expr.right, scope)})`;
-        case "or": return `(${flag(expr.left, scope)}) || (${flag(expr.right, scope)})`;
-        case "and": return `(${flag(expr.left, scope)}) && (${flag(expr.right, scope)})`;
-        case "bit": return `(${number(expr.value, scope).code} & 0x${(2 ** expr.position).toString(16)}) !== 0`;
-        case "negative": case "low-bit": case "zero": case "even-parity": {
-          const value = number(expr.value, scope);
-          if (expr.kind === "negative" || expr.kind === "low-bit") return `(${value.code} & 0x${(expr.kind === "low-bit" ? 1 : 2 ** (value.type - 1)).toString(16)}) !== 0`;
-          if (expr.kind === "zero") return `${value.code} === 0`;
-          return `${helper("evenParity8")}(${value.code})`;
-        }
-        case "equal": case "less-than": {
-          const left = number(expr.left, scope), right = number(expr.right, scope);
-          return expr.kind === "equal" ? `${left.code} === ${right.code}`
-            : `${integer(left, expr.signed)} < ${integer(right, expr.signed)}`;
-        }
-        case "borrow": case "half-borrow": case "subtract-overflow": case "carry": case "half-carry": case "add-overflow": {
-          const property = { borrow: "borrow", "half-borrow": "halfBorrow", "subtract-overflow": "overflow",
-            carry: "carry", "half-carry": "halfCarry", "add-overflow": "overflow" }[expr.kind];
-          const operation = ["carry", "half-carry", "add-overflow"].includes(expr.kind) ? "add" : "subtract";
-          return `${arithmetic(operation, expr, scope).code}.${property}`;
-        }
-        default: throw new Error("Expected a validated flag expression.");
-      }
-    }
-    function address(expr: AddressExpression, scope: Scope): string {
-      return expr.kind === "address-projection"
-        ? `((${number(expr.base, scope).code} * ${2 ** expr.baseShift} + ${number(expr.offset, scope).code}) % ${2 ** expr.addressBits})`
-        : number(expr, scope).code;
-    }
-    function body(steps: readonly Statement[], scope: Map<string, CapturedValue>): void {
+    function body(steps: readonly Statement[], scope: Map<string, EmittedValue>): void {
       for (const step of steps) {
-        let captured: CapturedValue;
+        let captured: EmittedValue;
         switch (step.kind) {
           case "dispatch": case "match": {
             const selector = local("selector"), result = step.kind === "match" ? local(step.name) : undefined;
@@ -208,7 +91,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
               depth += "  ";
               const inner = new Map(scope);
               body(branch.steps, inner);
-              if (step.kind === "match") emit(`${result} = ${evaluated(step.cases[index]!.result, step.type, inner).code};`);
+              if (step.kind === "match") emit(`${result} = ${typed(step.cases[index]!.result, step.type, inner).code};`);
               depth = depth.slice(0, -2); emit("}");
             }
             emit(`else { ${reject("unsupported")} }`);
@@ -217,9 +100,9 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           }
           case "perform": {
             comment(`Action: ${step.action.name}`);
-            const actionScope = new Map<string, CapturedValue>();
+            const actionScope = new Map<string, EmittedValue>();
             for (const [name, type] of Object.entries(step.action.inputs ?? {})) {
-              const argument = evaluated(step.arguments[name]!, type, scope), captured = local(name);
+              const argument = typed(step.arguments[name]!, type, scope), captured = local(name);
               emit(`const ${captured}: ${typeName(argument.type)} = ${argument.code};`);
               actionScope.set(name, { code: captured, type: argument.type });
             }
@@ -235,7 +118,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
               depth += "  ";
               const inner = new Map(scope);
               body(branch.steps, inner);
-              emit(`${result} = ${evaluated(branch.result, step.type, inner).code};`);
+              emit(`${result} = ${typed(branch.result, step.type, inner).code};`);
               depth = depth.slice(0, -2);
             }
             emit("}");
@@ -266,11 +149,10 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           }
           case "iterate-together": {
             const count = local("count"), index = local("iteration"), inner = new Map(scope);
-            const expression = (expr: Expression, type: ValueType, names: Scope) => type === "flag" ? flag(expr, names) : number(expr, names).code;
             emit(`const ${count} = ${number(step.count, scope).code};`);
             const entries = Object.entries(step.values).map(([name, item]) => {
               const code = local(name);
-              emit(`let ${code}: ${item.type === "flag" ? "boolean" : "number"} = ${expression(item.initial, item.type, scope)};`);
+              emit(`let ${code}: ${typeName(item.type)} = ${typed(item.initial, item.type, scope).code};`);
               inner.set(name, { code, type: item.type });
               return { name, code, type: item.type, next: item.next };
             });
@@ -279,7 +161,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
             body(step.steps, inner);
             const updates = entries.map(item => {
               const next = local("next");
-              emit(`const ${next}: ${item.type === "flag" ? "boolean" : "number"} = ${expression(item.next, item.type, inner)};`);
+              emit(`const ${next}: ${typeName(item.type)} = ${typed(item.next, item.type, inner).code};`);
               return `${item.code} = ${next};`;
             });
             updates.forEach(emit);
@@ -310,7 +192,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
             }
             continue;
           }
-          case "capture": captured = evaluated(step.value, step.type, scope); break;
+          case "capture": captured = typed(step.value, step.type, scope); break;
           case "read-register": captured = { code: `${bank(step.register)}${field(step.register.field)}`, type: step.register.width }; break;
           case "read-pending-register": captured = { code: `${access("readPendingRegister")}(${registerKeyLiteral(step.register)}, () => ${bank(step.register)}${field(step.register.field)})`, type: step.register.width }; break;
           case "stage-register":
@@ -355,20 +237,20 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
               for (const capability of decoder.capabilities) capabilities.add(capability);
               rejections.add("unsupported"); outcomes.add("unsupported");
               const decoded = local("decoded");
-              const args = Object.entries(step.source.inputs ?? {}).map(([name, type]) => evaluated(step.arguments![name]!, type, scope).code);
+              const args = Object.entries(step.source.inputs ?? {}).map(([name, type]) => typed(step.arguments![name]!, type, scope).code);
               emit(`const ${decoded} = decoders.${decoder.key}(state${args.map(arg => `, ${arg}`).join("")}${decoder.capabilities.size ? ", instruction" : ""});`);
               emit(`if (${decoded} === "unsupported") return ${decoded};`);
               captured = { code: decoded, type: step.source.type };
               break;
             }
-            const sourceScope = new Map<string, CapturedValue>();
+            const sourceScope = new Map<string, EmittedValue>();
             for (const [name, type] of Object.entries(step.source.inputs ?? {})) {
-              const argument = evaluated(step.arguments![name]!, type, scope), captured = local(name);
+              const argument = typed(step.arguments![name]!, type, scope), captured = local(name);
               emit(`const ${captured}: ${typeName(argument.type)} = ${argument.code};`);
               sourceScope.set(name, { code: captured, type: argument.type });
             }
             body(step.source.steps, sourceScope);
-            captured = evaluated(step.source.result, step.source.type, sourceScope);
+            captured = typed(step.source.result, step.source.type, sourceScope);
             break;
           }
           case "write-register": emit(`${bank(step.register)}${field(step.register.field)} = ${number(step.value, scope).code};`); continue;
@@ -392,10 +274,10 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           case "update-flags": case "replace-flags": {
             comment(`Flags: ${step.policy.name}; ${step.kind === "replace-flags" ? "replace flag object" : "preserve unlisted flags"}`);
             // Arguments are pure expressions in the caller's scope. Evaluate once, before the policy.
-            const parameters = new Map<string, CapturedValue>();
+            const parameters = new Map<string, EmittedValue>();
             for (const name of Object.keys(step.policy.parameters)) {
               const expr = step.arguments[name]!;
-              const argument = step.policy.parameters[name] === "flag" ? { code: flag(expr, scope), type: "flag" as const } : number(expr, scope);
+              const argument = typed(expr, step.policy.parameters[name], scope);
               const code = local(name);
               emit(`const ${code} = ${argument.code};`);
               parameters.set(name, { code, type: argument.type });
@@ -418,7 +300,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
         scope.set(step.name, { code, type: captured.type });
       }
     }
-    const scope = new Map<string, CapturedValue>();
+    const scope = new Map<string, EmittedValue>();
     const parameters = result && !decoderCapabilities ? [] : [`state: ${stateType}`];
     const bound = !result && boundNames.has(name);
     const pageInputs = bound ? prefixes.find(page => page.key === Math.floor(Number(name) / 256))?.operands ?? [] : [];
@@ -431,7 +313,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
       scope.set(name, { code, type });
     }
     body(definition.steps, scope);
-    if (result) emit(`return ${evaluated(result.value, result.type, scope).code};`);
+    if (result) emit(`return ${typed(result.value, result.type, scope).code};`);
     for (const name of capabilities) allCapabilities.add(name);
     for (const name of capabilities) decoderCapabilities?.add(name);
     if (capabilities.size) parameters.push(`instruction: Pick<${contextType(capabilities)}, ${[...capabilities].map(name => JSON.stringify(name)).join(" | ")}>`);
