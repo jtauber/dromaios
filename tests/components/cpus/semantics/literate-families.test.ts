@@ -159,3 +159,40 @@ test("reuse preserves collision checks, excluded bodies, and later binding diagn
     });
   }
 });
+
+test("encoding and body errors retain exact Markdown positions, including deferred page checks", () => {
+  const cases: readonly [string, string, "end" | number, RegExp][] = [
+    [`family copy {
+  encoding "0000 00xx"
+  encoding "0000 001x"
+}`, '  encoding "0000 001x"', "end", /Duplicate opcode \$2/],
+    [`family copy "0000 00xx" except "0000 1000" {
+}`, 'family copy "0000 00xx" except "0000 1000" {', "end", /outside this family/],
+    [`family copy {
+  encoding "0000 0000"
+  encoding "0000 0001" with byte = missing
+}`, '  encoding "0000 0001" with byte = missing', 36, /Unknown name missing/],
+    [`family copy {
+  encoding "0000 0000"
+  encoding "0000 0001"
+  A <- missing
+}`, "  A <- missing", 1, /missing has not been captured/],
+    [`family word "0000 0000 0000 0000" {
+}
+page later = $20`, 'family word "0000 0000 0000 0000" {', "end", /Word opcode patterns/],
+    [`family byte "0010 0000" {
+}
+page later = $20`, "page later = $20", "end", /collides with an instruction opcode/],
+  ];
+  for (const [body, line, column, message] of cases) {
+    const expectedLine = document(body).split("\n").indexOf(line) + 1;
+    assert.throws(() => compile(body), (error: unknown) => {
+      assert.ok(error instanceof ChapterError);
+      assert.equal(error.file, "families.md");
+      assert.equal(error.line, expectedLine);
+      assert.equal(error.column, column === "end" ? line.length + 1 : column);
+      assert.match(error.message, message);
+      return true;
+    });
+  }
+});

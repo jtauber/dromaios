@@ -83,6 +83,7 @@ Paths below are relative to `src/components/cpus/`.
 | Responsibility | Main sources |
 | --- | --- |
 | Markdown extraction and diagnostics | `semantics/literate/document.ts`, `compile.ts` |
+| Instruction-family headers, selector bindings, exclusions, and aliases | `semantics/literate/families.ts` |
 | Language expressions and ordered statements | `semantics/literate/expressions.ts`, `statements.ts`, `choose.ts`, `iterations.ts`, `matches.ts` |
 | State, reset, execution, and interface declarations | Corresponding modules under `semantics/literate/` |
 | Typed representation and ownership | `semantics/model.ts`, `builders.ts`, `validate.ts` |
@@ -216,6 +217,12 @@ Within one encoding declaration, the chapter compiler reuses an immutable body
 when operand and condition selections match. Ignored bits can add aliases
 without recompiling that body; exclusions and collisions still check every
 opcode. Reuse does not cross declarations or compilations.
+
+[`families.ts`](../../src/components/cpus/semantics/literate/families.ts) separates
+encoding-header parsing, selection binding, and instruction expansion. It records
+opcode locations in the chapter's shared index before reusing a body, so aliases
+cannot bypass collision checks. Declaration order and final execution/page checks
+remain in the chapter compiler; retained tokens keep diagnostics in the Markdown.
 
 Chapter serialization recognizes repeated objects within each semantic type,
 then compares ordered plain data for distinct objects. These reference caches

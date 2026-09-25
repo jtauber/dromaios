@@ -1,6 +1,5 @@
 import { chapterWordExecution, checkWordEffects } from "./word-execution.ts";
 import type { StateFields } from "../../state.ts";
-import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
 import type { OpcodeEntry } from "../../opcodes.ts";
 import { memorySource, registerSource } from "../builders.ts";
 import { concat, isWidth, literal, readRegister, readSource, value } from "../model.ts";
@@ -20,11 +19,11 @@ import { chapterInterface } from "./interface.ts";
 import type { ChapterInterface } from "./interface.ts";
 import { chapterState, checkStateSymbol, stateSymbol } from "./state.ts";
 import { chapterStatements } from "./statements.ts";
+import { chapterFamily } from "./families.ts";
+import type { FamilyBindings } from "./families.ts";
 import type { ActionCapability, ChapterCondition, ChapterOperand, StatementOptions } from "./statements.ts";
 export type { ChapterCondition, ChapterOperand } from "./statements.ts";
 
-type Selection = ChapterOperand | ChapterCondition;
-interface Selector { readonly choices: readonly Selection[]; readonly view: "read" | "address" | "operand" }
 export interface CpuChapter {
   readonly cpu: string;
   /** Present only when the chapter owns its complete stored-state schema. */
@@ -85,11 +84,7 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
     }
     return symbol;
   }
-  function steps(lines: readonly ChapterTokens[], options: StatementOptions & {
-    readonly bindings?: ReadonlyMap<string, ValueSource>;
-    readonly operands?: ReadonlyMap<string, ChapterOperand>;
-    readonly conditions?: ReadonlyMap<string, ChapterCondition>;
-  } = {}) {
+  function steps(lines: readonly ChapterTokens[], options: StatementOptions & Partial<FamilyBindings> = {}) {
     return chapterStatements(lines, { cpu, registers, arrays, latches, choices, flags, flagGroups, policies, actions, catalogues,
       sources: options.bindings ?? sources, operands: options.operands ?? new Map(), conditions: options.conditions ?? new Map() }, options);
   }
@@ -329,103 +324,8 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
         if (digits === undefined || entries.length + tests.length !== 2 ** digits) header.fail("A catalogue must describe every value of its selector.");
         if (kind === "conditions") conditions.set(name, tests); else catalogues.set(name, entries);
       } else if (kind === "family") {
-        const familyInputs = parameters(header);
-        const forms: ChapterTokens[] = [], definitions: OpcodeEntry<InstructionDefinition>[] = [];
-        if (header.next === "{") {
-          open();
-          while (body[0]?.take("encoding")) forms.push(body.shift()!);
-          if (!forms.length) header.fail("A family needs at least one encoding.");
-        } else forms.push(header);
-        for (const form of forms) {
-          const firstDefinition = definitions.length;
-          const pattern = form.quoted();
-          const pageName = form.take("on") ? form.word() : undefined;
-          const page = pageName === undefined ? undefined : opcodePageLayouts(Object.fromEntries(pages)).find(page => page.name === pageName)
-            ?? form.fail(`Unknown name ${pageName}.`);
-          const prefix = page?.key;
-          const inputs = { ...familyInputs };
-          for (const name of page?.operands ?? []) {
-            if (Object.hasOwn(inputs, name)) form.fail(`Duplicate family/page input ${name}.`);
-            inputs[name] = 8;
-          }
-          if (pattern.replace(/[\s_]/g, "").length === 16) wordPatterns.push(form);
-          if ((prefix !== undefined || pages.size) && pattern.replace(/[\s_]/g, "").length !== 8) form.fail("Opcode pages require eight-bit patterns.");
-          const selectors = new Map<string, Selector>();
-          if (form.take("for")) do {
-            const selector = form.word(); form.expect("in");
-            const choices = form.lookup(new Map<string, readonly Selection[]>([...catalogues, ...conditions]));
-            const requested = form.take(".") ? form.word() : "operand";
-            if (selectors.has(selector)) form.fail(`Duplicate selector ${selector}.`);
-            if (names.has(selector) || registers.has(selector) || flags.has(selector) || Object.hasOwn(inputs, selector)) form.fail("A family selector must not shadow a source or other declaration.");
-            const view = requested === "read" || requested === "address" || requested === "operand" ? requested
-              : form.fail("Select a catalogue with .read, .address, or no suffix for operands.");
-            if (view !== "operand" && choices[0]?.kind === "condition") form.fail("Conditions have no numeric source view.");
-            selectors.set(selector, { choices, view });
-          } while (form.take(","));
-          const boundSources = new Map(sources), boundOperands = new Map<string, ChapterOperand>(), aliases = new Set<string>();
-          if (form.take("with")) do {
-            const alias = form.word(); form.expect("=");
-            if (names.has(alias) || registers.has(alias) || flags.has(alias) || selectors.has(alias) || aliases.has(alias) || Object.hasOwn(inputs, alias)) {
-              form.fail(`Source binding ${alias} must not shadow a declaration or another binding.`);
-            }
-            aliases.add(alias);
-            if (form.take("register")) {
-              const reference = form.reference(), register = registers.get(reference) ?? form.fail(`Unknown register ${reference}.`);
-              boundOperands.set(alias, { kind: "register", name: reference, register, read: registerSource(register) });
-            } else boundSources.set(alias, definitionReference(form, sources));
-          } while (form.take(","));
-          const template = form.take("named") ? form.quoted() : undefined;
-          if (template === undefined && selectors.size > 1) form.fail("A multi-selector family needs an explicit instruction name template.");
-          // Substitution happens once over authored text; braces in operand labels stay literal.
-          const instructionName = (selected: Readonly<Record<string, Selection>>) => template === undefined
-            ? [name, ...Object.values(selected).map(operand => operand.name)].join(" ")
-            : template.replace(/\{([^{}]*)\}|[{}]/g, (placeholder, field: string | undefined) =>
-              field !== undefined && Object.hasOwn(selected, field) ? selected[field]!.name : form.fail(`Unknown name placeholder ${placeholder}.`));
-          const excluded = new Set<number>();
-          if (form.take("except")) do {
-            for (const [opcode] of form.checked(() => opcodePattern(form.quoted(), undefined))) {
-              if (excluded.has(opcode)) form.fail(`Duplicate exclusion $${opcode.toString(16)}.`);
-              excluded.add(opcode);
-            }
-          } while (form.take(","));
-          if (form === header) open(); else form.end();
-          if (!block.explanation) form.fail("A family needs an explanatory paragraph before its cpu fence.");
-          const choices = Object.fromEntries([...selectors].map(([selector, { choices }]) => [selector, choices]));
-          const entries = form.checked(() => opcodeFamily(pattern, choices, selected => selected));
-          for (const opcode of excluded) if (!entries.some(([candidate]) => opcode === candidate)) form.fail(`Excluded opcode $${opcode.toString(16)} is outside this family.`);
-          // Ignored bits add encodings, not new bindings. Share only within this encoding declaration.
-          const bodies = new Map<string, InstructionDefinition>();
-          for (const [byte, selected] of entries) {
-            if (excluded.has(byte)) continue;
-            const opcode = prefix === undefined ? byte : prefix * 256 + byte;
-            const bindings = new Map(boundSources), operands = new Map(boundOperands);
-            const selectedConditions = new Map<string, ChapterCondition>();
-            let available = true;
-            for (const [selector, { view }] of selectors) {
-              const operand = selected[selector]!;
-              if (operand.kind === "unsupported") { available = false; break; }
-              if (operand.kind === "condition") selectedConditions.set(selector, operand);
-              else if (view === "operand") operands.set(selector, operand);
-              else if (view === "read") bindings.set(selector, operand.read);
-              else if (operand.kind === "memory") bindings.set(selector, operand.address);
-              else available = false; // Only memory operands supply an address view.
-            }
-            if (!available) continue;
-            if (opcodes.has(opcode)) form.fail(`Duplicate opcode $${opcode.toString(16)}.`);
-            opcodes.set(opcode, form);
-            const identity = JSON.stringify(selected);
-            let definition = bodies.get(identity);
-            if (definition === undefined) {
-              const bodySteps = steps(body.map(tokens => new ChapterTokens(tokens.source, file)), { bindings, operands, conditions: selectedConditions, inputs });
-              definition = form.checked(() => defineInstruction({ cpu, name: instructionName({ ...Object.fromEntries(boundOperands), ...selected }),
-                explanation: block.explanation, ...(Object.keys(inputs).length ? { inputs } : {}), steps: bodySteps }));
-              bodies.set(identity, definition);
-            }
-            definitions.push([opcode, definition]);
-          }
-          if (definitions.length === firstDefinition) form.fail("An encoding must define at least one instruction.");
-        }
-        families.set(name, definitions);
+        families.set(name, chapterFamily(header, body, name, block.explanation,
+          { cpu, names, registers, flags, catalogues, conditions, sources, pages, opcodes, wordPatterns }, steps));
       }
     }
   }

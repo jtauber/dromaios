@@ -129,8 +129,8 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,633 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,633** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,682 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,682** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 23,814 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
 | Generated executable CPU output, counted separately | 604,686 |
