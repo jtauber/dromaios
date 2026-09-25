@@ -814,6 +814,7 @@ Numeric expressions are capture names, explicitly sized literals such as
 | `shiftLeft(value, bit)`, `shiftRight(value, bit)` | Shift one place, inserting the flag expression at the vacated end. |
 | `select(condition, yes, no)` | Choose between two equal-width numeric expressions using a flag expression. |
 | `pack<width>(bits...)` | Form an unsigned value from exactly `width` flag expressions, most significant bit first. |
+| `bits(value, high, low)` | Extract an inclusive bit range as an unsigned value of width `high - low + 1`. |
 | `concat(high, low)` | Join two equal-width values, with high first. |
 | `extend(value, width)`, `signExtend(value, width)`, `truncate(value, width)` | Widen unsigned, widen signed, or narrow explicitly. |
 | `highByte(word)` | Extract bits 15–8 of a sixteen-bit word. |
@@ -840,6 +841,20 @@ Even a set bit 31 produces an unsigned value. Packing never reads state itself:
 keep the preceding flag reads in the processor's required order, independently
 of their positions in the result. The [packing tests](../../tests/components/cpus/semantics/literate-pack.test.ts)
 check bit order, fixed bits, Boolean composition, explicit reads, and diagnostics.
+
+Use `bits(contents, 10, 8)` for a field identified by its bit positions, such as
+the 68000 interrupt mask. Bounds are bare integer constants, decimal or
+`$`-prefixed hexadecimal; bit zero is the least significant bit. Both bounds
+must lie within the operand, with `high >= low`. The resulting width must be
+one of the supported numeric widths (`3`, `8`, `14`, `16`, `32`); use `bit`
+for a single Boolean bit. A full-width range is allowed and remains unsigned,
+including `bits(value, 31, 0)` on a 32-bit value. Narrow fields require explicit
+extension when used in wider expressions, for example
+`extend(bits(postbyte, 5, 3), 8)`. Existing `highByte` and `lowByte` operations
+remain useful when byte roles explain the intent. Extraction reads only its
+captured operand, and every width specialization checks the same bounds.
+The [bit-field tests](../../tests/components/cpus/semantics/literate-bit-fields.test.ts)
+check every supported range, nested calculations, capture ordering, and errors.
 
 A policy has zero or more typed parameters and named flag updates. Parameters
 can be numeric widths or `flag`:

@@ -98,6 +98,11 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
         }
         case "high-byte": return { code: `(${number(expr.value, scope).code} >>> 8)`, type: 8 };
         case "low-byte": return { code: `(${number(expr.value, scope).code} & 0xff)`, type: 8 };
+        case "bits": {
+          const width = (expr.high - expr.low + 1) as Width; // Validation checks the range and resulting width.
+          const shifted = `(${number(expr.value, scope).code} >>> ${expr.low})`;
+          return { code: width === 32 ? shifted : `(${shifted} & 0x${(2 ** width - 1).toString(16)})`, type: width };
+        }
         case "extend": return { code: number(expr.value, scope).code, type: expr.width };
         case "truncate": return { code: `(${number(expr.value, scope).code} & 0x${(2 ** expr.width - 1).toString(16)})`, type: expr.width };
         case "sign-extend": {

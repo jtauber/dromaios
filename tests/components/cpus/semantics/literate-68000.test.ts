@@ -203,8 +203,8 @@ for (const [name, before, after, message] of invalid) test(`68000 chapter reject
 });
 
 test("formal edits to byte order and flag constants change the generated word store", async () => {
-  const changed = markdown.replace("memory(address) <- truncate(shiftBits(contents, right, 8), 8)", "memory(address) <- truncate(contents, 8)")
-    .replace("memory(add(address, u32(1))) <- truncate(contents, 8)", "memory(add(address, u32(1))) <- truncate(shiftBits(contents, right, 8), 8)")
+  const changed = markdown.replace("memory(address) <- bits(contents, 15, 8)", "memory(address) <- truncate(contents, 8)")
+    .replace("memory(add(address, u32(1))) <- truncate(contents, 8)", "memory(add(address, u32(1))) <- bits(contents, 15, 8)")
     .replaceAll("C = 0", "C = 1");
   const definition = compile(changed).families.operandMove16DataMemory![0]![1];
   const alu = new URL("../../../../src/components/cpus/alu.js", import.meta.url).href;

@@ -403,6 +403,9 @@ source increment<bits: 8, 16> "width-specific addition" (value: bits): bits {
 source packed<bits: 3> "captured bits" (high: flag, low: flag): bits {
   return pack<bits>(high, 0, low)
 }
+source selector<bits: 16, 32> "three-bit field" (input: bits): 3 {
+  return bits(input, 10, 8)
+}
 view STATUS "packed flags": 8 {
   carry = flag C
   return pack<8>(0, 0, 0, 0, 0, 0, 1, carry)

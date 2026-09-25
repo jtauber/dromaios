@@ -1,4 +1,4 @@
-import { addOverflow, addWrap, and, or, xor, select, bit, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
+import { addOverflow, addWrap, and, or, xor, select, bit, bits, bitAnd, bitOr, bitXor, borrow, carry, concat, evenParity, extend, flagLiteral,
   equal, flagValue, halfBorrow, halfCarry, highByte, isWidth, lessThan, literal, lowBit, lowByte, multiply, negative, not, shiftLeft, shiftRight,
   overflow, pack, projectAddress, shiftBits, signExtend, subtract, truncate, value, zero } from "../model.ts";
 import type { AddressExpression, Expression, FlagExpression, NumberExpression, ValueType, Width } from "../model.ts";
@@ -51,6 +51,9 @@ export function expression(tokens: ChapterTokens): NumberExpression {
     result = select(condition, yes, expression(tokens));
   } else if (name === "highByte" || name === "lowByte") {
     result = (name === "highByte" ? highByte : lowByte)(expression(tokens));
+  } else if (name === "bits") {
+    const contents = expression(tokens); tokens.expect(","); const high = tokens.number(); tokens.expect(",");
+    result = bits(contents, high, tokens.number());
   } else if (["extend", "signExtend", "truncate"].includes(name)) {
     const contents = expression(tokens); tokens.expect(",");
     const operations = { extend, signExtend, truncate };
