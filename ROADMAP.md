@@ -11,9 +11,8 @@ Every commit requires maintainer review and an explicit go-ahead.
 The introductory examples were built in the order **8080 → 6502 → 6809**.
 All eight initial targets now have **complete documented opcode coverage** and
 use shared instruction definitions that generate execution and explanations.
-The [capability audit](docs/cpus/coverage.md#cpu-only-checkpoint-review) records
-the earlier CPU-only checkpoint; [CPU implementation coverage](docs/cpus/coverage.md)
-tracks current support, source footprint, and remaining fidelity limits.
+[CPU implementation coverage](docs/cpus/coverage.md) tracks current support,
+source footprint, validation evidence, and remaining fidelity limits.
 
 All eight CPU models are now authored in executable literate specifications.
 The immediate focus is to improve the clarity and elegance of the specification
@@ -69,8 +68,8 @@ CPUs. Their specifications own instructions, state, reset, execution, external
 events, and public interfaces. The
 [literate specification guide](docs/cpus/literate-specifications.md) describes
 the implemented language; the
-[coverage report](docs/cpus/coverage.md#literate-authoring-milestone) records
-the completed migration and current source footprint.
+[coverage report](docs/cpus/coverage.md#model-ownership-and-validation) records
+model ownership, validation evidence, and current source footprint.
 
 The next few days focus on refinement, in this order:
 
@@ -104,23 +103,12 @@ Judge changes by
 
 ### CPU-only checkpoint
 
-The initial eight targets are **Intel 8008, Intel 8080, Motorola 6800, MOS 6502,
-Zilog Z80, Motorola 6809, Intel 8088, and Motorola 68000**. Each now has:
-
-- Explicit state, detached snapshots, instruction stepping, and a defined reset
-  contract.
-- Representative loads and stores, arithmetic, and logic.
-- Branches, calls and returns, and the CPU's own stack conventions.
-- A useful combined CPU-and-RAM program with independently checked execution
-  records and bounded running through the shared runner.
-
-The [checkpoint audit](docs/cpus/coverage.md#cpu-only-checkpoint-review)
-records evidence for all eight. This was an intermediate capability milestone;
-complete opcode coverage and external-event support followed it.
-
-The [example catalog](docs/README.md#cpu-examples) links to the introductory
-and combined programs, their behavior specifications, and acceptance checks.
-Further examples can continue to test the models and their shared interfaces.
+This completed checkpoint established explicit state, detached snapshots,
+stepping, reset, and combined CPU-and-RAM programs for all eight initial targets.
+Those programs exercised arithmetic, memory, branches, calls/returns, and native
+stack conventions through the shared runner. The [example catalog](docs/README.md#cpu-examples)
+links their specifications and independent acceptance checks. Complete opcode
+coverage and external-event support followed this intermediate milestone.
 
 ### Complete opcode coverage for all eight
 

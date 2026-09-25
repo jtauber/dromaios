@@ -70,9 +70,28 @@ when a value has no valid interpretation under that encoding.
   inspection without execution side effects.
 
 The [architecture](architecture.md#model-contracts-and-example-specifications)
-defines the observation boundary. The
-[6502 reference notes](cpus/6502/reference-notes.md#explanations-and-inspection-preserve-captured-facts-now-add-views-later)
-give a concrete example of why inspection must preserve machine behavior.
+defines the observation boundary.
+
+### Inspection without side effects
+
+A recorded check of the pinned [Apple II explainer][apple2-explainer] demonstrates
+the risk of reconstructing an operation through ordinary reads. With
+`8D 10 C0` (`STA $C010`) at `$0200`, PC=`0200`, keyboard data=`C1`, and the
+strobe set, calling `Explain.explain(memory, cpu)` alone changes the data to
+`41` and clears the strobe. PC is unchanged: merely explaining the store reads
+its destination. The [memory controller][apple2-memory] has a separate `peek()`
+path, but the explainer and disassembler use `read()`.
+
+The pinned [CoCo watchpoint implementation][coco-memory] similarly rereads
+instruction bytes through the normal path, which routes reads to PIAs.
+These are useful regression cases for future inspection views: completed-step
+explanations should consume captured records, while previews need an explicit
+side-effect-free inspection path. An unavailable preview must not perform a
+device read to fill the gap.
+
+[apple2-explainer]: https://github.com/jtauber/dromaios-apple2/blob/569baf98006f61e80ed93c36aa4f8d9ae23011d3/js/explain.js
+[apple2-memory]: https://github.com/jtauber/dromaios-apple2/blob/569baf98006f61e80ed93c36aa4f8d9ae23011d3/js/apple2.js#L199-L252
+[coco-memory]: https://github.com/jtauber/dromaios-coco/blob/099aeb7c54f0a3d27299bcad490ad883ead9fa6f/js/mem.js
 
 ## Reusable instruments and lessons
 

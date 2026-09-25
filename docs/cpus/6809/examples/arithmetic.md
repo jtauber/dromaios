@@ -206,7 +206,7 @@ The tests cover:
 
 These links are HTML transcriptions of the manufacturer manual. The
 [model contract](../../../../src/components/cpus/specifications/6809.md#references) cites reset and prefix references;
-the [CoCo reference notes](../reference-notes.md) record implementation ideas
+the [CoCo reference comparisons](../../../../src/components/cpus/specifications/6809.md#reference-comparisons) record implementation ideas
 from the earlier emulator. Initial values and completion are example choices.
 
 [model]: https://www.maddes.net/m6809pm/sections.htm

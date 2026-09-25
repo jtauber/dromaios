@@ -114,6 +114,6 @@ endpoint. Editing the saved inner return address redirects RET immediately;
 changing JNE's displacement to `FE` makes a bounded run stop at its instruction
 budget. These are instruction-level accesses without prefetch or cycle claims.
 
-The [reference notes](../reference-notes.md#stack-and-control-flow-comparison)
+The [reference comparisons](../../../../src/components/cpus/specifications/8088.md#segment-boundaries-and-original-chip-behavior)
 record the matching 39-step run in `dromaios-pc`, independent hardware tests,
 and the separate PUSH SP and segment-boundary regressions.

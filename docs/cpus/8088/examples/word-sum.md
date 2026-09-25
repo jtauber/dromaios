@@ -8,7 +8,7 @@ through DS:[BX+SI], and restores the array base through SS:[BP-2].
 [Machine definition](../../../../src/machines/8088/word-sum-example.machine) ·
 [Example tests](../../../../tests/machines/8088/word-sum-example.test.ts) ·
 [CPU coverage](../../coverage.md#8088) ·
-[Reference comparison](../reference-notes.md#arithmetic-logic-and-modrm-comparison)
+[Reference comparison](../../../../src/components/cpus/specifications/8088.md#reference-comparisons)
 
 All addresses and data below are hexadecimal; instruction counts are decimal.
 The program completes in **76 instructions**, at CS:IP=`1234:022A`, physical

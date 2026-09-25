@@ -46,7 +46,9 @@ All eight are complete executable specifications. Each keeps its stored state,
 initialization, snapshots, execution records, unsupported-instruction policies,
 reset contract, and hardware references alongside the formal definitions.
 Coverage stays in the combined tracker, while program behavior and acceptance
-criteria belong with the examples.
+criteria belong with the examples. Chapters retain pinned reference comparisons
+and their limitations alongside hardware sources. Some earlier reference
+repositories are private; their GitHub links require access.
 
 ## CPU examples
 
@@ -94,18 +96,3 @@ examples add polling and consuming input reads with the same devices.
   fixed regions, address translation, and explicit bus faults.
 - [Language reference](machines/language.md): syntax, hexadecimal notation,
   CPU state fields, validation, and diagnostics.
-
-## Reference notes
-
-- [6502: applepy and dromaios-apple2](cpus/6502/reference-notes.md): implementation
-  ideas, inspection pitfalls, and topics to revisit.
-- [6809: dromaios-coco](cpus/6809/reference-notes.md):
-  findings from the existing CoCo implementation and their limits.
-- [8088: dromaios-pc](cpus/8088/reference-notes.md): register views, segmented
-  addresses, reset differences, and independent hardware-test comparisons.
-- [68000: dromaios-mac](cpus/68000/reference-notes.md): original-68000 state,
-  big-endian accesses, reset, and instruction boundaries.
-
-These notes record evidence and design ideas from earlier projects. The CPU
-and example specifications cite hardware documentation for expected behavior.
-Several reference repositories are private; their GitHub links require access.

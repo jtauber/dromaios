@@ -11,8 +11,8 @@ will be organized for learning, exploration, and reference as support develops.
 - Use **TypeScript** for the implementation and shared instruction definitions.
   Develop literate CPU authoring through executable chapters and shared runtimes; see
   [implementation language and future definition languages](../architecture.md#implementation-language-and-future-definition-languages).
-  [Editor tooling](../../editors/zed/README.md) currently follows the machine
-  definition syntax; CPU DSL editor support will follow its eventual language design.
+  [Editor tooling](../../editors/zed/README.md) supports both the machine
+  language and executable `cpu` fences.
 - The introductory examples were built in the order **8080 → 6502 → 6809**
   to inform shared CPU and inspection interfaces.
 - Apply a **rule of three**: use evidence from three distinct architectures to
@@ -23,8 +23,8 @@ will be organized for learning, exploration, and reference as support develops.
 - The **eight initial CPU targets** meet the roadmap's
   [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint): Intel 8008,
   Intel 8080, Motorola 6800, MOS 6502, Zilog Z80, Motorola 6809, Intel 8088,
-  and Motorola 68000. The [capability audit](coverage.md#cpu-only-checkpoint-review)
-  records the evidence across their models and combined examples.
+  and Motorola 68000. The [validation overview](coverage.md#model-ownership-and-validation)
+  links the evidence across their models and combined examples.
 - All eight have complete documented opcode coverage and instruction-definition
   migration, including their interrupt, exception, and I/O contracts. The
   [coverage tracker](coverage.md) owns support details and source footprint,
@@ -46,13 +46,13 @@ will be organized for learning, exploration, and reference as support develops.
 - The **8088 was the seventh CPU**. Its [model contract](../../src/components/cpus/specifications/8088.md) separates
   logical segment:offset addresses from physical RAM addresses, and derives
   byte-register views from stored words. Its [arithmetic example](8088/examples/arithmetic.md)
-  exercises the shared runner without changes. The [PC reference review](8088/reference-notes.md)
-  records comparisons with `dromaios-pc` and hardware-generated instruction tests.
+  exercises the shared runner without changes. Its [reference comparisons](../../src/components/cpus/specifications/8088.md#reference-comparisons)
+  cover `dromaios-pc` and hardware-generated instruction tests.
 - The **68000 was the eighth CPU**. Its [model contract](../../src/components/cpus/specifications/68000.md) preserves
   32-bit registers on a 24-bit bus and derives the active stack pointer from
   user/supervisor state. Its [arithmetic example](68000/examples/arithmetic.md)
   uses word encodings and big-endian long operands. The
-  [Mac reference review](68000/reference-notes.md) records findings from `dromaios-mac`.
+  [reference comparisons](../../src/components/cpus/specifications/68000.md#reference-comparisons) retain findings from `dromaios-mac`.
 - Choose implementation order independently of the microcomputer tutorial's
   historical teaching order.
 
@@ -180,7 +180,7 @@ The [coverage tracker](coverage.md) records instruction-definition coverage,
 source footprint, supported features, and remaining limits. The
 [model contracts](../README.md#cpu-models) define state, execution records,
 and reset; [example specifications](../README.md#cpu-examples) define programs
-and acceptance checks. The [CoCo reference review](6809/reference-notes.md)
+and acceptance checks. The [CoCo comparison](../../src/components/cpus/specifications/6809.md#reference-comparisons)
 records ideas from the earlier implementation. Focused examples and comparison
 of the models continue to test shared execution and inspection conventions.
 The [specification questions](../architecture.md#model-contracts-and-example-specifications)

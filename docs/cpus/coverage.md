@@ -3,9 +3,9 @@
 All eight initial CPU models now implement **100% of their documented opcode
 forms through [shared, inspectable instruction definitions](instruction-semantics.md)**
 that generate executable code and explanations. Their whole declared models
-are authored in literate chapters. The table records that completed milestone
-and the current source footprint; it does not measure hardware fidelity or
-future language work. Detailed opcode inventories and counting rules follow.
+are authored in literate chapters. The table records current support and source
+footprint; it does not measure hardware fidelity or future language work.
+Detailed opcode inventories and counting rules follow.
 
 Update this document whenever literate authoring, CPU support, or source footprint changes.
 The [model contracts](../README.md#cpu-models) define state and execution policies;
@@ -15,25 +15,22 @@ emulators do not count toward implementation here.
 
 ## At a glance
 
-| Model | Introduced | Transistors (approx.) | Handwritten CPU core lines | Literate spec lines | `cpu` fence lines | Literate / documented forms | Literate instruction coverage | [Literate model milestones](#literate-model-milestones) |
-| --- | --- | ---: | ---: | ---: | ---: | --- | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [0](../../src/components/cpus/specifications/8008.md) | [1,436](../../src/components/cpus/specifications/8008.md) | 341 | 250 / 250 | 100% | 6 / 6 |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [0](../../src/components/cpus/specifications/8080.md) | [1,600](../../src/components/cpus/specifications/8080.md) | 510 | 244 / 244 | 100% | 6 / 6 |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [0](../../src/components/cpus/specifications/6800.md) | [1,781](../../src/components/cpus/specifications/6800.md) | 745 | 197 / 197 | 100% | 6 / 6 |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,758](../../src/components/cpus/specifications/6502.md) | 600 | 151 / 151 | 100% | 6 / 6 |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,908](../../src/components/cpus/specifications/z80.md) | 1,506 | 698 / 698 | 100% | 6 / 6 |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,548](../../src/components/cpus/specifications/6809.md) | 1,307 | 268 / 268 | 100% | 6 / 6 |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,058](../../src/components/cpus/specifications/8088.md) | 2,657 | 291 / 291 | 100% | 6 / 6 |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [0](../../src/components/cpus/specifications/68000.md) | [7,725](../../src/components/cpus/specifications/68000.md) | 4,370 | 36,029 / 36,029 | 100% | 6 / 6 |
+| Model | Introduced | Transistors (approx.) | Handwritten CPU core lines | Literate spec lines | `cpu` fence lines | Literate / documented forms | Literate instruction coverage |
+| --- | --- | ---: | ---: | ---: | ---: | --- | --- |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [0](../../src/components/cpus/specifications/8008.md) | [1,436](../../src/components/cpus/specifications/8008.md) | 341 | 250 / 250 | 100% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [0](../../src/components/cpus/specifications/8080.md) | [1,600](../../src/components/cpus/specifications/8080.md) | 510 | 244 / 244 | 100% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [0](../../src/components/cpus/specifications/6800.md) | [1,781](../../src/components/cpus/specifications/6800.md) | 745 | 197 / 197 | 100% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,785](../../src/components/cpus/specifications/6502.md) | 600 | 151 / 151 | 100% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,908](../../src/components/cpus/specifications/z80.md) | 1,506 | 698 / 698 | 100% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,573](../../src/components/cpus/specifications/6809.md) | 1,307 | 268 / 268 | 100% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,172](../../src/components/cpus/specifications/8088.md) | 2,657 | 291 / 291 | 100% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [0](../../src/components/cpus/specifications/68000.md) | [7,819](../../src/components/cpus/specifications/68000.md) | 4,370 | 36,029 / 36,029 | 100% |
 
 **Literate instruction coverage** measures documented opcode forms authored in
 executable chapters. This percentage alone does not measure the wider CPU
-model. All eight chapters also own all model milestones and generate their
-public interfaces; each is its CPU's sole processor-specific implementation source.
-
-**Literate model milestones** count whole model areas owned by chapters, using
-the six criteria below. All eight CPUs are at **6 / 6**: instructions,
-stored state, register views, reset effects, normal execution, and external events.
+model. Each chapter is its CPU's sole processor-specific implementation source;
+see [model ownership and validation](#model-ownership-and-validation) for the
+whole-model contract.
 
 **Literate spec lines** count whole Markdown chapters under
 `src/components/cpus/specifications/`, including prose, diagrams, formal blocks,
@@ -57,68 +54,26 @@ chapters' policies. See [source footprint](#source-footprint) for the wider
 maintained-source count and [the 8008 file map](implementation.md#following-the-8008-files)
 for the roles of its generated files.
 
-## Literate model milestones
+## Model ownership and validation
 
-A milestone counts only when executable chapters determine the complete
-behavior for that area, production execution uses the generated definitions,
-independent checks establish the model contract, and the equivalent handwritten
-CPU policy has been removed. Shared runtime machinery for validation, guarding,
-access recording, and snapshot assembly may remain TypeScript; processor-specific
-choices must come from the chapter.
-
-| Milestone | What the chapter must own | 8008 | 8080 | 6502 | 6800 | 6809 | Z80 | 8088 | 68000 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Complete instruction definitions and encodings | Every documented opcode form and its behavior at the model's declared fidelity | [Complete](../../src/components/cpus/specifications/8008.md) | [Complete](../../src/components/cpus/specifications/8080.md#checks-and-examples) | [Complete](../../src/components/cpus/specifications/6502.md#checks-and-examples) | [Complete](../../src/components/cpus/specifications/6800.md#checks-and-examples) | [Complete](../../src/components/cpus/specifications/6809.md#checks-and-examples) | [Complete](../../src/components/cpus/specifications/z80.md#checks-and-limits) | [Complete](../../src/components/cpus/specifications/8088.md#checks-and-limits) | [Complete](../../src/components/cpus/specifications/68000.md#checks-and-limits) |
-| Stored-state schema | All stored fields, types, widths, and array lengths | [Complete](../../src/components/cpus/specifications/8008.md#stored-state) | [Complete](../../src/components/cpus/specifications/8080.md#stored-state) | [Complete](../../src/components/cpus/specifications/6502.md#stored-state) | [Complete](../../src/components/cpus/specifications/6800.md#stored-state) | [Complete](../../src/components/cpus/specifications/6809.md#stored-state) | [Complete](../../src/components/cpus/specifications/z80.md#stored-state) | [Complete](../../src/components/cpus/specifications/8088.md#stored-state) | [Complete](../../src/components/cpus/specifications/68000.md#stored-state) |
-| Derived register views and writes | Computed registers, aliases, and their write rules | [Complete](../../src/components/cpus/specifications/8008.md#register-views) | [Complete](../../src/components/cpus/specifications/8080.md#register-views-and-counter-writes) | [Complete](../../src/components/cpus/specifications/6502.md#status-as-a-byte) | [Complete](../../src/components/cpus/specifications/6800.md#condition-codes-as-a-byte) | [Complete](../../src/components/cpus/specifications/6809.md#register-views-and-writes) | [Complete](../../src/components/cpus/specifications/z80.md#pair-and-status-views) | [Complete](../../src/components/cpus/specifications/8088.md#byte-views-and-writes) | [Complete](../../src/components/cpus/specifications/68000.md#effective-address-decoding) |
-| Reset effects | State changes, preservation rules, and any reset-time device or memory effects | [Complete](../../src/components/cpus/specifications/8008.md#reset) | [Complete](../../src/components/cpus/specifications/8080.md#reset) | [Complete](../../src/components/cpus/specifications/6502.md#reset-and-instruction-boundaries) | [Complete](../../src/components/cpus/specifications/6800.md#reset-and-instruction-boundaries) | [Complete](../../src/components/cpus/specifications/6809.md#reset-and-external-entry) | [Complete](../../src/components/cpus/specifications/z80.md#reset-and-execution) | [Complete](../../src/components/cpus/specifications/8088.md#reset-and-execution-lifecycle) | [Complete](../../src/components/cpus/specifications/68000.md#external-reset) |
-| Normal execution | Fetching, decoding/dispatch, stopping, retirement, and failure policies | [Complete](../../src/components/cpus/specifications/8008.md#execution-and-interrupt-acceptance) | [Complete](../../src/components/cpus/specifications/8080.md#instruction-boundaries-and-interrupt-acceptance) | [Complete](../../src/components/cpus/specifications/6502.md#reset-and-instruction-boundaries) | [Complete](../../src/components/cpus/specifications/6800.md#reset-and-instruction-boundaries) | [Complete](../../src/components/cpus/specifications/6809.md#execution-and-public-interface) | [Complete](../../src/components/cpus/specifications/z80.md#reset-and-execution) | [Complete](../../src/components/cpus/specifications/8088.md#reset-and-execution-lifecycle) | [Complete](../../src/components/cpus/specifications/68000.md#fetching-dispatch-and-retirement) |
-| External events | Interrupt/exception acceptance, entry, and externally supplied execution, as applicable | [Complete](../../src/components/cpus/specifications/8008.md#execution-and-interrupt-acceptance) | [Complete](../../src/components/cpus/specifications/8080.md#instruction-boundaries-and-interrupt-acceptance) | [Complete](../../src/components/cpus/specifications/6502.md#external-interrupt-entry) | [Complete](../../src/components/cpus/specifications/6800.md#waiting-and-external-interrupt-delivery) | [Complete](../../src/components/cpus/specifications/6809.md#execution-and-public-interface) | [Complete](../../src/components/cpus/specifications/z80.md#execution-and-public-interface) | [Complete](../../src/components/cpus/specifications/8088.md#external-interrupt-delivery) | [Complete](../../src/components/cpus/specifications/68000.md#exception-frames-and-external-events) |
-
-These are milestones, not equally sized units of work, so the count is not
-converted into a percentage. They cover each CPU's existing instruction-level
-model; completing them does not add cycle timing or machine devices to its scope.
-The [language guide](literate-specifications.md) describes supported syntax and
-the remaining authoring boundaries.
-
-## Literate authoring milestone
-
-All eight chapters own every model area above and generate their public classes,
-state types, snapshots, execution bindings, and integration metadata. No
-CPU-specific handwritten implementation remains. The milestone table links to
-the definitions and independent checks for each model.
+All eight executable chapters own instruction definitions and encodings, stored
+state, derived register views and writes, reset, normal execution, and external
+events. They also generate their public classes, snapshots, and integration
+metadata. Shared validation, access recording, guarding, and execution runtimes
+remain TypeScript; processor-specific policies come from the chapters.
 
 [Chapter integration tests](../../tests/scripts/chapter-model-integration.test.ts)
 verify that formal edits reach construction, snapshots, machine parsing, and
 execution. [Literate language tests](../../tests/components/cpus/semantics)
-exercise syntax, diagnostics, and effect ordering. The [design notes](design.md)
-define the next generality test: adding a processor with the language and runtime
-held fixed. Completed authoring percentages do not measure that future work.
+exercise syntax, diagnostics, and effect ordering. Each [CPU chapter](../README.md#cpu-models)
+links to independent behavior checks and states its fidelity limits.
+The [example catalog](../README.md#cpu-examples) links complete programs to their
+acceptance tests, including combined arithmetic, memory, stack, and control-flow
+traces through the shared runner, with snapshot restoration and bounded execution.
 
-## CPU-only checkpoint review
-
-The September 2026 audit found that all eight models meet the
-[roadmap's capability criteria](../../ROADMAP.md#cpu-only-checkpoint).
-Each has validated explicit state, detached snapshots, instruction stepping,
-and a defined reset contract, with independent CPU tests. Each also implements
-loads/stores, arithmetic/logic, branches, calls/returns, and its native stack
-conventions. The programs below exercise those capabilities through the shared
-runner, including pause/resume and reset or reconstruction.
-
-| CPU | Combined program evidence |
-| --- | --- |
-| 8008 | [Control flow](../../tests/machines/8008/control-flow-example.test.ts): conditional paths, internal address stack, memory result, and halt |
-| 8080 | [Control flow](../../tests/machines/8080/control-flow-example.test.ts): calls, conditional jumps, memory result, and halt |
-| 6502 | [Subroutines](../../tests/machines/6502/subroutines-example.test.ts): nested calls, page-one stack wrapping, memory result, and completion |
-| 6800 | [Word transformation](../../tests/machines/6800/word-transform-example.test.ts) and [stack](../../tests/machines/6800/stack-example.test.ts): arithmetic, shifts, conditional execution, and native calls/returns |
-| Z80 | [Bit count](../../tests/machines/z80/bit-count-example.test.ts): nested calls, bit operations, memory results, and halt |
-| 6809 | [Sum of squares](../../tests/machines/6809/sum-of-squares-example.test.ts): stack locals, arithmetic, conditional looping, and completion |
-| 8088 | [Decimal buffer](../../tests/machines/8088/decimal-buffer-example.test.ts): wrapped words, repetition, far calls/returns, formatting, and halt |
-| 68000 | [Decimal pipeline](../../tests/machines/68000/decimal-pipeline-example.test.ts) and [control flow](../../tests/machines/68000/control-flow-example.test.ts): decimal arithmetic, transfers, status, nested calls, and stopping |
-
-These programs establish the roadmap's capability checkpoint, not complete
-processor accuracy. Opcode inventories, declared fidelity, and independent
-hardware checks remain distinct evidence.
+Complete authoring does not imply cycle accuracy or prove that another processor
+can be added without extending the language. The [design probes](design.md#proving-specification-only-additions)
+define that separate test of generality.
 
 ## Source footprint
 
@@ -131,7 +86,7 @@ judging source reduction; all counts include comments and blank lines.
 | CPU-specific instruction definition files | 0 |
 | Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,682 |
 | **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,682** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 23,814 |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,074 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 148 |
 | Generated executable CPU output, counted separately | 604,686 |
 | Generated chapter data, catalogues, and entry-point metadata, counted separately | 995,540 |
@@ -195,7 +150,7 @@ documented operand choice, with behavior and failure boundaries verified.
 
 This measures authoring coverage, not effort, source reduction, test coverage,
 or processor accuracy. State, reset, external events, and execution are separate
-[model milestones](#literate-model-milestones); timing remains outside the
+[model areas](#model-ownership-and-validation); timing remains outside the
 current models' declared fidelity.
 
 An opcode form is a specific encoding, including its addressing form. For
@@ -1369,8 +1324,8 @@ its counting rules when implementation starts.
 When support changes, update the relevant opcode rows, complete and partial
 counts, percentages, restrictions, and feature status in the same change.
 When chapter ownership changes, update the literate instruction counts and
-[model milestones](#literate-model-milestones), linking to the definitions and
-checks that establish completion. Partial areas do not earn milestone credit.
+[model ownership](#model-ownership-and-validation), linking to the definitions
+and checks that establish the supported behavior.
 Refresh chapter, fence, and shared-source counts whenever their authored files
 change. All eight public CPU modules are generated, so handwritten core lines
 remain zero unless a new CPU introduces a handwritten implementation.
