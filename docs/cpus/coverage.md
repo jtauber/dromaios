@@ -84,8 +84,8 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,785 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,785** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,809 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,809** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 24,074 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 162 |
 | Generated executable CPU output, counted separately | 604,686 |
@@ -121,28 +121,30 @@ statements, while checking pending blocks against a copy. This reduces statement
 visits during parsing from **2,466,765 to 1,725,181**. Unfinished nested blocks
 and final complete definitions retain their full validation.
 
-Expression rendering now has its own module, shared by the instruction, source,
-and decoder emitters. `generate.ts` falls from **505 to 387 lines**, with **128
-lines** in `generate-expressions.ts`: ten additional authored lines overall.
-The separation makes capture scopes and expression types explicit while keeping
-ordered effects in the instruction emitter.
+Expression rendering has its own **128-line** module, shared by the instruction,
+source, and decoder emitters. The **411-line** `generate.ts` retains ordered
+effects and returns each compiled method's code, context requirements, and
+possible outcomes. Module assembly collects those requirements as methods finish,
+retaining only their code; shared decoders keep their results for later callers.
+Making these results explicit adds **24 authored lines**. Method and module
+return types use the same formatter.
 
-Local measurements of this extraction on macOS ARM64 with Node 24.20.0, using
+Local measurements of this refactor on macOS ARM64 with Node 24.20.0, using
 medians from five paired runs with a fresh process for each version:
 
-| CPU generation stage | Before (`f3a7611`) | After extracting expression emission |
+| CPU generation stage | Before (`75704ea`) | After returning method requirements |
 | --- | ---: | ---: |
-| Compile chapters | 1.251 s | 1.243 s |
-| Serialize chapter modules | 0.670 s | 0.680 s |
-| Load generated instruction registry | 0.927 s | 0.896 s |
-| Emit instruction bodies and lifecycle bindings | 0.229 s | 0.229 s |
-| **Complete CPU generation, including startup and file writes** | **3.186 s** | **3.129 s** |
+| Compile chapters | 1.152 s | 1.154 s |
+| Serialize chapter modules | 0.640 s | 0.648 s |
+| Load generated instruction registry | 0.866 s | 0.867 s |
+| Emit instruction bodies and lifecycle bindings | 0.216 s | 0.204 s |
+| **Complete CPU generation, including startup and file writes** | **2.980 s** | **2.997 s** |
 
 Stage timers surround compilation, chapter-module serialization, registry
-import, and executable emission. Emission time is effectively unchanged, with no
-observed generation slowdown. The other stages do not change their algorithms,
-and their timings vary between runs. Median process peak RSS is **918 MiB before
-and 917 MiB after**, effectively unchanged, measured with
+import, and executable emission. Emission shows no observed slowdown; complete
+generation remains roughly **3.0 seconds** in both versions. The other stages
+do not change their algorithms, and their timings vary between runs. Median
+process peak RSS is **914 MiB before and 915 MiB after**, effectively unchanged, measured with
 `process.resourceUsage().maxRSS`; this is a whole-process peak, not a per-stage
 heap measurement. All **132 checked files**, including generated chapter data,
 executable CPU and machine sources, and the expanded instruction listing,

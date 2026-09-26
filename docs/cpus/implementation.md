@@ -267,7 +267,12 @@ renders validated expressions using read-only capture scopes and collects requir
 ALU imports. One emitter serves each generated module; every expression receives
 its current scope explicitly. It has no CPU state or instruction context. Ordered
 reads, writes, captures, and control flow remain in `generate.ts`, which also
-owns local naming, capabilities, outcomes, and module assembly.
+owns local naming and module assembly. Each compiled instruction, source reader,
+or decoder returns its code, required context operations, and possible outcomes.
+Callers inherit shared decoders' context requirements; module assembly combines
+the completed methods' requirements for imports and opcode bindings. Method
+signatures retain their own requirements. Reader and decoder roles are explicit:
+readers close over bound state, while decoders receive it as an argument.
 
 Keep these optimizations local and behavior-preserving. The
 [footprint report](coverage.md#source-footprint) records measurements and their

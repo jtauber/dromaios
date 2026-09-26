@@ -13,6 +13,20 @@ const typeName = (type: ValueType): string => type === "flag" ? "boolean" : "num
 type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePort" | "deferInterrupt" | "notifyReti" | "reportInterrupt" | "readTest" | "sendEscape"
   | "fetchWord" | "resolveAddress" | "commitAddressUpdates" | "readProgramByte" | "nextAddress" | "jump" | "resetDevices" | "readPendingRegister" | "stageRegister";
 
+interface Outcomes {
+  readonly rejections: ReadonlySet<string>;
+  readonly alignmentFaults: boolean;
+  readonly targetFaults: boolean;
+}
+interface CompiledMethod {
+  readonly code: string;
+  readonly capabilities: ReadonlySet<Capability>;
+  readonly outcomes: Outcomes;
+}
+const outcomeType = (result: string, outcomes: Outcomes): string => [result,
+  ...[...outcomes.rejections].map(reason => JSON.stringify(reason)),
+  ...(outcomes.alignmentFaults ? ["OperandAlignmentFault"] : []), ...(outcomes.targetFaults ? ["TargetAlignmentFault"] : [])].join(" | ");
+
 /** Compile validated definitions to ordinary typed statements, without executing any effects. */
 export function generateInstructions(cpu: string, definitions: Readonly<Record<string, InstructionDefinition>>,
   { opcodeBits = 8, bindOpcodes = false, opcodeAliases = [], pages = {}, sources, state, origin = `semantics/definitions/${cpu}.ts` }: {
@@ -38,11 +52,9 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
   const stateType = state?.name ?? "StoredState";
   const helpers = new Set<string>();
   const { number, flag, typed, address } = expressionEmitter(helpers);
-  const outcomes = new Set<string>();
-  let alignmentFaults = false, targetFaults = false;
-  const allCapabilities = new Set<Capability>();
   // Decoders are shared generated functions; ordinary straight-line sources still inline.
-  const decoders = new Map<string, { key: string; code: string; capabilities: Set<Capability> }>();
+  const decoderIndices = new Map<string, number>();
+  const decoders: CompiledMethod[] = [];
   const irqDeferral = Object.values(definitions).some(definition => definition.cpu.irqDeferral === true);
   const contextExtensions: readonly { name: string; type?: string; file: string; capabilities: readonly Capability[] }[] = [
     { name: "BytePorts", file: "port-access", capabilities: ["readPort", "writePort"] },
@@ -58,14 +70,13 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
   ];
   const extensions = (capabilities: ReadonlySet<Capability>) => contextExtensions.filter(extension => extension.capabilities.some(name => capabilities.has(name)));
   const contextType = (capabilities: ReadonlySet<Capability>) => "ByteInstructionContext" + extensions(capabilities).map(extension => " & " + (extension.type ?? extension.name)).join("");
-  function compile(name: string, input: InstructionDefinition, result?: { readonly value: Expression; readonly type: ValueType },
-    decoderCapabilities?: Set<Capability>): string {
+  function compile(name: string, input: InstructionDefinition,
+    result?: { readonly kind: "reader" | "decoder"; readonly value: Expression; readonly type: ValueType }): CompiledMethod {
     const definition = defineInstruction(input);
     if (definition.cpu.name !== cpu) throw new Error(`${name}: expected a ${cpu} definition.`);
     const lines: string[] = [];
     const capabilities = new Set<Capability>();
-    const rejections = new Set<string>();
-    let rejectsAlignment = false, rejectsTarget = false;
+    const outcomes = { rejections: new Set<string>(), alignmentFaults: false, targetFaults: false };
     let nextValue = 0;
     const indent = result ? "      " : "  ";
     let depth = "";
@@ -77,7 +88,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     // The encoded path distinguishes root fields from equally named fields in groups.
     const registerKeyLiteral = (ref: { readonly bank?: string; readonly field: string }): string => JSON.stringify(JSON.stringify([ref.bank ?? null, ref.field]));
     const comment = (text: string): void => { emit(`// ${JSON.stringify(text)}`); };
-    const reject = (reason: string): string => { rejections.add(reason); outcomes.add(reason); return `return ${JSON.stringify(reason)};`; };
+    const reject = (reason: string): string => { outcomes.rejections.add(reason); return `return ${JSON.stringify(reason)};`; };
     function body(steps: readonly Statement[], scope: Map<string, EmittedValue>): void {
       for (const step of steps) {
         let captured: EmittedValue;
@@ -216,8 +227,8 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           case "resolve-address": captured = { code: `${access("resolveAddress")}(${step.size}, ${number(step.mode, scope).code}, ${number(step.code, scope).code})`, type: 32 }; break;
           case "commit-address-updates": emit(`${access("commitAddressUpdates")}();`); continue;
           case "alignment-fault":
-            if (step.operation === "fetch") targetFaults = rejectsTarget = true;
-            else alignmentFaults = rejectsAlignment = true;
+            if (step.operation === "fetch") outcomes.targetFaults = true;
+            else outcomes.alignmentFaults = true;
             emit(`return { operation: ${JSON.stringify(step.operation)}, address: ${number(step.address, scope).code}${step.operation === "read" ? `, programSpace: ${step.space === "program"}` : ""} };`);
             continue;
           case "read-program-memory": captured = { code: `${access("readProgramByte")}(${number(step.address, scope).code})`, type: 8 }; break;
@@ -227,18 +238,22 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
             comment(`Source: ${step.source.name}`);
             if (step.source.steps.some(step => step.kind === "match")) {
               const identity = JSON.stringify(step.source);
-              let decoder = decoders.get(identity);
-              if (!decoder) {
-                decoder = { key: `decode${decoders.size}`, code: "", capabilities: new Set<Capability>() };
-                decoders.set(identity, decoder);
-                decoder.code = compile(decoder.key, { cpu: definition.cpu, name: step.source.name,
-                  explanation: "Reusable byte decoding.", ...(step.source.inputs ? { inputs: step.source.inputs } : {}), steps: step.source.steps }, { value: step.source.result, type: step.source.type }, decoder.capabilities);
+              let index = decoderIndices.get(identity);
+              if (index === undefined) {
+                index = decoderIndices.size;
+                // Reserve the name and output position before compiling any nested decoders.
+                decoderIndices.set(identity, index);
+                decoders[index] = compile(`decode${index}`, { cpu: definition.cpu, name: step.source.name,
+                  explanation: "Reusable byte decoding.", ...(step.source.inputs ? { inputs: step.source.inputs } : {}), steps: step.source.steps },
+                { kind: "decoder", value: step.source.result, type: step.source.type });
               }
+              const decoder = decoders[index]!;
               for (const capability of decoder.capabilities) capabilities.add(capability);
-              rejections.add("unsupported"); outcomes.add("unsupported");
+              // Validation permits only match rejection in a value source.
+              outcomes.rejections.add("unsupported");
               const decoded = local("decoded");
               const args = Object.entries(step.source.inputs ?? {}).map(([name, type]) => typed(step.arguments![name]!, type, scope).code);
-              emit(`const ${decoded} = decoders.${decoder.key}(state${args.map(arg => `, ${arg}`).join("")}${decoder.capabilities.size ? ", instruction" : ""});`);
+              emit(`const ${decoded} = decoders.decode${index}(state${args.map(arg => `, ${arg}`).join("")}${decoder.capabilities.size ? ", instruction" : ""});`);
               emit(`if (${decoded} === "unsupported") return ${decoded};`);
               captured = { code: decoded, type: step.source.type };
               break;
@@ -301,7 +316,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
       }
     }
     const scope = new Map<string, EmittedValue>();
-    const parameters = result && !decoderCapabilities ? [] : [`state: ${stateType}`];
+    const parameters = result?.kind === "reader" ? [] : [`state: ${stateType}`];
     const bound = !result && boundNames.has(name);
     const pageInputs = bound ? prefixes.find(page => page.key === Math.floor(Number(name) / 256))?.operands ?? [] : [];
     if (bound && JSON.stringify(Object.entries(definition.inputs ?? {})) !== JSON.stringify(pageInputs.map(name => [name, 8]))) {
@@ -314,32 +329,41 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     }
     body(definition.steps, scope);
     if (result) emit(`return ${typed(result.value, result.type, scope).code};`);
-    for (const name of capabilities) allCapabilities.add(name);
-    for (const name of capabilities) decoderCapabilities?.add(name);
     if (capabilities.size) parameters.push(`instruction: Pick<${contextType(capabilities)}, ${[...capabilities].map(name => JSON.stringify(name)).join(" | ")}>`);
     const key = bound ? `0x${Number(name).toString(16).padStart(2, "0")}` : JSON.stringify(name);
-    return `${indent}// ${JSON.stringify(`${cpu} ${definition.name}`)}\n`
-      + `${indent}${key}(${parameters.join(", ")}): ${[result ? typeName(result.type) : "void", ...[...rejections].map(reason => JSON.stringify(reason)), ...(rejectsAlignment ? ["OperandAlignmentFault"] : []), ...(rejectsTarget ? ["TargetAlignmentFault"] : [])].join(" | ")} {\n${lines.join("\n")}\n${indent}},`;
+    const code = `${indent}// ${JSON.stringify(`${cpu} ${definition.name}`)}\n`
+      + `${indent}${key}(${parameters.join(", ")}): ${outcomeType(result ? typeName(result.type) : "void", outcomes)} {\n${lines.join("\n")}\n${indent}},`;
+    return { code, capabilities, outcomes };
   }
-  const methods = Object.entries(definitions).map(([name, definition]) => compile(name, definition));
+  const allCapabilities = new Set<Capability>();
+  const outcomes = { rejections: new Set<string>(), alignmentFaults: false, targetFaults: false };
+  // Collect each completed method's requirements; retain only its code for module assembly.
+  function collect(method: CompiledMethod): string {
+    for (const name of method.capabilities) allCapabilities.add(name);
+    for (const reason of method.outcomes.rejections) outcomes.rejections.add(reason);
+    outcomes.alignmentFaults ||= method.outcomes.alignmentFaults;
+    outcomes.targetFaults ||= method.outcomes.targetFaults;
+    return method.code;
+  }
+  const methods = Object.entries(definitions).map(([name, definition]) => collect(compile(name, definition)));
   const readers = sources ? Object.entries(sources.groups).map(([group, members]) => {
-    const methods = Object.entries(members).map(([name, source]) => compile(name, {
+    const methods = Object.entries(members).map(([name, source]) => collect(compile(name, {
       cpu: sources.cpu, name: source.name, explanation: "Reusable value source.", ...(source.inputs ? { inputs: source.inputs } : {}),
       steps: [readSource("result", source, source.inputs && Object.fromEntries(Object.entries(source.inputs).map(([name, type]) => [name, type === "flag" ? flagValue(name) : value(name)])))],
-    }, { value: source.type === "flag" ? flagValue("result") : value("result"), type: source.type }));
+    }, { kind: "reader", value: source.type === "flag" ? flagValue("result") : value("result"), type: source.type })));
     return `    [${JSON.stringify(group)}]: {\n${methods.join("\n\n")}\n    },`;
   }) : [];
-  if (prefixes.length) { allCapabilities.add("fetchByte"); outcomes.add("unsupported"); }
+  if (prefixes.length) { allCapabilities.add("fetchByte"); outcomes.rejections.add("unsupported"); }
   const imports = [`import type { ${stateType} } from ${JSON.stringify(state?.module ?? `../semantics/generated/state/${cpu}.ts`)};`];
   if (bindOpcodes || allCapabilities.size) imports.push('import type { ByteInstructionContext } from "../instruction-context.ts";');
   for (const extension of extensions(allCapabilities)) imports.push(`import type { ${extension.name} } from "../${extension.file}.ts";`);
-  if (alignmentFaults) imports.push('import type { OperandAlignmentFault } from "../word-execution.ts";');
-  if (targetFaults) imports.push('import type { TargetAlignmentFault } from "../word-execution.ts";');
+  if (outcomes.alignmentFaults) imports.push('import type { OperandAlignmentFault } from "../word-execution.ts";');
+  if (outcomes.targetFaults) imports.push('import type { TargetAlignmentFault } from "../word-execution.ts";');
   if (bindOpcodes) imports.push('import type { OpcodeEntry } from "../opcodes.ts";');
   if (bindOpcodes) imports.push('import { opcodeTable } from "../opcodes.ts";');
   if (helpers.size) imports.push(`import { ${[...helpers].sort().join(", ")} } from "../alu.ts";`);
   const boundContext = contextType(allCapabilities);
-  const outcome = ["void", ...[...outcomes].map(reason => JSON.stringify(reason)), ...(alignmentFaults ? ["OperandAlignmentFault"] : []), ...(targetFaults ? ["TargetAlignmentFault"] : [])].join(" | ");
+  const outcome = outcomeType("void", outcomes);
   const executeType = `(state: ${stateType}, instruction: ${boundContext}) => ${outcome}`;
   // A selected inventory can coexist with named helpers that require decoded inputs.
   let bindings = bindOpcodes === true
@@ -355,7 +379,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
   if (generatedPages) bindings = generatedPages.bindings;
   return `// Generated by scripts/generate-cpu-semantics.ts; edit ${origin} instead.\n`
     + `${imports.join("\n")}\n\n`
-    + (decoders.size ? `const decoders = {\n${[...decoders.values()].map(decoder => decoder.code).join("\n\n")}\n};\n\n` : "")
+    + (decoders.length ? `const decoders = {\n${decoders.map(decoder => decoder.code).join("\n\n")}\n};\n\n` : "")
     + `export const instructions = {\n${methods.join("\n\n")}\n};\n`
     + (opcodeAliases.length ? `\n/** Chapter encodings select shared bodies; this table performs no instruction effects. */\nexport const opcodeInstructions = {\n${opcodeAliases.map(([opcode, name]) => `  ${opcode}: instructions[${JSON.stringify(name)}],`).join("\n")}\n};\n` : "")
     + (sources ? `\n/** Bind reusable sources; fetching and memory access occur only when a reader is called. */
