@@ -125,9 +125,12 @@ side effects of a CPU access, such as clearing an interrupt. The CPU models
 expose detached state snapshots and instruction access records. Both byte devices
 likewise expose detached snapshots without consuming input or emitting output.
 
-**The planned browser interface** will present controls, displays, inspectors, and
-explanations. Components should be usable without the DOM or a browser render
-loop. Specialist instruments, such as an Applesoft BASIC inspector, can add
+**The browser interface** begins with byte, arithmetic, and memory lessons in
+`site/interactive/`. The memory lesson imports a generated component-only
+`.machine` factory and reads and writes its real RAM. Selection, representation,
+and prompts remain in the lesson; machine definitions describe components and
+initial contents. Broader controls, displays, and inspectors remain planned.
+Components should be usable without the DOM or a browser render loop. Specialist instruments, such as an Applesoft BASIC inspector, can add
 software knowledge through the inspection interface.
 
 **Lessons** combine small programs, machine compositions, views, and explanatory

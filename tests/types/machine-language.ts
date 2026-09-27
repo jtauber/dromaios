@@ -11,6 +11,15 @@ import { parseMachine } from "../../src/machines/machine-language.js";
 // Compiled, never called: the model discriminant must narrow the parsed state.
 export function checkParsedState(source: string): void {
   const machine = parseMachine(source);
+  if (machine.cpu === undefined) {
+    const component = machine.components[0];
+    if (component && "size" in component) { const size: number = component.size; }
+    // @ts-expect-error A component-only definition has no CPU state.
+    machine.initialState;
+    // @ts-expect-error A component-only definition has no CPU memory connection.
+    machine.connection;
+    return;
+  }
   const endAddress: number | undefined = machine.endAddress;
   switch (machine.cpu) {
     case "68000": {

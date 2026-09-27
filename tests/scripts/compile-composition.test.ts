@@ -129,3 +129,22 @@ test("generated direct machines need no bindings, ports, reset method, or memory
   machine.cpu.step();
   assert.equal(machine.cpu.snapshot().pc, 0x201);
 });
+
+test("component-only factories load images and connect host callbacks without importing a CPU", async t => {
+  const source = `image storage 1 { AA BB } image storage 2 { CC }
+components { storage=ram 08 firmware=rom 02 input=byte-input output=byte-output }
+image firmware 0 { 12 34 }`;
+  assert.doesNotMatch(compileMachine(source, "lessons/components.machine"), /cpus\//);
+  const { createLessonsComponents } = await load(source, "lessons/components.machine", t);
+  const output: number[] = [];
+  const machine = createLessonsComponents({ output: (byte: number) => output.push(byte) });
+  assert.deepEqual(Object.keys(machine), ["storage", "firmware", "input", "output"]);
+  assert.deepEqual(output, []);
+  assert.deepEqual(Array.from({ length: 8 }, (_, i) => machine.storage.read(i)), [0, 0xaa, 0xcc, 0, 0, 0, 0, 0]);
+  assert.deepEqual([machine.firmware.read(0), machine.firmware.read(1)], [0x12, 0x34]);
+  assert.equal(machine.firmware.write(0, 0), "bus-error");
+  machine.input.offer(42);
+  assert.equal(machine.input.read(1), 42);
+  machine.output.write(0, 200);
+  assert.deepEqual(output, [200]);
+});

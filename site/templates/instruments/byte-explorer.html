@@ -1,6 +1,6 @@
-{% macro byte_explorer(id, value=42) %}
+{% macro byte_explorer(id, value=42, heading="One byte · eight bits") %}
 <section id="{{ id }}" class="byte-explorer" data-byte-explorer aria-label="Interactive byte explorer">
-  <div class="instrument-heading"><span>One byte · eight bits</span><span>Unsigned · 0 to 255</span></div>
+  <div class="instrument-heading"><span data-byte-heading>{{ heading }}</span><span>Unsigned · 0 to 255</span></div>
   <p id="{{ id }}-instruction" data-instruction>Enable JavaScript to change this byte. This example shows {{ value }}.</p>
   <fieldset disabled aria-describedby="{{ id }}-instruction">
     <legend class="visually-hidden">Change the byte</legend>

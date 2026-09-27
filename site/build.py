@@ -2,6 +2,7 @@
 """Build processor guides and interactive lessons for microcomputer.world."""
 
 import argparse
+from hashlib import sha256
 import json
 import os
 from pathlib import Path
@@ -57,10 +58,16 @@ def build(base):
     site.jinja_env.autoescape = select_autoescape(["html"])
     site.clear_output()
     site.copy_to_output(SITE / "assets", "assets")
-    site.copy_to_output(ROOT / "dist/site", "assets")
+    # One versioned directory preserves relative imports and refreshes every dependency together.
+    browser = ROOT / "dist/site"
+    digest = sha256()
+    for path in sorted(browser.rglob("*.js")):
+        digest.update(path.relative_to(browser).as_posix().encode() + b"\0" + path.read_bytes())
+    interactive = f"assets/interactive/{digest.hexdigest()[:16]}"
+    site.copy_to_output(browser, interactive)
+    site.set_global("lesson_script", f"{interactive}/site/interactive/lessons.js")
     site.write_output("assets/highlight.css", HtmlFormatter(style="friendly").get_style_defs(".code-block"))
     site.add_hash("assets/style.css")
-    site.add_hash("assets/byte-explorer.js")
     site.set_global("chapters", chapters)
     site.set_global("repository", REPOSITORY)
 
@@ -96,12 +103,15 @@ def build(base):
     site.render_template("byte-wraparound.html", "learn/byte-wraparound/index.html", {
         "title": "What happens after 255?",
     })
+    site.render_template("memory.html", "learn/memory/index.html", {
+        "title": "Where does a byte live?",
+    })
     site.render_template("home.html", "index.html", {
         "title": "Computers, from the instruction up",
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + two byte lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
+    print(f"Built home + three introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "instruments/byte-explorer.html" import byte_explorer %}
+{% block description %}Explore eight bytes of memory. Select an address, change the byte stored there, and see how a location differs from its contents.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson memory-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Bits and numbers · A place to remember</p>
+    <h1>Where does<br><em>a byte live?</em></h1>
+    <p class="lesson-intro">So far, we have played with one byte. Now there are eight, each in its own numbered location. Choose a location and change what it holds.</p>
+  </header>
+  <section id="experiment" class="memory-explorer" data-memory-explorer aria-label="Eight bytes of memory">
+    <div class="memory-bank">
+      <div class="instrument-heading"><span>Eight locations</span><span>Addresses 0–7</span></div>
+      <p class="memory-key">The small number names the <strong>address</strong>.<br>The large number is the <strong>stored byte</strong>, shown in decimal.</p>
+      <fieldset data-memory-controls disabled>
+        <legend class="visually-hidden">Select a memory address</legend>
+        <div class="memory-cells" data-memory-cells></div>
+        <button class="clear-byte" type="button" data-memory-restart>Start again with all zeroes</button>
+      </fieldset>
+      <p class="memory-status" data-memory-status role="status">Enable JavaScript to explore memory. All eight bytes start at zero.</p>
+    </div>
+    {{ byte_explorer('stored-byte', 0, 'Byte at address 0') }}
+    <p class="experiment-note">Edits change only the selected location. Choosing another address reads its stored byte. “Clear all bits” sets only the selected byte to zero.</p>
+    <aside class="lesson-prompt memory-task"><p><strong>Try it.</strong> <span data-memory-task>Put 200 at address 3. Select its location, then change the decimal value in the byte explorer.</span></p></aside>
+  </section>
+  <div class="lesson-prose">
+    <section aria-labelledby="where-and-what">
+      <h2 id="where-and-what">Where, and what.</h2>
+      <p>An <strong>address</strong> tells us where to look. The <strong>contents</strong> tell us what is stored there. At address 3, we might find 0, 200, or any other byte value. Changing that value does not change the address.</p>
+      <p>Think of eight numbered boxes. Writing something new inside box 3 does not turn it into a different box.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Store 200 at address 3 and 42 at address 4. Move between them. Does either byte change just because you look at the other one?</p>
+        <details><summary>Show an explanation</summary><p>No. Each location keeps its own byte until you change it. Selecting an address reads its contents without changing them.</p></details>
+        <a href="#experiment">Explore the memory ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="counting-from-zero">
+      <h2 id="counting-from-zero">Eight places, starting at zero.</h2>
+      <p>The addresses are 0, 1, 2, 3, 4, 5, 6, and 7. There are eight locations, even though the last address is 7. Address 0 is the first location; address 3 is the fourth.</p>
+      <p>A byte at any of these addresses can hold a number from 0 to 255. The number of locations and the range of values stored in each are two different things.</p>
+    </section>
+    <section aria-labelledby="remembering">
+      <h2 id="remembering">A small memory.</h2>
+      <p>This is <strong>RAM</strong>: random-access memory. We can read or write any location by choosing its address; we do not have to visit the earlier locations first.</p>
+      <p>Reading asks, “What is at this address?” Writing says, “Store this byte at this address.” A write replaces the previous contents of that location.</p>
+      <p>This explorer starts each byte at zero to make it easy to experiment. That is a choice for this lesson, not a promise about real RAM when power is first turned on. Starting again or reloading the page clears our little memory.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation">
+      <a href="{{ calc_url('learn/byte-wraparound/') }}"><span aria-hidden="true">←</span> What happens after 255?</a>
+    </nav>
+  </div>
+</main>
+{% endblock %}

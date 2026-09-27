@@ -3,6 +3,7 @@
 Dromaios uses `.machine` files for CPU state, byte images, and component wiring.
 A flat-RAM definition uses `ram`, `cpu`, `memory`, and optional `end`. A composed
 definition instead names its components and connects memory and devices explicitly.
+A component-only definition omits the CPU and its wiring.
 All numeric data is hexadecimal by default. Register and flag names are uppercase by
 convention; flags use `1` for set and `0` for clear.
 
@@ -37,10 +38,31 @@ memory FFFC {
 end 0208
 ```
 
+## Components without a CPU
+
+For a lesson that only needs memory, this is a complete definition:
+
+```text
+components {
+    ram = ram 08
+}
+```
+
+There is exactly one nonempty `components` block, with optional `image` blocks.
+All the existing component kinds and image rules apply, including forward
+references, zero-filled RAM/ROM, and local bounds checks. For example,
+`image ram 03 { C8 }` starts address 3 at decimal 200. Omitting images leaves
+all eight bytes zero.
+
+Without a CPU, `memory =`, `map`, `ports`, `reset`, `reset-devices`, and `end`
+are errors. Flat `ram` and `memory address { ... }` shorthand still requires a
+CPU and cannot be mixed with named components. Adding a CPU requires its complete
+state and memory connection, as described below.
+
 ## Common rules and flat-RAM shorthand
 
-- A file describes one CPU and its machine. It has exactly one `cpu` declaration
-  and at most one `end`. The flat-RAM shorthand has exactly one `ram` declaration
+- A CPU machine has exactly one `cpu` declaration and at most one `end`.
+  The flat-RAM shorthand has exactly one `ram` declaration
   and zero or more `memory` byte blocks. Top-level declarations can appear in any
   order. Byte blocks are applied in their source order.
 - `ram` gives the byte count: `4000` (16 KiB) for the 8008, `100000`
@@ -114,7 +136,7 @@ end 0208
   uses HALT.
 
 Constructing a machine allocates its components, loads RAM and ROM images, and
-constructs the CPU with the supplied state. Every instance is fresh; construction
+constructs the CPU, when declared, with the supplied state. Every instance is fresh; construction
 performs no CPU reset, execution, or host output callback.
 
 ## Named components and wiring
@@ -144,8 +166,8 @@ image ram 0000 {
 reset { cpu input output }
 ```
 
-A composed definition has exactly one `components` block and exactly one CPU
-memory connection: either `memory = name` or a `map` block. It cannot also use
+A composed definition has exactly one nonempty `components` block. If it declares
+a CPU, it also requires exactly one CPU memory connection: either `memory = name` or a `map` block. It cannot also use
 the flat `ram` declaration or `memory address { bytes }` shorthand. All references
 are resolved after parsing, so images and connections may precede their targets.
 
@@ -308,7 +330,8 @@ lesson.machine:3:6: Memory block extends beyond address FFFF
 
 ## Scope and future extensions
 
-This version describes one CPU, RAM/ROM images, fixed 68000 memory maps, 8080
+This version describes named components with an optional CPU, RAM/ROM images,
+fixed 68000 memory maps, 8080
 byte ports, the two byte devices, and explicit reset wiring. Other devices, bank
 switching, interrupt wiring, clocks, and scripted host input remain TypeScript
 work until concrete examples establish their declarations. The language does not

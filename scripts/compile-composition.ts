@@ -1,6 +1,6 @@
 import { posix } from "node:path";
 import { cpuModels } from "../src/components/cpus/models.ts";
-import type { ComposedMachineDefinition } from "../src/machines/machine-language.ts";
+import type { ComponentMachineDefinition, ComposedMachineDefinition } from "../src/machines/machine-language.ts";
 
 const componentTypes = {
   ram: ["Ram", "memory/ram"],
@@ -10,15 +10,12 @@ const componentTypes = {
 } as const;
 
 /** Emit concrete construction and wiring; generated machines need no runtime interpreter. */
-export function compileComposition(machine: ComposedMachineDefinition, name: string, from: string): string {
-  const { name: cpuClass, module: cpuModule } = cpuModels[machine.cpu];
-  const imports = [`import { ${cpuClass} } from "${path(`cpus/${cpuModule}`)}";`];
+export function compileComposition(machine: ComposedMachineDefinition | ComponentMachineDefinition, name: string, from: string): string {
+  const imports: string[] = [];
   for (const kind of new Set(machine.components.map(component => component.kind))) {
     const [type, module] = componentTypes[kind];
     imports.push(`import { ${type} } from "${path(module)}";`);
   }
-  if (machine.connection.kind === "mapped") imports.push(`import { MemoryMap } from "${path("memory/memory-map")}";`);
-  if (machine.ports !== undefined) imports.push(`import type { BytePorts } from "${path("cpus/port-access")}";`);
 
   const outputs = machine.components.filter(component => component.kind === "byte-output");
   const argument = outputs.length ? `bindings: { ${outputs.map(component => `readonly ${component.name}: (value: number) => void`).join("; ")} }` : "";
@@ -41,39 +38,47 @@ export function compileComposition(machine: ComposedMachineDefinition, name: str
     }
   }
 
-  let memory: string;
-  if (machine.connection.kind === "mapped") {
-    memory = "memory";
-    body.push(`const memory = new MemoryMap(${machine.connection.size}, [`,
-      ...machine.connection.regions.map(region => `  { start: ${region.start}, memory: ${part(region.component)} },`), "]);");
-  } else memory = part(machine.connection.component);
+  const returned = machine.components.map(component => `${component.name}: ${part(component.name)}`);
+  if (machine.cpu !== undefined) {
+    const { name: cpuClass, module: cpuModule } = cpuModels[machine.cpu];
+    imports.unshift(`import { ${cpuClass} } from "${path(`cpus/${cpuModule}`)}";`);
+    if (machine.connection.kind === "mapped") imports.push(`import { MemoryMap } from "${path("memory/memory-map")}";`);
+    if (machine.ports !== undefined) imports.push(`import type { BytePorts } from "${path("cpus/port-access")}";`);
 
-  if (machine.ports !== undefined) {
-    body.push("const ports: BytePorts = {");
-    for (const direction of ["in", "out"] as const) {
-      body.push(direction === "in" ? "  readPort: port => {" : "  writePort: (port, value) => {", "    switch (port) {");
-      for (const binding of machine.ports.filter(binding => binding.direction === direction)) {
-        const call = `${part(binding.component)}.${direction === "in" ? "read" : "write"}(${binding.address}${direction === "out" ? ", value" : ""})`;
-        body.push(`      case ${binding.port}: return ${call};`);
+    let memory: string;
+    if (machine.connection.kind === "mapped") {
+      memory = "memory";
+      body.push(`const memory = new MemoryMap(${machine.connection.size}, [`,
+        ...machine.connection.regions.map(region => `  { start: ${region.start}, memory: ${part(region.component)} },`), "]);");
+    } else memory = part(machine.connection.component);
+
+    if (machine.ports !== undefined) {
+      body.push("const ports: BytePorts = {");
+      for (const direction of ["in", "out"] as const) {
+        body.push(direction === "in" ? "  readPort: port => {" : "  writePort: (port, value) => {", "    switch (port) {");
+        for (const binding of machine.ports.filter(binding => binding.direction === direction)) {
+          const call = `${part(binding.component)}.${direction === "in" ? "read" : "write"}(${binding.address}${direction === "out" ? ", value" : ""})`;
+          body.push(`      case ${binding.port}: return ${call};`);
+        }
+        body.push(`      default: throw new Error("Unconnected ${direction === "in" ? "input" : "output"} port " + port + ".");`, "    }", "  },");
       }
-      body.push(`      default: throw new Error("Unconnected ${direction === "in" ? "input" : "output"} port " + port + ".");`, "    }", "  },");
+      body.push("};");
     }
-    body.push("};");
-  }
-  if (machine.resetDevices !== undefined) body.push("const resetDevices = (): void => {",
-    ...machine.resetDevices.map(target => `  ${part(target)}.reset();`), "};");
+    if (machine.resetDevices !== undefined) body.push("const resetDevices = (): void => {",
+      ...machine.resetDevices.map(target => `  ${part(target)}.reset();`), "};");
 
-  const connection = machine.ports !== undefined ? ", ports" : machine.resetDevices !== undefined ? ", { resetDevices }" : "";
-  body.push(`const cpu = new ${cpuClass}(${memory}, ${JSON.stringify(machine.initialState, null, 2)}${connection});`);
-  if (machine.reset !== undefined) {
-    body.push("const reset = () => {", "  // Check the CPU execution boundary before resetting devices.", "  const record = cpu.reset();",
-      ...machine.reset.slice(1).map(target => `  ${part(target)}.reset();`), "  return record;", "};");
+    const connection = machine.ports !== undefined ? ", ports" : machine.resetDevices !== undefined ? ", { resetDevices }" : "";
+    body.push(`const cpu = new ${cpuClass}(${memory}, ${JSON.stringify(machine.initialState, null, 2)}${connection});`);
+    if (machine.reset !== undefined) {
+      body.push("const reset = () => {", "  // Check the CPU execution boundary before resetting devices.", "  const record = cpu.reset();",
+        ...machine.reset.slice(1).map(target => `  ${part(target)}.reset();`), "  return record;", "};");
+    }
+    returned.unshift("cpu");
+    if (machine.connection.kind === "mapped") returned.push("memory");
+    if (machine.ports !== undefined) returned.push("ports");
+    if (machine.reset !== undefined) returned.push("reset");
+    if (machine.endAddress !== undefined) returned.push(`endAddress: ${machine.endAddress}`);
   }
-  const returned = ["cpu", ...machine.components.map(component => `${component.name}: ${part(component.name)}`)];
-  if (machine.connection.kind === "mapped") returned.push("memory");
-  if (machine.ports !== undefined) returned.push("ports");
-  if (machine.reset !== undefined) returned.push("reset");
-  if (machine.endAddress !== undefined) returned.push(`endAddress: ${machine.endAddress}`);
   body.push(`return { ${returned.join(", ")} };`);
   return `${imports.join("\n")}\n\nexport function ${name}(${argument}) {\n${body.join("\n").split("\n").map(line => `  ${line}`).join("\n")}\n}\n`;
 

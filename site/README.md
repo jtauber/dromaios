@@ -7,7 +7,7 @@ the site’s other tools, Ryland and Sauvignon.
 Ryland builds the home page, the byte lessons, and one guide per processor from its executable
 specification. Sauvignon renders both architecture diagrams and state maps
 derived from the CPU compiler. Pages use ordinary HTML, CSS, and SVG, with a
-small TypeScript module for the byte explorer. Processor guides need no
+small TypeScript modules for the lesson interactions. Processor guides need no
 JavaScript; diagrams are rendered during the build. No CDN requests are needed.
 
 ## Build and preview
@@ -33,10 +33,14 @@ python3 -m http.server 8000 --directory site/output
 ```
 
 Open [the local preview](http://localhost:8000/). The build installs its locked
-Python dependencies in `site/.venv` on first use. It compiles the chapters directly
-without generating or rebuilding emulator modules. TypeScript compiles the
-lesson interactions into `dist/site/`, which the site builder copies into its
-assets. Output lives in the ignored
+Python dependencies in `site/.venv` on first use. It regenerates CPU and machine
+sources so a clean checkout has current schemas and factories, then compiles
+only the browser entry point and its imports into `dist/site/`. The memory
+lesson imports its generated factory and the shared RAM component; CPU runtimes
+are not part of this browser import graph. Chapters are rendered directly from
+their specifications. The site copies browser modules into a directory named
+by their combined content hash, preserving relative imports and invalidating
+cached dependencies together. Output lives in the ignored
 `site/output/` directory; the next site build replaces that directory.
 
 For a host under a project path, use:
@@ -142,7 +146,8 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   previous byte and display an explanation. Without scripting, a readable
   example remains with disabled controls. Keyboard users can toggle bits with
   Space or Enter and edit the number fields normally.
-- `templates/byte-wraparound.html` reuses that explorer to add one repeatedly.
+- `interactive/lessons.ts` mounts each explorer once, using the appropriate
+  controller for its lesson. `templates/byte-wraparound.html` reuses that explorer to add one repeatedly.
   The controller exposes its value, validity, and a programmatic setter; an edit
   callback lets the lesson clear the previous calculation. The lesson shows
   the full sum, the carry out of the byte, and the stored eight bits. Each step
@@ -150,6 +155,14 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   calculation, while invalid drafts disable addition and preserve the last
   completed step. This is an arithmetic illustration, not a CPU instruction
   or a model of a processor's carry flag.
+- `templates/memory.html` and `interactive/memory-explorer.ts` teach addresses
+  and contents. The controller imports the factory generated from
+  [`eight-byte-memory.machine`](../src/machines/lessons/eight-byte-memory.machine).
+  The RAM owns the bytes; the controller owns the selection and views. Valid
+  edits write only the selected address. Invalid drafts leave RAM unchanged;
+  selecting an address reloads its stored byte and discards any invalid draft.
+  Starting again constructs fresh RAM. Reading these RAM locations has no side
+  effects; this is not a general-purpose inspector for memory-mapped devices.
 
 Sauvignon fences replace the earlier Mermaid diagrams. GitHub currently shows
 these fences as source; the site displays the rendered diagrams and
@@ -171,5 +184,8 @@ explorer, check bit toggles, keyboard operation, zero and 255, lowercase hex,
 invalid and empty inputs (including tabbing through another field), and recovery
 after an invalid edit. For wraparound,
 check 254 → 255 → 0 → 1, carries within the byte (15 → 16 and 127 → 128),
-restarting, and manual edits after an addition. The emulator’s
+restarting, and manual edits after an addition. For memory, store different bytes
+at addresses 3 and 4, switch back and forth, try invalid edits, clear one byte,
+and start again. Check that selection never writes, other addresses retain their
+values, and the address controls work with the keyboard. The emulator’s
 `npm test` suite remains independent of the Python toolchain and Sauvignon.

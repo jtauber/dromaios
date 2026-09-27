@@ -15,13 +15,15 @@ export interface PortBinding {
   readonly component: string;
   readonly address: number;
 }
-export interface CompositionDefinition {
+export interface ComponentsDefinition {
   readonly components: readonly ComponentDefinition[];
+  readonly images: readonly ImageDefinition[];
+}
+export interface CompositionDefinition extends ComponentsDefinition {
   readonly connection: { readonly kind: "direct"; readonly component: string } | {
     readonly kind: "mapped"; readonly size: number;
     readonly regions: readonly { readonly start: number; readonly component: string }[];
   };
-  readonly images: readonly ImageDefinition[];
   readonly ports?: readonly PortBinding[];
   readonly reset?: readonly string[];
   readonly resetDevices?: readonly string[];
@@ -60,6 +62,23 @@ export function compositionSyntax(syntax: MachineSyntax) {
   }
   function size(value: ComponentDefinition): number {
     return "size" in value ? value.size : value.kind === "byte-input" ? 2 : 1;
+  }
+
+  function finishComponents(): ComponentsDefinition {
+    if (!declarations.has("components")) fail(current(), "Missing components declaration");
+    if (!components.size) fail(declarations.get("components")!, "Declare at least one component");
+    for (const image of images) {
+      const target = component(image.token);
+      if (target.kind !== "ram" && target.kind !== "rom") fail(image.token, "Images require RAM or ROM");
+      const length = size(target);
+      if (image.address >= length) fail(image.addressToken, `Image address exceeds component ${image.component}`);
+      const remaining = length - image.address;
+      if (image.bytes.length > remaining) fail(image.byteTokens[remaining]!, `Image extends beyond component ${image.component}`);
+    }
+    return {
+      components: [...components.values()],
+      images: images.map(({ component, address, bytes }) => ({ component, address, bytes })),
+    };
   }
 
   return {
@@ -142,8 +161,14 @@ export function compositionSyntax(syntax: MachineSyntax) {
       }
       return true;
     },
+    finishComponents(): ComponentsDefinition {
+      for (const [keyword, token] of declarations) {
+        if (keyword !== "components" && keyword !== "image") fail(token, `${keyword} requires a cpu declaration`);
+      }
+      return finishComponents();
+    },
     finish(cpu: string, requiredSize: number): CompositionDefinition {
-      if (!declarations.has("components")) fail(current(), "Missing components declaration");
+      const definition = finishComponents();
       if (direct && mapSize !== undefined) fail(declarations.get("map")!, "Choose memory = component or map, not both");
       let connection: CompositionDefinition["connection"];
       if (direct) {
@@ -164,14 +189,6 @@ export function compositionSyntax(syntax: MachineSyntax) {
         connection = { kind: "mapped", size: mapSize, regions: regions.map(({ start, component }) => ({ start, component })) };
       } else return fail(current(), "Missing CPU memory connection: memory = component or map");
 
-      for (const image of images) {
-        const target = component(image.token);
-        if (target.kind !== "ram" && target.kind !== "rom") fail(image.token, "Images require RAM or ROM");
-        const length = size(target);
-        if (image.address >= length) fail(image.addressToken, `Image address exceeds component ${image.component}`);
-        const remaining = length - image.address;
-        if (image.bytes.length > remaining) fail(image.byteTokens[remaining]!, `Image extends beyond component ${image.component}`);
-      }
       if (declarations.has("ports") && cpu !== "8080") fail(declarations.get("ports")!, "Port bindings currently require CPU 8080");
       for (const binding of ports) {
         const target = component(binding.token);
@@ -188,8 +205,7 @@ export function compositionSyntax(syntax: MachineSyntax) {
         }
       }
       return {
-        components: [...components.values()], connection,
-        images: images.map(({ component, address, bytes }) => ({ component, address, bytes })),
+        ...definition, connection,
         ...(declarations.has("ports") ? { ports: ports.map(({ direction, port, component, address }) => ({ direction, port, component, address })) } : {}),
         ...(resets.has("reset") ? { reset: resets.get("reset")!.map(token => token.text) } : {}),
         ...(resets.has("reset-devices") ? { resetDevices: resets.get("reset-devices")!.map(token => token.text) } : {}),

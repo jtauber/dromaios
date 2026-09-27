@@ -5,7 +5,7 @@ import { compileComposition } from "./compile-composition.ts";
 import { parseMachine } from "../src/machines/machine-language.ts";
 import { cpuModels } from "../src/components/cpus/models.ts";
 
-/** Turn a machine definition into a factory checked against its concrete CPU. */
+/** Turn a machine definition into a factory checked against its concrete components. */
 export function compileMachine(text: string, relativePath: string): string {
   const stem = relativePath.replace(/\.machine$/, "");
   if (relativePath !== `${stem}.machine` || !stem.split("/").every(part => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(part))) {
@@ -13,15 +13,15 @@ export function compileMachine(text: string, relativePath: string): string {
   }
   // The parser validates state and wiring against the selected CPU model.
   const machine = parseMachine(text, relativePath);
-  const { cpu, ...definition } = machine;
-  const data = JSON.stringify(definition, null, 2);
-  const { name: cpuClass, module: cpuModule } = cpuModels[cpu];
   const name = `create${stem.split(/[/-]/).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join("")}`;
   const from = posix.dirname(posix.join("generated", relativePath));
   if ("components" in machine) {
     return `// Generated from ${posix.relative(from, relativePath)}; edit the .machine definition instead.\n`
       + compileComposition(machine, name, from);
   }
+  const { cpu, ...definition } = machine;
+  const data = JSON.stringify(definition, null, 2);
+  const { name: cpuClass, module: cpuModule } = cpuModels[cpu];
   return `// Generated from ${posix.relative(from, relativePath)}; edit the .machine definition instead.
 import { ${cpuClass} } from "${posix.relative(from, `../components/cpus/${cpuModule}.js`)}";
 import { defineRamExample } from "${posix.relative(from, "ram-example.js")}";

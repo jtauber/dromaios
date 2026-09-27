@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "instruments/byte-explorer.html" import byte_explorer %}
 {% block description %}Add one to a byte and explore what happens after 255: the full sum, the eight-bit result, and the carry bit.{% endblock %}
-{% block head %}<script type="module" src="{{ calc_url('assets/byte-explorer.js') }}"></script>{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
 {% block main %}
 <main id="main" class="lesson wraparound-lesson">
   <header class="lesson-header">
@@ -59,6 +59,7 @@
     </section>
     <nav class="lesson-navigation" aria-label="Lesson navigation">
       <a href="{{ calc_url('learn/bits-and-numbers/') }}"><span aria-hidden="true">←</span> Bits and numbers</a>
+      <a href="{{ calc_url('learn/memory/') }}">Next: Where does a byte live? <span aria-hidden="true">→</span></a>
     </nav>
   </div>
 </main>

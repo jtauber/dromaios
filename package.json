@@ -10,14 +10,15 @@
   },
   "scripts": {
     "clean": "node --input-type=module -e \"import { rmSync } from 'node:fs'; for (const path of ['dist', 'src/machines/generated', 'src/components/cpus/generated', 'src/components/cpus/semantics/generated']) rmSync(path, { recursive: true, force: true });\"",
+    "generate": "npm run generate:cpus && npm run generate:machines",
     "generate:cpus": "node scripts/generate-cpu-semantics.ts",
     "generate:machines": "node scripts/generate-machines.ts",
-    "check:src": "npm run generate:cpus && npm run generate:machines && tsc --project tsconfig.src.json",
+    "check:src": "npm run generate && tsc --project tsconfig.src.json",
     "build": "npm run clean && npm run check:src && tsc",
     "test": "npm run build && node scripts/test.ts",
     "test:built": "node scripts/test.ts",
-    "build:site": "tsc --project site/tsconfig.json && uv run --project site --locked python site/build.py",
-    "test:site": "tsc --project site/tsconfig.json --noEmit && uv run --project site --locked python -m unittest discover -s site -p \"test_*.py\""
+    "build:site": "npm run generate && node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist/site', { recursive: true, force: true });\" && tsc --project site/tsconfig.json && uv run --project site --locked python site/build.py",
+    "test:site": "npm run generate && tsc --project site/tsconfig.json --noEmit && uv run --project site --locked python -m unittest discover -s site -p \"test_*.py\""
   },
   "devDependencies": {
     "@types/node": "24.13.4",

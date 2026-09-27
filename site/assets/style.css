@@ -269,3 +269,33 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
   .chapter-layout { display: block; margin: 0; width: 100%; }
   .code-block pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 }
+
+.memory-bank { border: 1px solid #c6cec0; border-bottom: 0; background: #fffefa; padding: 24px 30px; }
+.memory-key { font-size: 14px; color: #53665b; }
+.memory-bank fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.memory-cells { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.memory-cell { border: 1px solid #9ba99c; border-radius: 3px; background: var(--paper); color: var(--ink); padding: 12px 4px; }
+.memory-cell span { display: block; font: 11px/1.5 var(--mono); }
+.memory-cell strong { display: block; font: 26px/1.6 var(--mono); }
+.memory-cell[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 1px; background: #f5e4d4; }
+.memory-cell:hover { border-color: var(--accent); }
+.memory-status { font: 14px/1.6 var(--mono); margin: 18px 0 0; }
+.memory-task { margin-block: 10px 0; }
+.lesson-navigation { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 18px; }
+@media (min-width: 1101px) {
+  .memory-lesson { width: min(1100px, calc(100% - 112px)); }
+  .memory-explorer { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr); }
+  .memory-bank { border-bottom: 1px solid #c6cec0; border-right: 0; padding-inline: 24px; }
+  .memory-explorer .byte-explorer { padding-inline: 24px; }
+  .memory-explorer .byte-representations { gap: 12px; }
+  .memory-explorer .byte-representations input { font-size: 18px; }
+  .memory-cells { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .memory-explorer .experiment-note, .memory-task { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) { .memory-bank { padding: 20px; } }
+@media (max-width: 520px) {
+  .memory-bank { padding: 16px 12px; }
+  .memory-cells { gap: 8px; }
+  .memory-cell span { font-size: 9px; }
+  .memory-cell strong { font-size: 22px; }
+}

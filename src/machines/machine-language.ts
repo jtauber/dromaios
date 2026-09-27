@@ -1,7 +1,7 @@
 import { machineSyntax } from "./language/syntax.ts";
 import type { Token } from "./language/syntax.ts";
 import { compositionSyntax } from "./language/composition.ts";
-import type { CompositionDefinition } from "./language/composition.ts";
+import type { ComponentsDefinition, CompositionDefinition } from "./language/composition.ts";
 import { cpuModels } from "../components/cpus/models.ts";
 import type { CpuModel, CpuStates } from "../components/cpus/models.ts";
 import type { StateFields, StateField, GroupField, StateValues } from "../components/cpus/state.js";
@@ -28,7 +28,8 @@ export type RamMachineDefinition = RamCpuDefinition & {
 };
 
 export type ComposedMachineDefinition = CpuDefinition & CompositionDefinition & { readonly endAddress?: number };
-export type MachineDefinition = RamMachineDefinition | ComposedMachineDefinition;
+export type ComponentMachineDefinition = ComponentsDefinition & { readonly cpu?: never };
+export type MachineDefinition = RamMachineDefinition | ComposedMachineDefinition | ComponentMachineDefinition;
 
 type Value = number | string | boolean | number[] | { [name: string]: Value };
 
@@ -167,14 +168,20 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
     }
   }
   if (!composition.present && ram === undefined) fail(syntax.current(), "Missing ram declaration");
-  if (cpu === undefined) fail(syntax.current(), "Missing cpu declaration");
+  if (composition.present && (ram !== undefined || memory.length)) {
+    fail(ram?.token ?? memoryBounds[0]!.token, "Named components cannot be mixed with flat ram or memory blocks; use image blocks");
+  }
+  if (cpu === undefined) {
+    if (completion) fail(completion.token, "end requires a cpu declaration");
+    if (composition.present) return composition.finishComponents();
+    return fail(syntax.current(), "Missing cpu declaration");
+  }
   const requiredSize = cpu.ramSize, maximumPc = cpuModels[cpu.cpu].maximumPc;
   if (completion) {
     if (maximumPc === undefined) fail(completion.token, `CPU ${cpu.cpu} has no public PC view for completion`);
     else if (completion.address > maximumPc) fail(completion.token, `Completion address must be in 0..${maximumPc.toString(16).toUpperCase()}`);
   }
   if (composition.present) {
-    if (ram !== undefined || memory.length) fail(ram?.token ?? memoryBounds[0]!.token, "Named components cannot be mixed with flat ram or memory blocks; use image blocks");
     const { ramSize, ...cpuState } = cpu;
     const definition = { ...cpuState, ...composition.finish(cpu.cpu, requiredSize) };
     return completion === undefined ? definition : { ...definition, endAddress: completion.address };

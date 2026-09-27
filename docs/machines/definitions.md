@@ -3,7 +3,7 @@
 Examples use the same [machine language](language.md) for the CPU model, all
 initial state, addressed byte images, and an optional caller completion address.
 Composed definitions also name RAM, ROM, and byte devices and declare their
-memory, port, and reset connections. The
+memory, port, and reset connections. Component-only lessons can omit the CPU. The
 [example catalog](../README.md#cpu-examples) links to specifications, each with
 its source definition and tests.
 
@@ -58,7 +58,7 @@ supported connections and distinguishes machine reset from guest RESET.
 
 ## Directory organization
 
-Machine definitions live under `src/machines/<cpu>/`, with matching tests
+CPU machine definitions live under `src/machines/<cpu>/`, with matching tests
 under `tests/machines/<cpu>/`. For example, `8080/stack-example.machine`
 has a corresponding `8080/stack-example.test.ts`.
 
@@ -67,6 +67,24 @@ The parser entry point and RAM setup helper stay at the `machines/` root;
 tests live at the `tests/machines/` root. Additional subfolders can group examples
 as needed; the build discovers definitions recursively. Folder names organize the files; each
 definition's `cpu` declaration still selects its processor model.
+
+## Component-only lessons
+
+A definition can contain named components and images without a CPU. The
+[eight-byte memory lesson](../../src/machines/lessons/eight-byte-memory.machine)
+needs only:
+
+```text
+components {
+    ram = ram 08
+}
+```
+
+Its generated `createLessonsEightByteMemory()` factory returns `{ ram }`, with a
+fresh eight-byte `Ram` on every call. These definitions live under
+`src/machines/lessons/`; CPU examples keep their processor directories.
+Components own their state. The lesson owns its selected address, controls,
+number representations, and prompts; those do not belong in the machine file.
 
 ## Generated factories
 
@@ -105,7 +123,7 @@ include `endAddress` only when declared. Generated modules require no parser or
 file access when imported or used.
 
 A composed definition generates one factory, with no memory-only counterpart.
-It returns `cpu` and every component under its declared name, plus `memory` for
+It returns every component under its declared name and `cpu` when declared, plus `memory` for
 a map, `ports` for an explicit port block, and `reset` for a machine-reset list.
 These connection objects can also be used when reconstructing a CPU from a
 snapshot.

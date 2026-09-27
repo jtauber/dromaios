@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { parseMachine } from "../../src/machines/machine-language.js";
+import { parseMachine as parseDefinition } from "../../src/machines/machine-language.js";
+
+function parseMachine(source: string, filename?: string) {
+  const machine = parseDefinition(source, filename);
+  assert.ok(machine.cpu !== undefined);
+  return machine;
+}
 
 const cpu8080 = `cpu 8080 {
   A=00 B=00 C=00 D=00 E=00 H=00 L=00 PC=0000 SP=0000
@@ -88,7 +94,7 @@ test("composition declarations reject invalid names, duplicate declarations, and
     [direct + "\nmemory 0000 {}", /cannot be mixed/],
     [`${cpu8080} memory=absent`, /Missing components/],
     [`${cpu8080} components { ram=ram 10000 }`, /Missing CPU memory connection/],
-    ["components {} memory=ram", /Missing cpu/],
+    ["components {} memory=ram", /memory requires a cpu/],
     ["components { ram=ram 10000", /close components/],
   ] as const) assert.throws(() => parseMachine(source), message, source);
 });

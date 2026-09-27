@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "instruments/byte-explorer.html" import byte_explorer %}
 {% block description %}Explore one byte. Toggle eight bits and see the same value in binary, decimal, and hexadecimal.{% endblock %}
-{% block head %}<script type="module" src="{{ calc_url('assets/byte-explorer.js') }}"></script>{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
 {% block main %}
 <main id="main" class="lesson">
   <header class="lesson-header">
