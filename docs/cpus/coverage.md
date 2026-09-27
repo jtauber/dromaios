@@ -84,8 +84,8 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,813 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,813** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,814 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,814** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 24,074 |
 | CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 162 |
 | Generated executable CPU output, counted separately | 604,686 |
@@ -127,28 +127,32 @@ effects and returns each compiled method's code, context requirements, and
 possible outcomes. Module assembly collects those requirements as methods finish,
 retaining only their code; shared decoders keep their results for later callers.
 Method and module return types use the same formatter. Opcode binding and decoder
-emission now live together in the **99-line** `generate-opcodes.ts`, replacing
-the 60-line `generate-pages.ts` and 35 lines in the main emitter: **four additional
-authored lines**. Module assembly appends the complete returned binding code;
+emission live together in the **99-line** `generate-opcodes.ts`.
+Module assembly appends the complete returned binding code;
 ordinary bindings are no longer built only to be replaced by prefixed bindings.
+
+Chapter-data rendering now passes indentation through nested values, adding
+whitespace to structural lines without repeatedly rewriting completed strings.
+This also preserves literal Unicode line and paragraph separators in strings
+and keys, where the former formatter incorrectly inserted spaces. The chapter-data
+generator grows from **74 to 75 lines**, adding **one authored line** overall.
 
 Local measurements of this refactor on macOS ARM64 with Node 24.20.0, using
 medians from five paired runs with a fresh process for each version:
 
-| CPU generation stage | Before (`a3599f4`) | After consolidating opcode binding emission |
+| CPU generation stage | Before (`e023a27`) | After explicit serialization indentation |
 | --- | ---: | ---: |
-| Compile chapters | 1.092 s | 1.083 s |
-| Serialize chapter modules | 0.622 s | 0.628 s |
-| Load generated instruction registry | 0.818 s | 0.823 s |
-| Emit instruction bodies and lifecycle bindings | 0.195 s | 0.197 s |
-| **Complete CPU generation, including startup and file writes** | **2.836 s** | **2.833 s** |
+| Compile chapters | 1.041 s | 1.042 s |
+| Serialize chapter modules | 0.596 s | 0.493 s |
+| Load generated instruction registry | 0.766 s | 0.776 s |
+| Emit instruction bodies and lifecycle bindings | 0.195 s | 0.195 s |
+| **Complete CPU generation, including startup and file writes** | **2.692 s** | **2.599 s** |
 
 Stage timers surround compilation, chapter-module serialization, registry
-import, and executable emission. Emission and complete generation remain
-effectively unchanged at roughly **0.20 seconds** and **2.8 seconds** respectively.
-The other stages do not change their algorithms, and their timings vary between
-runs. Median process peak RSS is **915 MiB before and 916 MiB after**, effectively
-unchanged, measured with
+import, and executable emission. Serialization takes about **17% less time** and
+complete generation about **3.5% less time** in these paired runs. The other stages
+do not change their algorithms, and their timings vary between runs. Median
+process peak RSS is **914 MiB before and 908 MiB after**, measured with
 `process.resourceUsage().maxRSS`; this is a whole-process peak, not a per-stage
 heap measurement. All **132 checked files**, including generated chapter data,
 executable CPU and machine sources, and the expanded instruction listing,

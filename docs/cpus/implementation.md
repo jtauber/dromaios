@@ -257,6 +257,9 @@ Chapter serialization recognizes repeated objects within each semantic type,
 then compares ordered plain data for distinct objects. These reference caches
 last for one generation call; equality includes field order and execution
 capabilities, not just names. Dependencies are emitted before their users.
+Rendering carries indentation through nested values and adds it only to
+structural lines. It does not re-indent completed strings, preserving literal
+Unicode line and paragraph separators in descriptions and keys.
 Generated shared constants initialize through `ownData`, preserving sharing
 when the registry loads. Complete instructions still use `defineInstruction`
 and receive independent semantic validation. Only model bindings pass between

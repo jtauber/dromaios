@@ -72,6 +72,18 @@ test("chapter data preserves distinct boundary capabilities and record keys with
   assert.equal(data.families.byte![0]![1].cpu.state, data.families.word![0]![1].cpu.state);
 });
 
+test("chapter data formatting preserves line separators inside string values and keys, alongside empty collections", async () => {
+  const label = 'quoted "text"\nwith \\ and ${value}\u2028line\u2029paragraph';
+  const named = { ...source, name: label };
+  const variant: CpuChapter = { ...chapter, sources: { [label]: named }, views: { alias: named }, actions: {}, policies: {},
+    operands: { empty: [] }, conditions: { empty: [] }, families: { empty: [] } };
+  const { data } = await load(variant);
+  for (const key of ["sources", "views", "actions", "policies", "operands", "conditions", "families"] as const) {
+    assert.deepEqual(data[key], variant[key], key);
+  }
+  assert.equal(data.sources[label], data.views.alias);
+});
+
 test("loaded definitions retain shared immutable sources, policies, CPU declarations, and composed actions", async () => {
   const second = defineInstruction({ ...definition, name: "second" });
   const { data } = await load({ ...chapter, families: { first: [[0, definition]], second: [[1, second]] } });

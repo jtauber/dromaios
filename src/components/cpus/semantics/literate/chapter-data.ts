@@ -7,7 +7,6 @@ export function generateChapterData(chapter: CpuChapter): string {
   const declarations: string[] = [], shared = new Map<string, string>();
   const referencesByType = new Map<SharedType, Map<unknown, string>>();
   const counts = new Map<SharedType, number>();
-  const indent = (text: string) => text.replace(/^/gm, "  ");
   const key = (name: string) => name === "__proto__" ? `[${JSON.stringify(name)}]` : JSON.stringify(name);
 
   function reference(type: SharedType, value: unknown): string {
@@ -32,17 +31,19 @@ export function generateChapterData(chapter: CpuChapter): string {
     return name;
   }
 
-  function render(value: unknown, references: Readonly<Record<string, SharedType>> = {}): string {
+  // Indent structural lines as they are created, leaving quoted data untouched.
+  function render(value: unknown, references: Readonly<Record<string, SharedType>> = {}, indent = ""): string {
     if (value === null || typeof value !== "object") return JSON.stringify(value);
-    if (Array.isArray(value)) return value.length ? `[\n${value.map(item => indent(render(item, references))).join(",\n")}\n]` : "[]";
+    const inner = indent + "  ";
+    if (Array.isArray(value)) return value.length ? `[\n${value.map(item => `${inner}${render(item, references, inner)}`).join(",\n")}\n${indent}]` : "[]";
     // Only semantic edges are references: a captured argument named "source" is ordinary data.
     const kind = "kind" in value ? value.kind : undefined;
     if (kind === "read-source") references = { source: "ValueSource" };
     else if (kind === "perform") references = { action: "Action" };
     else if (kind === "update-flags" || kind === "replace-flags") references = { policy: "FlagPolicy" };
     const fields = Object.entries(value).filter(([, item]) => item !== undefined).map(([name, item]) =>
-      indent(`${key(name)}: ${Object.hasOwn(references, name) ? reference(references[name]!, item) : render(item)}`));
-    return fields.length ? `{\n${fields.join(",\n")}\n}` : "{}";
+      `${inner}${key(name)}: ${Object.hasOwn(references, name) ? reference(references[name]!, item) : render(item, {}, inner)}`);
+    return fields.length ? `{\n${fields.join(",\n")}\n${indent}}` : "{}";
   }
 
   const groups = {
@@ -53,13 +54,13 @@ export function generateChapterData(chapter: CpuChapter): string {
     const members = chapter[group as keyof typeof groups];
     const fields = Object.keys(members).map(name => `  readonly ${key(name)}: ${type};`).join("\n");
     const entries = Object.entries(members).map(([name, value]) => {
-      const data = group === "families" ? `[\n${chapter.families[name]!.map(([opcode, definition]) =>
-        `    [${opcode}, ${reference("InstructionDefinition", definition)}],`).join("\n")}\n  ]`
+      const data = group === "families" ? `[\n  ${chapter.families[name]!.map(([opcode, definition]) =>
+        `    [${opcode}, ${reference("InstructionDefinition", definition)}],`).join("\n  ")}\n    ]`
         : group === "sources" || group === "views" ? reference("ValueSource", value)
         : group === "actions" ? reference("InstructionDefinition", value)
         : group === "policies" ? reference("FlagPolicy", value)
-        : group === "operands" ? render(value, { read: "ValueSource", write: "InstructionDefinition", address: "ValueSource" }) : render(value);
-      return indent(`${key(name)}: ${data}`);
+        : render(value, group === "operands" ? { read: "ValueSource", write: "InstructionDefinition", address: "ValueSource" } : {}, "  ");
+      return `  ${key(name)}: ${data}`;
     });
     return `export const ${group}: {\n${fields}\n} = {\n${entries.join(",\n")}\n};`;
   });
