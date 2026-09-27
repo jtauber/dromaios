@@ -1,5 +1,6 @@
 {% from "instruments/byte-explorer.html" import byte_explorer %}
-{% macro register_explorer(id, source, destination, add_one=false) %}
+{% from "instruments/program-view.html" import program_view %}
+{% macro register_explorer(id, source, destination, add_one=false, program=false) %}
   <section id="experiment" data-register-explorer="{{ 'add-one' if add_one else 'copy' }}" aria-label="{{ 'Load, add one, and store with an 8080' if add_one else 'Copy a byte through an 8080 register' }}">
     <div class="register-workbench">
       <div class="memory-bank">
@@ -28,11 +29,16 @@
         {% endif %}
       </section>
     </div>
+    {% if program %}{{ program_view() }}{% endif %}
     <fieldset class="register-actions" data-register-controls disabled>
       <legend class="visually-hidden">Run the instructions in order</legend>
+      {% if program %}
+      <button class="button" type="button" data-program-step>Step one instruction</button>
+      {% else %}
       <button class="button" type="button" data-register-read>1. Read address 3 into A</button>
       {% if add_one %}<button class="button" type="button" data-register-add disabled>2. Add one to A</button>{% endif %}
       <button class="button" type="button" data-register-write disabled>{{ 3 if add_one else 2 }}. Write A to address 4</button>
+      {% endif %}
       <button class="clear-byte" type="button" data-register-restart>Start again</button>
     </fieldset>
     <p class="register-next" data-register-next>Enable JavaScript to run this experiment.</p>
@@ -40,25 +46,25 @@
       <span class="addition-label">Last instruction</span>
       <p data-register-last>No instruction has run. A starts at 0.</p>
     </div>
-    {% if add_one %}
+    {% if add_one and not program %}
     <div class="register-calculation" role="status" aria-atomic="true">
       <span class="addition-label">Last addition · full sum and stored byte</span>
       <p data-register-calculation>No addition has run. Read a byte into A, then add one.</p>
     </div>
     {% endif %}
-    <details class="memory-edit" open>
+    <details class="memory-edit"{% if not program %} open{% endif %}>
       <summary data-memory-label>Change the byte at address 3</summary>
       <p class="experiment-note">Edits here change memory immediately. They do not change A or run an instruction.</p>
       {{ byte_explorer(id ~ '-byte', source, 'Byte at address 3') }}
     </details>
     <details class="register-inside">
       <summary>See the 8080 instructions</summary>
-      <p>The first button executes <code>LDA 0003H</code>: load A from memory address 3. {% if add_one %}The middle button executes <code>ADI 1</code>: add one to A and update the arithmetic flags. The last button{% else %}The second{% endif %} executes <code>STA 0004H</code>: store A at address 4. The load and store preserve the processor’s flags.</p>
+      <p>The first instruction is <code>LDA 0003H</code>: load A from memory address 3. {% if add_one %}Next comes <code>ADI 1</code>: add one to A and update the arithmetic flags. The last instruction is{% else %}The second is{% endif %} <code>STA 0004H</code>: store A at address 4. The load and store preserve the processor’s flags.</p>
       {% if add_one %}<p><code>ADI 1</code> adds the number 1 encoded in the instruction, regardless of which memory byte is selected. It does not add the incoming carry. Unlike <code>INR A</code>, which preserves carry, <code>ADI 1</code> updates CY. It also updates sign (S), zero (Z), auxiliary carry (AC), and parity (P); their before/after values appear in the record.</p>{% endif %}
       <p>This view shows the first eight locations of a 65,536-byte RAM. The instructions live elsewhere, starting at hexadecimal address <code>0100</code>. The program counter, <strong>PC</strong>, tells the processor where to find its next instruction.</p>
       <p>Current PC: <code data-register-pc>0100</code> (hexadecimal). The lesson stops offering steps at <code>{{ '0108' if add_one else '0106' }}</code>, just after the final instruction. This is a lesson boundary; the processor has not executed a halt instruction.</p>
       <pre data-register-trace tabindex="0" aria-label="Last instruction and its recorded memory accesses">No instruction has run.</pre>
-      <p>The record includes the reads that fetch the instruction bytes, as well as the data read or write. Editing a memory byte in the explorer is a separate learner action; it does not alter the last instruction’s record{% if add_one %} or the last addition’s explanation{% endif %}.</p>
+      <p>The record includes the reads that fetch the instruction bytes, as well as the data read or write. Editing a memory byte in the explorer is a separate learner action; it does not alter the last instruction’s record{% if add_one and not program %} or the last addition’s explanation{% endif %}.</p>
       <a href="{{ calc_url('cpus/8080/') }}">Explore the Intel 8080 guide <span aria-hidden="true">→</span></a>
     </details>
   </section>

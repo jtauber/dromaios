@@ -168,10 +168,11 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   between the memory and register lessons. It observes the current RAM through a
   callback so restarting can replace the machine. A visible byte count bounds
   both selection and edits; no instruction bytes are editable in the register lesson.
-- `templates/register.html` and `templates/add-one.html` use the shared
+- `templates/register.html`, `templates/add-one.html`, and `templates/program.html` use the shared
   `templates/instruments/register-explorer.html` and
   `interactive/register-explorer.ts` for the [8080 register lesson](../docs/cpus/8080/examples/register.md)
-  and [add-one lesson](../docs/cpus/8080/examples/add-one.md). A is read-only
+  and its [add-one](../docs/cpus/8080/examples/add-one.md) and
+  [stored-program](../docs/cpus/8080/examples/program.md) successors. A is read-only
   and comes from CPU snapshots; each action calls `step()` once. The controller
   uses PC to enable the next action and stops at the program's end. The optional
   disclosure shows bytes, PC changes, and accesses from the last CPU record.
@@ -180,6 +181,13 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   between load and store, displays CY from CPU state, and retains the last
   addition separately from the latest instruction record. The full sum explains
   the calculation; A and carry come from execution, not a parallel simulation.
+
+- `interactive/program-view.ts` reveals the fixed add-one program for the
+  stored-program lesson. It reads bytes from RAM at mount, marks the next
+  instruction using CPU state, and highlights fetches using the record's
+  `instruction` field rather than every memory read. Its labels and grouping
+  describe the known program; it is not a general disassembler. A single Step
+  button advances the CPU, and the same completion and editing rules apply.
 
 Sauvignon fences replace the earlier Mermaid diagrams. GitHub currently shows
 these fences as source; the site displays the rendered diagrams and
@@ -211,6 +219,10 @@ instructions, restart, keyboard focus, and the recorded accesses. For add-one,
 check 41 → 42, 255 → 0 with CY = 1, and 127 → 128 with CY = 0. Change source
 memory after loading and destination memory before storing; verify that A and
 CY remain independent, and the last addition survives the store and memory
-edits. Restart after carry and while an invalid draft is present. Check that
+edits. Restart after carry and while an invalid draft is present. For the
+stored-program lesson, check initial PC/bytes, the three fetch groups and next
+markers, the final boundary, and restart. Verify that the load's data read is
+not highlighted as an instruction fetch, and that edits preserve the last
+fetch while invalid drafts block Step. Check that
 preceding lessons still work and do not request CPU runtime modules. The emulator’s
 `npm test` suite remains independent of the Python toolchain and Sauvignon.

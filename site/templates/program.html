@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "instruments/register-explorer.html" import register_explorer with context %}
+{% block description %}Follow the Intel 8080's program counter through a three-instruction program. See the bytes in memory and which ones each instruction fetches.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson register-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Memory and the processor · A stored program</p>
+    <h1>What comes<br><em>next?</em></h1>
+    <p class="lesson-intro">The program still reads a byte, adds one, and writes the result. This time, there is just one button. How does the processor know which instruction to run?</p>
+  </header>
+  {{ register_explorer('program-memory', 41, 0, add_one=true, program=true) }}
+  <div class="lesson-prose">
+    <section aria-labelledby="instructions-are-bytes">
+      <h2 id="instructions-are-bytes">Instructions are bytes too.</h2>
+      <p>The commands are already stored in memory. They are bytes, just like the values at addresses 3 and 4. The descriptions beside them are for us; the processor reads the bytes themselves.</p>
+      <p>Look at “Add one to A.” Its two bytes are <code>C6 01</code>. On the 8080, <code>C6</code> says to add a number to A; the next byte supplies that number. Here it is <code>01</code>, meaning one.</p>
+      <p>The program view uses hexadecimal for both addresses and contents. Each small address labels one memory location; the larger number underneath is its byte. For example, location <code>0103</code> contains <code>C6</code>.</p>
+      <p>Both views above show parts of the <em>same</em> RAM: data near the beginning, and the program starting at <code>0100</code> (256 in decimal). This lesson lets you edit the data while keeping the instructions fixed.</p>
+    </section>
+    <section aria-labelledby="an-address-to-remember">
+      <h2 id="an-address-to-remember">An address to remember.</h2>
+      <p>The processor has another register called the <strong>program counter</strong>, or <strong>PC</strong>. Between these steps, it holds the address where the next instruction begins.</p>
+      <p>Our lesson starts PC at <code>0100</code>. Press <strong>Step one instruction</strong>. The processor fetches the load instruction from that address and executes it. A receives 41, and PC moves to <code>0103</code>.</p>
+      <p>PC counts addresses, not instructions. The load occupies three bytes, at <code>0100</code>, <code>0101</code>, and <code>0102</code>. The next instruction therefore starts at <code>0103</code>.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> The addition begins at <code>0103</code> and occupies two bytes. Where will PC point after you step again?</p>
+        <details><summary>Show an explanation</summary><p>It moves to <code>0105</code>. The addition uses the bytes at <code>0103</code> and <code>0104</code>; the store starts immediately after them.</p></details>
+        <a href="#experiment">Follow PC ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="fetch-then-act">
+      <h2 id="fetch-then-act">Fetch, then act.</h2>
+      <p><strong>Fetching</strong> means reading the instruction’s bytes from memory. The shaded bytes show what the last step fetched. The arrow shows where the <em>next</em> instruction starts. After a step, these refer to different instructions.</p>
+      <p>The load fetches <code>3A 03 00</code>, then reads the data at address 3 into A. That data read is separate from fetching the instruction. You can see all four reads in the optional record above.</p>
+      <details><summary>Why three bytes for the load?</summary><p><code>3A</code> selects the load instruction. The next two bytes give its address, with the low byte first: <code>03 00</code> means <code>0003</code>. An 8080 memory address needs two bytes, while the value loaded into A is one byte.</p></details>
+      <p>Each press executes one whole instruction. The display reports the completed step; it does not pause at each byte read or represent individual clock cycles.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Start again. Open the byte editor and change address 3 to 255, then step through all three instructions. Does the path taken by PC change?</p>
+        <details><summary>Show an explanation</summary><p>No. PC follows <code>0100 → 0103 → 0105 → 0108</code> again. A and carry change because the data is different, but the program’s bytes and instruction lengths stay the same.</p></details>
+        <a href="#experiment">Try new data ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="at-the-end">
+      <h2 id="at-the-end">At the end.</h2>
+      <p>The store occupies three bytes, so the final step leaves PC at <code>0108</code>. Our lesson stops offering steps there. The processor has not executed a halt instruction; we have reached the end of this little experiment.</p>
+      <p>You have followed a stored program: instruction bytes tell the processor what to do, and PC tells it where to look next. Here, each instruction leads to the following one. Later, we will see instructions that deliberately change that path.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation">
+      <a href="{{ calc_url('learn/add-one/') }}"><span aria-hidden="true">←</span> Doing something with a byte</a>
+    </nav>
+  </div>
+</main>
+{% endblock %}

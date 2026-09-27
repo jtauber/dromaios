@@ -1,0 +1,13 @@
+{% macro program_view() %}
+    <section class="program-view" data-program-view aria-labelledby="program-heading">
+      <div class="program-heading">
+        <div><h2 id="program-heading">The program in memory</h2><p>Addresses and bytes below are hexadecimal.</p></div>
+        <div class="program-counter"><span>Next instruction · PC</span><strong data-register-pc>0100</strong></div>
+      </div>
+      <p class="program-key"><strong>← Next (PC)</strong> marks the next instruction. <span>Shaded bytes</span> were fetched by the last step.</p>
+      <ol class="program-instructions" data-program-instructions></ol>
+      <noscript><p>Enable JavaScript to inspect the program’s bytes and step through its instructions.</p></noscript>
+      <p class="program-end" data-program-end>0108 · End of this program</p>
+      <p class="program-fetched" data-program-fetched role="status">No instruction has run. PC points to the first instruction.</p>
+    </section>
+{% endmacro %}
