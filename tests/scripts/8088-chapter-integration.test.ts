@@ -10,7 +10,7 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
   const directory = mkdtempSync(join(tmpdir(), "dromaios-8088-chapter-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
-  for (const name of ["generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
+  for (const name of ["compile-cpu-chapters", "generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const file = join(directory, "src/components/cpus/specifications/8088.md");
@@ -178,7 +178,7 @@ test("8088 lifecycle chapter edits reach public reset, fetching, prefixes, retir
   const directory = mkdtempSync(join(tmpdir(), "dromaios-8088-lifecycle-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
-  for (const name of ["generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
+  for (const name of ["compile-cpu-chapters", "generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
   const file = join(directory, "src/components/cpus/specifications/8088.md");
   writeFileSync(file, readFileSync(file, "utf8")

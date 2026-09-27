@@ -1,9 +1,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { generateCpuChapters } from "./generate-cpu-chapters.ts";
+import { compileCpuChapters } from "./compile-cpu-chapters.ts";
 import { describeInstructions } from "../src/components/cpus/semantics/describe.ts";
 
-const { instructionDefinitions } = generateCpuChapters();
+const { instructionDefinitions } = compileCpuChapters();
 
 const target = fileURLToPath(new URL("../docs/cpus/semantic-examples.md", import.meta.url));
 const document = describeInstructions(instructionDefinitions);

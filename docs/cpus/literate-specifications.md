@@ -771,7 +771,8 @@ interface Cpu8008 "Instruction-level Intel 8008." {
 The declaration requires chapter-owned state and an earlier supported execution
 contract. Its class name starts with `Cpu` followed by an uppercase letter or
 digit, then letters or digits. Each `snapshot` entry names an earlier numeric
-view. Fields must be unique and must not replace stored fields. A dotted field
+or Boolean view; a public `pc` must be numeric. Fields must be unique and must
+not replace stored fields. A dotted field
 such as `alternate.bc` adds a view inside an existing stored group; deeper paths
 are not supported. An empty block
 exposes stored state alone. Descriptions supply generated comments, never code.

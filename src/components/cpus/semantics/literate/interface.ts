@@ -31,6 +31,7 @@ export function chapterInterface(header: ChapterTokens, lines: readonly ChapterT
     }
     tokens.expect("snapshot"); const field = tokens.reference(); tokens.expect("=");
     const view = tokens.word(), source = views.get(view) ?? tokens.fail(`Unknown state view ${view}.`); tokens.end();
+    if (field === "pc" && source.type === "flag") tokens.fail("The public PC must be numeric.");
     const [parent, child] = field.split(".");
     if (child !== undefined) {
       const group = state[parent!];

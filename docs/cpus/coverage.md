@@ -84,10 +84,10 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,860 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,860** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,861 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,861** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 24,074 |
-| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 150 |
+| CPU compilation and generation scripts (`compile-cpu-chapters.ts`, `generate-cpu-chapters.ts`, and `generate-cpu-semantics.ts`) | 166 |
 | Generated executable CPU output, counted separately | 604,686 |
 | Generated chapter data, catalogues, and entry-point metadata, counted separately | 995,495 |
 | Generated state schemas/types, counted separately | 213 |
@@ -136,36 +136,38 @@ whitespace to structural lines without repeatedly rewriting completed strings.
 This also preserves literal Unicode line and paragraph separators in strings
 and keys, where the former formatter incorrectly inserted spaces.
 
-Catalogue construction now uses one **55-line** shared builder for byte,
-segmented, and word instruction partitions. Generation and the expanded listing
-consume the compiler's validated definitions directly; imported chapter modules
-use the same builder. The build no longer loads a second instruction graph from
-its serialized output. Authored CPU source increases by **46 lines**, while the
-two CPU generation scripts shrink by **12 lines**. The generated catalogue
-wrappers shrink by **45 lines**; executable CPU output is unchanged.
+Catalogue construction uses one **55-line** shared builder for byte, segmented,
+and word instruction partitions. Generation and the expanded listing consume
+the compiler's validated definitions directly; imported chapter modules use the
+same builder. The build does not load a second instruction graph from its
+serialized output.
 
-Local measurements of this refactor on macOS ARM64 with Node 24.20.0, using
-medians from five paired runs with a fresh process for each version:
+Chapter discovery, compilation, and catalogue construction now share a
+**37-line** script that does not render or write artifacts. The chapter writer
+shrinks from **111 to 90 lines**; the compilation and generation scripts together
+grow by **16 lines**. The listing command uses only the compilation step, writes
+only its document when regenerating, and writes no files when checking freshness.
+It neither needs nor refreshes generated CPU files. Numeric public-PC validation
+also runs during chapter compilation, adding **one authored CPU source line**
+and preserving rejection when no artifact writer runs.
 
-| CPU generation stage | Before (`17959ae`) | After direct catalogue construction |
-| --- | ---: | ---: |
-| Compile chapters | 1.038 s | 1.044 s |
-| Serialize chapter modules | 0.489 s | 0.488 s |
-| Prepare instruction catalogue | 0.778 s | 0.125 s |
-| Emit instruction bodies and lifecycle bindings | 0.196 s | 0.195 s |
-| **Complete CPU generation, including startup and file writes** | **2.594 s** | **1.962 s** |
+Local measurements of this split on macOS ARM64 with Node 24.20.0, using medians
+from five paired runs with a fresh process for each version:
 
-Stage timers surround compilation, chapter-module serialization, catalogue
-preparation, and executable emission. Previously catalogue preparation imported
-the generated registry; it now builds partitions from the compiled definitions.
-Complete generation takes about **24% less time** in these paired runs. Median
-process peak RSS is **910 MiB before and 579 MiB after**, measured with
-`process.resourceUsage().maxRSS`; this is a whole-process peak, not a per-stage
-heap measurement. Of **132 checked files**, only the eight generated chapter
-modules change their catalogue wrappers. Executable CPU and machine sources,
-state schemas, the aggregate catalogue, interface metadata, and the expanded
-instruction listing remain byte-identical. These timings cover CPU generation,
-excluding TypeScript compilation and emulator execution.
+| Command | Time before (`cfe35f0`) | Time after | Peak RSS before | Peak RSS after |
+| --- | ---: | ---: | ---: | ---: |
+| Check expanded listing (`describe-cpu-semantics.ts --check`) | 2.007 s | 1.471 s | 651 MiB | 586 MiB |
+| Generate CPUs (`generate-cpu-semantics.ts`) | 2.018 s | 2.007 s | 536 MiB | 559 MiB |
+
+Checking the listing takes about **27% less time**. It previously wrote **18
+files (22.9 MB)** of chapter data, schemas, and catalogues; it now writes **zero**.
+Full CPU generation time is effectively unchanged, with the same **59 output
+files**. Peak RSS is measured with `process.resourceUsage().maxRSS`: a whole-process
+peak, not a per-stage heap measurement. Generation's median peak rose by about
+**23 MiB** in these runs. Timings include startup and file access, excluding
+TypeScript compilation and emulator execution. All **132 checked artifacts**,
+including generated CPU and machine sources, schemas, catalogues, interface
+metadata, and the expanded listing, remain byte-identical.
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
 outside this source count. Generated TypeScript is reproducible build output,

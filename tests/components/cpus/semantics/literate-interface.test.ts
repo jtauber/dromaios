@@ -86,6 +86,8 @@ view PC "selected program counter"`).replace("snapshot pc = PC", "snapshot ready
   cpu.step(); // Zero is HLT.
   assert.equal(cpu.snapshot().ready, false); assert.equal(snapshot.ready, true);
   assert.throws(() => compile(text.replace("counter PC write setPC", "counter READY write setPC")), /counter|PC/);
+  assert.throws(() => compile(text.replace("snapshot pc = PC", "snapshot pc = READY")),
+    error => error instanceof ChapterError && error.file === file && error.line > 0 && /public PC must be numeric/.test(error.message));
 });
 
 const invalid: readonly [string, string, string, RegExp][] = [

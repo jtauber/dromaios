@@ -10,7 +10,7 @@ test("6809 chapter state, view, and stack edits reach public instructions, index
   const directory = mkdtempSync(join(tmpdir(), "dromaios-6809-chapter-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
-  for (const name of ["generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
+  for (const name of ["compile-cpu-chapters", "generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const chapter = join(directory, "src/components/cpus/specifications/6809.md");
@@ -84,7 +84,7 @@ test("6800 chapter state and condition-code edits reach the public core, machine
   const directory = mkdtempSync(join(tmpdir(), "dromaios-6800-chapter-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
-  for (const name of ["generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
+  for (const name of ["compile-cpu-chapters", "generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const chapter = join(directory, "src/components/cpus/specifications/6800.md");
@@ -130,7 +130,7 @@ test("the 6502 chapter's state edits reach construction, snapshots, and machine 
   const directory = mkdtempSync(join(tmpdir(), "dromaios-6502-state-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
-  for (const name of ["generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
+  for (const name of ["compile-cpu-chapters", "generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const chapter = join(directory, "src/components/cpus/specifications/6502.md");
@@ -165,7 +165,7 @@ test("the 6502 chapter's status view and mask policy drive both software and ext
   const directory = mkdtempSync(join(tmpdir(), "dromaios-6502-status-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
-  for (const name of ["generate-cpu-chapters", "generate-cpu-semantics"]) {
+  for (const name of ["compile-cpu-chapters", "generate-cpu-chapters", "generate-cpu-semantics"]) {
     cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   }
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
@@ -198,7 +198,7 @@ test("chapter edits drive machine schemas, RAM bounds, entry points, and automat
   const directory = mkdtempSync(join(tmpdir(), "dromaios-chapter-model-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
-  for (const script of ["generate-cpu-chapters", "generate-cpu-semantics", "generate-machines", "compile-composition"]) {
+  for (const script of ["compile-cpu-chapters", "generate-cpu-chapters", "generate-cpu-semantics", "generate-machines", "compile-composition"]) {
     cpSync(`scripts/${script}.ts`, join(directory, `scripts/${script}.ts`));
   }
   cpSync("src/components", join(directory, "src/components"), { recursive: true });

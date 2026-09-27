@@ -11,7 +11,7 @@ function editedChapter(t: TestContext, edit: (chapter: string) => string) {
   const directory = mkdtempSync(join(tmpdir(), "dromaios-z80-chapter-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
-  for (const name of ["generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
+  for (const name of ["compile-cpu-chapters", "generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const file = join(directory, "src/components/cpus/specifications/z80.md");

@@ -1,11 +1,10 @@
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { generateChapterState } from "../src/components/cpus/semantics/literate/state.ts";
 import { generatePublicState } from "../src/components/cpus/semantics/literate/interface.ts";
-import { compileCpuChapter } from "../src/components/cpus/semantics/literate/compile.ts";
+import { compileCpuChapters } from "./compile-cpu-chapters.ts";
 import { generateChapterData } from "../src/components/cpus/semantics/literate/chapter-data.ts";
 import { wordExecutionSources } from "../src/components/cpus/semantics/literate/word-execution.ts";
-import { chapterCatalogue } from "../src/components/cpus/semantics/literate/catalogue.ts";
 import type { CpuChapter } from "../src/components/cpus/semantics/literate/compile.ts";
 import { ChapterError } from "../src/components/cpus/semantics/literate/document.ts";
 
@@ -30,28 +29,9 @@ function chapterModule(chapter: CpuChapter, name: string, cpu: string): string {
 /** Generate chapter artifacts and pass compiled catalogues directly to their consumers. */
 export function generateCpuChapters() {
   const root = new URL("../src/components/cpus/", import.meta.url);
-  const chapters = readdirSync(new URL("specifications/", root)).filter(file => file.endsWith(".md")).sort().map(file => {
-    const name = file.slice(0, -3);
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) || ["catalogue", "interfaces", "state"].includes(name)) {
-      throw new Error(`Invalid or reserved chapter filename: ${file}`);
-    }
-    const source = new URL(`specifications/${name}.md`, root);
-    const chapter = compileCpuChapter(readFileSync(source, "utf8"), {}, fileURLToPath(source));
-    const cpu = chapter.cpu;
-    return { name, cpu, chapter, module: chapterModule(chapter, name, cpu), state: chapter.state &&
-      generateChapterState(chapter.state) + (chapter.interface ? generatePublicState(chapter.state, chapter.interface) : "") };
-  });
-  // Keep word models first, then flat/decoded byte models, then segmented models.
-  const complete = chapters.filter(({ chapter }) => chapter.execution && chapter.state)
-    .sort((left, right) => ["word", "byte", "segmented"].indexOf(left.chapter.execution!.mode) - ["word", "byte", "segmented"].indexOf(right.chapter.execution!.mode));
-  const registered = new Set<string>();
-  for (const { name, cpu } of complete) {
-    if (registered.has(cpu)) throw new Error(`${name}.md: Duplicate complete CPU chapter for ${cpu}.`);
-    registered.add(cpu);
-  }
-  const bindings = complete.map(({ name, chapter }) => chapterCatalogue(name, {
-    ...chapter, state: chapter.state!, mode: chapter.execution!.mode,
-    ...(chapter.execution?.mode === "word" ? { readers: wordExecutionSources(chapter.execution) } : {}),
+  const { chapters, complete, instructionModules, instructionDefinitions } = compileCpuChapters();
+  const modules = chapters.map(({ name, cpu, chapter }) => ({ name, module: chapterModule(chapter, name, cpu),
+    state: chapter.state && generateChapterState(chapter.state) + (chapter.interface ? generatePublicState(chapter.state, chapter.interface) : ""),
   }));
   const catalogue = ["// Generated chapter instruction catalogue. Do not edit.",
     ...complete.map(({ name }, index) => `import { instructionModules as modules${index}, instructionDefinitions as definitions${index} } from "./${name}.ts";`),
@@ -83,7 +63,7 @@ export function generateCpuChapters() {
   // Every chapter compiles before any existing output is removed.
   rmSync(output, { recursive: true, force: true });
   mkdirSync(output, { recursive: true });
-  for (const { name, module, state } of chapters) {
+  for (const { name, module, state } of modules) {
     writeFileSync(new URL(`${name}.ts`, output), module);
     if (state !== undefined) {
       mkdirSync(new URL("state/", output), { recursive: true });
@@ -97,8 +77,7 @@ export function generateCpuChapters() {
     models: chapters.map(({ name, cpu, chapter }) => ({
       name, cpu, state: chapter.state, execution: chapter.execution, reset: chapter.reset, interface: chapter.interface,
     })),
-    instructionModules: bindings.flatMap(binding => binding.instructionModules),
-    instructionDefinitions: bindings.flatMap(binding => binding.instructionDefinitions),
+    instructionModules, instructionDefinitions,
   };
 }
 

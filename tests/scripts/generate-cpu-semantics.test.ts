@@ -9,8 +9,9 @@ test("native CPU generation never imports generated data, bootstraps without it,
   const directory = mkdtempSync(join(tmpdir(), "dromaios-semantics-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
-  cpSync("scripts/generate-cpu-semantics.ts", join(directory, "scripts/generate-cpu-semantics.ts"));
-  cpSync("scripts/generate-cpu-chapters.ts", join(directory, "scripts/generate-cpu-chapters.ts"));
+  for (const name of ["compile-cpu-chapters", "generate-cpu-chapters", "generate-cpu-semantics"]) {
+    cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
+  }
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
   const output = join(directory, "src/components/cpus/generated");
   rmSync(output, { recursive: true, force: true });

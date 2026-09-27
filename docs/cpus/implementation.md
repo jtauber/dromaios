@@ -25,7 +25,7 @@ Executable Markdown
 Generated TypeScript → compiled JavaScript
 ```
 
-1. [`generate-cpu-chapters.ts`](../../scripts/generate-cpu-chapters.ts) discovers
+1. [`compile-cpu-chapters.ts`](../../scripts/compile-cpu-chapters.ts) discovers
    Markdown files directly under `specifications/` in filename order. The `cpu`
    declaration supplies model identity. Filenames use lowercase letters, digits,
    and single hyphen separators; `catalogue`, `interfaces`, and `state` are reserved.
@@ -36,13 +36,15 @@ Generated TypeScript → compiled JavaScript
    for failures while compiling a family. Both CPU generation commands print
    chapter diagnostics without internal stack traces; unexpected implementation
    errors still propagate. There is no host-language evaluation.
-3. [`chapter-data.ts`](../../src/components/cpus/semantics/literate/chapter-data.ts)
-   serializes shared definitions into typed constants. The chapter stage also
-   emits small stored-state modules, instruction registration, and public-interface
-   metadata under `semantics/generated/`. All chapters are compiled and duplicate
-   complete model identities rejected before this stage replaces its output.
    [`catalogue.ts`](../../src/components/cpus/semantics/literate/catalogue.ts)
-   constructs instruction partitions directly from the compiled definitions.
+   constructs instruction partitions directly from the compiled definitions
+   during the shared compilation step, which neither renders nor writes artifacts.
+3. [`generate-cpu-chapters.ts`](../../scripts/generate-cpu-chapters.ts) uses
+   [`chapter-data.ts`](../../src/components/cpus/semantics/literate/chapter-data.ts)
+   to serialize shared definitions into typed constants. It also emits small
+   stored-state modules, instruction registration, and public-interface metadata
+   under `semantics/generated/`. All chapters are compiled and duplicate complete
+   model identities rejected before this stage replaces its output.
    Generated chapter modules use the same builder when tests or tooling import
    the catalogue through [`definitions.ts`](../../src/components/cpus/semantics/definitions.ts).
 4. [`generate-cpu-semantics.ts`](../../scripts/generate-cpu-semantics.ts) receives
@@ -62,9 +64,11 @@ Generated directories and `dist/` are ignored, disposable build products.
 Edit the originating specification or shared implementation, never their output.
 The tracked [expanded instruction listing](semantic-examples.md) is the exception:
 refresh it with `node scripts/describe-cpu-semantics.ts` when definitions or their
-explanations change. That command refreshes chapter data too and uses the compiled
-catalogue directly; `--check` checks listing freshness. The ordinary build does
-not rewrite the listing.
+explanations change. That command uses the compiled catalogue directly and writes
+only the listing. With `--check`, it reads the existing listing and reports
+staleness without writing any files. Neither mode needs generated CPU files or
+refreshes them; both still compile and validate the chapters. The ordinary build
+does not rewrite the listing.
 
 ### Following the 8008 files
 
