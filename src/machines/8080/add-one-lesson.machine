@@ -1,0 +1,20 @@
+ram 10000
+
+cpu 8080 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    PC = 0100  SP = 0000
+    flags { S = 0  Z = 0  AC = 0  P = 0  CY = 0 }
+    interruptEnabled = false
+    interruptDeferred = false
+    halted = false
+}
+
+memory 0003 { 29 00 }   // Address 3 holds 41; address 4 will receive the result.
+
+memory 0100 {
+    3A 03 00           // LDA 0003H: copy memory at address 3 into A.
+    C6 01              // ADI 1: add one to A and update the arithmetic flags.
+    32 04 00           // STA 0004H: copy A into memory at address 4.
+}
+
+end 0108

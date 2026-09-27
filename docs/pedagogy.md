@@ -143,7 +143,9 @@ working register and back to memory. The [register lesson](cpus/8080/examples/re
 uses real 8080 load/store instructions, with other state and instruction details
 available to reveal. The introductory path uses the **8080**, leading from
 load/store to calculation, instruction bytes, the program counter, and small
-programs. The **Altair 8800** is the first historical machine: its front panel
+programs. The [add-one lesson](cpus/8080/examples/add-one.md) now connects
+load–calculate–store to unsigned wraparound and the 8080 carry flag.
+The **Altair 8800** is the first historical machine: its front panel
 will connect those familiar concepts to switches and lights before adding I/O.
 
 The next major priority is milestones 1 and 2 together: make one addition
@@ -174,9 +176,9 @@ instruction obtains its inputs, the operation uses those values, and registers
 and flags receive the results. Make incoming carry and arithmetic mode explicit
 where applicable.
 
-Build the first arithmetic instruction lesson on the 8080 register lesson.
-The existing [load, add, and store example](cpus/8080/examples/arithmetic.md)
-provides the next operation. Introduce the 6502 as a later comparison when
+The [add-one lesson](cpus/8080/examples/add-one.md) begins this connection with
+`ADI 1`. Broaden it to editable operands and the arithmetic explorer described
+above. Introduce the 6502 as a later comparison when
 teaching incoming carry, arithmetic modes, and its signed-overflow flag;
 the 8080 has no overflow flag. Conceptual arithmetic explorers can explain
 signed overflow independently of a processor that records it.

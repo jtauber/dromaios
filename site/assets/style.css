@@ -311,6 +311,7 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .register-representations > div { display: flex; justify-content: space-between; gap: 16px; }
 .register-representations dd { margin: 0; }
 .register-panel > p:last-child { margin: 20px 0 0; font-size: 13px; }
+.register-carry { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-top: 1px solid #6f8575; padding-top: 16px; margin-top: 16px; font: 14px var(--mono); }
 .register-actions { display: flex; flex-wrap: wrap; gap: 12px; border: 0; padding: 0; margin: 22px 0 16px; min-width: 0; }
 .register-actions .button { border: 1px solid var(--ink); border-radius: 3px; }
 .register-actions .clear-byte { margin: 0; }
@@ -318,6 +319,8 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .register-next { font-size: 14px; margin-bottom: 16px; }
 .register-record { border-left: 3px solid var(--accent); padding: 15px 20px; background: #f0eee5; }
 .register-record p { margin: 6px 0 0; font-size: 15px; }
+.register-calculation { border: 1px solid #c6cec0; padding: 15px 20px; margin-top: 16px; background: #fffefa; }
+.register-calculation p { margin: 6px 0 0; font-size: 15px; }
 .memory-edit, .register-inside { margin-top: 24px; }
 .memory-edit > summary, .register-inside > summary { cursor: pointer; font-size: 15px; padding-block: 12px; }
 .memory-edit .experiment-note { margin-top: 0; }

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "instruments/register-explorer.html" import register_explorer with context %}
+{% block description %}Load a byte, add one in the Intel 8080's accumulator, and store the result. Try 41 → 42, then 255 → 0 and discover the carry flag.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson register-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Memory and the processor · One calculation</p>
+    <h1>Doing something<br><em>with a byte.</em></h1>
+    <p class="lesson-intro">We can bring a byte into A and copy it back to memory. Now let’s do something in between: <strong>add one</strong>.</p>
+  </header>
+  {{ register_explorer('addition-memory', 41, 0, add_one=true) }}
+  <div class="lesson-prose">
+    <section aria-labelledby="one-small-calculation">
+      <h2 id="one-small-calculation">One small calculation.</h2>
+      <p>Address 3 starts with 41. Read it into A, then press <strong>Add one to A</strong>. A becomes 42. Address 3 still holds 41, and address 4 still holds 0: the calculation has changed the working copy inside the processor.</p>
+      <p>Press <strong>Write A to address 4</strong> to save the result in memory. Now address 4 holds 42. A keeps its value too.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> Start again, read 41 into A, then change address 3 to 99 before adding. What will A become?</p>
+        <details><summary>Show an explanation</summary><p>A becomes 42. The addition uses the copy already in A. It does not read address 3 again.</p></details>
+        <a href="#experiment">Try the calculation ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="room-for-the-result">
+      <h2 id="room-for-the-result">Room for the result.</h2>
+      <p>A is still only one byte. It can hold an unsigned value from 0 to 255, even when a calculation produces a larger answer.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Start again. Change the byte at address 3 to 255 <em>before</em> reading it. Then read, add one, and pause before writing. What is in A? What is still in memory?</p>
+        <details><summary>Show an explanation</summary><p>The full sum is 256, but A holds 0: the rightmost eight bits. Address 3 still holds 255, and address 4 still holds 0. The carry flag is now 1. Writing stores A’s 0 at address 4 and leaves carry at 1.</p></details>
+        <a href="#experiment">Try 255 + 1 ↑</a>
+      </aside>
+      <p>This is the same wraparound we met in <a href="{{ calc_url('learn/byte-wraparound/') }}">What happens after 255?</a>. Here, a real processor instruction performs the addition.</p>
+    </section>
+    <section aria-labelledby="a-bit-to-remember">
+      <h2 id="a-bit-to-remember">A bit to remember.</h2>
+      <p>The processor has small pieces of state called <strong>flags</strong>. The <strong>carry flag</strong>, named <strong>CY</strong> on the 8080, is one bit. This addition sets it to 1 when the sum does not fit in eight bits, and to 0 when it does.</p>
+      <p>CY is separate from A. It remembers the carry from the addition; it does not make A a nine-bit register. Writing A to memory writes just its eight bits. The load and store instructions leave CY alone.</p>
+      <aside class="lesson-prompt"><p><strong>Compare.</strong> Start again with 127 at address 3. Does 127 + 1 set carry?</p>
+        <details><summary>Show an explanation</summary><p>No. 128 fits in eight bits: A becomes binary 1000 0000, and CY is 0. Turning on the highest bit in A is different from carrying beyond the byte.</p></details>
+        <a href="#experiment">Try 127 + 1 ↑</a>
+      </aside>
+      <p>Starting again restores the lesson’s chosen values, including CY = 0. Editing memory by itself never changes A or CY.</p>
+    </section>
+    <section aria-labelledby="load-calculate-store">
+      <h2 id="load-calculate-store">Load, calculate, store.</h2>
+      <p>These three instructions form a small program: bring a value in, work on it, and put the result somewhere. Each button runs one instruction; the others wait their turn.</p>
+      <p>The program and its instruction bytes are already in memory. You can reveal them above. Next we will look at how the processor finds those instructions in order.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation">
+      <a href="{{ calc_url('learn/register/') }}"><span aria-hidden="true">←</span> A place to work: a register</a>
+    </nav>
+  </div>
+</main>
+{% endblock %}

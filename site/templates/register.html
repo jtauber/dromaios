@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "instruments/byte-explorer.html" import byte_explorer %}
+{% from "instruments/register-explorer.html" import register_explorer with context %}
 {% block description %}Meet A, a working byte inside an Intel 8080. Read a byte from memory, then write its copy elsewhere, using real processor instructions.{% endblock %}
 {% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
 {% block main %}
@@ -9,55 +9,7 @@
     <h1>A place<br><em>to work.</em></h1>
     <p class="lesson-intro">Memory gives bytes a place to stay. A processor has its own small working spaces, called <strong>registers</strong>. Meet one of them: <strong>A</strong>.</p>
   </header>
-  <section id="experiment" data-register-explorer aria-label="Copy a byte through an 8080 register">
-    <div class="register-workbench">
-      <div class="memory-bank">
-        <div class="instrument-heading"><span>Memory · eight locations shown</span><span>Addresses 0–7</span></div>
-        <p class="memory-key">Address <strong>3</strong> holds our starting byte. Address <strong>4</strong> is where we will put a copy. Values below are decimal.</p>
-        <fieldset data-memory-controls disabled>
-          <legend class="visually-hidden">Select a memory byte to edit</legend>
-          <div class="memory-cells" data-memory-cells></div>
-        </fieldset>
-        <p class="memory-status" data-memory-status role="status">Address 3 starts at 200; address 4 starts at 42.</p>
-        <p class="experiment-note">Select a location to edit it in the explorer below. The two instructions always use addresses 3 and 4.</p>
-      </div>
-      <section class="register-panel" aria-labelledby="register-heading">
-        <div class="instrument-heading"><span>Inside the processor</span><span>Intel 8080</span></div>
-        <h2 id="register-heading">Register A</h2>
-        <p class="register-value"><span data-register-value>0</span><span class="register-unit">decimal</span></p>
-        <dl class="register-representations">
-          <div><dt>Binary</dt><dd data-register-binary>0000 0000</dd></div>
-          <div><dt>Hexadecimal</dt><dd data-register-hex>00</dd></div>
-        </dl>
-        <p>A holds one byte. The processor’s instructions change it.</p>
-      </section>
-    </div>
-    <fieldset class="register-actions" data-register-controls disabled>
-      <legend class="visually-hidden">Run the two instructions in order</legend>
-      <button class="button" type="button" data-register-read>1. Read address 3 into A</button>
-      <button class="button" type="button" data-register-write disabled>2. Write A to address 4</button>
-      <button class="clear-byte" type="button" data-register-restart>Start again</button>
-    </fieldset>
-    <p class="register-next" data-register-next>Enable JavaScript to run this experiment.</p>
-    <div class="register-record" role="status" aria-atomic="true">
-      <span class="addition-label">Last instruction</span>
-      <p data-register-last>No instruction has run. A starts at 0.</p>
-    </div>
-    <details class="memory-edit" open>
-      <summary data-memory-label>Change the byte at address 3</summary>
-      <p class="experiment-note">Edits here change memory immediately. They do not change A or run an instruction.</p>
-      {{ byte_explorer('register-memory-byte', 200, 'Byte at address 3') }}
-    </details>
-    <details class="register-inside">
-      <summary>See the 8080 instructions</summary>
-      <p>The first button executes <code>LDA 0003H</code>: load A from memory address 3. The second executes <code>STA 0004H</code>: store A at address 4. Both preserve the processor’s flags.</p>
-      <p>This view shows the first eight locations of a 65,536-byte RAM. The two instructions live elsewhere, starting at hexadecimal address <code>0100</code>. The program counter, <strong>PC</strong>, tells the processor where to find its next instruction.</p>
-      <p>Current PC: <code data-register-pc>0100</code> (hexadecimal). The lesson stops offering steps at <code>0106</code>, just after the two instructions. This is a lesson boundary; the processor has not executed a halt instruction.</p>
-      <pre data-register-trace tabindex="0" aria-label="Last instruction and its recorded memory accesses">No instruction has run.</pre>
-      <p>The record includes the reads that fetch the instruction bytes, as well as the data read or write. Editing a memory byte in the explorer is a separate learner action; it does not alter the last instruction’s record.</p>
-      <a href="{{ calc_url('cpus/8080/') }}">Explore the Intel 8080 guide <span aria-hidden="true">→</span></a>
-    </details>
-  </section>
+  {{ register_explorer('register-memory', 200, 42) }}
   <div class="lesson-prose">
     <section aria-labelledby="a-copy-in-a">
       <h2 id="a-copy-in-a">A copy in A.</h2>
@@ -80,11 +32,12 @@
     <section aria-labelledby="load-and-store">
       <h2 id="load-and-store">Load, then store.</h2>
       <p>Bringing a value into a register is called a <strong>load</strong>. Writing it from a register to memory is called a <strong>store</strong>.</p>
-      <p>On the Intel 8080, A is also called the <strong>accumulator</strong>. It is a working register used for arithmetic. Soon we will change its value with a calculation between the load and the store.</p>
+      <p>On the Intel 8080, A is also called the <strong>accumulator</strong>. It is a working register used for arithmetic. In the next lesson, we will change its value with a calculation between the load and the store.</p>
       <p>For now, the important idea is that a register can hold a copy of a byte independently of memory. Each button above runs a real 8080 instruction to make that copy.</p>
     </section>
     <nav class="lesson-navigation" aria-label="Lesson navigation">
       <a href="{{ calc_url('learn/memory/') }}"><span aria-hidden="true">←</span> Where does a byte live?</a>
+      <a href="{{ calc_url('learn/add-one/') }}">Next: Doing something with a byte <span aria-hidden="true">→</span></a>
     </nav>
   </div>
 </main>
