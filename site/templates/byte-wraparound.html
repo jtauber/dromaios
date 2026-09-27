@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "instruments/byte-explorer.html" import byte_explorer %}
+{% block description %}Add one to a byte and explore what happens after 255: the full sum, the eight-bit result, and the carry bit.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url('assets/byte-explorer.js') }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson wraparound-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Bits and numbers · Adding one</p>
+    <h1>What happens<br><em>after 255?</em></h1>
+    <p class="lesson-intro">A byte can hold an unsigned number from 0 to 255. Start at 254 and add one twice. Where does the next number go?</p>
+    <a class="text-link" href="{{ calc_url('learn/bits-and-numbers/') }}">First time here? Explore bits and numbers <span aria-hidden="true">→</span></a>
+  </header>
+  <section id="experiment" class="byte-increment" data-byte-increment aria-label="Add one to a byte">
+    <div class="byte-addition">
+      <fieldset class="addition-actions" data-addition-actions disabled>
+        <legend class="visually-hidden">Addition controls</legend>
+        <button class="button" type="button" data-add-one>Add 1 <span aria-hidden="true">+</span></button>
+        <button class="clear-byte" type="button" data-restart>Start again at 254</button>
+      </fieldset>
+      <div class="addition-record" aria-live="polite" aria-atomic="true">
+        <p class="addition-label">Last addition · full mathematical sum</p>
+        <p class="addition-equation" data-equation>No addition yet.</p>
+        <div class="addition-bits">
+          <div class="carry-result"><span class="bit-weight">256</span><span class="carry-digit" data-carry>—</span><span>Carry bit</span></div>
+          <div class="stored-result"><span>Rightmost eight bits</span><span class="stored-digits" data-stored-bits>──── ────</span><span>Stored in the byte</span></div>
+        </div>
+        <p class="addition-explanation" data-addition-explanation>Enable JavaScript to add one. The byte starts at 254.</p>
+      </div>
+    </div>
+    {{ byte_explorer('current-byte', 254) }}
+    <p class="experiment-note">Edit the byte to choose a new starting point. Each addition uses the current byte; the carry shown belongs to that addition.</p>
+  </section>
+  <div class="lesson-prose">
+    <section aria-labelledby="room-for-one-more">
+      <h2 id="room-for-one-more">Room for one more.</h2>
+      <p>In binary, 254 is <code>11111110</code>. Add one and the rightmost bit becomes 1: <code>11111111</code>. That is 255, and it still fits in eight bits.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> All eight bits are now on. What do you think the byte will contain after another addition?</p>
+        <a href="#experiment">Try the addition ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="ninth-bit">
+      <h2 id="ninth-bit">The sum needs a ninth bit.</h2>
+      <p>255 + 1 is 256. In binary, that is <code>1 00000000</code>: a 1 in the next position, worth 256, followed by eight zeroes.</p>
+      <p>The full answer is correct, but it needs nine bits. When we keep only the rightmost eight, the stored result is <strong>0</strong>. This is called <em>wraparound</em>.</p>
+      <p>The extra bit is the <strong>carry</strong> out of the byte. Here it is 1. For an addition that fits in eight bits, it is 0. You can reconstruct the full sum as <strong>carry × 256 + stored result</strong>.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> After wrapping to 0, add one again. Does the carry stay on?</p>
+        <details><summary>Show an explanation</summary><p>No. This addition is 0 + 1 = 1. It fits in eight bits, so its carry is 0. The display describes the latest addition.</p></details>
+        <a href="#experiment">Try the addition ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="carrying-within-byte">
+      <h2 id="carrying-within-byte">A carry can stay inside the byte.</h2>
+      <p>Try starting at 15: <code>00001111</code>. Adding one gives 16: <code>00010000</code>. The addition carries into the next position, but all of its bits still fit inside the byte. The carry <em>out of the whole byte</em> is 0.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> Start at 127 and add one. Will the carry out of the byte be 0 or 1?</p>
+        <details><summary>Show an explanation</summary><p>It is 0. The sum is 128, or <code>10000000</code>. The leftmost bit is on, but it is still one of the byte’s eight bits.</p></details>
+        <a href="#experiment">Try the addition ↑</a>
+      </aside>
+      <p>This explorer shows unsigned arithmetic with an eight-bit stored result. A processor’s instructions decide how to record carry in its flags; those rules come later.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation">
+      <a href="{{ calc_url('learn/bits-and-numbers/') }}"><span aria-hidden="true">←</span> Bits and numbers</a>
+    </nav>
+  </div>
+</main>
+{% endblock %}

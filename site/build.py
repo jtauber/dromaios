@@ -93,12 +93,15 @@ def build(base):
     site.render_template("bits-and-numbers.html", "learn/bits-and-numbers/index.html", {
         "title": "Bits and numbers",
     })
+    site.render_template("byte-wraparound.html", "learn/byte-wraparound/index.html", {
+        "title": "What happens after 255?",
+    })
     site.render_template("home.html", "index.html", {
         "title": "Computers, from the instruction up",
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + byte lesson + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
+    print(f"Built home + two byte lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

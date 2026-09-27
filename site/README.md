@@ -4,7 +4,7 @@
 the processor models and executable specifications; it is credited alongside
 the site’s other tools, Ryland and Sauvignon.
 
-Ryland builds the home page, the bits-and-numbers lesson, and one guide per processor from its executable
+Ryland builds the home page, the byte lessons, and one guide per processor from its executable
 specification. Sauvignon renders both architecture diagrams and state maps
 derived from the CPU compiler. Pages use ordinary HTML, CSS, and SVG, with a
 small TypeScript module for the byte explorer. Processor guides need no
@@ -142,6 +142,14 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   previous byte and display an explanation. Without scripting, a readable
   example remains with disabled controls. Keyboard users can toggle bits with
   Space or Enter and edit the number fields normally.
+- `templates/byte-wraparound.html` reuses that explorer to add one repeatedly.
+  The controller exposes its value, validity, and a programmatic setter; an edit
+  callback lets the lesson clear the previous calculation. The lesson shows
+  the full sum, the carry out of the byte, and the stored eight bits. Each step
+  uses the current byte; restarting restores 254. Valid manual edits clear the
+  calculation, while invalid drafts disable addition and preserve the last
+  completed step. This is an arithmetic illustration, not a CPU instruction
+  or a model of a processor's carry flag.
 
 Sauvignon fences replace the earlier Mermaid diagrams. GitHub currently shows
 these fences as source; the site displays the rendered diagrams and
@@ -160,5 +168,8 @@ state diagrams, and broken-link detection. Every site build compiles all CPU
 chapters and diagrams, then checks every local link, fragment, image, and style
 asset. Preview wide and narrow layouts when changing styles. For the byte
 explorer, check bit toggles, keyboard operation, zero and 255, lowercase hex,
-invalid and empty inputs, and recovery after an invalid edit. The emulator’s
+invalid and empty inputs (including tabbing through another field), and recovery
+after an invalid edit. For wraparound,
+check 254 → 255 → 0 → 1, carries within the byte (15 → 16 and 127 → 128),
+restarting, and manual edits after an addition. The emulator’s
 `npm test` suite remains independent of the Python toolchain and Sauvignon.

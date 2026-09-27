@@ -164,6 +164,33 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .lesson-prompt summary { cursor: pointer; color: #875037; margin-top: 12px; }
 .lesson-prompt details p { margin-top: 12px; }
 .lesson-prompt > a { display: inline-block; margin-top: 12px; font-size: 12px; color: #875037; }
+.byte-addition { border: 1px solid #c6cec0; border-bottom: 0; background: #fffefa; padding: 24px 30px; }
+.addition-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; border: 0; margin: 0 0 24px; padding: 0; min-width: 0; }
+.addition-actions .button { border: 1px solid var(--ink); border-radius: 3px; }
+.addition-actions .clear-byte { margin: 0; }
+.addition-actions button:disabled { opacity: .55; }
+.addition-label { font: 11px/1.6 var(--mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 8px; }
+.addition-equation { font: 26px/1.5 var(--mono); margin-bottom: 18px; }
+.addition-bits { display: flex; gap: 24px; align-items: start; }
+.carry-result, .stored-result { display: flex; flex-direction: column; align-items: center; gap: 8px; font: 12px/1.6 var(--mono); }
+.carry-result { padding-right: 24px; border-right: 1px dashed #9ba99c; }
+.carry-result .bit-weight { margin: 0; }
+.carry-digit { display: grid; place-items: center; width: 50px; min-height: 48px; border: 1px solid #9ba99c; border-radius: 3px; font: 28px/1 var(--mono); }
+.carry-digit[data-set] { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+.stored-digits { display: grid; place-items: center; min-height: 48px; font: 28px/1 var(--mono); letter-spacing: .04em; }
+.addition-explanation { margin: 20px 0 0; font-size: 14px; }
+.experiment-note { margin-top: 12px; font-size: 13px; color: var(--muted); }
+.lesson-navigation { max-width: 650px; margin: 40px auto 0; padding-top: 24px; border-top: 1px solid var(--line); }
+.lesson-navigation a { font-size: 15px; color: #875037; }
+@media (min-width: 1101px) {
+  .wraparound-lesson { width: min(1100px, calc(100% - 112px)); }
+  .byte-increment { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr); align-items: stretch; }
+  .byte-increment .byte-addition { border-bottom: 1px solid #c6cec0; border-right: 0; padding-inline: 24px; }
+  .byte-increment .byte-explorer { padding-inline: 24px; }
+  .byte-increment .experiment-note { grid-column: 1 / -1; }
+  .byte-increment .byte-representations { gap: 12px; }
+  .byte-increment .byte-representations input { font-size: 18px; }
+}
 @media (max-width: 1100px) {
   .site-header, .home, .site-footer, .chapter-layout { width: calc(100% - 64px); }
   .hero { gap: 35px; }
@@ -210,7 +237,7 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
   .learn-section { grid-template-columns: 1fr; gap: 18px; }
   .lesson { width: calc(100% - 40px); margin-top: 35px; }
   .lesson-intro { font-size: 16px; }
-  .byte-explorer { padding: 20px; }
+  .byte-explorer, .byte-addition { padding: 20px; }
   .byte-bits { gap: 16px; }
   .nibble-bits { gap: 5px; }
   .byte-bit button { min-height: 48px; font-size: 26px; }
@@ -220,7 +247,7 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 }
 @media (max-width: 520px) {
   .instrument-heading { flex-direction: column; gap: 4px; }
-  .byte-explorer { padding: 16px 12px; }
+  .byte-explorer, .byte-addition { padding: 16px 12px; }
   .byte-bits { gap: 12px; }
   .nibble-bits { gap: 3px; }
   .bit-weight { font-size: 10px; }
@@ -228,6 +255,12 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
   .byte-representations { grid-template-columns: 1fr; gap: 16px; }
   .byte-representations label > span { display: inline; margin-left: 6px; }
   .byte-representations input { display: block; margin-top: 6px; font-size: 20px; }
+  .addition-equation { font-size: 22px; }
+  .addition-bits { gap: 12px; }
+  .carry-result { padding-right: 12px; }
+  .carry-result, .stored-result { font-size: 10px; }
+  .carry-digit { width: 40px; font-size: 24px; }
+  .stored-digits { font-size: 22px; letter-spacing: 0; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 @media print {

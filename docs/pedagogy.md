@@ -130,8 +130,12 @@ Begin with a smaller representation lesson before milestones 1 and 2: toggle
 eight bits, connect binary, decimal, and hexadecimal, and explain the unsigned
 range. The [site](../site/README.md) now includes this first exploration. Its
 review point is whether a learner can make an unfamiliar number from place
-values and recognize it in all three representations. Signed interpretation,
-limited-width arithmetic, and bitwise operations can then build on that view.
+values and recognize it in all three representations. A second byte lesson
+adds one repeatedly, separating the full sum from the stored eight bits and
+the carry out of the byte. Its review point is whether the learner can predict
+255 → 0 and explain why 127 → 128 does not carry out of the byte. Signed
+interpretation, two-operand arithmetic, and bitwise operations can build on
+these views.
 
 The next major priority is milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the
