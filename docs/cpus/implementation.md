@@ -257,13 +257,16 @@ original contract. See the
 
 Within one encoding declaration, the chapter compiler reuses an immutable body
 when operand and condition selections match. Ignored bits can add aliases
-without recompiling that body; exclusions and collisions still check every
-opcode. Reuse does not cross declarations or compilations.
+without rebinding its sources, operands, and conditions or recompiling that body.
+The same cache records unsupported selections so their aliases need no binding
+maps. Exclusions still check every opcode; supported aliases still check collisions
+before reuse. Reuse does not cross declarations or compilations.
 
 [`families.ts`](../../src/components/cpus/semantics/literate/families.ts) separates
 encoding-header parsing, selection binding, and instruction expansion. It records
-opcode locations in the chapter's shared index before reusing a body, so aliases
-cannot bypass collision checks. Declaration order and final execution/page checks
+supported opcode locations in the chapter's shared index before reusing a body,
+so aliases cannot bypass collision checks. Unsupported selections leave their
+opcodes available to other declarations. Declaration order and final execution/page checks
 remain in the chapter compiler; retained tokens keep diagnostics in the Markdown.
 
 Chapter serialization recognizes repeated objects within each semantic type,

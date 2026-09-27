@@ -111,19 +111,21 @@ export function chapterFamily(header: ChapterTokens, lines: readonly ChapterToke
       const entries = form.checked(() => opcodeFamily(pattern, choices, selected => selected));
       for (const opcode of excluded) if (!entries.some(([candidate]) => opcode === candidate)) form.fail(`Excluded opcode $${opcode.toString(16)} is outside this family.`);
       // Ignored bits add encodings, not new bindings. Share only within this encoding declaration.
-      const bodies = new Map<string, InstructionDefinition>();
+      // null records an unsupported selection; absent entries have not been bound.
+      const bodies = new Map<string, InstructionDefinition | null>();
       for (const [byte, selected] of entries) {
         if (excluded.has(byte)) continue;
-        const bindings = bindSelection(selected, selectors, boundSources, boundOperands);
-        if (!bindings) continue;
+        const identity = JSON.stringify(selected), cached = bodies.get(identity);
+        if (cached === null) continue;
+        const bindings = cached === undefined ? bindSelection(selected, selectors, boundSources, boundOperands) : undefined;
+        if (cached === undefined && !bindings) { bodies.set(identity, null); continue; }
         const opcode = prefix === undefined ? byte : prefix * 256 + byte;
         chapterContext(() => selectionDescription(pattern, opcode, selected, selectors, pageName), () => {
           if (opcodes.has(opcode)) form.fail(`Duplicate opcode $${opcode.toString(16)}.`);
           opcodes.set(opcode, form);
-          const identity = JSON.stringify(selected);
-          let definition = bodies.get(identity);
+          let definition = cached;
           if (definition === undefined) {
-            const steps = compileBody(body.map(tokens => tokens.replay()), { ...bindings, inputs });
+            const steps = compileBody(body.map(tokens => tokens.replay()), { ...bindings!, inputs });
             definition = form.checked(() => defineInstruction({ cpu, name: instructionName({ ...Object.fromEntries(boundOperands), ...selected }),
               explanation, ...(Object.keys(inputs).length ? { inputs } : {}), steps }));
             bodies.set(identity, definition);

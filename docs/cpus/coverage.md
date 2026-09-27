@@ -84,8 +84,8 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,861 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,861** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,863 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,863** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 24,074 |
 | CPU compilation and generation scripts (`compile-cpu-chapters.ts`, `generate-cpu-chapters.ts`, and `generate-cpu-semantics.ts`) | 166 |
 | Generated executable CPU output, counted separately | 604,686 |
@@ -100,6 +100,14 @@ instruction bodies within each encoding declaration when operand and condition
 selections match. The 68000's **54,008 expanded opcode entries** now require
 **9,671 compiled family bodies**. Exclusions and collisions still check every
 opcode, and different encoding declarations retain independent bindings.
+
+The family cache is now consulted before source, operand, and condition maps are
+constructed. Supported aliases reuse their existing body; unsupported selections
+are remembered without claiming opcodes. Across all eight chapters this reduces
+binding construction from **56,047 to 11,688 calls**; the 68000 accounts for
+**54,008 to 9,671** of those calls. Cache keys retain complete selection data,
+including register identity and condition polarity even when labels match.
+`families.ts` grows from **166 to 168 lines**, adding **two authored lines** overall.
 
 Alias registration compares object identity before comparing complete definition
 data. Expanded encodings already share immutable definitions, so registering
@@ -142,32 +150,31 @@ the compiler's validated definitions directly; imported chapter modules use the
 same builder. The build does not load a second instruction graph from its
 serialized output.
 
-Chapter discovery, compilation, and catalogue construction now share a
-**37-line** script that does not render or write artifacts. The chapter writer
-shrinks from **111 to 90 lines**; the compilation and generation scripts together
-grow by **16 lines**. The listing command uses only the compilation step, writes
-only its document when regenerating, and writes no files when checking freshness.
-It neither needs nor refreshes generated CPU files. Numeric public-PC validation
-also runs during chapter compilation, adding **one authored CPU source line**
-and preserving rejection when no artifact writer runs.
+Chapter discovery, compilation, and catalogue construction share a **37-line**
+script that does not render or write artifacts. The listing command uses only
+that compilation step, writes only its document when regenerating, and writes
+no files when checking freshness. It neither needs nor refreshes generated CPU
+files. Numeric public-PC validation runs during chapter compilation, preserving
+rejection when no artifact writer runs.
 
-Local measurements of this split on macOS ARM64 with Node 24.20.0, using medians
-from five paired runs with a fresh process for each version:
+Local measurements of family binding reuse on macOS ARM64 with Node 24.20.0,
+using medians from five paired runs with a fresh process for each version:
 
-| Command | Time before (`cfe35f0`) | Time after | Peak RSS before | Peak RSS after |
-| --- | ---: | ---: | ---: | ---: |
-| Check expanded listing (`describe-cpu-semantics.ts --check`) | 2.007 s | 1.471 s | 651 MiB | 586 MiB |
-| Generate CPUs (`generate-cpu-semantics.ts`) | 2.018 s | 2.007 s | 536 MiB | 559 MiB |
+| CPU generation stage | Before (`7c59246`) | After binding reuse |
+| --- | ---: | ---: |
+| Compile all eight chapters | 1.119 s | 1.037 s |
+| 68000 chapter compilation (included above) | 0.693 s | 0.609 s |
+| **Complete CPU generation, including startup and file writes** | **2.114 s** | **2.038 s** |
 
-Checking the listing takes about **27% less time**. It previously wrote **18
-files (22.9 MB)** of chapter data, schemas, and catalogues; it now writes **zero**.
-Full CPU generation time is effectively unchanged, with the same **59 output
-files**. Peak RSS is measured with `process.resourceUsage().maxRSS`: a whole-process
-peak, not a per-stage heap measurement. Generation's median peak rose by about
-**23 MiB** in these runs. Timings include startup and file access, excluding
-TypeScript compilation and emulator execution. All **132 checked artifacts**,
-including generated CPU and machine sources, schemas, catalogues, interface
-metadata, and the expanded listing, remain byte-identical.
+Compilation takes about **7% less time**, with the 68000 taking about **12% less**;
+complete CPU generation takes about **4% less time**. Stage timers surround each
+chapter's compilation; counters record binding construction calls. Median process
+peak RSS is **524 MiB before and 537 MiB after**, measured with
+`process.resourceUsage().maxRSS`: a whole-process peak, not a per-stage heap
+measurement. These timings exclude TypeScript compilation and emulator execution.
+All **132 checked artifacts**, including generated CPU and machine sources,
+schemas, catalogues, interface metadata, and the expanded listing, remain
+byte-identical.
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
 outside this source count. Generated TypeScript is reproducible build output,

@@ -143,6 +143,36 @@ family load "0000 rrxx" for r in choices.read except "0000 00xx" {
   assert.deepEqual(compile(text.replace("choices.read", "choices.address")).families.load!.map(([opcode]) => opcode), [8, 9, 10, 11]);
 });
 
+test("unsupported aliases leave opcodes available and the next encoding binds its own operand view", () => {
+  const choices = `source pointer "address": 16 {
+  return u16($1234)
+}
+operands choices {
+  0 "same label" = register A
+  1 "same label" = memory pointer
+}`;
+  const selected = `family selected {
+  encoding "0000 r0xx" for r in choices.address
+  encoding "0000 r1xx" for r in choices.read
+  captured = source r
+  A <- lowByte(captured)
+}`;
+  const fallback = 'family fallback "0000 00xx" {\n  B <- u8(1)\n}';
+  for (const families of [fallback + "\n" + selected, selected + "\n" + fallback]) {
+    const chapter = compile(choices + "\n" + families);
+    const entries = chapter.families.selected!;
+    assert.deepEqual(entries.map(([opcode]) => opcode), [8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15]);
+    assert.deepEqual(chapter.families.fallback!.map(([opcode]) => opcode), [0, 1, 2, 3]);
+    assert.equal(new Set(entries.map(([, definition]) => definition)).size, 3);
+    assert.deepEqual([entries[0]!, entries[4]!, entries[8]!].map(([, definition]) => {
+      const read = definition.steps[0];
+      assert.ok(read?.kind === "read-source");
+      return read.source.type;
+    }), [16, 8, 8]);
+  }
+  assert.throws(() => compile(choices.replace("memory pointer", "register B") + "\n" + selected), /at least one instruction/);
+});
+
 test("reuse preserves collision checks, excluded bodies, and later binding diagnostics", () => {
   const cases: readonly [string, string, RegExp][] = [
     [`family first "0000 0011" {\n}\nfamily aliases "0000 00xx" {\n}`, "family aliases", /Duplicate opcode \$3/],
