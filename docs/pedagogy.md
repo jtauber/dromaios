@@ -137,6 +137,15 @@ the carry out of the byte. Its review point is whether the learner can predict
 interpretation, two-operand arithmetic, and bitwise operations can build on
 these views.
 
+Memory and register lessons bridge those byte concepts to instruction execution:
+first distinguish addresses from contents, then copy a byte into a processor's
+working register and back to memory. The [register lesson](cpus/8080/examples/register.md)
+uses real 8080 load/store instructions, with other state and instruction details
+available to reveal. The introductory path uses the **8080**, leading from
+load/store to calculation, instruction bytes, the program counter, and small
+programs. The **Altair 8800** is the first historical machine: its front panel
+will connect those familiar concepts to switches and lights before adding I/O.
+
 The next major priority is milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the
 first major delivery checkpoint and gives later instruments a concrete
@@ -165,11 +174,12 @@ instruction obtains its inputs, the operation uses those values, and registers
 and flags receive the results. Make incoming carry and arithmetic mode explicit
 where applicable.
 
-The 6502 is a candidate for the first instruction because its arithmetic exposes
-both carry and signed overflow. Its existing
-[load, add, and store example](cpus/6502/examples/arithmetic.md) could provide
-the surrounding program. The CPU choice remains open until we specify this
-milestone's implementation.
+Build the first arithmetic instruction lesson on the 8080 register lesson.
+The existing [load, add, and store example](cpus/8080/examples/arithmetic.md)
+provides the next operation. Introduce the 6502 as a later comparison when
+teaching incoming carry, arithmetic modes, and its signed-overflow flag;
+the 8080 has no overflow flag. Conceptual arithmetic explorers can explain
+signed overflow independently of a processor that records it.
 
 **Review point:** The learner can explain a complete instruction, including
 what it preserves, and distinguish the mathematical operation from the CPU's

@@ -106,12 +106,15 @@ def build(base):
     site.render_template("memory.html", "learn/memory/index.html", {
         "title": "Where does a byte live?",
     })
+    site.render_template("register.html", "learn/register/index.html", {
+        "title": "A place to work: a register",
+    })
     site.render_template("home.html", "index.html", {
         "title": "Computers, from the instruction up",
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + three introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
+    print(f"Built home + four introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

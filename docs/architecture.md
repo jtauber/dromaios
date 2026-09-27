@@ -129,9 +129,13 @@ likewise expose detached snapshots without consuming input or emitting output.
 `site/interactive/`. The memory lesson imports a generated component-only
 `.machine` factory and reads and writes its real RAM. Selection, representation,
 and prompts remain in the lesson; machine definitions describe components and
-initial contents. Broader controls, displays, and inspectors remain planned.
-Components should be usable without the DOM or a browser render loop. Specialist instruments, such as an Applesoft BASIC inspector, can add
-software knowledge through the inspection interface.
+initial contents. The register lesson loads a generated 8080 machine, advances
+one instruction per action, and displays detached snapshots and execution
+records. Its memory editor exposes a small data range, keeping program bytes
+outside that range. Broader controls, displays, and inspectors remain planned.
+Components remain usable without the DOM or a browser render loop. Specialist
+instruments, such as an Applesoft BASIC inspector, can add software knowledge
+through the inspection interface.
 
 **Lessons** combine small programs, machine compositions, views, and explanatory
 content. A lesson can expose only the parts needed for its concept while using

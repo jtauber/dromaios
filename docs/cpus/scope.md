@@ -15,6 +15,10 @@ will be organized for learning, exploration, and reference as support develops.
   language and executable `cpu` fences.
 - The introductory examples were built in the order **8080 → 6502 → 6809**
   to inform shared CPU and inspection interfaces.
+- Use the **8080** for the introductory browser instruction lessons and the
+  **Altair 8800** as the first historical machine. The
+  [pedagogical roadmap](../pedagogy.md#pedagogical-roadmap) describes the teaching
+  progression; this choice is independent of implementation order.
 - Apply a **rule of three**: use evidence from three distinct architectures to
   judge generalizations, including examples that expose their differences.
 - Keep changes small and reviewable. The initial examples used minimal

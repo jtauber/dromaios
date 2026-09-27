@@ -20,8 +20,9 @@ focus is now interactive learning, with further refinement driven by concrete
 authoring and browser needs.
 Reusable memory and byte-I/O compositions also work in simulation. The
 [microcomputer.world site](site/README.md) now presents the executable CPU
-chapters with Sauvignon diagrams and an interactive bits-and-numbers lesson.
-CPU execution in the browser and complete historical machines remain ahead. The stages overlap:
+chapters with Sauvignon diagrams, introductory byte/memory explorations, and
+a register lesson executing real 8080 instructions. The first historical
+machine will be the Altair 8800; complete machine emulation remains ahead. The stages overlap:
 browser work can build on these foundations while CPU and component work continues.
 Implementation order is independent of the tutorial's historical teaching
 order. See [CPU scope](docs/cpus/scope.md) for the rationale,
@@ -139,10 +140,10 @@ prerequisite for browser or machine development.
 
 ## 3. Make the examples explorable in the browser
 
-The first browser lesson explores one byte through clickable bits, place
-values, and linked binary, decimal, and hexadecimal forms. CPU execution in
-the browser remains next, building on the existing examples, shared runner,
-and machine compositions.
+The introductory browser path now reaches real CPU execution: byte and memory
+explorations lead to an 8080 register lesson with two ordered instructions.
+Build toward load–calculate–store, instruction bytes, and the program counter,
+then longer programs with controlled running and inspection.
 
 The [pedagogical roadmap](docs/pedagogy.md#pedagogical-roadmap) defines the
 learning milestones and review points, beginning with an arithmetic explorer
@@ -188,7 +189,9 @@ and follow their effects during execution.
 
 ## 5. Build the first complete machine incrementally
 
-- Choose a machine and a clear, modest software target.
+- Build the **Altair 8800** first, beginning with its front panel and small
+  programs familiar from the 8080 lessons, then add input/output and select
+  a modest software target.
 - Connect the CPU, memory, and devices, adding machine-specific behavior and
   timing in small steps with explanations and appropriate checks.
 - Build on existing ROM, program-image, and input/output support, extending

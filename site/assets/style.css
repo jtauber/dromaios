@@ -299,3 +299,42 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
   .memory-cell span { font-size: 9px; }
   .memory-cell strong { font-size: 22px; }
 }
+
+.register-workbench { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+.register-workbench .memory-bank { border-bottom: 1px solid #c6cec0; border-right: 0; }
+.register-panel { padding: 24px 30px; background: var(--ink); color: var(--paper); }
+.register-panel .instrument-heading { border-color: #6f8575; }
+.register-panel h2 { font: 500 30px/1.2 var(--serif); margin-bottom: 12px; }
+.register-value { display: flex; align-items: baseline; gap: 16px; font: 64px/1.2 var(--mono); margin: 0 0 16px; }
+.register-unit { font: 12px var(--mono); }
+.register-representations { margin: 0; font: 14px/1.8 var(--mono); }
+.register-representations > div { display: flex; justify-content: space-between; gap: 16px; }
+.register-representations dd { margin: 0; }
+.register-panel > p:last-child { margin: 20px 0 0; font-size: 13px; }
+.register-actions { display: flex; flex-wrap: wrap; gap: 12px; border: 0; padding: 0; margin: 22px 0 16px; min-width: 0; }
+.register-actions .button { border: 1px solid var(--ink); border-radius: 3px; }
+.register-actions .clear-byte { margin: 0; }
+.register-actions button:disabled { opacity: .45; }
+.register-next { font-size: 14px; margin-bottom: 16px; }
+.register-record { border-left: 3px solid var(--accent); padding: 15px 20px; background: #f0eee5; }
+.register-record p { margin: 6px 0 0; font-size: 15px; }
+.memory-edit, .register-inside { margin-top: 24px; }
+.memory-edit > summary, .register-inside > summary { cursor: pointer; font-size: 15px; padding-block: 12px; }
+.memory-edit .experiment-note { margin-top: 0; }
+.register-inside { border-top: 1px solid var(--line); font-size: 14px; }
+.register-inside p { margin-top: 16px; }
+.register-inside pre { overflow-x: auto; background: #f0eee5; padding: 18px; font: 12px/1.8 var(--mono); }
+.register-inside code { font-family: var(--mono); }
+@media (min-width: 1101px) { .register-lesson { width: min(1000px, calc(100% - 112px)); } }
+@media (max-width: 760px) {
+  .register-workbench { grid-template-columns: 1fr; }
+  .register-workbench .memory-bank { border-right: 1px solid #c6cec0; border-bottom: 0; }
+  .register-panel { padding: 20px; }
+  .register-actions { flex-direction: column; align-items: stretch; }
+  .register-actions .button { justify-content: center; }
+}
+@media (max-width: 520px) {
+  .register-panel { padding: 16px 12px; }
+  .register-value { font-size: 48px; }
+  .register-representations { font-size: 12px; }
+}

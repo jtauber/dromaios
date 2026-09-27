@@ -30,7 +30,7 @@ drawn directly from their executable specifications. Ryland builds the pages;
 Sauvignon renders architecture diagrams and state maps derived from the
 specifications. Build and preview it locally with the separate site toolchain.
 GitHub Actions validates and publishes pushes to `main` through GitHub Pages.
-Interactive execution remains ahead.
+Introductory lessons include real 8080 execution with visible register and memory state.
 
 ## The name
 
@@ -76,9 +76,10 @@ for the 8008, 8080, 6800, 6502, Z80, 6809, 8088, and 68000. Small examples cover
 CPU-and-RAM programs, ROM boot, mapped memory, and shared byte-input and
 byte-output devices. They run through a shared CPU runner and are tested
 independently of the browser. The [example catalog](docs/README.md#cpu-examples)
-links to their specifications. The [website](site/README.md) includes an
-interactive bits-and-numbers lesson alongside the processor guides. Browser
-execution of the CPU models and complete historical machines are still planned.
+links to their specifications. The [website](site/README.md) includes
+introductory byte and memory explorations and a register lesson running the 8080
+in the browser. The teaching path leads toward the Altair 8800 as the first
+historical machine; complete machine emulation remains planned.
 
 All eight documented instruction sets now use shared definitions that generate
 execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)
