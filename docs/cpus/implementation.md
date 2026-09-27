@@ -17,9 +17,12 @@ belong in the specifications; shared TypeScript implements their declared effect
 Executable Markdown
   → located cpu declarations
   → validated, immutable semantic data
-  → generated chapter modules, state types, and catalogues
-  → generated instruction bodies, lifecycle bindings, and public classes
-  → compiled JavaScript
+      → shared instruction catalogue
+          → instruction bodies, lifecycle bindings, and public classes
+          → expanded instruction listing
+      → importable chapter data, state types, and catalogues
+
+Generated TypeScript → compiled JavaScript
 ```
 
 1. [`generate-cpu-chapters.ts`](../../scripts/generate-cpu-chapters.ts) discovers
@@ -38,9 +41,13 @@ Executable Markdown
    emits small stored-state modules, instruction registration, and public-interface
    metadata under `semantics/generated/`. All chapters are compiled and duplicate
    complete model identities rejected before this stage replaces its output.
-4. [`generate-cpu-semantics.ts`](../../scripts/generate-cpu-semantics.ts) loads the
-   generated catalogue through [`definitions.ts`](../../src/components/cpus/semantics/definitions.ts).
-   It emits instruction bodies, state readers/actions, reset and execution bindings,
+   [`catalogue.ts`](../../src/components/cpus/semantics/literate/catalogue.ts)
+   constructs instruction partitions directly from the compiled definitions.
+   Generated chapter modules use the same builder when tests or tooling import
+   the catalogue through [`definitions.ts`](../../src/components/cpus/semantics/definitions.ts).
+4. [`generate-cpu-semantics.ts`](../../scripts/generate-cpu-semantics.ts) receives
+   that in-memory catalogue without importing generated files. It emits
+   instruction bodies, state readers/actions, reset and execution bindings,
    event delivery, and public CPU classes under `generated/`. It prepares and
    checks module names before replacing that directory.
 5. TypeScript compiles generated and shared sources. Runtime execution imports
@@ -55,8 +62,9 @@ Generated directories and `dist/` are ignored, disposable build products.
 Edit the originating specification or shared implementation, never their output.
 The tracked [expanded instruction listing](semantic-examples.md) is the exception:
 refresh it with `node scripts/describe-cpu-semantics.ts` when definitions or their
-explanations change. That command refreshes chapter data too; `--check` checks
-listing freshness. The ordinary build does not rewrite the listing.
+explanations change. That command refreshes chapter data too and uses the compiled
+catalogue directly; `--check` checks listing freshness. The ordinary build does
+not rewrite the listing.
 
 ### Following the 8008 files
 
@@ -91,6 +99,7 @@ Paths below are relative to `src/components/cpus/`.
 | Language expressions and ordered statements | `semantics/literate/expressions.ts`, `statements.ts`, `choose.ts`, `iterations.ts`, `matches.ts` |
 | State, reset, execution, and interface declarations | Corresponding modules under `semantics/literate/` |
 | Typed representation and ownership | `semantics/model.ts`, `builders.ts`, `validate.ts` |
+| Shared instruction partitions and catalogue construction | `semantics/literate/catalogue.ts` |
 | Numeric, flag, and address expression emission | `semantics/generate-expressions.ts` |
 | Instruction emission and descriptions | `semantics/generate.ts`, `describe.ts` |
 | Opcode binding and decoder emission | `semantics/generate-opcodes.ts` |
@@ -262,9 +271,11 @@ structural lines. It does not re-indent completed strings, preserving literal
 Unicode line and paragraph separators in descriptions and keys.
 Generated shared constants initialize through `ownData`, preserving sharing
 when the registry loads. Complete instructions still use `defineInstruction`
-and receive independent semantic validation. Only model bindings pass between
-generation stages, allowing the first stage's large instruction graphs to be
-reclaimed before the generated registry loads.
+and receive independent semantic validation. Generation retains the compiler's
+validated instruction graph through catalogue construction and executable
+emission. It does not import the serialized copy. Both paths use the same
+partitioning, opcode checks, alias checks, and explanation order; the importable
+catalogue independently reproduces the generated instruction modules in tests.
 
 [`generate-expressions.ts`](../../src/components/cpus/semantics/generate-expressions.ts)
 renders validated expressions using read-only capture scopes and collects required

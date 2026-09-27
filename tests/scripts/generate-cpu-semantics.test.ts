@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-test("native CPU generation bootstraps without generated files and removes obsolete output", t => {
+test("native CPU generation never imports generated data, bootstraps without it, and removes obsolete output", t => {
   const directory = mkdtempSync(join(tmpdir(), "dromaios-semantics-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
@@ -18,8 +18,16 @@ test("native CPU generation bootstraps without generated files and removes obsol
   const chapterNames = ["6502.ts", "6800.ts", "68000.ts", "6809.ts", "8008.ts", "8080.ts", "8088.ts", "catalogue.ts", "interfaces.ts", "z80.ts"];
   const chapterFiles = [...chapterNames, "state/6502.ts", "state/6800.ts", "state/68000.ts", "state/6809.ts", "state/8008.ts", "state/8080.ts", "state/8088.ts", "state/z80.ts"];
   rmSync(chapters, { recursive: true, force: true });
+  const guard = join(directory, "no-generated-imports.mjs");
+  writeFileSync(guard, `import { registerHooks } from "node:module";
+    registerHooks({ load(url, context, nextLoad) {
+      if (url.includes("/cpus/semantics/generated/") || url.includes("/cpus/generated/")) {
+        throw new Error("Generation must use compiled definitions directly: " + url);
+      }
+      return nextLoad(url, context);
+    } });`);
   const run = () => {
-    const result = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { cwd: tmpdir(), encoding: "utf8" });
+    const result = spawnSync(process.execPath, ["--import", guard, join(directory, "scripts/generate-cpu-semantics.ts")], { cwd: tmpdir(), encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(readdirSync(chapters).sort(), [...chapterNames, "state"].sort());
     assert.deepEqual(readdirSync(join(chapters, "state")).sort(), ["6502.ts", "6800.ts", "68000.ts", "6809.ts", "8008.ts", "8080.ts", "8088.ts", "z80.ts"]);

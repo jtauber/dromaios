@@ -3,8 +3,7 @@ import { fileURLToPath } from "node:url";
 import { generateCpuChapters } from "./generate-cpu-chapters.ts";
 import { describeInstructions } from "../src/components/cpus/semantics/describe.ts";
 
-generateCpuChapters();
-const { instructionDefinitions } = await import("../src/components/cpus/semantics/definitions.ts");
+const { instructionDefinitions } = generateCpuChapters();
 
 const target = fileURLToPath(new URL("../docs/cpus/semantic-examples.md", import.meta.url));
 const document = describeInstructions(instructionDefinitions);

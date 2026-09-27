@@ -84,12 +84,12 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,814 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,814** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,860 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,860** |
 | Authored CPU chapters (Markdown, including prose and formal blocks) | 24,074 |
-| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 162 |
+| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 150 |
 | Generated executable CPU output, counted separately | 604,686 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 995,540 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 995,495 |
 | Generated state schemas/types, counted separately | 213 |
 
 Chapter-data generation reuses an existing reference when it encounters the same
@@ -134,30 +134,38 @@ ordinary bindings are no longer built only to be replaced by prefixed bindings.
 Chapter-data rendering now passes indentation through nested values, adding
 whitespace to structural lines without repeatedly rewriting completed strings.
 This also preserves literal Unicode line and paragraph separators in strings
-and keys, where the former formatter incorrectly inserted spaces. The chapter-data
-generator grows from **74 to 75 lines**, adding **one authored line** overall.
+and keys, where the former formatter incorrectly inserted spaces.
+
+Catalogue construction now uses one **55-line** shared builder for byte,
+segmented, and word instruction partitions. Generation and the expanded listing
+consume the compiler's validated definitions directly; imported chapter modules
+use the same builder. The build no longer loads a second instruction graph from
+its serialized output. Authored CPU source increases by **46 lines**, while the
+two CPU generation scripts shrink by **12 lines**. The generated catalogue
+wrappers shrink by **45 lines**; executable CPU output is unchanged.
 
 Local measurements of this refactor on macOS ARM64 with Node 24.20.0, using
 medians from five paired runs with a fresh process for each version:
 
-| CPU generation stage | Before (`e023a27`) | After explicit serialization indentation |
+| CPU generation stage | Before (`17959ae`) | After direct catalogue construction |
 | --- | ---: | ---: |
-| Compile chapters | 1.041 s | 1.042 s |
-| Serialize chapter modules | 0.596 s | 0.493 s |
-| Load generated instruction registry | 0.766 s | 0.776 s |
-| Emit instruction bodies and lifecycle bindings | 0.195 s | 0.195 s |
-| **Complete CPU generation, including startup and file writes** | **2.692 s** | **2.599 s** |
+| Compile chapters | 1.038 s | 1.044 s |
+| Serialize chapter modules | 0.489 s | 0.488 s |
+| Prepare instruction catalogue | 0.778 s | 0.125 s |
+| Emit instruction bodies and lifecycle bindings | 0.196 s | 0.195 s |
+| **Complete CPU generation, including startup and file writes** | **2.594 s** | **1.962 s** |
 
-Stage timers surround compilation, chapter-module serialization, registry
-import, and executable emission. Serialization takes about **17% less time** and
-complete generation about **3.5% less time** in these paired runs. The other stages
-do not change their algorithms, and their timings vary between runs. Median
-process peak RSS is **914 MiB before and 908 MiB after**, measured with
+Stage timers surround compilation, chapter-module serialization, catalogue
+preparation, and executable emission. Previously catalogue preparation imported
+the generated registry; it now builds partitions from the compiled definitions.
+Complete generation takes about **24% less time** in these paired runs. Median
+process peak RSS is **910 MiB before and 579 MiB after**, measured with
 `process.resourceUsage().maxRSS`; this is a whole-process peak, not a per-stage
-heap measurement. All **132 checked files**, including generated chapter data,
-executable CPU and machine sources, and the expanded instruction listing,
-remain byte-identical. These timings cover CPU generation, excluding TypeScript
-compilation and emulator execution.
+heap measurement. Of **132 checked files**, only the eight generated chapter
+modules change their catalogue wrappers. Executable CPU and machine sources,
+state schemas, the aggregate catalogue, interface metadata, and the expanded
+instruction listing remain byte-identical. These timings cover CPU generation,
+excluding TypeScript compilation and emulator execution.
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
 outside this source count. Generated TypeScript is reproducible build output,

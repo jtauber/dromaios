@@ -10,9 +10,8 @@ import { generateChapterInterface } from "../src/components/cpus/semantics/liter
 import { ChapterError } from "../src/components/cpus/semantics/literate/document.ts";
 
 /** Rebuild executable semantics from definitions and CPU-owned state schemas. */
-async function generateCpuSemantics(directory: string): Promise<void> {
-  const models = generateCpuChapters();
-  const { instructionModules } = await import("../src/components/cpus/semantics/definitions.ts");
+function generateCpuSemantics(directory: string): void {
+  const { models, instructionModules } = generateCpuChapters();
   const modules = instructionModules.map(({ name, cpu, definitions, options }) =>
     [name, generateInstructions(cpu, definitions, options)] as const);
   for (const { name, cpu, state, execution, reset, interface: api } of models) {
@@ -32,7 +31,7 @@ async function generateCpuSemantics(directory: string): Promise<void> {
 }
 
 if (import.meta.main) {
-  try { await generateCpuSemantics(fileURLToPath(new URL("../src/components/cpus/generated/", import.meta.url))); } catch (error) {
+  try { generateCpuSemantics(fileURLToPath(new URL("../src/components/cpus/generated/", import.meta.url))); } catch (error) {
     if (!(error instanceof ChapterError)) throw error;
     console.error(error.message);
     process.exitCode = 1;

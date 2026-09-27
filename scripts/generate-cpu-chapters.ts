@@ -5,47 +5,29 @@ import { generatePublicState } from "../src/components/cpus/semantics/literate/i
 import { compileCpuChapter } from "../src/components/cpus/semantics/literate/compile.ts";
 import { generateChapterData } from "../src/components/cpus/semantics/literate/chapter-data.ts";
 import { wordExecutionSources } from "../src/components/cpus/semantics/literate/word-execution.ts";
-import { opcodePageLayouts } from "../src/components/cpus/semantics/opcode-pages.ts";
+import { chapterCatalogue } from "../src/components/cpus/semantics/literate/catalogue.ts";
 import type { CpuChapter } from "../src/components/cpus/semantics/literate/compile.ts";
 import { ChapterError } from "../src/components/cpus/semantics/literate/document.ts";
 
 /** Bind validated chapter data to the shared instruction catalogue. */
 function chapterModule(chapter: CpuChapter, name: string, cpu: string): string {
-  const opcodeModule = `  { name: ${JSON.stringify(name)}, cpu: ${JSON.stringify(cpu)} as const, definitions: instructions, options: { ...options, bindOpcodes: true${Object.keys(chapter.pages).length ? ", pages" : ""} } },`;
-  const word = chapter.execution?.mode === "word" ? chapter.execution : undefined;
-  const readers = word ? `, sources: { ${wordExecutionSources(word).map(name => `${JSON.stringify(name)}: sources[${JSON.stringify(name)}]`).join(", ")} }` : "";
-  const sourceCpu = `{ name: ${JSON.stringify(cpu)} as const, state${word ? ", wordBoundary: true as const" : ""} }`;
-  const stateModule = `  { name: ${JSON.stringify(`${name}-state`)}, cpu: ${JSON.stringify(cpu)} as const, definitions: actions, options: { ...options, sources: { cpu: ${sourceCpu}, groups: { views${readers} } } } },`;
+  const mode = chapter.execution?.mode;
+  const readers = chapter.execution?.mode === "word" ? `, readers: ${JSON.stringify(wordExecutionSources(chapter.execution))}` : "";
   return [
     "// Generated from a literate CPU chapter. Do not edit.",
     generateChapterData(chapter),
     ...(Object.keys(chapter.pages).length ? [`export const pages = ${JSON.stringify(chapter.pages)} as const;`, ""] : []),
     ...(chapter.execution && chapter.state ? [
-      ...(chapter.execution.mode === "word" ? ['import { wordInstructionGroups } from "../literate/word-execution.ts";'] : []),
-      'import { instructionSet, instructionAliases } from "../builders.ts";',
+      'import { chapterCatalogue } from "../literate/catalogue.ts";',
       `import { state } from "./state/${name}.ts";`,
-      `const entries = Object.values(families).flat();`,
-      `export const instructions = instructionSet(entries${chapter.execution.mode === "segmented" || chapter.execution.mode === "word" ? ".filter(([, definition]) => !definition.inputs)" : ""}${opcodePageLayouts(chapter.pages).some(page => page.on) ? ", 24" : Object.keys(chapter.pages).length || chapter.execution.mode === "word" ? ", 16" : ""});`,
-      ...(chapter.execution.mode === "segmented" ? [
-        'export const operandInstructions = instructionSet(entries.filter(([, definition]) => definition.inputs && !Object.hasOwn(definition.inputs, "repeatMode")));',
-        'export const strings = instructionSet(entries.filter(([, definition]) => definition.inputs && Object.hasOwn(definition.inputs, "repeatMode")));',
-      ] : []),
-      `const options = { ${chapter.execution.mode === "word" ? "opcodeBits: 16 as const, " : ""}state: { name: "StoredState", module: "../semantics/generated/state/${name}.ts" }, origin: "specifications/${name}.md" };`,
-      'export const instructionModules = [',
-      ...(chapter.execution.mode === "word" ? [stateModule, `  ...wordInstructionGroups(${JSON.stringify(name)}, entries).map(({ name, definitions, ...bindings }) => ({ name, cpu: ${JSON.stringify(cpu)} as const, definitions, options: { ...options, ...bindings } })),`] : chapter.execution.mode === "segmented" ? [stateModule, opcodeModule] : [opcodeModule, stateModule]),
-      ...(chapter.execution.mode === "segmented" ? [
-        `  { name: "${name}-operands", cpu: ${JSON.stringify(cpu)} as const, definitions: operandInstructions, options },`,
-        `  { name: "${name}-strings", cpu: ${JSON.stringify(cpu)} as const, definitions: strings, options },`,
-      ] : []),
-      '];',
-      chapter.execution.mode === "word"
-        ? 'export const instructionDefinitions = [...Object.values(actions), ...Object.values(instructions), ...Object.values(instructionAliases(entries.filter(([, definition]) => Object.keys(definition.inputs ?? {}).length)).definitions)];'
-        : 'export const instructionDefinitions = instructionModules.flatMap(({ definitions }) => Object.values(definitions));', '',
+      `export const { instructions, ${mode === "segmented" ? "operandInstructions, strings, " : ""}instructionModules, instructionDefinitions } = chapterCatalogue(${JSON.stringify(name)}, {`,
+      `  cpu: ${JSON.stringify(cpu)}, mode: ${JSON.stringify(mode)}, state, sources, views, actions, families, pages: ${Object.keys(chapter.pages).length ? "pages" : "{}"}${readers},`,
+      '});', '',
     ] : []),
   ].join("\n");
 }
 
-/** Bootstrap chapter data before loading the registry that consumes it; paths are independent of cwd. */
+/** Generate chapter artifacts and pass compiled catalogues directly to their consumers. */
 export function generateCpuChapters() {
   const root = new URL("../src/components/cpus/", import.meta.url);
   const chapters = readdirSync(new URL("specifications/", root)).filter(file => file.endsWith(".md")).sort().map(file => {
@@ -67,6 +49,10 @@ export function generateCpuChapters() {
     if (registered.has(cpu)) throw new Error(`${name}.md: Duplicate complete CPU chapter for ${cpu}.`);
     registered.add(cpu);
   }
+  const bindings = complete.map(({ name, chapter }) => chapterCatalogue(name, {
+    ...chapter, state: chapter.state!, mode: chapter.execution!.mode,
+    ...(chapter.execution?.mode === "word" ? { readers: wordExecutionSources(chapter.execution) } : {}),
+  }));
   const catalogue = ["// Generated chapter instruction catalogue. Do not edit.",
     ...complete.map(({ name }, index) => `import { instructionModules as modules${index}, instructionDefinitions as definitions${index} } from "./${name}.ts";`),
     ...complete.map(({ name, cpu, chapter }) => {
@@ -106,11 +92,14 @@ export function generateCpuChapters() {
   }
   writeFileSync(new URL("catalogue.ts", output), catalogue);
   writeFileSync(new URL("interfaces.ts", output), interfaces);
-  // The next stage needs model bindings only; release instruction graphs and rendered text
-  // before it imports the generated registry's own representation of those instructions.
-  return chapters.map(({ name, cpu, chapter }) => ({
-    name, cpu, state: chapter.state, execution: chapter.execution, reset: chapter.reset, interface: chapter.interface,
-  }));
+  // Keep one validated instruction graph; rendered text need not survive this stage.
+  return {
+    models: chapters.map(({ name, cpu, chapter }) => ({
+      name, cpu, state: chapter.state, execution: chapter.execution, reset: chapter.reset, interface: chapter.interface,
+    })),
+    instructionModules: bindings.flatMap(binding => binding.instructionModules),
+    instructionDefinitions: bindings.flatMap(binding => binding.instructionDefinitions),
+  };
 }
 
 if (import.meta.main) {
