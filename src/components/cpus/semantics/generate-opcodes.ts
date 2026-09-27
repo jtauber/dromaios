@@ -1,7 +1,46 @@
 import type { DecodedPage } from "./opcode-pages.ts";
 
+/** Bind a validated opcode inventory and emit its decoder without executing instruction effects. */
+export function generateOpcodeBindings({ names, bindAll, pages, stateType, context, outcome }: {
+  readonly names: ReadonlySet<string>; readonly bindAll: boolean; readonly pages: readonly DecodedPage[];
+  readonly stateType: string; readonly context: string; readonly outcome: string;
+}): string {
+  const paged = pages.length ? generatePageBindings(pages, names, stateType, context, outcome) : undefined;
+  const additional = paged?.additional ?? "";
+  const executeType = `(state: ${stateType}, instruction: ${context}) => ${outcome}`;
+  // A selected inventory can coexist with named helpers that require decoded inputs.
+  const bindings = paged?.bindings ?? (bindAll
+    ? `  return Object.entries(instructions).map(([opcode, execute]: [string, ${executeType}]) =>\n`
+      + "    [Number(opcode), instruction => execute(state, instruction)]);"
+    : [
+      `  const entries: readonly OpcodeEntry<${executeType}>[] = [`,
+      ...[...names].map(name => `    [0x${Number(name).toString(16)}, instructions[${JSON.stringify(name)}]],`),
+      "  ];", "  return entries.map(([opcode, execute]) => [opcode, instruction => execute(state, instruction)]);",
+    ].join("\n"));
+  return (paged ? `
+/** Bind separate opcode spaces for cores that decode prefixes before executing a body. */
+export function opcodePages(state: ${stateType}${additional}) {
+${paged.pageBindings}
+}
+
+/** Decode bytes and bind captured operands without reading or writing CPU state. */
+${paged.decoder}
+` : "") + `
+/** Bind this CPU instance's state without performing any instruction effects. */
+export function opcodeEntries(state: ${stateType}${additional}): readonly OpcodeEntry<(instruction: ${context}) => ${outcome}>[] {
+${bindings}
+}
+` + (paged ? "" : `
+/** Decode a single-byte encoding without executing its body. */
+export function opcodeDecoder(state: ${stateType}) {
+  const handlers = opcodeTable(opcodeEntries(state));
+  return (opcode: number, _nextByte: (opcodeFetch: boolean) => number) => ({ handler: handlers[opcode], opcodeFetches: 1 });
+}
+`);
+}
+
 /** Generate binding and decode stages separately so cores choose when state effects begin. */
-export function generatePageBindings(pages: readonly DecodedPage[], names: ReadonlySet<string>, stateType: string, context: string, outcome: string) {
+function generatePageBindings(pages: readonly DecodedPage[], names: ReadonlySet<string>, stateType: string, context: string, outcome: string) {
   const handler = `(instruction: ${context}) => ${outcome}`;
   const pageHandler = (page: DecodedPage) => `(${page.operands.map((_, index) => `operand${index}: number, `).join("")}instruction: ${context}) => ${outcome}`;
   const additional = `, additional: { ${pages.map(page => `${page.name}?: readonly OpcodeEntry<${pageHandler(page)}>[]`).join("; ")} } = {}`;

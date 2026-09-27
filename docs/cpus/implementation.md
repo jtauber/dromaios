@@ -92,7 +92,8 @@ Paths below are relative to `src/components/cpus/`.
 | State, reset, execution, and interface declarations | Corresponding modules under `semantics/literate/` |
 | Typed representation and ownership | `semantics/model.ts`, `builders.ts`, `validate.ts` |
 | Numeric, flag, and address expression emission | `semantics/generate-expressions.ts` |
-| Instruction emission and descriptions | `semantics/generate.ts`, `generate-pages.ts`, `describe.ts` |
+| Instruction emission and descriptions | `semantics/generate.ts`, `describe.ts` |
+| Opcode binding and decoder emission | `semantics/generate-opcodes.ts` |
 | Opcode expansion and page layouts | `opcodes.ts`, `semantics/opcode-pages.ts` |
 | Stored-state validation and copying | `state.ts` |
 | Access recording and guarding | `memory-access.ts`, `port-access.ts`, `coprocessor-access.ts`, `execution-boundary.ts` |
@@ -273,6 +274,13 @@ Callers inherit shared decoders' context requirements; module assembly combines
 the completed methods' requirements for imports and opcode bindings. Method
 signatures retain their own requirements. Reader and decoder roles are explicit:
 readers close over bound state, while decoders receive it as an argument.
+
+[`generate-opcodes.ts`](../../src/components/cpus/semantics/generate-opcodes.ts)
+emits complete opcode bindings and decoders for ordinary or prefixed inventories.
+It receives validated opcode names and page layouts, the inventory selection,
+and the state, context, and outcome types. Module assembly appends its returned
+code only when bindings are requested. Decoding captures declared operand bytes;
+instruction handlers read live CPU state when executed.
 
 Keep these optimizations local and behavior-preserving. The
 [footprint report](coverage.md#source-footprint) records measurements and their
