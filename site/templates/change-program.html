@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "instruments/register-explorer.html" import register_explorer with context %}
+{% block description %}Change one byte of an Intel 8080 program. Choose the number to add, follow the same three instructions, and see how the result changes.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson register-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Memory and the processor · Editing a program</p>
+    <h1>Change one byte,<br><em>change the program.</em></h1>
+    <p class="lesson-intro">Our program adds one because one of its bytes says <code>01</code>. What if we change that byte to <code>02</code>?</p>
+  </header>
+  {{ register_explorer('change-program-memory', 41, 0, add_one=true, program=true, edit_operand=true) }}
+  <div class="lesson-prose">
+    <section aria-labelledby="choose-the-number">
+      <h2 id="choose-the-number">Choose the number.</h2>
+      <p>Before stepping, change <strong>Add this number to A</strong> from 1 to 2. Look at address <code>0104</code> in the program view: it now holds <code>02</code>. The addition’s bytes are <code>C6 02</code>.</p>
+      <p>You have edited memory. A is still 0, the starting data is still 41, and PC still points to <code>0100</code>. Nothing has run yet.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> Step through the three instructions. What will A hold after each step? What will be written to address 4?</p>
+        <details><summary>Show an explanation</summary><p>The load puts 41 into A. The addition makes it 43. The store writes 43 to address 4 and leaves A at 43. Carry stays 0.</p></details>
+        <a href="#experiment">Try adding two ↑</a>
+      </aside>
+      <p>The field locks when you take the first step, so this run uses the program you chose. <strong>Start again</strong> restores all the original values, including the addition’s <code>01</code>, and lets you choose another number. This editing rule belongs to the lesson; the RAM itself is writable.</p>
+    </section>
+    <section aria-labelledby="operation-and-operand">
+      <h2 id="operation-and-operand">What to do, and what to use.</h2>
+      <p>The two bytes play different roles. <code>C6</code> selects the operation: add a number to A. We call this the <strong>opcode</strong>. The following byte supplies the number to add: the <strong>operand</strong>.</p>
+      <p>The operand is part of the instruction itself. This is called <strong>immediate</strong> addressing, which is where the I in the 8080 name <code>ADI</code> comes from: add immediate.</p>
+      <p>The field accepts decimal numbers from 0 to 255. The program view shows hexadecimal bytes, while labels such as <code>ADI 2</code> use decimal. Try entering 10: the bytes become <code>C6 0A</code>. These are two ways of writing the same operand.</p>
+      <p>This experiment lets you change only that operand. The opcode and the load/store addresses stay fixed, so the program always reads address 3, adds your number, and writes to address 4.</p>
+    </section>
+    <section aria-labelledby="same-path-new-result">
+      <h2 id="same-path-new-result">Same path, new result.</h2>
+      <p>Changing the operand changes the calculation, but the addition still occupies two bytes. PC follows the same path: <code>0100 → 0103 → 0105 → 0108</code>.</p>
+      <aside class="lesson-prompt"><p><strong>Try zero.</strong> Start again and choose 0. Does the processor skip the addition?</p>
+        <details><summary>Show an explanation</summary><p>No. It still fetches <code>C6 00</code> and executes the addition. A remains 41, but PC advances to <code>0105</code>. The addition also updates the arithmetic flags, even though A’s value is unchanged.</p></details>
+        <a href="#experiment">Try adding zero ↑</a>
+      </aside>
+      <aside class="lesson-prompt"><p><strong>Try a larger number.</strong> Start again and choose 255, shown as <code>FF</code> in the program. What happens to 41 + 255?</p>
+        <details><summary>Show an explanation</summary><p>The full sum is 296. A holds 40, the rightmost eight bits, and CY becomes 1. The store writes 40 to address 4. PC still follows the same path.</p></details>
+        <a href="#experiment">Try adding 255 ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="two-kinds-of-edit">
+      <h2 id="two-kinds-of-edit">Two kinds of edit.</h2>
+      <p>Changing address 3 gives the same program different starting data. Changing <code>0104</code> changes a number inside the program. Both edits write a byte into the same RAM; its role depends on how the processor uses it.</p>
+      <p>You have changed a program by changing its bytes. So far, each instruction still leads to the next one in memory. A different kind of instruction—a jump—will let us change that path too.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation">
+      <a href="{{ calc_url('learn/program/') }}"><span aria-hidden="true">←</span> What comes next?</a>
+    </nav>
+  </div>
+</main>
+{% endblock %}

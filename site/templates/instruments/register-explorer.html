@@ -1,7 +1,7 @@
 {% from "instruments/byte-explorer.html" import byte_explorer %}
 {% from "instruments/program-view.html" import program_view %}
-{% macro register_explorer(id, source, destination, add_one=false, program=false) %}
-  <section id="experiment" data-register-explorer="{{ 'add-one' if add_one else 'copy' }}" aria-label="{{ 'Load, add one, and store with an 8080' if add_one else 'Copy a byte through an 8080 register' }}">
+{% macro register_explorer(id, source, destination, add_one=false, program=false, edit_operand=false) %}
+  <section id="experiment" data-register-explorer="{{ 'add-one' if add_one else 'copy' }}" aria-label="{{ 'Load, add, and store with an 8080' if add_one else 'Copy a byte through an 8080 register' }}">
     <div class="register-workbench">
       <div class="memory-bank">
         <div class="instrument-heading"><span>Memory · eight locations shown</span><span>Addresses 0–7</span></div>
@@ -29,7 +29,7 @@
         {% endif %}
       </section>
     </div>
-    {% if program %}{{ program_view() }}{% endif %}
+    {% if program %}{{ program_view(edit_operand) }}{% endif %}
     <fieldset class="register-actions" data-register-controls disabled>
       <legend class="visually-hidden">Run the instructions in order</legend>
       {% if program %}
@@ -59,8 +59,8 @@
     </details>
     <details class="register-inside">
       <summary>See the 8080 instructions</summary>
-      <p>The first instruction is <code>LDA 0003H</code>: load A from memory address 3. {% if add_one %}Next comes <code>ADI 1</code>: add one to A and update the arithmetic flags. The last instruction is{% else %}The second is{% endif %} <code>STA 0004H</code>: store A at address 4. The load and store preserve the processor’s flags.</p>
-      {% if add_one %}<p><code>ADI 1</code> adds the number 1 encoded in the instruction, regardless of which memory byte is selected. It does not add the incoming carry. Unlike <code>INR A</code>, which preserves carry, <code>ADI 1</code> updates CY. It also updates sign (S), zero (Z), auxiliary carry (AC), and parity (P); their before/after values appear in the record.</p>{% endif %}
+      <p>The first instruction is <code>LDA 0003H</code>: load A from memory address 3. {% if add_one %}Next comes {% if edit_operand %}<code>ADI</code>: add the number in the following byte to A{% else %}<code>ADI 1</code>: add one to A{% endif %} and update the arithmetic flags. The last instruction is{% else %}The second is{% endif %} <code>STA 0004H</code>: store A at address 4. The load and store preserve the processor’s flags.</p>
+      {% if add_one %}<p><code>ADI</code> adds the number encoded in the instruction, regardless of which memory byte is selected. It does not add the incoming carry. Unlike <code>INR A</code>, which preserves carry, <code>ADI</code> updates CY. It also updates sign (S), zero (Z), auxiliary carry (AC), and parity (P); their before/after values appear in the record.</p>{% endif %}
       <p>This view shows the first eight locations of a 65,536-byte RAM. The instructions live elsewhere, starting at hexadecimal address <code>0100</code>. The program counter, <strong>PC</strong>, tells the processor where to find its next instruction.</p>
       <p>Current PC: <code data-register-pc>0100</code> (hexadecimal). The lesson stops offering steps at <code>{{ '0108' if add_one else '0106' }}</code>, just after the final instruction. This is a lesson boundary; the processor has not executed a halt instruction.</p>
       <pre data-register-trace tabindex="0" aria-label="Last instruction and its recorded memory accesses">No instruction has run.</pre>

@@ -330,6 +330,16 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .program-counter strong { font-size: 30px; }
 .program-key { margin-block: 18px; }
 .program-key span { padding: 2px 4px; background: #f5e4d4; }
+.program-edit { padding: 16px; margin-bottom: 20px; background: #f0eee5; border-left: 3px solid var(--accent); }
+.program-edit label { display: block; font-size: 15px; margin-bottom: 8px; }
+.program-edit label span { font-size: 12px; }
+.program-edit input { width: 6ch; padding: 8px 10px; border: 1px solid #8a9a89; border-radius: 3px; font: 22px var(--mono); color: var(--ink); background: #fffefa; }
+.program-edit input:disabled { opacity: .6; }
+.program-edit input[aria-invalid] { border-color: #a33426; }
+.program-edit p { font-size: 13px; margin: 10px 0 0; }
+.program-edit .input-error { color: #a33426; }
+.program-edit .input-error:empty { display: none; }
+.program-edit code { font-family: var(--mono); }
 .program-instructions { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .program-instructions > li { border: 1px solid var(--line); padding: 12px; }
 .program-instructions > li[aria-current="step"] { outline: 2px solid var(--ink); outline-offset: 1px; }

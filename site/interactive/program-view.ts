@@ -8,7 +8,7 @@ interface ProgramInstruction {
 
 function hex(value: number, digits: number): string { return value.toString(16).toUpperCase().padStart(digits, "0"); }
 
-/** Inspect a fixed, read-only program in RAM; fetched bytes come from the CPU record. */
+/** Inspect a known program in RAM; fetched bytes come from the CPU record. */
 export function mountProgramView(
   root: HTMLElement, instructions: readonly ProgramInstruction[], endAddress: number, read: (address: number) => number,
 ) {
@@ -20,12 +20,10 @@ export function mountProgramView(
     const heading = document.createElement("div");
     heading.className = "program-instruction-heading";
     const explanation = document.createElement("strong");
-    explanation.textContent = instruction.explanation;
     const marker = document.createElement("span");
     marker.className = "program-marker";
     heading.append(explanation, marker);
     const mnemonic = document.createElement("code");
-    mnemonic.textContent = instruction.mnemonic;
     const bytes = document.createElement("div");
     bytes.className = "program-bytes";
     const end = instructions[index + 1]?.address ?? endAddress;
@@ -36,25 +34,30 @@ export function mountProgramView(
       const label = document.createElement("span");
       label.textContent = hex(address, 4);
       const value = document.createElement("strong");
-      value.textContent = hex(read(address), 2);
       cell.append(label, value);
       bytes.append(cell);
-      return { address, cell };
+      return { address, cell, value };
     });
     row.append(heading, mnemonic, bytes);
     list.append(row);
-    return { address: instruction.address, row, marker, cells };
+    return { instruction, row, explanation, mnemonic, marker, cells };
   });
 
   return {
     render(pc: number, last: FetchedInstruction | null): void {
       // The instruction record excludes data accesses, unlike the full access list.
       const fetchedAddresses = new Set(last?.bytes.map((_, offset) => last.address + offset));
-      for (const { address, row, marker, cells } of rows) {
+      for (const { instruction, row, explanation, mnemonic, marker, cells } of rows) {
+        const { address } = instruction;
+        explanation.textContent = instruction.explanation;
+        mnemonic.textContent = instruction.mnemonic;
         if (address === pc) row.setAttribute("aria-current", "step");
         else row.removeAttribute("aria-current");
         marker.textContent = address === pc ? "← Next (PC)" : last?.address === address ? "Last step" : "";
-        for (const { address, cell } of cells) cell.toggleAttribute("data-fetched", fetchedAddresses.has(address));
+        for (const { address, cell, value } of cells) {
+          value.textContent = hex(read(address), 2);
+          cell.toggleAttribute("data-fetched", fetchedAddresses.has(address));
+        }
       }
       boundary.toggleAttribute("data-current", pc === endAddress);
       boundary.textContent = `${hex(endAddress, 4)} · End of this program${pc === endAddress ? " ← PC" : ""}`;

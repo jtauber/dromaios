@@ -108,3 +108,27 @@ test("a fresh lesson clears carry and restores the original setup without changi
   assert.deepEqual(addition, retained);
   assert.equal(first.cpu.snapshot().flags.cy, true);
 });
+
+test("editing the immediate operand changes the calculation without changing the instruction path", () => {
+  const cases = [
+    [0, 41, false], [2, 43, false], [10, 51, false],
+    [214, 255, false], [215, 0, true], [255, 40, true],
+  ] as const;
+  for (const [operand, result, carry] of cases) {
+    const { cpu, ram, endAddress } = create8080AddOneLesson();
+    ram.write(0x104, operand);
+    assert.deepEqual(cpu.snapshot(), initial);
+    const load = cpu.step(), add = cpu.step(), store = cpu.step();
+    assert.deepEqual([load.after.pc, add.after.pc, store.after.pc], [0x103, 0x105, endAddress]);
+    assert.deepEqual(add.instruction, { address: 0x103, bytes: [0xc6, operand] });
+    assert.deepEqual(add.accesses, [
+      { kind: "read", address: 0x103, value: 0xc6 },
+      { kind: "read", address: 0x104, value: operand },
+    ]);
+    assert.deepEqual([load.after.a, add.after.a, store.after.a, store.after.flags.cy], [41, result, result, carry]);
+    assert.deepEqual([ram.read(3), ram.read(4)], [41, result]);
+    assert.deepEqual(Array.from({ length: program.length }, (_, offset) => ram.read(0x100 + offset)),
+      [0x3a, 3, 0, 0xc6, operand, 0x32, 4, 0]);
+    assert.equal(create8080AddOneLesson().ram.read(0x104), 1);
+  }
+});

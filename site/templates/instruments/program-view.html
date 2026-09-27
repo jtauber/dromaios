@@ -1,10 +1,19 @@
-{% macro program_view() %}
+{% macro program_view(edit_operand=false) %}
     <section class="program-view" data-program-view aria-labelledby="program-heading">
       <div class="program-heading">
         <div><h2 id="program-heading">The program in memory</h2><p>Addresses and bytes below are hexadecimal.</p></div>
         <div class="program-counter"><span>Next instruction · PC</span><strong data-register-pc>0100</strong></div>
       </div>
       <p class="program-key"><strong>← Next (PC)</strong> marks the next instruction. <span>Shaded bytes</span> were fetched by the last step.</p>
+      {% if edit_operand %}
+      <div class="program-edit">
+        <label for="program-operand">Add this number to A <span>(decimal)</span></label>
+        <input id="program-operand" data-program-operand type="text" inputmode="numeric" value="1" autocomplete="off" spellcheck="false" aria-describedby="operand-help operand-status operand-error" disabled>
+        <p id="operand-help">Choose 0–255 before the first step. This changes just the byte at <code>0104</code>. Start again restores <code>01</code> and unlocks this field.</p>
+        <p id="operand-status" data-operand-status role="status">Address 0104 contains 01 in hexadecimal (1 in decimal).</p>
+        <p id="operand-error" data-operand-error class="input-error" role="alert"></p>
+      </div>
+      {% endif %}
       <ol class="program-instructions" data-program-instructions></ol>
       <noscript><p>Enable JavaScript to inspect the program’s bytes and step through its instructions.</p></noscript>
       <p class="program-end" data-program-end>0108 · End of this program</p>

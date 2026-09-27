@@ -25,8 +25,8 @@ pausing or animating individual memory accesses or clock cycles.
 
 ## Display and interaction
 
-The program view reads the fixed instruction bytes from the machine's RAM
-when mounted. Group boundaries and plain-language labels describe this known
+The program view reads the instruction bytes from the machine's RAM
+when rendered. Group boundaries and plain-language labels describe this known
 program; they are not a disassembler. Program bytes are read-only and restart
 restores the identical program. Only data at addresses 0–7 can be edited.
 

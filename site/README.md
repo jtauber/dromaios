@@ -168,11 +168,13 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   between the memory and register lessons. It observes the current RAM through a
   callback so restarting can replace the machine. A visible byte count bounds
   both selection and edits; no instruction bytes are editable in the register lesson.
-- `templates/register.html`, `templates/add-one.html`, and `templates/program.html` use the shared
+- `templates/register.html`, `templates/add-one.html`, `templates/program.html`,
+  and `templates/change-program.html` use the shared
   `templates/instruments/register-explorer.html` and
   `interactive/register-explorer.ts` for the [8080 register lesson](../docs/cpus/8080/examples/register.md)
   and its [add-one](../docs/cpus/8080/examples/add-one.md) and
-  [stored-program](../docs/cpus/8080/examples/program.md) successors. A is read-only
+  [stored-program](../docs/cpus/8080/examples/program.md) and
+  [program-editing](../docs/cpus/8080/examples/change-program.md) successors. A is read-only
   and comes from CPU snapshots; each action calls `step()` once. The controller
   uses PC to enable the next action and stops at the program's end. The optional
   disclosure shows bytes, PC changes, and accesses from the last CPU record.
@@ -182,12 +184,17 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   addition separately from the latest instruction record. The full sum explains
   the calculation; A and carry come from execution, not a parallel simulation.
 
-- `interactive/program-view.ts` reveals the fixed add-one program for the
-  stored-program lesson. It reads bytes from RAM at mount, marks the next
+- `interactive/program-view.ts` reveals the load–add–store program for the
+  stored-program and program-editing lessons. It reads bytes from RAM on each render, marks the next
   instruction using CPU state, and highlights fetches using the record's
   `instruction` field rather than every memory read. Its labels and grouping
   describe the known program; it is not a general disassembler. A single Step
-  button advances the CPU, and the same completion and editing rules apply.
+  button advances the CPU. The program-editing lesson adds a decimal operand
+  field that writes RAM at `0104` before the first step. Its value updates the
+  displayed bytes and addition labels; invalid drafts retain the previous byte
+  and block Step independently of the data editor. The field locks during
+  execution, and restart restores `01` and unlocks it. Addition explanations
+  use the fetched operand, with results from the real CPU record.
 
 Sauvignon fences replace the earlier Mermaid diagrams. GitHub currently shows
 these fences as source; the site displays the rendered diagrams and
@@ -223,6 +230,10 @@ edits. Restart after carry and while an invalid draft is present. For the
 stored-program lesson, check initial PC/bytes, the three fetch groups and next
 markers, the final boundary, and restart. Verify that the load's data read is
 not highlighted as an instruction fetch, and that edits preserve the last
-fetch while invalid drafts block Step. Check that
+fetch while invalid drafts block Step. For program editing, try operands 0, 2,
+10, and 255, verifying the displayed hex, mnemonic, fetch record, result, and
+unchanged PC path. Check the lock after the first step, reset to 1, empty and
+invalid input, and both operand/data invalid drafts without one editor masking
+the other. Check that
 preceding lessons still work and do not request CPU runtime modules. The emulator’s
 `npm test` suite remains independent of the Python toolchain and Sauvignon.

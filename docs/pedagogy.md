@@ -146,7 +146,10 @@ load/store to calculation, instruction bytes, the program counter, and small
 programs. The [add-one lesson](cpus/8080/examples/add-one.md) now connects
 load–calculate–store to unsigned wraparound and the 8080 carry flag. The
 [stored-program lesson](cpus/8080/examples/program.md) then reveals instruction
-bytes and PC using the same program and a single Step button.
+bytes and PC using the same program and a single Step button. The
+[program-editing lesson](cpus/8080/examples/change-program.md) makes its addition
+operand editable, showing how one changed byte changes the result while the
+instruction lengths and PC path stay the same.
 The **Altair 8800** is the first historical machine: its front panel
 will connect those familiar concepts to switches and lights before adding I/O.
 
