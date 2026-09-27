@@ -16,8 +16,8 @@
     "build": "npm run clean && npm run check:src && tsc",
     "test": "npm run build && node scripts/test.ts",
     "test:built": "node scripts/test.ts",
-    "build:site": "uv run --project site --locked python site/build.py",
-    "test:site": "uv run --project site --locked python -m unittest discover -s site -p \"test_*.py\""
+    "build:site": "tsc --project site/tsconfig.json && uv run --project site --locked python site/build.py",
+    "test:site": "tsc --project site/tsconfig.json --noEmit && uv run --project site --locked python -m unittest discover -s site -p \"test_*.py\""
   },
   "devDependencies": {
     "@types/node": "24.13.4",

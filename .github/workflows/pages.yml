@@ -44,7 +44,9 @@ jobs:
           enable-cache: true
           cache-dependency-glob: site/uv.lock
       - name: Check the publishing code
-        run: npm run test:site
+        run: |
+          npm ci
+          npm run test:site
       - name: Read the Pages configuration
         id: pages
         uses: actions/configure-pages@v6

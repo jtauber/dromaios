@@ -15,13 +15,13 @@ use shared instruction definitions that generate execution and explanations.
 source footprint, validation evidence, and remaining fidelity limits.
 
 All eight CPU models are now authored in executable literate specifications.
-The immediate focus is to improve the clarity and elegance of the specification
-language, then the clarity and measured performance of its generation code,
-and remove development-only documentation that no longer serves the project.
+The initial language and generation refinement pass is complete. The immediate
+focus is now interactive learning, with further refinement driven by concrete
+authoring and browser needs.
 Reusable memory and byte-I/O compositions also work in simulation. The
-[microcomputer.world reading site](site/README.md) now presents the executable CPU chapters
-with Sauvignon diagrams; interactive execution and complete historical
-machines remain ahead. The stages overlap:
+[microcomputer.world site](site/README.md) now presents the executable CPU
+chapters with Sauvignon diagrams and an interactive bits-and-numbers lesson.
+CPU execution in the browser and complete historical machines remain ahead. The stages overlap:
 browser work can build on these foundations while CPU and component work continues.
 Implementation order is independent of the tutorial's historical teaching
 order. See [CPU scope](docs/cpus/scope.md) for the rationale,
@@ -61,7 +61,7 @@ The initial instruction subset and execution granularity are documented.
 Current support is tracked in [CPU implementation coverage](docs/cpus/coverage.md).
 Acceptance checks are defined in the [8080 example specification](docs/cpus/8080/examples/arithmetic.md).
 
-## 2. Develop literate CPU specifications — current
+## 2. Develop literate CPU specifications — established
 
 Opcode expansion and whole-model migration are complete for the initial eight
 CPUs. Their specifications own instructions, state, reset, execution, external
@@ -71,7 +71,8 @@ the implemented language; the
 [coverage report](docs/cpus/coverage.md#model-ownership-and-validation) records
 model ownership, validation evidence, and current source footprint.
 
-The next few days focus on refinement, in this order:
+The refinement pass followed these priorities, which continue to guide changes
+as new uses expose a need:
 
 1. **Make the specification language clear and elegant.** Review terminology,
    syntax, scoping, and the relationships between declarations, expressions,
@@ -138,8 +139,10 @@ prerequisite for browser or machine development.
 
 ## 3. Make the examples explorable in the browser
 
-Browser implementation is planned. It can begin with the existing examples,
-shared runner, and machine compositions while CPU consolidation continues.
+The first browser lesson explores one byte through clickable bits, place
+values, and linked binary, decimal, and hexadecimal forms. CPU execution in
+the browser remains next, building on the existing examples, shared runner,
+and machine compositions.
 
 The [pedagogical roadmap](docs/pedagogy.md#pedagogical-roadmap) defines the
 learning milestones and review points, beginning with an arithmetic explorer

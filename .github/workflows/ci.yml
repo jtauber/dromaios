@@ -59,4 +59,5 @@ jobs:
           python-version: "3.13"
           enable-cache: true
           cache-dependency-glob: site/uv.lock
+      - run: npm ci
       - run: npm run test:site

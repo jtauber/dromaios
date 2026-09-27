@@ -76,8 +76,9 @@ for the 8008, 8080, 6800, 6502, Z80, 6809, 8088, and 68000. Small examples cover
 CPU-and-RAM programs, ROM boot, mapped memory, and shared byte-input and
 byte-output devices. They run through a shared CPU runner and are tested
 independently of the browser. The [example catalog](docs/README.md#cpu-examples)
-links to their specifications. A browser interface and complete historical
-machines are still planned.
+links to their specifications. The [website](site/README.md) includes an
+interactive bits-and-numbers lesson alongside the processor guides. Browser
+execution of the CPU models and complete historical machines are still planned.
 
 All eight documented instruction sets now use shared definitions that generate
 execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)

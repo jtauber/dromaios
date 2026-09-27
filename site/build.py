@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a static reading site from the executable CPU chapters."""
+"""Build processor guides and interactive lessons for microcomputer.world."""
 
 import argparse
 import json
@@ -57,8 +57,10 @@ def build(base):
     site.jinja_env.autoescape = select_autoescape(["html"])
     site.clear_output()
     site.copy_to_output(SITE / "assets", "assets")
+    site.copy_to_output(ROOT / "dist/site", "assets")
     site.write_output("assets/highlight.css", HtmlFormatter(style="friendly").get_style_defs(".code-block"))
     site.add_hash("assets/style.css")
+    site.add_hash("assets/byte-explorer.js")
     site.set_global("chapters", chapters)
     site.set_global("repository", REPOSITORY)
 
@@ -88,12 +90,15 @@ def build(base):
             "previous": chapters[index - 1] if index else None,
             "next": chapters[index + 1] if index + 1 < len(chapters) else None,
         })
+    site.render_template("bits-and-numbers.html", "learn/bits-and-numbers/index.html", {
+        "title": "Bits and numbers",
+    })
     site.render_template("home.html", "index.html", {
         "title": "Computers, from the instruction up",
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
+    print(f"Built home + byte lesson + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

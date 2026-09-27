@@ -126,7 +126,14 @@ behavior. Device work follows the project roadmap's
 Software studies in milestone 7 can begin with isolated routines as their
 execution requirements become available, then grow into comprehensive guides.
 
-The immediate priority is milestones 1 and 2 together: make one addition
+Begin with a smaller representation lesson before milestones 1 and 2: toggle
+eight bits, connect binary, decimal, and hexadecimal, and explain the unsigned
+range. The [site](../site/README.md) now includes this first exploration. Its
+review point is whether a learner can make an unfamiliar number from place
+values and recognize it in all three representations. Signed interpretation,
+limited-width arithmetic, and bitwise operations can then build on that view.
+
+The next major priority is milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the
 first major delivery checkpoint and gives later instruments a concrete
 foundation. The sequence guides development; comparisons and supporting tools

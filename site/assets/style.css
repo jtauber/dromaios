@@ -13,7 +13,11 @@ html { scroll-padding-top: 2rem; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.65 system-ui, sans-serif; }
 a { color: inherit; text-underline-offset: .2em; }
 a:hover { color: var(--accent); }
-a:focus-visible, summary:focus-visible, pre:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
+a:focus-visible, summary:focus-visible, pre:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 img { max-width: 100%; height: auto; }
 h1, h2, h3, p { margin-top: 0; }
 .site-header, .home, .site-footer { width: min(1320px, calc(100% - 112px)); margin-inline: auto; }
@@ -118,6 +122,48 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .chapter-pagination a { text-decoration: none; }
 .chapter-pagination span { display: block; font: 11px var(--mono); color: var(--muted); margin-bottom: 8px; }
 .chapter-pagination strong { font: 24px var(--serif); }
+.learn-section { border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; gap: 60px; padding-block: 40px; }
+.learn-section .eyebrow { margin-bottom: 12px; }
+.learn-section h2 { font: 500 34px/1.15 var(--serif); letter-spacing: -.02em; margin: 0; }
+.learn-section p:not(.eyebrow) { color: var(--muted); margin-bottom: 0; max-width: 500px; }
+.lesson { width: min(860px, calc(100% - 112px)); margin: 55px auto 90px; }
+.lesson-header { max-width: 650px; margin-bottom: 35px; }
+.lesson-header .eyebrow { margin-bottom: 16px; }
+.lesson h1 { font: 500 clamp(42px, 5vw, 62px)/1.08 var(--serif); letter-spacing: -.035em; margin-bottom: 22px; }
+.lesson h1 em { color: var(--accent); }
+.lesson-intro { font-size: 18px; line-height: 1.7; color: #53665b; }
+.byte-explorer { border: 1px solid #c6cec0; background: #f0eee5; padding: 24px 30px; }
+.instrument-heading { display: flex; justify-content: space-between; gap: 12px; font: 11px/1.6 var(--mono); text-transform: uppercase; letter-spacing: .05em; padding-bottom: 16px; margin-bottom: 18px; border-bottom: 1px solid #c6cec0; }
+.byte-explorer > p { font-size: 14px; color: #53665b; margin-bottom: 22px; }
+.byte-explorer fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.byte-bits { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.nibble-bits { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.byte-bit { text-align: center; }
+.bit-weight { display: block; font: 12px/1.6 var(--mono); color: #53665b; margin-bottom: 8px; }
+.byte-bit button { display: block; width: 100%; min-height: 58px; border: 1px solid #9ba99c; border-radius: 3px; font: 32px/1 var(--mono); background: var(--paper); color: #53665b; }
+.byte-bit button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.byte-bit button:enabled:hover { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.nibble-label { margin: 10px 0 0; padding-top: 9px; border-top: 1px solid #b6c1b2; text-align: center; font: 11px/1.5 var(--mono); color: #53665b; }
+.nibble-label strong { font-size: 18px; margin-left: 8px; color: var(--accent); }
+.byte-sum-label { font-size: 12px; color: #53665b; margin: 22px 0 5px; }
+.byte-sum { font: 18px/1.6 var(--mono); margin-bottom: 24px; overflow-wrap: anywhere; }
+.byte-representations { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 18px; }
+.byte-representations label { font-size: 14px; font-weight: 600; }
+.byte-representations label > span { display: block; font-size: 11px; font-weight: 400; color: #53665b; margin: 3px 0 8px; }
+.byte-representations input { width: 100%; min-width: 0; border: 1px solid #9ba99c; border-radius: 3px; background: var(--paper); color: var(--ink); font: 20px/1.4 var(--mono); padding: 10px; }
+.byte-representations input[aria-invalid="true"] { border: 2px solid var(--accent); padding: 9px; }
+.byte-error { color: var(--accent); font-size: 13px; margin: 12px 0; }
+.byte-error:empty { display: none; }
+.clear-byte { border: 1px solid #9ba99c; border-radius: 3px; background: transparent; color: var(--ink); font-size: 12px; padding: 10px 14px; margin-top: 18px; }
+.clear-byte:enabled:hover { background: var(--paper); }
+.lesson-prose { max-width: 650px; margin-inline: auto; }
+.lesson-prose h2 { font: 500 32px/1.2 var(--serif); letter-spacing: -.02em; margin: 45px 0 22px; }
+.lesson-prose code { font: .88em var(--mono); background: #edece4; padding: 2px 4px; }
+.lesson-prompt { border-left: 3px solid var(--accent); background: #f0eee5; padding: 18px 22px; margin: 25px 0; font-size: 14px; }
+.lesson-prompt p { margin: 0; }
+.lesson-prompt summary { cursor: pointer; color: #875037; margin-top: 12px; }
+.lesson-prompt details p { margin-top: 12px; }
+.lesson-prompt > a { display: inline-block; margin-top: 12px; font-size: 12px; color: #875037; }
 @media (max-width: 1100px) {
   .site-header, .home, .site-footer, .chapter-layout { width: calc(100% - 64px); }
   .hero { gap: 35px; }
@@ -125,6 +171,7 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
   .processor-card h3 { font-size: 26px; }
   .chapter-layout { grid-template-columns: 190px minmax(0, 1fr); gap: 35px; }
   .chapter-header h1 { font-size: 50px; }
+  .lesson { width: min(860px, calc(100% - 64px)); }
 }
 @media (max-width: 760px) {
   .site-header, .home, .site-footer, .chapter-layout { width: calc(100% - 40px); }
@@ -160,6 +207,27 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
   .chapter-prose h3 { font-size: 24px; }
   .code-block pre { padding: 14px; font-size: 11px; }
   .architecture-diagram { padding: 10px; }
+  .learn-section { grid-template-columns: 1fr; gap: 18px; }
+  .lesson { width: calc(100% - 40px); margin-top: 35px; }
+  .lesson-intro { font-size: 16px; }
+  .byte-explorer { padding: 20px; }
+  .byte-bits { gap: 16px; }
+  .nibble-bits { gap: 5px; }
+  .byte-bit button { min-height: 48px; font-size: 26px; }
+  .byte-representations { gap: 12px; }
+  .byte-representations input { font-size: 16px; }
+  .lesson-prose h2 { font-size: 28px; }
+}
+@media (max-width: 520px) {
+  .instrument-heading { flex-direction: column; gap: 4px; }
+  .byte-explorer { padding: 16px 12px; }
+  .byte-bits { gap: 12px; }
+  .nibble-bits { gap: 3px; }
+  .bit-weight { font-size: 10px; }
+  .byte-sum { font-size: 15px; }
+  .byte-representations { grid-template-columns: 1fr; gap: 16px; }
+  .byte-representations label > span { display: inline; margin-left: 6px; }
+  .byte-representations input { display: block; margin-top: 6px; font-size: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 @media print {

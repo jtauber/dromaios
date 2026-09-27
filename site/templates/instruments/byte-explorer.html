@@ -1,0 +1,41 @@
+{% macro byte_explorer(id, value=42) %}
+<section id="{{ id }}" class="byte-explorer" data-byte-explorer aria-label="Interactive byte explorer">
+  <div class="instrument-heading"><span>One byte · eight bits</span><span>Unsigned · 0 to 255</span></div>
+  <p id="{{ id }}-instruction" data-instruction>Enable JavaScript to change this byte. This example shows {{ value }}.</p>
+  <fieldset disabled aria-describedby="{{ id }}-instruction">
+    <legend class="visually-hidden">Change the byte</legend>
+    <div class="byte-bits">
+      {% for weights in [[128, 64, 32, 16], [8, 4, 2, 1]] %}
+      {% set group = loop.index0 %}
+      <div class="byte-nibble">
+        <div class="nibble-bits">
+          {% for weight in weights %}
+          {% set on = value // weight % 2 %}
+          <div class="byte-bit">
+            <span class="bit-weight" aria-hidden="true">{{ weight }}</span>
+            <button type="button" data-weight="{{ weight }}" aria-label="Bit {{ 7 - group * 4 - loop.index0 }}, value {{ weight }}" aria-pressed="{{ 'true' if on else 'false' }}">{{ on }}</button>
+          </div>
+          {% endfor %}
+        </div>
+        <p class="nibble-label">Hex digit <strong data-nibble>{{ '%X' | format(value // 16 if group == 0 else value % 16) }}</strong></p>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="byte-sum-label">Add the values of the bits that are on</p>
+    <p class="byte-sum" data-sum role="status">{% for weight in [128, 64, 32, 16, 8, 4, 2, 1] if value // weight % 2 %}{{ ' + ' if not loop.first }}{{ weight }}{% else %}0{% endfor %} = {{ value }}</p>
+    <div class="byte-representations">
+      <label>Binary <span>Base 2 · digits 0–1</span>
+        <input type="text" inputmode="numeric" data-radix="2" value="{% for weight in [128, 64, 32, 16, 8, 4, 2, 1] %}{{ value // weight % 2 }}{% endfor %}" autocomplete="off" spellcheck="false" aria-describedby="{{ id }}-error">
+      </label>
+      <label>Decimal <span>Base 10 · digits 0–9</span>
+        <input type="text" inputmode="numeric" data-radix="10" value="{{ value }}" autocomplete="off" spellcheck="false" aria-describedby="{{ id }}-error">
+      </label>
+      <label>Hexadecimal <span>Base 16 · digits 0–9, A–F</span>
+        <input type="text" data-radix="16" value="{{ '%02X' | format(value) }}" autocomplete="off" spellcheck="false" aria-describedby="{{ id }}-error">
+      </label>
+    </div>
+    <p class="byte-error" id="{{ id }}-error" data-error role="status"></p>
+    <button class="clear-byte" type="button" data-reset>Clear all bits</button>
+  </fieldset>
+</section>
+{% endmacro %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "instruments/byte-explorer.html" import byte_explorer %}
+{% block description %}Explore one byte. Toggle eight bits and see the same value in binary, decimal, and hexadecimal.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url('assets/byte-explorer.js') }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Start here · Bits and numbers</p>
+    <h1>Eight bits.<br><em>One number.</em></h1>
+    <p class="lesson-intro">A bit can be 0 or 1. Put eight together and you have a <strong>byte</strong>. Let’s see how those bits can represent a number.</p>
+  </header>
+  {{ byte_explorer('first-byte') }}
+  <div class="lesson-prose">
+    <section aria-labelledby="place-value">
+      <h2 id="place-value">Every position has a value.</h2>
+      <p>Start at the right: 1, 2, 4, 8. Each position is worth twice the one before it. A <strong>1</strong> includes that value; a <strong>0</strong> leaves it out. Add the included values to find the number.</p>
+      <p>The starting byte has 32, 8, and 2 switched on. That makes <strong>42</strong>.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Clear all the bits, then make 13. Which positions do you need?</p>
+        <details><summary>Show an explanation</summary><p>Switch on 8, 4, and 1: <code>00001101</code>. Their sum is 13.</p></details>
+        <a href="#first-byte">Back to the byte ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="representations">
+      <h2 id="representations">Three ways to write the same number.</h2>
+      <p><strong>Binary</strong> uses two digits, 0 and 1. Each digit corresponds to one bit, so eight digits show the whole byte.</p>
+      <p><strong>Decimal</strong> uses the ten digits we count with, 0 to 9. Here, we read the byte as an <em>unsigned</em> number: zero or a positive whole number.</p>
+      <p><strong>Hexadecimal</strong> uses sixteen digits: 0 to 9, then A, B, C, D, E, and F for ten through fifteen. Each group of four bits fits into one hex digit, so two hex digits can describe a byte.</p>
+      <p>Binary <code>00101010</code>, decimal <code>42</code>, and hexadecimal <code>2A</code> all describe the same value. The two extra zeroes at the start of the binary form keep all eight bit positions visible.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Enter F in the hexadecimal field. Then try F0. Watch which group of four bits changes.</p>
+        <details><summary>Show an explanation</summary><p><code>0F</code> turns on the right-hand four bits: 8 + 4 + 2 + 1 = 15. <code>F0</code> turns on the left-hand four: 128 + 64 + 32 + 16 = 240.</p></details>
+        <a href="#first-byte">Back to the byte ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="byte-range">
+      <h2 id="byte-range">How much fits in one byte?</h2>
+      <p>With all eight bits off, the number is 0. With all eight on, their values add up to 255. That gives us <strong>256 different patterns</strong>, representing the unsigned numbers 0 through 255.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Enter 255 in decimal. Before switching off the leftmost bit, predict the new value.</p>
+        <details><summary>Show an explanation</summary><p>The leftmost bit contributes 128. Removing it leaves 255 − 128 = 127: binary <code>01111111</code>, hexadecimal <code>7F</code>.</p></details>
+        <a href="#first-byte">Back to the byte ↑</a>
+      </aside>
+      <p>Processors use groups of bits like these to hold numbers, addresses, and instructions. This lesson explores how we write a value; what a processor does with it comes next.</p>
+      <a class="text-link" href="{{ calc_url('#processors') }}">Meet the processors <span aria-hidden="true">→</span></a>
+    </section>
+  </div>
+</main>
+{% endblock %}

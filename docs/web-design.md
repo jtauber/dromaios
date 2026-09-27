@@ -10,16 +10,21 @@ hardware dependencies. The [pedagogical plan](pedagogy.md) owns teaching
 principles and learning milestones. This note describes how people find and
 use those experiences on the website.
 
-## Current reading site
+## Current site
 
 [microcomputer.world](../site/README.md) is the first delivered website slice:
-a home page and all eight processor chapters, generated directly from their
-executable Markdown sources. Ryland supplies page generation; Sauvignon draws
+a home page, an interactive bits-and-numbers lesson, and all eight processor
+guides. The guides come directly from their executable Markdown sources.
+Ryland supplies page generation; Sauvignon draws
 architecture diagrams authored in the chapters and storage maps derived from
 the CPU compiler. Pages include section navigation, highlighted definitions,
-and links back to repository material. They require no browser scripting.
+and links back to repository material. Processor guides require no browser
+scripting. The byte lesson adds a reusable interactive instrument with linked
+number representations, place values, and prediction prompts; it retains a
+readable example when scripting is unavailable.
 
-This establishes the reading layout before interactive execution. The sitemap
+The navigation now includes Learn, leading to that first lesson. This establishes
+reading and basic interaction before CPU execution. The sitemap
 and exploration workspace below remain the intended expansion, rather than
 additional navigation entries without usable content.
 

@@ -16,6 +16,12 @@
     </div>
   </section>
 
+  <section class="learn-section" aria-labelledby="learn-heading">
+    <div><p class="eyebrow">Start with the basics</p><h2 id="learn-heading">What can eight bits tell you?</h2></div>
+    <div><p>Switch bits on and off. See the same number in binary, decimal, and hexadecimal. No processor knowledge needed.</p>
+      <a class="text-link" href="{{ calc_url('learn/bits-and-numbers/') }}">Try the byte explorer <span aria-hidden="true">→</span></a></div>
+  </section>
+
   <section class="processor-section" id="processors" aria-labelledby="processor-heading">
     <div class="section-heading">
       <div><p class="eyebrow">Processor guides</p><h2 id="processor-heading">A decade on a chip.</h2></div>
@@ -38,7 +44,7 @@
     <div class="about-copy">
       <p class="lead">A processor specification can be more than a reference. It can be the source of the emulator itself.</p>
       <p>Each guide brings together the chip’s history, its programming model, and formal definitions of its behavior. Dromaios turns those definitions into working processor models. The explanation and the machine share one source.</p>
-      <p>Interactive lessons and embedded emulators will let you experiment with these processors in your browser. Today, you can explore their guides here and build and run the models from the repository.</p>
+      <p>Start experimenting with <a href="{{ calc_url('learn/bits-and-numbers/') }}">bits and numbers</a>, or explore the processor guides. Embedded emulators will follow; today, you can build and run the processor models from the repository.</p>
       <a class="text-link" href="{{ repository }}#development">Build and run Dromaios <span aria-hidden="true">↗</span></a>
       <a class="text-link" href="{{ repository }}/blob/main/docs/cpus/literate-specifications.md">Read the specification language guide <span aria-hidden="true">↗</span></a>
     </div>

@@ -1,13 +1,14 @@
 # microcomputer.world
 
-**microcomputer.world** presents guides to classic processors. Dromaios supplies
+**microcomputer.world** presents interactive lessons and guides to classic processors. Dromaios supplies
 the processor models and executable specifications; it is credited alongside
 the site’s other tools, Ryland and Sauvignon.
 
-Ryland builds the home page and one guide per processor from its executable
+Ryland builds the home page, the bits-and-numbers lesson, and one guide per processor from its executable
 specification. Sauvignon renders both architecture diagrams and state maps
-derived from the CPU compiler. The result is ordinary HTML, CSS, and SVG with no JavaScript,
-CDN requests, or browser-side diagram rendering.
+derived from the CPU compiler. Pages use ordinary HTML, CSS, and SVG, with a
+small TypeScript module for the byte explorer. Processor guides need no
+JavaScript; diagrams are rendered during the build. No CDN requests are needed.
 
 ## Build and preview
 
@@ -26,13 +27,16 @@ From the Dromaios root:
 
 ```sh
 export SAUVIGNON_PATH=/path/to/sauvignon
+npm ci
 npm run build:site
 python3 -m http.server 8000 --directory site/output
 ```
 
 Open [the local preview](http://localhost:8000/). The build installs its locked
 Python dependencies in `site/.venv` on first use. It compiles the chapters directly
-without generating or rebuilding emulator modules. Output lives in the ignored
+without generating or rebuilding emulator modules. TypeScript compiles the
+lesson interactions into `dist/site/`, which the site builder copies into its
+assets. Output lives in the ignored
 `site/output/` directory; the next site build replaces that directory.
 
 For a host under a project path, use:
@@ -127,6 +131,17 @@ and deploy. The site follows the same maintainer-review rule as other changes.
 - Edit page layout in `templates/` and presentation in `assets/style.css`.
   The site uses system fonts. Long code and tables scroll within the reading
   column; contents navigation and diagram disclosures work without JavaScript.
+- The first lesson is `templates/bits-and-numbers.html`. Its reusable byte
+  explorer is a template macro in `templates/instruments/byte-explorer.html`,
+  enhanced by `interactive/byte-explorer.ts`. Each instance owns its value and
+  controls. The browser code has a separate DOM-aware TypeScript configuration;
+  simulation code keeps its existing environment-independent checks.
+- The byte explorer links unsigned binary, decimal, and hexadecimal forms,
+  shows place values and their sum, and groups bits into hexadecimal digits.
+  Valid edits update the other representations; invalid drafts retain the
+  previous byte and display an explanation. Without scripting, a readable
+  example remains with disabled controls. Keyboard users can toggle bits with
+  Space or Enter and edit the number fields normally.
 
 Sauvignon fences replace the earlier Mermaid diagrams. GitHub currently shows
 these fences as source; the site displays the rendered diagrams and
@@ -140,8 +155,10 @@ npm run build:site
 npm run build:site -- --base /dromaios/
 ```
 
-The tests check lossless rendering of every CPU block, escaping, link rewriting,
+The tests type-check the browser code and check lossless rendering of every CPU block, escaping, link rewriting,
 state diagrams, and broken-link detection. Every site build compiles all CPU
 chapters and diagrams, then checks every local link, fragment, image, and style
-asset. Preview wide and narrow layouts when changing styles. The emulator’s
+asset. Preview wide and narrow layouts when changing styles. For the byte
+explorer, check bit toggles, keyboard operation, zero and 255, lowercase hex,
+invalid and empty inputs, and recovery after an invalid edit. The emulator’s
 `npm test` suite remains independent of the Python toolchain and Sauvignon.
