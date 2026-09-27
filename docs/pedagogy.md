@@ -149,7 +149,9 @@ load–calculate–store to unsigned wraparound and the 8080 carry flag. The
 bytes and PC using the same program and a single Step button. The
 [program-editing lesson](cpus/8080/examples/change-program.md) makes its addition
 operand editable, showing how one changed byte changes the result while the
-instruction lengths and PC path stay the same.
+instruction lengths and PC path stay the same. The
+[jump lesson](cpus/8080/examples/jump.md) then changes that path, comparing a
+destination that runs the addition with one that skips it.
 The **Altair 8800** is the first historical machine: its front panel
 will connect those familiar concepts to switches and lights before adding I/O.
 

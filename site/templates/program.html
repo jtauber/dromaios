@@ -9,7 +9,7 @@
     <h1>What comes<br><em>next?</em></h1>
     <p class="lesson-intro">The program still reads a byte, adds one, and writes the result. This time, there is just one button. How does the processor know which instruction to run?</p>
   </header>
-  {{ register_explorer('program-memory', 41, 0, add_one=true, program=true) }}
+  {{ register_explorer('program-memory', 41, 0, machine='add-one', program=true) }}
   <div class="lesson-prose">
     <section aria-labelledby="instructions-are-bytes">
       <h2 id="instructions-are-bytes">Instructions are bytes too.</h2>

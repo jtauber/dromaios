@@ -1,0 +1,21 @@
+ram 10000
+
+cpu 8080 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    PC = 0100  SP = 0000
+    flags { S = 0  Z = 0  AC = 0  P = 0  CY = 0 }
+    interruptEnabled = false
+    interruptDeferred = false
+    halted = false
+}
+
+memory 0003 { 29 00 }   // Address 3 holds 41; address 4 will receive the result.
+
+memory 0100 {
+    3A 03 00           // 0100: LDA 0003H: read the starting byte into A.
+    C3 08 01           // 0103: JMP 0108H: skip the addition and continue at the store.
+    C6 01              // 0106: ADI 1: this instruction remains in memory when skipped.
+    32 04 00           // 0108: STA 0004H: write A to address 4.
+}
+
+end 010B

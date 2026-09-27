@@ -9,7 +9,7 @@
     <h1>Change one byte,<br><em>change the program.</em></h1>
     <p class="lesson-intro">Our program adds one because one of its bytes says <code>01</code>. What if we change that byte to <code>02</code>?</p>
   </header>
-  {{ register_explorer('change-program-memory', 41, 0, add_one=true, program=true, edit_operand=true) }}
+  {{ register_explorer('change-program-memory', 41, 0, machine='add-one', program=true, edit_operand=true) }}
   <div class="lesson-prose">
     <section aria-labelledby="choose-the-number">
       <h2 id="choose-the-number">Choose the number.</h2>
@@ -47,6 +47,7 @@
     </section>
     <nav class="lesson-navigation" aria-label="Lesson navigation">
       <a href="{{ calc_url('learn/program/') }}"><span aria-hidden="true">←</span> What comes next?</a>
+      <a href="{{ calc_url('learn/jump/') }}">Next: Taking a different path <span aria-hidden="true">→</span></a>
     </nav>
   </div>
 </main>

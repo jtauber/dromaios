@@ -1,4 +1,4 @@
-{% macro program_view(edit_operand=false) %}
+{% macro program_view(edit_operand=false, jump=false, end='0108') %}
     <section class="program-view" data-program-view aria-labelledby="program-heading">
       <div class="program-heading">
         <div><h2 id="program-heading">The program in memory</h2><p>Addresses and bytes below are hexadecimal.</p></div>
@@ -14,9 +14,21 @@
         <p id="operand-error" data-operand-error class="input-error" role="alert"></p>
       </div>
       {% endif %}
-      <ol class="program-instructions" data-program-instructions></ol>
+      {% if jump %}
+      <div class="program-edit">
+        <label for="jump-destination">Where should the jump go?</label>
+        <select id="jump-destination" data-jump-destination aria-describedby="jump-help jump-status" disabled>
+          <option value="0108" selected>0108 · Skip the addition</option>
+          <option value="0106">0106 · Run the addition</option>
+        </select>
+        <p id="jump-help">Choose before the first step. This edits the jump’s destination bytes at <code>0104</code> and <code>0105</code>. Start again restores the skip path and unlocks the choice.</p>
+        <p id="jump-status" data-jump-status role="status">The jump’s destination is 0108.</p>
+      </div>
+      {% endif %}
+      <ol class="program-instructions{% if jump %} program-with-jump{% endif %}" data-program-instructions></ol>
       <noscript><p>Enable JavaScript to inspect the program’s bytes and step through its instructions.</p></noscript>
-      <p class="program-end" data-program-end>0108 · End of this program</p>
+      <p class="program-end" data-program-end>{{ end }} · End of this program</p>
       <p class="program-fetched" data-program-fetched role="status">No instruction has run. PC points to the first instruction.</p>
+      {% if jump %}<p class="program-path" data-program-path>PC path so far: 0100.</p>{% endif %}
     </section>
 {% endmacro %}

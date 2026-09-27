@@ -1,31 +1,43 @@
 import { create8080RegisterLesson } from "../../src/machines/generated/8080/register-lesson.js";
 import { create8080AddOneLesson } from "../../src/machines/generated/8080/add-one-lesson.js";
+import { create8080JumpLesson } from "../../src/machines/generated/8080/jump-lesson.js";
 import { mountMemoryEditor } from "./memory-editor.js";
 import { mountProgramView } from "./program-view.js";
 import type { FetchedInstruction } from "../../src/components/cpus/execution-records.js";
 
 /** Step a known load/store program; only the CPU writes its accumulator. */
 export function mountRegisterExplorer(lesson: HTMLElement, root: HTMLElement): void {
-  const hasAddition = lesson.dataset.registerExplorer === "add-one";
-  const createMachine = hasAddition ? create8080AddOneLesson : create8080RegisterLesson;
+  const hasJump = lesson.dataset.registerExplorer === "jump";
+  const hasAddition = hasJump || lesson.dataset.registerExplorer === "add-one";
+  const createMachine = hasJump ? create8080JumpLesson : hasAddition ? create8080AddOneLesson : create8080RegisterLesson;
   let machine = createMachine();
-  // The instruction layout is fixed, but the addition's operand can change.
+  const additionAddress = hasJump ? 0x106 : 0x103;
+  const storeAddress = hasJump ? 0x108 : hasAddition ? 0x105 : 0x103;
+  const path = [machine.cpu.snapshot().pc];
+  const jumpTarget = () => machine.ram.read(0x104) | (machine.ram.read(0x105) << 8);
+  // These labels describe known instruction layouts; the CPU executes the bytes in RAM.
   const instructions = [
     {
       address: 0x100, action: "read", mnemonic: "LDA 0003H", explanation: "Read address 3 into A",
       prompt: "First, read address 3 into A. Predict which values will change.",
     },
+    ...(hasJump ? [{
+      address: 0x103, action: "jump",
+      get mnemonic() { return `JMP ${hex(jumpTarget(), 4)}H`; },
+      get explanation() { return `Jump to ${hex(jumpTarget(), 4)}`; },
+      prompt: "The jump changes where the processor looks next.",
+    }] : []),
     ...(hasAddition ? [{
-      address: 0x103, action: "add",
-      get mnemonic() { return `ADI ${machine.ram.read(0x104)}`; },
+      address: additionAddress, action: "add",
+      get mnemonic() { return `ADI ${machine.ram.read(additionAddress + 1)}`; },
       get explanation() {
-        const value = machine.ram.read(0x104);
+        const value = machine.ram.read(additionAddress + 1);
         return value === 1 ? "Add one to A" : `Add ${value} to A`;
       },
       prompt: "Now add one to A. Will either memory location change?",
     }] : []),
     {
-      address: hasAddition ? 0x105 : 0x103, action: "write", mnemonic: "STA 0004H", explanation: "Write A to address 4",
+      address: storeAddress, action: "write", mnemonic: "STA 0004H", explanation: "Write A to address 4",
       prompt: hasAddition ? "The calculation changed A. Write its result to address 4."
         : "A has its own copy. You can change the byte at address 3 before writing A to address 4.",
     },
@@ -46,6 +58,8 @@ export function mountRegisterExplorer(lesson: HTMLElement, root: HTMLElement): v
   const operand = lesson.querySelector<HTMLInputElement>("[data-program-operand]");
   const operandError = lesson.querySelector<HTMLElement>("[data-operand-error]");
   const operandStatus = lesson.querySelector<HTMLElement>("[data-operand-status]");
+  const destination = lesson.querySelector<HTMLSelectElement>("[data-jump-destination]");
+  const jumpStatus = lesson.querySelector<HTMLElement>("[data-jump-status]");
   const editor = mountMemoryEditor(lesson, root, () => machine.ram, { size: 8, address: 3, onEdit: render });
 
   function hex(value: number, digits: number): string { return value.toString(16).toUpperCase().padStart(digits, "0"); }
@@ -75,7 +89,12 @@ export function mountRegisterExplorer(lesson: HTMLElement, root: HTMLElement): v
       operandStatus.textContent = `Address 0104 contains ${hex(value, 2)} in hexadecimal (${value} in decimal). `
         + (operand.disabled ? "Start again to edit the program." : "Your edit changes memory immediately; no instruction runs.");
     }
-    program?.render(state.pc, lastFetched);
+    if (destination && jumpStatus) {
+      destination.disabled = state.pc !== path[0];
+      jumpStatus.textContent = `The jump's destination is ${hex(jumpTarget(), 4)}. `
+        + (destination.disabled ? "Start again to choose another path." : "Choosing a destination edits the program in RAM; it does not run it.");
+    }
+    program?.render(state.pc, lastFetched, hasJump ? path : undefined);
     next.textContent = operand?.hasAttribute("aria-invalid") ? "Enter a whole number from 0 to 255 for the addition before continuing."
       : !editor.valid ? "Finish entering a valid byte, or select another address, before continuing."
       : state.pc === machine.endAddress ? "The program is complete. Edit memory to explore the independent values, or start again."
@@ -89,9 +108,13 @@ export function mountRegisterExplorer(lesson: HTMLElement, root: HTMLElement): v
     const record = machine.cpu.step();
     if (record.outcome !== "executed") throw new Error("The register lesson expected an ordinary instruction.");
     lastFetched = record.instruction;
+    path.push(record.after.pc);
     const added = record.instruction.bytes[1]!;
     last.textContent = instruction.action === "read"
       ? `Read ${record.after.a} from address 3 into A, replacing ${record.before.a}. Reading left memory unchanged.`
+      : instruction.action === "jump"
+      ? `Jumped from ${hex(record.before.pc, 4)} to ${hex(record.after.pc, 4)}. A, flags, and memory are unchanged. `
+        + (record.after.pc === storeAddress ? "The addition was skipped; its bytes were not fetched." : "The addition will run next.")
       : instruction.action === "add"
       ? `Added ${added === 1 ? "one" : added} to ${record.before.a}. A now holds ${record.after.a}; carry is ${Number(record.after.flags.cy)}. Memory is unchanged.`
       : `Wrote ${record.after.a} from A to address 4, replacing ${previousDestination}. A kept its value.`;
@@ -130,8 +153,16 @@ export function mountRegisterExplorer(lesson: HTMLElement, root: HTMLElement): v
     } else {
       operand.removeAttribute("aria-invalid");
       operandError!.textContent = "";
-      machine.ram.write(0x104, value);
+      machine.ram.write(additionAddress + 1, value);
     }
+    render();
+  });
+  destination?.addEventListener("change", () => {
+    if (machine.cpu.snapshot().pc !== path[0]) return;
+    const address = Number.parseInt(destination.value, 16);
+    if (address !== additionAddress && address !== storeAddress) return;
+    machine.ram.write(0x104, address & 0xff);
+    machine.ram.write(0x105, address >>> 8);
     render();
   });
   stepButton?.addEventListener("click", () => {
@@ -141,11 +172,13 @@ export function mountRegisterExplorer(lesson: HTMLElement, root: HTMLElement): v
   restart.addEventListener("click", () => {
     machine = createMachine();
     lastFetched = null;
+    path.splice(0, path.length, machine.cpu.snapshot().pc);
     if (operand) {
       operand.value = String(machine.ram.read(0x104));
       operand.removeAttribute("aria-invalid");
       operandError!.textContent = "";
     }
+    if (destination) destination.value = hex(jumpTarget(), 4);
     editor.select(3);
     last.textContent = "No instruction has run. A starts at 0.";
     trace.textContent = "No instruction has run.";

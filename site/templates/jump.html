@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "instruments/register-explorer.html" import register_explorer with context %}
+{% block description %}Follow an Intel 8080 jump that skips an addition. Choose a different destination and see how changing PC changes which instructions run.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson register-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Memory and the processor · A jump</p>
+    <h1>Taking a<br><em>different path.</em></h1>
+    <p class="lesson-intro">There is still an addition in our program. This time, the processor can pass right over it. A new instruction tells it where to go next.</p>
+  </header>
+  {{ register_explorer('jump-memory', 41, 0, machine='jump', program=true) }}
+  <div class="lesson-prose">
+    <section aria-labelledby="skip-the-addition">
+      <h2 id="skip-the-addition">Skip the addition.</h2>
+      <p>Leave the destination at <strong>0108 · Skip the addition</strong>. Take one step: the load puts 41 into A, and PC moves from <code>0100</code> to <code>0103</code>.</p>
+      <p>The next instruction is <code>JMP 0108H</code>: jump to address <code>0108</code>. Take another step and watch PC. A stays 41, but the next-instruction marker moves directly to the store.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> What will the store write to address 4? There is an “Add one to A” instruction in memory—does that mean it has run?</p>
+        <details><summary>Show an explanation</summary><p>The store writes 41. The jump passed over the addition at <code>0106</code>, so it never changed A. The program contains four instructions, but this path executes only three.</p></details>
+        <a href="#experiment">Follow the skip path ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="an-instruction-for-pc">
+      <h2 id="an-instruction-for-pc">An instruction for PC.</h2>
+      <p>Until now, each instruction left PC pointing just beyond its own bytes. The jump instead puts its destination address into PC. That is where the processor fetches the next instruction.</p>
+      <p>The jump itself occupies three bytes at <code>0103</code>, <code>0104</code>, and <code>0105</code>. The byte after it is at <code>0106</code>. But with destination <code>0108</code>, that is where PC ends up.</p>
+      <p><code>JMP</code> changes PC without changing A, the flags, or memory. Its destination is an address, not a number to add to A and not a byte to copy into A.</p>
+      <details><summary>How is the destination stored?</summary><p><code>C3</code> is the jump’s opcode. The following two bytes hold its destination, low byte first: <code>08 01</code> means address <code>0108</code>. Thus the whole instruction is <code>C3 08 01</code>. The <code>H</code> in <code>JMP 0108H</code> marks a hexadecimal address.</p></details>
+    </section>
+    <section aria-labelledby="present-but-not-executed">
+      <h2 id="present-but-not-executed">Present, but not executed.</h2>
+      <p>The addition’s bytes, <code>C6 01</code>, are still at <code>0106</code> and <code>0107</code>. The jump does not erase them. They simply are not fetched on this path.</p>
+      <p>After the jump, the shaded bytes belong to the jump itself. The store has the next-instruction marker. The addition is marked <strong>Skipped · not fetched</strong>, and stays visible so you can compare the program in memory with the path taken through it.</p>
+      <p>The PC path comes from the instructions that actually ran: <code>0100 → 0103 → 0108 → 010B</code>. As before, the lesson stops offering steps at the end, <code>010B</code>. That boundary is not a halt instruction.</p>
+    </section>
+    <section aria-labelledby="choose-another-destination">
+      <h2 id="choose-another-destination">Choose another destination.</h2>
+      <p>Press <strong>Start again</strong>, then choose <strong>0106 · Run the addition</strong> before stepping. The jump’s bytes become <code>C3 06 01</code>, and its label becomes <code>JMP 0106H</code>. You have edited its destination in RAM; nothing has run yet.</p>
+      <aside class="lesson-prompt"><p><strong>Compare.</strong> Step through this version. What changes about the result and the PC path?</p>
+        <details><summary>Show an explanation</summary><p>The jump goes to <code>0106</code>, so the addition runs and A becomes 42. The store writes 42. This path takes four steps: <code>0100 → 0103 → 0106 → 0108 → 010B</code>.</p></details>
+        <a href="#experiment">Run the addition ↑</a>
+      </aside>
+      <p>The jump runs in both versions. We choose its destination in advance; the processor does not make a decision about A’s value. This is an <strong>unconditional jump</strong>.</p>
+      <p>The destination choice locks after the first step. Start again restores the original data, processor state, and skip path. These are lesson controls; the processor itself follows the instruction bytes.</p>
+      <p>So far our jumps move forward. A jump back to an earlier instruction can make the processor repeat part of a program. That will be our next step.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation">
+      <a href="{{ calc_url('learn/change-program/') }}"><span aria-hidden="true">←</span> Change one byte, change the program</a>
+    </nav>
+  </div>
+</main>
+{% endblock %}
