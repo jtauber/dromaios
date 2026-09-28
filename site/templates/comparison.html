@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% from "instruments/register-explorer.html" import register_explorer with context %}
+{% block description %}Choose when an Intel 8080 loop finishes. Compare A with an editable target, then use the zero flag to decide whether to repeat.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson register-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Memory and the processor · Comparing values</p>
+    <h1>Choosing a<br><em>stopping point.</em></h1>
+    <p class="lesson-intro">We can count down to zero. But what if we want to count up to 44? The processor can compare two numbers without changing either one.</p>
+  </header>
+  {{ register_explorer('comparison-memory', 41, 0, machine='comparison', program=true, edit_operand=true) }}
+  <div class="lesson-prose">
+    <section aria-labelledby="ask-a-question">
+      <h2 id="ask-a-question">Have we reached 44?</h2>
+      <p>The first three instructions are familiar: load 41 into A, add one, and store the result at address 4. A and address 4 now hold 42.</p>
+      <p>The next instruction is new: <code>CPI 44</code>, meaning <strong>compare A with 44</strong>. It asks whether the two numbers are equal. The answer appears in the zero flag, Z.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> Take those first three steps, then the comparison. What will A hold? What will Z be?</p>
+        <details><summary>Show an explanation</summary><p>A stays 42. Because 42 and 44 differ, Z is 0. Address 4 also stays 42; comparing does not write to memory.</p></details>
+        <a href="#experiment">Compare for the first time ↑</a>
+      </aside>
+      <p>The familiar <code>JNZ 0103H</code> follows. With Z = 0 it returns to the addition. The next trip produces 43, which still differs from 44, so the loop repeats again.</p>
+    </section>
+    <section aria-labelledby="zero-without-zero">
+      <h2 id="zero-without-zero">Zero, without making A zero.</h2>
+      <p>On the third trip, adding one makes A = 44. The store writes 44 to address 4. The comparison now sets Z to 1, and JNZ continues past the loop at <code>010D</code>.</p>
+      <p>Why the <em>zero</em> flag? Comparing calculates A minus the target just to set the flags. When the numbers match, the difference is zero: 44 − 44 = 0. The processor discards that difference. A keeps 44.</p>
+      <aside class="lesson-prompt"><p><strong>Watch the distinction.</strong> On the last trip, check Z after the addition and again after the comparison. A holds 44 both times. Does Z?</p>
+        <details><summary>Show an explanation</summary><p>No. The addition clears Z because its result, 44, is not zero. The comparison sets Z because 44 − 44 is zero. A stays 44 throughout the store, comparison, and jump.</p></details>
+        <a href="#experiment">Finish at 44 ↑</a>
+      </aside>
+      <p>The load runs once; add, store, compare, and jump each run three times. That is thirteen instructions, storing 42, 43, then 44. The lesson stops offering steps after the last jump; the CPU has not executed a halt instruction.</p>
+    </section>
+    <section aria-labelledby="choose-your-target">
+      <h2 id="choose-your-target">Choose your target.</h2>
+      <p>Start again and change <strong>Compare A with this target</strong> to 43. The byte at <code>0109</code> changes from <code>2C</code> to <code>2B</code>: hexadecimal for 44 and 43. The instruction now says <code>CPI 43</code>.</p>
+      <p><code>CPI</code> means <strong>compare immediate</strong>. Like the number in <code>ADI</code>, its target is a byte in the instruction itself. Editing it changes the program in memory; it does not execute the comparison.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> How many trips will a target of 43 take? What about 42?</p>
+        <details><summary>Show an explanation</summary><p>Starting at 41, a target of 43 takes two trips, or nine instructions including the load. A target of 42 takes one trip, or five instructions. In each case, the stored result and A finish at the target.</p></details>
+        <a href="#experiment">Choose a different stopping point ↑</a>
+      </aside>
+      <p>The target accepts 0–255 and locks after the first step. Start again restores the starting byte to 41, the target to 44, and all the records and counts to their initial state.</p>
+      <details>
+        <summary>What if the target is 41, or less?</summary>
+        <p>This program adds before it compares. A target of 41 therefore needs a whole trip around the byte’s range: 256 additions to reach 41 again. A lower target also requires passing through 255 and wrapping to 0.</p>
+        <p>For a short experiment, start again, set the target to 0, and change the byte at address 3 to 254 before loading. Two trips store 255, then 0. Each addition still adds exactly one.</p>
+      </details>
+    </section>
+    <section aria-labelledby="remembered-answer">
+      <h2 id="remembered-answer">An answer the jump can use.</h2>
+      <p>Z remembers the last instruction that updated it. Both addition and comparison can change Z here. The comparison comes after the addition, so its answer is the one JNZ uses.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> With the default target, pause after the last comparison: A = 44 and Z = 1. Change address 4 to 99, then take the jump. Will it repeat?</p>
+        <details><summary>Show an explanation</summary><p>No. The edit changes memory, but leaves A and Z alone. JNZ reads Z = 1 and falls through. Your 99 stays in memory because no later store runs.</p></details>
+        <a href="#experiment">Test the remembered answer ↑</a>
+      </aside>
+      <p>We can now make a loop finish at a chosen number while keeping that number in A. Comparison supplies the answer; the jump chooses the path.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation">
+      <a href="{{ calc_url('learn/countdown/') }}"><span aria-hidden="true">←</span> Counting down</a>
+    </nav>
+  </div>
+</main>
+{% endblock %}

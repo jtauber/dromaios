@@ -170,7 +170,8 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   both selection and edits; no instruction bytes are editable in the register lesson.
 - `templates/register.html`, `templates/add-one.html`, `templates/program.html`,
   `templates/change-program.html`, `templates/jump.html`, `templates/loop.html`,
-  `templates/conditional-loop.html`, and `templates/countdown.html` use the shared
+  `templates/conditional-loop.html`, `templates/countdown.html`, and
+  `templates/comparison.html` use the shared
   `templates/instruments/register-explorer.html` and
   `interactive/register-explorer.ts` for the [8080 register lesson](../docs/cpus/8080/examples/register.md)
   and its [add-one](../docs/cpus/8080/examples/add-one.md),
@@ -178,10 +179,11 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   [program-editing](../docs/cpus/8080/examples/change-program.md),
   [jump](../docs/cpus/8080/examples/jump.md),
   [loop](../docs/cpus/8080/examples/loop.md),
-  [conditional-loop](../docs/cpus/8080/examples/conditional-loop.md), and
-  [countdown](../docs/cpus/8080/examples/countdown.md) successors.
+  [conditional-loop](../docs/cpus/8080/examples/conditional-loop.md),
+  [countdown](../docs/cpus/8080/examples/countdown.md), and
+  [comparison](../docs/cpus/8080/examples/comparison.md) successors.
   The template selects a `copy`, `add-one`, `jump`, `loop`, `conditional-loop`,
-  or `countdown` machine layout. A is read-only and comes from CPU snapshots;
+  `countdown`, or `comparison` machine layout. A is read-only and comes from CPU snapshots;
   each action calls `step()` once. The controller uses PC to enable the next
   action and stops at a declared completion address.
   The unconditional loop has no completion address; every press still executes
@@ -194,12 +196,12 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   the calculation; A and carry come from execution, not a parallel simulation.
 - `interactive/register-programs.ts` holds the machine factories, instruction
   layouts, editable operand locations, selected flag, and explanations for these
-  known programs. The flag display defaults to CY; the countdown selects Z.
+  known programs. The flag display defaults to CY; countdown and comparison select Z.
   The descriptions never execute an instruction or calculate its result.
   `interactive/register-explorer.ts` owns the shared controls and reads actual
   CPU records. There is no parser or general disassembler in the browser.
 - `interactive/program-view.ts` reveals the instructions for the stored-program,
-  program-editing, jump, and loop lessons, including the countdown. It reads bytes
+  program-editing, jump, and loop lessons. It reads bytes
   from RAM on each render, marks the next instruction using CPU state, and
   highlights fetches using the record's `instruction` field rather than every
   memory read. Its labels and grouping
@@ -227,6 +229,11 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   JNZ share a description helper that reports the recorded flag and PC. The
   shared flag display reads CPU state even before arithmetic has run: initial
   A = 0 does not imply Z = 1. Subtraction changes Z; load, store, and jump preserve it.
+- The comparison lesson adds `CPI` between store and `JNZ`. It reuses the operand
+  editor for the target at `0109`, restoring 44 on restart. Both ADI and CPI
+  update Z; the comparison's answer reaches the jump while A retains its value.
+  The operand control's label, address, and initial value come from the template;
+  the controller reads the current byte and execution from the machine.
 
 Sauvignon fences replace the earlier Mermaid diagrams. GitHub currently shows
 these fences as source; the site displays the rendered diagrams and
@@ -283,6 +290,11 @@ at completion. Try starting at 1 and 5; after loading zero, verify Z remains 0
 and the first subtraction wraps to 255. Edit the destination before JNZ and
 verify that Z and the decision remain unchanged. Check invalid drafts, restart,
 and the CY display in preceding lessons after the shared flag-view change.
+For comparison, check the thirteen-step run and counts 1/3/3/3/3, with A = 44
+and Z = 1 at completion. Try targets 42 and 43, and source 254 with target 0.
+Verify the target's byte, label, lock, and reset; both editors' invalid drafts;
+and that editing memory before the final jump preserves the comparison's answer.
+Check that the earlier operand editor still changes ADI and displays CY.
 Check that preceding lessons still work and do not request CPU runtime modules.
 The emulator’s `npm test` suite remains independent of the Python toolchain and
 Sauvignon.

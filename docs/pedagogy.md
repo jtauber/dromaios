@@ -160,6 +160,9 @@ familiar carry flag to decide whether to repeat, connecting addition, preserved
 flags, and a conditional jump. The [countdown lesson](cpus/8080/examples/countdown.md)
 uses subtraction and the zero flag to repeat a chosen number of times, making
 the position of the condition test explicit with the starting-zero case.
+The [comparison lesson](cpus/8080/examples/comparison.md) then uses CPI and an
+editable target to choose a stopping value, showing how Z can record equality
+while A keeps a nonzero value.
 The **Altair 8800** is the first historical machine: its front panel
 will connect those familiar concepts to switches and lights before adding I/O.
 

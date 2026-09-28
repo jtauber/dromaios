@@ -2,12 +2,15 @@
 {% from "instruments/program-view.html" import program_view %}
 {% macro register_explorer(id, source, destination, machine='copy', program=false, edit_operand=false) %}
   {% set countdown = machine == 'countdown' %}
+  {% set comparison = machine == 'comparison' %}
+  {% set zero_flag = countdown or comparison %}
   {% set has_arithmetic = machine != 'copy' %}
   {% set has_addition = has_arithmetic and not countdown %}
   {% set jump = machine == 'jump' %}
-  {% set loop = machine in ('loop', 'conditional-loop', 'countdown') %}
-  {% set conditional = machine in ('conditional-loop', 'countdown') %}
-  {% set end = none if machine == 'loop' else '010B' if jump or conditional else '0108' if has_arithmetic else '0106' %}
+  {% set loop = machine in ('loop', 'conditional-loop', 'countdown', 'comparison') %}
+  {% set conditional = machine in ('conditional-loop', 'countdown', 'comparison') %}
+  {% set end = none if machine == 'loop' else '010D' if comparison else '010B' if jump or conditional else '0108' if has_arithmetic else '0106' %}
+  {% set operand = {'label': 'Compare A with this target', 'address': '0109', 'value': 44, 'hex': '2C'} if comparison else {'label': 'Add this number to A', 'address': '0104', 'value': 1, 'hex': '01'} %}
   <section id="experiment" data-register-explorer="{{ machine }}" aria-label="{{ 'Choose whether to repeat with an 8080' if conditional else 'Repeat instructions with an 8080' if loop else 'Follow a jump with an 8080' if jump else 'Load, add, and store with an 8080' if has_addition else 'Copy a byte through an 8080 register' }}">
     <div class="register-workbench">
       <div class="memory-bank">
@@ -29,15 +32,16 @@
           <div><dt>Hexadecimal</dt><dd data-register-hex>00</dd></div>
         </dl>
         {% if has_arithmetic %}
-        <div class="register-flag"><span>{{ 'Zero flag' if countdown else 'Carry flag' }} <strong>{{ 'Z' if countdown else 'CY' }}</strong></span><span class="flag-digit" data-register-flag>0</span></div>
-        {% if countdown %}<p>Z starts at 0. The subtraction sets Z to 1 if its result is zero, or 0 otherwise. Load, store, and jump preserve Z.</p>
+        <div class="register-flag"><span>{{ 'Zero flag' if zero_flag else 'Carry flag' }} <strong>{{ 'Z' if zero_flag else 'CY' }}</strong></span><span class="flag-digit" data-register-flag>0</span></div>
+        {% if comparison %}<p>Z starts at 0. Compare sets Z to 1 when A matches the target, or 0 otherwise. Add also updates Z. Load, store, and jump preserve it.</p>
+        {% elif countdown %}<p>Z starts at 0. The subtraction sets Z to 1 if its result is zero, or 0 otherwise. Load, store, and jump preserve Z.</p>
         {% else %}<p>CY starts at 0. {% if jump %}If the addition runs, it sets{% else %}The addition sets{% endif %} CY to 1 if the sum exceeds 255, or 0 if it fits.</p>{% endif %}
         {% else %}
         <p>A holds one byte. The processor’s instructions change it.</p>
         {% endif %}
       </section>
     </div>
-    {% if program %}{{ program_view(edit_operand=edit_operand, jump=jump, loop=loop, end=end) }}{% endif %}
+    {% if program %}{{ program_view(operand=operand if edit_operand else none, jump=jump, loop=loop, end=end) }}{% endif %}
     <fieldset class="register-actions" data-register-controls disabled>
       <legend class="visually-hidden">Step through the program</legend>
       {% if program %}
@@ -68,8 +72,9 @@
     </details>
     <details class="register-inside">
       <summary>See the 8080 instructions</summary>
-      <p>The first instruction is <code>LDA 0003H</code>: load A from memory address 3. {% if jump %}Next comes <code>JMP</code>: continue at the address encoded in its next two bytes. It preserves A and the flags. Depending on its destination, <code>ADI 1</code> either runs or is skipped. The final instruction is{% elif has_arithmetic %}Next comes {% if countdown %}<code>SUI 1</code>: subtract one from A{% elif edit_operand %}<code>ADI</code>: add the number in the following byte to A{% else %}<code>ADI 1</code>: add one to A{% endif %} and update the arithmetic flags. {% if loop %}Then comes{% else %}The last instruction is{% endif %}{% else %}The second is{% endif %} <code>STA 0004H</code>: store A at address 4. The load and store preserve the processor’s flags.</p>
-      {% if countdown %}<p><code>JNZ 0103H</code> follows the store: jump if not zero. With Z = 0 it returns PC to the subtraction; with Z = 1 it continues at <code>010B</code>. Both paths fetch all three instruction bytes and preserve A, flags, and RAM. The load runs just once.</p>
+      <p>The first instruction is <code>LDA 0003H</code>: load A from memory address 3. {% if jump %}Next comes <code>JMP</code>: continue at the address encoded in its next two bytes. It preserves A and the flags. Depending on its destination, <code>ADI 1</code> either runs or is skipped. The final instruction is{% elif has_arithmetic %}Next comes {% if countdown %}<code>SUI 1</code>: subtract one from A{% elif edit_operand and not comparison %}<code>ADI</code>: add the number in the following byte to A{% else %}<code>ADI 1</code>: add one to A{% endif %} and update the arithmetic flags. {% if loop %}Then comes{% else %}The last instruction is{% endif %}{% else %}The second is{% endif %} <code>STA 0004H</code>: store A at address 4. The load and store preserve the processor’s flags.</p>
+      {% if comparison %}<p><code>CPI</code> follows the store: compare immediate. It subtracts the target byte from A to set the arithmetic flags, but discards the result, leaving A and RAM unchanged. <code>JNZ 0103H</code> then tests Z: with Z = 0 it returns PC to the addition; with Z = 1 it continues at <code>010D</code>. Both paths fetch all three jump bytes and preserve A, flags, and RAM. The load runs just once.</p>
+      {% elif countdown %}<p><code>JNZ 0103H</code> follows the store: jump if not zero. With Z = 0 it returns PC to the subtraction; with Z = 1 it continues at <code>010B</code>. Both paths fetch all three instruction bytes and preserve A, flags, and RAM. The load runs just once.</p>
       {% elif conditional %}<p><code>JNC 0103H</code> follows the store: jump if no carry. With CY = 0 it returns PC to the addition; with CY = 1 it continues at <code>010B</code>. Both paths fetch all three instruction bytes and preserve A, flags, and RAM. The load runs just once.</p>
       {% elif loop %}<p><code>JMP 0103H</code> follows the store. It returns PC to the addition, preserving A, flags, and RAM. The load is outside the repeating part and runs just once.</p>{% endif %}
       {% if countdown %}<p><code>SUI</code> subtracts the number encoded in the instruction without using incoming carry. It updates sign (S), zero (Z), auxiliary carry (AC), parity (P), and carry (CY). For subtraction, CY records a borrow; the lesson focuses on Z. All flags appear in the instruction record.</p>

@@ -66,7 +66,7 @@ export function mountRegisterExplorer(lesson: HTMLElement, root: HTMLElement): v
         + (destination.disabled ? "Start again to choose another path." : "Choosing a destination edits the program in RAM; it does not run it.");
     }
     program?.render(state.pc, lastFetched, definition.showHistory ? history : undefined);
-    next.textContent = operand?.hasAttribute("aria-invalid") ? "Enter a whole number from 0 to 255 for the addition before continuing."
+    next.textContent = operand?.hasAttribute("aria-invalid") ? "Enter a whole number from 0 to 255 for the program byte before continuing."
       : !editor.valid ? "Finish entering a valid byte, or select another address, before continuing."
       : state.pc === machine.endAddress ? "The program is complete. Edit memory to explore the independent values, or start again."
       : stepButton ? `Next at ${hex(state.pc, 4)}: ${current!.explanation(read)}. Press Step one instruction.`

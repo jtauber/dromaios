@@ -4,6 +4,7 @@ import { create8080JumpLesson } from "../../src/machines/generated/8080/jump-les
 import { create8080LoopLesson } from "../../src/machines/generated/8080/loop-lesson.js";
 import { create8080ConditionalLoopLesson } from "../../src/machines/generated/8080/conditional-loop-lesson.js";
 import { create8080CountdownLesson } from "../../src/machines/generated/8080/countdown-lesson.js";
+import { create8080ComparisonLesson } from "../../src/machines/generated/8080/comparison-lesson.js";
 import type { Cpu8080StepRecord } from "../../src/components/cpus/generated/8080-cpu.js";
 
 export type ExecutedStep = Extract<Cpu8080StepRecord, { outcome: "executed" }>;
@@ -12,7 +13,7 @@ type ReadByte = (address: number) => number;
 export interface LessonInstruction {
   readonly address: number;
   readonly length: number;
-  readonly action: "read" | "add" | "subtract" | "write" | "jump";
+  readonly action: "read" | "add" | "subtract" | "compare" | "write" | "jump";
   readonly mnemonic: (read: ReadByte) => string;
   readonly explanation: (read: ReadByte) => string;
   readonly prompt: string;
@@ -40,15 +41,26 @@ function load(address: number): LessonInstruction {
   };
 }
 
-function add(address: number): LessonInstruction {
+function add(address: number, flag: "cy" | "z" = "cy"): LessonInstruction {
   return {
     address, length: 2, action: "add", mnemonic: read => `ADI ${read(address + 1)}`,
     explanation: read => read(address + 1) === 1 ? "Add one to A" : `Add ${read(address + 1)} to A`,
     prompt: "Now add one to A. Will either memory location change?",
     describe: ({ instruction, before, after }) => {
       const value = instruction.bytes[1]!;
-      return `Added ${value === 1 ? "one" : value} to ${before.a}. A now holds ${after.a}; carry is ${Number(after.flags.cy)}. Memory is unchanged.`;
+      const label = flag === "cy" ? "carry" : "zero flag Z";
+      return `Added ${value === 1 ? "one" : value} to ${before.a}. A now holds ${after.a}; ${label} is ${Number(after.flags[flag])}. Memory is unchanged.`;
     },
+  };
+}
+
+function compare(address: number): LessonInstruction {
+  return {
+    address, length: 2, action: "compare", mnemonic: read => `CPI ${read(address + 1)}`,
+    explanation: read => `Compare A with ${read(address + 1)}`,
+    prompt: "Compare A with the target. Will Z be set or clear?",
+    describe: ({ instruction, before, after }) =>
+      `Compared A (${before.a}) with ${instruction.bytes[1]}. Zero flag Z is ${Number(after.flags.z)}: the values ${after.flags.z ? "match" : "differ"}. A still holds ${after.a}; memory is unchanged.`,
   };
 }
 
@@ -130,6 +142,13 @@ const programs: Readonly<Record<string, RegisterProgram>> = {
   countdown: {
     createMachine: create8080CountdownLesson,
     instructions: [load(0x100), subtract(0x103), store(0x105), jumpIfClear(0x108, "z")],
+    showHistory: true,
+    flag: "z",
+  },
+  comparison: {
+    createMachine: create8080ComparisonLesson,
+    instructions: [load(0x100), add(0x103, "z"), store(0x105), compare(0x108), jumpIfClear(0x10a, "z")],
+    operandAddress: 0x109,
     showHistory: true,
     flag: "z",
   },
