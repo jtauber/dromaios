@@ -1,0 +1,5 @@
+// A fully populated address space for the Altair memory-controls lesson.
+// This models RAM only; CPU execution and front-panel bus cycles are deferred.
+components {
+    ram = ram 10000
+}

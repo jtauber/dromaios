@@ -14,3 +14,8 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-byte-explorer]"
   else if (addition) mountByteIncrement(addition, root);
   else mountByteExplorer(root);
 }
+
+for (const root of document.querySelectorAll<HTMLElement>("[data-altair-explorer]")) {
+  const { mountAltairExplorer } = await import("./altair-explorer.js");
+  mountAltairExplorer(root);
+}

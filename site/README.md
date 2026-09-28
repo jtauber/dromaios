@@ -239,6 +239,16 @@ Sauvignon fences replace the earlier Mermaid diagrams. GitHub currently shows
 these fences as source; the site displays the rendered diagrams and
 provides expandable XML source and full-size SVG links.
 
+The [Altair memory-controls lesson](../docs/machines/altair-memory.md) uses a
+separate `instruments/altair-panel.html` view and lazily loaded
+`interactive/altair-explorer.ts` controller. Its DOM-free `altair-panel.ts` model
+keeps the switch word and selected address separate and accesses the RAM from
+`lessons/altair-memory.machine`. It supports EXAMINE, EXAMINE NEXT, DEPOSIT, and
+DEPOSIT NEXT; it does not construct a CPU or simulate bus cycles. Number guides
+are optional teaching aids. Restart replaces both RAM and panel state while
+preserving the guide preference. The panel's contract and hardware source live
+in the linked lesson specification.
+
 ## Checks
 
 ```sh
@@ -296,5 +306,10 @@ Verify the target's byte, label, lock, and reset; both editors' invalid drafts;
 and that editing memory before the final jump preserves the comparison's answer.
 Check that the earlier operand editor still changes ADI and displays CY.
 Check that preceding lessons still work and do not request CPU runtime modules.
+For the Altair panel, follow the 41-at-3 / 42-at-4 exercise, checking that switch
+edits alone leave address and data lights unchanged. Check both NEXT controls,
+wraparound at FFFF, high switches ignored for data, hidden number guides, restart,
+keyboard controls, and narrow layouts. Only the CPU-based lessons should load
+CPU modules; this panel uses RAM alone.
 The emulator’s `npm test` suite remains independent of the Python toolchain and
 Sauvignon.

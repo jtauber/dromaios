@@ -133,12 +133,15 @@ def build(base):
     site.render_template("comparison.html", "learn/comparison/index.html", {
         "title": "Choosing a stopping point",
     })
+    site.render_template("altair-memory.html", "learn/altair-memory/index.html", {
+        "title": "Switches, lights, and memory",
+    })
     site.render_template("home.html", "index.html", {
         "title": "Computers, from the instruction up",
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + twelve introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
+    print(f"Built home + thirteen introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,63 @@
+{% macro lamps(high, low, prefix) %}
+  <div class="panel-bit-bank" aria-hidden="true">
+    {% for bit in range(high, low - 1, -1) %}
+    <span class="panel-lamp" data-lamp-bit="{{ bit }}"><span>{{ prefix }}{{ bit }}</span><strong data-lamp-value>0</strong></span>
+    {% endfor %}
+  </div>
+{% endmacro %}
+{% macro switches(high, low) %}
+  <div class="panel-bit-bank">
+    {% for bit in range(high, low - 1, -1) %}
+    <button class="panel-switch" type="button" data-panel-switch="{{ bit }}" aria-label="Switch {{ bit }}, value {{ 2 ** bit }}" aria-pressed="false">
+      <span aria-hidden="true">{{ bit }}</span><span class="panel-toggle" aria-hidden="true"></span><strong data-switch-value aria-hidden="true">0</strong>
+    </button>
+    {% endfor %}
+  </div>
+{% endmacro %}
+{% macro altair_panel() %}
+<section id="experiment" class="altair-explorer" data-altair-explorer aria-label="Altair memory controls">
+  <fieldset data-panel-controls disabled>
+    <legend class="visually-hidden">Operate the memory panel</legend>
+    <div class="altair-panel">
+      <header class="panel-title"><h2>ALTAIR <strong>8800</strong></h2><span>Memory controls · learning view</span></header>
+      <div class="panel-face">
+        <section class="panel-lights" aria-labelledby="address-lights-heading">
+          <h3 id="address-lights-heading">Address lights <span>The selected location</span></h3>
+          <div class="panel-banks" role="img" aria-label="Address lights: 0 decimal · 0000 hex" data-panel-address>{{ lamps(15, 8, 'A') }}{{ lamps(7, 0, 'A') }}</div>
+          <p class="panel-number" data-panel-number-guide data-panel-address-number>0 decimal · 0000 hex</p>
+        </section>
+        <section class="panel-lights panel-data-lights" aria-labelledby="data-lights-heading">
+          <h3 id="data-lights-heading">Data lights <span>The byte at that location</span></h3>
+          <div role="img" aria-label="Data lights: 0 decimal · 00 hex" data-panel-data>{{ lamps(7, 0, 'D') }}</div>
+          <p class="panel-number" data-panel-number-guide data-panel-data-number>0 decimal · 00 hex</p>
+        </section>
+        <p class="panel-light-key">A lit lamp is 1; a dark lamp is 0. The digits help you read the lights.</p>
+        <section class="panel-switch-bank" aria-labelledby="switches-heading">
+          <h3 id="switches-heading">Data / address switches <span>Up = 1 · Down = 0</span></h3>
+          <div class="panel-banks">
+            <div><p class="panel-bank-label">15–8 · Address only</p>{{ switches(15, 8) }}</div>
+            <div><p class="panel-bank-label">7–0 · Address or data</p>{{ switches(7, 0) }}</div>
+          </div>
+          <dl class="panel-switch-numbers" data-panel-number-guide>
+            <div><dt>All switches as an address</dt><dd data-panel-switch-address>0 decimal · 0000 hex</dd></div>
+            <div><dt>Lower eight as a byte</dt><dd data-panel-switch-data>0 decimal · 00 hex</dd></div>
+          </dl>
+          <p class="panel-reminder">Setting the switches prepares a number. It does not read or write memory.</p>
+        </section>
+        <div class="panel-operations">
+          <div><button type="button" data-panel-action="examine">EXAMINE</button><p>Select the address in the switches and read its byte.</p></div>
+          <div><button type="button" data-panel-action="examineNext">EXAMINE NEXT</button><p>Move to the next address and read its byte.</p></div>
+          <div><button type="button" data-panel-action="deposit">DEPOSIT</button><p>Write the lower eight switches to the selected address.</p></div>
+          <div><button type="button" data-panel-action="depositNext">DEPOSIT NEXT</button><p>Move to the next address, then write the lower eight switches.</p></div>
+        </div>
+      </div>
+    </div>
+    <label class="panel-guide-toggle"><input type="checkbox" data-panel-guides checked> Show decimal and hexadecimal guides</label>
+    <p class="panel-preview" data-panel-number-guide data-panel-preview aria-live="polite">EXAMINE would select address 0. DEPOSIT would write 0 to the selected address, 0.</p>
+    <div class="register-record" role="status" aria-atomic="true"><span class="addition-label">Last memory operation</span><p data-panel-last>Enable JavaScript to operate the panel. All memory starts at zero.</p></div>
+    <button class="clear-byte" type="button" data-panel-restart>Start again with empty memory</button>
+  </fieldset>
+  <p class="experiment-note">A focused model of the Altair’s memory controls. This lesson provides RAM at all 65,536 addresses and performs no CPU execution. Start again clears our experiment; it is not the hardware RESET switch.</p>
+  <noscript><p>The explanations below remain available without JavaScript; the interactive controls require it.</p></noscript>
+</section>
+{% endmacro %}

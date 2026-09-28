@@ -90,6 +90,8 @@ examples add polling and consuming input reads with the same devices.
 
 ## Machine definitions
 
+- [Altair memory-controls lesson](machines/altair-memory.md): switches, lights,
+  EXAMINE and DEPOSIT, with explicit limits of the current panel model.
 - [Definition guide](machines/definitions.md): initial state and memory images,
   directory conventions, generated factories, and the editing/build workflow.
 - [Memory components and maps](machines/memory-map.md): RAM/ROM ownership,

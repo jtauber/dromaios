@@ -392,3 +392,56 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
   .register-value { font-size: 48px; }
   .register-representations { font-size: 12px; }
 }
+
+.altair-explorer fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.altair-explorer [hidden] { display: none; }
+.altair-panel { padding: 9px; background: #294a62; border: 1px solid #193346; border-radius: 5px; box-shadow: 0 8px 20px #233b3f18; }
+.panel-title { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 18px 20px; color: #f9f6e9; }
+.panel-title h2 { margin: 0; font: 20px/1.3 var(--mono); letter-spacing: .08em; }
+.panel-title h2 strong { font-weight: 400; color: #bbd2dd; }
+.panel-title > span { font: 11px/1.5 var(--mono); text-align: right; }
+.panel-face { padding: 24px; background: #eeeade; border-radius: 2px; }
+.panel-face h3 { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px 16px; font: 600 13px/1.5 var(--mono); text-transform: uppercase; margin: 0 0 14px; }
+.panel-face h3 span { font: 12px/1.5 system-ui, sans-serif; text-transform: none; color: #53665b; }
+.panel-banks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.panel-bit-bank { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; }
+.panel-lamp { display: grid; justify-items: center; gap: 8px; font: 10px/1.4 var(--mono); }
+.panel-lamp strong { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; border: 2px solid #4d3832; color: #d2c5be; background: #3e2724; font: 12px/1 var(--mono); }
+.panel-lamp[data-on] strong { color: #fff7e9; background: #c74128; border-color: #923520; box-shadow: 0 0 9px #e5582e80, inset 0 1px 3px #ffd19190; }
+.panel-number { margin: 14px 0 0; font: 13px/1.6 var(--mono); }
+.panel-data-lights { margin-top: 22px; margin-left: auto; max-width: calc((100% - 24px) / 2); }
+.panel-data-lights h3 { display: block; }
+.panel-data-lights h3 span { display: block; margin-top: 3px; }
+.panel-light-key { font-size: 12px; color: #53665b; margin: 16px 0 22px; }
+.panel-switch-bank { border-top: 1px solid #b6b8ac; padding-top: 20px; }
+.panel-bank-label { font: 11px/1.4 var(--mono); margin: 0 0 10px; }
+.panel-switch { display: grid; justify-items: center; gap: 5px; padding: 8px 0; min-width: 0; border: 1px solid #aaa99d; border-radius: 4px; background: #f8f5ed; color: #304539; font: 11px/1.4 var(--mono); cursor: pointer; }
+.panel-switch strong { font-weight: 400; }
+.panel-switch[aria-pressed="true"] { background: #e0dfce; border-color: #6f7e70; }
+.panel-switch:enabled:hover { border-color: #875037; }
+.panel-toggle { position: relative; width: 12px; height: 24px; border: 1px solid #666e6b; border-radius: 8px; background: #535d5a; box-shadow: inset 0 1px 3px #142b2060; }
+.panel-toggle::after { content: ''; position: absolute; inset: 1px 1px auto; height: 10px; border: 1px solid #838b89; border-radius: 4px; background: linear-gradient(#fff, #bec5c1); transform: translateY(9px); transition: transform .12s; }
+.panel-switch[aria-pressed="true"] .panel-toggle::after { transform: translateY(0); }
+.panel-switch-numbers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; font: 12px/1.6 var(--mono); margin: 16px 0 0; }
+.panel-switch-numbers dt { font: 12px/1.6 system-ui, sans-serif; color: #53665b; }
+.panel-switch-numbers dd { margin: 4px 0 0; }
+.panel-reminder { font-size: 13px; margin: 18px 0; }
+.panel-operations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; border-top: 1px solid #b6b8ac; padding-top: 20px; }
+.panel-operations button { min-height: 44px; width: 100%; padding: 10px 6px; border: 1px solid #264357; border-radius: 3px; color: #fff9eb; background: #294a62; font: 12px/1.5 var(--mono); cursor: pointer; }
+.panel-operations button:enabled:hover { background: #18374c; }
+.panel-operations p { font-size: 12px; margin: 8px 0 0; }
+.altair-explorer button:disabled { opacity: .5; cursor: default; }
+.panel-guide-toggle { display: flex; align-items: center; gap: 10px; margin-top: 24px; font-size: 14px; min-height: 44px; }
+.panel-guide-toggle input { width: 18px; height: 18px; accent-color: #294a62; }
+.panel-preview { font-size: 14px; margin: 12px 0 18px; }
+.altair-explorer .register-record { margin-top: 16px; }
+@media (max-width: 680px) {
+  .panel-banks, .panel-switch-numbers { grid-template-columns: 1fr; gap: 16px; }
+  .panel-data-lights { max-width: none; }
+  .panel-face { padding: 20px 12px; }
+  .panel-title { flex-direction: column; align-items: start; gap: 8px; padding: 12px 12px 18px; }
+  .panel-title > span { text-align: left; }
+  .panel-bit-bank { gap: 3px; }
+  .panel-operations { gap: 16px 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .panel-toggle::after { transition: none; } }

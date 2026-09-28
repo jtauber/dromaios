@@ -163,8 +163,10 @@ the position of the condition test explicit with the starting-zero case.
 The [comparison lesson](cpus/8080/examples/comparison.md) then uses CPI and an
 editable target to choose a stopping value, showing how Z can record equality
 while A keeps a nonzero value.
-The **Altair 8800** is the first historical machine: its front panel
-will connect those familiar concepts to switches and lights before adding I/O.
+The **Altair 8800** is the first historical machine. Its
+[memory-controls lesson](machines/altair-memory.md) connects those familiar
+concepts to switches and lights: prepare an address, examine it, then deposit
+a byte. Entering and executing a program through the panel comes next, before I/O.
 
 The next major priority is milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the

@@ -78,8 +78,9 @@ byte-output devices. They run through a shared CPU runner and are tested
 independently of the browser. The [example catalog](docs/README.md#cpu-examples)
 links to their specifications. The [website](site/README.md) includes
 introductory byte and memory explorations and a register lesson running the 8080
-in the browser. The teaching path leads toward the Altair 8800 as the first
-historical machine; complete machine emulation remains planned.
+in the browser. The teaching path now reaches the
+[Altair 8800's memory controls](docs/machines/altair-memory.md);
+complete machine emulation remains planned.
 
 All eight documented instruction sets now use shared definitions that generate
 execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)

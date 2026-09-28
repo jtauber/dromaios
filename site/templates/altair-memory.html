@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "instruments/altair-panel.html" import altair_panel %}
+{% block description %}Meet the Altair 8800 through its memory controls. Set switches, examine an address, deposit a byte, and read the lights.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Meet the Altair · Memory by hand</p>
+    <h1>Switches, lights,<br><em>and memory.</em></h1>
+    <p class="lesson-intro">You know what a byte is, and how an address tells us where to find it. Now meet the Altair 8800: a computer whose front-panel switches let you put those ideas into practice.</p>
+  </header>
+  <p class="experiment-note"><strong>Begin here:</strong> turn on switches 1 and 0, then press EXAMINE to look at address 3. The walkthrough below shows how to put a byte there.</p>
+  {{ altair_panel() }}
+  <div class="lesson-prose">
+    <section aria-labelledby="lights-and-switches">
+      <h2 id="lights-and-switches">Two ways to show a bit.</h2>
+      <p>Inside the Altair was the Intel 8080, the processor from our earlier lessons. Here we will use its front-panel controls to read and write memory by hand.</p>
+      <p>A switch can be up or down. A lamp can be lit or dark. Both represent the same two possibilities we met in the byte explorer: 1 and 0.</p>
+      <p>The switches are your input. The lights show the selected address and the byte stored there. They need not agree: preparing a number with the switches does nothing to memory until you use a control.</p>
+      <p>This learning view keeps the original memory-control names but spreads them out and adds explanations. Each button performs one action. The original EXAMINE / EXAMINE NEXT and DEPOSIT / DEPOSIT NEXT controls were paired toggle switches.</p>
+    </section>
+    <section aria-labelledby="choose-an-address">
+      <h2 id="choose-an-address">First, choose where.</h2>
+      <p>Start with all switches down. Turn on switches <strong>1</strong> and <strong>0</strong>, the two at the right. Their values are 2 and 1, making address 3.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> Before pressing anything else, what do the address lights show?</p>
+        <details><summary>Show an explanation</summary><p>They still show address 0. You have prepared address 3 in the switches, but have not selected it yet.</p></details>
+        <a href="#experiment">Set the switches ↑</a>
+      </aside>
+      <p>Press <strong>EXAMINE</strong>. The address lights now show 3: A1 and A0 are on. The data lights show the byte at address 3, which is initially 0.</p>
+      <p>All sixteen switches take part in choosing an address. For this first exercise, keep switches 15–8 down and work with small addresses.</p>
+    </section>
+    <section aria-labelledby="deposit-a-byte">
+      <h2 id="deposit-a-byte">Then, choose what.</h2>
+      <p>Keep address 3 selected. Set the lower eight switches so that only <strong>5, 3, and 0</strong> are up. Their values are 32, 8, and 1: together, 41.</p>
+      <p>The address lights still show 3, even though the switches now spell a different number. Press <strong>DEPOSIT</strong> to write 41 into that selected location. The data lights now show <code>00101001</code>.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> If you press EXAMINE instead of DEPOSIT after setting those switches, where will you look?</p>
+        <details><summary>Show an explanation</summary><p>At address 41. EXAMINE interprets all sixteen switches as an address. DEPOSIT interprets only the lower eight as a byte and writes to the address already selected. To recover, set the switches to 3 and EXAMINE again before preparing 41 for DEPOSIT.</p></details>
+        <a href="#experiment">Store 41 at address 3 ↑</a>
+      </aside>
+      <p>The same switches can name a location or supply its contents. The control you press determines their role.</p>
+    </section>
+    <section aria-labelledby="next-location">
+      <h2 id="next-location">One location farther.</h2>
+      <p>With address 3 still selected, prepare 42 by turning switch 0 down and switch 1 up. Leave 5 and 3 up. Press <strong>DEPOSIT NEXT</strong>.</p>
+      <p>This control advances first, then writes. It selects address 4 and stores 42 there. Address 3 keeps 41. The switches remain at 42; moving to the next address does not move them.</p>
+      <aside class="lesson-prompt"><p><strong>Read them back.</strong> Set the switches to 3 and press EXAMINE. Then press EXAMINE NEXT without changing the switches. Which bytes appear?</p>
+        <details><summary>Show an explanation</summary><p>First 41 at address 3, then 42 at address 4. EXAMINE NEXT advances the selected address, ignoring the switch setting. Neither read changes memory.</p></details>
+        <a href="#experiment">Visit both bytes ↑</a>
+      </aside>
+      <p>Try DEPOSIT NEXT twice with the same switch setting. It writes that byte into two successive locations. Try EXAMINE NEXT twice: it visits two successive locations without writing anything.</p>
+    </section>
+    <section aria-labelledby="look-beneath-the-guides">
+      <h2 id="look-beneath-the-guides">Let the lights tell you.</h2>
+      <p>The decimal and hexadecimal guides are teaching aids. Once the controls feel familiar, hide them and read the bits directly. Our added 0 and 1 labels remain beside the lights.</p>
+      <p>There are sixteen address lights but only eight data lights: a location needs a sixteen-bit address, while its contents fit in one byte. This lesson fills the whole address space with RAM. Real machines depended on which memory boards were installed.</p>
+      <details><summary>What happens after the last address?</summary><p>With all sixteen switches up, EXAMINE selects hexadecimal FFFF, decimal 65,535. A NEXT action wraps to address 0. DEPOSIT NEXT writes there after wrapping; EXAMINE NEXT only reads it.</p></details>
+      <p>Our memory starts at zero to give you a predictable experiment. Real RAM did not promise that on power-up. Start again clears every location and lowers all switches; the number-guide preference stays as you chose it.</p>
+    </section>
+    <section aria-labelledby="toward-a-program">
+      <h2 id="toward-a-program">A program is bytes too.</h2>
+      <p>In the earlier lessons, we supplied the program in memory. These controls give us a way to enter those instruction bytes ourselves, one at a time, and examine them before execution. That will be our next step.</p>
+      <details><summary>What this view models</summary><p>We model the Altair’s four memory operations against real RAM in the emulator. The switches and selected address belong to this lesson’s panel. We have not yet connected the 8080, RUN, STOP, single stepping, status lamps, or the electrical bus cycles. The layout is adapted for learning and narrow screens rather than a replica of the complete panel.</p></details>
+      <p class="experiment-note">The memory controls follow the original <a href="https://altairclone.com/downloads/manuals/Altair%208800%20Operator%27s%20Manual.pdf#page=29">MITS Altair 8800 Operator’s Manual, Part 3</a>. Its programming example also demonstrates entering and reading back bytes with these controls.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation">
+      <a href="{{ calc_url('learn/comparison/') }}"><span aria-hidden="true">←</span> Choosing a stopping point</a>
+    </nav>
+  </div>
+</main>
+{% endblock %}
