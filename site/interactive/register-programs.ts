@@ -2,6 +2,7 @@ import { create8080RegisterLesson } from "../../src/machines/generated/8080/regi
 import { create8080AddOneLesson } from "../../src/machines/generated/8080/add-one-lesson.js";
 import { create8080JumpLesson } from "../../src/machines/generated/8080/jump-lesson.js";
 import { create8080LoopLesson } from "../../src/machines/generated/8080/loop-lesson.js";
+import { create8080ConditionalLoopLesson } from "../../src/machines/generated/8080/conditional-loop-lesson.js";
 import type { Cpu8080StepRecord } from "../../src/components/cpus/generated/8080-cpu.js";
 
 export type ExecutedStep = Extract<Cpu8080StepRecord, { outcome: "executed" }>;
@@ -66,6 +67,20 @@ function jump(address: number, continuation: (destination: number) => string): L
   };
 }
 
+function jumpIfNoCarry(address: number): LessonInstruction {
+  return {
+    address, length: 3, action: "jump",
+    mnemonic: read => `JNC ${hex(readAddress(read, address + 1), 4)}H`,
+    explanation: read => `Jump to ${hex(readAddress(read, address + 1), 4)} if CY = 0`,
+    prompt: "Check carry. Will the processor repeat the addition or continue past the jump?",
+    describe: ({ instruction, before, after }) => {
+      const fallThrough = instruction.address + instruction.bytes.length;
+      const decision = after.pc === fallThrough ? "Jump not taken: continued" : "Jump taken: returned";
+      return `CY was ${Number(before.flags.cy)} (${before.flags.cy ? "set" : "clear"}). ${decision} from ${hex(before.pc, 4)} to ${hex(after.pc, 4)}. A, flags, and memory are unchanged.`;
+    },
+  };
+}
+
 const programs: Readonly<Record<string, RegisterProgram>> = {
   copy: {
     createMachine: create8080RegisterLesson,
@@ -89,6 +104,11 @@ const programs: Readonly<Record<string, RegisterProgram>> = {
   loop: {
     createMachine: create8080LoopLesson,
     instructions: [load(0x100), add(0x103), store(0x105), jump(0x108, () => "The next addition uses the value still in A; the load does not run again.")],
+    showHistory: true,
+  },
+  "conditional-loop": {
+    createMachine: create8080ConditionalLoopLesson,
+    instructions: [load(0x100), add(0x103), store(0x105), jumpIfNoCarry(0x108)],
     showHistory: true,
   },
 };

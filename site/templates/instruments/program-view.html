@@ -28,8 +28,8 @@
       {% endif %}
       <ol class="program-instructions{% if jump or loop %} program-four-instructions{% endif %}" data-program-instructions></ol>
       <noscript><p>Enable JavaScript to inspect the program’s bytes and step through its instructions.</p></noscript>
-      <p class="program-end" data-program-end{% if loop %} hidden{% endif %}>{{ end }} · End of this program</p>
-      {% if loop %}<p class="program-key">This program repeats. Each press runs one instruction; nothing runs between presses.</p>{% endif %}
+      <p class="program-end" data-program-end{% if end is none %} hidden{% endif %}>{% if end is not none %}{{ end }} · End of this program{% endif %}</p>
+      {% if loop %}<p class="program-key">Each press runs one instruction; nothing runs between presses.</p>{% endif %}
       <p class="program-fetched" data-program-fetched role="status">No instruction has run. PC points to the first instruction.</p>
       {% if jump or loop %}<p class="program-path" data-program-path>PC path so far: 0100.</p>{% endif %}
     </section>

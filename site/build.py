@@ -124,12 +124,15 @@ def build(base):
     site.render_template("loop.html", "learn/loop/index.html", {
         "title": "Going around again",
     })
+    site.render_template("conditional-loop.html", "learn/conditional-loop/index.html", {
+        "title": "Knowing when to stop",
+    })
     site.render_template("home.html", "index.html", {
         "title": "Computers, from the instruction up",
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + nine introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
+    print(f"Built home + ten introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

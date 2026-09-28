@@ -169,22 +169,24 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   callback so restarting can replace the machine. A visible byte count bounds
   both selection and edits; no instruction bytes are editable in the register lesson.
 - `templates/register.html`, `templates/add-one.html`, `templates/program.html`,
-  `templates/change-program.html`, `templates/jump.html`, and `templates/loop.html`
-  use the shared
+  `templates/change-program.html`, `templates/jump.html`, `templates/loop.html`,
+  and `templates/conditional-loop.html` use the shared
   `templates/instruments/register-explorer.html` and
   `interactive/register-explorer.ts` for the [8080 register lesson](../docs/cpus/8080/examples/register.md)
   and its [add-one](../docs/cpus/8080/examples/add-one.md),
   [stored-program](../docs/cpus/8080/examples/program.md),
   [program-editing](../docs/cpus/8080/examples/change-program.md),
-  [jump](../docs/cpus/8080/examples/jump.md), and
-  [loop](../docs/cpus/8080/examples/loop.md) successors. The template selects a
-  `copy`, `add-one`, `jump`, or `loop` machine layout. A is read-only
-  and comes from CPU snapshots; each action calls `step()` once. The controller
+  [jump](../docs/cpus/8080/examples/jump.md),
+  [loop](../docs/cpus/8080/examples/loop.md), and
+  [conditional-loop](../docs/cpus/8080/examples/conditional-loop.md) successors.
+  The template selects a `copy`, `add-one`, `jump`, `loop`, or `conditional-loop`
+  machine layout. A is read-only and comes from CPU snapshots; each action calls
+  `step()` once. The controller
   uses PC to enable the next action and stops at a declared completion address.
-  The loop has no completion address; every press still executes just one
-  instruction. The optional disclosure shows bytes, PC changes, and accesses
-  from the last CPU record.
-  Editing memory preserves that record. Starting again constructs a fresh
+  The unconditional loop has no completion address; every press still executes
+  just one instruction. The optional disclosure shows bytes, PC changes, and
+  accesses from the last CPU record. Editing memory preserves that record.
+  Starting again constructs a fresh
   machine rather than invoking CPU reset. The add-one lesson inserts `ADI 1`
   between load and store, displays CY from CPU state, and retains the last
   addition separately from the latest instruction record. The full sum explains
@@ -195,10 +197,10 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   `interactive/register-explorer.ts` owns the shared controls and reads actual
   CPU records. There is no parser or general disassembler in the browser.
 - `interactive/program-view.ts` reveals the load–add–store program for the
-  stored-program, program-editing, jump, and loop lessons. It reads bytes from RAM
-  on each render, marks the next instruction using CPU state, and highlights
-  fetches using the record's
-  `instruction` field rather than every memory read. Its labels and grouping
+  stored-program, program-editing, jump, and both loop lessons. It reads bytes
+  from RAM on each render, marks the next instruction using CPU state, and
+  highlights fetches using the record's `instruction` field rather than every
+  memory read. Its labels and grouping
   describe the known program; it is not a general disassembler. A single Step
   button advances the CPU. The program-editing lesson adds a decimal operand
   field that writes RAM at `0104` before the first step. Its value updates the
@@ -214,6 +216,11 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   without losing older counts or accumulating an unlimited history. Its tests
   run in the main Node suite and require no browser or Python. Restart clears
   that history along with the machine state.
+- The conditional loop uses `JNC` to leave the loop when addition sets carry.
+  Its last-instruction explanation reads CY from the before snapshot and the
+  destination from the after snapshot; the controller does not decide the path.
+  Both taken and untaken jumps count as executions and show their fetched bytes.
+  The declared completion address ends lesson stepping without halting the CPU.
 
 Sauvignon fences replace the earlier Mermaid diagrams. GitHub currently shows
 these fences as source; the site displays the rendered diagrams and
@@ -260,6 +267,11 @@ that the selector locks after the first step, and that restart restores the
 skip path and clears history. For the loop, step through several iterations,
 check the run counts and recent-path truncation, and try 254 → 255 → 0 → 1.
 Verify that memory edits do not add history, that invalid drafts block Step,
-and that restart clears all counts and returns to the load. Check that preceding
-lessons still work and do not request CPU runtime modules. The emulator’s
-`npm test` suite remains independent of the Python toolchain and Sauvignon.
+and that restart clears all counts and returns to the load. For the conditional
+loop, verify the default seven-step path, both carry decisions, final counts
+1/2/2/2, and completion at `010B`. Try starting at 253 and 255; change memory
+between the final store and jump; restart after completion and an invalid draft.
+Check that the earlier unconditional loop still has no completion marker.
+Check that preceding lessons still work and do not request CPU runtime modules.
+The emulator’s `npm test` suite remains independent of the Python toolchain and
+Sauvignon.

@@ -154,7 +154,10 @@ instruction lengths and PC path stay the same. The
 destination that runs the addition with one that skips it. The
 [loop lesson](cpus/8080/examples/loop.md) uses a backward jump to repeat an
 addition and store, showing how instructions reuse the state left by an earlier
-iteration while the initial load runs only once.
+iteration while the initial load runs only once. The
+[conditional-loop lesson](cpus/8080/examples/conditional-loop.md) then uses the
+familiar carry flag to decide whether to repeat, connecting addition, preserved
+flags, and a conditional jump.
 The **Altair 8800** is the first historical machine: its front panel
 will connect those familiar concepts to switches and lights before adding I/O.
 

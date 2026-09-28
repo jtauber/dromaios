@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "instruments/register-explorer.html" import register_explorer with context %}
+{% block description %}Let an Intel 8080 choose whether to repeat. Follow the carry flag from addition through a store to a conditional jump.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson register-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Memory and the processor · A conditional jump</p>
+    <h1>Knowing<br><em>when to stop.</em></h1>
+    <p class="lesson-intro">Our last loop always went around again. This time, the processor uses the carry flag to choose: repeat the addition, or leave the loop.</p>
+  </header>
+  {{ register_explorer('conditional-loop-memory', 254, 0, machine='conditional-loop', program=true) }}
+  <div class="lesson-prose">
+    <section aria-labelledby="one-new-instruction">
+      <h2 id="one-new-instruction">One new instruction.</h2>
+      <p>We still load, add one, and store. The starting byte is now 254, so we can reach wraparound quickly.</p>
+      <p>The last instruction is <code>JNC 0103H</code>: <strong>jump if no carry</strong>. “No carry” means CY = 0, also called <em>clear</em>. CY = 1 is called <em>set</em>.</p>
+      <ul>
+        <li><strong>CY = 0:</strong> jump back to the addition at <code>0103</code>.</li>
+        <li><strong>CY = 1:</strong> continue after the jump, at <code>010B</code>.</li>
+      </ul>
+      <p>This is a <strong>conditional jump</strong>: whether it jumps depends on a condition. The processor reads the flag when it executes the instruction.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> Take three steps: load 254, add one, and store. A and address 4 now hold 255. What is CY? Where will the jump go?</p>
+        <details><summary>Show an explanation</summary><p>254 + 1 fits in a byte, so CY = 0. The store preserves that flag. JNC will take the backward jump to <code>0103</code>.</p></details>
+        <a href="#experiment">Try the first decision ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="a-different-decision">
+      <h2 id="a-different-decision">The same jump, a different decision.</h2>
+      <p>Take the jump, then add again. 255 + 1 gives A = 0 and sets CY = 1. The store writes 0 to address 4 and leaves CY set.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> PC is back at <code>0108</code>. The jump’s bytes are unchanged. Will it return to the addition this time?</p>
+        <details><summary>Show an explanation</summary><p>No. CY = 1, so the “no carry” condition is false. JNC still runs and fetches its three bytes, but it leaves PC at <code>010B</code>, immediately after them. This is called <em>falling through</em>.</p></details>
+        <a href="#experiment">Follow the second decision ↑</a>
+      </aside>
+      <p>Watch the last-instruction explanation: it reports the carry value the jump inspected and the PC transition it produced. The jump runs twice, even though only the first execution jumps backward.</p>
+    </section>
+    <section aria-labelledby="remembering-a-result">
+      <h2 id="remembering-a-result">A flag remembers a result.</h2>
+      <p>The addition sets carry. The store preserves it. The jump reads it. The jump does not redo the addition or inspect the byte at address 4.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Start again and step until the second store has written 0. Before the jump, change address 4 to 99. Will that make the loop repeat?</p>
+        <details><summary>Show an explanation</summary><p>No. Editing memory does not change CY. It is still 1, so JNC falls through. Address 4 keeps your 99 because the program does not reach another store.</p></details>
+        <a href="#experiment">Change memory before the decision ↑</a>
+      </aside>
+      <p>You can also change address 3 before the load. Try 255 for one trip through the loop, or 253 for three. Changing that source after the load leaves A and the remaining work unchanged.</p>
+    </section>
+    <section aria-labelledby="leaving-the-loop">
+      <h2 id="leaving-the-loop">Leaving the loop.</h2>
+      <p>At <code>010B</code>, this lesson stops offering steps. The processor has left the loop; it has not executed a halt instruction. A larger program could put more instructions at that address.</p>
+      <p>Each press still runs exactly one instruction. The jump chooses the next address, while you choose when the processor takes its next step.</p>
+      <p>We can now connect a calculation to a decision: an instruction changes a flag, and a later instruction uses that flag to choose a path.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation">
+      <a href="{{ calc_url('learn/loop/') }}"><span aria-hidden="true">←</span> Going around again</a>
+    </nav>
+  </div>
+</main>
+{% endblock %}
