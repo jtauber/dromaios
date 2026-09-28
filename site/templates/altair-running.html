@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "instruments/altair-panel.html" import altair_panel %}
+{% block description %}Let the Altair's 8080 run a familiar countdown. Stop between instructions, inspect its state, and resume without starting over.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Meet the Altair · Run, stop, continue</p>
+    <h1>Letting the<br><em>computer run.</em></h1>
+    <p class="lesson-intro">You have been choosing when every instruction happens. Now let the processor keep going. You can stop to look, then continue from exactly where you left it.</p>
+  </header>
+  <p class="experiment-note"><strong>Begin here:</strong> the countdown from 3 is already loaded. Press RUN, watch A change, then press STOP. The default pace leaves a second between instructions.</p>
+  {{ altair_panel(program=true, running=true) }}
+  <div class="lesson-prose">
+    <section aria-labelledby="the-same-instructions">
+      <h2 id="the-same-instructions">The same instructions, without each click.</h2>
+      <p>This is the program from <a href="{{ calc_url('learn/countdown/') }}">Counting down</a>. Load 3 into A once, then repeat three instructions: subtract one, store A at address 4, and jump back if Z is clear.</p>
+      <p>We have loaded its eleven bytes for you this time. The reference card lets you examine them. There is no new instruction to learn: RUN simply asks the 8080 to keep taking the same steps.</p>
+      <p>At the starting pace, the load makes A = 3 after one second. Next comes the subtraction: A = 2, but address 4 still holds 0. The following store writes 2 there. The jump then returns to the subtraction.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Press RUN, then STOP before the countdown ends. What is the next instruction? Has the latest value in A reached memory yet?</p>
+        <details><summary>Show an explanation</summary><p>PC tells you which instruction comes next. After a subtraction, A has changed but the store has not run yet. After a store, A and address 4 agree. The last-instruction explanation tells you what just happened.</p></details>
+        <a href="#execution">Run and stop ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="stopping-is-not-starting-over">
+      <h2 id="stopping-is-not-starting-over">Stopping keeps your place.</h2>
+      <p>STOP leaves PC, A, the flags, and memory as they are. Nothing else executes until you ask. Read the state, open the last instruction’s trace, or inspect the recent instruction list.</p>
+      <p>While stopped, <strong>Step one instruction</strong> advances just once. RUN continues from the resulting PC. It does not reload the starting count, clear the result, or return to <code>0100</code>.</p>
+      <p>The readouts and trace let you inspect without changing anything. The panel’s <strong>EXAMINE</strong> control has a different purpose: it changes PC, as in the previous lesson. If you EXAMINE another address, RUN will use that new address. Remember the stopped PC if you want to return to it.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> A holds 2 and PC points to the store at <code>0105</code>. You press STOP, then RUN. Will A go back to 3?</p>
+        <details><summary>Show an explanation</summary><p>No. The next instruction stores 2. Continuing preserves the state that was already there; only executing the load again would read the starting count into A.</p></details>
+        <a href="#execution">Continue from your stopping point ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="three-different-stops">
+      <h2 id="three-different-stops">Three different outcomes.</h2>
+      <ul>
+        <li><strong>You press STOP:</strong> execution pauses between instructions. You can continue from the current PC.</li>
+        <li><strong>The countdown reaches its endpoint:</strong> A is 0, Z is 1, and the final jump continues to <code>010B</code>. The lesson stops there automatically.</li>
+        <li><strong>You start the lesson again:</strong> the original program and data return, A and the flags are cleared, PC returns to <code>0100</code>, and the instruction history is emptied.</li>
+      </ul>
+      <p>The countdown takes ten instructions: one load, then three trips through subtract, store, and jump. The final jump still executes even though it does not go backward.</p>
+      <p>There is no halt instruction in this program. Stopping at <code>010B</code> is our lesson boundary. To rerun the countdown without clearing anything, EXAMINE <code>0100</code> and press RUN. The first load will read the starting count again.</p>
+    </section>
+    <section aria-labelledby="a-pace-for-reading">
+      <h2 id="a-pace-for-reading">A pace for reading.</h2>
+      <p>Try four instructions per second, then twenty. The program does the same work and reaches the same result. The faster pace makes it harder to follow each change, so STOP and the recent instruction list become useful.</p>
+      <p>These are teaching speeds. They do not reproduce the Altair’s clock or the different durations of its instructions. The page pauses when hidden and stays stopped when you return.</p>
+      <p>The memory controls are disabled while running; STOP before using EXAMINE or DEPOSIT. You can still move switches, but their positions alone do not affect execution. Starting again always stops first and keeps your chosen pace and number-guide preference.</p>
+      <details><summary>A longer experiment</summary><p>While stopped, EXAMINE address 3, lower all eight data switches, and DEPOSIT 0. Then EXAMINE <code>0100</code> and RUN. As in the earlier countdown lesson, subtraction wraps 0 to 255 before counting down. This takes 769 instructions. Try the faster pace, stop partway through, and inspect the recent twelve instructions. The total count keeps increasing even as older entries leave the list.</p></details>
+      <details><summary>What this view models</summary><p>RUN schedules one whole 8080 instruction at a time. STOP takes effect between instructions and does not change the CPU’s stored state. Address and data lamps show PC and RAM at PC at those boundaries. Bus cycles, physical clock timing, and status lamps remain outside this teaching view. As before, the lesson checks the known program bytes and instruction starts before executing.</p></details>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/altair-program/') }}"><span aria-hidden="true">←</span> Entering your first program</a></nav>
+  </div>
+</main>
+{% endblock %}

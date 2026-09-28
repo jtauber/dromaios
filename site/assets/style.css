@@ -454,6 +454,12 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .panel-cpu-state dt span { display: block; font: 11px/1.6 system-ui, sans-serif; color: #53665b; }
 .panel-cpu-state dd { margin: 6px 0 0; font: 32px/1.3 var(--mono); }
 .panel-processor > p { font-size: 14px; }
+.panel-run-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 18px 0 12px; }
+.panel-run-controls label { display: grid; gap: 6px; font-size: 12px; }
+.panel-run-controls select { max-width: 100%; min-height: 44px; padding: 8px; border: 1px solid #8a9a89; background: #fffefa; color: var(--ink); font: 13px var(--mono); }
+.panel-zero { font: 13px/1.6 var(--mono); }
+.panel-history { padding-left: 32px; font-size: 13px; line-height: 1.8; }
+.panel-history li + li { margin-top: 8px; }
 @media (max-width: 680px) {
   .panel-banks, .panel-switch-numbers { grid-template-columns: 1fr; gap: 16px; }
   .panel-data-lights { max-width: none; }

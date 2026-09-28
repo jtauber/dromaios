@@ -140,10 +140,11 @@ prerequisite for browser or machine development.
 
 ## 3. Make the examples explorable in the browser
 
-The introductory browser path now reaches real CPU execution: byte and memory
-explorations lead to an 8080 register lesson with two ordered instructions.
-Build toward load–calculate–store, instruction bytes, and the program counter,
-then longer programs with controlled running and inspection.
+The introductory browser path connects byte and memory explorations to real
+8080 instructions, loops, and Altair panel operations. Stepping and paced
+running with STOP/resume now work, with captured records and bounded history.
+Build toward longer programs and reusable inspection views, keeping browser
+pacing distinct from emulated machine time.
 
 The [pedagogical roadmap](docs/pedagogy.md#pedagogical-roadmap) defines the
 learning milestones and review points, beginning with an arithmetic explorer
@@ -160,7 +161,8 @@ alongside the learning milestones and build on the composition work below.
 - Add a small interface for stepping, resetting, and inspecting state.
 - Introduce register, memory, and instruction views that serve the
   examples while preserving each CPU's distinctions.
-- Add controlled running and pausing, separating execution from display updates.
+- Extend the established running and pausing controls as longer programs need
+  faster execution, keeping execution separate from display updates.
 - Turn the examples into short lessons using the same simulation components.
 
 **Review point:** A learner can follow the program and connect the explanation

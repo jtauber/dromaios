@@ -117,6 +117,11 @@ The execution granularity and fidelity of each model need to be explicit.
 The [CPU runner](runtime/runner.md) provides synchronous execution with an
 explicit step budget, caller completion addresses, and CPU-specific records.
 It stops on completion, halt, waiting, unsupported attempts, or the step limit.
+The site's [paced execution controller](../site/interactive/execution-controller.ts)
+adds cancellable scheduling between individual instructions and bounded recent
+records, independent of the DOM and CPU model. The
+[Altair running lesson](machines/altair-running.md) supplies its browser timers
+and readiness policy. This reading pace does not model the machine's clock.
 
 **Inspection** exposes state and activity for exploration. Common views should
 work across components where meaningful, with specific views for distinctive

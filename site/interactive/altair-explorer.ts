@@ -5,6 +5,7 @@ interface AltairExplorerOptions {
   readonly createPanel?: () => ReturnType<typeof createAltairMemoryPanel>;
   readonly onChange?: () => void;
   readonly initialMessage?: string;
+  readonly canAccessMemory?: () => boolean;
 }
 
 /** Present switches, selected address, and RAM contents as separate states. */
@@ -12,6 +13,7 @@ export function mountAltairExplorer(root: HTMLElement, {
   createPanel = () => createAltairMemoryPanel(createLessonsAltairMemory().ram),
   onChange = () => {},
   initialMessage = "No memory operation yet. This lesson starts at address 0 with empty RAM and all switches down.",
+  canAccessMemory = () => true,
 }: AltairExplorerOptions = {}) {
   let panel = createPanel();
   const switches = [...root.querySelectorAll<HTMLButtonElement>("[data-panel-switch]")];
@@ -39,8 +41,12 @@ export function mountAltairExplorer(root: HTMLElement, {
     const byte = panel.switches & 0xff;
     root.querySelector<HTMLElement>("[data-panel-switch-address]")!.textContent = formatNumber(panel.switches, 4);
     root.querySelector<HTMLElement>("[data-panel-switch-data]")!.textContent = formatNumber(byte, 2);
-    preview.textContent = `EXAMINE would select address ${panel.switches}. DEPOSIT would write ${byte} to the selected address, ${panel.address}.`;
+    preview.setAttribute("aria-live", canAccessMemory() ? "polite" : "off");
+    preview.textContent = canAccessMemory()
+      ? `EXAMINE would select address ${panel.switches}. DEPOSIT would write ${byte} to the selected address, ${panel.address}.`
+      : "Running. STOP before examining or depositing memory; switch positions do not change execution.";
     for (const help of root.querySelectorAll<HTMLElement>("[data-panel-number-guide]")) help.hidden = !guides.checked;
+    for (const button of root.querySelectorAll<HTMLButtonElement>("[data-panel-action]")) button.disabled = !canAccessMemory();
     onChange();
   }
 
@@ -50,6 +56,7 @@ export function mountAltairExplorer(root: HTMLElement, {
   });
   for (const action of ["examine", "examineNext", "deposit", "depositNext"] as const) {
     root.querySelector<HTMLButtonElement>(`[data-panel-action="${action}"]`)!.addEventListener("click", () => {
+      if (!canAccessMemory()) return;
       const previousAddress = panel.address;
       panel[action]();
       const transition = action.endsWith("Next") ? `Moved from address ${previousAddress} to ${panel.address}. ` : "";

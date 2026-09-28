@@ -62,7 +62,10 @@
       <details><summary>What this view models</summary><p>The original Altair’s EXAMINE circuitry made the 8080 jump to the switch address; EXAMINE NEXT advanced it. Here we apply those PC changes directly, preserving other CPU state. Program instructions execute on our 8080 model. The lights show PC and RAM at PC between instructions, rather than every bus transfer. The added step control runs a whole instruction; the hardware SINGLE STEP control advanced one machine cycle. RUN, STOP, timing, and status lamps remain outside this lesson.</p><p>For this exercise, the step control requires the reference bytes except the editable operand, and PC at one of the three instruction starts. This teaching guard catches entry mistakes before execution. The original Altair allowed arbitrary programs.</p></details>
       <p class="experiment-note">The panel–CPU connection follows the <a href="https://altairclone.com/downloads/manuals/Altair%208800%20Theory%20of%20Operation.pdf#page=5">MITS Altair 8800 Theory of Operation, pp. 5–6</a>.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/altair-memory/') }}"><span aria-hidden="true">←</span> Switches, lights, and memory</a></nav>
+    <nav class="lesson-navigation" aria-label="Lesson navigation">
+      <a href="{{ calc_url('learn/altair-memory/') }}"><span aria-hidden="true">←</span> Switches, lights, and memory</a>
+      <a href="{{ calc_url('learn/altair-running/') }}">Letting the computer run <span aria-hidden="true">→</span></a>
+    </nav>
   </div>
 </main>
 {% endblock %}

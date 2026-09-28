@@ -1,29 +1,43 @@
 import { mountAltairExplorer } from "./altair-explorer.js";
-import { altairOperandAddress, altairProgramBytes, altairProgramStart, createAltairProgram } from "./altair-program.js";
+import { altairProgramStart, createAltairProgram } from "./altair-program.js";
+import { createExecutionController } from "./execution-controller.js";
 import { format8080Trace } from "./instruction-trace.js";
 import { hex } from "./register-programs.js";
 
-/** Execute the bytes entered through the panel, retaining the last CPU record across edits. */
+/** Execute the panel's known program, retaining captured instructions across memory edits. */
 export function mountAltairProgramExplorer(root: HTMLElement): void {
+  const paced = root.dataset.altairExplorer === "running";
   let lesson: ReturnType<typeof createAltairProgram>;
+  let panel: ReturnType<typeof mountAltairExplorer> | undefined;
   const step = root.querySelector<HTMLButtonElement>("[data-panel-step]")!;
+  const run = root.querySelector<HTMLButtonElement>("[data-panel-run]");
+  const stop = root.querySelector<HTMLButtonElement>("[data-panel-stop]");
+  const pace = root.querySelector<HTMLSelectElement>("[data-panel-pace]");
   const next = root.querySelector<HTMLElement>("[data-panel-next]")!;
   const last = root.querySelector<HTMLElement>("[data-panel-executed]")!;
   const trace = root.querySelector<HTMLElement>("[data-panel-trace]")!;
   const hint = root.querySelector<HTMLElement>("[data-panel-entry-hint]")!;
-  const body = root.querySelector<HTMLElement>("[data-panel-entry-bytes]")!;
-  const rows = altairProgramBytes.map((expected, offset) => {
-    const row = document.createElement("tr");
-    const address = altairProgramStart + offset;
-    const heading = document.createElement("th");
-    heading.scope = "row";
-    heading.textContent = hex(address, 4);
-    row.append(heading);
-    const cells = Array.from({ length: 3 }, () => document.createElement("td"));
-    cells[0]!.textContent = hex(expected, 2);
-    row.append(...cells);
-    body.append(row);
-    return { row, address, expected, value: cells[1]!, check: cells[2]! };
+  const history = root.querySelector<HTMLOListElement>("[data-panel-history]");
+  const rows: { row: HTMLTableRowElement; address: number; expected: number; value: HTMLTableCellElement; check: HTMLTableCellElement }[] = [];
+
+  const execution = createExecutionController({
+    canStep: () => lesson.stepProblem() === undefined,
+    step() {
+      const instruction = lesson.instructions.find(instruction => instruction.address === lesson.snapshot().pc)!;
+      const previousDestination = lesson.ram.read(4);
+      const record = lesson.step();
+      if (record.outcome !== "executed") throw new Error("The Altair lesson expected an ordinary instruction.");
+      return {
+        record,
+        description: instruction.describe(record, previousDestination),
+        trace: format8080Trace(record, instruction.mnemonic(address => lesson.ram.read(address))),
+      };
+    },
+    schedule(callback, delay) {
+      const timer = setTimeout(callback, delay);
+      return () => { clearTimeout(timer); };
+    },
+    onChange: () => { panel?.refresh(); },
   });
 
   function render(): void {
@@ -31,45 +45,95 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
     for (const [name, value] of [["a", state.a], ["pc", hex(state.pc, 4)], ["source", lesson.ram.read(3)], ["result", lesson.ram.read(4)]] as const) {
       root.querySelector<HTMLElement>(`[data-panel-cpu-${name}]`)!.textContent = String(value);
     }
+    const flag = root.querySelector<HTMLElement>("[data-panel-cpu-z]");
+    if (flag) flag.textContent = String(Number(state.flags.z));
     for (const { row, address, expected, value, check } of rows) {
       const actual = lesson.ram.read(address);
       value.textContent = hex(actual, 2);
-      check.textContent = actual === expected ? "Matches" : address === altairOperandAddress ? "Custom operand" : "Change";
+      check.textContent = actual === expected ? "Matches" : address === lesson.editableOperand ? "Custom operand" : "Change";
       if (address === state.pc) row.setAttribute("aria-current", "location");
       else row.removeAttribute("aria-current");
     }
     const entry = rows.find(row => row.address === state.pc);
     const following = rows.find(row => row.address === state.pc + 1);
     const reference = (row: typeof rows[number]) => `${hex(row.address, 4)}: ${hex(row.expected, 2)} = ${row.expected.toString(2).padStart(8, "0")}`;
-    hint.textContent = entry
-      ? `DEPOSIT at ${reference(entry)}. ` + (following ? `DEPOSIT NEXT at ${reference(following)}.` : "This is the last byte. EXAMINE 0100 to check or execute the program.")
-      : "To enter or revisit the program, raise only switch 8 (address 0100) and press EXAMINE.";
+    hint.textContent = execution.running ? "Running: STOP before examining or depositing memory. Moving switches still only prepares a value."
+      : entry ? `DEPOSIT at ${reference(entry)}. ` + (following ? `DEPOSIT NEXT at ${reference(following)}.` : "This is the last byte. EXAMINE 0100 to check or execute the program.")
+      : "To revisit the program, raise only switch 8 (address 0100) and press EXAMINE.";
     const problem = lesson.stepProblem();
-    step.disabled = problem !== undefined;
+    const blocked = problem !== undefined || execution.error !== undefined;
+    step.disabled = execution.running || blocked;
+    if (run && stop) {
+      run.disabled = execution.running || blocked;
+      stop.disabled = !execution.running;
+    }
     const instruction = lesson.instructions.find(instruction => instruction.address === state.pc);
-    const message = problem ?? `Next at ${hex(state.pc, 4)}: ${instruction!.explanation(address => lesson.ram.read(address))}. Press Step one instruction.`;
+    const upcoming = instruction ? `Next at ${hex(state.pc, 4)}: ${instruction.explanation(address => lesson.ram.read(address))}.` : "";
+    const message = execution.error !== undefined ? `Stopped after an execution error: ${execution.error} Start this lesson again to restore its initial state.`
+      : execution.running ? `Running. ${upcoming} STOP preserves the state between instructions.`
+      : problem ?? `${paced ? "Stopped. " : ""}${upcoming} ${paced ? "RUN continues from here, or step one instruction." : "Press Step one instruction."}`;
+    // Running updates remain visible, but do not continually interrupt a screen reader.
+    next.setAttribute("aria-live", execution.running ? "off" : "polite");
     if (next.textContent !== message) next.textContent = message;
+    if (!execution.running && document.activeElement === stop && !document.hidden) next.focus();
+    const captured = execution.records.at(-1);
+    last.parentElement!.setAttribute("aria-live", execution.running ? "off" : "polite");
+    const description = captured?.description ?? (paced ? "No instruction has run." : "No instruction has run. Enter the program using the switches and memory controls.");
+    if (last.textContent !== description) last.textContent = description;
+    trace.textContent = captured?.trace ?? "Step an instruction to see its fetched bytes and memory accesses.";
+    if (history) {
+      root.querySelector<HTMLElement>("[data-panel-step-count]")!.textContent = `${execution.steps} instructions executed. Showing the most recent ${execution.records.length} (up to 12).`;
+      history.replaceChildren(...execution.records.map(({ record, description }, index) => {
+        const item = document.createElement("li");
+        item.value = execution.steps - execution.records.length + index + 1;
+        item.textContent = `${hex(record.before.pc, 4)} → ${hex(record.after.pc, 4)}: ${description}`;
+        return item;
+      }));
+    }
   }
 
-  const panel = mountAltairExplorer(root, {
+  panel = mountAltairExplorer(root, {
     createPanel() {
-      lesson = createAltairProgram();
-      last.textContent = "No instruction has run. Enter the program using the switches and memory controls.";
-      trace.textContent = "Step an instruction to see its fetched bytes and memory accesses.";
+      execution.reset();
+      lesson = createAltairProgram(paced ? "countdown" : "entry");
       return lesson.panel;
     },
+    canAccessMemory: () => !execution.running,
     onChange: render,
-    initialMessage: "No memory operation yet. The program area is empty; address 3 holds 41 and address 4 holds 0.",
+    initialMessage: paced ? "No memory operation yet. The countdown is loaded; PC is 0100, address 3 holds 3, and address 4 holds 0."
+      : "No memory operation yet. The program area is empty; address 3 holds 41 and address 4 holds 0.",
   });
+  const body = root.querySelector<HTMLElement>("[data-panel-entry-bytes]")!;
+  for (const [offset, expected] of lesson!.bytes.entries()) {
+    const row = document.createElement("tr");
+    const address = altairProgramStart + offset;
+    const heading = document.createElement("th");
+    heading.scope = "row";
+    heading.textContent = hex(address, 4);
+    const reference = document.createElement("td");
+    reference.textContent = hex(expected, 2);
+    const value = document.createElement("td");
+    const check = document.createElement("td");
+    row.append(heading, reference, value, check);
+    body.append(row);
+    rows.push({ row, address, expected, value, check });
+  }
+  panel.refresh();
   step.addEventListener("click", () => {
-    if (lesson.stepProblem()) return;
-    const instruction = lesson.instructions.find(instruction => instruction.address === lesson.snapshot().pc)!;
-    const previousDestination = lesson.ram.read(4);
-    const record = lesson.step();
-    if (record.outcome !== "executed") throw new Error("The Altair lesson expected an ordinary instruction.");
-    last.textContent = instruction.describe(record, previousDestination);
-    trace.textContent = format8080Trace(record, instruction.mnemonic(address => lesson.ram.read(address)));
-    panel.refresh();
+    execution.step();
     if (step.disabled) next.focus();
   });
+  run?.addEventListener("click", () => {
+    execution.run();
+    if (execution.running) stop!.focus();
+  });
+  stop?.addEventListener("click", () => {
+    execution.stop();
+    if (run!.disabled) next.focus();
+    else run!.focus();
+  });
+  pace?.addEventListener("change", () => { execution.setDelay(Number(pace.value)); });
+  // Returning to a hidden or cached page must never silently resume execution.
+  document.addEventListener("visibilitychange", () => { if (document.hidden) execution.stop(); });
+  window.addEventListener("pagehide", () => { execution.stop(); });
 }

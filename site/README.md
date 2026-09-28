@@ -260,6 +260,16 @@ a live reference card, CPU/data readouts, and guarded instruction stepping.
 lessons. Panel edits do not rewrite those records. The linked contract explains
 the hardware relationship, instruction-level approximation, and acceptance checks.
 
+[Letting the computer run](../docs/machines/altair-running.md) selects the
+controller's `running` mode with the existing `8080/countdown-lesson.machine`.
+The session checks its fixed reference bytes and instruction starts.
+`interactive/execution-controller.ts` supplies DOM-free, cancellable pacing:
+one instruction per scheduled callback, STOP/resume, manual stepping, and the
+twelve most recent captured results. The browser supplies timers, pauses on
+visibility/page changes, and locks memory operations while running. Restart
+cancels old callbacks before replacing the session; pace and guide preference
+remain selected. The lesson contract owns the complete control and failure rules.
+
 ## Checks
 
 ```sh
@@ -328,5 +338,10 @@ through A = 41, A = 42, and RAM[4] = 42. EXAMINE 4 without clearing A, edit
 0104 to 02, EXAMINE 0100, and rerun to store 43. Check the retained trace across
 panel edits, the live reference card, and restart with the number guides hidden.
 Repeat keyboard and narrow-layout checks for the added table and CPU controls.
+For paced running, STOP during the countdown and verify that A, PC, Z, and RAM
+stay fixed; STEP once and RUN to the endpoint. Check all paces, restart while
+running, editing locks, the twelve-entry history limit, hiding and returning to
+the page, and completion focus. Manually EXAMINE the endpoint without executing
+and ensure the status does not claim the program ran.
 The emulator’s `npm test` suite remains independent of the Python toolchain and
 Sauvignon.

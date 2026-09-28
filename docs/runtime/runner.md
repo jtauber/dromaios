@@ -135,8 +135,10 @@ or return a fabricated record. State changes already made remain visible.
 ## Scope and checks
 
 Execution is synchronous and retains all records from the bounded call.
-Browser scheduling, pausing between batches, streaming records, timing, and
-breakpoints can be added when their consumers need them.
+The site's [paced execution controller](../../site/interactive/execution-controller.ts)
+separately schedules individual lesson instructions, with STOP/resume and
+bounded recent history. Streaming runs, modeled timing, and breakpoints remain
+future work for the simulation runner as their consumers need them.
 
 Tests cover the existing examples at their exact step budgets, checking
 final PC, stopping reason, original record identity, RAM accesses, and writes.

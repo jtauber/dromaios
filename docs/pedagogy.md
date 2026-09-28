@@ -168,7 +168,9 @@ The **Altair 8800** is the first historical machine. Its
 concepts to switches and lights: prepare an address, examine it, then deposit
 a byte. [Entering your first program](machines/altair-program.md) then connects
 the panel to the 8080: deposit eight bytes, check them, execute three instructions,
-and change the addition's operand. I/O remains a later step.
+and change the addition's operand. [Letting the computer run](machines/altair-running.md)
+then uses the familiar countdown to introduce RUN, STOP, and resuming from the
+current state, with readable pacing and bounded history. I/O remains a later step.
 
 The next major priority is milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the
