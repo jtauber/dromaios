@@ -1,0 +1,28 @@
+{% macro reference_card() %}
+<details class="panel-reference" open>
+  <summary>Program reference card <span>All addresses and bytes here are hexadecimal</span></summary>
+  <table>
+    <caption>Enter these eight bytes, starting at 0100. RAM shows what is stored now.</caption>
+    <thead><tr><th scope="col">Address</th><th scope="col">Reference</th><th scope="col">RAM</th><th scope="col">Check</th></tr></thead>
+    <tbody data-panel-entry-bytes></tbody>
+  </table>
+  <p>0100–0102: <code>3A 03 00</code> loads address 3 into A.<br>0103–0104: <code>C6 01</code> adds one.<br>0105–0107: <code>32 04 00</code> stores A at address 4.</p>
+  <p>The byte at 0104 is the amount to add. The reference uses 01; any byte is allowed. Zero bytes already match the initially empty RAM.</p>
+</details>
+{% endmacro %}
+{% macro processor_view() %}
+<section class="panel-processor" aria-labelledby="processor-heading">
+  <h3 id="processor-heading">The 8080 behind the panel</h3>
+  <dl class="panel-cpu-state">
+    <div><dt>A <span>decimal</span></dt><dd data-panel-cpu-a>0</dd></div>
+    <div><dt>PC <span>hex</span></dt><dd data-panel-cpu-pc>0000</dd></div>
+    <div><dt>RAM[3] <span>decimal</span></dt><dd data-panel-cpu-source>41</dd></div>
+    <div><dt>RAM[4] <span>decimal</span></dt><dd data-panel-cpu-result>0</dd></div>
+  </dl>
+  <button type="button" class="button" data-panel-step disabled>Step one instruction</button>
+  <p data-panel-next aria-live="polite" tabindex="-1">Enter the program, then EXAMINE 0100 to begin.</p>
+  <div class="register-record" role="status" aria-atomic="true"><span class="addition-label">Last CPU instruction</span><p data-panel-executed>No instruction has run.</p></div>
+  <details class="register-inside"><summary>Look inside the last instruction</summary><pre data-panel-trace>Step an instruction to see its fetched bytes and memory accesses.</pre></details>
+  <p class="experiment-note">EXAMINE changes PC without running a program instruction. Stepping advances PC, and the panel lights follow it. This added control executes a whole instruction; the original SINGLE STEP switch advanced one machine cycle.</p>
+</section>
+{% endmacro %}

@@ -14,8 +14,10 @@
     {% endfor %}
   </div>
 {% endmacro %}
-{% macro altair_panel() %}
-<section id="experiment" class="altair-explorer" data-altair-explorer aria-label="Altair memory controls">
+{% from "instruments/altair-program.html" import reference_card, processor_view %}
+{% macro altair_panel(program=false) %}
+<section id="experiment" class="altair-explorer" data-altair-explorer="{{ 'program' if program else 'memory' }}" aria-label="Altair {{ 'program entry and execution' if program else 'memory controls' }}">
+  {% if program %}{{ reference_card() }}{% endif %}
   <fieldset data-panel-controls disabled>
     <legend class="visually-hidden">Operate the memory panel</legend>
     <div class="altair-panel">
@@ -43,6 +45,7 @@
             <div><dt>Lower eight as a byte</dt><dd data-panel-switch-data>0 decimal · 00 hex</dd></div>
           </dl>
           <p class="panel-reminder">Setting the switches prepares a number. It does not read or write memory.</p>
+          {% if program %}<p class="panel-entry-hint" data-panel-entry-hint>Raise only switch 8 and press EXAMINE to select 0100.</p>{% endif %}
         </section>
         <div class="panel-operations">
           <div><button type="button" data-panel-action="examine">EXAMINE</button><p>Select the address in the switches and read its byte.</p></div>
@@ -54,10 +57,15 @@
     </div>
     <label class="panel-guide-toggle"><input type="checkbox" data-panel-guides checked> Show decimal and hexadecimal guides</label>
     <p class="panel-preview" data-panel-number-guide data-panel-preview aria-live="polite">EXAMINE would select address 0. DEPOSIT would write 0 to the selected address, 0.</p>
-    <div class="register-record" role="status" aria-atomic="true"><span class="addition-label">Last memory operation</span><p data-panel-last>Enable JavaScript to operate the panel. All memory starts at zero.</p></div>
-    <button class="clear-byte" type="button" data-panel-restart>Start again with empty memory</button>
+    <div class="register-record" role="status" aria-atomic="true"><span class="addition-label">Last memory operation</span><p data-panel-last>Enable JavaScript to operate the panel.</p></div>
+    {% if program %}{{ processor_view() }}{% endif %}
+    <button class="clear-byte" type="button" data-panel-restart>{{ 'Start this lesson again' if program else 'Start again with empty memory' }}</button>
   </fieldset>
+  {% if program %}
+  <p class="experiment-note">This lesson connects the panel to an 8080 and 65,536 bytes of RAM. The lights show PC and RAM at PC between instructions; bus cycles and status lamps are not modeled. Start again clears the program, restores 41 at address 3, and starts A and PC at zero. It is not the hardware RESET switch.</p>
+  {% else %}
   <p class="experiment-note">A focused model of the Altair’s memory controls. This lesson provides RAM at all 65,536 addresses and performs no CPU execution. Start again clears our experiment; it is not the hardware RESET switch.</p>
+  {% endif %}
   <noscript><p>The explanations below remain available without JavaScript; the interactive controls require it.</p></noscript>
 </section>
 {% endmacro %}

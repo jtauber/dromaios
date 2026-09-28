@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from "instruments/altair-panel.html" import altair_panel %}
+{% block description %}Enter eight bytes through the Altair's front panel, check them, and step the 8080 through the program you put in memory.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Meet the Altair · From switches to instructions</p>
+    <h1>Entering your<br><em>first program.</em></h1>
+    <p class="lesson-intro">We have supplied every program so far. This time, you will put the bytes into memory yourself, then watch the 8080 carry out the instructions you entered.</p>
+  </header>
+  <p class="experiment-note"><strong>Begin here:</strong> raise only switch 8 and press EXAMINE to select address <code>0100</code>. Use the reference card to enter the eight bytes. The walkthrough below takes you from the first deposit to the result.</p>
+  {{ altair_panel(program=true) }}
+  <div class="lesson-prose">
+    <section aria-labelledby="a-familiar-program">
+      <h2 id="a-familiar-program">You already know this program.</h2>
+      <p>Read the byte at address 3 into A, add one, then store A at address 4. We used these three instructions in <a href="{{ calc_url('learn/add-one/') }}">Adding one</a>. Together they occupy eight bytes.</p>
+      <p>This lesson starts with 41 at address 3 and zero everywhere else. The program area is empty: neither the reference card nor the step button loads it for you. Switches and DEPOSIT write the same RAM that the processor will read.</p>
+      <p>The reference card uses hexadecimal for addresses and bytes. <code>0100</code> is address 256 in decimal, selected by raising switch 8. Values in A and the two data locations are displayed in decimal.</p>
+    </section>
+    <section aria-labelledby="enter-eight-bytes">
+      <h2 id="enter-eight-bytes">Eight small deposits.</h2>
+      <ol>
+        <li>Raise only switch <strong>8</strong> and press <strong>EXAMINE</strong>. The address lights show <code>0100</code>.</li>
+        <li>Prepare <code>3A</code>, binary <code>00111010</code>, in the lower eight switches: raise <strong>5, 4, 3, and 1</strong>, and lower the others in that group. Press <strong>DEPOSIT</strong>.</li>
+        <li>Prepare <code>03</code> by raising only <strong>1 and 0</strong> in the lower group. Press <strong>DEPOSIT NEXT</strong>. It moves to <code>0101</code> before writing.</li>
+        <li>Continue with <code>00 C6 01 32 04 00</code>, using <strong>DEPOSIT NEXT</strong> once for each byte. The reference card shows each destination and the byte stored there.</li>
+      </ol>
+      <p>The higher switches can stay where they are during deposits: only the lower eight supply the byte. When preparing a new byte, change the switches that differ and leave the others alone.</p>
+      <aside class="lesson-prompt"><p><strong>Before the first deposit:</strong> will preparing <code>3A</code> change the selected address?</p>
+        <details><summary>Show an explanation</summary><p>No. Moving switches only prepares a value. DEPOSIT writes it at the selected address, <code>0100</code>. EXAMINE would instead select the address in all sixteen switches, so keep the two actions distinct.</p></details>
+        <a href="#experiment">Enter the bytes ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="check-your-work">
+      <h2 id="check-your-work">Read them back.</h2>
+      <p>Raise only switch 8 again and press EXAMINE. Read <code>3A</code> at <code>0100</code>, then use EXAMINE NEXT seven times. The data lights should show <code>03 00 C6 01 32 04 00</code> in order.</p>
+      <p>If a byte differs, leave that address selected, prepare the correct byte, and DEPOSIT. You can repair one location without starting over.</p>
+      <p>The added reference card helps you check your work. A zero that was already in RAM counts as a match; it does not prove you deposited anything. At <code>0104</code>, any byte is valid because it supplies the amount to add. Choose <code>01</code> for this first run.</p>
+    </section>
+    <section aria-labelledby="let-the-cpu-read">
+      <h2 id="let-the-cpu-read">Now let the processor read.</h2>
+      <p>Raise only switch 8 and EXAMINE <code>0100</code> once more. In this lesson the selected address is connected to the processor’s PC. You have chosen where execution will begin.</p>
+      <p>Under the panel, press <strong>Step one instruction</strong> three times, pausing to predict each change:</p>
+      <ol>
+        <li>The 8080 fetches <code>3A 03 00</code>, then reads address 3. A becomes <strong>41</strong> and PC advances to <code>0103</code>.</li>
+        <li>It fetches <code>C6 01</code> and adds one. A becomes <strong>42</strong>, memory stays unchanged, and PC advances to <code>0105</code>.</li>
+        <li>It fetches <code>32 04 00</code> and writes A to address 4. That location now holds <strong>42</strong>, and PC reaches <code>0108</code>.</li>
+      </ol>
+      <p>Those are the bytes you entered. Open “Look inside the last instruction” to see what the CPU fetched and which memory locations it accessed.</p>
+      <p>The address lights follow PC after each instruction. To see the result on the data lights, EXAMINE address 4. A remains 42: inspecting memory changes PC, but preserves A and the flags.</p>
+      <aside class="lesson-prompt"><p><strong>Why stop at 0108?</strong></p>
+        <details><summary>Show an explanation</summary><p>That is the end of our three-instruction exercise. The lesson stops offering steps there; we have not entered a halt instruction. A real machine could continue into the following bytes.</p></details>
+        <a href="#experiment">Execute your program ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="change-one-byte">
+      <h2 id="change-one-byte">Change the program you entered.</h2>
+      <p>EXAMINE <code>0104</code> by raising only switches <strong>8 and 2</strong>. Prepare <code>02</code> in the lower eight switches, then DEPOSIT. You have changed the addition’s operand.</p>
+      <p>EXAMINE <code>0100</code> again and step three times. The load still reads 41, but the addition now produces <strong>43</strong>, which the store writes to address 4.</p>
+      <p>Returning to <code>0100</code> does not reset the processor or erase RAM. “Start this lesson again” does: it clears the program and restores the initial data. Use EXAMINE when you want to rerun what you entered.</p>
+      <details><summary>What this view models</summary><p>The original Altair’s EXAMINE circuitry made the 8080 jump to the switch address; EXAMINE NEXT advanced it. Here we apply those PC changes directly, preserving other CPU state. Program instructions execute on our 8080 model. The lights show PC and RAM at PC between instructions, rather than every bus transfer. The added step control runs a whole instruction; the hardware SINGLE STEP control advanced one machine cycle. RUN, STOP, timing, and status lamps remain outside this lesson.</p><p>For this exercise, the step control requires the reference bytes except the editable operand, and PC at one of the three instruction starts. This teaching guard catches entry mistakes before execution. The original Altair allowed arbitrary programs.</p></details>
+      <p class="experiment-note">The panel–CPU connection follows the <a href="https://altairclone.com/downloads/manuals/Altair%208800%20Theory%20of%20Operation.pdf#page=5">MITS Altair 8800 Theory of Operation, pp. 5–6</a>.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/altair-memory/') }}"><span aria-hidden="true">←</span> Switches, lights, and memory</a></nav>
+  </div>
+</main>
+{% endblock %}

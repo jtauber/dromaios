@@ -2,6 +2,7 @@ import { registerProgram, hex, readAddress } from "./register-programs.js";
 import { createProgramHistory } from "./program-history.js";
 import { mountMemoryEditor } from "./memory-editor.js";
 import { mountProgramView } from "./program-view.js";
+import { format8080Trace } from "./instruction-trace.js";
 import type { FetchedInstruction } from "../../src/components/cpus/execution-records.js";
 
 /** Step a known lesson program; only the CPU writes its accumulator. */
@@ -88,16 +89,7 @@ export function mountRegisterExplorer(lesson: HTMLElement, root: HTMLElement): v
         ? `The sum needs nine bits. A keeps the rightmost eight: ${record.after.a}. The carry flag records the extra bit: 1.`
         : `The sum fits in eight bits. A holds ${record.after.a}, and the carry flag is 0.`);
     }
-    const flags = ["s", "z", "ac", "p", "cy"] as const;
-    const flagTrace = `Flags: ${flags.map(flag => `${flag.toUpperCase()} ${Number(record.before.flags[flag])} → ${Number(record.after.flags[flag])}`).join(", ")}`;
-    trace.textContent = [
-      `${hex(record.instruction.address, 4)}: ${record.instruction.bytes.map(byte => hex(byte, 2)).join(" ")}  ${instruction.mnemonic(read)}`,
-      `A: ${record.before.a} → ${record.after.a} (decimal)`,
-      `PC: ${hex(record.before.pc, 4)} → ${hex(record.after.pc, 4)} (hexadecimal)`,
-      flagTrace, "", "Memory accesses (hexadecimal):",
-      ...record.accesses.flatMap(access => access.kind === "read" || access.kind === "write"
-        ? [`${access.kind === "read" ? "Read " : "Write"} ${hex(access.address, 4)}: ${hex(access.value, 2)}`] : []),
-    ].join("\n");
+    trace.textContent = format8080Trace(record, instruction.mnemonic(read));
     editor.refresh();
     render();
     // Keep keyboard progression on an enabled control after its predecessor becomes disabled.

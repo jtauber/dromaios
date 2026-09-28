@@ -1,0 +1,14 @@
+ram 10000
+
+cpu 8080 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    PC = 0000  SP = 0000
+    flags { S = 0  Z = 0  AC = 0  P = 0  CY = 0 }
+    interruptEnabled = false
+    interruptDeferred = false
+    halted = false
+}
+
+memory 0003 { 29 00 }   // Starting data: 41; the learner enters the program.
+
+end 0108              // A lesson boundary, not a halt instruction.

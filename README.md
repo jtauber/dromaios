@@ -79,7 +79,8 @@ independently of the browser. The [example catalog](docs/README.md#cpu-examples)
 links to their specifications. The [website](site/README.md) includes
 introductory byte and memory explorations and a register lesson running the 8080
 in the browser. The teaching path now reaches the
-[Altair 8800's memory controls](docs/machines/altair-memory.md);
+[Altair 8800's memory controls](docs/machines/altair-memory.md) and
+[manual program entry and execution](docs/machines/altair-program.md);
 complete machine emulation remains planned.
 
 All eight documented instruction sets now use shared definitions that generate

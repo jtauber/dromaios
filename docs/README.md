@@ -92,6 +92,8 @@ examples add polling and consuming input reads with the same devices.
 
 - [Altair memory-controls lesson](machines/altair-memory.md): switches, lights,
   EXAMINE and DEPOSIT, with explicit limits of the current panel model.
+- [Entering an Altair program](machines/altair-program.md): deposit instruction
+  bytes, read them back, execute them on the 8080, and edit an operand.
 - [Definition guide](machines/definitions.md): initial state and memory images,
   directory conventions, generated factories, and the editing/build workflow.
 - [Memory components and maps](machines/memory-map.md): RAM/ROM ownership,

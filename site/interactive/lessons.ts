@@ -16,6 +16,11 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-byte-explorer]"
 }
 
 for (const root of document.querySelectorAll<HTMLElement>("[data-altair-explorer]")) {
-  const { mountAltairExplorer } = await import("./altair-explorer.js");
-  mountAltairExplorer(root);
+  if (root.dataset.altairExplorer === "program") {
+    const { mountAltairProgramExplorer } = await import("./altair-program-explorer.js");
+    mountAltairProgramExplorer(root);
+  } else {
+    const { mountAltairExplorer } = await import("./altair-explorer.js");
+    mountAltairExplorer(root);
+  }
 }

@@ -166,7 +166,9 @@ while A keeps a nonzero value.
 The **Altair 8800** is the first historical machine. Its
 [memory-controls lesson](machines/altair-memory.md) connects those familiar
 concepts to switches and lights: prepare an address, examine it, then deposit
-a byte. Entering and executing a program through the panel comes next, before I/O.
+a byte. [Entering your first program](machines/altair-program.md) then connects
+the panel to the 8080: deposit eight bytes, check them, execute three instructions,
+and change the addition's operand. I/O remains a later step.
 
 The next major priority is milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the

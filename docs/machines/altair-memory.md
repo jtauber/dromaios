@@ -27,9 +27,10 @@ This is a memory-controls model, not yet a complete Altair emulator. The generat
 component-only factory supplies 64 KiB of RAM; the browser panel owns its switch
 word and selected address. There is no CPU, program counter, bus-cycle injection,
 timing, status-lamp simulation, memory protection, RUN, STOP, or hardware RESET.
-The panel accesses RAM directly. Later CPU integration must account for the
-hardware's coupling between the front panel, CPU, and bus rather than treating
-this selected address as an independently emulated hardware register.
+The panel accesses RAM directly. Its successor,
+[entering your first program](altair-program.md), connects the same controls
+to an 8080's PC, preserving the hardware's address relationship at instruction
+boundaries. This first lesson continues to use an independent selected address.
 
 All addresses are backed by RAM here. The actual machine's installed memory
 boards determined its capacity. Initial zero-filled RAM, selected address zero,

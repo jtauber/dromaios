@@ -249,6 +249,17 @@ are optional teaching aids. Restart replaces both RAM and panel state while
 preserving the guide preference. The panel's contract and hardware source live
 in the linked lesson specification.
 
+[Entering your first program](../docs/machines/altair-program.md) reuses that
+panel with the `program` mode and a separate lazy `altair-program-explorer.ts`
+controller. Its DOM-free `altair-program.ts` session uses
+`8080/altair-program-lesson.machine`: source data is supplied, but the learner
+enters the program. The panel's address storage is backed by PC; selecting an
+address preserves the remaining CPU snapshot and the RAM. The controller adds
+a live reference card, CPU/data readouts, and guarded instruction stepping.
+`instruction-trace.ts` formats captured 8080 records for both register and panel
+lessons. Panel edits do not rewrite those records. The linked contract explains
+the hardware relationship, instruction-level approximation, and acceptance checks.
+
 ## Checks
 
 ```sh
@@ -310,6 +321,12 @@ For the Altair panel, follow the 41-at-3 / 42-at-4 exercise, checking that switc
 edits alone leave address and data lights unchanged. Check both NEXT controls,
 wraparound at FFFF, high switches ignored for data, hidden number guides, restart,
 keyboard controls, and narrow layouts. Only the CPU-based lessons should load
-CPU modules; this panel uses RAM alone.
+CPU modules; the first panel lesson uses RAM alone.
+For program entry, deposit and read back all eight bytes, repair a wrong byte,
+and verify that stepping becomes available only with valid bytes and PC. Step
+through A = 41, A = 42, and RAM[4] = 42. EXAMINE 4 without clearing A, edit
+0104 to 02, EXAMINE 0100, and rerun to store 43. Check the retained trace across
+panel edits, the live reference card, and restart with the number guides hidden.
+Repeat keyboard and narrow-layout checks for the added table and CPU controls.
 The emulator’s `npm test` suite remains independent of the Python toolchain and
 Sauvignon.

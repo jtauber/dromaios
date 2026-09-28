@@ -1,15 +1,23 @@
 import { createLessonsAltairMemory } from "../../src/machines/generated/lessons/altair-memory.js";
 import { createAltairMemoryPanel } from "./altair-panel.js";
 
+interface AltairExplorerOptions {
+  readonly createPanel?: () => ReturnType<typeof createAltairMemoryPanel>;
+  readonly onChange?: () => void;
+  readonly initialMessage?: string;
+}
+
 /** Present switches, selected address, and RAM contents as separate states. */
-export function mountAltairExplorer(root: HTMLElement): void {
-  const freshPanel = () => createAltairMemoryPanel(createLessonsAltairMemory().ram);
-  let panel = freshPanel();
+export function mountAltairExplorer(root: HTMLElement, {
+  createPanel = () => createAltairMemoryPanel(createLessonsAltairMemory().ram),
+  onChange = () => {},
+  initialMessage = "No memory operation yet. This lesson starts at address 0 with empty RAM and all switches down.",
+}: AltairExplorerOptions = {}) {
+  let panel = createPanel();
   const switches = [...root.querySelectorAll<HTMLButtonElement>("[data-panel-switch]")];
   const guides = root.querySelector<HTMLInputElement>("[data-panel-guides]")!;
   const preview = root.querySelector<HTMLElement>("[data-panel-preview]")!;
   const last = root.querySelector<HTMLElement>("[data-panel-last]")!;
-  const initialMessage = "No memory operation yet. This lesson starts at address 0 with empty RAM and all switches down.";
   const formatNumber = (value: number, digits: number) => `${value} decimal · ${value.toString(16).toUpperCase().padStart(digits, "0")} hex`;
 
   function render(): void {
@@ -33,6 +41,7 @@ export function mountAltairExplorer(root: HTMLElement): void {
     root.querySelector<HTMLElement>("[data-panel-switch-data]")!.textContent = formatNumber(byte, 2);
     preview.textContent = `EXAMINE would select address ${panel.switches}. DEPOSIT would write ${byte} to the selected address, ${panel.address}.`;
     for (const help of root.querySelectorAll<HTMLElement>("[data-panel-number-guide]")) help.hidden = !guides.checked;
+    onChange();
   }
 
   for (const button of switches) button.addEventListener("click", () => {
@@ -52,11 +61,12 @@ export function mountAltairExplorer(root: HTMLElement): void {
   }
   guides.addEventListener("change", render);
   root.querySelector<HTMLButtonElement>("[data-panel-restart]")!.addEventListener("click", () => {
-    panel = freshPanel();
+    panel = createPanel();
     last.textContent = initialMessage;
     render();
   });
   last.textContent = initialMessage;
   render();
   root.querySelector<HTMLFieldSetElement>("[data-panel-controls]")!.disabled = false;
+  return { refresh: render };
 }
