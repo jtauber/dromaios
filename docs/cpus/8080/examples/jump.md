@@ -53,7 +53,8 @@ Each Step calls the CPU once. The controller retains PC transitions from those
 records, showing the path separately from the program's layout in memory.
 The program view uses the current PC for the next marker and the last record's
 instruction bytes for fetch highlighting. Previously executed rows say
-“Ran earlier.” In this forward-only program, unvisited instructions behind PC
+“Ran earlier,” and run counts show how often each instruction executed.
+Instructions passed over by the recorded forward jump, and never executed,
 are marked “Skipped · not fetched” with a dashed border. Those labels remain
 after completion; restarting clears the path and all execution markers.
 

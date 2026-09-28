@@ -1,10 +1,11 @@
-{% macro program_view(edit_operand=false, jump=false, end='0108') %}
+{% macro program_view(edit_operand=false, jump=false, loop=false, end='0108') %}
     <section class="program-view" data-program-view aria-labelledby="program-heading">
       <div class="program-heading">
         <div><h2 id="program-heading">The program in memory</h2><p>Addresses and bytes below are hexadecimal.</p></div>
         <div class="program-counter"><span>Next instruction · PC</span><strong data-register-pc>0100</strong></div>
       </div>
       <p class="program-key"><strong>← Next (PC)</strong> marks the next instruction. <span>Shaded bytes</span> were fetched by the last step.</p>
+      {% if jump or loop %}<p class="program-key"><strong>Runs</strong> counts how often each instruction has executed since Start again.</p>{% endif %}
       {% if edit_operand %}
       <div class="program-edit">
         <label for="program-operand">Add this number to A <span>(decimal)</span></label>
@@ -25,10 +26,11 @@
         <p id="jump-status" data-jump-status role="status">The jump’s destination is 0108.</p>
       </div>
       {% endif %}
-      <ol class="program-instructions{% if jump %} program-with-jump{% endif %}" data-program-instructions></ol>
+      <ol class="program-instructions{% if jump or loop %} program-four-instructions{% endif %}" data-program-instructions></ol>
       <noscript><p>Enable JavaScript to inspect the program’s bytes and step through its instructions.</p></noscript>
-      <p class="program-end" data-program-end>{{ end }} · End of this program</p>
+      <p class="program-end" data-program-end{% if loop %} hidden{% endif %}>{{ end }} · End of this program</p>
+      {% if loop %}<p class="program-key">This program repeats. Each press runs one instruction; nothing runs between presses.</p>{% endif %}
       <p class="program-fetched" data-program-fetched role="status">No instruction has run. PC points to the first instruction.</p>
-      {% if jump %}<p class="program-path" data-program-path>PC path so far: 0100.</p>{% endif %}
+      {% if jump or loop %}<p class="program-path" data-program-path>PC path so far: 0100.</p>{% endif %}
     </section>
 {% endmacro %}

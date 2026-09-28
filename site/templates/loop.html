@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "instruments/register-explorer.html" import register_explorer with context %}
+{% block description %}Step through an Intel 8080 loop. Load once, then add, store, and jump back. See why repeating instructions keeps changing the result.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson register-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Memory and the processor · A loop</p>
+    <h1>Going<br><em>around again.</em></h1>
+    <p class="lesson-intro">A jump can take us back to an earlier instruction. What happens when the processor adds one, stores the result, and then does it again?</p>
+  </header>
+  {{ register_explorer('loop-memory', 41, 0, machine='loop', program=true) }}
+  <div class="lesson-prose">
+    <section aria-labelledby="first-time-around">
+      <h2 id="first-time-around">The first time around.</h2>
+      <p>Take three steps. The load puts 41 into A, the addition makes it 42, and the store writes 42 to address 4. We have done all of this before.</p>
+      <p>Now PC points to <code>0108</code>, where the instruction is <code>JMP 0103H</code>. Take one more step. The next-instruction marker returns to the addition at <code>0103</code>.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> What does A hold after the jump? What will the next addition produce?</p>
+        <details><summary>Show an explanation</summary><p>A still holds 42. The jump changed PC, not A. The next addition therefore makes A 43. Address 4 keeps 42 until the next store writes 43 there.</p></details>
+        <a href="#experiment">Go around again ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="repeat-without-resetting">
+      <h2 id="repeat-without-resetting">Repeat without resetting.</h2>
+      <p>The processor repeats three instructions: <strong>add, store, jump</strong>. Together they form a <strong>loop</strong>. The same bytes run again, working with the state left by the previous trip around.</p>
+      <p>Watch the run counts. The load stays at 1, while the other instructions run again and again. PC revisits <code>0103 → 0105 → 0108 → 0103</code>, but the stored results grow: 42, 43, 44…</p>
+      <p>The recent PC path shows up to twelve steps. Earlier addresses disappear from that short history, but each instruction’s run count continues to include the whole experiment.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> After the load has run, open the byte editor and change address 3 from 41 to 99. Does the next trip around the loop start from 99?</p>
+        <details><summary>Show an explanation</summary><p>No. The backward jump goes to the addition, after the load. A keeps its working value. Changing address 3 would matter if the load ran again, but this loop never returns to it.</p></details>
+        <a href="#experiment">Change the starting data ↑</a>
+      </aside>
+      <p><strong>Start again</strong> does something different from the jump: it restores the whole lesson, including A = 0, the starting data, PC = <code>0100</code>, and cleared run counts.</p>
+    </section>
+    <section aria-labelledby="still-one-byte">
+      <h2 id="still-one-byte">Still one byte.</h2>
+      <p>Repeating the addition does not make A any wider. Eventually the value reaches 255 and the next addition wraps to 0, setting carry.</p>
+      <aside class="lesson-prompt"><p><strong>Take a shortcut.</strong> Start again and change address 3 to 254 before the load. Step through the program until it stores 255, then go around once more. What gets stored next?</p>
+        <details><summary>Show an explanation</summary><p>The next addition makes A = 0 and CY = 1; the store writes 0. Store and jump preserve that carry. One more addition makes A = 1 and clears CY again.</p></details>
+        <a href="#experiment">Follow 254 → 255 → 0 → 1 ↑</a>
+      </aside>
+      <p>The jump always goes back, even when the value wraps or carry changes. It does not test a flag.</p>
+    </section>
+    <section aria-labelledby="when-does-it-stop">
+      <h2 id="when-does-it-stop">When does it stop?</h2>
+      <p>This program has no instruction that ends the loop. Every jump leads back to the addition.</p>
+      <p>In this experiment, you control the pace: each press runs one whole instruction, and nothing runs between presses. You can pause simply by stopping. Step remains available, and Start again restores the original setup.</p>
+      <p>We have learned how to repeat. Next we need a way for the program to decide whether to repeat—or continue somewhere else.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation">
+      <a href="{{ calc_url('learn/jump/') }}"><span aria-hidden="true">←</span> Taking a different path</a>
+    </nav>
+  </div>
+</main>
+{% endblock %}

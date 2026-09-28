@@ -151,7 +151,10 @@ bytes and PC using the same program and a single Step button. The
 operand editable, showing how one changed byte changes the result while the
 instruction lengths and PC path stay the same. The
 [jump lesson](cpus/8080/examples/jump.md) then changes that path, comparing a
-destination that runs the addition with one that skips it.
+destination that runs the addition with one that skips it. The
+[loop lesson](cpus/8080/examples/loop.md) uses a backward jump to repeat an
+addition and store, showing how instructions reuse the state left by an earlier
+iteration while the initial load runs only once.
 The **Altair 8800** is the first historical machine: its front panel
 will connect those familiar concepts to switches and lights before adding I/O.
 

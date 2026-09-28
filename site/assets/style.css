@@ -343,12 +343,13 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .program-edit .input-error:empty { display: none; }
 .program-edit code { font-family: var(--mono); }
 .program-instructions { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.program-with-jump { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.program-four-instructions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .program-instructions > li { border: 1px solid var(--line); padding: 12px; }
 .program-instructions > li[data-skipped] { border-style: dashed; }
 .program-instructions > li[aria-current="step"] { outline: 2px solid var(--ink); outline-offset: 1px; }
 .program-instruction-heading { min-height: 65px; font-size: 13px; line-height: 1.5; }
 .program-marker { display: block; min-height: 20px; font: 11px/1.6 var(--mono); color: var(--accent); }
+.program-runs:not([hidden]) { display: block; font: 11px/1.6 var(--mono); }
 .program-instructions code { font: 12px/1.5 var(--mono); }
 .program-bytes { display: flex; gap: 6px; margin-top: 12px; }
 .program-byte { display: grid; gap: 4px; flex: 0 1 56px; text-align: center; padding: 6px 2px; background: var(--paper); border: 1px solid var(--line); }

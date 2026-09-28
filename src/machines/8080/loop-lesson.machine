@@ -1,0 +1,21 @@
+ram 10000
+
+cpu 8080 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    PC = 0100  SP = 0000
+    flags { S = 0  Z = 0  AC = 0  P = 0  CY = 0 }
+    interruptEnabled = false
+    interruptDeferred = false
+    halted = false
+}
+
+memory 0003 { 29 00 }   // Load 41 once; address 4 will hold each stored result.
+
+memory 0100 {
+    3A 03 00           // 0100: LDA 0003H: read the starting byte into A once.
+    C6 01              // 0103: ADI 1: add one to the value still in A.
+    32 04 00           // 0105: STA 0004H: store this result.
+    C3 03 01           // 0108: JMP 0103H: repeat the addition and store.
+}
+
+// No completion address: the program repeats while the learner keeps stepping.
