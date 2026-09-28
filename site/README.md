@@ -170,34 +170,36 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   both selection and edits; no instruction bytes are editable in the register lesson.
 - `templates/register.html`, `templates/add-one.html`, `templates/program.html`,
   `templates/change-program.html`, `templates/jump.html`, `templates/loop.html`,
-  and `templates/conditional-loop.html` use the shared
+  `templates/conditional-loop.html`, and `templates/countdown.html` use the shared
   `templates/instruments/register-explorer.html` and
   `interactive/register-explorer.ts` for the [8080 register lesson](../docs/cpus/8080/examples/register.md)
   and its [add-one](../docs/cpus/8080/examples/add-one.md),
   [stored-program](../docs/cpus/8080/examples/program.md),
   [program-editing](../docs/cpus/8080/examples/change-program.md),
   [jump](../docs/cpus/8080/examples/jump.md),
-  [loop](../docs/cpus/8080/examples/loop.md), and
-  [conditional-loop](../docs/cpus/8080/examples/conditional-loop.md) successors.
-  The template selects a `copy`, `add-one`, `jump`, `loop`, or `conditional-loop`
-  machine layout. A is read-only and comes from CPU snapshots; each action calls
-  `step()` once. The controller
-  uses PC to enable the next action and stops at a declared completion address.
+  [loop](../docs/cpus/8080/examples/loop.md),
+  [conditional-loop](../docs/cpus/8080/examples/conditional-loop.md), and
+  [countdown](../docs/cpus/8080/examples/countdown.md) successors.
+  The template selects a `copy`, `add-one`, `jump`, `loop`, `conditional-loop`,
+  or `countdown` machine layout. A is read-only and comes from CPU snapshots;
+  each action calls `step()` once. The controller uses PC to enable the next
+  action and stops at a declared completion address.
   The unconditional loop has no completion address; every press still executes
   just one instruction. The optional disclosure shows bytes, PC changes, and
   accesses from the last CPU record. Editing memory preserves that record.
-  Starting again constructs a fresh
-  machine rather than invoking CPU reset. The add-one lesson inserts `ADI 1`
+  Starting again constructs a fresh machine rather than invoking CPU reset.
+  The add-one lesson inserts `ADI 1`
   between load and store, displays CY from CPU state, and retains the last
   addition separately from the latest instruction record. The full sum explains
   the calculation; A and carry come from execution, not a parallel simulation.
 - `interactive/register-programs.ts` holds the machine factories, instruction
-  layouts, editable operand locations, and explanations for these known programs.
+  layouts, editable operand locations, selected flag, and explanations for these
+  known programs. The flag display defaults to CY; the countdown selects Z.
   The descriptions never execute an instruction or calculate its result.
   `interactive/register-explorer.ts` owns the shared controls and reads actual
   CPU records. There is no parser or general disassembler in the browser.
-- `interactive/program-view.ts` reveals the load–add–store program for the
-  stored-program, program-editing, jump, and both loop lessons. It reads bytes
+- `interactive/program-view.ts` reveals the instructions for the stored-program,
+  program-editing, jump, and loop lessons, including the countdown. It reads bytes
   from RAM on each render, marks the next instruction using CPU state, and
   highlights fetches using the record's `instruction` field rather than every
   memory read. Its labels and grouping
@@ -221,6 +223,10 @@ and deploy. The site follows the same maintainer-review rule as other changes.
   destination from the after snapshot; the controller does not decide the path.
   Both taken and untaken jumps count as executions and show their fetched bytes.
   The declared completion address ends lesson stepping without halting the CPU.
+- The countdown replaces addition with `SUI 1` and tests Z with `JNZ`. JNC and
+  JNZ share a description helper that reports the recorded flag and PC. The
+  shared flag display reads CPU state even before arithmetic has run: initial
+  A = 0 does not imply Z = 1. Subtraction changes Z; load, store, and jump preserve it.
 
 Sauvignon fences replace the earlier Mermaid diagrams. GitHub currently shows
 these fences as source; the site displays the rendered diagrams and
@@ -272,6 +278,11 @@ loop, verify the default seven-step path, both carry decisions, final counts
 1/2/2/2, and completion at `010B`. Try starting at 253 and 255; change memory
 between the final store and jump; restart after completion and an invalid draft.
 Check that the earlier unconditional loop still has no completion marker.
+For the countdown, check stored results 2, 1, 0, final counts 1/3/3/3, and Z = 1
+at completion. Try starting at 1 and 5; after loading zero, verify Z remains 0
+and the first subtraction wraps to 255. Edit the destination before JNZ and
+verify that Z and the decision remain unchanged. Check invalid drafts, restart,
+and the CY display in preceding lessons after the shared flag-view change.
 Check that preceding lessons still work and do not request CPU runtime modules.
 The emulator’s `npm test` suite remains independent of the Python toolchain and
 Sauvignon.

@@ -24,7 +24,7 @@ export function mountRegisterExplorer(lesson: HTMLElement, root: HTMLElement): v
   const last = lesson.querySelector<HTMLElement>("[data-register-last]")!;
   const trace = lesson.querySelector<HTMLElement>("[data-register-trace]")!;
   const memoryLabel = lesson.querySelector<HTMLElement>("[data-memory-label]")!;
-  const carry = lesson.querySelector<HTMLElement>("[data-register-carry]");
+  const flag = lesson.querySelector<HTMLElement>("[data-register-flag]");
   const calculation = lesson.querySelector<HTMLElement>("[data-register-calculation]");
   const operand = lesson.querySelector<HTMLInputElement>("[data-program-operand]");
   const operandError = lesson.querySelector<HTMLElement>("[data-operand-error]");
@@ -42,9 +42,10 @@ export function mountRegisterExplorer(lesson: HTMLElement, root: HTMLElement): v
     lesson.querySelector<HTMLElement>("[data-register-binary]")!.textContent = `${binary.slice(0, 4)} ${binary.slice(4)}`;
     lesson.querySelector<HTMLElement>("[data-register-hex]")!.textContent = hex(state.a, 2);
     for (const pc of lesson.querySelectorAll<HTMLElement>("[data-register-pc]")) pc.textContent = hex(state.pc, 4);
-    if (carry) {
-      carry.textContent = state.flags.cy ? "1" : "0";
-      carry.toggleAttribute("data-set", state.flags.cy);
+    if (flag) {
+      const value = state.flags[definition.flag ?? "cy"];
+      flag.textContent = value ? "1" : "0";
+      flag.toggleAttribute("data-set", value);
     }
     memoryLabel.textContent = `Change the byte at address ${editor.address}`;
     const current = instructions.find(instruction => instruction.address === state.pc);

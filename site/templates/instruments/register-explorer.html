@@ -1,16 +1,18 @@
 {% from "instruments/byte-explorer.html" import byte_explorer %}
 {% from "instruments/program-view.html" import program_view %}
 {% macro register_explorer(id, source, destination, machine='copy', program=false, edit_operand=false) %}
-  {% set has_addition = machine != 'copy' %}
+  {% set countdown = machine == 'countdown' %}
+  {% set has_arithmetic = machine != 'copy' %}
+  {% set has_addition = has_arithmetic and not countdown %}
   {% set jump = machine == 'jump' %}
-  {% set loop = machine in ('loop', 'conditional-loop') %}
-  {% set conditional = machine == 'conditional-loop' %}
-  {% set end = none if machine == 'loop' else '010B' if jump or conditional else '0108' if has_addition else '0106' %}
+  {% set loop = machine in ('loop', 'conditional-loop', 'countdown') %}
+  {% set conditional = machine in ('conditional-loop', 'countdown') %}
+  {% set end = none if machine == 'loop' else '010B' if jump or conditional else '0108' if has_arithmetic else '0106' %}
   <section id="experiment" data-register-explorer="{{ machine }}" aria-label="{{ 'Choose whether to repeat with an 8080' if conditional else 'Repeat instructions with an 8080' if loop else 'Follow a jump with an 8080' if jump else 'Load, add, and store with an 8080' if has_addition else 'Copy a byte through an 8080 register' }}">
     <div class="register-workbench">
       <div class="memory-bank">
         <div class="instrument-heading"><span>Memory · eight locations shown</span><span>Addresses 0–7</span></div>
-        <p class="memory-key">Address <strong>3</strong> holds our starting byte. Address <strong>4</strong> is where we will put {{ 'the result' if has_addition else 'a copy' }}. Values below are decimal.</p>
+        <p class="memory-key">Address <strong>3</strong> holds our starting byte. Address <strong>4</strong> is where we will put {{ 'the result' if has_arithmetic else 'a copy' }}. Values below are decimal.</p>
         <fieldset data-memory-controls disabled>
           <legend class="visually-hidden">Select a memory byte to edit</legend>
           <div class="memory-cells" data-memory-cells></div>
@@ -26,9 +28,10 @@
           <div><dt>Binary</dt><dd data-register-binary>0000 0000</dd></div>
           <div><dt>Hexadecimal</dt><dd data-register-hex>00</dd></div>
         </dl>
-        {% if has_addition %}
-        <div class="register-carry"><span>Carry flag <strong>CY</strong></span><span class="carry-digit" data-register-carry>0</span></div>
-        <p>CY starts at 0. {% if jump %}If the addition runs, it sets{% else %}The addition sets{% endif %} CY to 1 if the sum exceeds 255, or 0 if it fits.</p>
+        {% if has_arithmetic %}
+        <div class="register-flag"><span>{{ 'Zero flag' if countdown else 'Carry flag' }} <strong>{{ 'Z' if countdown else 'CY' }}</strong></span><span class="flag-digit" data-register-flag>0</span></div>
+        {% if countdown %}<p>Z starts at 0. The subtraction sets Z to 1 if its result is zero, or 0 otherwise. Load, store, and jump preserve Z.</p>
+        {% else %}<p>CY starts at 0. {% if jump %}If the addition runs, it sets{% else %}The addition sets{% endif %} CY to 1 if the sum exceeds 255, or 0 if it fits.</p>{% endif %}
         {% else %}
         <p>A holds one byte. The processor’s instructions change it.</p>
         {% endif %}
@@ -41,8 +44,9 @@
       <button class="button" type="button" data-program-step>Step one instruction</button>
       {% else %}
       <button class="button" type="button" data-register-read>1. Read address 3 into A</button>
-      {% if has_addition %}<button class="button" type="button" data-register-add disabled>2. Add one to A</button>{% endif %}
-      <button class="button" type="button" data-register-write disabled>{{ 3 if has_addition else 2 }}. Write A to address 4</button>
+      {% if countdown %}<button class="button" type="button" data-register-subtract disabled>2. Subtract one from A</button>
+      {% elif has_addition %}<button class="button" type="button" data-register-add disabled>2. Add one to A</button>{% endif %}
+      <button class="button" type="button" data-register-write disabled>{{ 3 if has_arithmetic else 2 }}. Write A to address 4</button>
       {% endif %}
       <button class="clear-byte" type="button" data-register-restart>Start again</button>
     </fieldset>
@@ -64,10 +68,12 @@
     </details>
     <details class="register-inside">
       <summary>See the 8080 instructions</summary>
-      <p>The first instruction is <code>LDA 0003H</code>: load A from memory address 3. {% if jump %}Next comes <code>JMP</code>: continue at the address encoded in its next two bytes. It preserves A and the flags. Depending on its destination, <code>ADI 1</code> either runs or is skipped. The final instruction is{% elif has_addition %}Next comes {% if edit_operand %}<code>ADI</code>: add the number in the following byte to A{% else %}<code>ADI 1</code>: add one to A{% endif %} and update the arithmetic flags. {% if loop %}Then comes{% else %}The last instruction is{% endif %}{% else %}The second is{% endif %} <code>STA 0004H</code>: store A at address 4. The load and store preserve the processor’s flags.</p>
-      {% if conditional %}<p><code>JNC 0103H</code> follows the store: jump if no carry. With CY = 0 it returns PC to the addition; with CY = 1 it continues at <code>010B</code>. Both paths fetch all three instruction bytes and preserve A, flags, and RAM. The load runs just once.</p>
+      <p>The first instruction is <code>LDA 0003H</code>: load A from memory address 3. {% if jump %}Next comes <code>JMP</code>: continue at the address encoded in its next two bytes. It preserves A and the flags. Depending on its destination, <code>ADI 1</code> either runs or is skipped. The final instruction is{% elif has_arithmetic %}Next comes {% if countdown %}<code>SUI 1</code>: subtract one from A{% elif edit_operand %}<code>ADI</code>: add the number in the following byte to A{% else %}<code>ADI 1</code>: add one to A{% endif %} and update the arithmetic flags. {% if loop %}Then comes{% else %}The last instruction is{% endif %}{% else %}The second is{% endif %} <code>STA 0004H</code>: store A at address 4. The load and store preserve the processor’s flags.</p>
+      {% if countdown %}<p><code>JNZ 0103H</code> follows the store: jump if not zero. With Z = 0 it returns PC to the subtraction; with Z = 1 it continues at <code>010B</code>. Both paths fetch all three instruction bytes and preserve A, flags, and RAM. The load runs just once.</p>
+      {% elif conditional %}<p><code>JNC 0103H</code> follows the store: jump if no carry. With CY = 0 it returns PC to the addition; with CY = 1 it continues at <code>010B</code>. Both paths fetch all three instruction bytes and preserve A, flags, and RAM. The load runs just once.</p>
       {% elif loop %}<p><code>JMP 0103H</code> follows the store. It returns PC to the addition, preserving A, flags, and RAM. The load is outside the repeating part and runs just once.</p>{% endif %}
-      {% if has_addition %}<p><code>ADI</code> adds the number encoded in the instruction, regardless of which memory byte is selected. It does not add the incoming carry. Unlike <code>INR A</code>, which preserves carry, <code>ADI</code> updates CY. It also updates sign (S), zero (Z), auxiliary carry (AC), and parity (P); their before/after values appear in the record.</p>{% endif %}
+      {% if countdown %}<p><code>SUI</code> subtracts the number encoded in the instruction without using incoming carry. It updates sign (S), zero (Z), auxiliary carry (AC), parity (P), and carry (CY). For subtraction, CY records a borrow; the lesson focuses on Z. All flags appear in the instruction record.</p>
+      {% elif has_addition %}<p><code>ADI</code> adds the number encoded in the instruction, regardless of which memory byte is selected. It does not add the incoming carry. Unlike <code>INR A</code>, which preserves carry, <code>ADI</code> updates CY. It also updates sign (S), zero (Z), auxiliary carry (AC), and parity (P); their before/after values appear in the record.</p>{% endif %}
       <p>This view shows the first eight locations of a 65,536-byte RAM. The instructions live elsewhere, starting at hexadecimal address <code>0100</code>. The program counter, <strong>PC</strong>, tells the processor where to find its next instruction.</p>
       <p>Current PC: <code data-register-pc>0100</code> (hexadecimal). {% if end is none %}There is no completion address or halt instruction. Each press runs one instruction; the machine waits for your next press.{% else %}The lesson stops offering steps at <code>{{ end }}</code>, just after the final instruction. This is a lesson boundary; the processor has not executed a halt instruction.{% endif %}</p>
       <pre data-register-trace tabindex="0" aria-label="Last instruction and its recorded memory accesses">No instruction has run.</pre>

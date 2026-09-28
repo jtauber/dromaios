@@ -3,6 +3,7 @@ import { create8080AddOneLesson } from "../../src/machines/generated/8080/add-on
 import { create8080JumpLesson } from "../../src/machines/generated/8080/jump-lesson.js";
 import { create8080LoopLesson } from "../../src/machines/generated/8080/loop-lesson.js";
 import { create8080ConditionalLoopLesson } from "../../src/machines/generated/8080/conditional-loop-lesson.js";
+import { create8080CountdownLesson } from "../../src/machines/generated/8080/countdown-lesson.js";
 import type { Cpu8080StepRecord } from "../../src/components/cpus/generated/8080-cpu.js";
 
 export type ExecutedStep = Extract<Cpu8080StepRecord, { outcome: "executed" }>;
@@ -11,7 +12,7 @@ type ReadByte = (address: number) => number;
 export interface LessonInstruction {
   readonly address: number;
   readonly length: number;
-  readonly action: "read" | "add" | "write" | "jump";
+  readonly action: "read" | "add" | "subtract" | "write" | "jump";
   readonly mnemonic: (read: ReadByte) => string;
   readonly explanation: (read: ReadByte) => string;
   readonly prompt: string;
@@ -24,6 +25,7 @@ interface RegisterProgram {
   readonly operandAddress?: number;
   readonly jumpOperand?: { readonly address: number; readonly destinations: readonly number[] };
   readonly showHistory?: boolean;
+  readonly flag?: "cy" | "z";
 }
 
 export function hex(value: number, digits: number): string { return value.toString(16).toUpperCase().padStart(digits, "0"); }
@@ -50,6 +52,18 @@ function add(address: number): LessonInstruction {
   };
 }
 
+function subtract(address: number): LessonInstruction {
+  return {
+    address, length: 2, action: "subtract", mnemonic: read => `SUI ${read(address + 1)}`,
+    explanation: read => read(address + 1) === 1 ? "Subtract one from A" : `Subtract ${read(address + 1)} from A`,
+    prompt: "Now subtract one from A. Will the result be zero?",
+    describe: ({ instruction, before, after }) => {
+      const value = instruction.bytes[1]!;
+      return `Subtracted ${value === 1 ? "one" : value} from ${before.a}. A now holds ${after.a}; zero flag Z is ${Number(after.flags.z)}. Memory is unchanged.`;
+    },
+  };
+}
+
 function store(address: number, prompt = "Write the result in A to address 4."): LessonInstruction {
   return {
     address, length: 3, action: "write", mnemonic: () => "STA 0004H", explanation: () => "Write A to address 4", prompt,
@@ -67,16 +81,18 @@ function jump(address: number, continuation: (destination: number) => string): L
   };
 }
 
-function jumpIfNoCarry(address: number): LessonInstruction {
+function jumpIfClear(address: number, flag: "cy" | "z"): LessonInstruction {
+  const mnemonic = flag === "cy" ? "JNC" : "JNZ";
+  const label = flag.toUpperCase();
   return {
     address, length: 3, action: "jump",
-    mnemonic: read => `JNC ${hex(readAddress(read, address + 1), 4)}H`,
-    explanation: read => `Jump to ${hex(readAddress(read, address + 1), 4)} if CY = 0`,
-    prompt: "Check carry. Will the processor repeat the addition or continue past the jump?",
+    mnemonic: read => `${mnemonic} ${hex(readAddress(read, address + 1), 4)}H`,
+    explanation: read => `Jump to ${hex(readAddress(read, address + 1), 4)} if ${label} = 0`,
+    prompt: `Check ${label}. Will the processor repeat or continue past the jump?`,
     describe: ({ instruction, before, after }) => {
       const fallThrough = instruction.address + instruction.bytes.length;
       const decision = after.pc === fallThrough ? "Jump not taken: continued" : "Jump taken: returned";
-      return `CY was ${Number(before.flags.cy)} (${before.flags.cy ? "set" : "clear"}). ${decision} from ${hex(before.pc, 4)} to ${hex(after.pc, 4)}. A, flags, and memory are unchanged.`;
+      return `${label} was ${Number(before.flags[flag])} (${before.flags[flag] ? "set" : "clear"}). ${decision} from ${hex(before.pc, 4)} to ${hex(after.pc, 4)}. A, flags, and memory are unchanged.`;
     },
   };
 }
@@ -108,8 +124,14 @@ const programs: Readonly<Record<string, RegisterProgram>> = {
   },
   "conditional-loop": {
     createMachine: create8080ConditionalLoopLesson,
-    instructions: [load(0x100), add(0x103), store(0x105), jumpIfNoCarry(0x108)],
+    instructions: [load(0x100), add(0x103), store(0x105), jumpIfClear(0x108, "cy")],
     showHistory: true,
+  },
+  countdown: {
+    createMachine: create8080CountdownLesson,
+    instructions: [load(0x100), subtract(0x103), store(0x105), jumpIfClear(0x108, "z")],
+    showHistory: true,
+    flag: "z",
   },
 };
 

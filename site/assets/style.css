@@ -175,8 +175,8 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .carry-result, .stored-result { display: flex; flex-direction: column; align-items: center; gap: 8px; font: 12px/1.6 var(--mono); }
 .carry-result { padding-right: 24px; border-right: 1px dashed #9ba99c; }
 .carry-result .bit-weight { margin: 0; }
-.carry-digit { display: grid; place-items: center; width: 50px; min-height: 48px; border: 1px solid #9ba99c; border-radius: 3px; font: 28px/1 var(--mono); }
-.carry-digit[data-set] { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+.carry-digit, .flag-digit { display: grid; place-items: center; width: 50px; min-height: 48px; border: 1px solid #9ba99c; border-radius: 3px; font: 28px/1 var(--mono); }
+.carry-digit[data-set], .flag-digit[data-set] { background: var(--accent); color: var(--paper); border-color: var(--accent); }
 .stored-digits { display: grid; place-items: center; min-height: 48px; font: 28px/1 var(--mono); letter-spacing: .04em; }
 .addition-explanation { margin: 20px 0 0; font-size: 14px; }
 .experiment-note { margin-top: 12px; font-size: 13px; color: var(--muted); }
@@ -259,7 +259,7 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
   .addition-bits { gap: 12px; }
   .carry-result { padding-right: 12px; }
   .carry-result, .stored-result { font-size: 10px; }
-  .carry-digit { width: 40px; font-size: 24px; }
+  .carry-digit, .flag-digit { width: 40px; font-size: 24px; }
   .stored-digits { font-size: 22px; letter-spacing: 0; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -311,7 +311,7 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .register-representations > div { display: flex; justify-content: space-between; gap: 16px; }
 .register-representations dd { margin: 0; }
 .register-panel > p:last-child { margin: 20px 0 0; font-size: 13px; }
-.register-carry { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-top: 1px solid #6f8575; padding-top: 16px; margin-top: 16px; font: 14px var(--mono); }
+.register-flag { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-top: 1px solid #6f8575; padding-top: 16px; margin-top: 16px; font: 14px var(--mono); }
 .register-actions { display: flex; flex-wrap: wrap; gap: 12px; border: 0; padding: 0; margin: 22px 0 16px; min-width: 0; }
 .register-actions .button { border: 1px solid var(--ink); border-radius: 3px; }
 .register-actions .clear-byte { margin: 0; }

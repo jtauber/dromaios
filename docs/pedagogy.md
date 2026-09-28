@@ -157,7 +157,9 @@ addition and store, showing how instructions reuse the state left by an earlier
 iteration while the initial load runs only once. The
 [conditional-loop lesson](cpus/8080/examples/conditional-loop.md) then uses the
 familiar carry flag to decide whether to repeat, connecting addition, preserved
-flags, and a conditional jump.
+flags, and a conditional jump. The [countdown lesson](cpus/8080/examples/countdown.md)
+uses subtraction and the zero flag to repeat a chosen number of times, making
+the position of the condition test explicit with the starting-zero case.
 The **Altair 8800** is the first historical machine: its front panel
 will connect those familiar concepts to switches and lights before adding I/O.
 

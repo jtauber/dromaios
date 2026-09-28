@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "instruments/register-explorer.html" import register_explorer with context %}
+{% block description %}Count down with an Intel 8080. Subtract one, store the result, and use the zero flag to decide when the loop finishes.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson register-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Memory and the processor · The zero flag</p>
+    <h1>Counting<br><em>down.</em></h1>
+    <p class="lesson-intro">Three things left to do. Then two. Then one. This loop subtracts one each time and finishes when the result reaches zero.</p>
+  </header>
+  {{ register_explorer('countdown-memory', 3, 0, machine='countdown', program=true) }}
+  <div class="lesson-prose">
+    <section aria-labelledby="one-less">
+      <h2 id="one-less">One less each time.</h2>
+      <p>The load puts our starting count, 3, into A. The next instruction is <code>SUI 1</code>: subtract one from A. It makes A = 2, and the store writes that result to address 4.</p>
+      <p>The subtraction also updates the <strong>zero flag, Z</strong>. Z = 1 means the result was zero. Z = 0 means it was not zero.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> Take those first three steps. A and address 4 hold 2. Should Z be set or clear?</p>
+        <details><summary>Show an explanation</summary><p>Z is clear: 3 − 1 = 2, and 2 is not zero. The store preserves the flag set by the subtraction.</p></details>
+        <a href="#experiment">Subtract and store ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="something-left">
+      <h2 id="something-left">Is there anything left?</h2>
+      <p>The jump is <code>JNZ 0103H</code>: <strong>jump if not zero</strong>. It tests Z, just as the previous lesson’s JNC tested carry.</p>
+      <ul>
+        <li><strong>Z = 0:</strong> the result was not zero, so return to the subtraction at <code>0103</code>.</li>
+        <li><strong>Z = 1:</strong> the result was zero, so continue after the jump at <code>010B</code>.</li>
+      </ul>
+      <p>Take the jump and go around again. A becomes 1, which is still not zero. On the third trip, A becomes 0 and Z becomes 1. The last jump falls through.</p>
+      <aside class="lesson-prompt"><p><strong>Count the trips.</strong> How many times does each instruction run? How many presses of Step does the whole program need?</p>
+        <details><summary>Show an explanation</summary><p>The load runs once. Subtract, store, and jump each run three times: ten instructions altogether. The jump executes on the last trip too, even though it does not go backward.</p></details>
+        <a href="#experiment">Finish the countdown ↑</a>
+      </aside>
+      <p>The stored results are 2, 1, then 0. The lesson stops offering steps at <code>010B</code>; the CPU has left the loop without executing a halt instruction.</p>
+    </section>
+    <section aria-labelledby="what-z-remembers">
+      <h2 id="what-z-remembers">What Z remembers.</h2>
+      <p>In this program, the subtraction updates Z. Loading, storing, and jumping leave it alone. Z records a calculation’s result; it does not continuously check the current contents of A or memory.</p>
+      <p>That is why A and Z both start at 0 in this experiment: we initialized them that way. No subtraction has run yet.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Start again and step until the third store has written 0. Before the final jump, change address 4 to 99. Does the countdown continue?</p>
+        <details><summary>Show an explanation</summary><p>No. A is still 0 and Z is still 1. JNZ reads Z and falls through. Your 99 remains in memory because there is no later store.</p></details>
+        <a href="#experiment">Change memory before the jump ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="choose-a-count">
+      <h2 id="choose-a-count">Choose a count.</h2>
+      <p>Start again, then change address 3 before loading. Try 1 for one trip through the loop, or 5 for five trips. Each trip subtracts one, stores it, and tests Z.</p>
+      <p>Changing address 3 after the load does not change the countdown already in A. The jump returns to the subtraction, so the load runs only once.</p>
+      <details>
+        <summary>What if the starting count is zero?</summary>
+        <p>This program subtracts before it tests. Loading 0 does not set Z. The first subtraction, 0 − 1, wraps to 255 in a byte, and sets Z to 0 because that result is not zero.</p>
+        <p>The loop then counts down from 255. It takes 256 trips altogether to reach zero again. You can try the first few steps and use Start again without finishing that long run. Checking before doing the work would require a different program.</p>
+      </details>
+      <p>For starting counts from 1 to 255, we now know exactly how many times the loop repeats. A small number in memory controls how much work the program does.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation">
+      <a href="{{ calc_url('learn/conditional-loop/') }}"><span aria-hidden="true">←</span> Knowing when to stop</a>
+    </nav>
+  </div>
+</main>
+{% endblock %}

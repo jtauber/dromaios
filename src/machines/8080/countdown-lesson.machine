@@ -1,0 +1,21 @@
+ram 10000
+
+cpu 8080 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    PC = 0100  SP = 0000
+    flags { S = 0  Z = 0  AC = 0  P = 0  CY = 0 }
+    interruptEnabled = false
+    interruptDeferred = false
+    halted = false
+}
+
+memory 0003 { 03 00 }   // Start at 3; address 4 receives 2, 1, then 0.
+
+memory 0100 {
+    3A 03 00           // 0100: LDA 0003H: load the starting count once.
+    D6 01              // 0103: SUI 1: subtract one and update the zero flag.
+    32 04 00           // 0105: STA 0004H: store the result, preserving flags.
+    C2 03 01           // 0108: JNZ 0103H: repeat while the zero flag is clear.
+}
+
+end 010B              // The lesson ends when JNZ falls through; no HLT runs.
