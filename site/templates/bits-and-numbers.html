@@ -42,8 +42,6 @@
       <a class="text-link" href="{{ calc_url('#processors') }}">Meet the processors <span aria-hidden="true">→</span></a>
     </section>
   </div>
-  <nav class="lesson-navigation" aria-label="Lesson navigation">
-    <a href="{{ calc_url('learn/byte-wraparound/') }}">Next: What happens after 255? <span aria-hidden="true">→</span></a>
-  </nav>
+  {% include "lesson-navigation.html" %}
 </main>
 {% endblock %}

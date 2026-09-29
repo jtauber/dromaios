@@ -45,7 +45,7 @@
       <p>To try it, DEPOSIT 255 at address 3 (all eight lower switches up), EXAMINE <code>0100</code>, and run the program. Adding one wraps 255 to 0, as before. OUT then sends that zero. The device’s readout and write count distinguish it from the empty starting state.</p>
       <details><summary>What this view models</summary><p>This eight-lamp device is a teaching addition, not a particular historical Altair peripheral or part of its front panel. The red panel lamps still show PC and RAM at PC; the separate amber lamps show the output device’s stored byte. RUN, STOP, and stepping use the same whole-instruction model as the previous lesson. The lesson stops at 0107, just after OUT; no halt instruction runs. Start this lesson again restores the program and source byte, empties the device, and clears the counts and history.</p></details>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/altair-running/') }}"><span aria-hidden="true">←</span> Letting the computer run</a><a href="{{ calc_url('learn/altair-input/') }}">Next: Receiving a byte <span aria-hidden="true">→</span></a></nav>
+    {% include "lesson-navigation.html" %}
   </div>
 </main>
 {% endblock %}

@@ -1,0 +1,9 @@
+<nav class="lesson-navigation" aria-label="Lesson navigation">
+  {% if previous_lesson %}
+  <a class="lesson-previous" href="{{ calc_url(previous_lesson.url) }}" rel="prev"><span><span aria-hidden="true">←</span> Previous</span>{{ previous_lesson.title }}</a>
+  {% endif %}
+  <a class="lesson-all" href="{{ calc_url('learn/') }}">All lessons</a>
+  {% if next_lesson %}
+  <a class="lesson-next" href="{{ calc_url(next_lesson.url) }}" rel="next"><span>Next <span aria-hidden="true">→</span></span>{{ next_lesson.title }}</a>
+  {% endif %}
+</nav>

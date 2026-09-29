@@ -180,8 +180,31 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .stored-digits { display: grid; place-items: center; min-height: 48px; font: 28px/1 var(--mono); letter-spacing: .04em; }
 .addition-explanation { margin: 20px 0 0; font-size: 14px; }
 .experiment-note { margin-top: 12px; font-size: 13px; color: var(--muted); }
-.lesson-navigation { max-width: 650px; margin: 40px auto 0; padding-top: 24px; border-top: 1px solid var(--line); }
-.lesson-navigation a { font-size: 15px; color: #875037; }
+.lesson-navigation { max-width: 650px; margin: 40px auto 0; padding-top: 24px; border-top: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: start; gap: 24px; }
+.lesson-navigation a { font-size: 15px; color: #875037; overflow-wrap: break-word; }
+.lesson-navigation a > span { display: block; margin-bottom: 6px; font: 11px/1.6 var(--mono); color: var(--muted); }
+.lesson-previous { grid-column: 1; }
+.lesson-all { grid-column: 2; }
+.lesson-next { grid-column: 3; text-align: right; }
+.lesson-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 30px; padding-block: 22px; border-block: 1px solid var(--line); }
+.lesson-groups a { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.lesson-group { margin-top: 48px; }
+.lesson-group .eyebrow { margin-bottom: 8px; }
+.lesson-group h2 { font: 500 32px/1.2 var(--serif); letter-spacing: -.02em; margin-bottom: 12px; }
+.lesson-group header > p:last-child { color: var(--muted); font-size: 15px; }
+.lesson-list { list-style: none; padding: 0; margin: 24px 0 0; border-top: 1px solid var(--line); }
+.lesson-list li { border-bottom: 1px solid var(--line); }
+.lesson-list a { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 18px 12px; text-decoration: none; }
+.lesson-list a:hover { background: #f0eee5; }
+.lesson-list strong { font-size: 17px; font-weight: 600; text-decoration: underline; text-underline-offset: .2em; }
+.lesson-summary { display: block; margin-top: 4px; color: var(--muted); font-size: 14px; }
+.lesson-arrow { color: var(--accent); font-size: 22px; }
+@media (max-width: 520px) {
+  .lesson-navigation { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .lesson-navigation a { grid-column: 1; text-align: left; }
+  .lesson-groups { grid-template-columns: minmax(0, 1fr); }
+  .lesson-list a { padding-inline: 4px; gap: 16px; }
+}
 @media (min-width: 1101px) {
   .wraparound-lesson { width: min(1100px, calc(100% - 112px)); }
   .byte-increment { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr); align-items: stretch; }
@@ -281,7 +304,6 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .memory-cell:hover { border-color: var(--accent); }
 .memory-status { font: 14px/1.6 var(--mono); margin: 18px 0 0; }
 .memory-task { margin-block: 10px 0; }
-.lesson-navigation { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 18px; }
 @media (min-width: 1101px) {
   .memory-lesson { width: min(1100px, calc(100% - 112px)); }
   .memory-explorer { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr); }

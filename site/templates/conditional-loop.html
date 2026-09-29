@@ -49,10 +49,7 @@
       <p>Each press still runs exactly one instruction. The jump chooses the next address, while you choose when the processor takes its next step.</p>
       <p>We can now connect a calculation to a decision: an instruction changes a flag, and a later instruction uses that flag to choose a path.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation">
-      <a href="{{ calc_url('learn/loop/') }}"><span aria-hidden="true">←</span> Going around again</a>
-      <a href="{{ calc_url('learn/countdown/') }}">Next: Counting down <span aria-hidden="true">→</span></a>
-    </nav>
+    {% include "lesson-navigation.html" %}
   </div>
 </main>
 {% endblock %}

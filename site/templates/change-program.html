@@ -45,10 +45,7 @@
       <p>Changing address 3 gives the same program different starting data. Changing <code>0104</code> changes a number inside the program. Both edits write a byte into the same RAM; its role depends on how the processor uses it.</p>
       <p>You have changed a program by changing its bytes. So far, each instruction still leads to the next one in memory. A different kind of instruction—a jump—will let us change that path too.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation">
-      <a href="{{ calc_url('learn/program/') }}"><span aria-hidden="true">←</span> What comes next?</a>
-      <a href="{{ calc_url('learn/jump/') }}">Next: Taking a different path <span aria-hidden="true">→</span></a>
-    </nav>
+    {% include "lesson-navigation.html" %}
   </div>
 </main>
 {% endblock %}

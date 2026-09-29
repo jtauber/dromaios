@@ -18,6 +18,7 @@ from ryland import Ryland
 
 from check import check_site
 from diagrams import state_diagram
+from lessons import LESSON_GROUPS
 from rendering import CHAPTERS, REPOSITORY, ChapterRendering, github_slug
 
 SITE = Path(__file__).resolve().parent
@@ -54,6 +55,11 @@ def chapter_catalogue():
 def build(base):
     compile_diagram = sauvignon_compiler()
     chapters = chapter_catalogue()
+    lesson_groups = [
+        {**group, "lessons": [{**lesson, "url": f"learn/{lesson['slug']}/"} for lesson in group["lessons"]]}
+        for group in LESSON_GROUPS
+    ]
+    lessons = [lesson for group in lesson_groups for lesson in group["lessons"]]
     site = Ryland(output_dir=SITE / "output", template_dir=SITE / "templates", url_root=base)
     site.jinja_env.autoescape = select_autoescape(["html"])
     site.clear_output()
@@ -69,6 +75,8 @@ def build(base):
     site.write_output("assets/highlight.css", HtmlFormatter(style="friendly").get_style_defs(".code-block"))
     site.add_hash("assets/style.css")
     site.set_global("chapters", chapters)
+    site.set_global("lesson_groups", lesson_groups)
+    site.set_global("lesson_count", len(lessons))
     site.set_global("repository", REPOSITORY)
 
     def diagram(source, filename):
@@ -97,90 +105,19 @@ def build(base):
             "previous": chapters[index - 1] if index else None,
             "next": chapters[index + 1] if index + 1 < len(chapters) else None,
         })
-    site.render_template("bits-and-numbers.html", "learn/bits-and-numbers/index.html", {
-        "title": "Bits and numbers",
-    })
-    site.render_template("byte-wraparound.html", "learn/byte-wraparound/index.html", {
-        "title": "What happens after 255?",
-    })
-    site.render_template("memory.html", "learn/memory/index.html", {
-        "title": "Where does a byte live?",
-    })
-    site.render_template("register.html", "learn/register/index.html", {
-        "title": "A place to work: a register",
-    })
-    site.render_template("add-one.html", "learn/add-one/index.html", {
-        "title": "Doing something with a byte",
-    })
-    site.render_template("program.html", "learn/program/index.html", {
-        "title": "What comes next?",
-    })
-    site.render_template("change-program.html", "learn/change-program/index.html", {
-        "title": "Change one byte, change the program",
-    })
-    site.render_template("jump.html", "learn/jump/index.html", {
-        "title": "Taking a different path",
-    })
-    site.render_template("loop.html", "learn/loop/index.html", {
-        "title": "Going around again",
-    })
-    site.render_template("conditional-loop.html", "learn/conditional-loop/index.html", {
-        "title": "Knowing when to stop",
-    })
-    site.render_template("countdown.html", "learn/countdown/index.html", {
-        "title": "Counting down",
-    })
-    site.render_template("comparison.html", "learn/comparison/index.html", {
-        "title": "Choosing a stopping point",
-    })
-    site.render_template("altair-memory.html", "learn/altair-memory/index.html", {
-        "title": "Switches, lights, and memory",
-    })
-    site.render_template("altair-program.html", "learn/altair-program/index.html", {
-        "title": "Entering your first program",
-    })
-    site.render_template("altair-running.html", "learn/altair-running/index.html", {
-        "title": "Letting the computer run",
-    })
-    site.render_template("altair-output.html", "learn/altair-output/index.html", {
-        "title": "Sending a byte out",
-    })
-    site.render_template("altair-input.html", "learn/altair-input/index.html", {
-        "title": "Receiving a byte",
-    })
-    site.render_template("altair-polling.html", "learn/altair-polling/index.html", {
-        "title": "Waiting for a byte",
-    })
-    site.render_template("bytes-as-characters.html", "learn/bytes-as-characters/index.html", {
-        "title": "Bytes can be letters",
-    })
-    site.render_template("typing-to-the-computer.html", "learn/typing-to-the-computer/index.html", {
-        "title": "Typing to the computer",
-    })
-    site.render_template("a-different-reply.html", "learn/a-different-reply/index.html", {
-        "title": "A different reply",
-    })
-    site.render_template("printing-a-message.html", "learn/printing-a-message/index.html", {
-        "title": "Printing a message",
-    })
-    site.render_template("where-does-a-message-end.html", "learn/where-does-a-message-end/index.html", {
-        "title": "Where does a message end?",
-    })
-    site.render_template("remembering-what-you-type.html", "learn/remembering-what-you-type/index.html", {
-        "title": "Remembering what you type",
-    })
-    site.render_template("remembering-where-to-return.html", "learn/remembering-where-to-return/index.html", {
-        "title": "Remembering where to return",
-    })
-    site.render_template("a-routine-inside-a-routine.html", "learn/a-routine-inside-a-routine/index.html", {
-        "title": "A routine inside a routine",
-    })
+    for index, lesson in enumerate(lessons):
+        site.render_template(f"{lesson['slug']}.html", f"{lesson['url']}index.html", {
+            "title": lesson["title"],
+            "previous_lesson": lessons[index - 1] if index else None,
+            "next_lesson": lessons[index + 1] if index + 1 < len(lessons) else None,
+        })
+    site.render_template("learn.html", "learn/index.html", {"title": "All lessons"})
     site.render_template("home.html", "index.html", {
         "title": "Computers, from the instruction up",
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + twenty-six introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
+    print(f"Built home + lesson index + {len(lessons)} introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

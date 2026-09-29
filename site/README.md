@@ -4,11 +4,25 @@
 the processor models and executable specifications; it is credited alongside
 the site’s other tools, Ryland and Sauvignon.
 
-Ryland builds the home page, the introductory lessons, and one guide per processor from its executable
-specification. Sauvignon renders both architecture diagrams and state maps
+Ryland builds the home page, the lesson index, the introductory lessons, and one
+guide per processor from its executable specification. Sauvignon renders both
+architecture diagrams and state maps
 derived from the CPU compiler. Pages use ordinary HTML, CSS, and SVG, with
 small TypeScript modules for the lesson interactions. Processor guides need no
 JavaScript; diagrams are rendered during the build. No CDN requests are needed.
+
+## Lesson navigation
+
+The Learn link opens `/learn/`, a contents page grouped into bits and memory,
+8080 programming, the Altair panel and I/O, and text, buffers, and subroutines.
+Each lesson has an All lessons link alongside Previous/Next navigation.
+
+[`lessons.py`](lessons.py) owns lesson titles, summaries, grouping, and order.
+The build uses this catalogue both to render the lesson pages and to populate
+[`learn.html`](templates/learn.html) and the shared
+[navigation include](templates/lesson-navigation.html). Add new lessons to the
+catalogue in their intended learning order; their templates include the shared
+navigation instead of naming their neighbors. The index works without JavaScript.
 
 ## Build and preview
 
@@ -360,6 +374,13 @@ CALL/RET descriptions and RAM renderer, expanding the stack window to four
 bytes with fixed inner/outer roles. Both return destinations come from CPU
 reads of RAM; there is no host call stack. The linked contract covers nested
 returns, stack reuse, and editing one continuation while both calls are active.
+
+[Keeping a value across a call](../docs/machines/save-registers-lesson.md)
+selects `save-registers` with `8080/altair-save-registers-lesson.machine`.
+The four-byte stack window distinguishes saved H/L from the return address.
+PUSH/POP descriptions use captured CPU records. The guest routine preserves HL,
+so the caller can print twice after choosing the message once. The linked
+contract covers editing saved data and skipping POP before RET.
 
 ## Checks
 

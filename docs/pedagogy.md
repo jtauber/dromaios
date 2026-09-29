@@ -194,10 +194,19 @@ pointer-based stores, an eight-character capacity, and later readback from RAM.
 RET, and SP by invoking one printing routine from two places.
 [A routine inside a routine](machines/nested-call-lesson.md) then separates
 character output into an inner call, making last-in, first-out returns visible.
+[Keeping a value across a call](machines/save-registers-lesson.md) adds PUSH H
+and POP H to preserve the caller's message pointer.
 
-The next major priority is milestones 1 and 2 together: make one addition
+The remaining capstone for this introductory path is a tiny command prompt:
+print a prompt, collect a line in a bounded buffer, choose an action, respond,
+and repeat. Review the complete learning path at that boundary. Then introduce
+a small 6502 comparison alongside the historical Altair work, whose first
+software milestone and requirement to select a hardware configuration are defined in the
+[roadmap](../ROADMAP.md#5-build-the-first-complete-machine-incrementally).
+
+A complementary priority remains milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the
-first major delivery checkpoint and gives later instruments a concrete
+arithmetic delivery checkpoint and gives later instruments a concrete
 foundation. The sequence guides development; comparisons and supporting tools
 can develop alongside other milestones as learning needs emerge.
 

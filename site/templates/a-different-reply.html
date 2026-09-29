@@ -55,7 +55,7 @@
       <p>The input and display are the same teaching devices as before. The difference is in the program bytes loaded into RAM. The CPU compares numbers and follows instructions; the display still only presents the bytes sent by OUT.</p>
       <p>STOP keeps the current decision, pending input, and output intact. Start this lesson again clears the experiment and prepares lowercase a. As before, the text display keeps the latest 256 output bytes. The reference card shows the complete fixed program; changing a program byte pauses execution until it is restored.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/typing-to-the-computer/') }}"><span aria-hidden="true">←</span> Typing to the computer</a><a href="{{ calc_url('learn/printing-a-message/') }}">Printing a message <span aria-hidden="true">→</span></a></nav>
+    {% include "lesson-navigation.html" %}
   </div>
 </main>
 {% endblock %}

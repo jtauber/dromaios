@@ -46,10 +46,7 @@
       <p>In this experiment, you control the pace: each press runs one whole instruction, and nothing runs between presses. You can pause simply by stopping. Step remains available, and Start again restores the original setup.</p>
       <p>We have learned how to repeat. Next we need a way for the program to decide whether to repeat—or continue somewhere else.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation">
-      <a href="{{ calc_url('learn/jump/') }}"><span aria-hidden="true">←</span> Taking a different path</a>
-      <a href="{{ calc_url('learn/conditional-loop/') }}">Next: Knowing when to stop <span aria-hidden="true">→</span></a>
-    </nav>
+    {% include "lesson-navigation.html" %}
   </div>
 </main>
 {% endblock %}

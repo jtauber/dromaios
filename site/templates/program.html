@@ -44,10 +44,7 @@
       <p>The store occupies three bytes, so the final step leaves PC at <code>0108</code>. Our lesson stops offering steps there. The processor has not executed a halt instruction; we have reached the end of this little experiment.</p>
       <p>You have followed a stored program: instruction bytes tell the processor what to do, and PC tells it where to look next. Here, each instruction leads to the following one. Later, we will see instructions that deliberately change that path.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation">
-      <a href="{{ calc_url('learn/add-one/') }}"><span aria-hidden="true">←</span> Doing something with a byte</a>
-      <a href="{{ calc_url('learn/change-program/') }}">Next: Change one byte, change the program <span aria-hidden="true">→</span></a>
-    </nav>
+    {% include "lesson-navigation.html" %}
   </div>
 </main>
 {% endblock %}

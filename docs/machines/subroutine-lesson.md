@@ -4,7 +4,7 @@ This introduces CALL, RET, and SP using the familiar
 [zero-terminated printing loop](terminated-message-lesson.md). Two sequential
 calls execute one routine, saving different continuations in the same RAM.
 The next lesson, [A routine inside a routine](nested-call-lesson.md), adds
-a nested call. Register saving remains a later lesson.
+a nested call. Register saving follows in [Keeping a value across a call](save-registers-lesson.md).
 
 [Machine definition](../../src/machines/8080/altair-subroutine-lesson.machine) ·
 [Machine tests](../../tests/machines/8080/altair-subroutine-lesson.test.ts) ·

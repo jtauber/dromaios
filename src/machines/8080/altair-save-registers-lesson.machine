@@ -1,0 +1,37 @@
+// Preserve the caller's message pointer so either call can start there again.
+components {
+    ram = ram 10000
+    output = byte-output
+}
+
+cpu 8080 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    PC = 0000  SP = 0000
+    flags { S = 0  Z = 0  AC = 0  P = 0  CY = 0 }
+    interruptEnabled = false  interruptDeferred = false  halted = false
+}
+
+memory = ram
+ports { out 01 = output 0 }
+
+image ram 0000 {
+    31 00 02            // 0000: LXI SP,0200
+    21 00 01            // 0003: LXI H,0100 — the caller chooses the message once.
+    CD 0D 00            // 0006: CALL 000D — save return address 0009.
+    CD 0D 00            // 0009: CALL 000D — save return address 000C.
+    76                  // 000C: HLT
+    E5                  // 000D: PUSH H — save the caller's H and L.
+    7E                  // 000E: MOV A,M
+    FE 00               // 000F: CPI 00
+    CA 1A 00            // 0011: JZ 001A — restore HL when the message ends.
+    D3 01               // 0014: OUT 01
+    23                  // 0016: INX H
+    C3 0E 00            // 0017: JMP 000E
+    E1                  // 001A: POP H — restore HL before RET reads the next pair.
+    C9                  // 001B: RET
+}
+
+image ram 0100 { 48 45 4C 4C 4F 0A 00 } // HELLO, line feed, NUL.
+// Saved H/L use 01FC–01FD; return addresses use 01FE–01FF. All start at zero.
+
+reset { cpu output }

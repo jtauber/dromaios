@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "instruments/altair-panel.html" import altair_panel %}
+{% block description %}Save a message pointer with PUSH H, let an 8080 routine use it, and restore it with POP H. See register values and return addresses share the same RAM stack.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Meet the Altair · Saving registers</p>
+    <h1>Keeping a value<br><em>across a call.</em></h1>
+    <p class="lesson-intro">A routine can find its way back and still leave your registers changed. How can it borrow the message pointer, then give back the value its caller needs?</p>
+  </header>
+  <p class="experiment-note"><strong>Begin here:</strong> Step four instructions. CALL has saved return address 0009, and PUSH H has saved the pointer 0100 in a second pair of stack bytes. HL is still 0100. Nothing has been printed yet.</p>
+  {{ altair_panel(mode='save-registers') }}
+  <div class="lesson-prose">
+    <section aria-labelledby="borrow-the-pointer">
+      <h2 id="borrow-the-pointer">Borrow the pointer.</h2>
+      <p>In the previous lessons, the printing routine left HL pointing at NUL. RET brought execution back to the caller, but it left HL changed. The routine had to set HL to 0100 again each time it began.</p>
+      <p>Here the <strong>caller chooses the message</strong>: its LXI H puts 0100 into HL once, before either call. The printing routine starts reading wherever HL points. As it prints, INX H still advances the pointer.</p>
+      <p>We want the routine to preserve the caller's starting pointer, so both calls can print the same message. Two new instructions make that possible: <strong>PUSH H</strong> before the loop and <strong>POP H</strong> after it.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> If the routine left HL pointing at NUL again, what would the second call print?</p><details><summary>Show an explanation</summary><p>Nothing. It would read zero immediately and finish without reaching OUT. Returning to the caller and restoring its pointer are separate jobs.</p></details><a href="#execution">Follow the saved pointer ↑</a></aside>
+    </section>
+    <section aria-labelledby="save-two-registers">
+      <h2 id="save-two-registers">Save two registers in two bytes.</h2>
+      <p>The CALL at 0006 saves 0009 at 01FE–01FF and leaves SP at 01FE. The routine's first instruction is <code>PUSH H</code>. In this instruction's name, <strong>H selects the H–L register pair</strong>: both bytes are saved.</p>
+      <p>PUSH decreases SP and writes H, 01, at 01FD. It decreases SP again and writes L, 00, at 01FC. These bytes form the saved pointer 0100. The return address in the next pair is untouched.</p>
+      <p>PUSH copies the value into RAM. It does not empty the registers or move the pointer: HL remains 0100, ready for the loop to use. PC advances to the next instruction at 000E.</p>
+      <p>The CPU does not tag these bytes as “pointer” or “return address.” The table's labels explain how our program uses the locations. Which instruction reads them determines what happens next.</p>
+    </section>
+    <section aria-labelledby="use-and-restore">
+      <h2 id="use-and-restore">Use the pointer, then restore it.</h2>
+      <p>The familiar loop prints HELLO and LF. HL advances to 0106, while its original value stays in the saved bytes. When MOV reads NUL and CPI sets Z, the conditional jump selects POP H at 001A.</p>
+      <p><strong>POP H reads the byte at SP into L, then the next byte into H.</strong> HL becomes 0100 again and SP advances to 01FE. The bytes remain in RAM.</p>
+      <p>POP advances PC to the following instruction, RET at 001B. It has restored the pointer, but has not returned to the caller. RET then reads 0009 from the next stack pair into PC and advances SP to 0200.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Step until PC is 001A, just before the first POP. Then step twice, watching HL, SP, and PC.</p><details><summary>Show an explanation</summary><p>After instruction 43, HL is 0106 and SP is 01FC. Instruction 44, POP H, restores HL to 0100 and advances SP to 01FE. Instruction 45, RET, selects PC 0009 and advances SP to 0200. Neither instruction prints or erases anything.</p></details><a href="#execution">Compare POP with RET ↑</a></aside>
+    </section>
+    <section aria-labelledby="a-promise-to-the-caller">
+      <h2 id="a-promise-to-the-caller">Make a promise the caller can use.</h2>
+      <p>The second call now starts with the same HL as the first, without another LXI H. It saves and restores that pointer in the same two locations. The complete run prints two HELLO lines in 89 instructions, leaving HL at 0100 and SP at 0200.</p>
+      <p>Our routine's promise is specific: <strong>HL is preserved</strong>. A and the flags still hold the values left by reading and testing NUL. PUSH H and POP H do not save or restore them.</p>
+      <p>This promise comes from the instructions we wrote. CALL and RET do not automatically preserve registers. A routine can preserve selected values itself, or its caller can save values it needs before calling.</p>
+      <details><summary>Change the saved pointer before it is restored</summary><p>Start again and step four instructions. EXAMINE 01FC, set the switches to 0001, and DEPOSIT. You have changed the saved L, making the stored pointer 0101. HL is still 0100. EXAMINE 000E to restore PC, then RUN. The first call prints HELLO as usual; POP H restores the edited pointer, so the second call prints ELLO. The captured PUSH explanation still reports the original 0100.</p></details>
+    </section>
+    <section aria-labelledby="finish-in-reverse-order">
+      <h2 id="finish-in-reverse-order">Finish in reverse order.</h2>
+      <p>CALL saved a return address first; PUSH saved HL afterward. To finish correctly, POP must read the saved HL before RET reads the return address. This is the same last-in, first-out rule as nested calls.</p>
+      <details><summary>What happens if RET runs before POP?</summary><p>Start again and step until PC is 001A after the first HELLO line. EXAMINE 001B to skip POP, then step RET. SP still points at the saved pointer, so RET reads 0100 into PC. It leaves HL at 0106 and advances SP only to 01FE. The lesson pauses because 0100 is not an instruction start in its reference program. A real CPU does not check whether these bytes were intended as a return address.</p></details>
+      <p>Start again to restore the normal path. We now have the pieces for a small interactive program: input, a buffer, decisions, and routines that return with the values their callers need.</p>
+    </section>
+    {% include "lesson-navigation.html" %}
+  </div>
+</main>
+{% endblock %}

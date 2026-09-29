@@ -116,6 +116,8 @@ examples add polling and consuming input reads with the same devices.
   routine twice and follow its saved return addresses in RAM.
 - [A routine inside a routine](machines/nested-call-lesson.md): follow two
   pending return addresses as a printing routine calls a character routine.
+- [Keeping a value across a call](machines/save-registers-lesson.md): preserve
+  the caller's message pointer with PUSH H and POP H, alongside the return address.
 - [Definition guide](machines/definitions.md): initial state and memory images,
   directory conventions, generated factories, and the editing/build workflow.
 - [Memory components and maps](machines/memory-map.md): RAM/ROM ownership,

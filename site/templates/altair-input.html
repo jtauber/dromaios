@@ -46,7 +46,7 @@
       <p>The underlying input device would return zero if read while empty. A real program using this device must check whether a byte is ready to distinguish an empty read from a received zero. The <a href="{{ calc_url('learn/altair-polling/') }}">next lesson</a> makes that check part of the program.</p>
       <details><summary>What this view models</summary><p>The input device stores one waiting byte; it has no queue. These input switches and the separate lamp device are teaching illustrations, not particular historical Altair peripherals. Both devices are connected through the machine’s ports. RUN, STOP, and stepping work at whole-instruction boundaries; physical timing and bus signals remain outside this view. Stopping at 0104 is a lesson boundary, not a halt instruction. Start this lesson again restores the program, empties both devices, clears the counts and history, and prepares 42 on the input switches.</p></details>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/altair-output/') }}"><span aria-hidden="true">←</span> Sending a byte out</a><a href="{{ calc_url('learn/altair-polling/') }}">Waiting for a byte <span aria-hidden="true">→</span></a></nav>
+    {% include "lesson-navigation.html" %}
   </div>
 </main>
 {% endblock %}

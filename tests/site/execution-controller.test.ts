@@ -773,3 +773,68 @@ test("nested-call restart cancels queued work at either call depth and restores 
     assert.deepEqual([0x1fc, 0x1fd, 0x1fe, 0x1ff].map(address => old.ram.read(address)), stack);
   }
 });
+
+test("register-saving STOP preserves pending PUSH, POP, and RET without repeating their accesses", () => {
+  const timer = clock();
+  const lesson = createTerminalLesson("save-registers");
+  const execution = createExecutionController({
+    step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+    onChange() {}, schedule: timer.schedule,
+  });
+  execution.run();
+  for (let i = 0; i < 3; i++) timer.tick();
+  const push = timer.pending[0]!;
+  execution.stop(); push.callback();
+  assert.deepEqual([lesson.snapshot().pc, lesson.snapshot().sp, lesson.ram.read(0x1fd)], [13, 0x1fe, 0]);
+  execution.run(); timer.tick(); execution.stop();
+  assert.deepEqual([lesson.snapshot().pc, lesson.snapshot().sp, lesson.ram.read(0x1fd)], [14, 0x1fc, 1]);
+  execution.run();
+  for (let i = 4; i < 43; i++) timer.tick();
+  const pop = timer.pending[0]!;
+  execution.stop(); pop.callback();
+  assert.deepEqual([lesson.snapshot().pc, lesson.snapshot().hl, lesson.snapshot().sp], [26, 0x106, 0x1fc]);
+  execution.run(); timer.tick();
+  const returned = timer.pending[0]!;
+  execution.stop(); returned.callback();
+  assert.deepEqual([lesson.snapshot().pc, lesson.snapshot().hl, lesson.snapshot().sp], [27, 0x100, 0x1fe]);
+  execution.run();
+  for (let i = 44; i < 89; i++) timer.tick();
+  assert.equal(execution.steps, 89);
+  assert.equal(execution.running, false);
+  assert.equal(execution.error, undefined);
+  assert.equal(timer.pending.length, 0);
+  assert.deepEqual(lesson.terminalSnapshot(), { text: "HELLO\nHELLO\n", retained: 12 });
+});
+
+test("register-saving restart cancels queued accesses and restores CPU, stack, and message", () => {
+  for (const completed of [0, 2, 3, 4, 7, 43, 44, 45, 46, 86, 87, 88]) {
+    const timer = clock();
+    let lesson = createTerminalLesson("save-registers");
+    const execution = createExecutionController({
+      step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+      onChange() {}, schedule: timer.schedule,
+    });
+    execution.run();
+    for (let i = 0; i < completed; i++) timer.tick();
+    const old = lesson;
+    const state = old.snapshot();
+    const output = old.terminalSnapshot();
+    const stack = [0x1fc, 0x1fd, 0x1fe, 0x1ff].map(address => old.ram.read(address));
+    old.ram.write(0x100, 0);
+    const queued = timer.pending[0]!;
+    execution.reset(); lesson = createTerminalLesson("save-registers");
+    assert.deepEqual([lesson.snapshot().hl, lesson.snapshot().sp], [0, 0]);
+    assert.deepEqual([0x1fc, 0x1fd, 0x1fe, 0x1ff].map(address => lesson.ram.read(address)), [0, 0, 0, 0]);
+    assert.equal(lesson.ram.read(0x100), 72);
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "", retained: 0 });
+    execution.run(); queued.callback();
+    assert.equal(execution.steps, 0);
+    for (let i = 0; i < 89; i++) timer.tick();
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "HELLO\nHELLO\n", retained: 12 });
+    assert.equal(execution.running, false);
+    assert.equal(execution.error, undefined);
+    assert.deepEqual(old.snapshot(), state);
+    assert.deepEqual(old.terminalSnapshot(), output);
+    assert.deepEqual([0x1fc, 0x1fd, 0x1fe, 0x1ff].map(address => old.ram.read(address)), stack);
+  }
+});

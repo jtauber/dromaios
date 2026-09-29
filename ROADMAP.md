@@ -143,8 +143,15 @@ prerequisite for browser or machine development.
 The introductory browser path connects byte and memory explorations to real
 8080 instructions, loops, and Altair panel operations. Stepping and paced
 running with STOP/resume now work, with captured records and bounded history.
-Build toward longer programs and reusable inspection views, keeping browser
-pacing distinct from emulated machine time.
+Finish this introductory path with register preservation and a tiny command
+prompt that prints a prompt, reads a line, chooses an action, responds, and
+repeats. That capstone is the review point for the learning path before adding
+more introductory Altair lessons. Keep browser pacing distinct from emulated
+machine time.
+
+After the capstone, introduce a small 6502 comparison alongside the historical
+Altair work. Use a familiar computation to exercise shared teaching views across
+architectures while exposing the processors' different conventions.
 
 The [pedagogical roadmap](docs/pedagogy.md#pedagogical-roadmap) defines the
 learning milestones and review points, beginning with an arithmetic explorer
@@ -192,13 +199,17 @@ and follow their effects during execution.
 ## 5. Build the first complete machine incrementally
 
 - Build the **Altair 8800** first, beginning with its front panel and small
-  programs familiar from the 8080 lessons, then add input/output and select
-  a modest software target.
+  programs familiar from the 8080 lessons. The first substantial software
+  milestone is an early BASIC. Select its exact version and the Altair hardware
+  configuration before implementing the required historical input/output and
+  loading path. Current lessons use simplified teaching devices.
 - Connect the CPU, memory, and devices, adding machine-specific behavior and
   timing in small steps with explanations and appropriate checks.
 - Build on existing ROM, program-image, and input/output support, extending
   loading and device behavior as the target software requires.
 - Identify the existing emulator behavior that the new machine can replace.
+- Add further peripherals and tighter timing fidelity when selected software or
+  a lesson requires them; these are separate milestones beyond the first BASIC.
 
 **Review point:** The target software runs with understood limitations, and
 users can inspect the relevant internal activity.

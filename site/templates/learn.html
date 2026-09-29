@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block description %}Browse every interactive lesson: bits and memory, programming the Intel 8080, the Altair panel, input and output, text, buffers, and subroutines.{% endblock %}
+{% block main %}
+<main id="main" class="lesson lesson-index">
+  <header class="lesson-header">
+    <p class="eyebrow">Learn · {{ lesson_count }} interactive lessons</p>
+    <h1>Find your<br><em>next lesson.</em></h1>
+    <p class="lesson-intro">Follow the lessons in order, or jump straight to a topic. Each opens with its own experiment, ready to run.</p>
+  </header>
+  <nav class="lesson-groups" aria-label="Lesson topics">
+    {% for group in lesson_groups %}<a href="#{{ group.slug }}">{{ group.title }} <span aria-hidden="true">↓</span></a>{% endfor %}
+  </nav>
+  {% for group in lesson_groups %}
+  <section class="lesson-group" aria-labelledby="{{ group.slug }}">
+    <header>
+      <p class="eyebrow">{{ '%02d' | format(loop.index) }} · {{ group.lessons | length }} lessons</p>
+      <h2 id="{{ group.slug }}">{{ group.title }}</h2>
+      <p>{{ group.summary }}</p>
+    </header>
+    <ul class="lesson-list">
+      {% for lesson in group.lessons %}
+      <li><a href="{{ calc_url(lesson.url) }}">
+        <span><strong>{{ lesson.title }}</strong><span class="lesson-summary">{{ lesson.summary }}</span></span>
+        <span class="lesson-arrow" aria-hidden="true">→</span>
+      </a></li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+</main>
+{% endblock %}

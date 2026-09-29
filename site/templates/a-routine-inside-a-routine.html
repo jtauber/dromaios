@@ -46,9 +46,9 @@
       <p>The two saved addresses are independent pieces of data. Changing the outer one need not change where the character routine returns.</p>
       <details><summary>Skip the second HELLO while both calls are active</summary><p>Start again and step seven instructions. EXAMINE 01FE, set the switches to 0009, and DEPOSIT. You have changed the outer address from 0006 to 0009; the inner address is still 0016. EXAMINE 001B to restore PC. Step twice: H prints, then the inner RET still returns to 0016. RUN finishes the first HELLO line, but the outer RET now selects HLT at 0009. The second line is skipped.</p></details>
       <p>The last-instruction record preserves what happened when CALL executed, even after you edit RAM. The live table shows the bytes RET will actually read. Start again to restore the ordinary path.</p>
-      <p>The character routine happens to preserve A, HL, and flags: OUT and RET leave them alone. CALL itself does not promise that a routine will preserve registers. Saving values across a call is a separate job for a later lesson.</p>
+      <p>The character routine happens to preserve A, HL, and flags: OUT and RET leave them alone. CALL itself does not promise that a routine will preserve registers. The next lesson shows how to save values across a call.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/remembering-where-to-return/') }}"><span aria-hidden="true">←</span> Remembering where to return</a></nav>
+    {% include "lesson-navigation.html" %}
   </div>
 </main>
 {% endblock %}

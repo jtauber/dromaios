@@ -35,10 +35,7 @@
       <p>On the Intel 8080, A is also called the <strong>accumulator</strong>. It is a working register used for arithmetic. In the next lesson, we will change its value with a calculation between the load and the store.</p>
       <p>For now, the important idea is that a register can hold a copy of a byte independently of memory. Each button above runs a real 8080 instruction to make that copy.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation">
-      <a href="{{ calc_url('learn/memory/') }}"><span aria-hidden="true">←</span> Where does a byte live?</a>
-      <a href="{{ calc_url('learn/add-one/') }}">Next: Doing something with a byte <span aria-hidden="true">→</span></a>
-    </nav>
+    {% include "lesson-navigation.html" %}
   </div>
 </main>
 {% endblock %}

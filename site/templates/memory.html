@@ -45,10 +45,7 @@
       <p>Reading asks, “What is at this address?” Writing says, “Store this byte at this address.” A write replaces the previous contents of that location.</p>
       <p>This explorer starts each byte at zero to make it easy to experiment. That is a choice for this lesson, not a promise about real RAM when power is first turned on. Starting again or reloading the page clears our little memory.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation">
-      <a href="{{ calc_url('learn/byte-wraparound/') }}"><span aria-hidden="true">←</span> What happens after 255?</a>
-      <a href="{{ calc_url('learn/register/') }}">Next: A place to work <span aria-hidden="true">→</span></a>
-    </nav>
+    {% include "lesson-navigation.html" %}
   </div>
 </main>
 {% endblock %}

@@ -44,10 +44,7 @@
       <p>The destination choice locks after the first step. Start again restores the original data, processor state, and skip path. These are lesson controls; the processor itself follows the instruction bytes.</p>
       <p>So far our jumps move forward. A jump back to an earlier instruction can make the processor repeat part of a program. That will be our next step.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation">
-      <a href="{{ calc_url('learn/change-program/') }}"><span aria-hidden="true">←</span> Change one byte, change the program</a>
-      <a href="{{ calc_url('learn/loop/') }}">Next: Going around again <span aria-hidden="true">→</span></a>
-    </nav>
+    {% include "lesson-navigation.html" %}
   </div>
 </main>
 {% endblock %}

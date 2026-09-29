@@ -14,6 +14,7 @@ import { create8080AltairTerminatedMessageLesson } from "../../src/machines/gene
 import { create8080AltairBufferLesson } from "../../src/machines/generated/8080/altair-buffer-lesson.js";
 import { create8080AltairSubroutineLesson } from "../../src/machines/generated/8080/altair-subroutine-lesson.js";
 import { create8080AltairNestedCallLesson } from "../../src/machines/generated/8080/altair-nested-call-lesson.js";
+import { create8080AltairSaveRegistersLesson } from "../../src/machines/generated/8080/altair-save-registers-lesson.js";
 import { createAltairMemoryPanel } from "./altair-panel.js";
 import { registerProgram, hex, readAddress, load, loadImmediate, add, compare, jump, jumpIf } from "./register-programs.js";
 import type { CompletedInstruction, LessonInstruction } from "./register-programs.js";
@@ -125,6 +126,29 @@ function loadStackPointer(address: number): LessonInstruction {
   };
 }
 
+function describeWrites(accesses: CompletedInstruction["accesses"]): string {
+  return accesses.flatMap(access => access.kind === "write"
+    ? [`${hex(access.address, 4)} ← ${hex(access.value, 2)}`] : []).join(", then ");
+}
+
+function pushPointer(address: number): LessonInstruction {
+  return {
+    address, length: 1, action: "write", mnemonic: () => "PUSH H",
+    explanation: () => "Save H and L on the stack without changing HL",
+    prompt: "Save the pointer. Which bytes will change, and will HL move?",
+    describe: ({ before, after, accesses }) => `Saved HL ${hex(before.hl, 4)} in RAM: ${describeWrites(accesses)}. SP moved from ${hex(before.sp, 4)} to ${hex(after.sp, 4)}. HL still holds ${hex(after.hl, 4)}; A, flags, and output are unchanged. PUSH H saves both H and L.`,
+  };
+}
+
+function popPointer(address: number): LessonInstruction {
+  return {
+    address, length: 1, action: "read", mnemonic: () => "POP H",
+    explanation: () => "Read the stack's low and high bytes into L and H",
+    prompt: "Restore the pointer. Will this return to the caller too?",
+    describe: ({ before, after }) => `Read L ${hex(after.l, 2)} from RAM at ${hex(before.sp, 4)} and H ${hex(after.h, 2)} from ${hex((before.sp + 1) & 0xffff, 4)}. HL changed from ${hex(before.hl, 4)} to ${hex(after.hl, 4)}; SP moved from ${hex(before.sp, 4)} to ${hex(after.sp, 4)}. PC advanced to ${hex(after.pc, 4)}, the next instruction. A, flags, RAM, and output are unchanged; POP did not return to the caller.`,
+  };
+}
+
 function callInstruction(address: number): LessonInstruction {
   return {
     address, length: 3, action: "jump", mnemonic: read => `CALL ${hex(readAddress(read, address + 1), 4)}H`,
@@ -132,9 +156,7 @@ function callInstruction(address: number): LessonInstruction {
     prompt: "Which address must the CPU remember to continue after this CALL?",
     describe: ({ instruction, before, after, accesses }) => {
       const continuation = (instruction.address + instruction.bytes.length) & 0xffff;
-      const writes = accesses.flatMap(access => access.kind === "write"
-        ? [`${hex(access.address, 4)} ← ${hex(access.value, 2)}`] : []).join(", then ");
-      return `Saved return address ${hex(continuation, 4)} in RAM: ${writes}. SP moved from ${hex(before.sp, 4)} to ${hex(after.sp, 4)}; PC moved to ${hex(after.pc, 4)}. A, HL, flags, and output are unchanged. The routine's first instruction is next.`;
+      return `Saved return address ${hex(continuation, 4)} in RAM: ${describeWrites(accesses)}. SP moved from ${hex(before.sp, 4)} to ${hex(after.sp, 4)}; PC moved to ${hex(after.pc, 4)}. A, HL, flags, and output are unchanged. The routine's first instruction is next.`;
     },
   };
 }
@@ -247,6 +269,16 @@ const programs = {
       returnInstruction(0x1a), outputInstruction(0x1b), returnInstruction(0x1d)],
     bytes: [0x31, 0, 2, 0xcd, 0x0a, 0, 0xcd, 0x0a, 0, 0x76,
       0x21, 0, 1, 0x7e, 0xfe, 0, 0xca, 0x1a, 0, 0xcd, 0x1b, 0, 0x23, 0xc3, 0x0d, 0, 0xc9, 0xd3, 1, 0xc9],
+    editableOperand: undefined,
+  },
+  "save-registers": {
+    createMachine: create8080AltairSaveRegistersLesson,
+    instructions: [loadStackPointer(0), loadPointer(3), callInstruction(6), callInstruction(9), haltInstruction(0x0c),
+      pushPointer(0x0d), readPointedByte(0x0e), compare(0x0f), jumpIf(0x11, "z", 1),
+      outputInstruction(0x14), advancePointer(0x16), jump(0x17, () => "Next, read through HL again."),
+      popPointer(0x1a), returnInstruction(0x1b)],
+    bytes: [0x31, 0, 2, 0x21, 0, 1, 0xcd, 0x0d, 0, 0xcd, 0x0d, 0, 0x76,
+      0xe5, 0x7e, 0xfe, 0, 0xca, 0x1a, 0, 0xd3, 1, 0x23, 0xc3, 0x0e, 0, 0xe1, 0xc9],
     editableOperand: undefined,
   },
 } as const;

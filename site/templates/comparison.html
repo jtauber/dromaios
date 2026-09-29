@@ -55,10 +55,7 @@
       </aside>
       <p>We can now make a loop finish at a chosen number while keeping that number in A. Comparison supplies the answer; the jump chooses the path.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation">
-      <a href="{{ calc_url('learn/countdown/') }}"><span aria-hidden="true">←</span> Counting down</a>
-      <a href="{{ calc_url('learn/altair-memory/') }}">Next: Switches, lights, and memory <span aria-hidden="true">→</span></a>
-    </nav>
+    {% include "lesson-navigation.html" %}
   </div>
 </main>
 {% endblock %}

@@ -3,7 +3,7 @@
 {% from "instruments/terminal.html" import character_input, terminal_output %}
 {% from "instruments/ram-window.html" import ram_window %}
 {% macro reference_card(mode) %}
-{% set terminal = mode in ['terminal', 'reply', 'message', 'terminated-message', 'buffer', 'subroutine', 'nested-call'] %}
+{% set terminal = mode in ['terminal', 'reply', 'message', 'terminated-message', 'buffer', 'subroutine', 'nested-call', 'save-registers'] %}
 {% if mode == 'terminal' %}{% set mode = 'polling' %}{% endif %}
 {% set reply = mode == 'reply' %}
 {% set running = mode == 'running' %}
@@ -17,6 +17,7 @@
   'polling': ('Loaded polling program · reference card', 'These fourteen bytes are already loaded at 0100.'),
   'reply': ('Loaded reply program · reference card', 'These twenty-one bytes are already loaded at 0100.'),
   'message': ('Loaded message program · reference card', 'These fourteen program bytes are already loaded at 0000. The six message bytes begin at 0100.'),
+  'save-registers': ('Loaded register-saving program · reference card', 'These twenty-eight program bytes are loaded at 0000. HELLO, LF, and NUL begin at 0100; saved H/L and the return address use 01FC–01FF.'),
   'nested-call': ('Loaded nested-call program · reference card', 'These thirty program bytes are loaded at 0000. HELLO, LF, and NUL begin at 0100; the two levels of calls use RAM at 01FC–01FF.'),
   'subroutine': ('Loaded subroutine program · reference card', 'These twenty-six program bytes are loaded at 0000. HELLO, LF, and NUL begin at 0100; CALL uses RAM at 01FE–01FF.'),
   'buffer': ('Loaded buffer program · reference card', 'These forty-four program bytes are loaded at 0000. The nine-byte buffer at 0100 starts at zero.'),
@@ -30,7 +31,12 @@
     <thead><tr><th scope="col">Address</th><th scope="col">Reference</th><th scope="col">RAM</th><th scope="col">Check</th></tr></thead>
     <tbody data-panel-entry-bytes></tbody>
   </table>
-  {% if mode == 'nested-call' %}
+  {% if mode == 'save-registers' %}
+  <p>0000: <code>LXI SP,0200H</code> chooses the stack starting point. 0003: <code>LXI H,0100H</code> chooses the message. 0006 and 0009: <code>CALL 000DH</code> call the printing routine, saving 0009 and 000C respectively. 000C: <code>HLT</code> finishes.</p>
+  <p>000D: <code>PUSH H</code> saves H and L. 000E: <code>MOV A,M</code>, 000F: <code>CPI 0</code>, and 0011: <code>JZ 001AH</code> check for NUL. 0014: <code>OUT 01H</code> sends A; 0016: <code>INX H</code> advances HL; 0017: <code>JMP 000EH</code> repeats.</p>
+  <p>001A: <code>POP H</code> restores L and H from RAM. 001B: <code>RET</code> reads the next stack pair into PC. Restoring HL lets the second call start at the same message without another LXI H.</p>
+  <p>The lesson checks all twenty-eight program bytes. Message and stack data can be edited while stopped. PUSH, POP, and RET act on real RAM; the viewer keeps no hidden copy of HL.</p>
+  {% elif mode == 'nested-call' %}
   <p>0000: <code>LXI SP,0200H</code> chooses a stack starting point. 0003 and 0006: <code>CALL 000AH</code> call the printing routine, saving 0006 and 0009 respectively. 0009: <code>HLT</code> finishes.</p>
   <p>000A: <code>LXI H,0100H</code> resets the message pointer. 000D: <code>MOV A,M</code>, 000E: <code>CPI 0</code>, and 0010: <code>JZ 001AH</code> check for NUL. 0013: <code>CALL 001BH</code> calls the character routine, saving 0016. 0016: <code>INX H</code> advances HL; 0017: <code>JMP 000DH</code> repeats. 001A: <code>RET</code> returns to the main program.</p>
   <p>001B: <code>OUT 01H</code> sends A. 001D: <code>RET</code> returns to the printing loop.</p>
@@ -73,11 +79,12 @@
 </details>
 {% endmacro %}
 {% macro processor_view(mode) %}
-{% set terminal = mode in ['terminal', 'reply', 'message', 'terminated-message', 'buffer', 'subroutine', 'nested-call'] %}
-{% set message = mode in ['message', 'terminated-message', 'buffer', 'subroutine', 'nested-call'] %}
+{% set terminal = mode in ['terminal', 'reply', 'message', 'terminated-message', 'buffer', 'subroutine', 'nested-call', 'save-registers'] %}
+{% set message = mode in ['message', 'terminated-message', 'buffer', 'subroutine', 'nested-call', 'save-registers'] %}
 {% set buffer = mode == 'buffer' %}
-{% set subroutine = mode in ['subroutine', 'nested-call'] %}
+{% set subroutine = mode in ['subroutine', 'nested-call', 'save-registers'] %}
 {% set nested = mode == 'nested-call' %}
+{% set saving = mode == 'save-registers' %}
 {% set terminated = mode == 'terminated-message' %}
 {% if mode == 'terminal' %}{% set mode = 'polling' %}{% endif %}
 {% set running = mode == 'running' %}
@@ -100,12 +107,18 @@
     {% endif %}
   </dl>
   {% if subroutine %}
-  {% set stack_bytes = [(0, 'Inner · low'), (0, 'Inner · high'), (0, 'Outer · low'), (0, 'Outer · high')] if nested else [(0, 'Low byte'), (0, 'High byte')] %}
+  {% set stack_start, stack_title, stack_bytes = {
+    'subroutine': (510, 'Return address in RAM', [(0, 'Low byte'), (0, 'High byte')]),
+    'nested-call': (508, 'Return addresses in RAM', [(0, 'Inner · low'), (0, 'Inner · high'), (0, 'Outer · low'), (0, 'Outer · high')]),
+    'save-registers': (508, 'Saved values in RAM', [(0, 'Saved L'), (0, 'Saved H'), (0, 'Return · low'), (0, 'Return · high')])
+  }[mode] %}
   <div class="panel-devices">
-    {{ ram_window(508 if nested else 510, stack_bytes, title='Return addresses in RAM' if nested else 'Return address in RAM', pointer_name='SP', characters=false) }}
+    {{ ram_window(stack_start, stack_bytes, title=stack_title, pointer_name='SP', characters=false) }}
     {{ ram_window(256, [(72, 'H'), (69, 'E'), (76, 'L'), (76, 'L'), (79, 'O'), (10, 'LF'), (0, 'NUL')]) }}
   </div>
-  {% if nested %}
+  {% if saving %}
+  <p class="experiment-note">This program saves L at 01FC and H at 01FD, below the return address at 01FE–01FF. POP H reads the first pair into HL; RET then reads the next pair into PC. The labels describe this program's use of RAM. Reading the bytes does not erase them.</p>
+  {% elif nested %}
   <p class="experiment-note">In this program, the inner return address uses 01FC–01FD; the outer one uses 01FE–01FF. RET reads the pair beginning at SP. The role labels stay in place after return, just as the bytes stay in RAM. These four rows are a window, not a CPU-enforced stack limit.</p>
   {% else %}
   <p class="experiment-note">With SP at 01FE, RET reads the low byte at 01FE and the high byte at 01FF. For example, 06 then 00 forms address 0006. At SP 0200, these bytes have been released but remain in RAM. The window shows two locations, not a CPU-enforced stack limit.</p>

@@ -44,10 +44,7 @@
       <p>These three instructions form a small program: bring a value in, work on it, and put the result somewhere. Each button runs one instruction; the others wait their turn.</p>
       <p>The program and its instruction bytes are already in memory. You can reveal them above. Next we will look at how the processor finds those instructions in order.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation">
-      <a href="{{ calc_url('learn/register/') }}"><span aria-hidden="true">←</span> A place to work: a register</a>
-      <a href="{{ calc_url('learn/program/') }}">Next: What comes next? <span aria-hidden="true">→</span></a>
-    </nav>
+    {% include "lesson-navigation.html" %}
   </div>
 </main>
 {% endblock %}

@@ -2,7 +2,7 @@
 
 This browser lesson follows [Remembering where to return](subroutine-lesson.md).
 It makes two pending continuations visible by moving the printing loop's OUT
-into a character routine. Register saving is a later lesson.
+into a character routine. Register saving follows in [Keeping a value across a call](save-registers-lesson.md).
 
 ## Machine and program
 
