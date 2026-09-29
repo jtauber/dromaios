@@ -1,0 +1,49 @@
+// Collect up to eight bytes, append NUL, then print the buffer and halt.
+components {
+    ram = ram 10000
+    input = byte-input
+    output = byte-output
+}
+
+cpu 8080 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    PC = 0000  SP = 0000
+    flags { S = 0  Z = 0  AC = 0  P = 0  CY = 0 }
+    interruptEnabled = false  interruptDeferred = false  halted = false
+}
+
+memory = ram
+ports {
+    in 00 = input 0
+    in 01 = input 1
+    out 01 = output 0
+}
+
+image ram 0000 {
+    21 00 01            // 0000: LXI H,0100 — next place to store a character.
+    06 08               // 0003: MVI B,08 — eight character slots.
+    DB 00               // 0005: IN 00 — sample readiness without consuming data.
+    FE 00               // 0007: CPI 00
+    CA 05 00            // 0009: JZ 0005 — wait while empty.
+    DB 01               // 000C: IN 01 — receive a byte into A.
+    FE 0A               // 000E: CPI 0A — line feed ends collection.
+    CA 19 00            // 0010: JZ 0019 — do not store LF.
+    77                  // 0013: MOV M,A — store through HL.
+    23                  // 0014: INX H — advance past the stored byte.
+    05                  // 0015: DCR B — one fewer slot.
+    C2 05 00            // 0016: JNZ 0005 — receive again only if space remains.
+    3E 00               // 0019: MVI A,00 — both endings append a terminator.
+    77                  // 001B: MOV M,A — at most address 0108.
+    21 00 01            // 001C: LXI H,0100 — rewind for reading.
+    7E                  // 001F: MOV A,M
+    FE 00               // 0020: CPI 00
+    CA 2B 00            // 0022: JZ 002B — skip OUT on NUL.
+    D3 01               // 0025: OUT 01
+    23                  // 0027: INX H
+    C3 1F 00            // 0028: JMP 001F — print the next stored byte.
+    76                  // 002B: HLT
+}
+
+image ram 0100 { 00 00 00 00 00 00 00 00 00 } // Eight slots plus a terminator slot.
+
+reset { cpu input output }

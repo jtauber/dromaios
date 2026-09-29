@@ -188,6 +188,8 @@ program chooses its response.
 message bytes in RAM, and a counter in B to a loop that produces text and halts.
 [Where does a message end?](machines/terminated-message-lesson.md) replaces the
 length counter with a zero terminator, testing each byte before sending it.
+[Remembering what you type](machines/buffer-lesson.md) combines input with
+pointer-based stores, an eight-character capacity, and later readback from RAM.
 
 The next major priority is milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the

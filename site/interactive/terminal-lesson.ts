@@ -26,7 +26,7 @@ function displayByte(value: number): string {
 }
 
 /** Retain actual device writes, including equal consecutive bytes, separately from the CPU's history. */
-export function createTerminalLesson(programName: "polling" | "reply" | "message" | "terminated-message" = "polling") {
+export function createTerminalLesson(programName: "polling" | "reply" | "message" | "terminated-message" | "buffer" = "polling") {
   const bytes: number[] = [];
   const program = createAltairProgram(programName, value => {
     bytes.push(value);

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "instruments/altair-panel.html" import altair_panel %}
+{% block description %}Store typed characters in RAM before printing them. Follow an 8080 as it writes through HL, counts available slots, and ends a small buffer with NUL.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Meet the Altair · Writing through a pointer</p>
+    <h1>Remembering<br><em>what you type.</em></h1>
+    <p class="lesson-intro">A character need not be printed as soon as it arrives. The program can save several characters in RAM, then read them back when the message is ready.</p>
+  </header>
+  <p class="experiment-note"><strong>Begin here:</strong> Send the prepared H while stopped. Step eight times to receive it and check that it is not LF. A holds 72, but RAM and the display are unchanged. The ninth instruction, MOV M,A, makes the first stored character appear in the buffer.</p>
+  {{ altair_panel(mode='buffer') }}
+  <div class="lesson-prose">
+    <section aria-labelledby="a-place-to-keep-text">
+      <h2 id="a-place-to-keep-text">A place to keep the characters.</h2>
+      <p>A <strong>buffer</strong> is a region of memory used to hold data. Our program uses <code>0100</code>–<code>0107</code> for up to eight characters, with one extra location at <code>0108</code> available for the zero terminator. All nine locations start at zero.</p>
+      <p><code>LXI H,0100H</code> puts the first buffer address into HL. <code>MVI B,08H</code> puts the capacity into B. During collection, HL points to the next place to write, and B counts the character slots still available.</p>
+      <p>The input device still holds only one pending byte. The larger buffer is ordinary RAM, filled by the program. Typing or pressing Send does not write to it.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> After IN receives H into A, what changes in the buffer?</p><details><summary>Show an explanation</summary><p>Nothing yet. IN consumes the device’s byte and puts 72 in A. A separate instruction must store that value in RAM.</p></details><a href="#execution">Follow the first character ↑</a></aside>
+    </section>
+    <section aria-labelledby="write-through-hl">
+      <h2 id="write-through-hl">Use the pointer in the other direction.</h2>
+      <p>You have seen <code>MOV A,M</code> read through HL. <strong><code>MOV M,A</code></strong> copies in the other direction: from A into the memory location addressed by HL. M still means “the byte at HL.”</p>
+      <p>The first store writes 48 hex, or 72 decimal, at 0100. A keeps 72, HL stays at 0100, and the display stays empty. <code>INX H</code> then advances HL to 0101; <code>DCR B</code> reduces B from 8 to 7. These are separate changes.</p>
+      <p>If B is not zero, <code>JNZ</code> returns to the readiness check. The program can keep polling while you prepare the next character. Readiness checks change A, but the stored H remains in RAM.</p>
+      <aside class="lesson-prompt"><p><strong>Look inside the store.</strong> Which address supplied the instruction, and which address received the character?</p><details><summary>Show an explanation</summary><p>The CPU fetched opcode 77 at 0013, then wrote 48 at 0100. The captured record shows a memory write, with no output-port transfer.</p></details><a href="#execution">Store, advance, and count ↑</a></aside>
+    </section>
+    <section aria-labelledby="finish-collecting">
+      <h2 id="finish-collecting">Tell the program the message is ready.</h2>
+      <p>After <code>IN 01H</code> receives a byte, the CPU compares it with 10 decimal, the value of LF. For this program, LF means <strong>finish collecting</strong>. It skips the character store, so LF takes no slot and does not enter the buffer.</p>
+      <p>The CPU puts zero into A, stores it through HL, and resets HL to 0100. This appends NUL after the characters and brings the pointer back to the start. Even though unused RAM already starts at zero, the program explicitly writes its terminator.</p>
+      <p>The familiar print loop now reads through HL, compares with zero, and sends each nonzero byte. Only these OUT instructions put text on the display. It halts at NUL; neither LF nor NUL is printed.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Collect H and I, then send line feed.</p><details><summary>A gentle walkthrough</summary><ol><li>Start this lesson again, then RUN at a comfortable pace.</li><li>Send H. Prepare I, wait until the input device is empty, then send it.</li><li>Wait for the device to be empty again and press <strong>Send line feed</strong>.</li><li>Watch the program finish the buffer, rewind HL, and print HI.</li></ol><p>RAM begins <code>48 49 00</code>. B finishes at 6, HL at 0102, A at zero, and PC at 002C. The display has received two writes. Pressing Enter in the character field sends that character; the separate line-feed button ends collection.</p></details><a href="#execution">Collect a short message ↑</a></aside>
+      <p>Sending LF first makes an empty message. The program stores NUL at 0100, then halts without executing OUT.</p>
+    </section>
+    <section aria-labelledby="room-for-the-ending">
+      <h2 id="room-for-the-ending">Keep room for the ending.</h2>
+      <p>After the eighth character, DCR leaves B at zero. JNZ does not return for more input. The program immediately appends NUL at 0108 and prints the eight stored characters, without waiting for LF.</p>
+      <p>The extra location matters: eight characters and a terminator require nine bytes. During normal execution from the start, the program never writes past 0108. B is decreased after the store, so it may briefly show its old value beside a newly written character.</p>
+      <p>You can prepare or offer another character while the CPU finishes. A later offer may wait in the input device, but this run will not receive or store it. Starting the lesson again clears that pending byte and the buffer.</p>
+      <aside class="lesson-prompt"><p><strong>Try a full buffer.</strong> Send ABCDEFGH, one character at a time. Does printing need a ninth input byte?</p><details><summary>Show an explanation</summary><p>No. The capacity check starts playback after H. The nine RAM bytes are <code>41 42 43 44 45 46 47 48 00</code>. A ninth character offered after H is received stays pending; it cannot replace the terminator.</p></details><a href="#execution">Fill all eight slots ↑</a></aside>
+    </section>
+    <section aria-labelledby="read-what-was-stored">
+      <h2 id="read-what-was-stored">The output comes from memory.</h2>
+      <p>Once a character has been stored, later typing does not change it. The readback loop obtains its bytes from RAM, not from the input field or a hidden copy of your text.</p>
+      <details><summary>Change stored H to J before playback</summary><p>Collect HI and send LF. Step until PC is 001F, just before the first readback MOV. STOP if running. EXAMINE 0100, set the switches to 004A, and DEPOSIT. Then EXAMINE 001F to restore PC and continue. The display prints JI. Editing RAM after that MOV would leave the first character already captured in A unchanged.</p></details>
+      <p>The switches remain available for experiments, but manually jumping into the middle of collection can bypass the setup and capacity check. Start again to return to the program’s normal path.</p>
+      <p>The character field offers printable ASCII, including spaces. LF is sent separately. The raw byte device can accept other values; a stored NUL would end readback early because this format uses zero as its terminator.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/where-does-a-message-end/') }}"><span aria-hidden="true">←</span> Where does a message end?</a></nav>
+  </div>
+</main>
+{% endblock %}

@@ -11,6 +11,7 @@ import { create8080AltairPollingLesson } from "../../src/machines/generated/8080
 import { create8080AltairReplyLesson } from "../../src/machines/generated/8080/altair-reply-lesson.js";
 import { create8080OutputExample } from "../../src/machines/generated/8080/output-example.js";
 import { create8080AltairTerminatedMessageLesson } from "../../src/machines/generated/8080/altair-terminated-message-lesson.js";
+import { create8080AltairBufferLesson } from "../../src/machines/generated/8080/altair-buffer-lesson.js";
 import { createAltairMemoryPanel } from "./altair-panel.js";
 import { registerProgram, hex, readAddress, load, loadImmediate, add, compare, jump, jumpIf } from "./register-programs.js";
 import type { CompletedInstruction, LessonInstruction } from "./register-programs.js";
@@ -46,12 +47,14 @@ function inputInstruction(address: number): LessonInstruction {
   };
 }
 
-const readinessInstruction: LessonInstruction = {
-  address: 0x100, length: 2, action: "input", mnemonic: () => "IN 00H",
-  explanation: () => "Read readiness from input port 0 into A: 0 empty, 1 ready",
-  prompt: "Check readiness without receiving the byte. What will A hold?",
-  describe: ({ before, after }) => `Read readiness ${after.a} (${after.a === 0 ? "empty" : "ready"}) from input port 0 into A, replacing ${before.a}. Checking consumed no data. Flags, RAM, and the output device were unchanged.`,
-};
+function readinessInstruction(address: number): LessonInstruction {
+  return {
+    address, length: 2, action: "input", mnemonic: () => "IN 00H",
+    explanation: () => "Read readiness from input port 0 into A: 0 empty, 1 ready",
+    prompt: "Check readiness without receiving the byte. What will A hold?",
+    describe: ({ before, after }) => `Read readiness ${after.a} (${after.a === 0 ? "empty" : "ready"}) from input port 0 into A, replacing ${before.a}. Checking consumed no data. Flags, RAM, and the output device were unchanged.`,
+  };
+}
 
 function loadPointer(address: number): LessonInstruction {
   return {
@@ -68,6 +71,19 @@ function readPointedByte(address: number): LessonInstruction {
     explanation: () => "Read the RAM byte addressed by HL into A",
     prompt: "Read through HL. Will the pointer or display change?",
     describe: ({ before, after }) => `Read ${after.a} from RAM at ${hex(before.hl, 4)} into A, replacing ${before.a}. HL still holds ${hex(after.hl, 4)}; other data registers, flags, RAM, and output are unchanged.`,
+  };
+}
+
+function writePointedByte(address: number): LessonInstruction {
+  return {
+    address, length: 1, action: "write", mnemonic: () => "MOV M,A",
+    explanation: () => "Store A in the RAM byte addressed by HL",
+    prompt: "Store through HL. Will A, the pointer, or the display change?",
+    describe: record => {
+      const write = record.accesses.find(access => access.kind === "write");
+      if (!write || write.kind !== "write") throw new Error("Expected a captured RAM write.");
+      return `Wrote ${write.value} from A to RAM at ${hex(write.address, 4)}, the address in HL. Data registers, flags, and output are unchanged. Storing a byte does not advance the pointer or print it.`;
+    },
   };
 }
 
@@ -89,11 +105,20 @@ function haltInstruction(address: number): LessonInstruction {
   };
 }
 
+function decrementCount(address: number): LessonInstruction {
+  return {
+    address, length: 1, action: "subtract", mnemonic: () => "DCR B",
+    explanation: () => "Subtract one from the count in B",
+    prompt: "Decrease the count. Is it zero?",
+    describe: ({ before, after }) => `Decreased B from ${before.b} to ${after.b}. Zero flag Z is ${Number(after.flags.z)}. A, HL, carry, RAM, and output are unchanged.`,
+  };
+}
+
 // A reference for manual entry, never an image loaded into the learner's RAM.
 export const altairProgramBytes = [0x3a, 0x03, 0x00, 0xc6, 0x01, 0x32, 0x04, 0x00] as const;
 export const altairOperandAddress = 0x104;
-// Both polling programs wait for readiness before consuming the pending byte.
-const receiveInstructions = [readinessInstruction, compare(0x102), jumpIf(0x104, "z", 1), inputInstruction(0x107)];
+// The echo and reply programs share their receive loop at 0100.
+const receiveInstructions = [readinessInstruction(0x100), compare(0x102), jumpIf(0x104, "z", 1), inputInstruction(0x107)];
 const receiveBytes = [0xdb, 0, 0xfe, 0, 0xca, 0, 1, 0xdb, 1];
 const programs = {
   entry: {
@@ -141,12 +166,7 @@ const programs = {
       readPointedByte(5),
       outputInstruction(6),
       advancePointer(8),
-      {
-        address: 9, length: 1, action: "subtract", mnemonic: () => "DCR B",
-        explanation: () => "Subtract one from the remaining count in B",
-        prompt: "Count the byte just sent. Is anything left to send?",
-        describe: ({ before, after }) => `Decreased B from ${before.b} to ${after.b}. Zero flag Z is ${Number(after.flags.z)}. A, HL, carry, RAM, and output are unchanged.`,
-      },
+      decrementCount(9),
       jumpIf(0x0a, "z", 0),
       haltInstruction(0x0d),
     ] satisfies readonly LessonInstruction[],
@@ -158,6 +178,22 @@ const programs = {
     instructions: [loadPointer(0), readPointedByte(3), compare(4), jumpIf(6, "z", 1),
       outputInstruction(9), advancePointer(0x0b), jump(0x0c, () => "Next, read through HL again."), haltInstruction(0x0f)],
     bytes: [0x21, 0, 1, 0x7e, 0xfe, 0, 0xca, 0x0f, 0, 0xd3, 1, 0x23, 0xc3, 3, 0, 0x76],
+    editableOperand: undefined,
+  },
+  buffer: {
+    createMachine: create8080AltairBufferLesson,
+    instructions: [
+      loadPointer(0), loadImmediate(3, "b"),
+      readinessInstruction(5), compare(7), jumpIf(9, "z", 1), inputInstruction(0x0c),
+      compare(0x0e), jumpIf(0x10, "z", 1), writePointedByte(0x13), advancePointer(0x14),
+      decrementCount(0x15), jumpIf(0x16, "z", 0),
+      loadImmediate(0x19), writePointedByte(0x1b), loadPointer(0x1c),
+      readPointedByte(0x1f), compare(0x20), jumpIf(0x22, "z", 1),
+      outputInstruction(0x25), advancePointer(0x27), jump(0x28, () => "Next, read through HL again."), haltInstruction(0x2b),
+    ],
+    bytes: [0x21, 0, 1, 0x06, 8, 0xdb, 0, 0xfe, 0, 0xca, 5, 0, 0xdb, 1, 0xfe, 10, 0xca, 0x19, 0,
+      0x77, 0x23, 0x05, 0xc2, 5, 0, 0x3e, 0, 0x77, 0x21, 0, 1,
+      0x7e, 0xfe, 0, 0xca, 0x2b, 0, 0xd3, 1, 0x23, 0xc3, 0x1f, 0, 0x76],
     editableOperand: undefined,
   },
 } as const;

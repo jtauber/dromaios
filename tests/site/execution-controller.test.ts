@@ -23,6 +23,74 @@ function clock() {
   };
 }
 
+test("STOP before a buffer store preserves A and later input; resume stores once and reads RAM for playback", () => {
+  const timer = clock();
+  const lesson = createTerminalLesson("buffer");
+  const execution = createExecutionController({
+    step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+    onChange() {}, schedule: timer.schedule,
+  });
+  lesson.offerInput(72);
+  execution.run();
+  for (let i = 0; i < 8; i++) timer.tick();
+  const queued = timer.pending[0]!;
+  const state = lesson.snapshot();
+  execution.stop(); lesson.offerInput(10); queued.callback();
+  assert.deepEqual(lesson.snapshot(), state);
+  assert.equal(lesson.ram.read(0x100), 0);
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 10 });
+  execution.run(); timer.tick(); execution.stop();
+  assert.equal(lesson.ram.read(0x100), 72);
+  assert.equal(lesson.outputSnapshot()!.writes, 0);
+  lesson.ram.write(0x100, 74);
+  execution.run();
+  for (let i = 0; i < 22; i++) timer.tick();
+  assert.deepEqual(lesson.terminalSnapshot(), { text: "J", retained: 1 });
+  assert.equal(execution.steps, 31);
+  assert.equal(execution.running, false);
+  assert.equal(execution.error, undefined);
+  assert.equal(timer.pending.length, 0);
+});
+
+test("buffer restart cancels queued polling, character and NUL stores, pointer rewind, reads, and output", () => {
+  for (const completed of [0, 2, 5, 8, 9, 12, 18, 19, 20, 21, 22, 24, 25, 30]) {
+    const timer = clock();
+    let lesson = createTerminalLesson("buffer");
+    const execution = createExecutionController({
+      step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+      onChange() {}, schedule: timer.schedule,
+    });
+    lesson.offerInput(72); execution.run();
+    for (let i = 0; i < completed; i++) {
+      if (i === 12) lesson.offerInput(10);
+      timer.tick();
+    }
+    const old = lesson;
+    const state = old.snapshot();
+    const input = old.inputSnapshot();
+    const output = old.terminalSnapshot();
+    const bytes = Array.from({ length: 9 }, (_, i) => old.ram.read(0x100 + i));
+    const queued = timer.pending[0]!;
+    execution.reset(); lesson = createTerminalLesson("buffer");
+    assert.deepEqual(lesson.inputSnapshot(), { pendingByte: null });
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "", retained: 0 });
+    assert.deepEqual(Array.from({ length: 9 }, (_, i) => lesson.ram.read(0x100 + i)), Array(9).fill(0));
+    lesson.offerInput(72); execution.run(); queued.callback();
+    assert.equal(execution.steps, 0);
+    for (let i = 0; i < 31; i++) {
+      if (i === 12) lesson.offerInput(10);
+      timer.tick();
+    }
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "H", retained: 1 });
+    assert.equal(execution.running, false);
+    assert.equal(execution.error, undefined);
+    assert.deepEqual(old.snapshot(), state);
+    assert.deepEqual(old.inputSnapshot(), input);
+    assert.deepEqual(old.terminalSnapshot(), output);
+    assert.deepEqual(Array.from({ length: 9 }, (_, i) => old.ram.read(0x100 + i)), bytes);
+  }
+});
+
 test("RUN schedules one instruction at a time, ignores duplicate RUN and STEP, and stops at completion", () => {
   const timer = clock();
   let value = 0;

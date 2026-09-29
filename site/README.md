@@ -340,6 +340,13 @@ and the unused B counter is omitted. Both message lessons share pointer and
 halt descriptions. The linked contract owns terminator edits, the sampled
 comparison, and behavior beyond the visible RAM range.
 
+[Remembering what you type](../docs/machines/buffer-lesson.md) selects `buffer`
+with `8080/altair-buffer-lesson.machine`. It combines the existing character
+input, RAM window, and terminal output. Captured MOV M,A writes explain stores;
+the guest program owns polling, capacity, termination, and readback. The linked
+contract specifies the eight-character limit, pending input after collection,
+and the distinction between an empty input latch and stored buffer contents.
+
 ## Checks
 
 ```sh

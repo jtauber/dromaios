@@ -534,6 +534,7 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .character-controls { display: flex; flex-wrap: wrap; gap: 10px; }
 .character-controls .button { font-size: 12px; padding: 12px; }
 .terminal-output { padding: 20px; border: 1px solid #52655a; border-radius: 4px; background: #293e34; color: #f0f3da; min-width: 0; }
+.panel-processor > .terminal-output { margin-top: 20px; }
 .terminal-output h4 { margin: 0 0 16px; font: 16px/1.5 var(--mono); }
 .terminal-output h4 span { display: block; margin-top: 4px; font: 12px/1.5 system-ui, sans-serif; }
 .terminal-output p { margin: 12px 0; font-size: 12px; line-height: 1.7; }

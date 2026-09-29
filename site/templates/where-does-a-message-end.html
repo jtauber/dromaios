@@ -59,7 +59,7 @@
       <p>The loop has no built-in message length. If you replace the zero at 0106 with a nonzero byte, it sends that byte and keeps reading beyond the window. In this lesson, the next location, 0107, starts at zero, so it would finish there instead. The window reports when HL is outside the displayed range.</p>
       <p>A program using this convention needs a reachable zero to finish. It does not stop because it has reached the edge of our picture. STOP can still pause execution between instructions; starting the lesson again restores all the original bytes.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/printing-a-message/') }}"><span aria-hidden="true">←</span> Printing a message</a></nav>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/printing-a-message/') }}"><span aria-hidden="true">←</span> Printing a message</a><a href="{{ calc_url('learn/remembering-what-you-type/') }}">Remembering what you type <span aria-hidden="true">→</span></a></nav>
   </div>
 </main>
 {% endblock %}

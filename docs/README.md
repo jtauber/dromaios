@@ -110,6 +110,8 @@ examples add polling and consuming input reads with the same devices.
   RAM, count bytes in B, and finish with HLT.
 - [Where does a message end?](machines/terminated-message-lesson.md): test for
   a zero terminator before output, without a separate length counter.
+- [Remembering what you type](machines/buffer-lesson.md): write received
+  characters through HL into a bounded buffer, then read them back for output.
 - [Definition guide](machines/definitions.md): initial state and memory images,
   directory conventions, generated factories, and the editing/build workflow.
 - [Memory components and maps](machines/memory-map.md): RAM/ROM ownership,
