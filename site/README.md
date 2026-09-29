@@ -347,6 +347,13 @@ the guest program owns polling, capacity, termination, and readback. The linked
 contract specifies the eight-character limit, pending input after collection,
 and the distinction between an empty input latch and stored buffer contents.
 
+[Remembering where to return](../docs/machines/subroutine-lesson.md) selects
+`subroutine` with `8080/altair-subroutine-lesson.machine`. Two RAM windows follow
+HL and SP independently; stack bytes have low/high roles instead of character
+labels. CALL and RET descriptions retain the captured continuation and accesses,
+and traces include SP changes. The linked contract owns stack reuse, return
+address edits, and the distinction between returning and erasing RAM.
+
 ## Checks
 
 ```sh

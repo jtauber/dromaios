@@ -12,6 +12,7 @@ import { create8080AltairReplyLesson } from "../../src/machines/generated/8080/a
 import { create8080OutputExample } from "../../src/machines/generated/8080/output-example.js";
 import { create8080AltairTerminatedMessageLesson } from "../../src/machines/generated/8080/altair-terminated-message-lesson.js";
 import { create8080AltairBufferLesson } from "../../src/machines/generated/8080/altair-buffer-lesson.js";
+import { create8080AltairSubroutineLesson } from "../../src/machines/generated/8080/altair-subroutine-lesson.js";
 import { createAltairMemoryPanel } from "./altair-panel.js";
 import { registerProgram, hex, readAddress, load, loadImmediate, add, compare, jump, jumpIf } from "./register-programs.js";
 import type { CompletedInstruction, LessonInstruction } from "./register-programs.js";
@@ -114,6 +115,38 @@ function decrementCount(address: number): LessonInstruction {
   };
 }
 
+function loadStackPointer(address: number): LessonInstruction {
+  return {
+    address, length: 3, action: "read", mnemonic: read => `LXI SP,${hex(readAddress(read, address + 1), 4)}H`,
+    explanation: read => `Put address ${hex(readAddress(read, address + 1), 4)} into SP`,
+    prompt: "Choose where the stack begins. Has a return address been saved yet?",
+    describe: ({ before, after }) => `Set SP from ${hex(before.sp, 4)} to ${hex(after.sp, 4)}. This selects a stack starting point without reading or writing its RAM. Data registers, flags, and output are unchanged.`,
+  };
+}
+
+function callInstruction(address: number): LessonInstruction {
+  return {
+    address, length: 3, action: "jump", mnemonic: read => `CALL ${hex(readAddress(read, address + 1), 4)}H`,
+    explanation: read => `Save the return address and call the routine at ${hex(readAddress(read, address + 1), 4)}`,
+    prompt: "Which address must the CPU remember to continue after this CALL?",
+    describe: ({ instruction, before, after, accesses }) => {
+      const continuation = (instruction.address + instruction.bytes.length) & 0xffff;
+      const writes = accesses.flatMap(access => access.kind === "write"
+        ? [`${hex(access.address, 4)} ← ${hex(access.value, 2)}`] : []).join(", then ");
+      return `Saved return address ${hex(continuation, 4)} in RAM: ${writes}. SP moved from ${hex(before.sp, 4)} to ${hex(after.sp, 4)}; PC moved to ${hex(after.pc, 4)}. A, HL, flags, and output are unchanged. The routine's first instruction is next.`;
+    },
+  };
+}
+
+function returnInstruction(address: number): LessonInstruction {
+  return {
+    address, length: 1, action: "jump", mnemonic: () => "RET",
+    explanation: () => "Read the saved return address from RAM at SP and continue there",
+    prompt: "Where will this RET go, and will it erase the saved address?",
+    describe: ({ before, after }) => `Read return address ${hex(after.pc, 4)} from RAM at ${hex(before.sp, 4)} and ${hex((before.sp + 1) & 0xffff, 4)} into PC. SP moved from ${hex(before.sp, 4)} to ${hex(after.sp, 4)}. Reading did not erase the bytes. A, HL, flags, and output are unchanged.`,
+  };
+}
+
 // A reference for manual entry, never an image loaded into the learner's RAM.
 export const altairProgramBytes = [0x3a, 0x03, 0x00, 0xc6, 0x01, 0x32, 0x04, 0x00] as const;
 export const altairOperandAddress = 0x104;
@@ -194,6 +227,15 @@ const programs = {
     bytes: [0x21, 0, 1, 0x06, 8, 0xdb, 0, 0xfe, 0, 0xca, 5, 0, 0xdb, 1, 0xfe, 10, 0xca, 0x19, 0,
       0x77, 0x23, 0x05, 0xc2, 5, 0, 0x3e, 0, 0x77, 0x21, 0, 1,
       0x7e, 0xfe, 0, 0xca, 0x2b, 0, 0xd3, 1, 0x23, 0xc3, 0x1f, 0, 0x76],
+    editableOperand: undefined,
+  },
+  subroutine: {
+    createMachine: create8080AltairSubroutineLesson,
+    instructions: [loadStackPointer(0), callInstruction(3), callInstruction(6), haltInstruction(9),
+      loadPointer(0x0a), readPointedByte(0x0d), compare(0x0e), jumpIf(0x10, "z", 1),
+      outputInstruction(0x13), advancePointer(0x15), jump(0x16, () => "Next, read through HL again."), returnInstruction(0x19)],
+    bytes: [0x31, 0, 2, 0xcd, 0x0a, 0, 0xcd, 0x0a, 0, 0x76,
+      0x21, 0, 1, 0x7e, 0xfe, 0, 0xca, 0x19, 0, 0xd3, 1, 0x23, 0xc3, 0x0d, 0, 0xc9],
     editableOperand: undefined,
   },
 } as const;

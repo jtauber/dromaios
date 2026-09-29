@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "instruments/altair-panel.html" import altair_panel %}
+{% block description %}Call one 8080 printing routine from two places. Follow the saved return address in RAM, the stack pointer, and the instruction that brings the CPU back.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Meet the Altair · Calling a subroutine</p>
+    <h1>Remembering<br><em>where to return.</em></h1>
+    <p class="lesson-intro">A program can ask another piece of code to do a job, then continue where it left off. Our familiar printing loop will do the same job twice, returning to a different place each time.</p>
+  </header>
+  <p class="experiment-note"><strong>Begin here:</strong> Step once to set SP to 0200. Step again to execute CALL. PC becomes 000A, SP becomes 01FE, and the two stack bytes hold 06 and 00. No character has been read or printed yet. The CPU has saved where to come back.</p>
+  {{ altair_panel(mode='subroutine') }}
+  <div class="lesson-prose">
+    <section aria-labelledby="a-job-to-reuse">
+      <h2 id="a-job-to-reuse">Give a piece of code a job.</h2>
+      <p>A <strong>subroutine</strong> is a piece of a program that can be called to do a job and then return. Here, its job is to print the zero-terminated message at 0100.</p>
+      <p>The routine begins at 000A. It sets HL to 0100, reads through HL, and sends each nonzero byte with OUT. When it reaches NUL, it executes <strong>RET</strong>. The surrounding code—the <strong>caller</strong>—calls it twice, then halts.</p>
+      <p>The printing instructions occur once in RAM. Both calls execute those same instructions and read the same message. Each call resets HL, so the second one starts at H again.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> What will RUN put on the display?</p><details><summary>Show an explanation</summary><p>HELLO on two lines. Each call sends H, E, L, L, O, and LF: twelve output writes altogether. NUL ends each visit without being sent.</p></details><a href="#execution">Run the two calls ↑</a></aside>
+    </section>
+    <section aria-labelledby="save-the-next-address">
+      <h2 id="save-the-next-address">Remember the instruction after the call.</h2>
+      <p>You have used JMP to change PC. <strong>CALL also saves a return address</strong> before changing PC. The saved address is where execution should continue after the routine finishes.</p>
+      <p>The CALL at 0003 occupies three bytes: <code>CD 0A 00</code>. Its destination is 000A, but the next instruction is at 0006. The CPU saves <strong>0006</strong>, then sets PC to <strong>000A</strong>. The destination and the return address have different jobs.</p>
+      <p>CALL does not execute the whole routine as one step. After it finishes, PC points at the routine's first instruction. Its loads, comparisons, branches, and outputs still run one instruction at a time.</p>
+      <aside class="lesson-prompt"><p><strong>Look inside CALL.</strong> Which bytes came from the program, and which bytes did the CPU write?</p><details><summary>Show an explanation</summary><p>It fetched CD, 0A, and 00 from 0003–0005. It then wrote 00 at 01FF and 06 at 01FE. Nothing was fetched from 000A until the next instruction.</p></details><a href="#execution">Inspect the captured call ↑</a></aside>
+    </section>
+    <section aria-labelledby="a-place-for-the-return-address">
+      <h2 id="a-place-for-the-return-address">Keep the address in RAM.</h2>
+      <p>The 8080 keeps saved return addresses in ordinary RAM. <strong>SP</strong>, the <strong>stack pointer</strong>, tells it where to put and find them. The first instruction, <code>LXI SP,0200H</code>, chooses a starting point. Setting SP does not itself write any memory.</p>
+      <p>CALL decreases SP to 01FF and writes the high byte of the return address. It decreases SP again to 01FE and writes the low byte. The stack grows toward lower addresses; SP now points at the low byte.</p>
+      <p>The table lists RAM in ascending address order, so it shows the low byte first. For address 0006, that is <code>06</code> at 01FE and <code>00</code> at 01FF. These are pieces of an address, not characters to print.</p>
+      <p>We use only these two stack locations because the first call returns before the second begins. The CPU does not know that the picture has two rows, and it does not check whether a chosen stack area overlaps other data or code.</p>
+    </section>
+    <section aria-labelledby="return-without-erasing">
+      <h2 id="return-without-erasing">Read the way back.</h2>
+      <p>When the print loop finds NUL, its conditional jump selects RET at 0019. <strong>RET reads the low byte at SP and the high byte at the following address</strong>, advances SP past both, and puts the combined address into PC.</p>
+      <p>For the first return, that makes PC 0006 and SP 0200. The caller is ready to continue. A, HL, and flags keep the values left by the routine; RET does not restore their earlier values.</p>
+      <p>Reading does not erase RAM. The saved 06 and 00 remain visible after SP moves above them. They are no longer an outstanding return address. Another call can reuse those locations.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Start again and step until PC is 0019, just before the first RET. Then step once.</p><details><summary>Show an explanation</summary><p>The first RET is instruction 43. PC becomes 0006, SP returns to 0200, and the stack bytes remain 06 and 00. The display still contains one HELLO line. Returning does not print another byte.</p></details><a href="#execution">Follow the return ↑</a></aside>
+    </section>
+    <section aria-labelledby="same-routine-different-return">
+      <h2 id="same-routine-different-return">The same routine, a different continuation.</h2>
+      <p>The next instruction is the CALL at 0006. It has the same destination, 000A, but its following instruction is at <strong>0009</strong>. This call saves 0009 in the reused stack locations, replacing the low byte 06 with 09.</p>
+      <p>RET itself is still the same single byte, C9, at 0019. It has no fixed destination written after it. Its destination comes from the bytes in RAM at SP.</p>
+      <p>After the second return, PC is 0009 and SP is 0200. The caller's HLT then stops the CPU. PC advances to 000A, but the CPU is halted: that address alone does not mean the routine will run a third time.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> What survives after both calls and HLT?</p><details><summary>Show an explanation</summary><p>The message is unchanged. The stack bytes still hold 09 and 00, SP is 0200, A is zero, and HL points to NUL at 0106. The display contains two HELLO lines. The complete run took 86 instructions.</p></details><a href="#execution">Compare the two calls ↑</a></aside>
+    </section>
+    <section aria-labelledby="return-address-is-data">
+      <h2 id="return-address-is-data">A return address is data too.</h2>
+      <p>Because RET reads RAM, changing the saved bytes changes where it goes. There is no hidden list in the viewer that sends the CPU back to its caller.</p>
+      <details><summary>Skip the second call by changing the saved address</summary><p>Start again and step twice to execute the first CALL. EXAMINE 01FE, set the switches to 0009, and DEPOSIT. The last-instruction explanation still reports the 0006 that CALL originally saved. Then EXAMINE 000A to restore PC and RUN. The routine prints one HELLO line, but RET now returns directly to HLT at 0009, skipping the second call.</p></details>
+      <p>This experiment deliberately changes the program's continuation. The lesson guards instruction bytes and pauses at unknown instruction addresses; a real 8080 does not check that a return lands where the programmer intended. Start again to restore the ordinary two-call path.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/remembering-what-you-type/') }}"><span aria-hidden="true">←</span> Remembering what you type</a></nav>
+  </div>
+</main>
+{% endblock %}

@@ -9,6 +9,7 @@ export function format8080Trace(record: CompletedInstruction, mnemonic: string):
     `A: ${record.before.a} → ${record.after.a} (decimal)`,
     ...(record.before.b !== record.after.b ? [`B: ${record.before.b} → ${record.after.b} (decimal)`] : []),
     ...(record.before.hl !== record.after.hl ? [`HL: ${hex(record.before.hl, 4)} → ${hex(record.after.hl, 4)} (hexadecimal)`] : []),
+    ...(record.before.sp !== record.after.sp ? [`SP: ${hex(record.before.sp, 4)} → ${hex(record.after.sp, 4)} (hexadecimal)`] : []),
     `PC: ${hex(record.before.pc, 4)} → ${hex(record.after.pc, 4)} (hexadecimal)`,
     ...(record.after.halted ? ["CPU: halted"] : []),
     `Flags: ${flags.map(flag => `${flag.toUpperCase()} ${Number(record.before.flags[flag])} → ${Number(record.after.flags[flag])}`).join(", ")}`,

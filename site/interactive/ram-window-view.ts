@@ -12,7 +12,8 @@ export function renderRamWindow(root: HTMLElement, ram: Ram, pointer: number, ru
     const selected = address === pointer;
     visible ||= selected;
     row.querySelector<HTMLElement>("[data-ram-byte]")!.textContent = hex(value, 2);
-    row.querySelector<HTMLElement>("[data-ram-character]")!.textContent = asciiByteLabel(value);
+    const character = row.querySelector<HTMLElement>("[data-ram-character]");
+    if (character) character.textContent = asciiByteLabel(value);
     row.querySelector<HTMLElement>("[data-ram-pointer]")!.textContent = selected ? `← ${name}` : "";
     if (selected) row.setAttribute("aria-current", "location");
     else row.removeAttribute("aria-current");

@@ -643,3 +643,65 @@ test("restarting a terminated message rejects queued reads, decisions, outputs, 
     assert.deepEqual(old.terminalSnapshot(), output);
   }
 });
+
+test("subroutine STOP preserves pending calls and returns; resume performs each stack transfer once", () => {
+  const timer = clock();
+  const lesson = createTerminalLesson("subroutine");
+  const execution = createExecutionController({
+    step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+    onChange() {}, schedule: timer.schedule,
+  });
+  execution.run(); timer.tick();
+  const call = timer.pending[0]!;
+  execution.stop(); call.callback();
+  assert.deepEqual([lesson.snapshot().pc, lesson.snapshot().sp, lesson.ram.read(0x1fe)], [3, 0x200, 0]);
+  execution.run(); timer.tick(); execution.stop();
+  assert.deepEqual([lesson.snapshot().pc, lesson.snapshot().sp, lesson.ram.read(0x1fe)], [10, 0x1fe, 6]);
+  assert.equal(lesson.outputSnapshot()!.writes, 0);
+  execution.run();
+  for (let i = 0; i < 40; i++) timer.tick();
+  const returned = timer.pending[0]!;
+  execution.stop(); returned.callback();
+  assert.deepEqual([lesson.snapshot().pc, lesson.snapshot().sp], [25, 0x1fe]);
+  execution.run(); timer.tick(); execution.stop();
+  assert.deepEqual([lesson.snapshot().pc, lesson.snapshot().sp, lesson.ram.read(0x1fe)], [6, 0x200, 6]);
+  assert.deepEqual(lesson.terminalSnapshot(), { text: "HELLO\n", retained: 6 });
+  execution.run();
+  for (let i = 0; i < 43; i++) timer.tick();
+  assert.equal(execution.steps, 86);
+  assert.equal(execution.running, false);
+  assert.equal(execution.error, undefined);
+  assert.equal(timer.pending.length, 0);
+  assert.deepEqual(lesson.terminalSnapshot(), { text: "HELLO\nHELLO\n", retained: 12 });
+});
+
+test("subroutine restart rejects queued stack writes, returns, outputs, and HLT from the old run", () => {
+  for (const completed of [0, 1, 2, 3, 6, 42, 43, 44, 45, 84, 85]) {
+    const timer = clock();
+    let lesson = createTerminalLesson("subroutine");
+    const execution = createExecutionController({
+      step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+      onChange() {}, schedule: timer.schedule,
+    });
+    execution.run();
+    for (let i = 0; i < completed; i++) timer.tick();
+    const old = lesson;
+    const state = old.snapshot();
+    const output = old.terminalSnapshot();
+    const stack = [old.ram.read(0x1fe), old.ram.read(0x1ff)];
+    const queued = timer.pending[0]!;
+    execution.reset(); lesson = createTerminalLesson("subroutine");
+    assert.equal(lesson.snapshot().sp, 0);
+    assert.deepEqual([lesson.ram.read(0x1fe), lesson.ram.read(0x1ff)], [0, 0]);
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "", retained: 0 });
+    execution.run(); queued.callback();
+    assert.equal(execution.steps, 0);
+    for (let i = 0; i < 86; i++) timer.tick();
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "HELLO\nHELLO\n", retained: 12 });
+    assert.equal(execution.running, false);
+    assert.equal(execution.error, undefined);
+    assert.deepEqual(old.snapshot(), state);
+    assert.deepEqual(old.terminalSnapshot(), output);
+    assert.deepEqual([old.ram.read(0x1fe), old.ram.read(0x1ff)], stack);
+  }
+});

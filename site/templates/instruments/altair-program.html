@@ -3,7 +3,7 @@
 {% from "instruments/terminal.html" import character_input, terminal_output %}
 {% from "instruments/ram-window.html" import ram_window %}
 {% macro reference_card(mode) %}
-{% set terminal = mode in ['terminal', 'reply', 'message', 'terminated-message', 'buffer'] %}
+{% set terminal = mode in ['terminal', 'reply', 'message', 'terminated-message', 'buffer', 'subroutine'] %}
 {% if mode == 'terminal' %}{% set mode = 'polling' %}{% endif %}
 {% set reply = mode == 'reply' %}
 {% set running = mode == 'running' %}
@@ -17,6 +17,7 @@
   'polling': ('Loaded polling program · reference card', 'These fourteen bytes are already loaded at 0100.'),
   'reply': ('Loaded reply program · reference card', 'These twenty-one bytes are already loaded at 0100.'),
   'message': ('Loaded message program · reference card', 'These fourteen program bytes are already loaded at 0000. The six message bytes begin at 0100.'),
+  'subroutine': ('Loaded subroutine program · reference card', 'These twenty-six program bytes are loaded at 0000. HELLO, LF, and NUL begin at 0100; CALL uses RAM at 01FE–01FF.'),
   'buffer': ('Loaded buffer program · reference card', 'These forty-four program bytes are loaded at 0000. The nine-byte buffer at 0100 starts at zero.'),
   'terminated-message': ('Loaded message program · reference card', 'These sixteen program bytes are already loaded at 0000. The message and its zero terminator begin at 0100.'),
   'input': ('Loaded input program · reference card', 'These four bytes are already loaded at 0100.')
@@ -28,7 +29,11 @@
     <thead><tr><th scope="col">Address</th><th scope="col">Reference</th><th scope="col">RAM</th><th scope="col">Check</th></tr></thead>
     <tbody data-panel-entry-bytes></tbody>
   </table>
-  {% if mode == 'buffer' %}
+  {% if mode == 'subroutine' %}
+  <p>0000: <code>LXI SP,0200H</code> chooses a stack starting point. 0003 and 0006: <code>CALL 000AH</code> call the same routine, saving 0006 and 0009 respectively. 0009: <code>HLT</code> finishes after the second return.</p>
+  <p>000A: <code>LXI H,0100H</code> resets the message pointer. 000D: <code>MOV A,M</code>, 000E: <code>CPI 0</code>, and 0010: <code>JZ 0019H</code> check for NUL. 0013: <code>OUT 01H</code>, 0015: <code>INX H</code>, and 0016: <code>JMP 000DH</code> print each nonzero byte. 0019: <code>RET</code> resumes at the address read from the stack.</p>
+  <p>The lesson checks all twenty-six program bytes. Message and stack data can be edited while stopped. The CPU reads the saved address from RAM; the viewer does not choose the return destination.</p>
+  {% elif mode == 'buffer' %}
   <p>0000: <code>LXI H,0100H</code> sets the write pointer; 0003: <code>MVI B,08H</code> sets the capacity.</p>
   <p>0005: <code>IN 00H</code>, 0007: <code>CPI 0</code>, and 0009: <code>JZ 0005H</code> poll readiness. 000C: <code>IN 01H</code> receives a byte. 000E: <code>CPI 10</code> and 0010: <code>JZ 0019H</code> finish on LF.</p>
   <p>0013: <code>MOV M,A</code> stores a character; 0014: <code>INX H</code> advances HL; 0015: <code>DCR B</code> counts down; 0016: <code>JNZ 0005H</code> returns only if space remains.</p>
@@ -62,9 +67,10 @@
 </details>
 {% endmacro %}
 {% macro processor_view(mode) %}
-{% set terminal = mode in ['terminal', 'reply', 'message', 'terminated-message', 'buffer'] %}
-{% set message = mode in ['message', 'terminated-message', 'buffer'] %}
+{% set terminal = mode in ['terminal', 'reply', 'message', 'terminated-message', 'buffer', 'subroutine'] %}
+{% set message = mode in ['message', 'terminated-message', 'buffer', 'subroutine'] %}
 {% set buffer = mode == 'buffer' %}
+{% set subroutine = mode == 'subroutine' %}
 {% set terminated = mode == 'terminated-message' %}
 {% if mode == 'terminal' %}{% set mode = 'polling' %}{% endif %}
 {% set running = mode == 'running' %}
@@ -79,13 +85,17 @@
     <div><dt>PC <span>hex</span></dt><dd data-panel-cpu-pc>{{ '0100' if paced and not message else '0000' }}</dd></div>
     {% if message %}
     <div><dt>HL <span>address · hex</span></dt><dd data-panel-cpu-hl>0000</dd></div>
-    {% if not terminated %}<div><dt>B <span>{{ 'slots left' if buffer else 'remaining' }} · decimal</span></dt><dd data-panel-cpu-b>0</dd></div>{% endif %}
+    {% if subroutine %}<div><dt>SP <span>stack address · hex</span></dt><dd data-panel-cpu-sp>0000</dd></div>
+    {% elif not terminated %}<div><dt>B <span>{{ 'slots left' if buffer else 'remaining' }} · decimal</span></dt><dd data-panel-cpu-b>0</dd></div>{% endif %}
     {% else %}
     {% if not input %}<div><dt>RAM[3] <span>decimal</span></dt><dd data-panel-cpu-source data-panel-ram="3">{{ 3 if running else 41 }}</dd></div>{% endif %}
     <div><dt>RAM[{{ 1 if output or input else 4 }}] <span>decimal</span></dt><dd data-panel-cpu-result data-panel-ram="{{ 1 if output or input else 4 }}">0</dd></div>
     {% endif %}
   </dl>
-  {% if buffer %}
+  {% if subroutine %}
+  <div class="panel-devices">{{ ram_window(510, [(0, 'Low byte'), (0, 'High byte')], title='Return address in RAM', pointer_name='SP', characters=false) }}{{ ram_window(256, [(72, 'H'), (69, 'E'), (76, 'L'), (76, 'L'), (79, 'O'), (10, 'LF'), (0, 'NUL')]) }}</div>
+  <p class="experiment-note">With SP at 01FE, RET reads the low byte at 01FE and the high byte at 01FF. For example, 06 then 00 forms address 0006. At SP 0200, these bytes have been released but remain in RAM. The window shows two locations, not a CPU-enforced stack limit.</p>
+  {% elif buffer %}
   <div class="panel-devices">{{ character_input(initial='H') }}{{ ram_window(256, [(0, 'NUL')] * 9, title='Buffer in RAM') }}</div>
   <p class="experiment-note">0100–0107: up to eight characters. 0108: room for NUL when full. LF ends collection; it is not stored or printed. Once printing begins, later input stays pending until restart.</p>
   {% elif message %}
@@ -94,7 +104,7 @@
   {% elif terminal %}<div class="panel-devices">{{ character_input(initial='a' if mode == 'reply' else 'A') }}{{ terminal_output() }}</div>
   {% elif input %}<div class="panel-devices">{{ byte_input(polling=polling) }}{{ byte_output() }}</div>
   {% elif output %}{{ byte_output() }}{% endif %}
-  {% if running or polling or message %}<p class="panel-zero">Zero flag Z: <strong data-panel-cpu-z>0</strong> · the {{ "latest comparison or count decrement’s" if buffer else "most recent comparison’s" if polling or terminated else "subtraction’s" }} answer</p>{% endif %}
+  {% if running or polling or message %}<p class="panel-zero">Zero flag Z: <strong data-panel-cpu-z>0</strong> · the {{ "latest comparison or count decrement’s" if buffer else "most recent comparison’s" if polling or terminated or subroutine else "subtraction’s" }} answer</p>{% endif %}
   {% if message %}<p class="panel-zero">CPU halted: <strong data-panel-cpu-halted>no</strong></p>{% endif %}
   {% if paced %}
   <div class="panel-run-controls">
@@ -106,7 +116,7 @@
   <button type="button" class="button" data-panel-step disabled>Step one instruction</button>
   <p data-panel-next aria-live="polite" tabindex="-1">{{ 'The program is loaded. Enable JavaScript to run or step it.' if paced else 'Enter the program, then EXAMINE 0100 to begin.' }}</p>
   <div class="register-record" role="status" aria-atomic="true"><span class="addition-label">Last CPU instruction</span><p data-panel-executed>No instruction has run.</p></div>
-  {% if buffer %}{{ terminal_output() }}{% endif %}
+  {% if buffer or subroutine %}{{ terminal_output() }}{% endif %}
   <details class="register-inside"><summary>Look inside the last instruction</summary><pre data-panel-trace>Step an instruction to see its fetched bytes, memory accesses, and any port transfers.</pre></details>
   {% if paced %}
   <details class="register-inside"><summary>Recent instructions</summary><p data-panel-step-count>0 instructions executed.</p><ol class="panel-history" data-panel-history></ol></details>

@@ -1,14 +1,14 @@
-{% macro ram_window(start, bytes, title='Message in RAM', pointer_name='HL') %}
+{% macro ram_window(start, bytes, title='Message in RAM', pointer_name='HL', characters=true) %}
 <section class="ram-window" data-ram-window data-pointer-name="{{ pointer_name }}" aria-label="{{ title }}">
   <h4>{{ title }}</h4>
   <table>
-    <caption>Addresses and bytes in hexadecimal; characters interpreted as ASCII.</caption>
-    <thead><tr><th scope="col">Address</th><th scope="col">Byte</th><th scope="col">Character</th></tr></thead>
+    <caption>Addresses and bytes in hexadecimal{% if characters %}; characters interpreted as ASCII{% endif %}.</caption>
+    <thead><tr><th scope="col">Address</th><th scope="col">Byte</th><th scope="col">{{ 'Character' if characters else 'Role' }}</th></tr></thead>
     <tbody>{% for value, label in bytes %}
-      <tr data-ram-cell="{{ start + loop.index0 }}"><th scope="row">{{ '%04X' | format(start + loop.index0) }} <span data-ram-pointer></span></th><td data-ram-byte>{{ '%02X' | format(value) }}</td><td data-ram-character>{{ label }}</td></tr>
+      <tr data-ram-cell="{{ start + loop.index0 }}"><th scope="row">{{ '%04X' | format(start + loop.index0) }} <span data-ram-pointer></span></th><td data-ram-byte>{{ '%02X' | format(value) }}</td><td{% if characters %} data-ram-character{% endif %}>{{ label }}</td></tr>
     {% endfor %}</tbody>
   </table>
   <p data-ram-window-status aria-live="polite">Enable JavaScript to follow {{ pointer_name }}.</p>
-  <p>The marker follows {{ pointer_name }}. Moving it does not load A or send output.</p>
+  <p>The marker follows {{ pointer_name }}. Looking at these bytes changes no CPU or memory state.</p>
 </section>
 {% endmacro %}

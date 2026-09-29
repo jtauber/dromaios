@@ -1,0 +1,35 @@
+// Call the same zero-terminated printing routine from two places.
+components {
+    ram = ram 10000
+    output = byte-output
+}
+
+cpu 8080 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    PC = 0000  SP = 0000
+    flags { S = 0  Z = 0  AC = 0  P = 0  CY = 0 }
+    interruptEnabled = false  interruptDeferred = false  halted = false
+}
+
+memory = ram
+ports { out 01 = output 0 }
+
+image ram 0000 {
+    31 00 02            // 0000: LXI SP,0200 — choose the empty stack's starting point.
+    CD 0A 00            // 0003: CALL 000A — save return address 0006.
+    CD 0A 00            // 0006: CALL 000A — save return address 0009.
+    76                  // 0009: HLT — the caller decides when to finish.
+    21 00 01            // 000A: LXI H,0100 — each call starts reading at the same place.
+    7E                  // 000D: MOV A,M
+    FE 00               // 000E: CPI 00
+    CA 19 00            // 0010: JZ 0019 — return when the message ends.
+    D3 01               // 0013: OUT 01
+    23                  // 0015: INX H
+    C3 0D 00            // 0016: JMP 000D
+    C9                  // 0019: RET — read the continuation from the RAM stack.
+}
+
+image ram 0100 { 48 45 4C 4C 4F 0A 00 } // HELLO, line feed, NUL.
+// CALL uses 01FE–01FF. These and all other uninitialized RAM bytes start at zero.
+
+reset { cpu output }

@@ -169,12 +169,15 @@ def build(base):
     site.render_template("remembering-what-you-type.html", "learn/remembering-what-you-type/index.html", {
         "title": "Remembering what you type",
     })
+    site.render_template("remembering-where-to-return.html", "learn/remembering-where-to-return/index.html", {
+        "title": "Remembering where to return",
+    })
     site.render_template("home.html", "index.html", {
         "title": "Computers, from the instruction up",
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + twenty-four introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
+    print(f"Built home + twenty-five introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

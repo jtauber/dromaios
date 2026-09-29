@@ -14,7 +14,7 @@ import { renderRamWindow } from "./ram-window-view.js";
 export function mountAltairProgramExplorer(root: HTMLElement): void {
   const mode = root.dataset.altairExplorer;
   const terminalProgram = mode === "terminal" ? "polling"
-    : mode === "reply" || mode === "message" || mode === "terminated-message" || mode === "buffer" ? mode : undefined;
+    : mode === "reply" || mode === "message" || mode === "terminated-message" || mode === "buffer" || mode === "subroutine" ? mode : undefined;
   const name = terminalProgram ?? (mode === "running" ? "countdown"
     : mode === "output" || mode === "input" || mode === "polling" ? mode : "entry");
   const preloaded = name !== "entry";
@@ -34,7 +34,7 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
   const output = root.querySelector<HTMLElement>("[data-byte-output]");
   const input = root.querySelector<HTMLElement>("[data-byte-input]");
   const terminalOutput = root.querySelector<HTMLElement>("[data-terminal-output]");
-  const ramWindow = root.querySelector<HTMLElement>("[data-ram-window]");
+  const ramWindows = root.querySelectorAll<HTMLElement>("[data-ram-window]");
   const rows: { row: HTMLTableRowElement; address: number; expected: number; value: HTMLTableCellElement; check: HTMLTableCellElement }[] = [];
 
   const execution = createExecutionController({
@@ -59,11 +59,13 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
   function render(): void {
     const state = lesson.snapshot();
     for (const [name, value] of [["a", state.a], ["pc", hex(state.pc, 4)], ["b", state.b],
-      ["hl", hex(state.hl, 4)], ["halted", state.halted ? "yes" : "no"]] as const) {
+      ["hl", hex(state.hl, 4)], ["sp", hex(state.sp, 4)], ["halted", state.halted ? "yes" : "no"]] as const) {
       const readout = root.querySelector<HTMLElement>(`[data-panel-cpu-${name}]`);
       if (readout) readout.textContent = String(value);
     }
-    if (ramWindow) renderRamWindow(ramWindow, lesson.ram, state.hl, execution.running);
+    for (const window of ramWindows) {
+      renderRamWindow(window, lesson.ram, window.dataset.pointerName === "SP" ? state.sp : state.hl, execution.running);
+    }
     for (const readout of root.querySelectorAll<HTMLElement>("[data-panel-ram]")) {
       readout.textContent = String(lesson.ram.read(Number(readout.dataset.panelRam)));
     }
@@ -138,6 +140,7 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
       message: "No memory operation yet. The program is loaded at 0000 and the six message bytes at 0100. No byte has been sent to the display.",
       "terminated-message": "No memory operation yet. The program is loaded at 0000; HELLO, line feed, and a zero terminator begin at 0100. No byte has been sent to the display.",
       buffer: "No memory operation yet. The program is loaded at 0000 and the nine buffer bytes at 0100 are zero. Both devices start empty.",
+      subroutine: "No memory operation yet. The program is loaded at 0000 and the message at 0100. SP and the stack bytes are zero; the first instruction will initialize SP.",
       input: "No memory operation yet. The input program is loaded; PC is 0100 and address 1 holds 0. Both devices start empty.",
     }[name],
   });
