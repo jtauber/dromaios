@@ -219,3 +219,36 @@ test("the longer zero-start countdown yields after every instruction and keeps b
   assert.equal(lesson.snapshot().a, 0);
   assert.equal(lesson.ram.read(4), 0);
 });
+
+test("STOP before OUT preserves an empty device; resume sends once and restart rejects a queued transfer", () => {
+  const timer = clock();
+  let lesson = createAltairProgram("output");
+  const execution = createExecutionController({
+    step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+    onChange() {}, schedule: timer.schedule,
+  });
+  execution.run(); timer.tick(); timer.tick();
+  const pendingOutput = timer.pending[0]!;
+  execution.stop(); pendingOutput.callback();
+  assert.deepEqual([lesson.snapshot().a, lesson.snapshot().pc], [42, 0x105]);
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: null, writes: 0 });
+  execution.run(); pendingOutput.callback(); timer.tick();
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 42, writes: 1 });
+  assert.equal(execution.running, false);
+  assert.equal(execution.steps, 3);
+
+  execution.reset();
+  lesson = createAltairProgram("output");
+  execution.run(); timer.tick(); timer.tick();
+  const old = lesson;
+  const cancelledOutput = timer.pending[0]!;
+  execution.reset();
+  lesson = createAltairProgram("output");
+  execution.run(); cancelledOutput.callback();
+  assert.deepEqual(old.outputSnapshot(), { lastByte: null, writes: 0 });
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: null, writes: 0 });
+  assert.equal(execution.steps, 0);
+  timer.tick(); timer.tick(); timer.tick();
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 42, writes: 1 });
+  assert.deepEqual(old.outputSnapshot(), { lastByte: null, writes: 0 });
+});

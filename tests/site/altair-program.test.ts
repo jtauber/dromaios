@@ -183,3 +183,84 @@ test("a fresh lesson restores initial data and an empty program without modifyin
   assert.deepEqual([fresh.ram.read(3), fresh.ram.read(4), fresh.ram.read(0x100)], [41, 0, 0]);
   assert.deepEqual([old.ram.read(3), old.ram.read(4), old.ram.read(0x100)], [41, 42, 0x3a]);
 });
+
+test("the output device retains its byte across loads, additions, and panel memory edits", () => {
+  const lesson = createAltairProgram("output");
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: null, writes: 0 });
+  step(lesson); step(lesson);
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: null, writes: 0 });
+  const sent = step(lesson);
+  const description = lesson.instructions[2]!.describe(sent, 0);
+  const trace = format8080Trace(sent, "OUT 01H");
+  assert.match(description, /Sent 42.*port 1/);
+  assert.match(trace, /Read  0105: D3\nRead  0106: 01\nOutput to port 01: 2A$/);
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 42, writes: 1 });
+  assert.throws(() => lesson.step(), /just after the program/);
+  deposit(lesson, 1, 77); // Writing RAM[1] is not output to port 1.
+  deposit(lesson, 3, 99);
+  examine(lesson, 0x100); // Reconstructing the CPU must preserve the port connection.
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 42, writes: 1 });
+  assert.equal(step(lesson).after.a, 99);
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 42, writes: 1 });
+  assert.equal(step(lesson).after.a, 100);
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 42, writes: 1 });
+  const second = step(lesson);
+  assert.deepEqual(second.after, { ...second.before, pc: 0x107 });
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 100, writes: 2 });
+  assert.equal(lesson.ram.read(1), 77);
+  assert.equal(format8080Trace(sent, "OUT 01H"), trace);
+  assert.equal(lesson.instructions[2]!.describe(sent, 0), description);
+});
+
+test("both NEXT operations preserve the connected device and repeated OUT still counts as a transfer", () => {
+  for (const action of ["examineNext", "depositNext"] as const) {
+    const lesson = createAltairProgram("output");
+    step(lesson); step(lesson); step(lesson);
+    examine(lesson, 0x104);
+    switches(lesson, 0xd3); // DEPOSIT NEXT restores the same OUT opcode.
+    lesson.panel[action]();
+    assert.deepEqual(lesson.outputSnapshot(), { lastByte: 42, writes: 1 });
+    assert.equal(lesson.snapshot().pc, 0x105);
+    step(lesson);
+    assert.deepEqual(lesson.outputSnapshot(), { lastByte: 42, writes: 2 });
+  }
+});
+
+test("sending zero is distinct from no output, and a fresh session leaves the old device and records intact", () => {
+  const old = createAltairProgram("output");
+  deposit(old, 3, 255);
+  examine(old, 0x100);
+  step(old); step(old);
+  assert.deepEqual(old.outputSnapshot(), { lastByte: null, writes: 0 });
+  const sent = step(old);
+  assert.equal(sent.after.a, 0);
+  assert.equal(sent.after.flags.cy, true);
+  assert.deepEqual(old.outputSnapshot(), { lastByte: 0, writes: 1 });
+  const captured = structuredClone(sent);
+  const fresh = createAltairProgram("output");
+  assert.deepEqual(fresh.outputSnapshot(), { lastByte: null, writes: 0 });
+  assert.deepEqual([fresh.snapshot().a, fresh.snapshot().pc, fresh.ram.read(3), fresh.panel.switches], [0, 0x100, 41, 0]);
+  step(fresh); step(fresh); step(fresh);
+  assert.deepEqual(fresh.outputSnapshot(), { lastByte: 42, writes: 1 });
+  assert.deepEqual(old.outputSnapshot(), { lastByte: 0, writes: 1 });
+  assert.deepEqual(sent, captured);
+});
+
+test("the output guard blocks corrupt program bytes and non-instruction addresses without sending anything", () => {
+  const lesson = createAltairProgram("output");
+  step(lesson); step(lesson);
+  for (const [offset, byte] of [0x3a, 3, 0, 0xc6, 1, 0xd3, 1].entries()) {
+    deposit(lesson, 0x100 + offset, byte ^ 0xff);
+    examine(lesson, 0x105);
+    const before = lesson.snapshot();
+    assert.throws(() => lesson.step(), /reference card/);
+    assert.deepEqual(lesson.snapshot(), before);
+    assert.deepEqual(lesson.outputSnapshot(), { lastByte: null, writes: 0 });
+    deposit(lesson, 0x100 + offset, byte);
+  }
+  for (const address of [0, 1, 3, 0x101, 0x102, 0x104, 0x106, 0xffff]) {
+    examine(lesson, address);
+    assert.throws(() => lesson.step(), /instruction starts/);
+    assert.deepEqual(lesson.outputSnapshot(), { lastByte: null, writes: 0 });
+  }
+});

@@ -10,7 +10,7 @@
     <p class="lesson-intro">You have been choosing when every instruction happens. Now let the processor keep going. You can stop to look, then continue from exactly where you left it.</p>
   </header>
   <p class="experiment-note"><strong>Begin here:</strong> the countdown from 3 is already loaded. Press RUN, watch A change, then press STOP. The default pace leaves a second between instructions.</p>
-  {{ altair_panel(program=true, running=true) }}
+  {{ altair_panel(mode='running') }}
   <div class="lesson-prose">
     <section aria-labelledby="the-same-instructions">
       <h2 id="the-same-instructions">The same instructions, without each click.</h2>
@@ -50,7 +50,7 @@
       <details><summary>A longer experiment</summary><p>While stopped, EXAMINE address 3, lower all eight data switches, and DEPOSIT 0. Then EXAMINE <code>0100</code> and RUN. As in the earlier countdown lesson, subtraction wraps 0 to 255 before counting down. This takes 769 instructions. Try the faster pace, stop partway through, and inspect the recent twelve instructions. The total count keeps increasing even as older entries leave the list.</p></details>
       <details><summary>What this view models</summary><p>RUN schedules one whole 8080 instruction at a time. STOP takes effect between instructions and does not change the CPU’s stored state. Address and data lamps show PC and RAM at PC at those boundaries. Bus cycles, physical clock timing, and status lamps remain outside this teaching view. As before, the lesson checks the known program bytes and instruction starts before executing.</p></details>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/altair-program/') }}"><span aria-hidden="true">←</span> Entering your first program</a></nav>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/altair-program/') }}"><span aria-hidden="true">←</span> Entering your first program</a><a href="{{ calc_url('learn/altair-output/') }}">Next: Sending a byte out <span aria-hidden="true">→</span></a></nav>
   </div>
 </main>
 {% endblock %}

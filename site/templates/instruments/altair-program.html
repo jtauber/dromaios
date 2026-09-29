@@ -1,31 +1,41 @@
-{% macro reference_card(running=false) %}
-<details class="panel-reference" {% if not running %}open{% endif %}>
-  <summary>{{ 'Loaded countdown · reference card' if running else 'Program reference card' }} <span>All addresses and bytes here are hexadecimal</span></summary>
+{% from "instruments/byte-output.html" import byte_output %}
+{% macro reference_card(mode) %}
+{% set running = mode == 'running' %}
+{% set output = mode == 'output' %}
+<details class="panel-reference" {% if mode == 'program' %}open{% endif %}>
+  <summary>{{ 'Loaded countdown · reference card' if running else 'Loaded output program · reference card' if output else 'Program reference card' }} <span>All addresses and bytes here are hexadecimal</span></summary>
   <table>
-    <caption>{{ 'These eleven bytes are already loaded at 0100.' if running else 'Enter these eight bytes, starting at 0100.' }} RAM shows what is stored now.</caption>
+    <caption>{{ 'These eleven bytes are already loaded at 0100.' if running else 'These seven bytes are already loaded at 0100.' if output else 'Enter these eight bytes, starting at 0100.' }} RAM shows what is stored now.</caption>
     <thead><tr><th scope="col">Address</th><th scope="col">Reference</th><th scope="col">RAM</th><th scope="col">Check</th></tr></thead>
     <tbody data-panel-entry-bytes></tbody>
   </table>
   {% if running %}
   <p>0100–0102: <code>3A 03 00</code> loads address 3 into A.<br>0103–0104: <code>D6 01</code> subtracts one.<br>0105–0107: <code>32 04 00</code> stores A at address 4.<br>0108–010A: <code>C2 03 01</code> jumps back to 0103 if Z = 0.</p>
   <p>The source byte at address 3 starts at 3. Each trip subtracts, stores, and tests Z. This lesson checks all eleven program bytes before executing.</p>
+  {% elif output %}
+  <p>0100–0102: <code>3A 03 00</code> loads address 3 into A.<br>0103–0104: <code>C6 01</code> adds one.<br>0105–0106: <code>D3 01</code> sends A to output port 1.</p>
+  <p>The source byte at address 3 starts at 41 decimal. This lesson checks all seven program bytes before executing; the source data can be changed.</p>
   {% else %}
   <p>0100–0102: <code>3A 03 00</code> loads address 3 into A.<br>0103–0104: <code>C6 01</code> adds one.<br>0105–0107: <code>32 04 00</code> stores A at address 4.</p>
   <p>The byte at 0104 is the amount to add. The reference uses 01; any byte is allowed. Zero bytes already match the initially empty RAM.</p>
   {% endif %}
 </details>
 {% endmacro %}
-{% macro processor_view(running=false) %}
+{% macro processor_view(mode) %}
+{% set running = mode == 'running' %}
+{% set output = mode == 'output' %}
+{% set paced = running or output %}
 <section id="execution" class="panel-processor" aria-labelledby="processor-heading">
   <h3 id="processor-heading">The 8080 behind the panel</h3>
   <dl class="panel-cpu-state">
     <div><dt>A <span>decimal</span></dt><dd data-panel-cpu-a>0</dd></div>
-    <div><dt>PC <span>hex</span></dt><dd data-panel-cpu-pc>{{ '0100' if running else '0000' }}</dd></div>
-    <div><dt>RAM[3] <span>decimal</span></dt><dd data-panel-cpu-source>{{ 3 if running else 41 }}</dd></div>
-    <div><dt>RAM[4] <span>decimal</span></dt><dd data-panel-cpu-result>0</dd></div>
+    <div><dt>PC <span>hex</span></dt><dd data-panel-cpu-pc>{{ '0100' if paced else '0000' }}</dd></div>
+    <div><dt>RAM[3] <span>decimal</span></dt><dd data-panel-cpu-source data-panel-ram="3">{{ 3 if running else 41 }}</dd></div>
+    <div><dt>RAM[{{ 1 if output else 4 }}] <span>decimal</span></dt><dd data-panel-cpu-result data-panel-ram="{{ 1 if output else 4 }}">0</dd></div>
   </dl>
-  {% if running %}
-  <p class="panel-zero">Zero flag Z: <strong data-panel-cpu-z>0</strong> · the subtraction’s answer</p>
+  {% if output %}{{ byte_output() }}{% endif %}
+  {% if running %}<p class="panel-zero">Zero flag Z: <strong data-panel-cpu-z>0</strong> · the subtraction’s answer</p>{% endif %}
+  {% if paced %}
   <div class="panel-run-controls">
     <button type="button" class="button" data-panel-run disabled>RUN</button>
     <button type="button" class="button" data-panel-stop disabled>STOP</button>
@@ -33,10 +43,10 @@
   </div>
   {% endif %}
   <button type="button" class="button" data-panel-step disabled>Step one instruction</button>
-  <p data-panel-next aria-live="polite" tabindex="-1">{{ 'The countdown is loaded. Enable JavaScript to run or step it.' if running else 'Enter the program, then EXAMINE 0100 to begin.' }}</p>
+  <p data-panel-next aria-live="polite" tabindex="-1">{{ 'The program is loaded. Enable JavaScript to run or step it.' if paced else 'Enter the program, then EXAMINE 0100 to begin.' }}</p>
   <div class="register-record" role="status" aria-atomic="true"><span class="addition-label">Last CPU instruction</span><p data-panel-executed>No instruction has run.</p></div>
-  <details class="register-inside"><summary>Look inside the last instruction</summary><pre data-panel-trace>Step an instruction to see its fetched bytes and memory accesses.</pre></details>
-  {% if running %}
+  <details class="register-inside"><summary>Look inside the last instruction</summary><pre data-panel-trace>Step an instruction to see its fetched bytes, memory accesses, and any port transfers.</pre></details>
+  {% if paced %}
   <details class="register-inside"><summary>Recent instructions</summary><p data-panel-step-count>0 instructions executed.</p><ol class="panel-history" data-panel-history></ol></details>
   <p class="experiment-note">RUN and STOP are teaching controls at instruction boundaries. Pace is for reading, not a simulation of the Altair’s clock. This page stops running when hidden. Looking at these readouts changes no state; EXAMINE changes PC.</p>
   {% endif %}

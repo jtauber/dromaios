@@ -1,0 +1,7 @@
+{% macro lamps(high, low, prefix, initial='0') %}
+  <div class="panel-bit-bank" aria-hidden="true">
+    {% for bit in range(high, low - 1, -1) %}
+    <span class="panel-lamp" data-lamp-bit="{{ bit }}"><span>{{ prefix }}{{ bit }}</span><strong data-lamp-value>{{ initial }}</strong></span>
+    {% endfor %}
+  </div>
+{% endmacro %}

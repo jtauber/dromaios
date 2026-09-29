@@ -3,14 +3,17 @@ import { altairProgramStart, createAltairProgram } from "./altair-program.js";
 import { createExecutionController } from "./execution-controller.js";
 import { format8080Trace } from "./instruction-trace.js";
 import { hex } from "./register-programs.js";
+import { renderByteOutput } from "./byte-output-view.js";
 
 /** Execute the panel's known program, retaining captured instructions across memory edits. */
 export function mountAltairProgramExplorer(root: HTMLElement): void {
-  const paced = root.dataset.altairExplorer === "running";
+  const name = root.dataset.altairExplorer === "output" ? "output" : root.dataset.altairExplorer === "running" ? "countdown" : "entry";
+  const preloaded = name !== "entry";
   let lesson: ReturnType<typeof createAltairProgram>;
   let panel: ReturnType<typeof mountAltairExplorer> | undefined;
   const step = root.querySelector<HTMLButtonElement>("[data-panel-step]")!;
   const run = root.querySelector<HTMLButtonElement>("[data-panel-run]");
+  const paced = run !== null;
   const stop = root.querySelector<HTMLButtonElement>("[data-panel-stop]");
   const pace = root.querySelector<HTMLSelectElement>("[data-panel-pace]");
   const next = root.querySelector<HTMLElement>("[data-panel-next]")!;
@@ -18,6 +21,7 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
   const trace = root.querySelector<HTMLElement>("[data-panel-trace]")!;
   const hint = root.querySelector<HTMLElement>("[data-panel-entry-hint]")!;
   const history = root.querySelector<HTMLOListElement>("[data-panel-history]");
+  const output = root.querySelector<HTMLElement>("[data-byte-output]");
   const rows: { row: HTMLTableRowElement; address: number; expected: number; value: HTMLTableCellElement; check: HTMLTableCellElement }[] = [];
 
   const execution = createExecutionController({
@@ -42,9 +46,13 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
 
   function render(): void {
     const state = lesson.snapshot();
-    for (const [name, value] of [["a", state.a], ["pc", hex(state.pc, 4)], ["source", lesson.ram.read(3)], ["result", lesson.ram.read(4)]] as const) {
+    for (const [name, value] of [["a", state.a], ["pc", hex(state.pc, 4)]] as const) {
       root.querySelector<HTMLElement>(`[data-panel-cpu-${name}]`)!.textContent = String(value);
     }
+    for (const readout of root.querySelectorAll<HTMLElement>("[data-panel-ram]")) {
+      readout.textContent = String(lesson.ram.read(Number(readout.dataset.panelRam)));
+    }
+    if (output) renderByteOutput(output, lesson.outputSnapshot()!, execution.running);
     const flag = root.querySelector<HTMLElement>("[data-panel-cpu-z]");
     if (flag) flag.textContent = String(Number(state.flags.z));
     for (const { row, address, expected, value, check } of rows) {
@@ -78,9 +86,9 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
     if (!execution.running && document.activeElement === stop && !document.hidden) next.focus();
     const captured = execution.records.at(-1);
     last.parentElement!.setAttribute("aria-live", execution.running ? "off" : "polite");
-    const description = captured?.description ?? (paced ? "No instruction has run." : "No instruction has run. Enter the program using the switches and memory controls.");
+    const description = captured?.description ?? (preloaded ? "No instruction has run." : "No instruction has run. Enter the program using the switches and memory controls.");
     if (last.textContent !== description) last.textContent = description;
-    trace.textContent = captured?.trace ?? "Step an instruction to see its fetched bytes and memory accesses.";
+    trace.textContent = captured?.trace ?? "Step an instruction to see its fetched bytes, memory accesses, and any port transfers.";
     if (history) {
       root.querySelector<HTMLElement>("[data-panel-step-count]")!.textContent = `${execution.steps} instructions executed. Showing the most recent ${execution.records.length} (up to 12).`;
       history.replaceChildren(...execution.records.map(({ record, description }, index) => {
@@ -95,13 +103,16 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
   panel = mountAltairExplorer(root, {
     createPanel() {
       execution.reset();
-      lesson = createAltairProgram(paced ? "countdown" : "entry");
+      lesson = createAltairProgram(name);
       return lesson.panel;
     },
     canAccessMemory: () => !execution.running,
     onChange: render,
-    initialMessage: paced ? "No memory operation yet. The countdown is loaded; PC is 0100, address 3 holds 3, and address 4 holds 0."
-      : "No memory operation yet. The program area is empty; address 3 holds 41 and address 4 holds 0.",
+    initialMessage: {
+      entry: "No memory operation yet. The program area is empty; address 3 holds 41 and address 4 holds 0.",
+      countdown: "No memory operation yet. The countdown is loaded; PC is 0100, address 3 holds 3, and address 4 holds 0.",
+      output: "No memory operation yet. The output program is loaded; PC is 0100, address 3 holds 41, and address 1 holds 0. No byte has been sent to the device.",
+    }[name],
   });
   const body = root.querySelector<HTMLElement>("[data-panel-entry-bytes]")!;
   for (const [offset, expected] of lesson!.bytes.entries()) {

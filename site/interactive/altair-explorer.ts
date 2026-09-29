@@ -1,5 +1,6 @@
 import { createLessonsAltairMemory } from "../../src/machines/generated/lessons/altair-memory.js";
 import { createAltairMemoryPanel } from "./altair-panel.js";
+import { renderLamps } from "./lamp-bank.js";
 
 interface AltairExplorerOptions {
   readonly createPanel?: () => ReturnType<typeof createAltairMemoryPanel>;
@@ -31,11 +32,7 @@ export function mountAltairExplorer(root: HTMLElement, {
     for (const [name, value, digits] of [["address", panel.address, 4], ["data", panel.data, 2]] as const) {
       const bank = root.querySelector<HTMLElement>(`[data-panel-${name}]`)!;
       bank.setAttribute("aria-label", `${name === "address" ? "Address" : "Data"} lights: ${formatNumber(value, digits)}`);
-      for (const lamp of bank.querySelectorAll<HTMLElement>("[data-lamp-bit]")) {
-        const on = (value & (1 << Number(lamp.dataset.lampBit))) !== 0;
-        lamp.toggleAttribute("data-on", on);
-        lamp.querySelector<HTMLElement>("[data-lamp-value]")!.textContent = on ? "1" : "0";
-      }
+      renderLamps(bank, value);
       root.querySelector<HTMLElement>(`[data-panel-${name}-number]`)!.textContent = formatNumber(value, digits);
     }
     const byte = panel.switches & 0xff;

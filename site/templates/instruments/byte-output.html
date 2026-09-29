@@ -1,0 +1,9 @@
+{% from "instruments/lamp-bank.html" import lamps %}
+{% macro byte_output() %}
+<section class="byte-output" data-byte-output aria-labelledby="output-heading">
+  <h4 id="output-heading">A separate lamp device <span>Output port 1</span></h4>
+  <div role="img" aria-label="Output device: no byte sent yet" data-output-lamps>{{ lamps(7, 0, 'D', '–') }}</div>
+  <p class="output-status" data-output-status aria-live="polite" aria-atomic="true">No byte sent yet. 0 writes received.</p>
+  <p>Each OUT sends A here. The device keeps that byte until another arrives. Lit = 1; dark = 0 after a byte has arrived.</p>
+</section>
+{% endmacro %}

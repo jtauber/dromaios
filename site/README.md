@@ -270,6 +270,14 @@ visibility/page changes, and locks memory operations while running. Restart
 cancels old callbacks before replacing the session; pace and guide preference
 remain selected. The lesson contract owns the complete control and failure rules.
 
+[Sending a byte out](../docs/machines/altair-output.md) uses the `output` mode
+and `8080/altair-output-lesson.machine`. The existing byte-output device owns the
+lamp value; its host callback counts writes. The view reads snapshots without
+port access, and panel PC changes retain the same port connection. The shared
+lamp renderer serves both front-panel and device lamps; captured instruction
+traces distinguish memory accesses from port transfers. The lesson contract
+owns the initial state, program behavior, and acceptance checks.
+
 ## Checks
 
 ```sh

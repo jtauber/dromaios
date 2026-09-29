@@ -16,7 +16,7 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-byte-explorer]"
 }
 
 for (const root of document.querySelectorAll<HTMLElement>("[data-altair-explorer]")) {
-  if (root.dataset.altairExplorer === "program" || root.dataset.altairExplorer === "running") {
+  if (root.dataset.altairExplorer !== "memory") {
     const { mountAltairProgramExplorer } = await import("./altair-program-explorer.js");
     mountAltairProgramExplorer(root);
   } else {

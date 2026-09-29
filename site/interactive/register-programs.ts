@@ -13,7 +13,7 @@ type ReadByte = (address: number) => number;
 export interface LessonInstruction {
   readonly address: number;
   readonly length: number;
-  readonly action: "read" | "add" | "subtract" | "compare" | "write" | "jump";
+  readonly action: "read" | "add" | "subtract" | "compare" | "write" | "jump" | "output";
   readonly mnemonic: (read: ReadByte) => string;
   readonly explanation: (read: ReadByte) => string;
   readonly prompt: string;
@@ -33,7 +33,7 @@ export function hex(value: number, digits: number): string { return value.toStri
 export function readAddress(read: ReadByte, address: number): number { return read(address) | (read(address + 1) << 8); }
 
 // These descriptions label the lesson's known instructions; only the CPU executes them.
-function load(address: number): LessonInstruction {
+export function load(address: number): LessonInstruction {
   return {
     address, length: 3, action: "read", mnemonic: () => "LDA 0003H", explanation: () => "Read address 3 into A",
     prompt: "First, read address 3 into A. Predict which values will change.",
@@ -41,7 +41,7 @@ function load(address: number): LessonInstruction {
   };
 }
 
-function add(address: number, flag: "cy" | "z" = "cy"): LessonInstruction {
+export function add(address: number, flag: "cy" | "z" = "cy"): LessonInstruction {
   return {
     address, length: 2, action: "add", mnemonic: read => `ADI ${read(address + 1)}`,
     explanation: read => read(address + 1) === 1 ? "Add one to A" : `Add ${read(address + 1)} to A`,

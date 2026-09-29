@@ -1,0 +1,25 @@
+// Load a byte, add one, and send A to a separate output device.
+components {
+    ram = ram 10000
+    output = byte-output
+}
+
+cpu 8080 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    PC = 0100  SP = 0000
+    flags { S = 0  Z = 0  AC = 0  P = 0  CY = 0 }
+    interruptEnabled = false  interruptDeferred = false  halted = false
+}
+
+memory = ram
+ports { out 01 = output 0 }
+
+image ram 0003 { 29 }   // 41 decimal; RAM address 1 stays zero.
+image ram 0100 {
+    3A 03 00           // 0100: LDA 0003H — load the source byte into A.
+    C6 01              // 0103: ADI 1 — add one.
+    D3 01              // 0105: OUT 01 — send A to output port 1, not RAM[1].
+}
+
+end 0107              // Lesson boundary, not a halt instruction.
+reset { cpu output }

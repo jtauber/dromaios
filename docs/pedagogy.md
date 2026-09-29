@@ -170,7 +170,10 @@ a byte. [Entering your first program](machines/altair-program.md) then connects
 the panel to the 8080: deposit eight bytes, check them, execute three instructions,
 and change the addition's operand. [Letting the computer run](machines/altair-running.md)
 then uses the familiar countdown to introduce RUN, STOP, and resuming from the
-current state, with readable pacing and bounded history. I/O remains a later step.
+current state, with readable pacing and bounded history.
+[Sending a byte out](machines/altair-output.md) introduces OUT with a separate
+lamp device: changing A, writing RAM, and sending a byte are distinct actions.
+Input and text communication follow later.
 
 The next major priority is milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the

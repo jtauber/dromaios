@@ -9,8 +9,9 @@ export function format8080Trace(record: ExecutedStep, mnemonic: string): string 
     `A: ${record.before.a} → ${record.after.a} (decimal)`,
     `PC: ${hex(record.before.pc, 4)} → ${hex(record.after.pc, 4)} (hexadecimal)`,
     `Flags: ${flags.map(flag => `${flag.toUpperCase()} ${Number(record.before.flags[flag])} → ${Number(record.after.flags[flag])}`).join(", ")}`,
-    "", "Memory accesses (hexadecimal):",
-    ...record.accesses.flatMap(access => access.kind === "read" || access.kind === "write"
-      ? [`${access.kind === "read" ? "Read " : "Write"} ${hex(access.address, 4)}: ${hex(access.value, 2)}`] : []),
+    "", "Memory and port accesses (hexadecimal):",
+    ...record.accesses.map(access => "address" in access
+      ? `${access.kind === "read" ? "Read " : "Write"} ${hex(access.address, 4)}: ${hex(access.value, 2)}`
+      : `${access.kind === "input" ? "Input from" : "Output to"} port ${hex(access.port, 2)}: ${hex(access.value, 2)}`),
   ].join("\n");
 }

@@ -460,6 +460,14 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .panel-zero { font: 13px/1.6 var(--mono); }
 .panel-history { padding-left: 32px; font-size: 13px; line-height: 1.8; }
 .panel-history li + li { margin-top: 8px; }
+.byte-output { padding: 20px; border: 1px solid #7e704f; border-radius: 4px; background: #343c36; color: #f8efd9; }
+.byte-output h4 { margin: 0 0 18px; font: 16px/1.5 var(--mono); }
+.byte-output h4 span { display: block; margin-top: 4px; font: 12px/1.5 system-ui, sans-serif; color: #e0d4b8; }
+.byte-output .panel-bit-bank { max-width: 420px; }
+.byte-output .panel-lamp strong { background: #473e2c; border-color: #8e7c53; color: #dfd3b7; }
+.byte-output .panel-lamp[data-on] strong { background: #e6af3a; border-color: #f1d281; color: #302b1c; box-shadow: 0 0 12px #f4ba4460; }
+.byte-output p { font-size: 12px; line-height: 1.7; margin: 12px 0 0; }
+.byte-output .output-status { font: 14px/1.7 var(--mono); }
 @media (max-width: 680px) {
   .panel-banks, .panel-switch-numbers { grid-template-columns: 1fr; gap: 16px; }
   .panel-data-lights { max-width: none; }
@@ -472,6 +480,7 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 @media (prefers-reduced-motion: reduce) { .panel-toggle::after { transition: none; } }
 @media (max-width: 520px) {
   .panel-reference, .panel-processor { padding: 16px 12px; }
+  .byte-output { padding: 16px 10px; }
   .panel-reference th, .panel-reference td { padding: 6px 3px; font-size: 11px; }
   .panel-cpu-state { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

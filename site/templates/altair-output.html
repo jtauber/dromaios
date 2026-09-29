@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "instruments/altair-panel.html" import altair_panel %}
+{% block description %}Send a byte from the Altair's 8080 to a separate lamp device. Discover why changing a register, writing RAM, and sending output are different actions.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Meet the Altair · A byte reaches a device</p>
+    <h1>Sending a<br><em>byte out.</em></h1>
+    <p class="lesson-intro">So far, your programs have changed registers and memory. Now give the computer something else to talk to: a little device with eight lamps.</p>
+  </header>
+  <p class="experiment-note"><strong>Begin here:</strong> the program is already loaded. Step three times, watching A and the separate lamp device. Predict which instruction will light it up.</p>
+  {{ altair_panel(mode='output') }}
+  <div class="lesson-prose">
+    <section aria-labelledby="one-new-instruction">
+      <h2 id="one-new-instruction">Two familiar steps. One new destination.</h2>
+      <p>The first instruction loads 41 from RAM address 3 into A. The second adds one, making A = 42. You have done both before.</p>
+      <p>The third instruction is new: <code>OUT 01H</code>. Read that as “send the byte in A to output port 1.” Our lamp device is connected to that port. It receives 42 and lights the pattern <code>00101010</code>.</p>
+      <p>A keeps 42. Sending a byte copies its value; it does not empty the register. RAM stays unchanged too.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Step once, then again. A holds 42. Has anything been sent yet? Now take the third step.</p>
+        <details><summary>Show an explanation</summary><p>Loading and adding change A, but neither instruction sends output. Only the third step reaches the device. Its write count changes from 0 to 1.</p></details>
+        <a href="#execution">Watch the three steps ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="keeping-a-byte">
+      <h2 id="keeping-a-byte">The device keeps its own byte.</h2>
+      <p>The lamps are not another view of A. This device stores the last byte it receives. It keeps showing that byte while the processor does other work.</p>
+      <p>Try another run with different data. While stopped, use the panel to EXAMINE address 3, then DEPOSIT 99. In binary, 99 is <code>01100011</code>: raise only switches 6, 5, 1, and 0 for the deposit. The RAM[3] readout will confirm it.</p>
+      <p>Next, raise only switch 8 and EXAMINE <code>0100</code> to return PC to the start. Step the load and the addition. A becomes 99, then 100, while the device still shows 42. The next OUT sends 100; only then do its lamps change.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> Send 100 again. Will the lamps change? Will the write count change?</p>
+        <details><summary>Show an explanation</summary><p>EXAMINE 0100 and run the same three instructions again. The device receives another byte, so the write count increases, even though it keeps displaying the same pattern. A transfer and a change of value are different things.</p></details>
+        <a href="#execution">Send a second byte ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="ports-and-memory">
+      <h2 id="ports-and-memory">Port 1 is not address 1.</h2>
+      <p>The 8080 has separate instructions for memory and ports. <code>STA 0001H</code> would store A in RAM at address 1. <code>OUT 01H</code> sends A through output port 1 instead. The number 1 identifies two different destinations.</p>
+      <p>Look at RAM[1] above: sending 42 or 100 did not change its zero. You can EXAMINE address 1 and DEPOSIT a different byte there; that changes RAM, without sending anything to the device.</p>
+      <p>Open <strong>Look inside the last instruction</strong> just after OUT. The trace first shows the reads that fetched <code>D3 01</code> from program memory. Then it shows a separate output transfer. Values in this trace are hexadecimal: 42 decimal appears as <code>2A</code>.</p>
+      <p>The port’s connection is part of this machine’s setup. The processor sends a byte; the connected device decides what to do with it. Here, it keeps the byte and shows its bits as lamps.</p>
+    </section>
+    <section aria-labelledby="dark-lamps">
+      <h2 id="dark-lamps">Dark lamps can still mean a message.</h2>
+      <p>At the beginning, “No byte sent yet” means the device has received nothing. A transmitted zero is different: its eight bits are all zero, so all eight lamps are dark, but the device has received a byte.</p>
+      <p>To try it, DEPOSIT 255 at address 3 (all eight lower switches up), EXAMINE <code>0100</code>, and run the program. Adding one wraps 255 to 0, as before. OUT then sends that zero. The device’s readout and write count distinguish it from the empty starting state.</p>
+      <details><summary>What this view models</summary><p>This eight-lamp device is a teaching addition, not a particular historical Altair peripheral or part of its front panel. The red panel lamps still show PC and RAM at PC; the separate amber lamps show the output device’s stored byte. RUN, STOP, and stepping use the same whole-instruction model as the previous lesson. The lesson stops at 0107, just after OUT; no halt instruction runs. Start this lesson again restores the program and source byte, empties the device, and clears the counts and history.</p></details>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/altair-running/') }}"><span aria-hidden="true">←</span> Letting the computer run</a></nav>
+  </div>
+</main>
+{% endblock %}
