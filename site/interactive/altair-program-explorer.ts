@@ -5,13 +5,19 @@ import { format8080Trace } from "./instruction-trace.js";
 import { hex } from "./register-programs.js";
 import { renderByteOutput } from "./byte-output-view.js";
 import { mountByteInput } from "./byte-input-view.js";
+import { mountCharacterInput } from "./character-input-view.js";
+import { createTerminalLesson } from "./terminal-lesson.js";
+import { renderTerminalOutput } from "./terminal-output-view.js";
 
 /** Execute the panel's known program, retaining captured instructions across memory edits. */
 export function mountAltairProgramExplorer(root: HTMLElement): void {
   const mode = root.dataset.altairExplorer;
-  const name = mode === "output" || mode === "input" || mode === "polling" ? mode : mode === "running" ? "countdown" : "entry";
+  const terminal = mode === "terminal";
+  const name = terminal ? "polling"
+    : mode === "running" ? "countdown"
+    : mode === "output" || mode === "input" || mode === "polling" ? mode : "entry";
   const preloaded = name !== "entry";
-  let lesson: ReturnType<typeof createAltairProgram>;
+  let lesson: ReturnType<typeof createAltairProgram> | ReturnType<typeof createTerminalLesson>;
   let panel: ReturnType<typeof mountAltairExplorer> | undefined;
   let inputView: ReturnType<typeof mountByteInput> | undefined;
   const step = root.querySelector<HTMLButtonElement>("[data-panel-step]")!;
@@ -26,6 +32,7 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
   const history = root.querySelector<HTMLOListElement>("[data-panel-history]");
   const output = root.querySelector<HTMLElement>("[data-byte-output]");
   const input = root.querySelector<HTMLElement>("[data-byte-input]");
+  const terminalOutput = root.querySelector<HTMLElement>("[data-terminal-output]");
   const rows: { row: HTMLTableRowElement; address: number; expected: number; value: HTMLTableCellElement; check: HTMLTableCellElement }[] = [];
 
   const execution = createExecutionController({
@@ -57,6 +64,9 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
       readout.textContent = String(lesson.ram.read(Number(readout.dataset.panelRam)));
     }
     if (output) renderByteOutput(output, lesson.outputSnapshot()!, execution.running);
+    if (terminalOutput && "terminalSnapshot" in lesson) {
+      renderTerminalOutput(terminalOutput, lesson.terminalSnapshot(), lesson.outputSnapshot()!, execution.running);
+    }
     inputView?.refresh(execution.running);
     const flag = root.querySelector<HTMLElement>("[data-panel-cpu-z]");
     if (flag) flag.textContent = String(Number(state.flags.z));
@@ -108,7 +118,7 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
   panel = mountAltairExplorer(root, {
     createPanel() {
       execution.reset();
-      lesson = createAltairProgram(name);
+      lesson = terminal ? createTerminalLesson() : createAltairProgram(name);
       inputView?.reset();
       return lesson.panel;
     },
@@ -122,7 +132,7 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
       input: "No memory operation yet. The input program is loaded; PC is 0100 and address 1 holds 0. Both devices start empty.",
     }[name],
   });
-  if (input) inputView = mountByteInput(input, {
+  if (input) inputView = (terminal ? mountCharacterInput : mountByteInput)(input, {
     snapshot: () => lesson.inputSnapshot()!,
     offer: value => lesson.offerInput(value),
     onChange: () => { panel!.refresh(); },

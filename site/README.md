@@ -311,6 +311,14 @@ control labels, the high bit, punctuation rendered as text, invalid drafts and
 recovery, keyboard use, and wide/narrow layouts. The static page retains the
 65 / A example with disabled controls when JavaScript is unavailable.
 
+[Typing to the computer](../docs/machines/terminal-lesson.md) selects `terminal`
+presentation with the same polling program and generated factory. The session
+in `interactive/terminal-lesson.ts` retains bounded output through the existing
+device callback; `character-input-view.ts` prepares a character and
+`terminal-output-view.ts` renders received bytes. Both input views share the
+latch-status rendering. The linked contract owns input validation, display
+conventions, retention, restart behavior, and acceptance checks.
+
 ## Checks
 
 ```sh

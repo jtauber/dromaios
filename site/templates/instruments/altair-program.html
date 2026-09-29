@@ -1,6 +1,9 @@
 {% from "instruments/byte-output.html" import byte_output %}
 {% from "instruments/byte-input.html" import byte_input %}
+{% from "instruments/terminal.html" import character_input, terminal_output %}
 {% macro reference_card(mode) %}
+{% set terminal = mode == 'terminal' %}
+{% if terminal %}{% set mode = 'polling' %}{% endif %}
 {% set running = mode == 'running' %}
 {% set output = mode == 'output' %}
 {% set polling = mode == 'polling' %}
@@ -23,7 +26,7 @@
   <p>0100–0102: <code>3A 03 00</code> loads address 3 into A.<br>0103–0104: <code>D6 01</code> subtracts one.<br>0105–0107: <code>32 04 00</code> stores A at address 4.<br>0108–010A: <code>C2 03 01</code> jumps back to 0103 if Z = 0.</p>
   <p>The source byte at address 3 starts at 3. Each trip subtracts, stores, and tests Z. This lesson checks all eleven program bytes before executing.</p>
   {% elif polling %}
-  <p>0100–0101: <code>DB 00</code> reads readiness into A.<br>0102–0103: <code>FE 00</code> compares A with zero.<br>0104–0106: <code>CA 00 01</code> jumps to 0100 if Z = 1.<br>0107–0108: <code>DB 01</code> receives the waiting byte into A.<br>0109–010A: <code>D3 01</code> sends A to the lamps.<br>010B–010D: <code>C3 00 01</code> jumps to 0100.</p>
+  <p>0100–0101: <code>DB 00</code> reads readiness into A.<br>0102–0103: <code>FE 00</code> compares A with zero.<br>0104–0106: <code>CA 00 01</code> jumps to 0100 if Z = 1.<br>0107–0108: <code>DB 01</code> receives the waiting byte into A.<br>0109–010A: <code>D3 01</code> sends A to the {{ 'text display' if terminal else 'lamps' }}.<br>010B–010D: <code>C3 00 01</code> jumps to 0100.</p>
   <p>Checking readiness leaves pending input alone. This lesson checks all fourteen program bytes before executing. RAM is zero outside the program.</p>
   {% elif input %}
   <p>0100–0101: <code>DB 01</code> receives the waiting byte from input port 1 into A.<br>0102–0103: <code>D3 01</code> sends A to output port 1.</p>
@@ -38,6 +41,8 @@
 </details>
 {% endmacro %}
 {% macro processor_view(mode) %}
+{% set terminal = mode == 'terminal' %}
+{% if terminal %}{% set mode = 'polling' %}{% endif %}
 {% set running = mode == 'running' %}
 {% set output = mode == 'output' %}
 {% set polling = mode == 'polling' %}
@@ -51,7 +56,8 @@
     {% if not input %}<div><dt>RAM[3] <span>decimal</span></dt><dd data-panel-cpu-source data-panel-ram="3">{{ 3 if running else 41 }}</dd></div>{% endif %}
     <div><dt>RAM[{{ 1 if output or input else 4 }}] <span>decimal</span></dt><dd data-panel-cpu-result data-panel-ram="{{ 1 if output or input else 4 }}">0</dd></div>
   </dl>
-  {% if input %}<div class="panel-devices">{{ byte_input(polling=polling) }}{{ byte_output() }}</div>
+  {% if terminal %}<div class="panel-devices">{{ character_input() }}{{ terminal_output() }}</div>
+  {% elif input %}<div class="panel-devices">{{ byte_input(polling=polling) }}{{ byte_output() }}</div>
   {% elif output %}{{ byte_output() }}{% endif %}
   {% if running or polling %}<p class="panel-zero">Zero flag Z: <strong data-panel-cpu-z>0</strong> · the {{ "comparison’s" if polling else "subtraction’s" }} answer</p>{% endif %}
   {% if paced %}

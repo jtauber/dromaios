@@ -26,3 +26,10 @@ export function interpretAscii(value: number): AsciiByte {
   const [abbreviation, name] = controls[value]!;
   return { kind: "control", abbreviation, name };
 }
+
+/** Accept exactly one printable ASCII character, including space, without trimming or truncating. */
+export function asciiCharacterByte(text: string): number | undefined {
+  if (text.length !== 1) return undefined;
+  const value = text.charCodeAt(0);
+  return value >= 32 && value <= 126 ? value : undefined;
+}

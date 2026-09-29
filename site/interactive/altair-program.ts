@@ -25,11 +25,11 @@ function outputInstruction(address: number): LessonInstruction {
   return {
     address, length: 2, action: "output", mnemonic: () => "OUT 01H",
     explanation: () => "Send A to output port 1",
-    prompt: "Send A to the lamp device. Will A or RAM change?",
+    prompt: "Send A to the output device. Will A or RAM change?",
     describe: record => {
       const transfer = record.accesses.find(access => access.kind === "output");
       if (!transfer || transfer.kind !== "output") throw new Error("Expected a captured output transfer.");
-      return `Sent ${transfer.value} from A to output port ${transfer.port}. The lamp device now holds that byte. A, flags, and RAM are unchanged.`;
+      return `Sent ${transfer.value} from A to output port ${transfer.port}. The output device now holds that byte. A, flags, and RAM are unchanged.`;
     },
   };
 }
@@ -89,10 +89,10 @@ const programs = {
 } as const;
 
 /** Connect the panel to PC and guard execution of a known lesson program. */
-export function createAltairProgram(name: keyof typeof programs = "entry") {
+export function createAltairProgram(name: keyof typeof programs = "entry", onOutput: (value: number) => void = () => {}) {
   const { createMachine, instructions, bytes, editableOperand } = programs[name];
   let outputWrites = 0;
-  const machine: LessonMachine = createMachine({ output: () => { outputWrites++; } });
+  const machine: LessonMachine = createMachine({ output: value => { outputWrites++; onOutput(value); } });
   const { ram, endAddress, ports, output, input } = machine;
   let cpu = machine.cpu;
   const panel = createAltairMemoryPanel(ram, {

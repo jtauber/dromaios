@@ -178,7 +178,9 @@ input, A, and output remain distinct. [Waiting for a byte](machines/altair-polli
 then lets the program check readiness in a polling loop, echo each arrival, and
 return to wait again. [Bytes can be letters](../site/templates/bytes-as-characters.html)
 adds ASCII to the shared byte explorer, distinguishing printed characters,
-space, non-printing codes, and values outside ASCII before text communication.
+space, non-printing codes, and values outside ASCII.
+[Typing to the computer](machines/terminal-lesson.md) then reuses the polling
+program with character input and a text display driven by actual OUT writes.
 
 The next major priority is milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the

@@ -1,0 +1,28 @@
+{% macro character_input() %}
+<section class="byte-input character-input" data-byte-input aria-labelledby="input-heading">
+  <h4 id="input-heading">Character input <span>Port 0: readiness · Port 1: data</span></h4>
+  <label for="prepared-character">Prepare one ASCII character</label>
+  <textarea id="prepared-character" data-character-input rows="1" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="character-help" disabled>A</textarea>
+  <p id="character-help" data-input-prepared role="status">Prepared: A · 65 decimal · 41 hex. Enable JavaScript to send it.</p>
+  <div class="character-controls">
+    <button type="button" class="button" data-input-send disabled>Send character</button>
+    <button type="button" class="button" data-send-line-feed disabled>Send line feed</button>
+  </div>
+  <p>Typing prepares a character. Send or Enter offers it to the device. Line feed sends byte 10 separately.</p>
+  <p class="input-status" data-input-status aria-live="polite" aria-atomic="true" tabindex="-1">Device empty. No byte waiting.</p>
+  <p>Ready now: <strong data-input-readiness>0 · empty</strong></p>
+  <p>One byte can wait. When full, prepare another character here; it stays unsent until you send it after the CPU receives the first.</p>
+</section>
+{% endmacro %}
+{% macro terminal_output() %}
+<section class="terminal-output" data-terminal-output aria-labelledby="output-heading">
+  <h4 id="output-heading">Received text <span>Output port 1</span></h4>
+  <div class="terminal-screen">
+    <pre data-terminal-text tabindex="0" role="region" aria-label="Received text, from executed output instructions" aria-live="off"></pre>
+    <span data-terminal-empty>Waiting for output</span>
+  </div>
+  <p data-output-status aria-live="polite" aria-atomic="true">No byte sent yet.</p>
+  <p data-terminal-count>0 writes received.</p>
+  <p>Only OUT adds text. LF starts a new line; other non-printing bytes appear as labels in angle brackets.</p>
+</section>
+{% endmacro %}

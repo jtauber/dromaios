@@ -518,3 +518,18 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
   .ascii-glyph[data-kind="graphic"] { font-size: 48px; }
   .ascii-reading h2 { font-size: 17px; }
 }
+
+.character-input label { display: block; font-size: 13px; font-weight: 600; }
+.character-input textarea { display: block; width: 100%; min-width: 0; margin-top: 8px; padding: 8px 12px; border: 1px solid #8ca4af; background: var(--paper); color: var(--ink); font: 28px/1.4 var(--mono); resize: none; }
+.character-input textarea[aria-invalid="true"] { border: 2px solid var(--accent); padding: 7px 11px; }
+.character-controls { display: flex; flex-wrap: wrap; gap: 10px; }
+.character-controls .button { font-size: 12px; padding: 12px; }
+.terminal-output { padding: 20px; border: 1px solid #52655a; border-radius: 4px; background: #293e34; color: #f0f3da; min-width: 0; }
+.terminal-output h4 { margin: 0 0 16px; font: 16px/1.5 var(--mono); }
+.terminal-output h4 span { display: block; margin-top: 4px; font: 12px/1.5 system-ui, sans-serif; }
+.terminal-output p { margin: 12px 0; font-size: 12px; line-height: 1.7; }
+.terminal-screen { position: relative; }
+.terminal-screen pre { height: 180px; margin: 0; padding: 12px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: #172b22; color: #eff4d7; font: 20px/1.5 var(--mono); }
+.terminal-screen pre::after { content: '▏'; opacity: .6; }
+.terminal-screen [data-terminal-empty] { position: absolute; left: 28px; top: 15px; font-size: 12px; color: #becabd; pointer-events: none; }
+@media (max-width: 520px) { .terminal-output { padding: 16px 10px; } }

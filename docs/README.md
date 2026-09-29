@@ -102,6 +102,8 @@ examples add polling and consuming input reads with the same devices.
   it into A, and echo it to the lamp device.
 - [Waiting for a byte](machines/altair-polling.md): poll readiness, receive and
   echo arriving bytes, and return to check again.
+- [Typing to the computer](machines/terminal-lesson.md): send one ASCII character
+  and let the polling program echo it to a text display.
 - [Definition guide](machines/definitions.md): initial state and memory images,
   directory conventions, generated factories, and the editing/build workflow.
 - [Memory components and maps](machines/memory-map.md): RAM/ROM ownership,

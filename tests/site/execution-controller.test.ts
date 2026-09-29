@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createExecutionController } from "../../site/interactive/execution-controller.js";
+import { createTerminalLesson } from "../../site/interactive/terminal-lesson.js";
 import { createAltairProgram } from "../../site/interactive/altair-program.js";
 
 function clock() {
@@ -367,5 +368,57 @@ test("restarting polling before status, data, or output invalidates queued work 
     assert.deepEqual(old.snapshot(), state);
     assert.deepEqual(old.inputSnapshot(), input);
     assert.deepEqual(old.outputSnapshot(), { lastByte: null, writes: 0 });
+  }
+});
+
+
+test("STOP before terminal output retains A and pending input; resume appends the captured byte once", () => {
+  const timer = clock();
+  const lesson = createTerminalLesson();
+  const execution = createExecutionController({
+    step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+    onChange() {}, schedule: timer.schedule,
+  });
+  lesson.offerInput(65);
+  execution.run();
+  for (let i = 0; i < 4; i++) timer.tick();
+  const queued = timer.pending[0]!;
+  execution.stop();
+  lesson.offerInput(66);
+  queued.callback();
+  assert.deepEqual(lesson.terminalSnapshot(), { text: "", retained: 0 });
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 66 });
+  assert.equal(lesson.snapshot().a, 65);
+  assert.equal(timer.pending.length, 0);
+  execution.run(); timer.tick(); execution.stop();
+  assert.deepEqual(lesson.terminalSnapshot(), { text: "A", retained: 1 });
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 66 });
+});
+
+test("terminal restart cannot append stale output to either the new display or the previous session", () => {
+  for (const stepsBeforeRestart of [0, 3, 4]) {
+    const timer = clock();
+    let lesson = createTerminalLesson();
+    const execution = createExecutionController({
+      step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+      onChange() {}, schedule: timer.schedule,
+    });
+    lesson.offerInput(65);
+    execution.run();
+    for (let i = 0; i < stepsBeforeRestart; i++) timer.tick();
+    const old = lesson;
+    const pending = old.inputSnapshot();
+    const queued = timer.pending[0]!;
+    execution.reset();
+    lesson = createTerminalLesson();
+    lesson.offerInput(66);
+    execution.run(); queued.callback();
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "", retained: 0 });
+    assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 66 });
+    for (let i = 0; i < 6; i++) timer.tick();
+    execution.stop();
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "B", retained: 1 });
+    assert.deepEqual(old.terminalSnapshot(), { text: "", retained: 0 });
+    assert.deepEqual(old.inputSnapshot(), pending);
   }
 });

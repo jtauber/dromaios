@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { interpretAscii } from "../../site/interactive/ascii.js";
+import { interpretAscii, asciiCharacterByte } from "../../site/interactive/ascii.js";
 
 test("ASCII graphic characters follow the standard code table, including punctuation and case", () => {
   // Explicit table rows, independent of the implementation's character conversion.
@@ -38,4 +38,14 @@ test("space, all control codes, and Delete remain identifiable without becoming 
 test("the upper half of the byte range has no ASCII mapping and is never truncated to seven bits", () => {
   for (let value = 128; value <= 255; value++) assert.deepEqual(interpretAscii(value), { kind: "outside" });
   for (const invalid of [-1, 256, 0.5, NaN, Infinity, -Infinity]) assert.throws(() => interpretAscii(invalid), RangeError);
+});
+
+
+test("character input accepts exactly one printable ASCII character without trimming or discarding pasted text", () => {
+  for (let value = 0; value <= 255; value++) {
+    assert.equal(asciiCharacterByte(String.fromCharCode(value)), value >= 32 && value <= 126 ? value : undefined);
+  }
+  for (const text of ["", "AB", " A", "A ", "  ", "é", "😀", "e\u0301"]) assert.equal(asciiCharacterByte(text), undefined);
+  assert.equal(asciiCharacterByte("0"), 48);
+  assert.equal(asciiCharacterByte(" "), 32);
 });

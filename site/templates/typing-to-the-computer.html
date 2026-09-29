@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "instruments/altair-panel.html" import altair_panel %}
+{% block description %}Send an ASCII character to the 8080 and follow it through a polling program into a text display. See why typing, receiving, and echoing are separate actions.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Meet the Altair · A teaching terminal</p>
+    <h1>Typing to<br><em>the computer.</em></h1>
+    <p class="lesson-intro">A character can travel as a byte. Send one to the 8080, let the program receive it, then watch it come back as text. The program is the same one that echoed bytes to the lamps.</p>
+  </header>
+  <p class="experiment-note"><strong>Begin here:</strong> A is prepared below. Press Send character, then step five instructions. The text display stays empty until the fifth instruction, OUT. One more step returns to the readiness check.</p>
+  {{ altair_panel(mode='terminal') }}
+  <div class="lesson-prose">
+    <section aria-labelledby="prepare-send-receive">
+      <h2 id="prepare-send-receive">Typing prepares. Sending offers.</h2>
+      <p>The input field holds a character you are preparing. Replace A with another ASCII letter, a digit, punctuation, or a single space. Its byte value appears below the field.</p>
+      <p><strong>Send character</strong>, or Enter while editing the field, copies that byte to the input device. It waits there for the CPU. Typing alone does not send it, and sending does not start execution.</p>
+      <p>The device can hold one waiting byte. While it is full, you can prepare a different character in the field, but cannot replace the pending byte. When the CPU receives the first byte, send the next one explicitly. There is no hidden input queue.</p>
+      <p>The field accepts exactly one printable ASCII character, including space. Empty input, multiple characters, and characters outside ASCII are explained without sending or silently shortening them. Send line feed is a separate action, sending byte 10.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Send A, then replace the field with B while the CPU is still stopped. Which character is waiting in the device?</p>
+        <details><summary>Show an explanation</summary><p>A is still waiting, as byte 65. B is only prepared in the field. Its value, 66, has not replaced the byte you already sent.</p></details>
+        <a href="#execution">Keep preparation and input separate ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="echo-after-output">
+      <h2 id="echo-after-output">A letter appears when the program sends it.</h2>
+      <p>The familiar program checks readiness with <code>IN 00H</code>, compares the answer with zero, and decides whether to repeat. Once a byte is ready, <code>IN 01H</code> receives it into A.</p>
+      <p>That is still only input. The text display remains unchanged until <code>OUT 01H</code> sends A to output port 1. The display interprets the received byte using ASCII and adds its character after the earlier output.</p>
+      <p>You can read the pending byte, A, and the last output independently. After the echo, the next readiness check can replace A with 0 or 1; it does not erase the text.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> Receive A, then send B before stepping OUT. Which letter will OUT display?</p>
+        <details><summary>Show an explanation</summary><p>A. The CPU already holds byte 65 in its accumulator. B waits in the input device until the next trip through the program.</p></details>
+        <a href="#execution">Follow the two characters ↑</a>
+      </aside>
+      <p>Open <strong>Look inside the last instruction</strong> after OUT. Its captured output transfer is the reason a character appeared. Editing the input field or reading a display produces no such transfer.</p>
+    </section>
+    <section aria-labelledby="build-a-line">
+      <h2 id="build-a-line">Several bytes make a line of text.</h2>
+      <p>Choose RUN to keep polling. At a slow teaching pace you can see each transfer happen. A faster pace makes a short conversation easier; send each new character when the device has room.</p>
+      <p>Try sending H, i, a space, and A. Then send A again. The display should read “Hi AA”. Two equal output bytes make two letters, even though the output device’s last-byte value stays the same.</p>
+      <p>When the device is empty, <strong>Send line feed</strong> offers byte 10. After the program echoes it, this display starts a new line. Line feed does not immediately move the output position when you click the button.</p>
+      <p>Space and line feed both count as output bytes. A space leaves a gap; line feed moves the thin output marker to the start of the next line. The marker shows where the next character will appear and is not a received character.</p>
+      <p>STOP preserves pending input, A, and the text. Start this lesson again empties them and prepares A. The display retains only the latest 256 output bytes, while the write count continues to show the total received.</p>
+    </section>
+    <section aria-labelledby="what-terminal-means">
+      <h2 id="what-terminal-means">A terminal joins input and output.</h2>
+      <p>The keyboard side supplies bytes, and the display side presents bytes received back. Our small echo program connects the two directions. That makes the difference between a key being prepared and the computer responding visible.</p>
+      <p>This is a teaching terminal, not a model of a particular historical keyboard, display, or serial board. It reuses the same one-byte input device, output device, port connections, and fourteen-byte polling program as <a href="{{ calc_url('learn/altair-polling/') }}">Waiting for a byte</a>.</p>
+      <details><summary>How this display treats other bytes</summary><p>This display draws printable ASCII and spaces, and treats LF as a new line. Other non-printing codes appear as labels such as ⟨NUL⟩ or ⟨CR⟩; bytes outside ASCII use hexadecimal labels such as ⟨FF hex⟩. These labels make the received bytes inspectable rather than performing cursor movement, deletion, or other terminal operations. The character field cannot send these codes, but a program can output them. For example, EXAMINE 0107 with an empty device bypasses readiness: IN returns zero, then OUT displays ⟨NUL⟩.</p></details>
+      <p>The CPU does not need a new instruction to make letters appear. It still transfers bytes. We changed how the host prepares and presents those bytes.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/bytes-as-characters/') }}"><span aria-hidden="true">←</span> Bytes can be letters</a></nav>
+  </div>
+</main>
+{% endblock %}
