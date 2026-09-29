@@ -53,7 +53,7 @@
       <details><summary>Skip the second call by changing the saved address</summary><p>Start again and step twice to execute the first CALL. EXAMINE 01FE, set the switches to 0009, and DEPOSIT. The last-instruction explanation still reports the 0006 that CALL originally saved. Then EXAMINE 000A to restore PC and RUN. The routine prints one HELLO line, but RET now returns directly to HLT at 0009, skipping the second call.</p></details>
       <p>This experiment deliberately changes the program's continuation. The lesson guards instruction bytes and pauses at unknown instruction addresses; a real 8080 does not check that a return lands where the programmer intended. Start again to restore the ordinary two-call path.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/remembering-what-you-type/') }}"><span aria-hidden="true">←</span> Remembering what you type</a></nav>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/remembering-what-you-type/') }}"><span aria-hidden="true">←</span> Remembering what you type</a><a href="{{ calc_url('learn/a-routine-inside-a-routine/') }}">A routine inside a routine <span aria-hidden="true">→</span></a></nav>
   </div>
 </main>
 {% endblock %}

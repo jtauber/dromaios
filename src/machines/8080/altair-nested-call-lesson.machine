@@ -1,0 +1,37 @@
+// The printing routine calls a second routine to send each character.
+components {
+    ram = ram 10000
+    output = byte-output
+}
+
+cpu 8080 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    PC = 0000  SP = 0000
+    flags { S = 0  Z = 0  AC = 0  P = 0  CY = 0 }
+    interruptEnabled = false  interruptDeferred = false  halted = false
+}
+
+memory = ram
+ports { out 01 = output 0 }
+
+image ram 0000 {
+    31 00 02            // 0000: LXI SP,0200 — choose the empty stack's starting point.
+    CD 0A 00            // 0003: CALL 000A — save the outer return address 0006.
+    CD 0A 00            // 0006: CALL 000A — save the outer return address 0009.
+    76                  // 0009: HLT
+    21 00 01            // 000A: LXI H,0100 — the printing routine starts here.
+    7E                  // 000D: MOV A,M
+    FE 00               // 000E: CPI 00
+    CA 1A 00            // 0010: JZ 001A — NUL returns to the main program.
+    CD 1B 00            // 0013: CALL 001B — save the inner return address 0016.
+    23                  // 0016: INX H
+    C3 0D 00            // 0017: JMP 000D
+    C9                  // 001A: RET — the printing routine returns.
+    D3 01               // 001B: OUT 01 — the character routine sends A.
+    C9                  // 001D: RET — the character routine returns to the loop.
+}
+
+image ram 0100 { 48 45 4C 4C 4F 0A 00 } // HELLO, line feed, NUL.
+// Outer calls use 01FE–01FF; inner calls use 01FC–01FD. All start at zero.
+
+reset { cpu output }

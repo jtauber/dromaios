@@ -192,6 +192,8 @@ length counter with a zero terminator, testing each byte before sending it.
 pointer-based stores, an eight-character capacity, and later readback from RAM.
 [Remembering where to return](machines/subroutine-lesson.md) introduces CALL,
 RET, and SP by invoking one printing routine from two places.
+[A routine inside a routine](machines/nested-call-lesson.md) then separates
+character output into an inner call, making last-in, first-out returns visible.
 
 The next major priority is milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the

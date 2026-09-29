@@ -705,3 +705,71 @@ test("subroutine restart rejects queued stack writes, returns, outputs, and HLT 
     assert.deepEqual([old.ram.read(0x1fe), old.ram.read(0x1ff)], stack);
   }
 });
+
+test("nested-call STOP preserves both return addresses and resumes each RET once", () => {
+  const timer = clock();
+  const lesson = createTerminalLesson("nested-call");
+  const execution = createExecutionController({
+    step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+    onChange() {}, schedule: timer.schedule,
+  });
+  execution.run();
+  for (let i = 0; i < 7; i++) timer.tick();
+  const output = timer.pending[0]!;
+  execution.stop(); output.callback();
+  assert.deepEqual([lesson.snapshot().pc, lesson.snapshot().sp], [27, 0x1fc]);
+  assert.deepEqual([0x1fc, 0x1fd, 0x1fe, 0x1ff].map(address => lesson.ram.read(address)), [22, 0, 6, 0]);
+  assert.equal(lesson.outputSnapshot()!.writes, 0);
+  execution.run(); timer.tick();
+  const innerReturn = timer.pending[0]!;
+  execution.stop(); innerReturn.callback();
+  assert.deepEqual([lesson.snapshot().pc, lesson.snapshot().sp], [29, 0x1fc]);
+  execution.run(); timer.tick(); execution.stop();
+  assert.deepEqual([lesson.snapshot().pc, lesson.snapshot().sp], [22, 0x1fe]);
+  assert.deepEqual(lesson.terminalSnapshot(), { text: "H", retained: 1 });
+  execution.run();
+  for (let i = 9; i < 54; i++) timer.tick();
+  const outerReturn = timer.pending[0]!;
+  execution.stop(); outerReturn.callback();
+  assert.deepEqual([lesson.snapshot().pc, lesson.snapshot().sp], [26, 0x1fe]);
+  execution.run(); timer.tick(); execution.stop();
+  assert.deepEqual([lesson.snapshot().pc, lesson.snapshot().sp], [6, 0x200]);
+  execution.run();
+  for (let i = 55; i < 110; i++) timer.tick();
+  assert.equal(execution.steps, 110);
+  assert.equal(execution.running, false);
+  assert.equal(execution.error, undefined);
+  assert.equal(timer.pending.length, 0);
+  assert.deepEqual(lesson.terminalSnapshot(), { text: "HELLO\nHELLO\n", retained: 12 });
+});
+
+test("nested-call restart cancels queued work at either call depth and restores both stack pairs", () => {
+  for (const completed of [0, 1, 2, 6, 7, 8, 9, 54, 55, 56, 108, 109]) {
+    const timer = clock();
+    let lesson = createTerminalLesson("nested-call");
+    const execution = createExecutionController({
+      step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+      onChange() {}, schedule: timer.schedule,
+    });
+    execution.run();
+    for (let i = 0; i < completed; i++) timer.tick();
+    const old = lesson;
+    const state = old.snapshot();
+    const output = old.terminalSnapshot();
+    const stack = [0x1fc, 0x1fd, 0x1fe, 0x1ff].map(address => old.ram.read(address));
+    const queued = timer.pending[0]!;
+    execution.reset(); lesson = createTerminalLesson("nested-call");
+    assert.equal(lesson.snapshot().sp, 0);
+    assert.deepEqual([0x1fc, 0x1fd, 0x1fe, 0x1ff].map(address => lesson.ram.read(address)), [0, 0, 0, 0]);
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "", retained: 0 });
+    execution.run(); queued.callback();
+    assert.equal(execution.steps, 0);
+    for (let i = 0; i < 110; i++) timer.tick();
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "HELLO\nHELLO\n", retained: 12 });
+    assert.equal(execution.running, false);
+    assert.equal(execution.error, undefined);
+    assert.deepEqual(old.snapshot(), state);
+    assert.deepEqual(old.terminalSnapshot(), output);
+    assert.deepEqual([0x1fc, 0x1fd, 0x1fe, 0x1ff].map(address => old.ram.read(address)), stack);
+  }
+});

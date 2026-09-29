@@ -114,6 +114,8 @@ examples add polling and consuming input reads with the same devices.
   characters through HL into a bounded buffer, then read them back for output.
 - [Remembering where to return](machines/subroutine-lesson.md): call one printing
   routine twice and follow its saved return addresses in RAM.
+- [A routine inside a routine](machines/nested-call-lesson.md): follow two
+  pending return addresses as a printing routine calls a character routine.
 - [Definition guide](machines/definitions.md): initial state and memory images,
   directory conventions, generated factories, and the editing/build workflow.
 - [Memory components and maps](machines/memory-map.md): RAM/ROM ownership,

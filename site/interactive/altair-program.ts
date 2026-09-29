@@ -13,6 +13,7 @@ import { create8080OutputExample } from "../../src/machines/generated/8080/outpu
 import { create8080AltairTerminatedMessageLesson } from "../../src/machines/generated/8080/altair-terminated-message-lesson.js";
 import { create8080AltairBufferLesson } from "../../src/machines/generated/8080/altair-buffer-lesson.js";
 import { create8080AltairSubroutineLesson } from "../../src/machines/generated/8080/altair-subroutine-lesson.js";
+import { create8080AltairNestedCallLesson } from "../../src/machines/generated/8080/altair-nested-call-lesson.js";
 import { createAltairMemoryPanel } from "./altair-panel.js";
 import { registerProgram, hex, readAddress, load, loadImmediate, add, compare, jump, jumpIf } from "./register-programs.js";
 import type { CompletedInstruction, LessonInstruction } from "./register-programs.js";
@@ -236,6 +237,16 @@ const programs = {
       outputInstruction(0x13), advancePointer(0x15), jump(0x16, () => "Next, read through HL again."), returnInstruction(0x19)],
     bytes: [0x31, 0, 2, 0xcd, 0x0a, 0, 0xcd, 0x0a, 0, 0x76,
       0x21, 0, 1, 0x7e, 0xfe, 0, 0xca, 0x19, 0, 0xd3, 1, 0x23, 0xc3, 0x0d, 0, 0xc9],
+    editableOperand: undefined,
+  },
+  "nested-call": {
+    createMachine: create8080AltairNestedCallLesson,
+    instructions: [loadStackPointer(0), callInstruction(3), callInstruction(6), haltInstruction(9),
+      loadPointer(0x0a), readPointedByte(0x0d), compare(0x0e), jumpIf(0x10, "z", 1),
+      callInstruction(0x13), advancePointer(0x16), jump(0x17, () => "Next, read through HL again."),
+      returnInstruction(0x1a), outputInstruction(0x1b), returnInstruction(0x1d)],
+    bytes: [0x31, 0, 2, 0xcd, 0x0a, 0, 0xcd, 0x0a, 0, 0x76,
+      0x21, 0, 1, 0x7e, 0xfe, 0, 0xca, 0x1a, 0, 0xcd, 0x1b, 0, 0x23, 0xc3, 0x0d, 0, 0xc9, 0xd3, 1, 0xc9],
     editableOperand: undefined,
   },
 } as const;

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "instruments/altair-panel.html" import altair_panel %}
+{% block description %}Let an 8080 printing routine call a character routine. Follow two return addresses in RAM and see why the inner call returns first.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Meet the Altair · Nested calls</p>
+    <h1>A routine<br><em>inside a routine.</em></h1>
+    <p class="lesson-intro">The printing routine already knows how to return to its caller. Now it asks another routine to send each character. Can the CPU remember both ways back?</p>
+  </header>
+  <p class="experiment-note"><strong>Begin here:</strong> Step seven instructions. PC is 001B and SP is 01FC. The stack holds two addresses: 0016 for the character routine to return to, and 0006 for the printing routine. A holds 72, the H, but nothing has been printed yet.</p>
+  {{ altair_panel(mode='nested-call') }}
+  <div class="lesson-prose">
+    <section aria-labelledby="one-smaller-job">
+      <h2 id="one-smaller-job">Give a smaller routine one job.</h2>
+      <p>Our main program still calls the printing routine twice, then halts. The printing loop still reads the zero-terminated message at 0100. This time, instead of executing OUT itself, it calls a <strong>character routine</strong> at 001B.</p>
+      <p>That small routine contains just two instructions: <code>OUT 01H</code> sends the byte in A, then <code>RET</code> returns. The printing loop supplies the character in A and advances HL after the character routine finishes.</p>
+      <p>A routine calling another routine is a <strong>nested call</strong>. “Inside” describes the calls: the character routine is still ordinary code at its own addresses in RAM.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> Does splitting this job change what appears on the display?</p><details><summary>Show an explanation</summary><p>No: HELLO still appears on two lines, from twelve OUT instructions. The extra CALL and RET around each output change the route through the program, not the characters sent.</p></details><a href="#execution">Follow the smaller job ↑</a></aside>
+    </section>
+    <section aria-labelledby="two-ways-back">
+      <h2 id="two-ways-back">Keep the first address. Add another.</h2>
+      <p>The first CALL, at 0003, saves <strong>0006</strong> in 01FE–01FF and enters the printing routine at 000A. SP is now 01FE, just as in the previous lesson.</p>
+      <p>After loading H into A and checking that it is not NUL, the printing loop reaches CALL at 0013. Its destination is <strong>001B</strong>, but the instruction after this call is at <strong>0016</strong>. That is the second return address.</p>
+      <p>CALL decreases SP and writes the high byte 00 at 01FD. It decreases SP again and writes the low byte 16 at 01FC. The first saved address is untouched. With SP at 01FC, both ways back are waiting in RAM.</p>
+      <p>The four-row window lists addresses in ascending order. Its “inner” and “outer” labels describe how this program uses those locations; the CPU sees only bytes and SP.</p>
+      <aside class="lesson-prompt"><p><strong>Inspect instruction 7.</strong> Which two bytes did this CALL write?</p><details><summary>Show an explanation</summary><p>00 at 01FD, then 16 at 01FC. The outer bytes at 01FE–01FF still hold 06 and 00. CALL has neither printed H nor executed the character routine yet.</p></details><a href="#execution">Compare the two pairs ↑</a></aside>
+    </section>
+    <section aria-labelledby="inner-return-first">
+      <h2 id="inner-return-first">Return to the printing loop first.</h2>
+      <p>From that paused point, step once: OUT prints H and PC advances to 001D. Step again: RET reads 16 and 00 from the pair beginning at SP. PC becomes <strong>0016</strong> and SP becomes <strong>01FE</strong>.</p>
+      <p>We are back in the printing loop, ready for INX H. We have not returned to the main program. The outer return address, 0006, is still waiting at the new SP.</p>
+      <p>This is <strong>last in, first out</strong>: the most recently saved address is the first one used. RET does not know the names of the routines. It simply reads the address at SP and moves SP past it.</p>
+      <p>Neither return address is erased. The bytes 16 and 00 remain after the inner return, but SP has moved past them. Visible bytes alone do not tell us how many calls are still waiting to return.</p>
+    </section>
+    <section aria-labelledby="reuse-then-return">
+      <h2 id="reuse-then-return">Reuse the space, then finish the larger job.</h2>
+      <p>The loop advances HL and reads E. Its next CALL again saves 0016 at 01FC–01FD. Each character uses the same small routine and the same stack space: one inner call finishes before the next begins.</p>
+      <p>When the loop finds NUL, it skips the character routine and jumps to its own RET at 001A. SP is 01FE, so this RET reads the <strong>outer</strong> address 0006. SP returns to 0200 and the main program continues.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Step until PC is 001A after the first HELLO line. Which pair will RET read now?</p><details><summary>Show an explanation</summary><p>The pair at 01FE–01FF, holding 06 and 00. This is instruction 55. It returns to 0006, without printing another character. The inner pair still holds 16 and 00, but it is below SP.</p></details><a href="#execution">Watch the outer return ↑</a></aside>
+      <p>The second outer CALL saves 0009. Printing repeats with the same inner return address, 0016. After the second outer return, HLT finishes the program: 110 instructions and twelve output writes. SP is 0200; all four saved bytes remain in RAM.</p>
+    </section>
+    <section aria-labelledby="change-one-continuation">
+      <h2 id="change-one-continuation">Change one way back.</h2>
+      <p>The two saved addresses are independent pieces of data. Changing the outer one need not change where the character routine returns.</p>
+      <details><summary>Skip the second HELLO while both calls are active</summary><p>Start again and step seven instructions. EXAMINE 01FE, set the switches to 0009, and DEPOSIT. You have changed the outer address from 0006 to 0009; the inner address is still 0016. EXAMINE 001B to restore PC. Step twice: H prints, then the inner RET still returns to 0016. RUN finishes the first HELLO line, but the outer RET now selects HLT at 0009. The second line is skipped.</p></details>
+      <p>The last-instruction record preserves what happened when CALL executed, even after you edit RAM. The live table shows the bytes RET will actually read. Start again to restore the ordinary path.</p>
+      <p>The character routine happens to preserve A, HL, and flags: OUT and RET leave them alone. CALL itself does not promise that a routine will preserve registers. Saving values across a call is a separate job for a later lesson.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/remembering-where-to-return/') }}"><span aria-hidden="true">←</span> Remembering where to return</a></nav>
+  </div>
+</main>
+{% endblock %}

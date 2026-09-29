@@ -14,7 +14,7 @@ import { renderRamWindow } from "./ram-window-view.js";
 export function mountAltairProgramExplorer(root: HTMLElement): void {
   const mode = root.dataset.altairExplorer;
   const terminalProgram = mode === "terminal" ? "polling"
-    : mode === "reply" || mode === "message" || mode === "terminated-message" || mode === "buffer" || mode === "subroutine" ? mode : undefined;
+    : mode === "reply" || mode === "message" || mode === "terminated-message" || mode === "buffer" || mode === "subroutine" || mode === "nested-call" ? mode : undefined;
   const name = terminalProgram ?? (mode === "running" ? "countdown"
     : mode === "output" || mode === "input" || mode === "polling" ? mode : "entry");
   const preloaded = name !== "entry";
@@ -140,6 +140,7 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
       message: "No memory operation yet. The program is loaded at 0000 and the six message bytes at 0100. No byte has been sent to the display.",
       "terminated-message": "No memory operation yet. The program is loaded at 0000; HELLO, line feed, and a zero terminator begin at 0100. No byte has been sent to the display.",
       buffer: "No memory operation yet. The program is loaded at 0000 and the nine buffer bytes at 0100 are zero. Both devices start empty.",
+      "nested-call": "No memory operation yet. The program is loaded at 0000 and the message at 0100. The four stack bytes start at zero; the first instruction will initialize SP.",
       subroutine: "No memory operation yet. The program is loaded at 0000 and the message at 0100. SP and the stack bytes are zero; the first instruction will initialize SP.",
       input: "No memory operation yet. The input program is loaded; PC is 0100 and address 1 holds 0. Both devices start empty.",
     }[name],

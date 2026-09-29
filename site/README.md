@@ -354,6 +354,13 @@ labels. CALL and RET descriptions retain the captured continuation and accesses,
 and traces include SP changes. The linked contract owns stack reuse, return
 address edits, and the distinction between returning and erasing RAM.
 
+[A routine inside a routine](../docs/machines/nested-call-lesson.md) selects
+`nested-call` with `8080/altair-nested-call-lesson.machine`. It reuses the same
+CALL/RET descriptions and RAM renderer, expanding the stack window to four
+bytes with fixed inner/outer roles. Both return destinations come from CPU
+reads of RAM; there is no host call stack. The linked contract covers nested
+returns, stack reuse, and editing one continuation while both calls are active.
+
 ## Checks
 
 ```sh
