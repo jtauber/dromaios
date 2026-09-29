@@ -1,17 +1,9 @@
 {% from "instruments/lamp-bank.html" import lamps %}
-{% macro switches(high, low) %}
-  <div class="panel-bit-bank">
-    {% for bit in range(high, low - 1, -1) %}
-    <button class="panel-switch" type="button" data-panel-switch="{{ bit }}" aria-label="Switch {{ bit }}, value {{ 2 ** bit }}" aria-pressed="false">
-      <span aria-hidden="true">{{ bit }}</span><span class="panel-toggle" aria-hidden="true"></span><strong data-switch-value aria-hidden="true">0</strong>
-    </button>
-    {% endfor %}
-  </div>
-{% endmacro %}
+{% from "instruments/bit-switches.html" import switches %}
 {% from "instruments/altair-program.html" import reference_card, processor_view %}
 {% macro altair_panel(mode='memory') %}
 {% set program = mode != 'memory' %}
-{% set preloaded = mode in ['running', 'output'] %}
+{% set preloaded = mode in ['running', 'output', 'input'] %}
 <section id="experiment" class="altair-explorer" data-altair-explorer="{{ mode }}" aria-label="Altair {{ 'program execution controls' if preloaded else 'program entry and execution' if program else 'memory controls' }}">
   {% if program %}{{ reference_card(mode) }}{% endif %}
   <fieldset data-panel-controls disabled>
@@ -58,7 +50,9 @@
     {% if program and not preloaded %}{{ processor_view(mode) }}{% endif %}
     <button class="clear-byte" type="button" data-panel-restart>{{ 'Start this lesson again' if program else 'Start again with empty memory' }}</button>
   </fieldset>
-  {% if mode == 'output' %}
+  {% if mode == 'input' %}
+  <p class="experiment-note">This lesson connects an 8080, 65,536 bytes of RAM, and separate teaching devices at input and output port 1. Start again restores the loaded program, empties both devices, clears the counts and history, prepares 42 on the input switches, and stops at PC 0100. It is not the hardware RESET switch.</p>
+  {% elif mode == 'output' %}
   <p class="experiment-note">This lesson connects an 8080, 65,536 bytes of RAM, and an eight-lamp teaching device at output port 1. The device is an added illustration, not a built-in Altair display. Start again restores the loaded program and initial data, empties the device, clears both counts and history, and stops at PC 0100. It is not the hardware RESET switch.</p>
   {% elif mode == 'running' %}
   <p class="experiment-note">This lesson supplies an 8080, 65,536 bytes of RAM, and the loaded countdown. The lights show PC and RAM at PC between instructions; bus cycles and status lamps are not modeled. Start again restores the program and initial data, clears execution history, and stops. It is not the hardware RESET switch.</p>

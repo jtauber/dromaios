@@ -1,10 +1,12 @@
 import { Cpu8080 } from "../../src/components/cpus/generated/8080-cpu.js";
 import type { BytePorts } from "../../src/components/cpus/port-access.js";
 import type { ByteOutput } from "../../src/components/devices/byte-output.js";
+import type { ByteInput } from "../../src/components/devices/byte-input.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { create8080AltairProgramLesson } from "../../src/machines/generated/8080/altair-program-lesson.js";
 import { create8080CountdownLesson } from "../../src/machines/generated/8080/countdown-lesson.js";
 import { create8080AltairOutputLesson } from "../../src/machines/generated/8080/altair-output-lesson.js";
+import { create8080AltairInputLesson } from "../../src/machines/generated/8080/altair-input-lesson.js";
 import { createAltairMemoryPanel } from "./altair-panel.js";
 import { registerProgram, hex, load, add } from "./register-programs.js";
 import type { LessonInstruction } from "./register-programs.js";
@@ -15,17 +17,27 @@ interface LessonMachine {
   readonly endAddress: number;
   readonly ports?: BytePorts;
   readonly output?: ByteOutput;
+  readonly input?: ByteInput;
 }
 
-const outputInstruction: LessonInstruction = {
-  address: 0x105, length: 2, action: "output", mnemonic: () => "OUT 01H",
-  explanation: () => "Send A to output port 1",
-  prompt: "Send A to the lamp device. Will A or RAM change?",
-  describe: record => {
-    const transfer = record.accesses.find(access => access.kind === "output");
-    if (!transfer || transfer.kind !== "output") throw new Error("Expected a captured output transfer.");
-    return `Sent ${transfer.value} from A to output port ${transfer.port}. The lamp device now holds that byte. A, flags, and RAM are unchanged.`;
-  },
+function outputInstruction(address: number): LessonInstruction {
+  return {
+    address, length: 2, action: "output", mnemonic: () => "OUT 01H",
+    explanation: () => "Send A to output port 1",
+    prompt: "Send A to the lamp device. Will A or RAM change?",
+    describe: record => {
+      const transfer = record.accesses.find(access => access.kind === "output");
+      if (!transfer || transfer.kind !== "output") throw new Error("Expected a captured output transfer.");
+      return `Sent ${transfer.value} from A to output port ${transfer.port}. The lamp device now holds that byte. A, flags, and RAM are unchanged.`;
+    },
+  };
+}
+
+const inputInstruction: LessonInstruction = {
+  address: 0x100, length: 2, action: "input", mnemonic: () => "IN 01H",
+  explanation: () => "Receive the waiting byte from input port 1 into A",
+  prompt: "Receive the waiting byte into A. Will the output device change?",
+  describe: ({ before, after }) => `Received ${after.a} from input port 1 into A, replacing ${before.a}. Reading emptied the input device. Flags, RAM, and the output device were unchanged.`,
 };
 
 // A reference for manual entry, never an image loaded into the learner's RAM.
@@ -47,8 +59,14 @@ const programs = {
   },
   output: {
     createMachine: create8080AltairOutputLesson,
-    instructions: [load(0x100), add(0x103), outputInstruction],
+    instructions: [load(0x100), add(0x103), outputInstruction(0x105)],
     bytes: [0x3a, 3, 0, 0xc6, 1, 0xd3, 1],
+    editableOperand: undefined,
+  },
+  input: {
+    createMachine: create8080AltairInputLesson,
+    instructions: [inputInstruction, outputInstruction(0x102)],
+    bytes: [0xdb, 1, 0xd3, 1],
     editableOperand: undefined,
   },
 } as const;
@@ -58,7 +76,7 @@ export function createAltairProgram(name: keyof typeof programs = "entry") {
   const { createMachine, instructions, bytes, editableOperand } = programs[name];
   let outputWrites = 0;
   const machine: LessonMachine = createMachine({ output: () => { outputWrites++; } });
-  const { ram, endAddress, ports, output } = machine;
+  const { ram, endAddress, ports, output, input } = machine;
   let cpu = machine.cpu;
   const panel = createAltairMemoryPanel(ram, {
     get value() { return cpu.snapshot().pc; },
@@ -78,8 +96,13 @@ export function createAltairProgram(name: keyof typeof programs = "entry") {
     }
     const pc = cpu.snapshot().pc;
     if (pc === endAddress) return `PC is at ${hex(endAddress, 4)}, just after the program. EXAMINE 0100 to run it again; memory is preserved.`;
-    if (!instructions.some(instruction => instruction.address === pc)) {
+    const instruction = instructions.find(instruction => instruction.address === pc);
+    if (!instruction) {
       return `EXAMINE 0100 to begin. This lesson steps only at instruction starts ${instructions.map(instruction => hex(instruction.address, 4)).join(", ")}.`;
+    }
+    // A lesson guard, not CPU waiting: an unguarded empty read would return zero.
+    if (instruction.action === "input" && input?.snapshot().pendingByte === null) {
+      return "Send a byte to the input device first. This lesson pauses before IN while the device is empty; after sending, RUN or step to receive it.";
     }
     return undefined;
   }
@@ -87,6 +110,11 @@ export function createAltairProgram(name: keyof typeof programs = "entry") {
   return {
     ram, panel, endAddress, instructions, bytes, editableOperand,
     outputSnapshot: () => output && { ...output.snapshot(), writes: outputWrites },
+    inputSnapshot: () => input?.snapshot(),
+    offerInput(value: number): boolean {
+      if (!input) throw new Error("This lesson has no input device.");
+      return input.offer(value);
+    },
     snapshot: () => cpu.snapshot(),
     stepProblem,
     step() {

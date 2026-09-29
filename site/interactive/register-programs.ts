@@ -13,7 +13,7 @@ type ReadByte = (address: number) => number;
 export interface LessonInstruction {
   readonly address: number;
   readonly length: number;
-  readonly action: "read" | "add" | "subtract" | "compare" | "write" | "jump" | "output";
+  readonly action: "read" | "add" | "subtract" | "compare" | "write" | "jump" | "input" | "output";
   readonly mnemonic: (read: ReadByte) => string;
   readonly explanation: (read: ReadByte) => string;
   readonly prompt: string;

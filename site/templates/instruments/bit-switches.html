@@ -1,0 +1,9 @@
+{% macro switches(high, low, attribute="data-panel-switch", label="Switch") %}
+  <div class="panel-bit-bank">
+    {% for bit in range(high, low - 1, -1) %}
+    <button class="panel-switch" type="button" {{ attribute }}="{{ bit }}" aria-label="{{ label }} {{ bit }}, value {{ 2 ** bit }}" aria-pressed="false">
+      <span aria-hidden="true">{{ bit }}</span><span class="panel-toggle" aria-hidden="true"></span><strong data-switch-value aria-hidden="true">0</strong>
+    </button>
+    {% endfor %}
+  </div>
+{% endmacro %}

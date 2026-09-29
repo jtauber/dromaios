@@ -1,17 +1,28 @@
 {% from "instruments/byte-output.html" import byte_output %}
+{% from "instruments/byte-input.html" import byte_input %}
 {% macro reference_card(mode) %}
 {% set running = mode == 'running' %}
 {% set output = mode == 'output' %}
+{% set input = mode == 'input' %}
+{% set title, introduction = {
+  'program': ('Program reference card', 'Enter these eight bytes, starting at 0100.'),
+  'running': ('Loaded countdown · reference card', 'These eleven bytes are already loaded at 0100.'),
+  'output': ('Loaded output program · reference card', 'These seven bytes are already loaded at 0100.'),
+  'input': ('Loaded input program · reference card', 'These four bytes are already loaded at 0100.')
+}[mode] %}
 <details class="panel-reference" {% if mode == 'program' %}open{% endif %}>
-  <summary>{{ 'Loaded countdown · reference card' if running else 'Loaded output program · reference card' if output else 'Program reference card' }} <span>All addresses and bytes here are hexadecimal</span></summary>
+  <summary>{{ title }} <span>All addresses and bytes here are hexadecimal</span></summary>
   <table>
-    <caption>{{ 'These eleven bytes are already loaded at 0100.' if running else 'These seven bytes are already loaded at 0100.' if output else 'Enter these eight bytes, starting at 0100.' }} RAM shows what is stored now.</caption>
+    <caption>{{ introduction }} RAM shows what is stored now.</caption>
     <thead><tr><th scope="col">Address</th><th scope="col">Reference</th><th scope="col">RAM</th><th scope="col">Check</th></tr></thead>
     <tbody data-panel-entry-bytes></tbody>
   </table>
   {% if running %}
   <p>0100–0102: <code>3A 03 00</code> loads address 3 into A.<br>0103–0104: <code>D6 01</code> subtracts one.<br>0105–0107: <code>32 04 00</code> stores A at address 4.<br>0108–010A: <code>C2 03 01</code> jumps back to 0103 if Z = 0.</p>
   <p>The source byte at address 3 starts at 3. Each trip subtracts, stores, and tests Z. This lesson checks all eleven program bytes before executing.</p>
+  {% elif input %}
+  <p>0100–0101: <code>DB 01</code> receives the waiting byte from input port 1 into A.<br>0102–0103: <code>D3 01</code> sends A to output port 1.</p>
+  <p>The two directions connect to separate devices. RAM starts at zero outside these four program bytes. This lesson checks all four bytes before executing.</p>
   {% elif output %}
   <p>0100–0102: <code>3A 03 00</code> loads address 3 into A.<br>0103–0104: <code>C6 01</code> adds one.<br>0105–0106: <code>D3 01</code> sends A to output port 1.</p>
   <p>The source byte at address 3 starts at 41 decimal. This lesson checks all seven program bytes before executing; the source data can be changed.</p>
@@ -24,16 +35,18 @@
 {% macro processor_view(mode) %}
 {% set running = mode == 'running' %}
 {% set output = mode == 'output' %}
-{% set paced = running or output %}
+{% set input = mode == 'input' %}
+{% set paced = running or output or input %}
 <section id="execution" class="panel-processor" aria-labelledby="processor-heading">
   <h3 id="processor-heading">The 8080 behind the panel</h3>
-  <dl class="panel-cpu-state">
+  <dl class="panel-cpu-state{% if input %} panel-cpu-state-input{% endif %}">
     <div><dt>A <span>decimal</span></dt><dd data-panel-cpu-a>0</dd></div>
     <div><dt>PC <span>hex</span></dt><dd data-panel-cpu-pc>{{ '0100' if paced else '0000' }}</dd></div>
-    <div><dt>RAM[3] <span>decimal</span></dt><dd data-panel-cpu-source data-panel-ram="3">{{ 3 if running else 41 }}</dd></div>
-    <div><dt>RAM[{{ 1 if output else 4 }}] <span>decimal</span></dt><dd data-panel-cpu-result data-panel-ram="{{ 1 if output else 4 }}">0</dd></div>
+    {% if not input %}<div><dt>RAM[3] <span>decimal</span></dt><dd data-panel-cpu-source data-panel-ram="3">{{ 3 if running else 41 }}</dd></div>{% endif %}
+    <div><dt>RAM[{{ 1 if output or input else 4 }}] <span>decimal</span></dt><dd data-panel-cpu-result data-panel-ram="{{ 1 if output or input else 4 }}">0</dd></div>
   </dl>
-  {% if output %}{{ byte_output() }}{% endif %}
+  {% if input %}<div class="panel-devices">{{ byte_input() }}{{ byte_output() }}</div>
+  {% elif output %}{{ byte_output() }}{% endif %}
   {% if running %}<p class="panel-zero">Zero flag Z: <strong data-panel-cpu-z>0</strong> · the subtraction’s answer</p>{% endif %}
   {% if paced %}
   <div class="panel-run-controls">

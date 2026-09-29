@@ -145,12 +145,15 @@ def build(base):
     site.render_template("altair-output.html", "learn/altair-output/index.html", {
         "title": "Sending a byte out",
     })
+    site.render_template("altair-input.html", "learn/altair-input/index.html", {
+        "title": "Receiving a byte",
+    })
     site.render_template("home.html", "index.html", {
         "title": "Computers, from the instruction up",
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + sixteen introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
+    print(f"Built home + seventeen introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

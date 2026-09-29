@@ -98,6 +98,8 @@ examples add polling and consuming input reads with the same devices.
   and resuming, and a bounded instruction history.
 - [Sending a byte out](machines/altair-output.md): a separate lamp device,
   output ports versus RAM, and retained device state.
+- [Receiving a byte](machines/altair-input.md): prepare and send input, receive
+  it into A, and echo it to the lamp device.
 - [Definition guide](machines/definitions.md): initial state and memory images,
   directory conventions, generated factories, and the editing/build workflow.
 - [Memory components and maps](machines/memory-map.md): RAM/ROM ownership,

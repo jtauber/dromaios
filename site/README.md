@@ -278,6 +278,14 @@ lamp renderer serves both front-panel and device lamps; captured instruction
 traces distinguish memory accesses from port transfers. The lesson contract
 owns the initial state, program behavior, and acceptance checks.
 
+[Receiving a byte](../docs/machines/altair-input.md) adds an `input` mode with
+`8080/altair-input-lesson.machine`. The input view owns prepared switches;
+`ByteInput` owns the pending byte. Send offers data without starting execution,
+and snapshots inspect it without consuming it. A lesson guard pauses before
+an empty IN; the raw device still follows its empty-read contract. The same
+switch markup serves input and the memory panel. The linked lesson specifies
+arrival between instructions, reset, and the distinction from CPU polling.
+
 ## Checks
 
 ```sh

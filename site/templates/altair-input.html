@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "instruments/altair-panel.html" import altair_panel %}
+{% block description %}Prepare a byte, send it to an input device, and let the 8080 receive it. Echo it to the lamps and follow each separate transfer.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Meet the Altair · A byte arrives</p>
+    <h1>Receiving<br><em>a byte.</em></h1>
+    <p class="lesson-intro">The computer can send a byte out. Now give it a byte to receive. Follow the value from your switches, through an input device, into A, and finally to the lamps.</p>
+  </header>
+  <p class="experiment-note"><strong>Begin here:</strong> 42 is prepared on the input switches. Press Send byte to device, then Step one instruction twice. Watch where the byte is waiting after each action.</p>
+  {{ altair_panel(mode='input') }}
+  <div class="lesson-prose">
+    <section aria-labelledby="prepare-and-send">
+      <h2 id="prepare-and-send">Preparing is not sending.</h2>
+      <p>These eight input switches belong to our new teaching device. They are separate from the Altair memory panel below. Moving them prepares a number; it does not change RAM, A, or either device’s stored byte.</p>
+      <p>Press <strong>Send byte to device</strong>. Now the device holds the byte, waiting for the processor to read it. A still holds zero, and the output lamps have received nothing.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Send 42, then change the switches to a different number. Does the waiting byte change?</p>
+        <details><summary>Show an explanation</summary><p>No. Sending copied the value at that moment. The waiting byte stays 42. The switches can prepare another byte, but Send is disabled while the device is full, so you cannot overwrite one that has not been read.</p></details>
+        <a href="#execution">Prepare and send a byte ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="receive-then-echo">
+      <h2 id="receive-then-echo">Receive it. Then echo it.</h2>
+      <p>The first instruction is <code>IN 01H</code>: receive a byte from input port 1 into A. This device hands over its waiting byte and becomes empty. The input switches keep their positions.</p>
+      <p>The second instruction is the familiar <code>OUT 01H</code>: send A to the lamp device. It now displays the byte you supplied. Sending received data back out is called <em>echoing</em>.</p>
+      <p>Both instructions use port number 1, but their directions choose different connections: IN reads the input device, and OUT writes the output device. Neither accesses RAM address 1; its readout stays zero.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> After IN, A holds 42 and the input device is empty. Have the output lamps received 42 yet?</p>
+        <details><summary>Show an explanation</summary><p>Not yet. IN only receives the byte. The lamps change when the next instruction, OUT, sends it. The processor performs each transfer separately.</p></details>
+        <a href="#execution">Step through both transfers ↑</a>
+      </aside>
+      <p>Open <strong>Look inside the last instruction</strong> after each step. The trace shows the instruction bytes fetched from RAM, followed by an input or output transfer. The values there are hexadecimal: 42 decimal is <code>2A</code>.</p>
+    </section>
+    <section aria-labelledby="another-byte-can-wait">
+      <h2 id="another-byte-can-wait">Another byte can wait its turn.</h2>
+      <p>As soon as IN empties the input device, Send becomes available again. You can send your next prepared byte before OUT runs. That new byte waits in the device; it does not replace the first one already in A.</p>
+      <p>Try receiving 42, then sending 99 to the input device before the echo. Prepare 99 by raising only input switches 6, 5, 1, and 0: <code>01100011</code>. OUT still sends 42. The input device keeps 99 for later.</p>
+      <p>The two-instruction program ends at <code>0104</code>. To receive the next waiting byte, raise only switch 8 on the <em>Altair memory panel</em> and EXAMINE <code>0100</code>. Then step or RUN again. EXAMINE changes PC but leaves both devices alone.</p>
+      <p>STOP also preserves the waiting input, A, and the output lamps. Sending input never starts execution automatically. You choose when to step or RUN.</p>
+    </section>
+    <section aria-labelledby="empty-is-not-zero">
+      <h2 id="empty-is-not-zero">Zero is a byte too.</h2>
+      <p>Lower all eight input switches and send zero when the device has room. It now says “Waiting: 0,” which is different from “Device empty.” IN receives that zero into A; OUT sends it to the lamps. All eight lamps go dark, and the write count increases.</p>
+      <p>For this first lesson, the controls pause before IN if no byte is waiting. The message asks you to send one, then step or RUN. This pause is a teaching aid: it is not an instruction, and it does not change the CPU’s state.</p>
+      <p>The underlying input device would return zero if read while empty. A real program using this device must check whether a byte is ready to distinguish an empty read from a received zero. That will be our next step.</p>
+      <details><summary>What this view models</summary><p>The input device stores one waiting byte; it has no queue. These input switches and the separate lamp device are teaching illustrations, not particular historical Altair peripherals. Both devices are connected through the machine’s ports. RUN, STOP, and stepping work at whole-instruction boundaries; physical timing and bus signals remain outside this view. Stopping at 0104 is a lesson boundary, not a halt instruction. Start this lesson again restores the program, empties both devices, clears the counts and history, and prepares 42 on the input switches.</p></details>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/altair-output/') }}"><span aria-hidden="true">←</span> Sending a byte out</a></nav>
+  </div>
+</main>
+{% endblock %}

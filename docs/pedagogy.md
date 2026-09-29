@@ -173,7 +173,9 @@ then uses the familiar countdown to introduce RUN, STOP, and resuming from the
 current state, with readable pacing and bounded history.
 [Sending a byte out](machines/altair-output.md) introduces OUT with a separate
 lamp device: changing A, writing RAM, and sending a byte are distinct actions.
-Input and text communication follow later.
+[Receiving a byte](machines/altair-input.md) adds IN: prepared switches, pending
+input, A, and output remain distinct. Program-controlled readiness checks and
+text communication follow later.
 
 The next major priority is milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the

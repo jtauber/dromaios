@@ -264,3 +264,94 @@ test("the output guard blocks corrupt program bytes and non-instruction addresse
     assert.deepEqual(lesson.outputSnapshot(), { lastByte: null, writes: 0 });
   }
 });
+
+test("the input lesson waits without consuming or executing; an offered zero enables a real IN", () => {
+  const lesson = createAltairProgram("input");
+  const before = lesson.snapshot();
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: null });
+  assert.throws(() => lesson.step(), /Send a byte/);
+  assert.deepEqual(lesson.snapshot(), before);
+  assert.equal(lesson.offerInput(0), true);
+  assert.equal(lesson.offerInput(99), false);
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 0 });
+  assert.deepEqual(lesson.snapshot(), before);
+  for (const invalid of [-1, 256, NaN, 0.5]) assert.throws(() => lesson.offerInput(invalid), RangeError);
+  assert.equal(lesson.stepProblem(), undefined);
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 0 }); // Readiness checks consume nothing.
+  const received = step(lesson);
+  assert.deepEqual(received.after, { ...before, pc: 0x102 });
+  assert.deepEqual(received.accesses.at(-1), { kind: "input", port: 1, value: 0 });
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: null });
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: null, writes: 0 });
+  step(lesson);
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 0, writes: 1 });
+  assert.throws(() => lesson.step(), /just after the program/);
+  examine(lesson, 0x100);
+  assert.throws(() => lesson.step(), /Send a byte/);
+});
+
+test("a second input can wait before OUT without changing A, RAM, or the captured first transfer", () => {
+  const lesson = createAltairProgram("input");
+  lesson.offerInput(42);
+  const received = step(lesson);
+  const description = lesson.instructions[0]!.describe(received, 0);
+  const trace = format8080Trace(received, "IN 01H");
+  assert.match(trace, /Read  0100: DB\nRead  0101: 01\nInput from port 01: 2A$/);
+  lesson.offerInput(99);
+  assert.equal(lesson.snapshot().a, 42);
+  step(lesson);
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 42, writes: 1 });
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 99 });
+  deposit(lesson, 1, 77);
+  examine(lesson, 0x100);
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 99 });
+  assert.equal(step(lesson).after.a, 99);
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 42, writes: 1 });
+  step(lesson);
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 99, writes: 2 });
+  assert.equal(lesson.ram.read(1), 77);
+  assert.equal(format8080Trace(received, "IN 01H"), trace);
+  assert.equal(lesson.instructions[0]!.describe(received, 0), description);
+  assert.match(description, /Received 42.*input port 1/);
+});
+
+test("input survives both NEXT operations and guards against corrupt code and invalid instruction starts", () => {
+  const lesson = createAltairProgram("input");
+  lesson.offerInput(255);
+  for (const [offset, byte] of [0xdb, 1, 0xd3, 1].entries()) {
+    deposit(lesson, 0x100 + offset, byte ^ 0xff);
+    examine(lesson, 0x100);
+    const before = lesson.snapshot();
+    assert.throws(() => lesson.step(), /reference card/);
+    assert.deepEqual(lesson.snapshot(), before);
+    assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 255 });
+    deposit(lesson, 0x100 + offset, byte);
+  }
+  for (const address of [0, 1, 0x101, 0x103, 0xffff]) {
+    examine(lesson, address);
+    assert.throws(() => lesson.step(), /instruction starts/);
+    assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 255 });
+  }
+  for (const action of ["examineNext", "depositNext"] as const) {
+    examine(lesson, 0xff);
+    switches(lesson, 0xdb);
+    lesson.panel[action]();
+    assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 255 });
+    assert.equal(lesson.snapshot().pc, 0x100);
+  }
+  assert.equal(step(lesson).after.a, 255);
+  step(lesson);
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 255, writes: 1 });
+});
+
+test("a fresh input session clears both devices without altering old pending input or output", () => {
+  const old = createAltairProgram("input");
+  old.offerInput(42); step(old); step(old); old.offerInput(99);
+  const fresh = createAltairProgram("input");
+  assert.deepEqual(fresh.inputSnapshot(), { pendingByte: null });
+  assert.deepEqual(fresh.outputSnapshot(), { lastByte: null, writes: 0 });
+  assert.deepEqual([fresh.snapshot().a, fresh.snapshot().pc, fresh.panel.switches], [0, 0x100, 0]);
+  assert.notEqual(fresh.ram, old.ram);
+  assert.deepEqual(old.inputSnapshot(), { pendingByte: 99 });
+  assert.deepEqual(old.outputSnapshot(), { lastByte: 42, writes: 1 });
+});

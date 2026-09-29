@@ -252,3 +252,54 @@ test("STOP before OUT preserves an empty device; resume sends once and restart r
   assert.deepEqual(lesson.outputSnapshot(), { lastByte: 42, writes: 1 });
   assert.deepEqual(old.outputSnapshot(), { lastByte: null, writes: 0 });
 });
+
+test("paced input waits for an offer, preserves pending bytes on STOP, and cancels IN and OUT on restart", () => {
+  const timer = clock();
+  let lesson = createAltairProgram("input");
+  const execution = createExecutionController({
+    step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+    onChange() {}, schedule: timer.schedule,
+  });
+  execution.run(); execution.step();
+  assert.equal(timer.pending.length, 0);
+  lesson.offerInput(42);
+  assert.equal(execution.running, false); // Offering is not RUN.
+  assert.equal(execution.steps, 0);
+  execution.run();
+  const cancelled = timer.pending[0]!;
+  execution.stop(); cancelled.callback();
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 42 });
+  assert.equal(execution.steps, 0);
+  execution.run(); timer.tick();
+  execution.stop();
+  lesson.offerInput(99);
+  assert.equal(lesson.snapshot().a, 42);
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 99 });
+  execution.run(); timer.tick();
+  assert.equal(execution.running, false);
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 42, writes: 1 });
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 99 });
+  assert.equal(execution.steps, 2);
+
+  for (const phase of ["before IN", "before OUT"]) {
+    execution.reset();
+    lesson = createAltairProgram("input");
+    lesson.offerInput(255);
+    execution.run();
+    if (phase === "before OUT") timer.tick();
+    const old = lesson;
+    const oldInput = old.inputSnapshot();
+    const pending = timer.pending[0]!;
+    execution.reset();
+    lesson = createAltairProgram("input");
+    lesson.offerInput(0);
+    execution.run(); pending.callback();
+    assert.deepEqual(old.inputSnapshot(), oldInput);
+    assert.deepEqual(old.outputSnapshot(), { lastByte: null, writes: 0 });
+    assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 0 });
+    assert.equal(execution.steps, 0);
+    timer.tick(); timer.tick();
+    assert.deepEqual(lesson.outputSnapshot(), { lastByte: 0, writes: 1 });
+    assert.deepEqual(old.inputSnapshot(), oldInput);
+  }
+});

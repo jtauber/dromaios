@@ -468,7 +468,18 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .byte-output .panel-lamp[data-on] strong { background: #e6af3a; border-color: #f1d281; color: #302b1c; box-shadow: 0 0 12px #f4ba4460; }
 .byte-output p { font-size: 12px; line-height: 1.7; margin: 12px 0 0; }
 .byte-output .output-status { font: 14px/1.7 var(--mono); }
+.panel-cpu-state-input { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.panel-devices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.byte-input { padding: 20px; border: 1px solid #8ca4af; border-radius: 4px; background: #e0e9eb; }
+.byte-input h4 { margin: 0 0 16px; font: 16px/1.5 var(--mono); }
+.byte-input h4 span { display: block; margin-top: 4px; font: 12px/1.5 system-ui, sans-serif; }
+.byte-input .panel-bit-bank { max-width: 420px; }
+.byte-input p { margin: 12px 0; font-size: 12px; line-height: 1.7; }
+.byte-input .input-label { font-weight: 600; }
+.byte-input .input-number { font: 12px/1.7 var(--mono); }
+.byte-input .input-status { padding: 12px; background: #f5f8f4; border-left: 3px solid #527585; font: 14px/1.7 var(--mono); }
 @media (max-width: 680px) {
+  .panel-devices { grid-template-columns: 1fr; }
   .panel-banks, .panel-switch-numbers { grid-template-columns: 1fr; gap: 16px; }
   .panel-data-lights { max-width: none; }
   .panel-face { padding: 20px 12px; }
@@ -480,7 +491,7 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 @media (prefers-reduced-motion: reduce) { .panel-toggle::after { transition: none; } }
 @media (max-width: 520px) {
   .panel-reference, .panel-processor { padding: 16px 12px; }
-  .byte-output { padding: 16px 10px; }
+  .byte-output, .byte-input { padding: 16px 10px; }
   .panel-reference th, .panel-reference td { padding: 6px 3px; font-size: 11px; }
   .panel-cpu-state { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
