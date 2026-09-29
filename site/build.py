@@ -151,12 +151,15 @@ def build(base):
     site.render_template("altair-polling.html", "learn/altair-polling/index.html", {
         "title": "Waiting for a byte",
     })
+    site.render_template("bytes-as-characters.html", "learn/bytes-as-characters/index.html", {
+        "title": "Bytes can be letters",
+    })
     site.render_template("home.html", "index.html", {
         "title": "Computers, from the instruction up",
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + eighteen introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
+    print(f"Built home + nineteen introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

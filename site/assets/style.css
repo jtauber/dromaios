@@ -495,3 +495,26 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
   .panel-reference th, .panel-reference td { padding: 6px 3px; font-size: 11px; }
   .panel-cpu-state { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+.ascii-panel { padding: 24px 30px; border: 1px solid #c6cec0; border-bottom: 0; background: #fffefa; }
+.ascii-reading { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 24px; align-items: center; }
+.ascii-glyph { display: grid; place-items: center; min-height: 120px; border: 1px solid #bdc8ba; background: #eef1e6; font: 28px/1 var(--mono); }
+.ascii-glyph[data-kind="graphic"] { font-size: 72px; }
+.ascii-reading h2 { margin: 0 0 8px; font-size: 20px; }
+.ascii-reading p { margin: 0; font-size: 14px; }
+.ascii-reading .byte-error { margin-top: 10px; }
+.ascii-examples { display: flex; flex-wrap: wrap; gap: 10px; border: 0; padding: 0; margin: 20px 0 0; min-width: 0; }
+.ascii-examples legend { margin-bottom: 10px; font-size: 13px; }
+.ascii-examples button { min-height: 44px; border: 1px solid #9ba99c; border-radius: 3px; background: var(--paper); color: var(--ink); font: 16px/1.4 var(--mono); padding: 8px 12px; cursor: pointer; }
+.ascii-examples button span { display: block; font: 11px/1.6 system-ui, sans-serif; }
+.ascii-examples button[aria-pressed="true"] { background: #e0e6da; border-color: var(--ink); }
+.ascii-examples button:enabled:hover { border-color: var(--accent); }
+.ascii-examples:disabled button { opacity: .6; cursor: default; }
+@media (max-width: 760px) { .ascii-panel { padding: 20px; } }
+@media (max-width: 520px) {
+  .ascii-panel { padding: 16px 12px; }
+  .ascii-reading { grid-template-columns: 70px minmax(0, 1fr); gap: 12px; align-items: start; }
+  .ascii-glyph { min-height: 80px; font-size: 22px; }
+  .ascii-glyph[data-kind="graphic"] { font-size: 48px; }
+  .ascii-reading h2 { font-size: 17px; }
+}

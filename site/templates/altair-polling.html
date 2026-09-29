@@ -53,7 +53,7 @@
       <p>Sending while stopped never starts the CPU. Choose RUN or step when you want to continue. Open <strong>Look inside the last instruction</strong> to see the actual port transfer; its recorded answer stays the same even when later input arrives.</p>
       <details><summary>What this view models</summary><p>These are teaching devices, not particular historical Altair peripherals. Input has one pending byte, no queue, and no interrupt. The program runs at a teaching pace, not a modeled hardware clock. It has no end boundary or HLT: use STOP to pause it. The page also stops when hidden. The lesson checks its program bytes and instruction starts, but does not prevent empty data reads. If you EXAMINE 0107, you bypass the program’s check: IN returns zero when empty and OUT can echo that zero. Start this lesson again restores the program, empties both devices, clears counts and history, prepares 42, and stays stopped.</p></details>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/altair-input/') }}"><span aria-hidden="true">←</span> Receiving a byte</a></nav>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/altair-input/') }}"><span aria-hidden="true">←</span> Receiving a byte</a><a href="{{ calc_url('learn/bytes-as-characters/') }}">Bytes can be letters <span aria-hidden="true">→</span></a></nav>
   </div>
 </main>
 {% endblock %}

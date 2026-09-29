@@ -5,11 +5,15 @@ import { mountMemoryExplorer } from "./memory-explorer.js";
 for (const root of document.querySelectorAll<HTMLElement>("[data-byte-explorer]")) {
   const register = root.closest<HTMLElement>("[data-register-explorer]");
   const memory = root.closest<HTMLElement>("[data-memory-explorer]");
+  const ascii = root.closest<HTMLElement>("[data-ascii-explorer]");
   const addition = root.closest<HTMLElement>("[data-byte-increment]");
   if (register) {
     // Keep CPU modules out of the earlier, component-only lessons' loading path.
     const { mountRegisterExplorer } = await import("./register-explorer.js");
     mountRegisterExplorer(register, root);
+  } else if (ascii) {
+    const { mountAsciiExplorer } = await import("./ascii-explorer.js");
+    mountAsciiExplorer(ascii, root);
   } else if (memory) mountMemoryExplorer(memory, root);
   else if (addition) mountByteIncrement(addition, root);
   else mountByteExplorer(root);

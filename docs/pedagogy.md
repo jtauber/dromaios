@@ -176,7 +176,9 @@ lamp device: changing A, writing RAM, and sending a byte are distinct actions.
 [Receiving a byte](machines/altair-input.md) adds IN: prepared switches, pending
 input, A, and output remain distinct. [Waiting for a byte](machines/altair-polling.md)
 then lets the program check readiness in a polling loop, echo each arrival, and
-return to wait again. Text communication follows later.
+return to wait again. [Bytes can be letters](../site/templates/bytes-as-characters.html)
+adds ASCII to the shared byte explorer, distinguishing printed characters,
+space, non-printing codes, and values outside ASCII before text communication.
 
 The next major priority is milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the

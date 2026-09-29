@@ -294,6 +294,23 @@ it reuses the same pacing, input, output, and history views. The live readiness
 readout comes from a snapshot and remains distinct from the CPU's sampled
 answer. The linked contract owns the polling and arrival behavior.
 
+[Bytes can be letters](templates/bytes-as-characters.html) adds an ASCII
+interpretation to the reusable byte editor, initially 65 / A. The DOM-free
+`interactive/ascii.ts` classifies seven-bit ASCII: graphic characters, space,
+controls, Delete, or outside ASCII. It never strips the high bit or chooses an
+extended encoding. The view in `interactive/ascii-explorer.ts` writes text,
+labels non-printing codes without executing them, and preserves the last valid
+byte when a number draft is invalid. Selecting an example replaces the byte
+and clears invalid drafts through the editor's existing setter. Clear all bits
+selects NUL. It creates no CPU, memory, or device instance.
+
+The [mapping tests](../tests/site/ascii.test.ts) cover every byte against explicit
+ASCII rows and control labels, distinguish zero from the character 0, and reject
+non-byte inputs. Browser checks cover numeric and bit edits, examples, space,
+control labels, the high bit, punctuation rendered as text, invalid drafts and
+recovery, keyboard use, and wide/narrow layouts. The static page retains the
+65 / A example with disabled controls when JavaScript is unavailable.
+
 ## Checks
 
 ```sh

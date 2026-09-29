@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% from "instruments/byte-explorer.html" import byte_explorer %}
+{% block description %}Read the same byte as a number or an ASCII character. Explore letters, digits, space, and non-printing codes with eight editable bits.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Bits and meaning · Characters</p>
+    <h1>Bytes can<br><em>be letters.</em></h1>
+    <p class="lesson-intro">We have used bytes as numbers. With an agreed code, those same bits can stand for letters, digits, and punctuation. Nothing in the byte itself says which meaning to choose.</p>
+    <a class="text-link" href="{{ calc_url('learn/bits-and-numbers/') }}">First time here? Explore bits and numbers <span aria-hidden="true">→</span></a>
+  </header>
+  <section id="experiment" class="ascii-explorer" data-ascii-explorer aria-label="Interpret a byte as ASCII">
+    <div class="ascii-panel">
+      <p class="addition-label">Read this byte using ASCII</p>
+      <div class="ascii-reading" role="status" aria-atomic="true">
+        <span class="ascii-glyph" data-ascii-glyph data-kind="graphic" aria-hidden="true">A</span>
+        <div><h2 data-ascii-name>A printed character</h2>
+          <p data-ascii-explanation>ASCII assigns decimal 65 to the character “A”. The bits have not changed; this is another way to interpret them.</p>
+          <p class="byte-error" data-ascii-draft hidden></p>
+        </div>
+      </div>
+      <fieldset class="ascii-examples" data-ascii-examples disabled>
+        <legend>Try a byte</legend>
+        {% for value, label in [(65, 'A'), (97, 'a'), (48, '0'), (32, 'Space'), (10, 'Line feed')] %}
+        <button type="button" data-ascii-value="{{ value }}" aria-pressed="{{ 'true' if value == 65 else 'false' }}">{{ label }} <span>{{ value }} decimal</span></button>
+        {% endfor %}
+      </fieldset>
+    </div>
+    {{ byte_explorer('character-byte', 65) }}
+    <p class="experiment-note">Change a bit, edit a number, or select an example. The character readout interprets the same byte. This explorer labels non-printing codes without acting on them.</p>
+  </section>
+  <div class="lesson-prose">
+    <section aria-labelledby="an-agreement">
+      <h2 id="an-agreement">A letter needs an agreement.</h2>
+      <p>The starting bits are <code>01000001</code>: decimal 65, or hexadecimal <code>41</code>. Read as an unsigned number, they mean sixty-five. Read using <strong>ASCII</strong>, they stand for the uppercase letter <strong>A</strong>.</p>
+      <p>A <em>character encoding</em> supplies the agreement between a stored value and a character. ASCII is one such agreement. Its name stands for American Standard Code for Information Interchange.</p>
+      <p>Select A, then a. They are different characters with different values. Notice that the rightmost bit is not the one that changes.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Select A, then turn on the bit worth 32. Which character appears?</p>
+        <details><summary>Show an explanation</summary><p>Lowercase a. Its value is 65 + 32 = 97: binary <code>01100001</code>, hexadecimal <code>61</code>. That relationship is part of ASCII’s arrangement, not a rule for every byte or every encoding.</p></details>
+        <a href="#experiment">Compare the two letters ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="digit-or-number">
+      <h2 id="digit-or-number">The character 0 is not a zero byte.</h2>
+      <p>Select the example labelled <strong>0</strong>. Its decimal value is 48, with bits <code>00110000</code>. That is the code for the printed digit.</p>
+      <p>Now press <strong>Clear all bits</strong>. The byte becomes zero, and the character readout says <strong>NUL</strong>, meaning Null. It has no printed shape. The three letters NUL are our label for one code; they are not three letters stored in this byte.</p>
+      <p>The same distinction matters with more digits. The number 65 fits in one byte. The text “65” uses two ASCII characters: “6” followed by “5”.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> Select the character 0, then change the decimal value from 48 to 49. What appears?</p>
+        <details><summary>Show an explanation</summary><p>The character 1. ASCII’s ten digit characters occupy consecutive values, 48 through 57. A program must interpret those character codes if it wants to calculate with the number they spell.</p></details>
+        <a href="#experiment">Try a digit ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="invisible-characters">
+      <h2 id="invisible-characters">Some codes leave no printed mark.</h2>
+      <p>Select <strong>Space</strong>. Its value is 32. A gap between words still needs a code, so a space occupies a byte just as a letter does. This view uses the label SP to make it visible.</p>
+      <p>Select <strong>Line feed</strong>. Its value is 10, labelled LF. It is a <em>control code</em>: a receiver can use it to move to another line rather than draw a character. This explorer only identifies the code; it does not move a cursor.</p>
+      <p>Try decimal 7 (BEL, Bell), 13 (CR, Carriage return), or 127 (DEL, Delete). These labels let you inspect codes that otherwise would be hard to see. Selecting them here does not ring a bell or delete anything.</p>
+    </section>
+    <section aria-labelledby="seven-bits">
+      <h2 id="seven-bits">ASCII uses seven bits.</h2>
+      <p>A byte has 256 possible patterns, but ASCII assigns only values 0 through 127. We hold those values in eight bits with the leftmost bit set to zero.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Select A, then turn on the bit worth 128. Is it still an ASCII letter?</p>
+        <details><summary>Show an explanation</summary><p>No. The byte now holds 193: <code>11000001</code>, or hexadecimal <code>C1</code>. It is a valid byte, but outside ASCII. The explorer keeps all eight bits and does not guess another encoding.</p></details>
+        <a href="#experiment">Explore the eighth bit ↑</a>
+      </aside>
+      <p>Other encodings provide more characters, sometimes using several bytes for one character. Sender and receiver need to agree on the encoding to read the same text.</p>
+      <details><summary>A reference for the codes</summary><p>The ASCII code table and names used here can be checked in <a href="https://www.rfc-editor.org/rfc/rfc20.html">RFC 20: ASCII format for Network Interchange</a>. The letter shapes come from your browser’s font; the code specifies the character, not its exact drawing.</p></details>
+    </section>
+    <section aria-labelledby="bytes-to-text">
+      <h2 id="bytes-to-text">From a lamp pattern to a letter.</h2>
+      <p>In <a href="{{ calc_url('learn/altair-polling/') }}">Waiting for a byte</a>, the 8080 received a byte and echoed it to the lamps. If that byte were 65, the lamps would show <code>01000001</code>. A display using ASCII could show A for the very same output.</p>
+      <p>The CPU transfers the byte. The display gives it a visible form. That is the connection we need to build a simple text terminal next.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/altair-polling/') }}"><span aria-hidden="true">←</span> Waiting for a byte</a></nav>
+  </div>
+</main>
+{% endblock %}
