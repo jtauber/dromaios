@@ -1,5 +1,5 @@
 import { createAltairProgram } from "./altair-program.js";
-import { interpretAscii } from "./ascii.js";
+import { asciiByteLabel, interpretAscii } from "./ascii.js";
 import { hex } from "./register-programs.js";
 
 export const terminalOutputLimit = 256;
@@ -11,12 +11,7 @@ export interface TerminalOutputSnapshot {
 
 /** A readable label for a single byte, including values with no printed character. */
 export function describeCharacterByte(value: number): string {
-  const ascii = interpretAscii(value);
-  const label = ascii.kind === "graphic" ? `“${ascii.character}”`
-    : ascii.kind === "space" ? "Space"
-    : ascii.kind === "control" ? ascii.abbreviation
-    : ascii.kind === "delete" ? "DEL" : "Outside ASCII";
-  return `${label} · ${value} decimal · ${hex(value, 2)} hex`;
+  return `${asciiByteLabel(value)} · ${value} decimal · ${hex(value, 2)} hex`;
 }
 
 function displayByte(value: number): string {
@@ -31,7 +26,7 @@ function displayByte(value: number): string {
 }
 
 /** Retain actual device writes, including equal consecutive bytes, separately from the CPU's history. */
-export function createTerminalLesson(programName: "polling" | "reply" = "polling") {
+export function createTerminalLesson(programName: "polling" | "reply" | "message" = "polling") {
   const bytes: number[] = [];
   const program = createAltairProgram(programName, value => {
     bytes.push(value);

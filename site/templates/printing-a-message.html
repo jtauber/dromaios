@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "instruments/altair-panel.html" import altair_panel %}
+{% block description %}Follow an 8080 as it prints HELLO from RAM. Watch HL point to each byte, A receive it, OUT send it, and B count down to the end of the message.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Meet the Altair · Following a pointer</p>
+    <h1>Printing<br><em>a message.</em></h1>
+    <p class="lesson-intro">The computer can send text without waiting for you to type. Store a message in RAM, then let a small loop read and send its bytes one at a time.</p>
+  </header>
+  <p class="experiment-note"><strong>Begin here:</strong> HELLO and a line feed are already in memory. Step once to set HL to 0100. The first message byte becomes highlighted, but A and the display have not received it yet.</p>
+  {{ altair_panel(mode='message') }}
+  <div class="lesson-prose">
+    <section aria-labelledby="address-in-registers">
+      <h2 id="address-in-registers">Keep an address in the processor.</h2>
+      <p>The message occupies six consecutive locations, <code>0100</code> through <code>0105</code>. Each holds one byte: H, E, L, L, O, and LF. Addresses and bytes in the memory window are hexadecimal.</p>
+      <p>We need somewhere to remember which location to read next. The 8080 combines two of its byte registers, H and L, into the sixteen-bit pair <strong>HL</strong>. H holds the high byte and L the low byte: H = 01 and L = 00 together give address 0100.</p>
+      <p>When a register value is used as an address, we call it a <strong>pointer</strong>. The first instruction, <code>LXI H,0100H</code>, puts the message’s starting address into HL. Setting an address does not read the byte stored there.</p>
+      <p>PC and HL have different jobs here. <strong>PC</strong> tracks where to fetch instructions; <strong>HL</strong> points to message data. This example puts its program at <code>0000</code> and its message at <code>0100</code>. The panel lights still follow PC; the new memory window follows HL.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> With HL at 0100, will A hold 0100, 72, or its old value?</p>
+        <details><summary>Show an explanation</summary><p>A keeps its old value, initially zero. HL holds the address 0100. RAM at that address holds 48 hex, or 72 decimal: the ASCII byte for H. These are three separate values.</p></details>
+        <a href="#execution">Set the pointer ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="read-then-send">
+      <h2 id="read-then-send">Read a byte. Then send it.</h2>
+      <p>The second instruction, <code>MVI B,06H</code>, puts 6 into B. This is the number of bytes the loop will send, including line feed. B is another byte register; its role as a counter comes from this program.</p>
+      <p>The third instruction is <code>MOV A,M</code>. In this 8080 spelling, M means the memory location addressed by HL. It is not another register. The instruction reads the byte at 0100 into A, so A now holds 72. HL stays at 0100, and RAM keeps its byte.</p>
+      <p>The fourth instruction, <code>OUT 01H</code>, sends that 72 to the display. H finally appears. Loading the pointer, setting the count, and reading RAM produced no output.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Stop after MOV, then inspect the captured accesses. Where did the opcode come from, and where did the character come from?</p>
+        <details><summary>Show an explanation</summary><p>The processor fetched opcode 7E at 0005, then read the character byte 48 at 0100. Both reads came from RAM, but the bytes played different roles. The later OUT makes a separate transfer to output port 1.</p></details>
+        <a href="#execution">Follow the first character ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="advance-and-repeat">
+      <h2 id="advance-and-repeat">Move the pointer, then repeat the work.</h2>
+      <p><code>INX H</code> adds one to the register pair HL. The highlight moves from 0100 to 0101. A still holds 72, and the output still reads H: advancing an address does not load the next character automatically.</p>
+      <p><code>DCR B</code> subtracts one from the count, leaving 5 and clearing Z. <code>JNZ 0005H</code> returns to MOV while that count is nonzero. The loop reuses the same instructions, but MOV now reads through the new address in HL.</p>
+      <p>Each trip reads, sends, advances, counts down, and tests. The changes happen in that order. Just after OUT, the byte has been sent but B has not yet decreased; just after INX, HL has advanced but A still holds the previous byte.</p>
+      <aside class="lesson-prompt"><p><strong>Predict the next trip.</strong> After printing H, follow the loop back to 0005. Which RAM location will MOV read now, and what will appear after OUT?</p>
+        <details><summary>Show an explanation</summary><p>HL is 0101, so MOV reads 45 hex, or 69 decimal: E. After OUT the display reads HE. PC uses the same instruction addresses while HL advances through the data.</p></details>
+        <a href="#execution">Follow the loop ↑</a>
+      </aside>
+      <p>The two L bytes live at different addresses, 0102 and 0103. Each trip produces its own OUT transfer. Equal byte values still make two visible letters.</p>
+    </section>
+    <section aria-labelledby="finish-the-message">
+      <h2 id="finish-the-message">Let the count decide when to finish.</h2>
+      <p>On the sixth trip, the byte at 0105 is LF. OUT moves the display to a new line. INX advances HL to 0106, just beyond the message window, and DCR leaves B at zero with Z = 1. The final JNZ continues past the loop.</p>
+      <p>The program does not use line feed as a stop signal. B decides how many bytes to send. If one of the six bytes changes, the loop still makes six trips.</p>
+      <p>The next instruction is <code>HLT</code>. This is the program telling the CPU to halt. PC advances to 000E, the halted indicator becomes yes, and RUN and Step become unavailable. The message and final state remain visible.</p>
+      <p>The viewer’s <strong>STOP</strong> button only pauses between instructions; RUN can resume that pause. HLT changes the CPU’s own state. EXAMINE can change PC but cannot release HALT. Use <strong>Start this lesson again</strong> to restore the complete example.</p>
+      <details><summary>How many instructions ran?</summary><p>Two setup instructions, six trips through a five-instruction loop, and one HLT: 33 instructions. Final HL is 0106, B is 0, A is 10 (LF), and PC is 000E. The output device received six writes, and the display reads HELLO followed by a new line.</p></details>
+    </section>
+    <section aria-labelledby="change-the-message">
+      <h2 id="change-the-message">Change the data, keep the program.</h2>
+      <p>The memory window reads actual RAM. You can change the message with the familiar panel while stopped, leaving the instructions alone.</p>
+      <details><summary>Try printing JELLO instead</summary><ol><li>Start this lesson again.</li><li>Set the panel switches to 0100 and press EXAMINE.</li><li>Set the switches to 004A and press DEPOSIT. The first message byte changes from H to J; nothing is sent yet.</li><li>Lower all switches and EXAMINE 0000 to return PC to the program.</li><li>RUN, or step through it. Predict whether the instruction path and byte count will change.</li></ol><p>The display prints JELLO and a line feed, using the same 33 instructions and six writes. Restart restores HELLO.</p></details>
+      <p>Only the message data changed. The same pattern—read through a pointer, advance it, and repeat—can also copy a buffer, add a series of numbers, or inspect a sequence of bytes.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/a-different-reply/') }}"><span aria-hidden="true">←</span> A different reply</a></nav>
+  </div>
+</main>
+{% endblock %}

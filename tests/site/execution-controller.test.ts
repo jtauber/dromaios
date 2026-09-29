@@ -451,3 +451,61 @@ test("STOP after the reply comparison preserves its decision and pending input f
     assert.equal(lesson.snapshot().flags.z, value === 97);
   }
 });
+
+test("paced message output resumes after MOV and records HLT once without scheduling another step", () => {
+  const timer = clock();
+  const lesson = createTerminalLesson("message");
+  const execution = createExecutionController({
+    step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+    onChange() {}, schedule: timer.schedule,
+  });
+  execution.run();
+  for (let i = 0; i < 3; i++) timer.tick();
+  const queued = timer.pending[0]!;
+  execution.stop(); queued.callback();
+  assert.deepEqual([lesson.snapshot().a, lesson.snapshot().hl, lesson.snapshot().b], [72, 0x100, 6]);
+  assert.deepEqual(lesson.terminalSnapshot(), { text: "", retained: 0 });
+  lesson.ram.write(0x100, 74); // The first character has already been read into A.
+  execution.run();
+  for (let i = 0; i < 29; i++) timer.tick();
+  assert.deepEqual([execution.steps, lesson.snapshot().pc, lesson.snapshot().halted], [32, 0x0d, false]);
+  assert.deepEqual(lesson.terminalSnapshot(), { text: "HELLO\n", retained: 6 });
+  timer.tick();
+  assert.equal(execution.error, undefined);
+  assert.equal(execution.running, false);
+  assert.equal(execution.steps, 33);
+  assert.equal(execution.records.at(-1)!.outcome, "halted");
+  assert.deepEqual(execution.records.at(-1)!.instruction, { address: 0x0d, bytes: [0x76] });
+  assert.equal(timer.pending.length, 0);
+  execution.run(); execution.step();
+  assert.equal(execution.steps, 33);
+  assert.equal(timer.pending.length, 0);
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 10, writes: 6 });
+});
+
+test("restarting message output before a read, write, or HLT rejects callbacks from the previous session", () => {
+  for (const completed of [0, 2, 3, 4, 32]) {
+    const timer = clock();
+    let lesson = createTerminalLesson("message");
+    const execution = createExecutionController({
+      step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+      onChange() {}, schedule: timer.schedule,
+    });
+    execution.run();
+    for (let i = 0; i < completed; i++) timer.tick();
+    const old = lesson;
+    const state = old.snapshot();
+    const output = old.terminalSnapshot();
+    const queued = timer.pending[0]!;
+    execution.reset();
+    lesson = createTerminalLesson("message");
+    execution.run(); queued.callback();
+    assert.equal(execution.steps, 0);
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "", retained: 0 });
+    for (let i = 0; i < 4; i++) timer.tick();
+    execution.stop();
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "H", retained: 1 });
+    assert.deepEqual(old.snapshot(), state);
+    assert.deepEqual(old.terminalSnapshot(), output);
+  }
+});

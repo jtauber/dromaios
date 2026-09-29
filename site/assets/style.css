@@ -470,6 +470,15 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .byte-output .output-status { font: 14px/1.7 var(--mono); }
 .panel-cpu-state-input { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .panel-devices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.ram-window { background: #e2ebed; border: 1px solid #9fadb4; border-radius: 4px; padding: 18px; min-width: 0; }
+.ram-window h4 { margin: 0 0 12px; font: 17px/1.5 var(--mono); }
+.ram-window table { width: 100%; border-collapse: collapse; font: 12px/1.5 var(--mono); }
+.ram-window caption { text-align: left; font: 11px/1.6 system-ui, sans-serif; padding-bottom: 10px; }
+.ram-window th, .ram-window td { text-align: left; padding: 8px 4px; border-bottom: 1px solid #bdcbd0; }
+.ram-window tbody th { font-weight: 400; }
+.ram-window [data-ram-pointer] { display: inline-block; min-width: 2.8em; font-size: 10px; font-weight: 700; }
+.ram-window [aria-current="location"] { background: #f5e4d4; outline: 2px solid var(--accent); }
+.ram-window p { font-size: 12px; line-height: 1.7; margin: 12px 0 0; }
 .byte-input { padding: 20px; border: 1px solid #8ca4af; border-radius: 4px; background: #e0e9eb; }
 .byte-input h4 { margin: 0 0 16px; font: 16px/1.5 var(--mono); }
 .byte-input h4 span { display: block; margin-top: 4px; font: 12px/1.5 system-ui, sans-serif; }

@@ -184,6 +184,8 @@ program with character input and a text display driven by actual OUT writes.
 [A different reply](machines/reply-lesson.md) adds a character comparison and
 a conditional replacement, keeping the input and display unchanged while the
 program chooses its response.
+[Printing a message](machines/message-lesson.md) then connects a pointer in HL,
+message bytes in RAM, and a counter in B to a loop that produces text and halts.
 
 The next major priority is milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the

@@ -9,9 +9,10 @@ import { create8080AltairOutputLesson } from "../../src/machines/generated/8080/
 import { create8080AltairInputLesson } from "../../src/machines/generated/8080/altair-input-lesson.js";
 import { create8080AltairPollingLesson } from "../../src/machines/generated/8080/altair-polling-lesson.js";
 import { create8080AltairReplyLesson } from "../../src/machines/generated/8080/altair-reply-lesson.js";
+import { create8080OutputExample } from "../../src/machines/generated/8080/output-example.js";
 import { createAltairMemoryPanel } from "./altair-panel.js";
-import { registerProgram, hex, load, loadImmediate, add, compare, jump, jumpIf } from "./register-programs.js";
-import type { LessonInstruction } from "./register-programs.js";
+import { registerProgram, hex, readAddress, load, loadImmediate, add, compare, jump, jumpIf } from "./register-programs.js";
+import type { CompletedInstruction, LessonInstruction } from "./register-programs.js";
 
 interface LessonMachine {
   readonly cpu: Cpu8080;
@@ -53,9 +54,8 @@ const readinessInstruction: LessonInstruction = {
 
 // A reference for manual entry, never an image loaded into the learner's RAM.
 export const altairProgramBytes = [0x3a, 0x03, 0x00, 0xc6, 0x01, 0x32, 0x04, 0x00] as const;
-export const altairProgramStart = 0x100;
 export const altairOperandAddress = 0x104;
-// Both terminal programs wait for readiness before consuming the pending byte.
+// Both polling programs wait for readiness before consuming the pending byte.
 const receiveInstructions = [readinessInstruction, compare(0x102), jumpIf(0x104, "z", 1), inputInstruction(0x107)];
 const receiveBytes = [0xdb, 0, 0xfe, 0, 0xca, 0, 1, 0xdb, 1];
 const programs = {
@@ -96,11 +96,52 @@ const programs = {
     bytes: [...receiveBytes, 0xfe, 0x61, 0xc2, 0x10, 1, 0x3e, 0x41, 0xd3, 1, 0xc3, 0, 1],
     editableOperand: undefined,
   },
+  message: {
+    createMachine: create8080OutputExample,
+    instructions: [
+      {
+        address: 0, length: 3, action: "read", mnemonic: read => `LXI H,${hex(readAddress(read, 1), 4)}H`,
+        explanation: read => `Put address ${hex(readAddress(read, 1), 4)} into HL`,
+        prompt: "Set the message pointer. Has a character been read yet?",
+        describe: ({ before, after }) => `Set HL from ${hex(before.hl, 4)} to ${hex(after.hl, 4)}. H holds ${hex(after.h, 2)} and L holds ${hex(after.l, 2)}. A, flags, RAM, and output are unchanged; no message byte was read.`,
+      },
+      loadImmediate(3, "b"),
+      {
+        address: 5, length: 1, action: "read", mnemonic: () => "MOV A,M",
+        explanation: () => "Read the RAM byte addressed by HL into A",
+        prompt: "Read through HL. Will the pointer or display change?",
+        describe: ({ before, after }) => `Read ${after.a} from RAM at ${hex(before.hl, 4)} into A, replacing ${before.a}. HL still holds ${hex(after.hl, 4)}; B, flags, RAM, and output are unchanged.`,
+      },
+      outputInstruction(6),
+      {
+        address: 8, length: 1, action: "add", mnemonic: () => "INX H",
+        explanation: () => "Advance HL to the next address",
+        prompt: "Advance the pointer. Does A change too?",
+        describe: ({ before, after }) => `Advanced HL from ${hex(before.hl, 4)} to ${hex(after.hl, 4)}. A still holds ${after.a}; B, flags, RAM, and output are unchanged. No byte was read from the new address.`,
+      },
+      {
+        address: 9, length: 1, action: "subtract", mnemonic: () => "DCR B",
+        explanation: () => "Subtract one from the remaining count in B",
+        prompt: "Count the byte just sent. Is anything left to send?",
+        describe: ({ before, after }) => `Decreased B from ${before.b} to ${after.b}. Zero flag Z is ${Number(after.flags.z)}. A, HL, carry, RAM, and output are unchanged.`,
+      },
+      jumpIf(0x0a, "z", 0),
+      {
+        address: 0x0d, length: 1, action: "halt", mnemonic: () => "HLT",
+        explanation: () => "Halt the CPU",
+        prompt: "Halt the CPU. What state will it preserve?",
+        describe: ({ after }) => `Executed HLT. PC advanced to ${hex(after.pc, 4)} and the CPU is now halted. Data registers, flags, RAM, and output are preserved. RUN cannot resume a halted CPU; start this lesson again for a fresh run.`,
+      },
+    ] satisfies readonly LessonInstruction[],
+    bytes: [0x21, 0, 1, 0x06, 6, 0x7e, 0xd3, 1, 0x23, 0x05, 0xc2, 5, 0, 0x76],
+    editableOperand: undefined,
+  },
 } as const;
 
 /** Connect the panel to PC and guard execution of a known lesson program. */
 export function createAltairProgram(name: keyof typeof programs = "entry", onOutput: (value: number) => void = () => {}) {
   const { createMachine, instructions, bytes, editableOperand } = programs[name];
+  const startAddress = instructions[0]!.address;
   let outputWrites = 0;
   const machine: LessonMachine = createMachine({ output: value => { outputWrites++; onOutput(value); } });
   const { ram, endAddress, ports, output, input } = machine;
@@ -116,16 +157,17 @@ export function createAltairProgram(name: keyof typeof programs = "entry", onOut
 
   function stepProblem(): string | undefined {
     for (const [offset, expected] of bytes.entries()) {
-      const address = altairProgramStart + offset;
+      const address = startAddress + offset;
       if (address !== editableOperand && ram.read(address) !== expected) {
         return `At ${hex(address, 4)}, RAM holds ${hex(ram.read(address), 2)}; enter ${hex(expected, 2)} from the reference card before stepping.`;
       }
     }
-    const pc = cpu.snapshot().pc;
-    if (pc === endAddress) return `PC is at ${hex(endAddress, 4)}, just after the program. EXAMINE 0100 to run it again; memory is preserved.`;
+    const { pc, halted } = cpu.snapshot();
+    if (halted) return "The CPU is halted. EXAMINE changes PC but does not release HALT. Start this lesson again for a fresh run.";
+    if (pc === endAddress) return `PC is at ${hex(endAddress, 4)}, just after the program. EXAMINE ${hex(startAddress, 4)} to run it again; memory is preserved.`;
     const instruction = instructions.find(instruction => instruction.address === pc);
     if (!instruction) {
-      return `EXAMINE 0100 to begin. This lesson steps only at instruction starts ${instructions.map(instruction => hex(instruction.address, 4)).join(", ")}.`;
+      return `EXAMINE ${hex(startAddress, 4)} to begin. This lesson steps only at instruction starts ${instructions.map(instruction => hex(instruction.address, 4)).join(", ")}.`;
     }
     // A lesson guard, not CPU waiting: an unguarded empty read would return zero.
     if (name === "input" && instruction.action === "input" && input?.snapshot().pendingByte === null) {
@@ -135,7 +177,7 @@ export function createAltairProgram(name: keyof typeof programs = "entry", onOut
   }
 
   return {
-    ram, panel, endAddress, instructions, bytes, editableOperand,
+    ram, panel, startAddress, endAddress, instructions, bytes, editableOperand,
     outputSnapshot: () => output && { ...output.snapshot(), writes: outputWrites },
     inputSnapshot: () => input?.snapshot(),
     offerInput(value: number): boolean {
@@ -144,10 +186,14 @@ export function createAltairProgram(name: keyof typeof programs = "entry", onOut
     },
     snapshot: () => cpu.snapshot(),
     stepProblem,
-    step() {
+    step(): CompletedInstruction {
       const problem = stepProblem();
       if (problem) throw new Error(problem);
-      return cpu.step();
+      const record = cpu.step();
+      if (record.outcome === "unsupported" || record.instruction === null) {
+        throw new Error("The Altair lesson expected a completed instruction.");
+      }
+      return { ...record, instruction: record.instruction };
     },
   };
 }

@@ -27,6 +27,15 @@ export function interpretAscii(value: number): AsciiByte {
   return { kind: "control", abbreviation, name };
 }
 
+/** A compact visible label, without interpreting control bytes as display actions. */
+export function asciiByteLabel(value: number): string {
+  const ascii = interpretAscii(value);
+  return ascii.kind === "graphic" ? `“${ascii.character}”`
+    : ascii.kind === "space" ? "Space"
+    : ascii.kind === "control" ? ascii.abbreviation
+    : ascii.kind === "delete" ? "DEL" : "Outside ASCII";
+}
+
 /** Accept exactly one printable ASCII character, including space, without trimming or truncating. */
 export function asciiCharacterByte(text: string): number | undefined {
   if (text.length !== 1) return undefined;

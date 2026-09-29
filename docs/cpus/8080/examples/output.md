@@ -7,6 +7,8 @@
 
 This synthetic machine sends `HELLO\n` through output port `01`. It uses the
 same byte-output device as the [68000 ROM-output example](../../68000/examples/output.md).
+The [Printing a message lesson](../../../machines/message-lesson.md) makes this
+same machine explorable in the browser.
 The machine supplies port routing and reset; the CPU and device models are
 unchanged. Numbers below are hexadecimal except step counts and flag values.
 

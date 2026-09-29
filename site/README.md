@@ -325,6 +325,13 @@ views, initially preparing lowercase a. The CPU compares the received byte,
 skips or executes MVI, and sends the reply; the host does no character conversion.
 The linked contract owns the program paths and acceptance checks.
 
+[Printing a message](../docs/machines/message-lesson.md) selects `message` and
+reuses `8080/output-example.machine` unchanged. The shared panel derives its
+program start address, accepts a completed HLT record, and blocks further
+execution while halted. `ram-window-view.ts` inspects the message in concrete
+RAM and marks HL; B, HL, Z, and the halted state remain separate CPU readouts.
+The linked contract owns data editing, completion, and acceptance checks.
+
 ## Checks
 
 ```sh

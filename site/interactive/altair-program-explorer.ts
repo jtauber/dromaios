@@ -1,5 +1,5 @@
 import { mountAltairExplorer } from "./altair-explorer.js";
-import { altairProgramStart, createAltairProgram } from "./altair-program.js";
+import { createAltairProgram } from "./altair-program.js";
 import { createExecutionController } from "./execution-controller.js";
 import { format8080Trace } from "./instruction-trace.js";
 import { hex } from "./register-programs.js";
@@ -8,14 +8,14 @@ import { mountByteInput } from "./byte-input-view.js";
 import { mountCharacterInput } from "./character-input-view.js";
 import { createTerminalLesson } from "./terminal-lesson.js";
 import { renderTerminalOutput } from "./terminal-output-view.js";
+import { renderRamWindow } from "./ram-window-view.js";
 
 /** Execute the panel's known program, retaining captured instructions across memory edits. */
 export function mountAltairProgramExplorer(root: HTMLElement): void {
   const mode = root.dataset.altairExplorer;
-  const terminal = mode === "terminal" || mode === "reply";
-  const name = mode === "reply" ? "reply" : mode === "terminal" ? "polling"
-    : mode === "running" ? "countdown"
-    : mode === "output" || mode === "input" || mode === "polling" ? mode : "entry";
+  const terminalProgram = mode === "terminal" ? "polling" : mode === "reply" || mode === "message" ? mode : undefined;
+  const name = terminalProgram ?? (mode === "running" ? "countdown"
+    : mode === "output" || mode === "input" || mode === "polling" ? mode : "entry");
   const preloaded = name !== "entry";
   let lesson: ReturnType<typeof createAltairProgram> | ReturnType<typeof createTerminalLesson>;
   let panel: ReturnType<typeof mountAltairExplorer> | undefined;
@@ -33,6 +33,7 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
   const output = root.querySelector<HTMLElement>("[data-byte-output]");
   const input = root.querySelector<HTMLElement>("[data-byte-input]");
   const terminalOutput = root.querySelector<HTMLElement>("[data-terminal-output]");
+  const ramWindow = root.querySelector<HTMLElement>("[data-ram-window]");
   const rows: { row: HTMLTableRowElement; address: number; expected: number; value: HTMLTableCellElement; check: HTMLTableCellElement }[] = [];
 
   const execution = createExecutionController({
@@ -41,7 +42,6 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
       const instruction = lesson.instructions.find(instruction => instruction.address === lesson.snapshot().pc)!;
       const previousDestination = lesson.ram.read(4);
       const record = lesson.step();
-      if (record.outcome !== "executed") throw new Error("The Altair lesson expected an ordinary instruction.");
       return {
         record,
         description: instruction.describe(record, previousDestination),
@@ -57,9 +57,12 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
 
   function render(): void {
     const state = lesson.snapshot();
-    for (const [name, value] of [["a", state.a], ["pc", hex(state.pc, 4)]] as const) {
-      root.querySelector<HTMLElement>(`[data-panel-cpu-${name}]`)!.textContent = String(value);
+    for (const [name, value] of [["a", state.a], ["pc", hex(state.pc, 4)], ["b", state.b],
+      ["hl", hex(state.hl, 4)], ["halted", state.halted ? "yes" : "no"]] as const) {
+      const readout = root.querySelector<HTMLElement>(`[data-panel-cpu-${name}]`);
+      if (readout) readout.textContent = String(value);
     }
+    if (ramWindow) renderRamWindow(ramWindow, lesson.ram, state.hl, execution.running);
     for (const readout of root.querySelectorAll<HTMLElement>("[data-panel-ram]")) {
       readout.textContent = String(lesson.ram.read(Number(readout.dataset.panelRam)));
     }
@@ -80,9 +83,10 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
     const entry = rows.find(row => row.address === state.pc);
     const following = rows.find(row => row.address === state.pc + 1);
     const reference = (row: typeof rows[number]) => `${hex(row.address, 4)}: ${hex(row.expected, 2)} = ${row.expected.toString(2).padStart(8, "0")}`;
+    const start = hex(lesson.startAddress, 4);
     hint.textContent = execution.running ? "Running: STOP before examining or depositing memory. Moving switches still only prepares a value."
-      : entry ? `DEPOSIT at ${reference(entry)}. ` + (following ? `DEPOSIT NEXT at ${reference(following)}.` : "This is the last byte. EXAMINE 0100 to check or execute the program.")
-      : "To revisit the program, raise only switch 8 (address 0100) and press EXAMINE.";
+      : entry ? `DEPOSIT at ${reference(entry)}. ` + (following ? `DEPOSIT NEXT at ${reference(following)}.` : `This is the last byte. EXAMINE ${start} to check or execute the program.`)
+      : `To revisit the program, set the switches to address ${start} and press EXAMINE.`;
     const problem = lesson.stepProblem();
     const blocked = problem !== undefined || execution.error !== undefined;
     step.disabled = execution.running || blocked;
@@ -118,7 +122,7 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
   panel = mountAltairExplorer(root, {
     createPanel() {
       execution.reset();
-      lesson = terminal ? createTerminalLesson(mode === "reply" ? "reply" : "polling") : createAltairProgram(name);
+      lesson = terminalProgram ? createTerminalLesson(terminalProgram) : createAltairProgram(name);
       inputView?.reset();
       return lesson.panel;
     },
@@ -130,10 +134,11 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
       output: "No memory operation yet. The output program is loaded; PC is 0100, address 3 holds 41, and address 1 holds 0. No byte has been sent to the device.",
       polling: "No memory operation yet. The polling program is loaded; PC is 0100 and address 1 holds 0. Both devices start empty.",
       reply: "No memory operation yet. The reply program is loaded; PC is 0100 and address 1 holds 0. Both devices start empty.",
+      message: "No memory operation yet. The program is loaded at 0000 and the six message bytes at 0100. No byte has been sent to the display.",
       input: "No memory operation yet. The input program is loaded; PC is 0100 and address 1 holds 0. Both devices start empty.",
     }[name],
   });
-  if (input) inputView = (terminal ? mountCharacterInput : mountByteInput)(input, {
+  if (input) inputView = (terminalProgram ? mountCharacterInput : mountByteInput)(input, {
     snapshot: () => lesson.inputSnapshot()!,
     offer: value => lesson.offerInput(value),
     onChange: () => { panel!.refresh(); },
@@ -141,7 +146,7 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
   const body = root.querySelector<HTMLElement>("[data-panel-entry-bytes]")!;
   for (const [offset, expected] of lesson!.bytes.entries()) {
     const row = document.createElement("tr");
-    const address = altairProgramStart + offset;
+    const address = lesson!.startAddress + offset;
     const heading = document.createElement("th");
     heading.scope = "row";
     heading.textContent = hex(address, 4);

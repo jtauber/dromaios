@@ -8,16 +8,20 @@ import { create8080ComparisonLesson } from "../../src/machines/generated/8080/co
 import type { Cpu8080StepRecord } from "../../src/components/cpus/generated/8080-cpu.js";
 
 export type ExecutedStep = Extract<Cpu8080StepRecord, { outcome: "executed" }>;
+/** A completed instruction, including HLT, but never an already-halted no-op. */
+export type CompletedInstruction = Pick<ExecutedStep, "before" | "after" | "instruction" | "accesses"> & {
+  readonly outcome: "executed" | "halted";
+};
 type ReadByte = (address: number) => number;
 
 export interface LessonInstruction {
   readonly address: number;
   readonly length: number;
-  readonly action: "read" | "add" | "subtract" | "compare" | "write" | "jump" | "input" | "output";
+  readonly action: "read" | "add" | "subtract" | "compare" | "write" | "jump" | "input" | "output" | "halt";
   readonly mnemonic: (read: ReadByte) => string;
   readonly explanation: (read: ReadByte) => string;
   readonly prompt: string;
-  readonly describe: (record: ExecutedStep, previousDestination: number) => string;
+  readonly describe: (record: CompletedInstruction, previousDestination: number) => string;
 }
 
 interface RegisterProgram {
@@ -41,12 +45,13 @@ export function load(address: number): LessonInstruction {
   };
 }
 
-export function loadImmediate(address: number): LessonInstruction {
+export function loadImmediate(address: number, register: "a" | "b" | "c" | "d" | "e" | "h" | "l" = "a"): LessonInstruction {
+  const name = register.toUpperCase();
   return {
-    address, length: 2, action: "read", mnemonic: read => `MVI A,${hex(read(address + 1), 2)}H`,
-    explanation: read => `Put ${read(address + 1)} into A`,
-    prompt: "Copy the byte in the instruction into A. Has the output device received it yet?",
-    describe: ({ instruction, before, after }) => `Copied ${instruction.bytes[1]} from the instruction into A, replacing ${before.a}. A now holds ${after.a}; flags, RAM, and the output device are unchanged.`,
+    address, length: 2, action: "read", mnemonic: read => `MVI ${name},${hex(read(address + 1), 2)}H`,
+    explanation: read => `Put ${read(address + 1)} into ${name}`,
+    prompt: `Copy the byte in the instruction into ${name}. Has the output device received it yet?`,
+    describe: ({ instruction, before, after }) => `Copied ${instruction.bytes[1]} from the instruction into ${name}, replacing ${before[register]}. ${name} now holds ${after[register]}; flags, RAM, and the output device are unchanged.`,
   };
 }
 
