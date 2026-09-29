@@ -1,12 +1,13 @@
 {% from "instruments/bit-switches.html" import switches %}
-{% macro byte_input() %}
+{% macro byte_input(polling=false) %}
 <section class="byte-input" data-byte-input aria-labelledby="input-heading">
-  <h4 id="input-heading">An input device <span>Input port 1</span></h4>
+  <h4 id="input-heading">An input device <span>{{ 'Port 0: readiness · Port 1: data' if polling else 'Input port 1' }}</span></h4>
   <p class="input-label">Prepare a byte</p>
   <div class="input-switches" role="group" aria-label="Prepare the input byte">{{ switches(7, 0, 'data-input-switch', 'Input switch') }}</div>
   <p class="input-number" data-input-prepared>Enable JavaScript to prepare a byte.</p>
   <button type="button" class="button" data-input-send disabled>Send byte to device</button>
   <p class="input-status" data-input-status aria-live="polite" aria-atomic="true" tabindex="-1">Device empty. No byte waiting.</p>
-  <p>Switches prepare a byte. Send stores it; IN reads it. The device holds one byte at a time.</p>
+  {% if polling %}<p>Ready now: <strong data-input-readiness>0 · empty</strong></p>{% endif %}
+  <p>Switches prepare a byte. Send stores it; IN 01H reads it. The device holds one byte at a time.</p>
 </section>
 {% endmacro %}

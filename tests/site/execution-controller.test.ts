@@ -303,3 +303,69 @@ test("paced input waits for an offer, preserves pending bytes on STOP, and cance
     assert.deepEqual(old.inputSnapshot(), oldInput);
   }
 });
+
+test("polling keeps executing while empty, yields each instruction, and accepts input without restarting", () => {
+  const timer = clock();
+  const lesson = createAltairProgram("polling");
+  const execution = createExecutionController({
+    step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+    onChange() {}, schedule: timer.schedule,
+  });
+  execution.run();
+  for (let i = 0; i < 30; i++) {
+    assert.equal(timer.pending.length, 1);
+    timer.tick();
+    assert.equal(execution.steps, i + 1);
+  }
+  assert.equal(execution.running, true);
+  assert.equal(execution.records.length, 12);
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: null, writes: 0 });
+  lesson.offerInput(0);
+  for (let i = 0; i < 6; i++) timer.tick();
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 0, writes: 1 });
+  assert.equal(execution.steps, 36);
+  const queued = timer.pending[0]!;
+  execution.stop();
+  lesson.offerInput(42);
+  queued.callback();
+  assert.equal(execution.running, false);
+  assert.equal(timer.pending.length, 0);
+  assert.equal(execution.steps, 36);
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 42 });
+  execution.run();
+  for (let i = 0; i < 6; i++) timer.tick();
+  execution.stop();
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 42, writes: 2 });
+});
+
+test("restarting polling before status, data, or output invalidates queued work even after a new RUN", () => {
+  for (const stepsBeforeRestart of [0, 3, 4]) {
+    const timer = clock();
+    let lesson = createAltairProgram("polling");
+    lesson.offerInput(99);
+    const execution = createExecutionController({
+      step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+      onChange() {}, schedule: timer.schedule,
+    });
+    execution.run();
+    for (let i = 0; i < stepsBeforeRestart; i++) timer.tick();
+    const old = lesson;
+    const state = old.snapshot();
+    const input = old.inputSnapshot();
+    const queued = timer.pending[0]!;
+    execution.reset();
+    lesson = createAltairProgram("polling");
+    lesson.offerInput(42);
+    execution.run();
+    queued.callback();
+    assert.equal(execution.steps, 0);
+    assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 42 });
+    assert.deepEqual(lesson.outputSnapshot(), { lastByte: null, writes: 0 });
+    for (let i = 0; i < 6; i++) timer.tick();
+    execution.stop();
+    assert.deepEqual(lesson.outputSnapshot(), { lastByte: 42, writes: 1 });
+    assert.deepEqual(old.snapshot(), state);
+    assert.deepEqual(old.inputSnapshot(), input);
+    assert.deepEqual(old.outputSnapshot(), { lastByte: null, writes: 0 });
+  }
+});

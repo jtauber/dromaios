@@ -54,7 +54,7 @@ export function add(address: number, flag: "cy" | "z" = "cy"): LessonInstruction
   };
 }
 
-function compare(address: number): LessonInstruction {
+export function compare(address: number): LessonInstruction {
   return {
     address, length: 2, action: "compare", mnemonic: read => `CPI ${read(address + 1)}`,
     explanation: read => `Compare A with ${read(address + 1)}`,
@@ -83,7 +83,7 @@ function store(address: number, prompt = "Write the result in A to address 4."):
   };
 }
 
-function jump(address: number, continuation: (destination: number) => string): LessonInstruction {
+export function jump(address: number, continuation: (destination: number) => string): LessonInstruction {
   return {
     address, length: 3, action: "jump",
     mnemonic: read => `JMP ${hex(readAddress(read, address + 1), 4)}H`,
@@ -93,13 +93,13 @@ function jump(address: number, continuation: (destination: number) => string): L
   };
 }
 
-function jumpIfClear(address: number, flag: "cy" | "z"): LessonInstruction {
-  const mnemonic = flag === "cy" ? "JNC" : "JNZ";
+export function jumpIf(address: number, flag: "cy" | "z", expected: 0 | 1): LessonInstruction {
+  const mnemonic = { cy: ["JNC", "JC"], z: ["JNZ", "JZ"] }[flag][expected];
   const label = flag.toUpperCase();
   return {
     address, length: 3, action: "jump",
     mnemonic: read => `${mnemonic} ${hex(readAddress(read, address + 1), 4)}H`,
-    explanation: read => `Jump to ${hex(readAddress(read, address + 1), 4)} if ${label} = 0`,
+    explanation: read => `Jump to ${hex(readAddress(read, address + 1), 4)} if ${label} = ${expected}`,
     prompt: `Check ${label}. Will the processor repeat or continue past the jump?`,
     describe: ({ instruction, before, after }) => {
       const fallThrough = instruction.address + instruction.bytes.length;
@@ -136,18 +136,18 @@ const programs: Readonly<Record<string, RegisterProgram>> = {
   },
   "conditional-loop": {
     createMachine: create8080ConditionalLoopLesson,
-    instructions: [load(0x100), add(0x103), store(0x105), jumpIfClear(0x108, "cy")],
+    instructions: [load(0x100), add(0x103), store(0x105), jumpIf(0x108, "cy", 0)],
     showHistory: true,
   },
   countdown: {
     createMachine: create8080CountdownLesson,
-    instructions: [load(0x100), subtract(0x103), store(0x105), jumpIfClear(0x108, "z")],
+    instructions: [load(0x100), subtract(0x103), store(0x105), jumpIf(0x108, "z", 0)],
     showHistory: true,
     flag: "z",
   },
   comparison: {
     createMachine: create8080ComparisonLesson,
-    instructions: [load(0x100), add(0x103, "z"), store(0x105), compare(0x108), jumpIfClear(0x10a, "z")],
+    instructions: [load(0x100), add(0x103, "z"), store(0x105), compare(0x108), jumpIf(0x10a, "z", 0)],
     operandAddress: 0x109,
     showHistory: true,
     flag: "z",

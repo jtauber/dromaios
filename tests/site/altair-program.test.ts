@@ -355,3 +355,87 @@ test("a fresh input session clears both devices without altering old pending inp
   assert.deepEqual(old.inputSnapshot(), { pendingByte: 99 });
   assert.deepEqual(old.outputSnapshot(), { lastByte: 42, writes: 1 });
 });
+
+test("polling uses the sampled status when input arrives before either the comparison or the branch", () => {
+  for (const arrivalAfter of [1, 2]) {
+    const lesson = createAltairProgram("polling");
+    assert.equal(lesson.endAddress, undefined);
+    assert.equal(lesson.stepProblem(), undefined);
+    const status = step(lesson);
+    const describe = lesson.instructions[0]!.describe;
+    const explanation = describe(status, 0);
+    const trace = format8080Trace(status, "IN 00H");
+    assert.match(explanation, /readiness 0 \(empty\).*consumed no data/);
+    if (arrivalAfter === 2) step(lesson);
+    lesson.offerInput(42);
+    for (let i = 0; i < 3; i++) {
+      assert.equal(lesson.stepProblem(), undefined);
+      assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 42 });
+    }
+    assert.equal(lesson.snapshot().a, 0);
+    if (arrivalAfter === 1) step(lesson);
+    const jump = step(lesson);
+    assert.equal(jump.after.pc, 0x100);
+    assert.match(lesson.instructions[2]!.describe(jump, 0), /Z was 1.*Jump taken/);
+    for (let i = 0; i < 6; i++) step(lesson);
+    assert.deepEqual(lesson.outputSnapshot(), { lastByte: 42, writes: 1 });
+    assert.deepEqual(lesson.inputSnapshot(), { pendingByte: null });
+    assert.equal(lesson.snapshot().pc, 0x100);
+    assert.equal(describe(status, 0), explanation);
+    assert.equal(format8080Trace(status, "IN 00H"), trace);
+  }
+});
+
+test("polling distinguishes zero from empty, counts repeated echoes, and keeps output while checking again", () => {
+  const lesson = createAltairProgram("polling");
+  for (let trip = 1; trip <= 2; trip++) {
+    lesson.offerInput(0);
+    const status = step(lesson);
+    assert.equal(status.after.a, 1);
+    assert.match(lesson.instructions[0]!.describe(status, 0), /readiness 1 \(ready\)/);
+    step(lesson);
+    const jump = step(lesson);
+    assert.match(lesson.instructions[2]!.describe(jump, 0), /Z was 0.*Jump not taken/);
+    const received = step(lesson);
+    assert.deepEqual([received.after.a, received.after.flags.z], [0, false]);
+    step(lesson); step(lesson);
+    assert.deepEqual(lesson.outputSnapshot(), { lastByte: 0, writes: trip });
+    for (let i = 0; i < 9; i++) step(lesson);
+    assert.deepEqual(lesson.outputSnapshot(), { lastByte: 0, writes: trip });
+    assert.deepEqual([lesson.snapshot().pc, lesson.snapshot().flags.z], [0x100, true]);
+  }
+});
+
+test("polling guards code and PC without reading input, but allows deliberate entry at an empty data read", () => {
+  const lesson = createAltairProgram("polling");
+  lesson.offerInput(99);
+  examine(lesson, 1);
+  lesson.panel.examineNext();
+  switches(lesson, 77);
+  lesson.panel.depositNext();
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 99 });
+  assert.throws(() => lesson.step(), /instruction starts/);
+  deposit(lesson, 0x102, 0);
+  examine(lesson, 0x100);
+  const before = lesson.snapshot();
+  assert.throws(() => lesson.step(), /enter FE/);
+  assert.deepEqual(lesson.snapshot(), before);
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 99 });
+  deposit(lesson, 0x102, 0xfe);
+  examine(lesson, 0x107);
+  const received = step(lesson);
+  lesson.offerInput(42);
+  assert.match(lesson.instructions[3]!.describe(received, 0), /Received 99.*left the input device empty/);
+  step(lesson);
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 42 });
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 99, writes: 1 });
+
+  const fresh = createAltairProgram("polling");
+  examine(fresh, 0x107);
+  assert.equal(fresh.stepProblem(), undefined);
+  assert.deepEqual(step(fresh).accesses.at(-1), { kind: "input", port: 1, value: 0 });
+  step(fresh);
+  assert.deepEqual(fresh.outputSnapshot(), { lastByte: 0, writes: 1 });
+  assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 42 });
+  assert.deepEqual(lesson.outputSnapshot(), { lastByte: 99, writes: 1 });
+});

@@ -7,14 +7,15 @@ import { create8080AltairProgramLesson } from "../../src/machines/generated/8080
 import { create8080CountdownLesson } from "../../src/machines/generated/8080/countdown-lesson.js";
 import { create8080AltairOutputLesson } from "../../src/machines/generated/8080/altair-output-lesson.js";
 import { create8080AltairInputLesson } from "../../src/machines/generated/8080/altair-input-lesson.js";
+import { create8080AltairPollingLesson } from "../../src/machines/generated/8080/altair-polling-lesson.js";
 import { createAltairMemoryPanel } from "./altair-panel.js";
-import { registerProgram, hex, load, add } from "./register-programs.js";
+import { registerProgram, hex, load, add, compare, jump, jumpIf } from "./register-programs.js";
 import type { LessonInstruction } from "./register-programs.js";
 
 interface LessonMachine {
   readonly cpu: Cpu8080;
   readonly ram: Ram;
-  readonly endAddress: number;
+  readonly endAddress?: number;
   readonly ports?: BytePorts;
   readonly output?: ByteOutput;
   readonly input?: ByteInput;
@@ -33,11 +34,20 @@ function outputInstruction(address: number): LessonInstruction {
   };
 }
 
-const inputInstruction: LessonInstruction = {
-  address: 0x100, length: 2, action: "input", mnemonic: () => "IN 01H",
-  explanation: () => "Receive the waiting byte from input port 1 into A",
-  prompt: "Receive the waiting byte into A. Will the output device change?",
-  describe: ({ before, after }) => `Received ${after.a} from input port 1 into A, replacing ${before.a}. Reading emptied the input device. Flags, RAM, and the output device were unchanged.`,
+function inputInstruction(address: number): LessonInstruction {
+  return {
+    address, length: 2, action: "input", mnemonic: () => "IN 01H",
+    explanation: () => "Receive the waiting byte from input port 1 into A",
+    prompt: "Receive the waiting byte into A. Will the output device change?",
+    describe: ({ before, after }) => `Received ${after.a} from input port 1 into A, replacing ${before.a}. Reading left the input device empty. Flags, RAM, and the output device were unchanged.`,
+  };
+}
+
+const readinessInstruction: LessonInstruction = {
+  address: 0x100, length: 2, action: "input", mnemonic: () => "IN 00H",
+  explanation: () => "Read readiness from input port 0 into A: 0 empty, 1 ready",
+  prompt: "Check readiness without receiving the byte. What will A hold?",
+  describe: ({ before, after }) => `Read readiness ${after.a} (${after.a === 0 ? "empty" : "ready"}) from input port 0 into A, replacing ${before.a}. Checking consumed no data. Flags, RAM, and the output device were unchanged.`,
 };
 
 // A reference for manual entry, never an image loaded into the learner's RAM.
@@ -65,8 +75,15 @@ const programs = {
   },
   input: {
     createMachine: create8080AltairInputLesson,
-    instructions: [inputInstruction, outputInstruction(0x102)],
+    instructions: [inputInstruction(0x100), outputInstruction(0x102)],
     bytes: [0xdb, 1, 0xd3, 1],
+    editableOperand: undefined,
+  },
+  polling: {
+    createMachine: create8080AltairPollingLesson,
+    instructions: [readinessInstruction, compare(0x102), jumpIf(0x104, "z", 1),
+      inputInstruction(0x107), outputInstruction(0x109), jump(0x10b, () => "Next, check readiness again.")],
+    bytes: [0xdb, 0, 0xfe, 0, 0xca, 0, 1, 0xdb, 1, 0xd3, 1, 0xc3, 0, 1],
     editableOperand: undefined,
   },
 } as const;
@@ -101,7 +118,7 @@ export function createAltairProgram(name: keyof typeof programs = "entry") {
       return `EXAMINE 0100 to begin. This lesson steps only at instruction starts ${instructions.map(instruction => hex(instruction.address, 4)).join(", ")}.`;
     }
     // A lesson guard, not CPU waiting: an unguarded empty read would return zero.
-    if (instruction.action === "input" && input?.snapshot().pendingByte === null) {
+    if (name === "input" && instruction.action === "input" && input?.snapshot().pendingByte === null) {
       return "Send a byte to the input device first. This lesson pauses before IN while the device is empty; after sending, RUN or step to receive it.";
     }
     return undefined;

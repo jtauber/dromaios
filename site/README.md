@@ -286,6 +286,14 @@ an empty IN; the raw device still follows its empty-read contract. The same
 switch markup serves input and the memory panel. The linked lesson specifies
 arrival between instructions, reset, and the distinction from CPU polling.
 
+[Waiting for a byte](../docs/machines/altair-polling.md) selects `polling` with
+`8080/altair-polling-lesson.machine`. The program reads the same input device's
+status at port 0, compares it with zero, and branches before receiving and
+echoing data. This mode has neither the empty-input guard nor an end boundary;
+it reuses the same pacing, input, output, and history views. The live readiness
+readout comes from a snapshot and remains distinct from the CPU's sampled
+answer. The linked contract owns the polling and arrival behavior.
+
 ## Checks
 
 ```sh

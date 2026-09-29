@@ -13,6 +13,7 @@ export function mountByteInput(root: HTMLElement, { snapshot, offer, onChange }:
   const switches = [...root.querySelectorAll<HTMLButtonElement>("[data-input-switch]")];
   const send = root.querySelector<HTMLButtonElement>("[data-input-send]")!;
   const status = root.querySelector<HTMLElement>("[data-input-status]")!;
+  const readiness = root.querySelector<HTMLElement>("[data-input-readiness]");
   const number = (value: number) => `${value} decimal · ${hex(value, 2)} hex · ${value.toString(2).padStart(8, "0")} binary`;
 
   function refresh(running: boolean): void {
@@ -24,9 +25,10 @@ export function mountByteInput(root: HTMLElement, { snapshot, offer, onChange }:
     root.querySelector<HTMLElement>("[data-input-prepared]")!.textContent = number(prepared);
     const { pendingByte } = snapshot(); // Looking must not consume input.
     send.disabled = pendingByte !== null;
+    if (readiness) readiness.textContent = pendingByte === null ? "0 · empty" : "1 · ready";
     status.setAttribute("aria-live", running ? "off" : "polite");
     const message = pendingByte === null ? "Device empty. No byte waiting."
-      : `Waiting: ${number(pendingByte)}. IN has not read it yet.`;
+      : `Waiting: ${number(pendingByte)}. IN 01H has not read it yet.`;
     if (status.textContent !== message) status.textContent = message;
   }
 

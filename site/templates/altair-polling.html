@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "instruments/altair-panel.html" import altair_panel %}
+{% block description %}Let the 8080 check whether input is ready, receive and echo a byte, and return to wait for another. Follow a polling loop one instruction at a time.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Meet the Altair · Checking readiness</p>
+    <h1>Waiting for<br><em>a byte.</em></h1>
+    <p class="lesson-intro">Previously, you made sure a byte was waiting before the computer read it. Now let a program check for itself. It can keep asking, receive a byte when one arrives, and return to ask again.</p>
+  </header>
+  <p class="experiment-note"><strong>Begin here:</strong> Leave the input device empty and step three instructions. PC returns to 0100. Then Send byte to device and step six instructions to check, receive, echo, and return.</p>
+  {{ altair_panel(mode='polling') }}
+  <div class="lesson-prose">
+    <section aria-labelledby="ready-question">
+      <h2 id="ready-question">First, ask a different question.</h2>
+      <p>The same input device now has two connections. Input port 0 answers “Is a byte ready?” with 0 for empty or 1 for ready. Input port 1 hands over the byte itself.</p>
+      <p><code>IN 00H</code> reads readiness into A. It leaves any waiting byte in the device. You can check again and again without consuming it. Only <code>IN 01H</code> takes the byte.</p>
+      <p><strong>Ready now</strong> shows the device’s current answer. A shows what the CPU last read. Looking at either display does not execute an instruction or read a port.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> Send 42, then step only the first instruction. Will A hold 42?</p>
+        <details><summary>Show an explanation</summary><p>A holds 1: the answer to the readiness question. The byte 42 is still waiting in the device. The output lamps have received nothing.</p></details>
+        <a href="#execution">Read readiness ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="waiting-loop">
+      <h2 id="waiting-loop">Waiting can be work.</h2>
+      <p>After reading readiness, <code>CPI 0</code> compares A with zero. If the values match, the zero flag Z becomes 1. A keeps its value.</p>
+      <p><code>JZ 0100H</code> means “jump to 0100 if Z is 1.” When the device was empty, the program goes back to ask again. These three instructions form a <em>polling loop</em>: read readiness, compare, and decide whether to repeat.</p>
+      <p>Try RUN while the device is empty. Recent instructions keeps growing its total and shows the latest twelve steps, even though no byte reaches the lamps. The processor is executing instructions while the program waits for input.</p>
+      <p>The earlier lesson’s pause before an empty input read is gone here. The program decides when to receive data. STOP pauses execution at an instruction boundary; it preserves A, the flags, and both devices.</p>
+    </section>
+    <section aria-labelledby="receive-and-return">
+      <h2 id="receive-and-return">A byte takes the other path.</h2>
+      <p>Send a byte while the program is running. On its next readiness read, A becomes 1. Comparing that with zero clears Z, so JZ continues past the jump.</p>
+      <p>Now <code>IN 01H</code> receives the waiting byte into A, and <code>OUT 01H</code> sends it to the lamps. Finally, <code>JMP 0100H</code> returns to the readiness check. You no longer need to EXAMINE 0100 between arrivals.</p>
+      <p>The next check replaces A with a readiness answer. The output device keeps its last byte until another OUT. It can keep displaying 42 while A holds 0 and the CPU checks for more input.</p>
+      <p>As before, the device holds only one pending byte. Send becomes available as soon as the data read empties it. Another byte can wait there while the first one is still in A, about to be echoed.</p>
+      <aside class="lesson-prompt"><p><strong>Try it.</strong> Send the same value twice, letting each arrival be received. Do the lamps change? Does the write count?</p>
+        <details><summary>Show an explanation</summary><p>The lamps show the same pattern, but two OUT instructions send two bytes. The count increases once per send. Empty polling trips do not send anything.</p></details>
+        <a href="#execution">Echo more than one byte ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="zero-ready">
+      <h2 id="zero-ready">Zero can be ready.</h2>
+      <p>Lower every input switch and send zero. The device holds a byte, so readiness is 1. The program follows the ready path and then receives the data value 0. All the output lamps go dark when OUT sends it, and the write count increases.</p>
+      <p>Readiness and data answer different questions. An empty device and a device holding zero both return 0 from the data port, so checking the data value alone cannot tell them apart.</p>
+      <p>IN does not change flags. When the data read receives zero, Z still holds 0 from comparing the earlier readiness answer 1 with zero. Z reports the last comparison; it does not automatically describe A.</p>
+    </section>
+    <section aria-labelledby="between-checks">
+      <h2 id="between-checks">Answers belong to a moment.</h2>
+      <p>Start again and step once with the device empty. A holds 0. Now send a byte before the comparison. Ready now becomes 1, but A stays 0: the previous answer does not rewrite itself.</p>
+      <p>The comparison and jump still take the empty path. On the next trip, the CPU reads readiness again and discovers the waiting byte. Nothing was lost; the program needed one more check.</p>
+      <p>Sending while stopped never starts the CPU. Choose RUN or step when you want to continue. Open <strong>Look inside the last instruction</strong> to see the actual port transfer; its recorded answer stays the same even when later input arrives.</p>
+      <details><summary>What this view models</summary><p>These are teaching devices, not particular historical Altair peripherals. Input has one pending byte, no queue, and no interrupt. The program runs at a teaching pace, not a modeled hardware clock. It has no end boundary or HLT: use STOP to pause it. The page also stops when hidden. The lesson checks its program bytes and instruction starts, but does not prevent empty data reads. If you EXAMINE 0107, you bypass the program’s check: IN returns zero when empty and OUT can echo that zero. Start this lesson again restores the program, empties both devices, clears counts and history, prepares 42, and stays stopped.</p></details>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/altair-input/') }}"><span aria-hidden="true">←</span> Receiving a byte</a></nav>
+  </div>
+</main>
+{% endblock %}

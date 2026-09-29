@@ -100,6 +100,8 @@ examples add polling and consuming input reads with the same devices.
   output ports versus RAM, and retained device state.
 - [Receiving a byte](machines/altair-input.md): prepare and send input, receive
   it into A, and echo it to the lamp device.
+- [Waiting for a byte](machines/altair-polling.md): poll readiness, receive and
+  echo arriving bytes, and return to check again.
 - [Definition guide](machines/definitions.md): initial state and memory images,
   directory conventions, generated factories, and the editing/build workflow.
 - [Memory components and maps](machines/memory-map.md): RAM/ROM ownership,
