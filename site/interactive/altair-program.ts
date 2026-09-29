@@ -10,6 +10,7 @@ import { create8080AltairInputLesson } from "../../src/machines/generated/8080/a
 import { create8080AltairPollingLesson } from "../../src/machines/generated/8080/altair-polling-lesson.js";
 import { create8080AltairReplyLesson } from "../../src/machines/generated/8080/altair-reply-lesson.js";
 import { create8080OutputExample } from "../../src/machines/generated/8080/output-example.js";
+import { create8080AltairTerminatedMessageLesson } from "../../src/machines/generated/8080/altair-terminated-message-lesson.js";
 import { createAltairMemoryPanel } from "./altair-panel.js";
 import { registerProgram, hex, readAddress, load, loadImmediate, add, compare, jump, jumpIf } from "./register-programs.js";
 import type { CompletedInstruction, LessonInstruction } from "./register-programs.js";
@@ -51,6 +52,42 @@ const readinessInstruction: LessonInstruction = {
   prompt: "Check readiness without receiving the byte. What will A hold?",
   describe: ({ before, after }) => `Read readiness ${after.a} (${after.a === 0 ? "empty" : "ready"}) from input port 0 into A, replacing ${before.a}. Checking consumed no data. Flags, RAM, and the output device were unchanged.`,
 };
+
+function loadPointer(address: number): LessonInstruction {
+  return {
+    address, length: 3, action: "read", mnemonic: read => `LXI H,${hex(readAddress(read, address + 1), 4)}H`,
+    explanation: read => `Put address ${hex(readAddress(read, address + 1), 4)} into HL`,
+    prompt: "Set the message pointer. Has a character been read yet?",
+    describe: ({ before, after }) => `Set HL from ${hex(before.hl, 4)} to ${hex(after.hl, 4)}. H holds ${hex(after.h, 2)} and L holds ${hex(after.l, 2)}. A, flags, RAM, and output are unchanged; no message byte was read.`,
+  };
+}
+
+function readPointedByte(address: number): LessonInstruction {
+  return {
+    address, length: 1, action: "read", mnemonic: () => "MOV A,M",
+    explanation: () => "Read the RAM byte addressed by HL into A",
+    prompt: "Read through HL. Will the pointer or display change?",
+    describe: ({ before, after }) => `Read ${after.a} from RAM at ${hex(before.hl, 4)} into A, replacing ${before.a}. HL still holds ${hex(after.hl, 4)}; other data registers, flags, RAM, and output are unchanged.`,
+  };
+}
+
+function advancePointer(address: number): LessonInstruction {
+  return {
+    address, length: 1, action: "add", mnemonic: () => "INX H",
+    explanation: () => "Advance HL to the next address",
+    prompt: "Advance the pointer. Does A change too?",
+    describe: ({ before, after }) => `Advanced HL from ${hex(before.hl, 4)} to ${hex(after.hl, 4)}. A still holds ${after.a}; other data registers, flags, RAM, and output are unchanged. No byte was read from the new address.`,
+  };
+}
+
+function haltInstruction(address: number): LessonInstruction {
+  return {
+    address, length: 1, action: "halt", mnemonic: () => "HLT",
+    explanation: () => "Halt the CPU",
+    prompt: "Halt the CPU. What state will it preserve?",
+    describe: ({ after }) => `Executed HLT. PC advanced to ${hex(after.pc, 4)} and the CPU is now halted. Data registers, flags, RAM, and output are preserved. RUN cannot resume a halted CPU; start this lesson again for a fresh run.`,
+  };
+}
 
 // A reference for manual entry, never an image loaded into the learner's RAM.
 export const altairProgramBytes = [0x3a, 0x03, 0x00, 0xc6, 0x01, 0x32, 0x04, 0x00] as const;
@@ -99,26 +136,11 @@ const programs = {
   message: {
     createMachine: create8080OutputExample,
     instructions: [
-      {
-        address: 0, length: 3, action: "read", mnemonic: read => `LXI H,${hex(readAddress(read, 1), 4)}H`,
-        explanation: read => `Put address ${hex(readAddress(read, 1), 4)} into HL`,
-        prompt: "Set the message pointer. Has a character been read yet?",
-        describe: ({ before, after }) => `Set HL from ${hex(before.hl, 4)} to ${hex(after.hl, 4)}. H holds ${hex(after.h, 2)} and L holds ${hex(after.l, 2)}. A, flags, RAM, and output are unchanged; no message byte was read.`,
-      },
+      loadPointer(0),
       loadImmediate(3, "b"),
-      {
-        address: 5, length: 1, action: "read", mnemonic: () => "MOV A,M",
-        explanation: () => "Read the RAM byte addressed by HL into A",
-        prompt: "Read through HL. Will the pointer or display change?",
-        describe: ({ before, after }) => `Read ${after.a} from RAM at ${hex(before.hl, 4)} into A, replacing ${before.a}. HL still holds ${hex(after.hl, 4)}; B, flags, RAM, and output are unchanged.`,
-      },
+      readPointedByte(5),
       outputInstruction(6),
-      {
-        address: 8, length: 1, action: "add", mnemonic: () => "INX H",
-        explanation: () => "Advance HL to the next address",
-        prompt: "Advance the pointer. Does A change too?",
-        describe: ({ before, after }) => `Advanced HL from ${hex(before.hl, 4)} to ${hex(after.hl, 4)}. A still holds ${after.a}; B, flags, RAM, and output are unchanged. No byte was read from the new address.`,
-      },
+      advancePointer(8),
       {
         address: 9, length: 1, action: "subtract", mnemonic: () => "DCR B",
         explanation: () => "Subtract one from the remaining count in B",
@@ -126,14 +148,16 @@ const programs = {
         describe: ({ before, after }) => `Decreased B from ${before.b} to ${after.b}. Zero flag Z is ${Number(after.flags.z)}. A, HL, carry, RAM, and output are unchanged.`,
       },
       jumpIf(0x0a, "z", 0),
-      {
-        address: 0x0d, length: 1, action: "halt", mnemonic: () => "HLT",
-        explanation: () => "Halt the CPU",
-        prompt: "Halt the CPU. What state will it preserve?",
-        describe: ({ after }) => `Executed HLT. PC advanced to ${hex(after.pc, 4)} and the CPU is now halted. Data registers, flags, RAM, and output are preserved. RUN cannot resume a halted CPU; start this lesson again for a fresh run.`,
-      },
+      haltInstruction(0x0d),
     ] satisfies readonly LessonInstruction[],
     bytes: [0x21, 0, 1, 0x06, 6, 0x7e, 0xd3, 1, 0x23, 0x05, 0xc2, 5, 0, 0x76],
+    editableOperand: undefined,
+  },
+  "terminated-message": {
+    createMachine: create8080AltairTerminatedMessageLesson,
+    instructions: [loadPointer(0), readPointedByte(3), compare(4), jumpIf(6, "z", 1),
+      outputInstruction(9), advancePointer(0x0b), jump(0x0c, () => "Next, read through HL again."), haltInstruction(0x0f)],
+    bytes: [0x21, 0, 1, 0x7e, 0xfe, 0, 0xca, 0x0f, 0, 0xd3, 1, 0x23, 0xc3, 3, 0, 0x76],
     editableOperand: undefined,
   },
 } as const;

@@ -58,7 +58,7 @@
       <details><summary>Try printing JELLO instead</summary><ol><li>Start this lesson again.</li><li>Set the panel switches to 0100 and press EXAMINE.</li><li>Set the switches to 004A and press DEPOSIT. The first message byte changes from H to J; nothing is sent yet.</li><li>Lower all switches and EXAMINE 0000 to return PC to the program.</li><li>RUN, or step through it. Predict whether the instruction path and byte count will change.</li></ol><p>The display prints JELLO and a line feed, using the same 33 instructions and six writes. Restart restores HELLO.</p></details>
       <p>Only the message data changed. The same pattern—read through a pointer, advance it, and repeat—can also copy a buffer, add a series of numbers, or inspect a sequence of bytes.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/a-different-reply/') }}"><span aria-hidden="true">←</span> A different reply</a></nav>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/a-different-reply/') }}"><span aria-hidden="true">←</span> A different reply</a><a href="{{ calc_url('learn/where-does-a-message-end/') }}">Where does a message end? <span aria-hidden="true">→</span></a></nav>
   </div>
 </main>
 {% endblock %}

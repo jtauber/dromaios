@@ -102,9 +102,9 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .chapter-prose h4 { margin-bottom: 15px; }
 .chapter-prose a { color: #875037; }
 .chapter-prose :not(pre) > code { font: .82em/1.7 var(--mono); background: #edece4; border-radius: 3px; padding: 2px 4px; }
-.chapter-prose table { display: block; width: 100%; border-collapse: collapse; overflow-x: auto; font-size: 13px; margin-block: 24px; }
-.chapter-prose th, .chapter-prose td { border-bottom: 1px solid var(--line); padding: 10px 13px; text-align: left; vertical-align: top; }
-.chapter-prose th { background: #efeee5; font-weight: 600; }
+:is(.chapter-prose, .lesson-prose) table { display: block; width: 100%; border-collapse: collapse; overflow-x: auto; font-size: 13px; margin-block: 24px; }
+:is(.chapter-prose, .lesson-prose) th, :is(.chapter-prose, .lesson-prose) td { border-bottom: 1px solid var(--line); padding: 10px 13px; text-align: left; vertical-align: top; }
+:is(.chapter-prose, .lesson-prose) th { background: #efeee5; font-weight: 600; }
 .code-block { background: #efefe7 !important; border: 1px solid #dcded3; margin-block: 24px; }
 .code-block pre { margin: 0; padding: 20px 22px; overflow-x: auto; font: 12px/1.8 var(--mono); tab-size: 2; }
 .code-block code { font: inherit; }
@@ -468,7 +468,7 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .byte-output .panel-lamp[data-on] strong { background: #e6af3a; border-color: #f1d281; color: #302b1c; box-shadow: 0 0 12px #f4ba4460; }
 .byte-output p { font-size: 12px; line-height: 1.7; margin: 12px 0 0; }
 .byte-output .output-status { font: 14px/1.7 var(--mono); }
-.panel-cpu-state-input { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.panel-cpu-state-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .panel-devices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
 .ram-window { background: #e2ebed; border: 1px solid #9fadb4; border-radius: 4px; padding: 18px; min-width: 0; }
 .ram-window h4 { margin: 0 0 12px; font: 17px/1.5 var(--mono); }

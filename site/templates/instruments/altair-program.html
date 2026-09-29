@@ -3,7 +3,7 @@
 {% from "instruments/terminal.html" import character_input, terminal_output %}
 {% from "instruments/ram-window.html" import ram_window %}
 {% macro reference_card(mode) %}
-{% set terminal = mode in ['terminal', 'reply', 'message'] %}
+{% set terminal = mode in ['terminal', 'reply', 'message', 'terminated-message'] %}
 {% if mode == 'terminal' %}{% set mode = 'polling' %}{% endif %}
 {% set reply = mode == 'reply' %}
 {% set running = mode == 'running' %}
@@ -17,6 +17,7 @@
   'polling': ('Loaded polling program · reference card', 'These fourteen bytes are already loaded at 0100.'),
   'reply': ('Loaded reply program · reference card', 'These twenty-one bytes are already loaded at 0100.'),
   'message': ('Loaded message program · reference card', 'These fourteen program bytes are already loaded at 0000. The six message bytes begin at 0100.'),
+  'terminated-message': ('Loaded message program · reference card', 'These sixteen program bytes are already loaded at 0000. The message and its zero terminator begin at 0100.'),
   'input': ('Loaded input program · reference card', 'These four bytes are already loaded at 0100.')
 }[mode] %}
 <details class="panel-reference" {% if mode == 'program' %}open{% endif %}>
@@ -26,7 +27,10 @@
     <thead><tr><th scope="col">Address</th><th scope="col">Reference</th><th scope="col">RAM</th><th scope="col">Check</th></tr></thead>
     <tbody data-panel-entry-bytes></tbody>
   </table>
-  {% if mode == 'message' %}
+  {% if mode == 'terminated-message' %}
+  <p>0000–0002: <code>21 00 01</code> puts 0100 into HL.<br>0003: <code>7E</code> reads the byte at HL into A.<br>0004–0005: <code>FE 00</code> compares A with zero.<br>0006–0008: <code>CA 0F 00</code> jumps to 000F if Z = 1.<br>0009–000A: <code>D3 01</code> sends A to the display.<br>000B: <code>23</code> advances HL.<br>000C–000E: <code>C3 03 00</code> jumps back to 0003.<br>000F: <code>76</code> halts the CPU.</p>
+  <p>The lesson checks all sixteen program bytes before executing. Data at 0100–0106 starts as <code>48 45 4C 4C 4F 0A 00</code>: HELLO, line feed, and a zero terminator. Data can be changed while stopped; RAM elsewhere starts at zero.</p>
+  {% elif mode == 'message' %}
   <p>0000–0002: <code>21 00 01</code> puts 0100 into HL.<br>0003–0004: <code>06 06</code> puts 6 into B.<br>0005: <code>7E</code> reads the byte at HL into A.<br>0006–0007: <code>D3 01</code> sends A to the display.<br>0008: <code>23</code> advances HL.<br>0009: <code>05</code> subtracts one from B.<br>000A–000C: <code>C2 05 00</code> jumps to 0005 if Z = 0.<br>000D: <code>76</code> halts the CPU.</p>
   <p>The lesson checks all fourteen program bytes before executing. The message at 0100–0105 starts as <code>48 45 4C 4C 4F 0A</code>: HELLO and line feed. Message data can be changed while stopped.</p>
   {% elif running %}
@@ -50,8 +54,9 @@
 </details>
 {% endmacro %}
 {% macro processor_view(mode) %}
-{% set terminal = mode in ['terminal', 'reply', 'message'] %}
-{% set message = mode == 'message' %}
+{% set terminal = mode in ['terminal', 'reply', 'message', 'terminated-message'] %}
+{% set message = mode in ['message', 'terminated-message'] %}
+{% set terminated = mode == 'terminated-message' %}
 {% if mode == 'terminal' %}{% set mode = 'polling' %}{% endif %}
 {% set running = mode == 'running' %}
 {% set output = mode == 'output' %}
@@ -60,22 +65,24 @@
 {% set paced = running or output or input or message %}
 <section id="execution" class="panel-processor" aria-labelledby="processor-heading">
   <h3 id="processor-heading">The 8080 behind the panel</h3>
-  <dl class="panel-cpu-state{% if input %} panel-cpu-state-input{% endif %}">
+  <dl class="panel-cpu-state{% if input or terminated %} panel-cpu-state-three{% endif %}">
     <div><dt>A <span>decimal</span></dt><dd data-panel-cpu-a>0</dd></div>
     <div><dt>PC <span>hex</span></dt><dd data-panel-cpu-pc>{{ '0100' if paced and not message else '0000' }}</dd></div>
     {% if message %}
     <div><dt>HL <span>address · hex</span></dt><dd data-panel-cpu-hl>0000</dd></div>
-    <div><dt>B <span>remaining · decimal</span></dt><dd data-panel-cpu-b>0</dd></div>
+    {% if not terminated %}<div><dt>B <span>remaining · decimal</span></dt><dd data-panel-cpu-b>0</dd></div>{% endif %}
     {% else %}
     {% if not input %}<div><dt>RAM[3] <span>decimal</span></dt><dd data-panel-cpu-source data-panel-ram="3">{{ 3 if running else 41 }}</dd></div>{% endif %}
     <div><dt>RAM[{{ 1 if output or input else 4 }}] <span>decimal</span></dt><dd data-panel-cpu-result data-panel-ram="{{ 1 if output or input else 4 }}">0</dd></div>
     {% endif %}
   </dl>
-  {% if message %}<div class="panel-devices">{{ ram_window(256, [(72, 'H'), (69, 'E'), (76, 'L'), (76, 'L'), (79, 'O'), (10, 'LF')]) }}{{ terminal_output() }}</div>
+  {% if message %}
+  {% set message_bytes = [(72, 'H'), (69, 'E'), (76, 'L'), (76, 'L'), (79, 'O'), (10, 'LF')] + ([(0, 'NUL')] if terminated else []) %}
+  <div class="panel-devices">{{ ram_window(256, message_bytes) }}{{ terminal_output() }}</div>
   {% elif terminal %}<div class="panel-devices">{{ character_input(initial='a' if mode == 'reply' else 'A') }}{{ terminal_output() }}</div>
   {% elif input %}<div class="panel-devices">{{ byte_input(polling=polling) }}{{ byte_output() }}</div>
   {% elif output %}{{ byte_output() }}{% endif %}
-  {% if running or polling or message %}<p class="panel-zero">Zero flag Z: <strong data-panel-cpu-z>0</strong> · the {{ "most recent comparison’s" if polling else "subtraction’s" }} answer</p>{% endif %}
+  {% if running or polling or message %}<p class="panel-zero">Zero flag Z: <strong data-panel-cpu-z>0</strong> · the {{ "most recent comparison’s" if polling or terminated else "subtraction’s" }} answer</p>{% endif %}
   {% if message %}<p class="panel-zero">CPU halted: <strong data-panel-cpu-halted>no</strong></p>{% endif %}
   {% if paced %}
   <div class="panel-run-controls">

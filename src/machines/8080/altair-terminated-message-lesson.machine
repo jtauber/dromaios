@@ -1,0 +1,32 @@
+// Print bytes from RAM until a zero terminator, without sending the terminator.
+components {
+    ram = ram 10000
+    output = byte-output
+}
+
+cpu 8080 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    PC = 0000  SP = 0000
+    flags { S = 0  Z = 0  AC = 0  P = 0  CY = 0 }
+    interruptEnabled = false  interruptDeferred = false  halted = false
+}
+
+memory = ram
+ports {
+    out 01 = output 0
+}
+
+image ram 0000 {
+    21 00 01            // 0000: LXI H,0100 — start of the message.
+    7E                  // 0003: MOV A,M — read the byte at HL.
+    FE 00               // 0004: CPI 00 — is it the terminator?
+    CA 0F 00            // 0006: JZ 000F — finish before sending zero.
+    D3 01               // 0009: OUT 01 — send a nonzero byte.
+    23                  // 000B: INX H — advance the pointer.
+    C3 03 00            // 000C: JMP 0003 — read the next byte.
+    76                  // 000F: HLT
+}
+
+image ram 0100 { 48 45 4C 4C 4F 0A 00 } // HELLO, line feed, terminator.
+
+reset { cpu output }

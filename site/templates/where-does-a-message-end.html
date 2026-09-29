@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "instruments/altair-panel.html" import altair_panel %}
+{% block description %}Let the message say where it ends. Follow an 8080 as it tests each byte for zero before printing it, and distinguish NUL, the character 0, and line feed.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Meet the Altair · Recognizing an ending</p>
+    <h1>Where does<br>a message <em>end?</em></h1>
+    <p class="lesson-intro">Last time, B told the program how many bytes to print. This time, a byte in memory marks the end. The program reads, checks, and only then sends.</p>
+  </header>
+  <p class="experiment-note"><strong>Begin here:</strong> The message is still HELLO and a line feed. One extra byte, 00, follows it. Step through the first four instructions: set HL, read H, compare it with zero, then decide whether to finish. Nothing has reached the display yet.</p>
+  {{ altair_panel(mode='terminated-message') }}
+  <div class="lesson-prose">
+    <section aria-labelledby="mark-the-end">
+      <h2 id="mark-the-end">Give the message an ending.</h2>
+      <p>The seven bytes at <code>0100</code>–<code>0106</code> are <code>48 45 4C 4C 4F 0A 00</code>. The first six are familiar. The last byte is zero, labelled <strong>NUL</strong> in ASCII. This program uses it as a <strong>terminator</strong>: a value that marks where the message ends.</p>
+      <p>RAM simply holds bytes. It does not know which ones are letters, where a message begins, or where it ends. The program gives zero this job by checking for it. There is no length in B this time; B stays unused.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> If the first byte were zero, how many characters should the program send?</p>
+        <details><summary>Show an explanation</summary><p>None. It would find the terminator immediately. A zero at the starting address represents an empty message with this convention.</p></details>
+        <a href="#execution">Follow the first check ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="check-before-sending">
+      <h2 id="check-before-sending">Check before sending.</h2>
+      <p><code>LXI H,0100H</code> sets the pointer, and <code>MOV A,M</code> reads through it. With the original message, A now holds 72, the ASCII byte for H. Neither instruction prints anything.</p>
+      <p><code>CPI 0</code> compares A with zero. Because 72 differs from zero, Z becomes 0. A keeps 72. The following <code>JZ 000FH</code> does not jump, so execution reaches <code>OUT 01H</code> and H appears.</p>
+      <p><code>INX H</code> advances the pointer. <code>JMP 0003H</code> returns to the read. Every trip asks the same question about a new byte: is this zero?</p>
+      <aside class="lesson-prompt"><p><strong>Look closely.</strong> Is Z updated by reading the next byte, or by comparing it?</p>
+        <details><summary>Show an explanation</summary><p>MOV leaves the flags alone. CPI sets Z from the comparison. Just after a read, A may be new while Z still describes the previous comparison. JZ uses the answer left by CPI.</p></details>
+        <a href="#execution">Read, compare, then send ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="three-different-bytes">
+      <h2 id="three-different-bytes">Zero, “0”, and a new line.</h2>
+      <p>These three bytes have different values and different jobs. The memory window shows hexadecimal bytes; A shows decimal.</p>
+      <table>
+        <thead><tr><th scope="col">Byte · hex</th><th scope="col">Decimal</th><th scope="col">Meaning here</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">00</th><td>0</td><td>NUL: the program finishes without sending it.</td></tr>
+          <tr><th scope="row">30</th><td>48</td><td>The printed character “0”: send it and continue.</td></tr>
+          <tr><th scope="row">0A</th><td>10</td><td>LF: send it to start a new line, then continue.</td></tr>
+        </tbody>
+      </table>
+      <p>After LF, HL advances to 0106. MOV reads zero into A, but Z is still 0 from comparing LF. CPI then sets Z to 1, and JZ jumps straight to HLT. The final zero is read and checked, but never sent. HL stays on its row.</p>
+      <p>The output device has no special rule for ending this message. The CPU avoids OUT on the terminating path. In the previous lesson, a zero among the six counted bytes would have been sent and displayed as ⟨NUL⟩.</p>
+      <details><summary>How does the complete run finish?</summary><p>One setup instruction, six trips of six instructions, then MOV, CPI, JZ, and HLT: 41 instructions. Final A is 0, HL is 0106, Z is 1, and PC is 0010. The display received six writes: HELLO and a line feed.</p></details>
+    </section>
+    <section aria-labelledby="move-the-ending">
+      <h2 id="move-the-ending">Move the ending without changing the program.</h2>
+      <p>Use the panel while stopped to change the message. EXAMINE changes PC, so return to 0000 before running from the beginning.</p>
+      <details><summary>Try stopping after HE</summary><ol><li>Start this lesson again.</li><li>Set the switches to 0102 and press EXAMINE. This is the first L.</li><li>Lower all switches and press DEPOSIT to replace it with 00.</li><li>With the switches still at zero, press EXAMINE to return PC to 0000.</li><li>RUN. Predict what happens to the remaining bytes.</li></ol><p>The display prints HE and then stops. The later L, O, and LF remain in RAM; the CPU never reads them on this run. The pointer finishes at 0102.</p></details>
+      <details><summary>Try the character “0” instead</summary><p>Start again, EXAMINE 0102, then set the switches to 0030 and DEPOSIT. Lower the switches and EXAMINE 0000 before running. The display prints HE0LO and a line feed: 30 hex is not a terminator.</p></details>
+      <details><summary>Try an empty message</summary><p>Start again and deposit 00 at 0100. EXAMINE 0000 and run. Five instructions set the pointer, read zero, compare, jump, and halt. No OUT executes, so the display stays empty.</p></details>
+      <p>Changing RAM after MOV does not change the byte already in A. Likewise, changing RAM after CPI does not change the comparison stored in Z. The next instruction uses the processor’s current state.</p>
+    </section>
+    <section aria-labelledby="missing-ending">
+      <h2 id="missing-ending">A convention needs a matching byte.</h2>
+      <p>The loop has no built-in message length. If you replace the zero at 0106 with a nonzero byte, it sends that byte and keeps reading beyond the window. In this lesson, the next location, 0107, starts at zero, so it would finish there instead. The window reports when HL is outside the displayed range.</p>
+      <p>A program using this convention needs a reachable zero to finish. It does not stop because it has reached the edge of our picture. STOP can still pause execution between instructions; starting the lesson again restores all the original bytes.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/printing-a-message/') }}"><span aria-hidden="true">←</span> Printing a message</a></nav>
+  </div>
+</main>
+{% endblock %}

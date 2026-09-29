@@ -509,3 +509,69 @@ test("restarting message output before a read, write, or HLT rejects callbacks f
     assert.deepEqual(old.terminalSnapshot(), output);
   }
 });
+
+test("STOP after either terminator comparison preserves the branch decision when RAM changes", () => {
+  for (const value of [0, 72]) {
+    const timer = clock();
+    const lesson = createTerminalLesson("terminated-message");
+    lesson.ram.write(0x100, value);
+    const execution = createExecutionController({
+      step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+      onChange() {}, schedule: timer.schedule,
+    });
+    execution.run();
+    for (let i = 0; i < 3; i++) timer.tick();
+    const state = lesson.snapshot();
+    const queued = timer.pending[0]!;
+    execution.stop();
+    lesson.ram.write(0x100, value === 0 ? 72 : 0);
+    queued.callback();
+    assert.deepEqual(lesson.snapshot(), state);
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "", retained: 0 });
+    execution.run(); timer.tick(); timer.tick();
+    assert.deepEqual(lesson.terminalSnapshot(), { text: value === 0 ? "" : "H", retained: value === 0 ? 0 : 1 });
+    assert.equal(execution.error, undefined);
+    assert.equal(execution.running, value !== 0);
+    assert.equal(lesson.snapshot().halted, value === 0);
+    if (value === 0) {
+      assert.equal(execution.steps, 5);
+      assert.equal(timer.pending.length, 0);
+      execution.run(); execution.step();
+      assert.equal(execution.steps, 5);
+    }
+    execution.stop();
+  }
+});
+
+test("restarting a terminated message rejects queued reads, decisions, outputs, and halts", () => {
+  for (const completed of [0, 1, 2, 3, 4, 37, 38, 39, 40]) {
+    const timer = clock();
+    let lesson = createTerminalLesson("terminated-message");
+    const execution = createExecutionController({
+      step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+      onChange() {}, schedule: timer.schedule,
+    });
+    execution.run();
+    for (let i = 0; i < completed; i++) timer.tick();
+    const old = lesson;
+    const state = old.snapshot();
+    const output = old.terminalSnapshot();
+    old.ram.write(0x100, 0);
+    const queued = timer.pending[0]!;
+    execution.reset();
+    lesson = createTerminalLesson("terminated-message");
+    execution.run(); queued.callback();
+    assert.equal(execution.steps, 0);
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "", retained: 0 });
+    assert.deepEqual([lesson.snapshot().a, lesson.snapshot().pc, lesson.snapshot().hl, lesson.snapshot().halted], [0, 0, 0, false]);
+    assert.equal(lesson.ram.read(0x100), 72);
+    for (let i = 0; i < 41; i++) timer.tick();
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "HELLO\n", retained: 6 });
+    assert.equal(execution.steps, 41);
+    assert.equal(execution.running, false);
+    assert.equal(execution.error, undefined);
+    assert.equal(timer.pending.length, 0);
+    assert.deepEqual(old.snapshot(), state);
+    assert.deepEqual(old.terminalSnapshot(), output);
+  }
+});

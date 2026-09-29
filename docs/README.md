@@ -108,6 +108,8 @@ examples add polling and consuming input reads with the same devices.
   replace it on one path, and echo it unchanged on the other.
 - [Printing a message](machines/message-lesson.md): follow HL through text in
   RAM, count bytes in B, and finish with HLT.
+- [Where does a message end?](machines/terminated-message-lesson.md): test for
+  a zero terminator before output, without a separate length counter.
 - [Definition guide](machines/definitions.md): initial state and memory images,
   directory conventions, generated factories, and the editing/build workflow.
 - [Memory components and maps](machines/memory-map.md): RAM/ROM ownership,

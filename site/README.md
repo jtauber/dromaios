@@ -332,6 +332,14 @@ execution while halted. `ram-window-view.ts` inspects the message in concrete
 RAM and marks HL; B, HL, Z, and the halted state remain separate CPU readouts.
 The linked contract owns data editing, completion, and acceptance checks.
 
+[Where does a message end?](../docs/machines/terminated-message-lesson.md)
+selects `terminated-message` with `8080/altair-terminated-message-lesson.machine`.
+The CPU compares each loaded byte with zero before reaching OUT. It uses the
+same pointer, RAM, terminal, and halted-state views; the window includes NUL
+and the unused B counter is omitted. Both message lessons share pointer and
+halt descriptions. The linked contract owns terminator edits, the sampled
+comparison, and behavior beyond the visible RAM range.
+
 ## Checks
 
 ```sh
