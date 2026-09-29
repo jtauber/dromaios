@@ -8,8 +8,9 @@ import { create8080CountdownLesson } from "../../src/machines/generated/8080/cou
 import { create8080AltairOutputLesson } from "../../src/machines/generated/8080/altair-output-lesson.js";
 import { create8080AltairInputLesson } from "../../src/machines/generated/8080/altair-input-lesson.js";
 import { create8080AltairPollingLesson } from "../../src/machines/generated/8080/altair-polling-lesson.js";
+import { create8080AltairReplyLesson } from "../../src/machines/generated/8080/altair-reply-lesson.js";
 import { createAltairMemoryPanel } from "./altair-panel.js";
-import { registerProgram, hex, load, add, compare, jump, jumpIf } from "./register-programs.js";
+import { registerProgram, hex, load, loadImmediate, add, compare, jump, jumpIf } from "./register-programs.js";
 import type { LessonInstruction } from "./register-programs.js";
 
 interface LessonMachine {
@@ -54,6 +55,9 @@ const readinessInstruction: LessonInstruction = {
 export const altairProgramBytes = [0x3a, 0x03, 0x00, 0xc6, 0x01, 0x32, 0x04, 0x00] as const;
 export const altairProgramStart = 0x100;
 export const altairOperandAddress = 0x104;
+// Both terminal programs wait for readiness before consuming the pending byte.
+const receiveInstructions = [readinessInstruction, compare(0x102), jumpIf(0x104, "z", 1), inputInstruction(0x107)];
+const receiveBytes = [0xdb, 0, 0xfe, 0, 0xca, 0, 1, 0xdb, 1];
 const programs = {
   entry: {
     createMachine: create8080AltairProgramLesson,
@@ -81,9 +85,15 @@ const programs = {
   },
   polling: {
     createMachine: create8080AltairPollingLesson,
-    instructions: [readinessInstruction, compare(0x102), jumpIf(0x104, "z", 1),
-      inputInstruction(0x107), outputInstruction(0x109), jump(0x10b, () => "Next, check readiness again.")],
-    bytes: [0xdb, 0, 0xfe, 0, 0xca, 0, 1, 0xdb, 1, 0xd3, 1, 0xc3, 0, 1],
+    instructions: [...receiveInstructions, outputInstruction(0x109), jump(0x10b, () => "Next, check readiness again.")],
+    bytes: [...receiveBytes, 0xd3, 1, 0xc3, 0, 1],
+    editableOperand: undefined,
+  },
+  reply: {
+    createMachine: create8080AltairReplyLesson,
+    instructions: [...receiveInstructions, compare(0x109), jumpIf(0x10b, "z", 0), loadImmediate(0x10e),
+      outputInstruction(0x110), jump(0x112, () => "Next, check readiness again.")],
+    bytes: [...receiveBytes, 0xfe, 0x61, 0xc2, 0x10, 1, 0x3e, 0x41, 0xd3, 1, 0xc3, 0, 1],
     editableOperand: undefined,
   },
 } as const;

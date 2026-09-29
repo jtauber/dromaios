@@ -6,6 +6,7 @@ import { describeCharacterByte } from "./terminal-lesson.js";
 /** Preparing text is a host edit; only an explicit send offers a byte to the input device. */
 export function mountCharacterInput(root: HTMLElement, { snapshot, offer, onChange }: ByteInputViewOptions) {
   const field = root.querySelector<HTMLTextAreaElement>("[data-character-input]")!;
+  const initial = field.value;
   const send = root.querySelector<HTMLButtonElement>("[data-input-send]")!;
   const lineFeed = root.querySelector<HTMLButtonElement>("[data-send-line-feed]")!;
   const prepared = root.querySelector<HTMLElement>("[data-input-prepared]")!;
@@ -41,5 +42,5 @@ export function mountCharacterInput(root: HTMLElement, { snapshot, offer, onChan
   send.addEventListener("click", () => { sendByte(asciiCharacterByte(field.value)); });
   lineFeed.addEventListener("click", () => { sendByte(10); });
   field.disabled = false;
-  return { refresh, reset() { field.value = "A"; } };
+  return { refresh, reset() { field.value = initial; } };
 }

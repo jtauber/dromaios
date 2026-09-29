@@ -1,0 +1,34 @@
+// Receive a byte, replace lowercase a with uppercase A, and send the reply.
+components {
+    ram = ram 10000
+    input = byte-input
+    output = byte-output
+}
+
+cpu 8080 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    PC = 0100  SP = 0000
+    flags { S = 0  Z = 0  AC = 0  P = 0  CY = 0 }
+    interruptEnabled = false  interruptDeferred = false  halted = false
+}
+
+memory = ram
+ports {
+    in 00 = input 0
+    in 01 = input 1
+    out 01 = output 0
+}
+
+image ram 0100 {
+    DB 00              // 0100: IN 00 — read readiness, without consuming data.
+    FE 00              // 0102: CPI 00 — is the device empty?
+    CA 00 01           // 0104: JZ 0100 — if empty, check again.
+    DB 01              // 0107: IN 01 — receive the pending byte into A.
+    FE 61              // 0109: CPI 61 — does A hold lowercase a (97 decimal)?
+    C2 10 01           // 010B: JNZ 0110 — if different, skip the replacement.
+    3E 41              // 010E: MVI A,41 — replace A with uppercase A (65 decimal).
+    D3 01              // 0110: OUT 01 — send the reply.
+    C3 00 01           // 0112: JMP 0100 — return to checking readiness.
+}
+
+reset { cpu input output }

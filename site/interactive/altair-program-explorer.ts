@@ -12,8 +12,8 @@ import { renderTerminalOutput } from "./terminal-output-view.js";
 /** Execute the panel's known program, retaining captured instructions across memory edits. */
 export function mountAltairProgramExplorer(root: HTMLElement): void {
   const mode = root.dataset.altairExplorer;
-  const terminal = mode === "terminal";
-  const name = terminal ? "polling"
+  const terminal = mode === "terminal" || mode === "reply";
+  const name = mode === "reply" ? "reply" : mode === "terminal" ? "polling"
     : mode === "running" ? "countdown"
     : mode === "output" || mode === "input" || mode === "polling" ? mode : "entry";
   const preloaded = name !== "entry";
@@ -118,7 +118,7 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
   panel = mountAltairExplorer(root, {
     createPanel() {
       execution.reset();
-      lesson = terminal ? createTerminalLesson() : createAltairProgram(name);
+      lesson = terminal ? createTerminalLesson(mode === "reply" ? "reply" : "polling") : createAltairProgram(name);
       inputView?.reset();
       return lesson.panel;
     },
@@ -129,6 +129,7 @@ export function mountAltairProgramExplorer(root: HTMLElement): void {
       countdown: "No memory operation yet. The countdown is loaded; PC is 0100, address 3 holds 3, and address 4 holds 0.",
       output: "No memory operation yet. The output program is loaded; PC is 0100, address 3 holds 41, and address 1 holds 0. No byte has been sent to the device.",
       polling: "No memory operation yet. The polling program is loaded; PC is 0100 and address 1 holds 0. Both devices start empty.",
+      reply: "No memory operation yet. The reply program is loaded; PC is 0100 and address 1 holds 0. Both devices start empty.",
       input: "No memory operation yet. The input program is loaded; PC is 0100 and address 1 holds 0. Both devices start empty.",
     }[name],
   });

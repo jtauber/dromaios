@@ -31,9 +31,9 @@ function displayByte(value: number): string {
 }
 
 /** Retain actual device writes, including equal consecutive bytes, separately from the CPU's history. */
-export function createTerminalLesson() {
+export function createTerminalLesson(programName: "polling" | "reply" = "polling") {
   const bytes: number[] = [];
-  const program = createAltairProgram("polling", value => {
+  const program = createAltairProgram(programName, value => {
     bytes.push(value);
     if (bytes.length > terminalOutputLimit) bytes.shift();
   });

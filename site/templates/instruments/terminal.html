@@ -1,9 +1,9 @@
-{% macro character_input() %}
+{% macro character_input(initial='A') %}
 <section class="byte-input character-input" data-byte-input aria-labelledby="input-heading">
   <h4 id="input-heading">Character input <span>Port 0: readiness · Port 1: data</span></h4>
   <label for="prepared-character">Prepare one ASCII character</label>
-  <textarea id="prepared-character" data-character-input rows="1" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="character-help" disabled>A</textarea>
-  <p id="character-help" data-input-prepared role="status">Prepared: A · 65 decimal · 41 hex. Enable JavaScript to send it.</p>
+  <textarea id="prepared-character" data-character-input rows="1" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="character-help" disabled>{{ initial }}</textarea>
+  <p id="character-help" data-input-prepared role="status">Prepared: {{ initial }}. Enable JavaScript to see its byte value and send it.</p>
   <div class="character-controls">
     <button type="button" class="button" data-input-send disabled>Send character</button>
     <button type="button" class="button" data-send-line-feed disabled>Send line feed</button>

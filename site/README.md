@@ -319,6 +319,12 @@ device callback; `character-input-view.ts` prepares a character and
 latch-status rendering. The linked contract owns input validation, display
 conventions, retention, restart behavior, and acceptance checks.
 
+[A different reply](../docs/machines/reply-lesson.md) selects `reply` with
+`8080/altair-reply-lesson.machine`. It reuses the terminal session, devices, and
+views, initially preparing lowercase a. The CPU compares the received byte,
+skips or executes MVI, and sends the reply; the host does no character conversion.
+The linked contract owns the program paths and acceptance checks.
+
 ## Checks
 
 ```sh

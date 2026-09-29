@@ -47,9 +47,9 @@
       <p>The keyboard side supplies bytes, and the display side presents bytes received back. Our small echo program connects the two directions. That makes the difference between a key being prepared and the computer responding visible.</p>
       <p>This is a teaching terminal, not a model of a particular historical keyboard, display, or serial board. It reuses the same one-byte input device, output device, port connections, and fourteen-byte polling program as <a href="{{ calc_url('learn/altair-polling/') }}">Waiting for a byte</a>.</p>
       <details><summary>How this display treats other bytes</summary><p>This display draws printable ASCII and spaces, and treats LF as a new line. Other non-printing codes appear as labels such as ⟨NUL⟩ or ⟨CR⟩; bytes outside ASCII use hexadecimal labels such as ⟨FF hex⟩. These labels make the received bytes inspectable rather than performing cursor movement, deletion, or other terminal operations. The character field cannot send these codes, but a program can output them. For example, EXAMINE 0107 with an empty device bypasses readiness: IN returns zero, then OUT displays ⟨NUL⟩.</p></details>
-      <p>The CPU does not need a new instruction to make letters appear. It still transfers bytes. We changed how the host prepares and presents those bytes.</p>
+      <p>The CPU does not need a new instruction to make letters appear. It still transfers bytes. We changed how the host prepares and presents those bytes. In the <a href="{{ calc_url('learn/a-different-reply/') }}">next lesson</a>, we change the program so it can choose a different reply.</p>
     </section>
-    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/bytes-as-characters/') }}"><span aria-hidden="true">←</span> Bytes can be letters</a></nav>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/bytes-as-characters/') }}"><span aria-hidden="true">←</span> Bytes can be letters</a><a href="{{ calc_url('learn/a-different-reply/') }}">A different reply <span aria-hidden="true">→</span></a></nav>
   </div>
 </main>
 {% endblock %}

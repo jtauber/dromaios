@@ -157,12 +157,15 @@ def build(base):
     site.render_template("typing-to-the-computer.html", "learn/typing-to-the-computer/index.html", {
         "title": "Typing to the computer",
     })
+    site.render_template("a-different-reply.html", "learn/a-different-reply/index.html", {
+        "title": "A different reply",
+    })
     site.render_template("home.html", "index.html", {
         "title": "Computers, from the instruction up",
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + twenty introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
+    print(f"Built home + twenty-one introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

@@ -41,6 +41,15 @@ export function load(address: number): LessonInstruction {
   };
 }
 
+export function loadImmediate(address: number): LessonInstruction {
+  return {
+    address, length: 2, action: "read", mnemonic: read => `MVI A,${hex(read(address + 1), 2)}H`,
+    explanation: read => `Put ${read(address + 1)} into A`,
+    prompt: "Copy the byte in the instruction into A. Has the output device received it yet?",
+    describe: ({ instruction, before, after }) => `Copied ${instruction.bytes[1]} from the instruction into A, replacing ${before.a}. A now holds ${after.a}; flags, RAM, and the output device are unchanged.`,
+  };
+}
+
 export function add(address: number, flag: "cy" | "z" = "cy"): LessonInstruction {
   return {
     address, length: 2, action: "add", mnemonic: read => `ADI ${read(address + 1)}`,
@@ -100,10 +109,11 @@ export function jumpIf(address: number, flag: "cy" | "z", expected: 0 | 1): Less
     address, length: 3, action: "jump",
     mnemonic: read => `${mnemonic} ${hex(readAddress(read, address + 1), 4)}H`,
     explanation: read => `Jump to ${hex(readAddress(read, address + 1), 4)} if ${label} = ${expected}`,
-    prompt: `Check ${label}. Will the processor repeat or continue past the jump?`,
+    prompt: `Check ${label}. Will the processor jump or continue to the following instruction?`,
     describe: ({ instruction, before, after }) => {
-      const fallThrough = instruction.address + instruction.bytes.length;
-      const decision = after.pc === fallThrough ? "Jump not taken: continued" : "Jump taken: returned";
+      const taken = Number(before.flags[flag]) === expected;
+      const direction = after.pc < instruction.address ? "returned" : "jumped";
+      const decision = taken ? `Jump taken: ${direction}` : "Jump not taken: continued";
       return `${label} was ${Number(before.flags[flag])} (${before.flags[flag] ? "set" : "clear"}). ${decision} from ${hex(before.pc, 4)} to ${hex(after.pc, 4)}. A, flags, and memory are unchanged.`;
     },
   };

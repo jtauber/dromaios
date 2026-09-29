@@ -395,30 +395,59 @@ test("STOP before terminal output retains A and pending input; resume appends th
   assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 66 });
 });
 
-test("terminal restart cannot append stale output to either the new display or the previous session", () => {
-  for (const stepsBeforeRestart of [0, 3, 4]) {
+for (const program of ["polling", "reply"] as const) test(`${program} terminal restart cannot append stale output to either session`, () => {
+  for (const stepsBeforeRestart of (program === "reply" ? [0, 3, 4, 5, 6, 7] : [0, 3, 4])) {
     const timer = clock();
-    let lesson = createTerminalLesson();
+    let lesson = createTerminalLesson(program);
     const execution = createExecutionController({
       step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
       onChange() {}, schedule: timer.schedule,
     });
-    lesson.offerInput(65);
+    lesson.offerInput(97);
     execution.run();
     for (let i = 0; i < stepsBeforeRestart; i++) timer.tick();
     const old = lesson;
+    const state = old.snapshot();
     const pending = old.inputSnapshot();
     const queued = timer.pending[0]!;
     execution.reset();
-    lesson = createTerminalLesson();
+    lesson = createTerminalLesson(program);
     lesson.offerInput(66);
     execution.run(); queued.callback();
     assert.deepEqual(lesson.terminalSnapshot(), { text: "", retained: 0 });
     assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 66 });
-    for (let i = 0; i < 6; i++) timer.tick();
+    for (let i = 0; i < (program === "reply" ? 8 : 6); i++) timer.tick();
     execution.stop();
     assert.deepEqual(lesson.terminalSnapshot(), { text: "B", retained: 1 });
     assert.deepEqual(old.terminalSnapshot(), { text: "", retained: 0 });
     assert.deepEqual(old.inputSnapshot(), pending);
+    assert.deepEqual(old.snapshot(), state);
+  }
+});
+
+test("STOP after the reply comparison preserves its decision and pending input for either branch", () => {
+  for (const value of [97, 98]) {
+    const timer = clock();
+    const lesson = createTerminalLesson("reply");
+    const execution = createExecutionController({
+      step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+      onChange() {}, schedule: timer.schedule,
+    });
+    lesson.offerInput(value);
+    execution.run();
+    for (let i = 0; i < 5; i++) timer.tick();
+    const state = lesson.snapshot();
+    const queued = timer.pending[0]!;
+    execution.stop();
+    lesson.offerInput(122);
+    queued.callback();
+    assert.deepEqual(lesson.snapshot(), state);
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "", retained: 0 });
+    execution.run();
+    for (let i = 0; i < (value === 97 ? 3 : 2); i++) timer.tick();
+    execution.stop();
+    assert.deepEqual(lesson.terminalSnapshot(), { text: value === 97 ? "A" : "b", retained: 1 });
+    assert.deepEqual(lesson.inputSnapshot(), { pendingByte: 122 });
+    assert.equal(lesson.snapshot().flags.z, value === 97);
   }
 });

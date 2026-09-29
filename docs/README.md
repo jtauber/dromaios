@@ -104,6 +104,8 @@ examples add polling and consuming input reads with the same devices.
   echo arriving bytes, and return to check again.
 - [Typing to the computer](machines/terminal-lesson.md): send one ASCII character
   and let the polling program echo it to a text display.
+- [A different reply](machines/reply-lesson.md): compare a received character,
+  replace it on one path, and echo it unchanged on the other.
 - [Definition guide](machines/definitions.md): initial state and memory images,
   directory conventions, generated factories, and the editing/build workflow.
 - [Memory components and maps](machines/memory-map.md): RAM/ROM ownership,

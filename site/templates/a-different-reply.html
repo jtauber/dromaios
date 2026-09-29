@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "instruments/altair-panel.html" import altair_panel %}
+{% block description %}Let an 8080 program choose its reply: change lowercase a to uppercase A, and echo other characters unchanged. Follow the comparison, zero flag, and conditional jump.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Meet the Altair · Choosing a reply</p>
+    <h1>A different<br><em>reply.</em></h1>
+    <p class="lesson-intro">So far, the computer has sent back exactly what it received. Now let the program make a choice: reply to lowercase a with uppercase A, and leave every other character alone.</p>
+  </header>
+  <p class="experiment-note"><strong>Begin here:</strong> Lowercase a is prepared below. Send it, then step four instructions to receive it. The register A holds 97, and the text display is still empty. The next instruction asks whether this is the character we want to change.</p>
+  {{ altair_panel(mode='reply') }}
+  <div class="lesson-prose">
+    <section aria-labelledby="ask-about-character">
+      <h2 id="ask-about-character">Ask about the byte you received.</h2>
+      <p>The first four instructions are familiar: check readiness, compare with zero, decide whether to keep waiting, then receive a byte. The new work begins at <code>0109</code>, after that byte reaches the register A.</p>
+      <p>Lowercase <strong>a</strong> is 97 decimal, or <code>61</code> hex. Uppercase <strong>A</strong> is a different byte: 65 decimal, or <code>41</code> hex. The register is also named A; it can hold either value.</p>
+      <p><code>CPI 61H</code> compares the received byte with 97. As in our earlier comparison lesson, it sets the zero flag Z when the values match and clears Z when they differ. It leaves the value in A unchanged.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> With lowercase a received, step the comparison. Should A hold 97 or zero? What should Z be?</p>
+        <details><summary>Show an explanation</summary><p>A still holds 97. Z is 1 because 97 equals 97. The comparison records an answer in the flags; it does not replace the received character or send anything to the display.</p></details>
+        <a href="#execution">Compare the received byte ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="skip-or-replace">
+      <h2 id="skip-or-replace">Skip the change, or make it.</h2>
+      <p>The next instruction is <code>JNZ 0110H</code>: jump if Z is zero. A byte that differs from lowercase a takes this jump straight to OUT. Its value in A stays unchanged.</p>
+      <p>For lowercase a, Z is 1, so the jump is <em>not</em> taken. Execution continues to <code>MVI A,41H</code> at <code>010E</code>. This instruction copies the following byte, 65, into A. “Immediate” means the value is part of the instruction itself.</p>
+      <p>There is no output yet. MVI changes A from 97 to 65, while preserving the flags and RAM. The next instruction, <code>OUT 01H</code>, finally sends 65 to the display, where it appears as uppercase A.</p>
+      <table>
+        <caption>Two paths to the same output instruction</caption>
+        <thead><tr><th scope="col">Received</th><th scope="col">After comparison</th><th scope="col">JNZ</th><th scope="col">Reply</th></tr></thead>
+        <tbody><tr><td>a · 97</td><td>Z = 1</td><td>Continue through MVI</td><td>A · 65</td></tr><tr><td>b · 98</td><td>Z = 0</td><td>Skip MVI</td><td>b · 98</td></tr></tbody>
+      </table>
+      <aside class="lesson-prompt"><p><strong>Try the other path.</strong> After OUT, step once more to return to the readiness check. Send b and follow it through. Which instruction does the processor skip?</p>
+        <details><summary>Show an explanation</summary><p>It skips MVI at 010E. JNZ moves PC from 010B to 0110, so the replacement bytes are not fetched. OUT sends the original 98. Starting at 0100 with a byte ready, a reaches OUT in eight instructions; b reaches it in seven.</p></details>
+        <a href="#execution">Follow both replies ↑</a>
+      </aside>
+      <p><strong>Look inside the last instruction</strong> shows the actual fetched bytes and transfers. <strong>Recent instructions</strong> lets you compare the two paths after they finish.</p>
+    </section>
+    <section aria-labelledby="one-answer-at-a-time">
+      <h2 id="one-answer-at-a-time">Each answer belongs to a particular question.</h2>
+      <p>This program uses Z for two comparisons. At <code>0102</code>, the question is “is the input device empty?” At <code>0109</code>, it is “does the received byte equal 97?” The second comparison replaces the first answer.</p>
+      <p>After the reply, the program returns to checking readiness. A may then hold 0 or 1, and Z describes that new comparison. The output text remains. Use the captured instruction history to inspect the earlier decision.</p>
+      <aside class="lesson-prompt"><p><strong>Keep two bytes separate.</strong> Receive lowercase a, then send b before the comparison. Predict the first reply.</p>
+        <details><summary>Show an explanation</summary><p>The reply is uppercase A. The CPU compares the 97 already in its register; b waits separately in the device. On the next trip, the program receives b and echoes it unchanged.</p></details>
+        <a href="#execution">Watch the waiting byte ↑</a>
+      </aside>
+    </section>
+    <section aria-labelledby="test-the-rule">
+      <h2 id="test-the-rule">Test the rule with unfamiliar input.</h2>
+      <p>Try A, z, a digit, punctuation, a space, and line feed. Then try a again. Only lowercase a should change; this program does not convert all lowercase letters to uppercase.</p>
+      <p>For a longer experiment, RUN and send the characters of “a cat” one at a time, waiting for room in the device. Predict the whole reply before reading the explanation.</p>
+      <details><summary>Show an explanation</summary><p>The reply is “A cAt”. Both lowercase a bytes become uppercase A, while the space, c, and t pass through unchanged. Repeated output bytes still produce repeated characters.</p></details>
+      <p>The input and display are the same teaching devices as before. The difference is in the program bytes loaded into RAM. The CPU compares numbers and follows instructions; the display still only presents the bytes sent by OUT.</p>
+      <p>STOP keeps the current decision, pending input, and output intact. Start this lesson again clears the experiment and prepares lowercase a. As before, the text display keeps the latest 256 output bytes. The reference card shows the complete fixed program; changing a program byte pauses execution until it is restored.</p>
+    </section>
+    <nav class="lesson-navigation" aria-label="Lesson navigation"><a href="{{ calc_url('learn/typing-to-the-computer/') }}"><span aria-hidden="true">←</span> Typing to the computer</a></nav>
+  </div>
+</main>
+{% endblock %}
