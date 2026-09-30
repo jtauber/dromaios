@@ -158,11 +158,54 @@ padding byte, just as a master reset clears received data in the device model.
 The acceptance run observes both the reverse-order bootstrap deposits and the
 checksum loader's transfer to BASIC; reaching a prompt alone is not the test.
 
+### Programs, editing, and execution controls
+
+The same test now drives a shared [serial session](../../../docs/runtime/serial-session.md).
+The session owns host queues and bounded execution; every BASIC operation below
+still executes in the original interpreter. The program is entered out of line
+number order, and LIST must produce this ordered result:
+
+```basic
+10 INPUT N
+20 FOR I=1 TO N
+30 GOSUB 100
+40 NEXT I
+50 END
+100 PRINT I*2
+110 RETURN
+```
+
+RUN prompts for a number. Entering 3 prints 2, 4, and 6, then returns to OK.
+Replacing line 100 with `100 PRINT I*3` must change the existing line rather
+than add a duplicate. Entering the number 110 alone deletes that line; LIST
+must omit it. Restoring `110 RETURN` and running again with input 3 prints
+3, 6, and 9. NEW clears the program; a subsequent LIST contains no numbered lines.
+
+The manual's special-character rules (printed pages 41–42) belong to BASIC,
+not to the session. In `PRINT 40+9_2`, underscore erases the 9, producing 42.
+In `PRINT 99@PRINT 6*7`, at-sign cancels the first line; only the replacement
+expression executes, also producing 42. These input bytes and BASIC's echoes
+are preserved in the checked transcript. Modern keyboard-to-byte mapping is
+a later browser presentation concern.
+
+An endless `10 GOTO 10` distinguishes two kinds of stopping. Host STOP leaves
+CPU, RAM, serial state, and queued transport unchanged; another batch does
+nothing until RUN resumes. Resumption produces no guest break or OK. Sending
+Control-C (03) lets BASIC return to OK, after which `PRINT 1+1` produces 2.
+For this 4K version the tested break response is OK without an 8K-style line-number message.
+
+Session reset delegates to the machine reset declared above: it stops execution,
+discards pending host input, preserves RAM and physical switches, and holds the
+ACIA in reset. It is not a BASIC warm-start command. Session reload constructs
+the chapter's initial machine, restores the panel bootstrap, clears host output,
+and resets the switches to down. With A11/A10 raised again and the same supplied
+tape, the checked reload reaches MEMORY SIZE? once more.
+
 This chapter defines a headless machine composition, not a complete Altair
 electrical model. It has no clock counts, DMA, wait states, second serial channel,
 baud-rate delay, interrupts from peripherals, or cycle-level panel signals.
-Only the declared polling serial profile is supported. A browser terminal,
-panel controls, and the wider BASIC acceptance transcript remain subsequent work.
+Only the declared polling serial profile is supported. Browser terminal
+presentation and panel integration remain subsequent work.
 
 [manual]: https://altairclone.com/downloads/manuals/BASIC%20Manual%2075.pdf
 [loader]: https://altairclone.com/downloads/basic/Paper%20Tape%20and%20Cassette/2SIO%20Loaders/Ldr4k32.asm

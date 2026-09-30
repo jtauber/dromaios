@@ -9,8 +9,9 @@ the selected hardware, bus responses, serial and panel connections, bootstrap,
 media identity, loading procedure, reset contract, and implemented acceptance
 checks. It generates the factory used by the tests. The headless machine now
 loads the original 4K BASIC 3.2 tape through both historical loaders, discovers
-its RAM limit, reaches OK, and evaluates direct arithmetic. The browser machine
-and wider console transcript remain to be completed.
+its RAM limit, and runs a checked BASIC editing/program transcript. A shared
+[serial session](../runtime/serial-session.md) now supplies transport and execution
+controls; the browser machine remains to be completed.
 
 ## Executable descriptions
 
@@ -28,23 +29,19 @@ than maintaining a separate description of the same configuration.
 
 ## Work required
 
-1. **Broader headless acceptance.** Extend the real-tape transcript to cover
-   numbered lines, LIST, replacement/deletion, and a RUN containing a loop,
-   numeric INPUT, and a subroutine. Check line editing and Control-C separately
-   from host STOP/resume. Preserve the external-media identity check.
-2. **A usable browser machine.** Support tape selection, ordinary typing,
+1. **A usable browser machine.** Connect the tested serial session to tape selection, ordinary typing,
    carriage return, terminal control behavior, and responsive continuous
    execution. Batch instructions between display updates while retaining
    bounded traces, STOP/resume, and side-effect-free inspection. Remove the
    teaching lesson's restrictions to known program bytes and addresses.
-3. **Integration and presentation.** Connect panel examination/deposit and
+2. **Integration and presentation.** Connect panel examination/deposit and
    reset/reload controls to this same generated machine, publish its chapter,
    and repeat the acceptance transcript interactively.
 
 ## Completion criteria
 
 The first milestone is this declared configuration operating both headlessly
-and in the browser: authentic loading, the wider BASIC transcript above,
+and in the browser: authentic loading, the chapter's BASIC acceptance transcript,
 responsive execution controls, and documented reset/reload effects. Tests must
 use independent expected results, not only generated descriptions of generated
 behavior. Importing a prepared RAM snapshot does not prove loading works.

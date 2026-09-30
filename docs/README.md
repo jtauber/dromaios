@@ -91,6 +91,8 @@ examples add polling and consuming input reads with the same devices.
 
 - [CPU runner](runtime/runner.md): bounded execution, completion and stopping
   rules, retained records, and CPU-specific result types.
+- [Serial sessions](runtime/serial-session.md): tape/keyboard queues, raw output,
+  bounded batches, STOP/resume, and reset/reload for generated machines.
 
 ## Machine definitions
 

@@ -133,6 +133,9 @@ The execution granularity and fidelity of each model need to be explicit.
 The [CPU runner](runtime/runner.md) provides synchronous execution with an
 explicit step budget, caller completion addresses, and CPU-specific records.
 It stops on completion, halt, waiting, unsupported attempts, or the step limit.
+The [serial session](runtime/serial-session.md) owns host tape/keyboard queues,
+captures raw output, and runs bounded batches around a generated machine.
+Its STOP/resume and reset/reload controls are separate from guest software commands.
 The site's [paced execution controller](../site/interactive/execution-controller.ts)
 adds cancellable scheduling between individual instructions and bounded recent
 records, independent of the DOM and CPU model. The
