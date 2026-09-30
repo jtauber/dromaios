@@ -1,0 +1,23 @@
+{% from "instruments/terminal.html" import character_input, terminal_output %}
+{% from "instruments/ram-window.html" import ram_window %}
+{% macro command_reference() %}
+<p>0000 sets SP to 0200. At 0003, the caller selects the prompt at 0120 and calls the printing routine at 0065. Then it sets HL to buffer address 0100 and B to eight slots.</p>
+<p>000E calls the receive routine at 005B. LF selects the line ending at 0026. Other bytes are stored through HL, echoed with OUT, and counted with DCR B. When B reaches zero, 001E receives and discards further bytes until LF.</p>
+<p>0026 appends NUL and outputs LF. MOV A,B copies the remaining count for comparison: eight slots means an empty line; seven means exactly one character. Longer lines select UNKNOWN. The one-character path reads RAM at 0100 and compares with 48 (H) and 3F (?).</p>
+<p>0046 selects UNKNOWN at 0160; 004C selects HELLO at 0130; 0052 selects the help text at 0140. All call the same printing routine, then jump to 0003 for another prompt.</p>
+<p>005B polls input port 0 until ready, receives from port 1 into A, and returns. 0065 saves HL with PUSH H, prints nonzero bytes through the pointer, restores it with POP H, and returns. Neither routine changes B.</p>
+<p>Only the program bytes are guarded. Buffer, message, and stack data remain editable while stopped. Input is matched by the 8080 program; the viewer neither recognizes commands nor chooses responses.</p>
+{% endmacro %}
+{% macro command_devices() %}
+<div class="panel-devices">{{ character_input(initial='H') }}{{ terminal_output() }}</div>
+{% endmacro %}
+{% macro command_memory() %}
+<details class="register-inside"><summary>Follow the buffer and stack</summary>
+<div class="panel-devices">
+  {{ ram_window(256, [(0, 'NUL')] * 9, title='Command buffer in RAM') }}
+  {{ ram_window(508, [(0, 'Saved L'), (0, 'Saved H'), (0, 'Return · low'), (0, 'Return · high')], title='Saved values in RAM', pointer_name='SP', characters=false) }}
+</div>
+<p class="experiment-note">B counts unused slots. The first eight characters are stored and echoed; further characters are received but discarded until LF. LF appends NUL and starts command selection. Returning to the prompt resets HL and B, leaving old RAM bytes until they are overwritten.</p>
+  <p class="experiment-note">The print routine uses all four locations. The receive routine uses only the return-address pair. Labels describe those uses; the released bytes remain in RAM. Between calls SP is 0200.</p>
+</details>
+{% endmacro %}

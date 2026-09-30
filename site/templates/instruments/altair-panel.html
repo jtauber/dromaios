@@ -3,7 +3,7 @@
 {% from "instruments/altair-program.html" import reference_card, processor_view %}
 {% macro altair_panel(mode='memory') %}
 {% set program = mode != 'memory' %}
-{% set preloaded = mode in ['running', 'output', 'input', 'polling', 'terminal', 'reply', 'message', 'terminated-message', 'buffer', 'subroutine', 'nested-call', 'save-registers'] %}
+{% set preloaded = mode in ['running', 'output', 'input', 'polling', 'terminal', 'reply', 'message', 'terminated-message', 'buffer', 'subroutine', 'nested-call', 'save-registers', 'command-prompt'] %}
 <section id="experiment" class="altair-explorer" data-altair-explorer="{{ mode }}" aria-label="Altair {{ 'program execution controls' if preloaded else 'program entry and execution' if program else 'memory controls' }}">
   {% if program %}{{ reference_card(mode) }}{% endif %}
   <fieldset data-panel-controls disabled>
@@ -34,7 +34,7 @@
             <div><dt>Lower eight as a byte</dt><dd data-panel-switch-data>0 decimal · 00 hex</dd></div>
           </dl>
           <p class="panel-reminder">Setting the switches prepares a number. It does not read or write memory.</p>
-          {% if program %}<p class="panel-entry-hint" data-panel-entry-hint>{{ 'Lower all switches and press EXAMINE to select 0000.' if mode in ['message', 'terminated-message', 'buffer', 'subroutine', 'nested-call', 'save-registers'] else 'Raise only switch 8 and press EXAMINE to select 0100.' }}</p>{% endif %}
+          {% if program %}<p class="panel-entry-hint" data-panel-entry-hint>{{ 'Lower all switches and press EXAMINE to select 0000.' if mode in ['message', 'terminated-message', 'buffer', 'subroutine', 'nested-call', 'save-registers', 'command-prompt'] else 'Raise only switch 8 and press EXAMINE to select 0100.' }}</p>{% endif %}
         </section>
         <div class="panel-operations">
           <div><button type="button" data-panel-action="examine">EXAMINE</button><p>Select the address in the switches and read its byte.</p></div>
@@ -50,7 +50,9 @@
     {% if program and not preloaded %}{{ processor_view(mode) }}{% endif %}
     <button class="clear-byte" type="button" data-panel-restart>{{ 'Start this lesson again' if program else 'Start again with empty memory' }}</button>
   </fieldset>
-  {% if mode in ['subroutine', 'nested-call', 'save-registers'] %}
+  {% if mode == 'command-prompt' %}
+  <p class="experiment-note">This lesson connects an 8080, 65,536 bytes of RAM, and teaching byte-input/output devices. It keeps processing lines until you STOP. Start again restores the program and messages, clears the buffer, stack, CPU state, devices, output, counts, and history, prepares H, and stops at PC 0000. It is not the hardware RESET switch or a historical command interpreter.</p>
+  {% elif mode in ['subroutine', 'nested-call', 'save-registers'] %}
   <p class="experiment-note">This lesson connects an 8080, 65,536 bytes of RAM, and a teaching output device at port 1. It calls one printing routine twice, then halts. Start again restores program and message bytes, clears the stack RAM, registers, flags, halted state, output, counts, and history, and stops at PC 0000. It is not the hardware RESET switch.</p>
   {% elif mode == 'buffer' %}
   <p class="experiment-note">This lesson connects an 8080, 65,536 bytes of RAM, and separate teaching input and output devices. The program collects up to eight characters, appends NUL, prints the buffer, and halts. Start again restores the program, clears RAM, registers, flags, halted state, both devices, output, counts, and history, prepares H, and stops at PC 0000. It is not the hardware RESET switch.</p>

@@ -118,6 +118,8 @@ examples add polling and consuming input reads with the same devices.
   pending return addresses as a printing routine calls a character routine.
 - [Keeping a value across a call](machines/save-registers-lesson.md): preserve
   the caller's message pointer with PUSH H and POP H, alongside the return address.
+- [A tiny command prompt](machines/command-prompt-lesson.md): collect a bounded
+  command line, select a reply, and repeat using shared receive/print routines.
 - [Definition guide](machines/definitions.md): initial state and memory images,
   directory conventions, generated factories, and the editing/build workflow.
 - [Memory components and maps](machines/memory-map.md): RAM/ROM ownership,

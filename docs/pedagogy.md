@@ -197,9 +197,9 @@ character output into an inner call, making last-in, first-out returns visible.
 [Keeping a value across a call](machines/save-registers-lesson.md) adds PUSH H
 and POP H to preserve the caller's message pointer.
 
-The remaining capstone for this introductory path is a tiny command prompt:
-print a prompt, collect a line in a bounded buffer, choose an action, respond,
-and repeat. Review the complete learning path at that boundary. Then introduce
+[A tiny command prompt](machines/command-prompt-lesson.md) completes this
+introductory path: print a prompt, collect a bounded line, choose a response,
+and repeat. The next step is to review the complete learning path, then introduce
 a small 6502 comparison alongside the historical Altair work, whose first
 software milestone and requirement to select a hardware configuration are defined in the
 [roadmap](../ROADMAP.md#5-build-the-first-complete-machine-incrementally).

@@ -382,6 +382,14 @@ PUSH/POP descriptions use captured CPU records. The guest routine preserves HL,
 so the caller can print twice after choosing the message once. The linked
 contract covers editing saved data and skipping POP before RET.
 
+[A tiny command prompt](../docs/machines/command-prompt-lesson.md) selects
+`command-prompt` with `8080/altair-command-prompt-lesson.machine`. It combines
+character input, the buffer and stack windows, and the bounded terminal display.
+The 8080 handles line completion, overflow draining, command recognition, and
+response selection. MOV A,B adds a captured count-copy explanation; the other
+instruction views are shared with earlier lessons. The linked contract owns
+repeated commands, exact matching, and reset/restart behavior.
+
 ## Checks
 
 ```sh

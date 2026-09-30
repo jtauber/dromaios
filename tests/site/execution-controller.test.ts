@@ -838,3 +838,76 @@ test("register-saving restart cancels queued accesses and restores CPU, stack, a
     assert.deepEqual([0x1fc, 0x1fd, 0x1fe, 0x1ff].map(address => old.ram.read(address)), stack);
   }
 });
+
+test("command prompt STOP/resume preserves a received byte and executes its pending store and echo once", () => {
+  const timer = clock();
+  const lesson = createTerminalLesson("command-prompt");
+  const execution = createExecutionController({
+    step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+    onChange() {}, schedule: timer.schedule,
+  });
+  lesson.offerInput(72); execution.run();
+  for (let count = 0; lesson.snapshot().pc !== 0x16; count++) {
+    assert.ok(count < 100); timer.tick();
+  }
+  const queued = timer.pending[0]!;
+  execution.stop(); lesson.offerInput(10); queued.callback();
+  assert.equal(lesson.ram.read(0x100), 0);
+  assert.equal(lesson.terminalSnapshot().text, "> ");
+  assert.equal(lesson.snapshot().a, 72);
+  execution.run(); timer.tick(); execution.stop();
+  assert.equal(lesson.ram.read(0x100), 72);
+  assert.equal(lesson.terminalSnapshot().text, "> ");
+  execution.run();
+  for (let count = 0; lesson.terminalSnapshot().text !== "> H\nHELLO\n> " || lesson.snapshot().pc !== 0x5b; count++) {
+    assert.ok(count < 300); timer.tick();
+  }
+  assert.equal(execution.running, true); // Another prompt is a continuation, not host completion.
+  const records = execution.records;
+  execution.stop();
+  for (const job of timer.jobs) job.callback();
+  assert.deepEqual(execution.records, records);
+  assert.equal(lesson.outputSnapshot()!.writes, 12);
+  assert.equal(lesson.snapshot().sp, 0x1fe);
+  assert.equal(execution.error, undefined);
+});
+
+test("command prompt restart cancels queued stores, dispatch, printing, and stack restoration", () => {
+  for (const boundary of [0x65, 0x16, 0x28, 0x3b, 0x55, 0x72]) {
+    const timer = clock();
+    let lesson = createTerminalLesson("command-prompt");
+    const execution = createExecutionController({
+      step: () => lesson.step(), canStep: () => lesson.stepProblem() === undefined,
+      onChange() {}, schedule: timer.schedule,
+    });
+    const input = [72, 10];
+    execution.run();
+    for (let count = 0; lesson.snapshot().pc !== boundary; count++) {
+      assert.ok(count < 300);
+      if (lesson.snapshot().pc === 0x5b && lesson.inputSnapshot()!.pendingByte === null && input.length) lesson.offerInput(input.shift()!);
+      timer.tick();
+    }
+    const old = lesson;
+    const state = old.snapshot();
+    const output = old.terminalSnapshot();
+    const pending = old.inputSnapshot();
+    const ram = Array.from({ length: 0x200 }, (_, address) => old.ram.read(address));
+    const queued = timer.pending[0]!;
+    execution.reset(); lesson = createTerminalLesson("command-prompt");
+    execution.run(); queued.callback();
+    assert.equal(execution.steps, 0);
+    assert.deepEqual([lesson.snapshot().hl, lesson.snapshot().sp, lesson.snapshot().pc], [0, 0, 0]);
+    assert.deepEqual(lesson.inputSnapshot(), { pendingByte: null });
+    assert.deepEqual(lesson.terminalSnapshot(), { text: "", retained: 0 });
+    assert.deepEqual(Array.from({ length: 9 }, (_, index) => lesson.ram.read(0x100 + index)), Array(9).fill(0));
+    assert.deepEqual(Array.from({ length: 4 }, (_, index) => lesson.ram.read(0x1fc + index)), [0, 0, 0, 0]);
+    for (let count = 0; count < 24; count++) timer.tick();
+    execution.stop();
+    assert.equal(lesson.terminalSnapshot().text, "> ");
+    assert.equal(execution.error, undefined);
+    assert.deepEqual(old.snapshot(), state);
+    assert.deepEqual(old.terminalSnapshot(), output);
+    assert.deepEqual(old.inputSnapshot(), pending);
+    assert.deepEqual(Array.from({ length: 0x200 }, (_, address) => old.ram.read(address)), ram);
+  }
+});

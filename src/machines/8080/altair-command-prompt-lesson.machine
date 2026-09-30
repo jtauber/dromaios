@@ -1,0 +1,108 @@
+// Print a prompt, read a bounded line, dispatch H or ?, and repeat.
+components {
+    ram = ram 10000
+    input = byte-input
+    output = byte-output
+}
+
+cpu 8080 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    PC = 0000  SP = 0000
+    flags { S = 0  Z = 0  AC = 0  P = 0  CY = 0 }
+    interruptEnabled = false  interruptDeferred = false  halted = false
+}
+
+memory = ram
+ports {
+    in 00 = input 0
+    in 01 = input 1
+    out 01 = output 0
+}
+
+image ram 0000 {
+    31 00 02           // 0000: LXI SP,0200
+
+    // Prompt.
+    21 20 01           // 0003: LXI H,0120
+    CD 65 00           // 0006: CALL 0065 — print
+    21 00 01           // 0009: LXI H,0100 — Start the next line in the same buffer.
+    06 08              // 000C: MVI B,08 — Eight character slots; RAM is not cleared.
+
+    // Collect.
+    CD 5B 00           // 000E: CALL 005B — receive
+    FE 0A              // 0011: CPI 0A
+    CA 26 00           // 0013: JZ 0026 — line end
+    77                 // 0016: MOV M,A
+    D3 01              // 0017: OUT 01
+    23                 // 0019: INX H
+    05                 // 001A: DCR B
+    C2 0E 00           // 001B: JNZ 000E — collect
+
+    // Drain.
+    CD 5B 00           // 001E: CALL 005B — receive
+    FE 0A              // 0021: CPI 0A
+    C2 1E 00           // 0023: JNZ 001E — drain
+
+    // Line end.
+    3E 00              // 0026: MVI A,00
+    77                 // 0028: MOV M,A — Append NUL; HL never passes 0108.
+    3E 0A              // 0029: MVI A,0A
+    D3 01              // 002B: OUT 01
+    78                 // 002D: MOV A,B — Check the stored length without changing B.
+    FE 08              // 002E: CPI 08
+    CA 03 00           // 0030: JZ 0003 — prompt
+    FE 07              // 0033: CPI 07
+    C2 46 00           // 0035: JNZ 0046 — unknown
+    21 00 01           // 0038: LXI H,0100
+    7E                 // 003B: MOV A,M
+    FE 48              // 003C: CPI 48
+    CA 4C 00           // 003E: JZ 004C — hello
+    FE 3F              // 0041: CPI 3F
+    CA 52 00           // 0043: JZ 0052 — help
+
+    // Unknown.
+    21 60 01           // 0046: LXI H,0160
+    C3 55 00           // 0049: JMP 0055 — reply
+
+    // Hello.
+    21 30 01           // 004C: LXI H,0130
+    C3 55 00           // 004F: JMP 0055 — reply
+
+    // Help.
+    21 40 01           // 0052: LXI H,0140
+
+    // Reply.
+    CD 65 00           // 0055: CALL 0065 — print
+    C3 03 00           // 0058: JMP 0003 — prompt
+
+    // Receive.
+    DB 00              // 005B: IN 00
+    FE 00              // 005D: CPI 00
+    CA 5B 00           // 005F: JZ 005B — receive
+    DB 01              // 0062: IN 01
+    C9                 // 0064: RET
+
+    // Print.
+    E5                 // 0065: PUSH H
+
+    // Print byte.
+    7E                 // 0066: MOV A,M
+    FE 00              // 0067: CPI 00
+    CA 72 00           // 0069: JZ 0072 — print end
+    D3 01              // 006C: OUT 01
+    23                 // 006E: INX H
+    C3 66 00           // 006F: JMP 0066 — print byte
+
+    // Print end.
+    E1                 // 0072: POP H
+    C9                 // 0073: RET
+}
+
+image ram 0100 { 00 00 00 00 00 00 00 00 00 } // Eight slots and room for NUL.
+image ram 0120 { 3E 20 00 } // Greater-than sign, space, NUL.
+image ram 0130 { 48 45 4C 4C 4F 0A 00 } // HELLO, LF, NUL.
+image ram 0140 { 48 3D 48 45 4C 4C 4F 20 3F 3D 48 45 4C 50 0A 00 } // H=HELLO ?=HELP, LF, NUL.
+image ram 0160 { 55 4E 4B 4E 4F 57 4E 0A 00 } // UNKNOWN, LF, NUL.
+// Printing uses 01FC–01FF for saved HL and a return address; receive uses 01FE–01FF.
+
+reset { cpu input output }

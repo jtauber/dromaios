@@ -81,6 +81,8 @@ LESSON_GROUPS = [
              "summary": "Follow nested calls and two pending return addresses."},
             {"slug": "keeping-a-value-across-a-call", "title": "Keeping a value across a call",
              "summary": "Preserve HL with PUSH and POP while a routine uses the pointer."},
+            {"slug": "a-tiny-command-prompt", "title": "A tiny command prompt",
+             "summary": "Read a line, choose a response, and return for another command."},
         ],
     },
 ]

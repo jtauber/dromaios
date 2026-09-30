@@ -143,13 +143,13 @@ prerequisite for browser or machine development.
 The introductory browser path connects byte and memory explorations to real
 8080 instructions, loops, and Altair panel operations. Stepping and paced
 running with STOP/resume now work, with captured records and bounded history.
-Finish this introductory path with register preservation and a tiny command
-prompt that prints a prompt, reads a line, chooses an action, responds, and
-repeats. That capstone is the review point for the learning path before adding
-more introductory Altair lessons. Keep browser pacing distinct from emulated
-machine time.
+Register preservation and the [tiny command prompt](docs/machines/command-prompt-lesson.md)
+now complete this introductory path. The capstone prints a prompt, reads a line,
+chooses a response, and repeats. Review the full learning path at this boundary
+before adding more introductory Altair lessons. Keep browser pacing distinct
+from emulated machine time.
 
-After the capstone, introduce a small 6502 comparison alongside the historical
+After that review, introduce a small 6502 comparison alongside the historical
 Altair work. Use a familiar computation to exercise shared teaching views across
 architectures while exposing the processors' different conventions.
 

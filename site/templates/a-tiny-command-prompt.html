@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "instruments/altair-panel.html" import altair_panel %}
+{% block description %}Bring the 8080 lessons together: print a prompt, collect a command in RAM, choose a response, and return for another line. Follow the buffer, subroutines, and stack.{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(lesson_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">Meet the Altair · Putting the pieces together</p>
+    <h1>A tiny<br><em>command prompt.</em></h1>
+    <p class="lesson-intro">The computer can print a question, remember your answer, and decide what to do. Then it can come back for another answer. You already know most of the pieces.</p>
+  </header>
+  <p class="experiment-note"><strong>Begin here:</strong> Choose 20 instructions per second and press RUN. When <code>&gt; </code> appears, send the prepared H. After the device becomes empty, press <strong>Send line feed</strong>. Watch H appear, followed by HELLO and another prompt. STOP pauses the program; it does not finish by itself.</p>
+  {{ altair_panel(mode='command-prompt') }}
+  <div class="lesson-prose">
+    <section aria-labelledby="one-line-at-a-time">
+      <h2 id="one-line-at-a-time">One line at a time.</h2>
+      <p>The <strong>prompt</strong>, <code>&gt; </code>, is an invitation to enter a command. It is two bytes in RAM, printed by the same kind of routine we used in the previous lesson. The CPU sends them to output port 1.</p>
+      <p>This program knows two commands. Send uppercase <strong>H</strong> for a greeting, or <strong>?</strong> for help. Finish each command with the separate <strong>Send line feed</strong> button. The program waits for that ending before deciding what your line means.</p>
+      <p>The input field still prepares just one character. Enter sends that character; it does not end the line. Wait for the input device to be empty before sending another byte. There is no line editor or backspace here.</p>
+      <pre aria-label="Example conversation">&gt; H
+HELLO
+&gt; ?
+H=HELLO ?=HELP
+&gt; </pre>
+      <p>Every visible character in this conversation comes from an OUT instruction, including the echo of your input. Preparing or sending H does not immediately put it in RAM or on the display.</p>
+      <aside class="lesson-prompt"><p><strong>Predict it.</strong> What happens if you send H but never send line feed?</p><details><summary>Show an explanation</summary><p>The program receives, stores, and echoes H, then waits for more input. It has not decided whether this will be H, HI, or a longer line.</p></details><a href="#execution">Try the first command ↑</a></aside>
+    </section>
+    <section aria-labelledby="a-main-loop-and-two-routines">
+      <h2 id="a-main-loop-and-two-routines">A main loop and two routines.</h2>
+      <p>The main program repeats four jobs: <strong>print a prompt, read a line, choose a reply, and print it</strong>. A jump brings execution back to the prompt. There is no HLT instruction.</p>
+      <p>One routine receives a byte. It keeps checking readiness at input port 0, then reads input port 1 and returns with the byte in A. The other routine prints a message beginning at HL, stopping at NUL. PUSH H and POP H preserve the caller's pointer.</p>
+      <p>Both routines use CALL and RET. Open <strong>Follow the buffer and stack</strong> to see the return address. Printing also saves H and L below it. Each completed call brings SP back to 0200, so processing more commands does not keep using more stack space.</p>
+      <aside class="lesson-prompt"><p><strong>Follow just the beginning.</strong> Start again and step 24 instructions.</p><details><summary>What to look for</summary><p>The display now holds the two prompt characters. HL is 0100 and B is 8. PC is 005B, the receive routine's first readiness check. SP is 01FE: the call has saved return address 0011. While input is empty, the CPU loops inside that routine; it does not keep calling itself.</p></details><a href="#execution">Follow the calls ↑</a></aside>
+    </section>
+    <section aria-labelledby="a-command-is-data">
+      <h2 id="a-command-is-data">A command is data until the program interprets it.</h2>
+      <p>Open <strong>Follow the buffer and stack</strong> to watch the input loop write characters at 0100 onward. HL points to the next free location, and B counts the unused slots. Line feed is not stored: it makes the program append NUL and print a new line.</p>
+      <p><strong>MOV A,B</strong> copies the remaining count into A so CPI can test it. B itself is unchanged. Eight slots left means an empty line; seven means exactly one character. Any longer line selects UNKNOWN.</p>
+      <p>For a one-character line, the CPU reads the byte back from RAM at 0100. It compares with 72 decimal for H, then 63 for ?. Conditional jumps choose which message address to put in HL. The common printing routine reads that message from RAM.</p>
+      <p>An empty line brings back the prompt without a reply. Lowercase h, a space, HI, and every other unrecognized line produce UNKNOWN. Matching is exact: a line beginning with H is not enough.</p>
+      <aside class="lesson-prompt"><p><strong>Try three variations.</strong> Send h and LF; then H, I, and LF; then LF on its own.</p><details><summary>Show an explanation</summary><p>The first two lines receive UNKNOWN. The empty line only produces a new line and another prompt. The same input and output devices serve all three paths; the differences come from comparisons and jumps.</p></details><a href="#execution">Watch the decision ↑</a></aside>
+    </section>
+    <section aria-labelledby="finish-the-whole-line">
+      <h2 id="finish-the-whole-line">A full buffer still needs an ending.</h2>
+      <p>The buffer has eight character slots and an extra location for NUL. After the eighth store, B reaches zero and HL is 0108. The program stops storing and echoing characters, but it keeps receiving and discarding them until line feed arrives.</p>
+      <p>Only then does it append NUL, respond UNKNOWN, and print another prompt. It waits for the whole line's ending so that unwanted extra characters cannot become the next command.</p>
+      <aside class="lesson-prompt"><p><strong>Try the boundary.</strong> Send ABCDEFGH, then ?, then LF.</p><details><summary>Show an explanation</summary><p>Only ABCDEFGH is stored and echoed. The extra ? is consumed without being stored, echoed, or treated as a command. LF ends the line; UNKNOWN and a fresh prompt follow. Sending ? and LF now produces help normally.</p></details><a href="#execution">Fill the buffer ↑</a></aside>
+      <p>Starting the next line resets HL and B. It does not erase the old bytes: the next line overwrites them and writes its own terminator. Seeing old text in RAM does not mean that text is a pending command.</p>
+    </section>
+    <section aria-labelledby="the-reply-lives-in-memory">
+      <h2 id="the-reply-lives-in-memory">The reply lives in memory too.</h2>
+      <p>The greeting begins at 0130. The help message begins at 0140, and UNKNOWN at 0160. They are ordinary zero-terminated byte strings. Choosing an address and printing its contents are separate parts of the program.</p>
+      <details><summary>Make H say JELLO</summary><p>Start again and step 24 times, stopping at PC 005B. On the panel, EXAMINE 0130. Set the switches to 004A and DEPOSIT: that replaces H with J. EXAMINE 005B to restore the paused PC, then RUN and send H followed by LF. The command still selects the greeting, but the printing routine now reads JELLO from RAM. Start again restores HELLO.</p></details>
+      <p>STOP preserves the current instruction boundary, input, RAM, and output. RUN continues from there. <strong>Start this lesson again</strong> creates a fresh experiment, including empty devices and a restored program.</p>
+    </section>
+    <section aria-labelledby="from-bytes-to-a-conversation">
+      <h2 id="from-bytes-to-a-conversation">From bytes to a conversation.</h2>
+      <p>You began with individual bits. This program combines numbers, memory, registers, instructions, loops, decisions, input, output, and subroutines into something you can use. The prompt is an ordinary program running on the same CPU you have been following.</p>
+      <p>This completes our introductory 8080 and Altair learning path. Use All lessons below to revisit any of the pieces. The next stage is to compare another processor and work toward running historical Altair software.</p>
+      <details><summary>What this models</summary><p>The program runs on the 8080 model with RAM and the teaching byte devices from earlier lessons. Browser controls prepare and offer input; the 8080 executes all command handling. The display retains the latest 256 output bytes. This is a teaching program, not an Altair monitor, BASIC, operating system, or model of a historical terminal. The panel remains available for memory experiments; jumping into the middle of routines can bypass their setup.</p></details>
+    </section>
+    {% include "lesson-navigation.html" %}
+  </div>
+</main>
+{% endblock %}

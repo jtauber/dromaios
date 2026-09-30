@@ -15,6 +15,7 @@ import { create8080AltairBufferLesson } from "../../src/machines/generated/8080/
 import { create8080AltairSubroutineLesson } from "../../src/machines/generated/8080/altair-subroutine-lesson.js";
 import { create8080AltairNestedCallLesson } from "../../src/machines/generated/8080/altair-nested-call-lesson.js";
 import { create8080AltairSaveRegistersLesson } from "../../src/machines/generated/8080/altair-save-registers-lesson.js";
+import { create8080AltairCommandPromptLesson } from "../../src/machines/generated/8080/altair-command-prompt-lesson.js";
 import { createAltairMemoryPanel } from "./altair-panel.js";
 import { registerProgram, hex, readAddress, load, loadImmediate, add, compare, jump, jumpIf } from "./register-programs.js";
 import type { CompletedInstruction, LessonInstruction } from "./register-programs.js";
@@ -63,8 +64,8 @@ function loadPointer(address: number): LessonInstruction {
   return {
     address, length: 3, action: "read", mnemonic: read => `LXI H,${hex(readAddress(read, address + 1), 4)}H`,
     explanation: read => `Put address ${hex(readAddress(read, address + 1), 4)} into HL`,
-    prompt: "Set the message pointer. Has a character been read yet?",
-    describe: ({ before, after }) => `Set HL from ${hex(before.hl, 4)} to ${hex(after.hl, 4)}. H holds ${hex(after.h, 2)} and L holds ${hex(after.l, 2)}. A, flags, RAM, and output are unchanged; no message byte was read.`,
+    prompt: "Set the address pointer. Has a byte been read yet?",
+    describe: ({ before, after }) => `Set HL from ${hex(before.hl, 4)} to ${hex(after.hl, 4)}. H holds ${hex(after.h, 2)} and L holds ${hex(after.l, 2)}. A, flags, RAM, and output are unchanged; no data byte was read.`,
   };
 }
 
@@ -114,6 +115,15 @@ function decrementCount(address: number): LessonInstruction {
     explanation: () => "Subtract one from the count in B",
     prompt: "Decrease the count. Is it zero?",
     describe: ({ before, after }) => `Decreased B from ${before.b} to ${after.b}. Zero flag Z is ${Number(after.flags.z)}. A, HL, carry, RAM, and output are unchanged.`,
+  };
+}
+
+function readCount(address: number): LessonInstruction {
+  return {
+    address, length: 1, action: "read", mnemonic: () => "MOV A,B",
+    explanation: () => "Copy the slots remaining in B into A for comparison",
+    prompt: "Read the remaining count. Does copying it change B or the flags?",
+    describe: ({ before, after }) => `Copied B (${before.b}) into A, replacing ${before.a}. B remains ${after.b}; HL, flags, RAM, and output are unchanged. The next comparisons can distinguish an empty line (8 slots left), one character (7), and longer lines.`,
   };
 }
 
@@ -279,6 +289,48 @@ const programs = {
       popPointer(0x1a), returnInstruction(0x1b)],
     bytes: [0x31, 0, 2, 0x21, 0, 1, 0xcd, 0x0d, 0, 0xcd, 0x0d, 0, 0x76,
       0xe5, 0x7e, 0xfe, 0, 0xca, 0x1a, 0, 0xd3, 1, 0x23, 0xc3, 0x0e, 0, 0xe1, 0xc9],
+    editableOperand: undefined,
+  },
+  "command-prompt": {
+    createMachine: create8080AltairCommandPromptLesson,
+    instructions: [
+      // Print the prompt and prepare the buffer.
+      loadStackPointer(0x00), loadPointer(0x03), callInstruction(0x06),
+      loadPointer(0x09), loadImmediate(0x0c, "b"),
+      // Collect eight characters at most; drain any excess through LF.
+      callInstruction(0x0e), compare(0x11), jumpIf(0x13, "z", 1),
+      writePointedByte(0x16), outputInstruction(0x17), advancePointer(0x19),
+      decrementCount(0x1a), jumpIf(0x1b, "z", 0), callInstruction(0x1e),
+      compare(0x21), jumpIf(0x23, "z", 0),
+      // Terminate the line and check its length.
+      loadImmediate(0x26), writePointedByte(0x28), loadImmediate(0x29),
+      outputInstruction(0x2b), readCount(0x2d), compare(0x2e),
+      jumpIf(0x30, "z", 1), compare(0x33), jumpIf(0x35, "z", 0),
+      // Read the command from RAM and choose the response.
+      loadPointer(0x38), readPointedByte(0x3b), compare(0x3c),
+      jumpIf(0x3e, "z", 1), compare(0x41), jumpIf(0x43, "z", 1),
+      // Select UNKNOWN, HELLO, or help; print it and return to the prompt.
+      loadPointer(0x46), jump(0x49, () => "Next, print the selected response."),
+      loadPointer(0x4c), jump(0x4f, () => "Next, print the selected response."),
+      loadPointer(0x52), callInstruction(0x55), jump(0x58, () => "Next, print another prompt."),
+      // Receive one byte, waiting until it is ready.
+      readinessInstruction(0x5b), compare(0x5d), jumpIf(0x5f, "z", 1),
+      inputInstruction(0x62), returnInstruction(0x64),
+      // Print a zero-terminated message, preserving HL.
+      pushPointer(0x65), readPointedByte(0x66), compare(0x67),
+      jumpIf(0x69, "z", 1), outputInstruction(0x6c), advancePointer(0x6e),
+      jump(0x6f, () => "Next, read through HL again."), popPointer(0x72), returnInstruction(0x73),
+    ],
+    bytes: [
+      0x31, 0x00, 0x02, 0x21, 0x20, 0x01, 0xcd, 0x65, 0x00, 0x21, 0x00, 0x01, 0x06, 0x08, 0xcd, 0x5b,
+      0x00, 0xfe, 0x0a, 0xca, 0x26, 0x00, 0x77, 0xd3, 0x01, 0x23, 0x05, 0xc2, 0x0e, 0x00, 0xcd, 0x5b,
+      0x00, 0xfe, 0x0a, 0xc2, 0x1e, 0x00, 0x3e, 0x00, 0x77, 0x3e, 0x0a, 0xd3, 0x01, 0x78, 0xfe, 0x08,
+      0xca, 0x03, 0x00, 0xfe, 0x07, 0xc2, 0x46, 0x00, 0x21, 0x00, 0x01, 0x7e, 0xfe, 0x48, 0xca, 0x4c,
+      0x00, 0xfe, 0x3f, 0xca, 0x52, 0x00, 0x21, 0x60, 0x01, 0xc3, 0x55, 0x00, 0x21, 0x30, 0x01, 0xc3,
+      0x55, 0x00, 0x21, 0x40, 0x01, 0xcd, 0x65, 0x00, 0xc3, 0x03, 0x00, 0xdb, 0x00, 0xfe, 0x00, 0xca,
+      0x5b, 0x00, 0xdb, 0x01, 0xc9, 0xe5, 0x7e, 0xfe, 0x00, 0xca, 0x72, 0x00, 0xd3, 0x01, 0x23, 0xc3,
+      0x66, 0x00, 0xe1, 0xc9,
+    ],
     editableOperand: undefined,
   },
 } as const;

@@ -490,6 +490,7 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .byte-output .panel-lamp[data-on] strong { background: #e6af3a; border-color: #f1d281; color: #302b1c; box-shadow: 0 0 12px #f4ba4460; }
 .byte-output p { font-size: 12px; line-height: 1.7; margin: 12px 0 0; }
 .byte-output .output-status { font: 14px/1.7 var(--mono); }
+.panel-cpu-state-five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .panel-cpu-state-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .panel-devices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
 .ram-window { background: #e2ebed; border: 1px solid #9fadb4; border-radius: 4px; padding: 18px; min-width: 0; }
