@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { create8080AltairBasic } from "../../src/machines/generated/8080/altair-basic.js";
 import { SerialSession } from "../../src/runtime/serial-session.js";
+import { createAltairMachinePanel } from "../../site/interactive/altair-machine-panel.js";
 import { createSerialExecution } from "../../site/interactive/serial-execution.js";
 import { createSerialTerminal, terminalInput } from "../../site/interactive/serial-terminal.js";
 
@@ -18,6 +19,10 @@ test("browser batching and terminal run the supplied BASIC tape, program, STOP, 
   assert.equal(createHash("sha256").update(tape).digest("hex"), media.sha256);
   const session = new SerialSession(output => create8080AltairBasic({ serial: output }), tape);
   const terminal = createSerialTerminal();
+  let panel = createAltairMachinePanel(session.machine, () => !session.running);
+  function setSwitches(value: number): void {
+    for (let bit = 0; bit < 16; bit++) if ((panel.switches ^ value) & (1 << bit)) panel.toggleSwitch(bit);
+  }
   let next: (() => void) | undefined;
   const execution = createSerialExecution(session, {
     schedule(callback) { next = callback; return () => { next = undefined; }; }, output: terminal.write, onChange() {},
@@ -27,11 +32,20 @@ test("browser batching and terminal run the supplied BASIC tape, program, STOP, 
     for (let count = 0; count < 200; count++) { tick(); if (terminal.text.endsWith(suffix)) return; }
     assert.fail(`No ${suffix}: ${terminal.text}`);
   }
-  session.machine.sense.offer(12); execution.run();
+  setSwitches(0x0c00); execution.run();
   until("MEMORY SIZE? "); session.send([13]);
   until("TERMINAL WIDTH? "); session.send([13]);
   until("WANT SIN? "); session.send(terminalInput("Y\n"));
   until("OK\n"); assert.ok(terminal.text.includes("727 BYTES FREE"));
+  execution.stop();
+  const ready = session.machine.cpu.snapshot(), records = execution.records;
+  setSwitches(0x0fff); panel.examine();
+  assert.equal(panel.data, session.machine.ram.read(0xfff));
+  panel.examineNext(); assert.equal(panel.data, 0xff);
+  setSwitches(ready.pc); panel.examine(); setSwitches(0x0c00);
+  assert.deepEqual(session.machine.cpu.snapshot(), ready);
+  assert.equal(execution.records, records); // Panel actions do not invent CPU execution records.
+  execution.run();
   for (const line of ["10 FOR I=1 TO 3", "20 PRINT I*2", "30 NEXT I", "40 END"]) {
     session.send(terminalInput(line + "\n"));
     until(line + "\n");
@@ -49,5 +63,7 @@ test("browser batching and terminal run the supplied BASIC tape, program, STOP, 
   execution.run(); session.send([3]); until("OK\n");
   assert.ok(execution.records.length <= 12);
   execution.clear(); session.reload(tape); terminal.clear();
-  session.machine.sense.offer(12); execution.run(); until("MEMORY SIZE? ");
+  panel = createAltairMachinePanel(session.machine, () => !session.running);
+  assert.equal(panel.switches, 0);
+  setSwitches(0x0c00); execution.run(); until("MEMORY SIZE? ");
 });

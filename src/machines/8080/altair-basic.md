@@ -9,8 +9,8 @@ The [BASIC manual][manual], Appendix A supplement, printed page 99, provides
 the 2SIO bootstrap for version 3.2. The archived [assembly listing][loader]
 and [Intel HEX image][loader-hex] independently identify its bytes. The selected
 software is [MITS 4K BASIC 3.2 paper tape][tape]. The browser uses this generated
-machine for its terminal and execution controls; fuller panel integration remains
-work toward the [complete machine target](../../../docs/machines/altair-basic.md).
+machine for its terminal, execution controls, and front panel. The
+[complete machine target](../../../docs/machines/altair-basic.md) sets the review boundary.
 
 ## Components and address space
 
@@ -214,16 +214,18 @@ the chapter's initial machine, restores the panel bootstrap, clears host output,
 and resets the switches to down. With A11/A10 raised again and the same supplied
 tape, the checked reload reaches MEMORY SIZE? once more.
 
-This chapter defines a headless machine composition, not a complete Altair
+This chapter defines the shared machine composition, not a complete Altair
 electrical model. It has no clock counts, DMA, wait states, second serial channel,
 baud-rate delay, interrupts from peripherals, or cycle-level panel signals.
-Only the declared polling serial profile is supported. Full front-panel
-examination/deposit and cycle-level lights remain subsequent work.
+Only the declared polling serial profile is supported. The browser panel exposes
+memory and sense-switch controls at instruction boundaries as described below.
 
 ## Using the browser machine
 
 Download the [selected tape][tape], choose it in the file control, raise A11/A10
-with the loading-switch control, then select RUN. Click the keyboard field
+on the front panel, leaving all other switches down and PC at 0000, then
+select RUN. **Do not press EXAMINE after raising the loading switches:** that
+would move PC to 0C00 instead of leaving it at the bootstrap. Click the keyboard field
 below the terminal. At MEMORY SIZE? press Enter; press Enter for the default
 terminal width, then type Y and Enter at WANT SIN?. BASIC should report
 727 BYTES FREE and OK. Type `PRINT 40+2` and Enter to see 42.
@@ -251,15 +253,68 @@ consuming device input. The terminal and host input queue are bounded; a full
 keyboard queue rejects another offer rather than silently dropping characters.
 
 The [browser-session test](../../../tests/site/altair-basic.test.ts) checks this
-scheduler and printing terminal with the supplied tape, a BASIC loop, STOP,
-Control-C, and reload. The same `ALTAIR_BASIC_TAPE` setting enables it.
+scheduler, printing terminal, and panel with the supplied tape, a BASIC loop,
+STOP, inspection and restoration of PC, Control-C, and reload. The same
+`ALTAIR_BASIC_TAPE` setting enables it.
 
 Reset preserves loaded RAM and switches but ejects host input and resets the
 CPU and ACIA; it does not warm-start BASIC. Reload tape constructs a fresh
 machine with the original bootstrap and the last verified tape, clears the
 terminal, and lowers the switches. Raise A11/A10 again and RUN to repeat loading.
 
+### Front panel and execution state
+
+The panel presents sixteen switches. All sixteen supply an address for EXAMINE;
+only the lower eight supply a DEPOSIT byte. The upper eight are also the live
+sense switches at port FF: A15 is bit 7 and A8 is bit 0. Moving a switch never
+moves PC or writes memory. It may change a subsequent IN FF, including while
+the machine is running. Raising A11 and A10 supplies sense byte 0C.
+
+The [Altair theory of operation][panel-manual], printed pages 5–6, explains
+EXAMINE by an injected JMP and EXAMINE NEXT by an injected NOP. Their key
+programmer-visible consequence is that the selected address is the CPU's PC,
+not a separate viewing cursor. This view preserves that relationship without
+simulating the injected bus cycles:
+
+| Control | PC afterward | Memory action |
+| --- | --- | --- |
+| EXAMINE | All sixteen switches | Display the byte at PC. |
+| EXAMINE NEXT | PC + 1, wrapping FFFF to 0000 | Display the byte at the new PC. |
+| DEPOSIT | Unchanged | Offer the low switch byte to memory at PC. |
+| DEPOSIT NEXT | PC + 1, wrapping FFFF to 0000 | Offer the low switch byte to memory at the new PC. |
+
+STOP before any of these operations. They preserve the switch positions, all
+CPU fields other than PC, serial state, and host queues. The data lights read
+through the declared memory connection: a deposit above 0FFF is discarded and
+reads back FF. The last-operation message distinguishes the offered byte from
+the actual readback. No panel action creates a CPU instruction record.
+
+The adapter restores a CPU snapshot with the selected PC and the same memory
+and port connections. Registers, flags, interrupt latches, and the halted state
+remain intact. Machine reset follows this current CPU. Reset releases a halted
+CPU; EXAMINE alone does not. After inspecting another location during a stopped
+BASIC session, restore the saved PC before resuming if you want execution to
+continue where it stopped. Deposits can modify the running program when resumed.
+
+The lights show PC and its memory byte between batches of instructions, not
+instantaneous electrical address/data bus values. Bus-status lamps, cycle
+stepping, memory protection, and the panel's electrical override of HALT are
+not modeled. There is no teaching whitelist of opcodes or instruction starts.
+RUN can execute a program entered with the panel even without a selected tape;
+the initial bootstrap otherwise waits for input. RAM already contains the
+bootstrap at construction, so manually entering it is optional.
+
+Reset preserves both switch banks and RAM. Reload tape creates fresh components,
+rebinds the panel, and lowers all sixteen switches; number-guide visibility is
+preserved. The [panel tests](../../../tests/site/altair-machine-panel.test.ts)
+check PC/state preservation, the RAM boundary, discarded deposits and address
+wrap, live sense-port reads and serial output from a panel-entered program,
+STOP guards, reset after EXAMINE, and fresh reload state. The real-tape browser
+session test stops BASIC, inspects RAM and its boundary, restores PC, and then
+continues the program transcript.
+
 [manual]: https://altairclone.com/downloads/manuals/BASIC%20Manual%2075.pdf
 [loader]: https://altairclone.com/downloads/basic/Paper%20Tape%20and%20Cassette/2SIO%20Loaders/Ldr4k32.asm
 [loader-hex]: https://altairclone.com/downloads/basic/Paper%20Tape%20and%20Cassette/2SIO%20Loaders/LDR4K32.HEX
 [tape]: https://altairclone.com/downloads/basic/Paper%20Tape%20and%20Cassette/4K%20BASIC%20Ver%203-2.tap
+[panel-manual]: https://altairclone.com/downloads/manuals/Altair%208800%20Theory%20of%20Operation.pdf

@@ -36,6 +36,9 @@ reset/reload behavior, and limitations.
 `interactive/altair-basic.ts` connects the generated factory and shared
 `SerialSession` to browser controls. `serial-execution.ts` schedules cancellable
 batches; `serial-terminal.ts` supplies bounded printing-terminal presentation.
+`altair-machine-panel.ts` connects the shared panel model and view to this
+machine's mapped memory, PC, and live sense switches. Reload rebinds the panel
+to the fresh machine; CPU/serial reset preserves both switch banks.
 The earlier lessons retain their individual-instruction pacing. The machine's
 script loads only on its page; the guide remains readable without JavaScript.
 
@@ -43,7 +46,9 @@ The emulator suite includes scheduler and terminal tests. Set `ALTAIR_BASIC_TAPE
 to include the real-tape browser-session test as well as the headless acceptance
 test. Browser checks cover initialization, typing and pasting one line, editing,
 LIST/RUN/INPUT, STOP/resume, Control-C, invalid files, reset/reload, keyboard
-navigation, and wide/narrow layouts.
+navigation, and wide/narrow layouts. Also check the shared panel: setting A11/A10
+without EXAMINE, PC changes, deposits at and beyond 0FFF, disabled memory actions
+while running, live sense switches, and reload with number guides hidden.
 
 ## Build and preview
 

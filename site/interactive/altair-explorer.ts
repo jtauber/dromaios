@@ -7,14 +7,16 @@ interface AltairExplorerOptions {
   readonly onChange?: () => void;
   readonly initialMessage?: string;
   readonly canAccessMemory?: () => boolean;
+  readonly canSetSwitches?: () => boolean;
 }
 
-/** Present switches, selected address, and RAM contents as separate states. */
+/** Present switches, selected address, and mapped memory contents as separate states. */
 export function mountAltairExplorer(root: HTMLElement, {
   createPanel = () => createAltairMemoryPanel(createLessonsAltairMemory().ram),
   onChange = () => {},
   initialMessage = "No memory operation yet. This lesson starts at address 0 with empty RAM and all switches down.",
   canAccessMemory = () => true,
+  canSetSwitches = () => true,
 }: AltairExplorerOptions = {}) {
   let panel = createPanel();
   const switches = [...root.querySelectorAll<HTMLButtonElement>("[data-panel-switch]")];
@@ -25,6 +27,7 @@ export function mountAltairExplorer(root: HTMLElement, {
 
   function render(): void {
     for (const button of switches) {
+      button.disabled = !canSetSwitches();
       const on = (panel.switches & (1 << Number(button.dataset.panelSwitch))) !== 0;
       button.setAttribute("aria-pressed", String(on));
       button.querySelector<HTMLElement>("[data-switch-value]")!.textContent = on ? "1" : "0";
@@ -40,14 +43,15 @@ export function mountAltairExplorer(root: HTMLElement, {
     root.querySelector<HTMLElement>("[data-panel-switch-data]")!.textContent = formatNumber(byte, 2);
     preview.setAttribute("aria-live", canAccessMemory() ? "polite" : "off");
     preview.textContent = canAccessMemory()
-      ? `EXAMINE would select address ${panel.switches}. DEPOSIT would write ${byte} to the selected address, ${panel.address}.`
-      : "Running. STOP before examining or depositing memory; switch positions do not change execution.";
+      ? `EXAMINE would select address ${panel.switches}. DEPOSIT would offer ${byte} to the selected address, ${panel.address}.`
+      : "STOP before examining or depositing memory.";
     for (const help of root.querySelectorAll<HTMLElement>("[data-panel-number-guide]")) help.hidden = !guides.checked;
     for (const button of root.querySelectorAll<HTMLButtonElement>("[data-panel-action]")) button.disabled = !canAccessMemory();
     onChange();
   }
 
   for (const button of switches) button.addEventListener("click", () => {
+    if (!canSetSwitches()) return;
     panel.toggleSwitch(Number(button.dataset.panelSwitch));
     render();
   });
@@ -55,22 +59,24 @@ export function mountAltairExplorer(root: HTMLElement, {
     root.querySelector<HTMLButtonElement>(`[data-panel-action="${action}"]`)!.addEventListener("click", () => {
       if (!canAccessMemory()) return;
       const previousAddress = panel.address;
+      const offered = panel.switches & 0xff;
       panel[action]();
       const transition = action.endsWith("Next") ? `Moved from address ${previousAddress} to ${panel.address}. ` : "";
       last.textContent = transition + (action.startsWith("deposit")
-        ? `Wrote ${panel.data} to address ${panel.address}. The data lights show the stored byte. The switches kept their positions.`
+        ? `Offered ${offered} to address ${panel.address}. The data lights read back ${panel.data}. The switches kept their positions.`
         : `Read ${panel.data} from address ${panel.address}. Memory and the switches are unchanged.`);
       render();
     });
   }
   guides.addEventListener("change", render);
-  root.querySelector<HTMLButtonElement>("[data-panel-restart]")!.addEventListener("click", () => {
+  function reset(): void {
     panel = createPanel();
     last.textContent = initialMessage;
     render();
-  });
+  }
+  root.querySelector<HTMLButtonElement>("[data-panel-restart]")?.addEventListener("click", reset);
   last.textContent = initialMessage;
   render();
   root.querySelector<HTMLFieldSetElement>("[data-panel-controls]")!.disabled = false;
-  return { refresh: render };
+  return { refresh: render, reset };
 }

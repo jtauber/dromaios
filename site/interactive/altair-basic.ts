@@ -1,12 +1,14 @@
 import { create8080AltairBasic } from "../../src/machines/generated/8080/altair-basic.js";
 import { SerialSession } from "../../src/runtime/serial-session.js";
+import { mountAltairExplorer } from "./altair-explorer.js";
+import { createAltairMachinePanel } from "./altair-machine-panel.js";
 import { createSerialExecution } from "./serial-execution.js";
 import { createSerialTerminal, terminalControlKey, terminalInput } from "./serial-terminal.js";
 
 /** Presentation and operator actions for the machine generated from the published guide. */
 export function mountAltairBasic(root: HTMLElement): void {
   const element = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
-  const file = element<HTMLInputElement>("tape-file"), switches = element<HTMLInputElement>("loading-switches");
+  const file = element<HTMLInputElement>("tape-file");
   const keyboard = element<HTMLTextAreaElement>("terminal-keyboard"), screen = element<HTMLElement>("serial-screen");
   const run = element<HTMLButtonElement>("machine-run"), stop = element<HTMLButtonElement>("machine-stop");
   const reset = element<HTMLButtonElement>("machine-reset"), reload = element<HTMLButtonElement>("machine-reload");
@@ -25,12 +27,14 @@ export function mountAltairBasic(root: HTMLElement): void {
   const hex = (value: number, width = 4) => value.toString(16).toUpperCase().padStart(width, "0");
 
   function refresh(): void {
-    run.disabled = tape === undefined || selecting || session.running || execution.error !== undefined;
+    panelView.refresh();
+  }
+  function renderConsole(): void {
+    run.disabled = selecting || session.running || execution.error !== undefined;
     stop.disabled = !session.running;
-    reset.disabled = reload.disabled = tape === undefined || selecting;
-    keyboard.disabled = enter.disabled = interrupt.disabled = tape === undefined || selecting;
-    switches.disabled = selecting || session.running;
-    switches.checked = session.machine.sense.snapshot().switches === 0x0c;
+    reset.disabled = selecting;
+    reload.disabled = tape === undefined || selecting;
+    keyboard.disabled = enter.disabled = interrupt.disabled = selecting;
     status.textContent = `${execution.status} · ${execution.steps.toLocaleString()} instructions`;
     status.setAttribute("aria-live", session.running ? "off" : "polite");
     if (execution.error !== undefined) message.textContent = execution.error;
@@ -67,8 +71,8 @@ export function mountAltairBasic(root: HTMLElement): void {
     execution.clear();
     session.reload(tape);
     terminal.clear(); keyboard.value = "";
-    message.textContent = "Raise A11 + A10, then RUN to load BASIC.";
-    refresh();
+    message.textContent = "Raise only A11 + A10, then RUN to load BASIC. Leave PC at 0000.";
+    panelView.reset();
   }
 
   file.addEventListener("change", async () => {
@@ -91,7 +95,6 @@ export function mountAltairBasic(root: HTMLElement): void {
       if (token === selection) { selecting = false; file.value = ""; refresh(); }
     }
   });
-  switches.addEventListener("change", () => { session.machine.sense.offer(switches.checked ? 0x0c : 0); refresh(); });
   run.addEventListener("click", () => { message.textContent = ""; execution.run(); keyboard.focus(); });
   stop.addEventListener("click", () => execution.stop());
   reload.addEventListener("click", freshTape);
@@ -122,6 +125,14 @@ export function mountAltairBasic(root: HTMLElement): void {
   trace.closest("details")!.addEventListener("toggle", refresh);
   document.addEventListener("visibilitychange", () => { if (document.hidden) execution.stop(); });
   window.addEventListener("pagehide", () => execution.stop());
+  const canAccessMemory = () => !session.running && !selecting;
+  const panelView = mountAltairExplorer(root, {
+    createPanel: () => createAltairMachinePanel(session.machine, canAccessMemory),
+    canAccessMemory,
+    canSetSwitches: () => !selecting,
+    onChange: renderConsole,
+    initialMessage: "PC starts at 0000 with the bootstrap in RAM and all switches down. Raise only A11 and A10 for BASIC loading.",
+  });
   file.disabled = false;
   refresh();
 }

@@ -83,7 +83,7 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
     const connection = machine.ports !== undefined ? ", ports" : machine.resetDevices !== undefined ? ", { resetDevices }" : "";
     body.push(`const cpu = new ${cpuClass}(${memory}, ${JSON.stringify(machine.initialState, null, 2)}${connection});`);
     if (machine.reset !== undefined) {
-      body.push("const reset = () => {", "  // Check the CPU execution boundary before resetting devices.", "  const record = cpu.reset();",
+      body.push("const reset = (): ReturnType<typeof cpu.reset> => {", "  // Follow the current CPU, including one restored from a host snapshot.", "  const record = instance.cpu.reset();",
         ...machine.reset.slice(1).map(target => `  ${part(target)}.reset();`), "  return record;", "};");
     }
     returned.unshift("cpu");
@@ -92,7 +92,9 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
     if (machine.reset !== undefined) returned.push("reset");
     if (machine.endAddress !== undefined) returned.push(`endAddress: ${machine.endAddress}`);
   }
-  body.push(`return { ${returned.join(", ")} };`);
+  if (machine.cpu !== undefined && machine.reset !== undefined) {
+    body.push(`const instance = { ${returned.join(", ")} };`, "return instance;");
+  } else body.push(`return { ${returned.join(", ")} };`);
   return `${imports.join("\n")}\n\nexport function ${name}(${argument}) {\n${body.join("\n").split("\n").map(line => `  ${line}`).join("\n")}\n}\n`;
 
   function path(module: string): string { return posix.relative(from, `../components/${module}.js`); }

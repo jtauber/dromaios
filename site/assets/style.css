@@ -415,8 +415,8 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
   .register-representations { font-size: 12px; }
 }
 
-.altair-explorer fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
-.altair-explorer [hidden] { display: none; }
+.altair-explorer fieldset, .basic-panel fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.altair-explorer [hidden], .basic-panel [hidden] { display: none; }
 .altair-panel { padding: 9px; background: #294a62; border: 1px solid #193346; border-radius: 5px; box-shadow: 0 8px 20px #233b3f18; }
 .panel-title { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 18px 20px; color: #f9f6e9; }
 .panel-title h2 { margin: 0; font: 20px/1.3 var(--mono); letter-spacing: .08em; }
@@ -452,7 +452,7 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .panel-operations button { min-height: 44px; width: 100%; padding: 10px 6px; border: 1px solid #264357; border-radius: 3px; color: #fff9eb; background: #294a62; font: 12px/1.5 var(--mono); cursor: pointer; }
 .panel-operations button:enabled:hover { background: #18374c; }
 .panel-operations p { font-size: 12px; margin: 8px 0 0; }
-.altair-explorer button:disabled { opacity: .5; cursor: default; }
+.altair-explorer button:disabled, .basic-panel button:disabled { opacity: .5; cursor: default; }
 .panel-guide-toggle { display: flex; align-items: center; gap: 10px; margin-top: 24px; font-size: 14px; min-height: 44px; }
 .panel-guide-toggle input { width: 18px; height: 18px; accent-color: #294a62; }
 .panel-preview { font-size: 14px; margin: 12px 0 18px; }
@@ -569,14 +569,12 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 
 /* The full machine keeps terminal controls distinct from the instruction lessons. */
 .basic-machine { margin-block: 32px 48px; padding: 26px; border: 1px solid var(--line); background: #f1efe7; }
-.basic-machine h2 { font: 500 34px/1.2 var(--serif); margin-bottom: 16px; }
+.basic-machine > h2 { font: 500 34px/1.2 var(--serif); margin-bottom: 16px; }
 .basic-machine .eyebrow { margin-bottom: 10px; }
 .basic-machine > p { font-size: 14px; }
 .basic-media { display: grid; gap: 16px; margin-block: 24px 12px; }
 .basic-media label, .basic-keyboard { display: grid; gap: 8px; font-size: 13px; }
 .basic-media input[type=file] { width: 100%; min-width: 0; font-size: 13px; }
-.basic-media .basic-switch { display: flex; align-items: center; gap: 10px; }
-.basic-switch input { width: 20px; height: 20px; accent-color: var(--ink); }
 .basic-machine progress { display: block; width: 100%; height: 8px; accent-color: var(--ink); }
 .basic-controls { display: flex; flex-wrap: wrap; gap: 9px; margin-block: 14px; }
 .basic-controls button { padding: 9px 13px; border: 1px solid #b8c5b9; background: var(--paper); color: var(--ink); font-size: 12px; }
@@ -587,11 +585,18 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .basic-keyboard textarea { width: 100%; resize: vertical; min-height: 44px; padding: 10px; border: 1px solid #b8c5b9; background: var(--paper); color: var(--ink); font: 14px var(--mono); }
 .basic-machine .basic-hint { font-size: 12px; color: var(--muted); line-height: 1.65; }
 .basic-message { min-height: 1.6em; color: var(--accent); }
-.basic-inspection { margin-block: 22px; }
+.basic-panel, .basic-inspection { margin-block: 22px; }
+.basic-panel { container-type: inline-size; }
+.basic-panel > summary { cursor: pointer; font-size: 13px; margin-bottom: 16px; }
 .basic-inspection summary { cursor: pointer; font-size: 13px; }
 .basic-inspection pre { overflow: auto; font: 12px/1.6 var(--mono); }
 @media (max-width: 700px) {
   .basic-machine { padding: 18px 14px; }
-  .basic-machine h2 { font-size: 28px; }
+  .basic-machine > h2 { font-size: 28px; }
   .serial-screen { padding: 12px; font-size: 12px; height: 320px; }
+}
+
+@container (max-width: 600px) {
+  .panel-banks, .panel-switch-numbers { grid-template-columns: 1fr; gap: 16px; }
+  .panel-data-lights { max-width: none; margin-left: 0; }
 }

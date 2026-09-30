@@ -12,7 +12,8 @@ loads the original 4K BASIC 3.2 tape through both historical loaders, discovers
 its RAM limit, and runs a checked BASIC editing/program transcript. A shared
 [serial session](../runtime/serial-session.md) now supplies transport and execution
 controls for both headless acceptance and the browser terminal. The site
-publishes the same executable chapter beside the working machine.
+publishes the same executable chapter beside the working machine, with memory
+controls and live sense switches connected to its CPU and declared memory map.
 
 ## Executable descriptions
 
@@ -27,12 +28,12 @@ Browser code owns keyboard events, tape selection and delivery, drawing, and
 execution scheduling. Host buffering remains distinct from a device's receive
 register. The executable machine chapter is also the published machine guide.
 
-## Work required
+## Review point
 
-Connect panel examination/deposit and fuller sense-switch controls to this
-same generated machine. Preserve live RAM and CPU state across panel actions,
-without the teaching lessons' restrictions to known bytes or instruction starts.
-Review the complete loading/program workflow with the integrated panel.
+Review the complete loading/program workflow with the integrated panel before
+broadening the configuration. The chapter owns its PC effects, memory boundary,
+switch sharing, and reset/reload contract; the introductory lessons continue to
+use their deliberately simplified teaching devices.
 
 ## Completion criteria
 

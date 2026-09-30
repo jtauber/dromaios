@@ -157,7 +157,9 @@ A composed definition generates one factory, with no memory-only counterpart.
 It returns every component under its declared name and `cpu` when declared, plus `memory` for
 a map, `ports` for an explicit port block, and `reset` for a machine-reset list.
 These connection objects can also be used when reconstructing a CPU from a
-snapshot.
+snapshot. If host controls replace `machine.cpu` with a restored CPU, the
+generated `machine.reset()` follows that current CPU before resetting the
+declared devices. Reuse the existing connections when restoring state.
 
 Every component with an output callback requires a named binding in the factory argument.
 A machine with no outputs takes no argument. For example:
