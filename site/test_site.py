@@ -12,16 +12,18 @@ from markdown import Markdown
 from check import check_site
 from diagrams import state_diagram
 from rendering import CHAPTERS, REPOSITORY, ChapterRendering, chapter_link, github_slug
+from machines import ALTAIR, MACHINES, media_record
 
 
 class CpuBlocks(HTMLParser):
-    def __init__(self, source):
+    def __init__(self, source, language="cpu"):
         super().__init__()
+        self.language = language
         self.blocks, self.current = [], None
         self.feed(source)
 
     def handle_starttag(self, tag, attrs):
-        if tag == "code" and dict(attrs).get("class") == "language-cpu":
+        if tag == "code" and dict(attrs).get("class") == f"language-{self.language}":
             self.current = []
 
     def handle_data(self, data):
@@ -35,6 +37,18 @@ class CpuBlocks(HTMLParser):
 
 
 class PublishingTests(unittest.TestCase):
+    def test_machine_guide_preserves_fences_and_owns_browser_media_identity(self):
+        source = ALTAIR.read_text()
+        markdown = Markdown(extensions=["fenced_code", ChapterRendering(ALTAIR, "/demo/", lambda *_: "")])
+        output = markdown.convert(source)
+        self.assertEqual(CpuBlocks(output, "machine").blocks, re.findall(r"^```machine\n(.*?)^```$", source, re.M | re.S))
+        self.assertEqual(chapter_link("altair-basic.md#media-and-host-delivery", ALTAIR, "/demo/"),
+                         f"/demo/{MACHINES[ALTAIR]}#media-and-host-delivery")
+        self.assertEqual(media_record(source)["bytes"], 4352)
+        for invalid in ("", source + '\n```json\n{}\n```', '```json\n{"bytes": -1, "sha256": "bad"}\n```'):
+            with self.assertRaises(ValueError):
+                media_record(invalid)
+
     def test_every_cpu_block_survives_highlighting_verbatim(self):
         for path in CHAPTERS.glob("*.md"):
             with self.subTest(cpu=path.stem):

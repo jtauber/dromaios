@@ -136,6 +136,10 @@ It stops on completion, halt, waiting, unsupported attempts, or the step limit.
 The [serial session](runtime/serial-session.md) owns host tape/keyboard queues,
 captures raw output, and runs bounded batches around a generated machine.
 Its STOP/resume and reset/reload controls are separate from guest software commands.
+The [browser serial scheduler](../site/interactive/serial-execution.ts) yields
+between bounded batches for the full Altair machine, with a bounded printing
+terminal and recent trace. The site publishes the executable machine chapter
+alongside these controls; the chapter also owns the selected media identity.
 The site's [paced execution controller](../site/interactive/execution-controller.ts)
 adds cancellable scheduling between individual instructions and bounded recent
 records, independent of the DOM and CPU model. The

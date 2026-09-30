@@ -19,6 +19,7 @@ from ryland import Ryland
 from check import check_site
 from diagrams import state_diagram
 from lessons import LESSON_GROUPS
+from machines import ALTAIR, MACHINES, media_record
 from rendering import CHAPTERS, REPOSITORY, ChapterRendering, github_slug
 
 SITE = Path(__file__).resolve().parent
@@ -72,6 +73,7 @@ def build(base):
     interactive = f"assets/interactive/{digest.hexdigest()[:16]}"
     site.copy_to_output(browser, interactive)
     site.set_global("lesson_script", f"{interactive}/site/interactive/lessons.js")
+    site.set_global("altair_script", f"{interactive}/site/interactive/altair-basic.js")
     site.write_output("assets/highlight.css", HtmlFormatter(style="friendly").get_style_defs(".code-block"))
     site.add_hash("assets/style.css")
     site.set_global("chapters", chapters)
@@ -84,12 +86,8 @@ def build(base):
         site.write_output(f"assets/diagrams/{filename}.svg", compile_diagram(source))
         return site.calc_url(f"assets/diagrams/{filename}.svg")
 
-    for index, chapter in enumerate(chapters):
-        slug = chapter["slug"]
-        source = CHAPTERS / f"{slug}.md"
+    def render_guide(source):
         title, _, body = source.read_text().partition("\n")
-        if title != f'# {chapter["title"]}':
-            raise ValueError(f"{source}: title differs from the coverage table")
         markdown = Markdown(extensions=[
             "tables", "fenced_code", "codehilite", "toc",
             ChapterRendering(source, base, diagram),
@@ -98,13 +96,24 @@ def build(base):
             "codehilite": {"css_class": "code-block", "guess_lang": False},
         })
         content = markdown.convert(body)
+        return {"title": title.removeprefix("# "), "content": Markup(content), "toc": markdown.toc_tokens,
+                "source_url": f"{REPOSITORY}/blob/main/{source.relative_to(ROOT)}"}
+
+    for index, chapter in enumerate(chapters):
+        slug = chapter["slug"]
+        source = CHAPTERS / f"{slug}.md"
+        guide = render_guide(source)
+        if guide["title"] != chapter["title"]:
+            raise ValueError(f"{source}: title differs from the coverage table")
         chapter["diagram"] = diagram(state_diagram(chapter["state"]), f"{slug}-state")
         site.render_template("chapter.html", f"{chapter['url']}index.html", {
-            **chapter, "content": Markup(content), "toc": markdown.toc_tokens,
-            "source_url": f"{REPOSITORY}/blob/main/{source.relative_to(ROOT)}",
+            **chapter, **guide,
             "previous": chapters[index - 1] if index else None,
             "next": chapters[index + 1] if index + 1 < len(chapters) else None,
         })
+    site.render_template("altair-basic.html", f"{MACHINES[ALTAIR]}index.html", {
+        **render_guide(ALTAIR), "media": media_record(ALTAIR.read_text()),
+    })
     for index, lesson in enumerate(lessons):
         site.render_template(f"{lesson['slug']}.html", f"{lesson['url']}index.html", {
             "title": lesson["title"],
@@ -117,7 +126,7 @@ def build(base):
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + lesson index + {len(lessons)} introductory lessons + {len(chapters)} CPU chapters in {site.output_dir} (base {base}).")
+    print(f"Built home + lesson index + {len(lessons)} introductory lessons + {len(chapters)} CPU chapters + Altair BASIC in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

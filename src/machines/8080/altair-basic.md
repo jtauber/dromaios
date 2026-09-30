@@ -8,8 +8,9 @@ the historical loaders execute on the CPU and place BASIC in RAM.
 The [BASIC manual][manual], Appendix A supplement, printed page 99, provides
 the 2SIO bootstrap for version 3.2. The archived [assembly listing][loader]
 and [Intel HEX image][loader-hex] independently identify its bytes. The selected
-software is [MITS 4K BASIC 3.2 paper tape][tape]. Browser controls and a terminal
-remain work toward the [complete machine target](../../../docs/machines/altair-basic.md).
+software is [MITS 4K BASIC 3.2 paper tape][tape]. The browser uses this generated
+machine for its terminal and execution controls; fuller panel integration remains
+work toward the [complete machine target](../../../docs/machines/altair-basic.md).
 
 ## Components and address space
 
@@ -113,9 +114,21 @@ BASIC or recreate the bootstrap: construct a fresh machine to repeat loading.
 
 ## Media and host delivery
 
-The selected tape is 4,352 bytes with SHA-256
-`fd01fd8b5c3dfbf67709809a1da6409ff1e0cb9c108fbe6a5129f8ad8e68d90f`.
-It is supplied separately; source generation neither downloads nor embeds it.
+The [selected tape][tape] is supplied separately; source generation neither downloads
+nor embeds it. This media record supplies the browser's local file checks:
+
+```json
+{
+  "bytes": 4352,
+  "sha256": "fd01fd8b5c3dfbf67709809a1da6409ff1e0cb9c108fbe6a5129f8ad8e68d90f"
+}
+```
+
+Selecting a file checks its complete size and digest before replacing the
+stopped machine. The file stays in the browser; it is not uploaded or included
+in the published site. A rejected selection preserves the previous machine
+and selected tape, stopped for inspection.
+
 The host retains each byte until `serial.offer(byte)` accepts it. Acceptance
 fills the receive register; only the CPU's IN consumes it. This backpressure
 models a paced reader without serial wire timing or receive overrun.
@@ -145,7 +158,7 @@ ALTAIR_BASIC_TAPE=/path/to/4k-basic-3-2.tap node --test dist/tests/machines/8080
 ```
 
 Set the same variable for `npm test` to include it in the full regression run.
-Without the variable, this one test is explicitly skipped; all synthetic device,
+Without the variable, the external-media tests are explicitly skipped; all synthetic device,
 bus, machine, and bootstrap checks still run. Nothing is downloaded by the test.
 The observed startup reports **727 BYTES FREE** when retaining SIN, SQR, and RND.
 The test checks the full displayed response, including carriage returns, and
@@ -186,7 +199,7 @@ not to the session. In `PRINT 40+9_2`, underscore erases the 9, producing 42.
 In `PRINT 99@PRINT 6*7`, at-sign cancels the first line; only the replacement
 expression executes, also producing 42. These input bytes and BASIC's echoes
 are preserved in the checked transcript. Modern keyboard-to-byte mapping is
-a later browser presentation concern.
+handled by the browser terminal as described below.
 
 An endless `10 GOTO 10` distinguishes two kinds of stopping. Host STOP leaves
 CPU, RAM, serial state, and queued transport unchanged; another batch does
@@ -204,8 +217,47 @@ tape, the checked reload reaches MEMORY SIZE? once more.
 This chapter defines a headless machine composition, not a complete Altair
 electrical model. It has no clock counts, DMA, wait states, second serial channel,
 baud-rate delay, interrupts from peripherals, or cycle-level panel signals.
-Only the declared polling serial profile is supported. Browser terminal
-presentation and panel integration remain subsequent work.
+Only the declared polling serial profile is supported. Full front-panel
+examination/deposit and cycle-level lights remain subsequent work.
+
+## Using the browser machine
+
+Download the [selected tape][tape], choose it in the file control, raise A11/A10
+with the loading-switch control, then select RUN. Click the keyboard field
+below the terminal. At MEMORY SIZE? press Enter; press Enter for the default
+terminal width, then type Y and Enter at WANT SIN?. BASIC should report
+727 BYTES FREE and OK. Type `PRINT 40+2` and Enter to see 42.
+
+The keyboard sends ASCII as typed, with no local echo or automatic capitalization;
+use uppercase BASIC commands. Enter sends carriage return. Backspace sends
+underscore, BASIC's erase character; @ cancels a line. Control-C or the Break
+button sends byte 03. Paste one line at a time, waiting for BASIC to finish
+between lines: its input checks can discard typeahead while storing a program.
+Multiline/non-ASCII pastes are rejected as a whole. Tab leaves the keyboard
+field normally, and copy shortcuts remain available on the output.
+
+The printing-terminal view masks bit 7, returns its cursor on CR, advances a
+line on LF, moves back on BS, and uses eight-column tab stops. It retains the
+latest 200 lines, wrapping at 132 columns. Other non-printing codes are ignored;
+there are no escape sequences, sound, or terminal identification. Characters
+are rendered as text. This is a small presentation model, not a particular
+historical terminal. It does not change the serial device's raw bytes.
+
+RUN executes batches of at most 2,000 instructions and yields between them.
+STOP cancels further batches. Hiding or leaving the page also stops execution;
+returning does not resume it automatically. There is no claim of hardware clock
+speed. The trace retains twelve records and inspection uses snapshots without
+consuming device input. The terminal and host input queue are bounded; a full
+keyboard queue rejects another offer rather than silently dropping characters.
+
+The [browser-session test](../../../tests/site/altair-basic.test.ts) checks this
+scheduler and printing terminal with the supplied tape, a BASIC loop, STOP,
+Control-C, and reload. The same `ALTAIR_BASIC_TAPE` setting enables it.
+
+Reset preserves loaded RAM and switches but ejects host input and resets the
+CPU and ACIA; it does not warm-start BASIC. Reload tape constructs a fresh
+machine with the original bootstrap and the last verified tape, clears the
+terminal, and lowers the switches. Raise A11/A10 again and RUN to repeat loading.
 
 [manual]: https://altairclone.com/downloads/manuals/BASIC%20Manual%2075.pdf
 [loader]: https://altairclone.com/downloads/basic/Paper%20Tape%20and%20Cassette/2SIO%20Loaders/Ldr4k32.asm

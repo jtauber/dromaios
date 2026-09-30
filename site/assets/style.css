@@ -13,7 +13,7 @@ html { scroll-padding-top: 2rem; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.65 system-ui, sans-serif; }
 a { color: inherit; text-underline-offset: .2em; }
 a:hover { color: var(--accent); }
-a:focus-visible, summary:focus-visible, pre:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
+a:focus-visible, summary:focus-visible, pre:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
 button, input { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: default; }
@@ -566,3 +566,32 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .terminal-screen pre::after { content: '▏'; opacity: .6; }
 .terminal-screen [data-terminal-empty] { position: absolute; left: 28px; top: 15px; font-size: 12px; color: #becabd; pointer-events: none; }
 @media (max-width: 520px) { .terminal-output { padding: 16px 10px; } }
+
+/* The full machine keeps terminal controls distinct from the instruction lessons. */
+.basic-machine { margin-block: 32px 48px; padding: 26px; border: 1px solid var(--line); background: #f1efe7; }
+.basic-machine h2 { font: 500 34px/1.2 var(--serif); margin-bottom: 16px; }
+.basic-machine .eyebrow { margin-bottom: 10px; }
+.basic-machine > p { font-size: 14px; }
+.basic-media { display: grid; gap: 16px; margin-block: 24px 12px; }
+.basic-media label, .basic-keyboard { display: grid; gap: 8px; font-size: 13px; }
+.basic-media input[type=file] { width: 100%; min-width: 0; font-size: 13px; }
+.basic-media .basic-switch { display: flex; align-items: center; gap: 10px; }
+.basic-switch input { width: 20px; height: 20px; accent-color: var(--ink); }
+.basic-machine progress { display: block; width: 100%; height: 8px; accent-color: var(--ink); }
+.basic-controls { display: flex; flex-wrap: wrap; gap: 9px; margin-block: 14px; }
+.basic-controls button { padding: 9px 13px; border: 1px solid #b8c5b9; background: var(--paper); color: var(--ink); font-size: 12px; }
+.basic-controls button:first-child { background: var(--ink); color: white; }
+.basic-controls button:disabled { opacity: .45; }
+.basic-machine .basic-readout { font: 11px/1.7 var(--mono); overflow-wrap: anywhere; margin-block: 10px 16px; }
+.serial-screen { height: 360px; overflow: auto; margin: 0 0 18px; padding: 20px; background: #20342d; color: #edf0cd; font: 13px/1.5 var(--mono); tab-size: 8; border: 1px solid #13271e; }
+.basic-keyboard textarea { width: 100%; resize: vertical; min-height: 44px; padding: 10px; border: 1px solid #b8c5b9; background: var(--paper); color: var(--ink); font: 14px var(--mono); }
+.basic-machine .basic-hint { font-size: 12px; color: var(--muted); line-height: 1.65; }
+.basic-message { min-height: 1.6em; color: var(--accent); }
+.basic-inspection { margin-block: 22px; }
+.basic-inspection summary { cursor: pointer; font-size: 13px; }
+.basic-inspection pre { overflow: auto; font: 12px/1.6 var(--mono); }
+@media (max-width: 700px) {
+  .basic-machine { padding: 18px 14px; }
+  .basic-machine h2 { font-size: 28px; }
+  .serial-screen { padding: 12px; font-size: 12px; height: 320px; }
+}

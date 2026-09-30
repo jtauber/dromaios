@@ -86,8 +86,9 @@ in the browser. The teaching path now reaches the
 [manual program entry and execution](docs/machines/altair-program.md), and continues
 through text, buffers, and subroutines to a small command prompt. The current
 priority is a [working Altair with BASIC](docs/machines/altair-basic.md), developed
-through literate, declarative descriptions. Its headless machine now loads the
-original tape and runs BASIC; browser integration remains ahead. The introductory
+through literate, declarative descriptions. Its generated machine now loads the
+original tape and runs BASIC headlessly and in the browser; fuller front-panel
+integration remains ahead. The introductory
 lessons use teaching devices.
 
 All eight documented instruction sets now use shared definitions that generate

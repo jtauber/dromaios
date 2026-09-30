@@ -11,7 +11,8 @@ checks. It generates the factory used by the tests. The headless machine now
 loads the original 4K BASIC 3.2 tape through both historical loaders, discovers
 its RAM limit, and runs a checked BASIC editing/program transcript. A shared
 [serial session](../runtime/serial-session.md) now supplies transport and execution
-controls; the browser machine remains to be completed.
+controls for both headless acceptance and the browser terminal. The site
+publishes the same executable chapter beside the working machine.
 
 ## Executable descriptions
 
@@ -24,19 +25,14 @@ The [machine](definitions.md#literate-machine-chapters) and
 
 Browser code owns keyboard events, tape selection and delivery, drawing, and
 execution scheduling. Host buffering remains distinct from a device's receive
-register. Publish the executable machine chapter as the machine guide rather
-than maintaining a separate description of the same configuration.
+register. The executable machine chapter is also the published machine guide.
 
 ## Work required
 
-1. **A usable browser machine.** Connect the tested serial session to tape selection, ordinary typing,
-   carriage return, terminal control behavior, and responsive continuous
-   execution. Batch instructions between display updates while retaining
-   bounded traces, STOP/resume, and side-effect-free inspection. Remove the
-   teaching lesson's restrictions to known program bytes and addresses.
-2. **Integration and presentation.** Connect panel examination/deposit and
-   reset/reload controls to this same generated machine, publish its chapter,
-   and repeat the acceptance transcript interactively.
+Connect panel examination/deposit and fuller sense-switch controls to this
+same generated machine. Preserve live RAM and CPU state across panel actions,
+without the teaching lessons' restrictions to known bytes or instruction starts.
+Review the complete loading/program workflow with the integrated panel.
 
 ## Completion criteria
 

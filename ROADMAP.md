@@ -201,8 +201,9 @@ and follow their effects during execution.
 [selected configuration and acceptance criteria](docs/machines/altair-basic.md).
 The initial target is 4K BASIC 3.2 with an 88-2SIO serial interface and paper-tape
 loading. The executable chapter and generated devices now boot that tape and
-run direct arithmetic headlessly. Browser integration and the broader BASIC
-transcript remain ahead; current lessons use simplified teaching devices.
+run the BASIC program/editing transcript, with a browser terminal and execution
+controls alongside the published guide. Fuller front-panel integration remains
+ahead; the introductory lessons use simplified teaching devices.
 
 - Author a literate machine chapter that explains and declares its components,
   memory and port maps, reset behavior, panel connections, and loading setup.

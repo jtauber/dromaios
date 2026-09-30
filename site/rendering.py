@@ -13,6 +13,7 @@ from pygments.formatters import HtmlFormatter
 from pygments.lexer import RegexLexer, words
 from pygments.lexers import XmlLexer
 from pygments.token import Comment, Keyword, Name, Number, Operator, Punctuation, String, Text
+from machines import MACHINES
 
 ROOT = Path(__file__).resolve().parent.parent
 CHAPTERS = ROOT / "src/components/cpus/specifications"
@@ -37,9 +38,22 @@ class CpuLexer(RegexLexer):
     ]}
 
 
-# CPU and Sauvignon fences in the chapters are top-level fenced blocks. Other
+class MachineLexer(RegexLexer):
+    name = "Dromaios machine"
+    query = (ROOT / "editors/zed/languages/machine/highlights.scm").read_text()
+    keywords = re.findall(r'"([\w-]+)"', query.split("] @keyword", 1)[0]) + ["ram"]
+    tokens = {"root": [
+        (r"//[^\n]*", Comment.Single),
+        (words(keywords, suffix=r"\b"), Keyword),
+        (r"\b[0-9][0-9a-fA-F]*\b", Number),
+        (r"\b[A-Z][A-Z\d_]*\b", Name.Constant),
+        (r"=", Operator), (r"[{}\[\]]", Punctuation), (r"\s+|.", Text),
+    ]}
+
+
+# CPU, machine, and Sauvignon fences in the chapters are top-level fenced blocks. Other
 # languages go through Python-Markdown's ordinary fenced-code extension.
-FENCE = re.compile(r"^```(cpu|sauvignon) *\n(.*?)^``` *$", re.M | re.S)
+FENCE = re.compile(r"^```(cpu|machine|sauvignon) *\n(.*?)^``` *$", re.M | re.S)
 
 
 class ChapterFences(Preprocessor):
@@ -50,9 +64,10 @@ class ChapterFences(Preprocessor):
     def run(self, lines):
         def render(match):
             language, source = match.groups()
-            if language == "cpu":
-                code = highlight(source, CpuLexer(stripnl=False, ensurenl=False), HtmlFormatter(nowrap=True))
-                block = f'<div class="code-block"><pre tabindex="0"><code class="language-cpu">{code}</code></pre></div>'
+            if language in ("cpu", "machine"):
+                lexer = CpuLexer if language == "cpu" else MachineLexer
+                code = highlight(source, lexer(stripnl=False, ensurenl=False), HtmlFormatter(nowrap=True))
+                block = f'<div class="code-block"><pre tabindex="0"><code class="language-{language}">{code}</code></pre></div>'
             else:
                 self.count += 1
                 url = self.diagram(source, f"{self.source.stem}-architecture-{self.count}")
@@ -78,7 +93,9 @@ def chapter_link(href, source, base):
     destination = (source.parent / unquote(url.path)).resolve()
     if not destination.is_relative_to(ROOT) or not destination.exists():
         raise ValueError(f"{source.name}: missing linked source {href}")
-    if destination.parent == CHAPTERS and destination.suffix == ".md":
+    if destination in MACHINES:
+        path = f"{base}{MACHINES[destination]}"
+    elif destination.parent == CHAPTERS and destination.suffix == ".md":
         path = f"{base}cpus/{destination.stem}/"
     else:
         kind = "tree" if destination.is_dir() else "blob"

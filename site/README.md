@@ -4,8 +4,8 @@
 the processor models and executable specifications; it is credited alongside
 the site’s other tools, Ryland and Sauvignon.
 
-Ryland builds the home page, the lesson index, the introductory lessons, and one
-guide per processor from its executable specification. Sauvignon renders both
+Ryland builds the home page, the lesson index, the introductory lessons, one
+guide per processor, and the Altair machine guide from executable specifications. Sauvignon renders both
 architecture diagrams and state maps
 derived from the CPU compiler. Pages use ordinary HTML, CSS, and SVG, with
 small TypeScript modules for the lesson interactions. Processor guides need no
@@ -23,6 +23,27 @@ The build uses this catalogue both to render the lesson pages and to populate
 [navigation include](templates/lesson-navigation.html). Add new lessons to the
 catalogue in their intended learning order; their templates include the shared
 navigation instead of naming their neighbors. The index works without JavaScript.
+
+## Altair BASIC
+
+`/machines/altair-8800/` pairs the executable
+[machine chapter](../src/machines/8080/altair-basic.md) with a working browser
+terminal. `machines.py` selects the chapter and validates its JSON media record;
+the build passes that size/digest into the file control. The site neither fetches
+nor distributes BASIC. The chapter owns loading instructions, terminal conventions,
+reset/reload behavior, and limitations.
+
+`interactive/altair-basic.ts` connects the generated factory and shared
+`SerialSession` to browser controls. `serial-execution.ts` schedules cancellable
+batches; `serial-terminal.ts` supplies bounded printing-terminal presentation.
+The earlier lessons retain their individual-instruction pacing. The machine's
+script loads only on its page; the guide remains readable without JavaScript.
+
+The emulator suite includes scheduler and terminal tests. Set `ALTAIR_BASIC_TAPE`
+to include the real-tape browser-session test as well as the headless acceptance
+test. Browser checks cover initialization, typing and pasting one line, editing,
+LIST/RUN/INPUT, STOP/resume, Control-C, invalid files, reset/reload, keyboard
+navigation, and wide/narrow layouts.
 
 ## Build and preview
 
