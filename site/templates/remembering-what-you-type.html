@@ -44,7 +44,16 @@
     <section aria-labelledby="read-what-was-stored">
       <h2 id="read-what-was-stored">The output comes from memory.</h2>
       <p>Once a character has been stored, later typing does not change it. The readback loop obtains its bytes from RAM, not from the input field or a hidden copy of your text.</p>
-      <details><summary>Change stored H to J before playback</summary><p>Collect HI and send LF. Step until PC is 001F, just before the first readback MOV. STOP if running. EXAMINE 0100, set the switches to 004A, and DEPOSIT. Then EXAMINE 001F to restore PC and continue. The display prints JI. Editing RAM after that MOV would leave the first character already captured in A unchanged.</p></details>
+      <details><summary>Change stored H to J before playback</summary>
+        <ol>
+          <li>Start this lesson again, RUN, and send H and I one at a time, waiting for room in the input device.</li>
+          <li>Wait until I has been received and the device is empty. Press <strong>STOP before sending line feed</strong>, so the program cannot begin playback while you prepare the experiment.</li>
+          <li>Send line feed while stopped. Use <strong>Step one instruction</strong> until PC is <code>001F</code>, just before the first readback MOV.</li>
+          <li>EXAMINE <code>0100</code>, set the switches to <code>004A</code>, and DEPOSIT. RAM now holds J where it held H.</li>
+          <li>EXAMINE <code>001F</code> to restore PC, then RUN. The display prints JI.</li>
+        </ol>
+        <p>Editing RAM after that MOV would leave the first character already captured in A unchanged.</p>
+      </details>
       <p>The switches remain available for experiments, but manually jumping into the middle of collection can bypass the setup and capacity check. Start again to return to the program’s normal path.</p>
       <p>The character field offers printable ASCII, including spaces. LF is sent separately. The raw byte device can accept other values; a stored NUL would end readback early because this format uses zero as its terminator.</p>
     </section>

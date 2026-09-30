@@ -23,7 +23,7 @@
     <section aria-labelledby="an-instruction-for-pc">
       <h2 id="an-instruction-for-pc">An instruction for PC.</h2>
       <p>Until now, each instruction left PC pointing just beyond its own bytes. The jump instead puts its destination address into PC. That is where the processor fetches the next instruction.</p>
-      <p>The jump itself occupies three bytes at <code>0103</code>, <code>0104</code>, and <code>0105</code>. The byte after it is at <code>0106</code>. But with destination <code>0108</code>, that is where PC ends up.</p>
+      <p>The jump itself occupies three bytes at <code>0103</code>, <code>0104</code>, and <code>0105</code>. The next byte in memory is at <code>0106</code>, but this jump sets PC to <code>0108</code>, the destination stored in its operands.</p>
       <p><code>JMP</code> changes PC without changing A, the flags, or memory. Its destination is an address, not a number to add to A and not a byte to copy into A.</p>
       <details><summary>How is the destination stored?</summary><p><code>C3</code> is the jump’s opcode. The following two bytes hold its destination, low byte first: <code>08 01</code> means address <code>0108</code>. Thus the whole instruction is <code>C3 08 01</code>. The <code>H</code> in <code>JMP 0108H</code> marks a hexadecimal address.</p></details>
     </section>
