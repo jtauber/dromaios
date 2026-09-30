@@ -266,12 +266,12 @@ remains open.
 
 ## Steps toward the site
 
-These steps describe delivery of the website. They can overlap as useful
-experiences emerge. In particular, the pedagogical plan prioritizes
-[one calculation connected to a real CPU instruction](pedagogy.md#pedagogical-roadmap)
-as the first major learning delivery. The counted loop below is a concrete
-workspace design exercise and a candidate for the first complete program
-workspace; it does not replace that teaching priority.
+These steps describe the broader website design. The current delivery priority
+is a [working Altair with BASIC](machines/altair-basic.md), following the
+completed introductory lesson path. Use that machine and its executable
+description to develop the next browser workspace. The arithmetic and
+cross-processor sketches below remain future design exercises; the 6502
+comparison waits until the later move toward the Apple II.
 
 ### 1. Establish the page designs
 

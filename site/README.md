@@ -301,7 +301,7 @@ switch markup serves input and the memory panel. The linked lesson specifies
 arrival between instructions, reset, and the distinction from CPU polling.
 
 [Waiting for a byte](../docs/machines/altair-polling.md) selects `polling` with
-`8080/altair-polling-lesson.machine`. The program reads the same input device's
+`8080/altair-polling-lesson.md`. The program reads the same input device's
 status at port 0, compares it with zero, and branches before receiving and
 echoing data. This mode has neither the empty-input guard nor an end boundary;
 it reuses the same pacing, input, output, and history views. The live readiness

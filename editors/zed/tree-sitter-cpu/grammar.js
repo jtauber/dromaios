@@ -11,13 +11,20 @@ module.exports = grammar({
 
   rules: {
     source_file: $ => repeat(choice(
-      $.cpu_declaration, $.state_declaration, $._state_field,
+      $.cpu_declaration, $.device_declaration, $.device_interface, $.state_declaration, $._state_field,
       $.source_declaration, $.action_declaration, $.policy_declaration,
       $.operands_declaration, $.codes_declaration, $.conditions_declaration,
       $.family_declaration, $.page_declaration, $.execution_declaration, $.reset_declaration, $.interface_declaration,
     )),
 
     cpu_declaration: $ => seq('cpu', field('model', $.string), optional(seq('boundary', choice('segmented', 'word')))),
+    device_declaration: $ => seq('device', $.string),
+    device_interface: $ => seq('interface', field('name', $.identifier), '{', repeat(choice(
+      seq('size', $.number),
+      seq(choice('initialize', 'reset', 'validate', 'offer'), $.identifier),
+      seq('read', $.number, $.identifier),
+      seq('write', $.number, $.identifier, optional('notify')),
+    )), '}'),
     state_declaration: $ => seq('state', '{', repeat(choice($._state_field, $.bank_declaration, $.group_declaration)), '}'),
     group_declaration: $ => seq('group', $._state_name, optional($.field_mapping), '{', repeat($._state_field), '}'),
     bank_declaration: $ => seq('bank', $._state_name, optional($.field_mapping), '{', repeat(choice($.register_declaration, $.flag_declaration)), '}'),

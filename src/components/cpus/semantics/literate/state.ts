@@ -81,7 +81,7 @@ export function chapterState(declarations: readonly { symbol: StateSymbol | { re
 }
 
 /** Emit a small schema module that does not import the chapter's expanded instruction data. */
-export function generateChapterState(state: StateFields): string {
+export function generateChapterState(state: StateFields, module = "../../../state.ts"): string {
   const helpers = new Set(["defineState"]);
   const call = (name: string, ...args: string[]) => { helpers.add(name); return `${name}(${args.join(", ")})`; };
   function field(value: StateField): string {
@@ -98,9 +98,9 @@ export function generateChapterState(state: StateFields): string {
     return `{ ${Object.entries(state).map(([name, value]) => `${JSON.stringify(name)}: ${field(value)}`).join(", ")} }`;
   }
   const body = Object.entries(state).map(([name, value]) => `  ${JSON.stringify(name)}: ${field(value)},`).join("\n");
-  return `// Generated from a literate CPU chapter. Do not edit.
-import { ${[...helpers].join(", ")} } from "../../../state.ts";
-import type { StateValues } from "../../../state.ts";
+  return `// Generated from a literate chapter. Do not edit.
+import { ${[...helpers].join(", ")} } from "${module}";
+import type { StateValues } from "${module}";
 
 export const state = defineState({
 ${body}

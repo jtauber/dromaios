@@ -12,6 +12,7 @@ test("6809 chapter state, view, and stack edits reach public instructions, index
   mkdirSync(join(directory, "scripts"));
   for (const name of ["compile-cpu-chapters", "generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
+  cpSync("src/literate.ts", join(directory, "src/literate.ts"));
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const chapter = join(directory, "src/components/cpus/specifications/6809.md");
   writeFileSync(chapter, readFileSync(chapter, "utf8").replace("register PC: 16", "register PC: 16\n  register SCRATCH: 8")
@@ -86,6 +87,7 @@ test("6800 chapter state and condition-code edits reach the public core, machine
   mkdirSync(join(directory, "scripts"));
   for (const name of ["compile-cpu-chapters", "generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
+  cpSync("src/literate.ts", join(directory, "src/literate.ts"));
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const chapter = join(directory, "src/components/cpus/specifications/6800.md");
   writeFileSync(chapter, readFileSync(chapter, "utf8").replace("register SP: 16", "register SP: 16\n  register SCRATCH: 8")
@@ -132,6 +134,7 @@ test("the 6502 chapter's state edits reach construction, snapshots, and machine 
   mkdirSync(join(directory, "scripts"));
   for (const name of ["compile-cpu-chapters", "generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
+  cpSync("src/literate.ts", join(directory, "src/literate.ts"));
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const chapter = join(directory, "src/components/cpus/specifications/6502.md");
   writeFileSync(chapter, readFileSync(chapter, "utf8").replace("register SP: 8", "register SP: 8\n  register SCRATCH: 8"));
@@ -169,6 +172,7 @@ test("the 6502 chapter's status view and mask policy drive both software and ext
     cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   }
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
+  cpSync("src/literate.ts", join(directory, "src/literate.ts"));
   const chapter = join(directory, "src/components/cpus/specifications/6502.md");
   const original = readFileSync(chapter, "utf8");
   assert.ok(original.includes("pack<8>(n, v, 1, 0, d, i, z, c)")); assert.ok(original.includes("I = value"));
@@ -202,6 +206,7 @@ test("chapter edits drive machine schemas, RAM bounds, entry points, and automat
     cpSync(`scripts/${script}.ts`, join(directory, `scripts/${script}.ts`));
   }
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
+  cpSync("src/literate.ts", join(directory, "src/literate.ts"));
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const url = (path: string) => JSON.stringify(pathToFileURL(join(directory, path)).href);
   const run = (source: string) => {

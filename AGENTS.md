@@ -54,10 +54,13 @@ these definitions. Chapter contracts select shared decoding and execution
 runtimes. Complete chapters also
 generate public CPU modules; edit their `interface` declarations instead of
 adding handwritten wrappers. For generated machine
-factories, edit the `.machine` sources under
+factories, edit the `.machine` sources or executable `.md` chapters under
 `src/machines/`, following the [machine definition guide](docs/machines/definitions.md).
+Device chapters under `src/components/devices/specifications/` follow the
+[literate device guide](docs/devices/literate-specifications.md).
 Do not hand-edit or commit `src/components/cpus/generated/`,
-`src/components/cpus/semantics/generated/`, `src/machines/generated/`, or `dist/`;
+`src/components/cpus/semantics/generated/`, `src/components/devices/generated/`,
+`src/machines/generated/`, or `dist/`;
 the build regenerates them.
 
 The tracked [expanded instruction listing](docs/cpus/semantic-examples.md) is

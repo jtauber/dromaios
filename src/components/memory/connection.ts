@@ -6,3 +6,9 @@ export interface MemoryConnection {
   /** Return nothing on success. A failed transfer must not write the byte. */
   write(address: number, value: number): void | "bus-error";
 }
+
+/** A byte bus without a guest-visible transfer-failure signal. Host errors may still throw. */
+export interface ByteMemoryConnection extends MemoryConnection {
+  read(address: number): number;
+  write(address: number, value: number): void;
+}

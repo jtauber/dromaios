@@ -12,6 +12,7 @@ test("8088 chapter edits reach public state, views, migrated and native bodies, 
   mkdirSync(join(directory, "scripts"));
   for (const name of ["compile-cpu-chapters", "generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
+  cpSync("src/literate.ts", join(directory, "src/literate.ts"));
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const file = join(directory, "src/components/cpus/specifications/8088.md");
   // Deliberately incorrect hardware rules prove that no native copy remains authoritative.
@@ -180,6 +181,7 @@ test("8088 lifecycle chapter edits reach public reset, fetching, prefixes, retir
   mkdirSync(join(directory, "scripts"));
   for (const name of ["compile-cpu-chapters", "generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
+  cpSync("src/literate.ts", join(directory, "src/literate.ts"));
   const file = join(directory, "src/components/cpus/specifications/8088.md");
   writeFileSync(file, readFileSync(file, "utf8")
     .replace('CS <- u16($FFFF)', 'CS <- u16($4444)').replace('memory 20', 'memory 21')

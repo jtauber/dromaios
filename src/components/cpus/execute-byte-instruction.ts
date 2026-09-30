@@ -1,4 +1,4 @@
-import type { Ram } from "../memory/ram.js";
+import type { ByteMemoryConnection } from "../memory/connection.js";
 import type { FetchedInstruction } from "./execution-records.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
@@ -27,7 +27,7 @@ export function programCounter(read: () => number, write: (value: number) => voi
  * Callers own snapshots and HALT.
  */
 export function executeByteInstruction(
-  state: { pc: number }, ram: Ram,
+  state: { pc: number }, ram: ByteMemoryConnection,
   handlers: Readonly<Partial<Record<number, OpcodeHandler>>> | ((opcode: number) => OpcodeHandler | undefined),
   readWord: (nextByte: () => number) => number,
   mapFetchAddress: (pc: number) => number = pc => pc,

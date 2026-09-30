@@ -1,6 +1,6 @@
 name = "Dromaios CPU"
 grammar = "dromaios_cpu"
-path_suffixes = ["cpu"]
+path_suffixes = ["cpu", "device"]
 code_fence_block_name = "cpu"
 line_comments = ["// "]
 tab_size = 2

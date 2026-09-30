@@ -1,8 +1,10 @@
 import type { MachineSyntax, Token } from "./syntax.ts";
+import { deviceModels, isDeviceKind } from "../../components/devices/models.ts";
+import type { DeviceKind } from "../../components/devices/models.ts";
 
 export type ComponentDefinition = { readonly name: string } & (
   | { readonly kind: "ram" | "rom"; readonly size: number }
-  | { readonly kind: "byte-input" | "byte-output" }
+  | { readonly kind: DeviceKind }
 );
 export interface ImageDefinition {
   readonly component: string;
@@ -22,9 +24,11 @@ export interface ComponentsDefinition {
 export interface CompositionDefinition extends ComponentsDefinition {
   readonly connection: { readonly kind: "direct"; readonly component: string } | {
     readonly kind: "mapped"; readonly size: number;
+    readonly unmapped?: number;
     readonly regions: readonly { readonly start: number; readonly component: string }[];
   };
   readonly ports?: readonly PortBinding[];
+  readonly unmappedPorts?: number;
   readonly reset?: readonly string[];
   readonly resetDevices?: readonly string[];
 }
@@ -41,6 +45,8 @@ export function compositionSyntax(syntax: MachineSyntax) {
   const resets = new Map<string, Token[]>();
   let direct: Token | undefined;
   let mapSize: number | undefined;
+  let unmapped: number | undefined;
+  let unmappedPorts: number | undefined;
 
   function name(): Token {
     const token = take();
@@ -61,7 +67,7 @@ export function compositionSyntax(syntax: MachineSyntax) {
     return value;
   }
   function size(value: ComponentDefinition): number {
-    return "size" in value ? value.size : value.kind === "byte-input" ? 2 : 1;
+    return "size" in value ? value.size : deviceModels[value.kind].size;
   }
 
   function finishComponents(): ComponentsDefinition {
@@ -101,9 +107,9 @@ export function compositionSyntax(syntax: MachineSyntax) {
               const length = readNumber(amount, "Component size", 0x1000000);
               if (!length) fail(amount, "Component size must be positive");
               components.set(token.text, { name: token.text, kind: kind.text, size: length });
-            } else if (kind.text === "byte-input" || kind.text === "byte-output") {
+            } else if (isDeviceKind(kind.text)) {
               components.set(token.text, { name: token.text, kind: kind.text });
-            } else fail(kind, "Expected component kind ram, rom, byte-input, or byte-output");
+            } else fail(kind, `Expected component kind ram, rom, or ${Object.keys(deviceModels).join(", ")}`);
           });
           break;
         case "memory":
@@ -113,6 +119,13 @@ export function compositionSyntax(syntax: MachineSyntax) {
         case "map":
           mapSize = readNumber(take(), "Address-space size", 0x1000000);
           block("map", () => {
+            if (current().text === "unmapped") {
+              const token = take();
+              if (unmapped !== undefined) fail(token, "Duplicate unmapped bus value");
+              expect("=");
+              unmapped = readNumber(take(), "Unmapped bus value", 0xff);
+              return;
+            }
             const start = readNumber(take(), "Region start", 0xffffff);
             expect("=");
             const token = name();
@@ -135,6 +148,12 @@ export function compositionSyntax(syntax: MachineSyntax) {
         case "ports":
           block("ports", () => {
             const direction = take();
+            if (direction.text === "unmapped") {
+              if (unmappedPorts !== undefined) fail(direction, "Duplicate unmapped port value");
+              expect("=");
+              unmappedPorts = readNumber(take(), "Unmapped port value", 0xff);
+              return;
+            }
             if (direction.text !== "in" && direction.text !== "out") return fail(direction, 'Expected port direction "in" or "out"');
             const portToken = take();
             const port = readNumber(portToken, "Port", 0xff);
@@ -178,7 +197,9 @@ export function compositionSyntax(syntax: MachineSyntax) {
         }
         connection = { kind: "direct", component: direct.text };
       } else if (mapSize !== undefined) {
-        if (cpu !== "68000") fail(declarations.get("map")!, "Mapped memory currently requires CPU 68000");
+        if (cpu !== "68000" && cpu !== "8080") fail(declarations.get("map")!, "Mapped memory currently requires CPU 8080 or 68000");
+        if (cpu === "8080" && unmapped === undefined) fail(declarations.get("map")!, "An 8080 map requires an explicit unmapped bus value");
+        if (cpu === "68000" && unmapped !== undefined) fail(declarations.get("map")!, "68000 maps report bus errors; unmapped bus values currently require CPU 8080");
         if (mapSize !== requiredSize) fail(declarations.get("map")!, `Address-space size for ${cpu} must be ${requiredSize.toString(16).toUpperCase()}`);
         const sorted = regions.map(region => ({ ...region, end: region.start + size(component(region.token)) }))
           .sort((left, right) => left.start - right.start);
@@ -186,27 +207,33 @@ export function compositionSyntax(syntax: MachineSyntax) {
           if (region.end > mapSize) fail(region.token, "Mapped component extends beyond the address space");
           if (index && region.start < sorted[index - 1]!.end) fail(region.token, "Memory regions overlap");
         }
-        connection = { kind: "mapped", size: mapSize, regions: regions.map(({ start, component }) => ({ start, component })) };
+        connection = { kind: "mapped", size: mapSize, ...(unmapped === undefined ? {} : { unmapped }),
+          regions: regions.map(({ start, component }) => ({ start, component })) };
       } else return fail(current(), "Missing CPU memory connection: memory = component or map");
 
       if (declarations.has("ports") && cpu !== "8080") fail(declarations.get("ports")!, "Port bindings currently require CPU 8080");
       for (const binding of ports) {
         const target = component(binding.token);
-        const kind = binding.direction === "in" ? "byte-input" : "byte-output";
-        if (target.kind !== kind) fail(binding.token, `${binding.direction} ports require a ${kind} component`);
+        const kind = target.kind;
+        if (!isDeviceKind(kind)) return fail(binding.token, "Ports require a device component");
+        const device = deviceModels[kind];
+        const addresses: readonly number[] = binding.direction === "in" ? device.reads : device.writes;
+        if (!addresses.length) fail(binding.token, `${binding.direction} ports require a ${binding.direction === "in" ? "readable" : "writable"} device`);
         if (binding.address >= size(target)) fail(binding.addressToken, `Device address exceeds component ${binding.component}`);
+        if (!addresses.includes(binding.address)) fail(binding.addressToken, `Device register does not support ${binding.direction}`);
       }
       if (resets.has("reset-devices") && cpu !== "68000") fail(declarations.get("reset-devices")!, "reset-devices currently requires CPU 68000");
       for (const [kind, targets] of resets) {
         if (kind === "reset" && targets[0]?.text !== "cpu") fail(declarations.get(kind)!, "Machine reset must begin with cpu");
         for (const target of kind === "reset" ? targets.slice(1) : targets) {
           const value = component(target);
-          if (value.kind !== "byte-input" && value.kind !== "byte-output") fail(target, "Only devices can follow cpu in a reset list or appear in reset-devices");
+          if (!isDeviceKind(value.kind)) fail(target, "Only devices can follow cpu in a reset list or appear in reset-devices");
         }
       }
       return {
         ...definition, connection,
         ...(declarations.has("ports") ? { ports: ports.map(({ direction, port, component, address }) => ({ direction, port, component, address })) } : {}),
+        ...(unmappedPorts === undefined ? {} : { unmappedPorts }),
         ...(resets.has("reset") ? { reset: resets.get("reset")!.map(token => token.text) } : {}),
         ...(resets.has("reset-devices") ? { resetDevices: resets.get("reset-devices")!.map(token => token.text) } : {}),
       };

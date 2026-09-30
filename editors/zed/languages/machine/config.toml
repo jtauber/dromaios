@@ -1,6 +1,7 @@
 name = "Dromaios Machine"
 grammar = "dromaios_machine"
 path_suffixes = ["machine"]
+code_fence_block_name = "machine"
 line_comments = ["// "]
 tab_size = 4
 autoclose_before = "}]"

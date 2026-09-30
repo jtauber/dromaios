@@ -1,4 +1,4 @@
-import type { Ram } from "../memory/ram.js";
+import type { ByteMemoryConnection } from "../memory/connection.js";
 import { readWordBE, readWordLE } from "./binary.ts";
 import { executionBoundary } from "./execution-boundary.ts";
 import type { ByteStep } from "./byte-execution.ts";
@@ -29,7 +29,7 @@ export interface DecodedExecutionPolicy {
 }
 
 /** Full-encoding validation, live-counter operand reads, and retirement only after a completed body. */
-export function decodedExecution<Snapshot>(cpu: string, ram: Ram, ports: BytePorts | undefined,
+export function decodedExecution<Snapshot>(cpu: string, ram: ByteMemoryConnection, ports: BytePorts | undefined,
   snapshot: () => Snapshot, policy: DecodedExecutionPolicy) {
   const atBoundary = executionBoundary(`${cpu} step, reset, and interrupt calls must not be reentrant.`);
   const addressMask = 2 ** policy.memoryBits - 1;

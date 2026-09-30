@@ -1,4 +1,4 @@
-import type { Ram } from "../memory/ram.js";
+import type { ByteMemoryConnection } from "../memory/connection.js";
 import { readWordBE, readWordLE } from "./binary.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { executionBoundary } from "./execution-boundary.ts";
@@ -47,20 +47,20 @@ interface InterruptRecognition {
 }
 
 /** Validate the chapter's flat byte-memory contract before inspecting caller-supplied state. */
-export function checkByteMemory(cpu: string, ram: Ram, bits: number): void {
+export function checkByteMemory(cpu: string, ram: ByteMemoryConnection, bits: number): void {
   const size = 2 ** bits;
   if (ram.size !== size) {
     const amount = size >= 1048576 ? `${size / 1048576} MiB` : size >= 1024 ? `${size / 1024} KiB` : `${size} bytes`;
-    throw new RangeError(`The ${cpu} model requires exactly ${amount} of RAM.`);
+    throw new RangeError(`The ${cpu} model requires exactly ${amount} of address space.`);
   }
 }
 
 /** One-byte dispatch, successful-read PC advances, and retained effects on thrown failures. */
-export function byteExecution<Snapshot>(cpu: string, ram: Ram, ports: BytePorts | undefined,
+export function byteExecution<Snapshot>(cpu: string, ram: ByteMemoryConnection, ports: BytePorts | undefined,
   snapshot: () => Snapshot, policy: ByteExecutionPolicy & InterruptRecognition): ByteExecution<Snapshot, SuppliedStep<Snapshot> | IgnoredSuppliedStep<Snapshot>>;
-export function byteExecution<Snapshot>(cpu: string, ram: Ram, ports: BytePorts | undefined,
+export function byteExecution<Snapshot>(cpu: string, ram: ByteMemoryConnection, ports: BytePorts | undefined,
   snapshot: () => Snapshot, policy: ByteExecutionPolicy): ByteExecution<Snapshot>;
-export function byteExecution<Snapshot>(cpu: string, ram: Ram, ports: BytePorts | undefined,
+export function byteExecution<Snapshot>(cpu: string, ram: ByteMemoryConnection, ports: BytePorts | undefined,
   snapshot: () => Snapshot, policy: ByteExecutionPolicy & Partial<InterruptRecognition>): ByteExecution<Snapshot, SuppliedStep<Snapshot> | IgnoredSuppliedStep<Snapshot>> {
   const atBoundary = executionBoundary(`${cpu} step, reset, and interrupt calls must not be reentrant.`);
   const readWord = policy.word === "little" ? readWordLE : readWordBE;

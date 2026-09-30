@@ -89,7 +89,7 @@ import { sourceReaders } from "./${module}-state.ts";
 import { checkMemory, createExecution${segmented ? ", recordDevices" : ""} } from "./${module}-execution.ts";
 import { ${schema} } from "../semantics/generated/state/${module}.ts";
 import type { ${name}State, ${name}StoredState } from "../semantics/generated/state/${module}.ts";
-import type { Ram } from "../../memory/ram.ts";
+import type { ByteMemoryConnection } from "../../memory/connection.ts";
 import type { FetchedInstruction, StateTransition${segmented ? "" : `, InstructionStep${stoppedStep ? `, ${stoppedStep}` : ""}`} } from "../execution-records.ts";
 ${vectors ? "" : `import type { ${segmented ? "" : "InterruptInstruction, "}InterruptAcknowledge } from "../interrupt-instruction.ts";`}
 import type { MemoryAccess } from "../memory-access.ts";
@@ -121,7 +121,7 @@ export class ${name} {
   readonly #state: ${name}StoredState;
   readonly #execution: ReturnType<typeof createExecution<${name}Snapshot>>;
 
-  constructor(ram: Ram, initialState: ${initialState}${segmented ? `, connections?: ${name}Connections` : vectors ? "" : ", ports?: BytePorts"}${notification ? ", onReti?: () => void" : ""}) {
+  constructor(ram: ByteMemoryConnection, initialState: ${initialState}${segmented ? `, connections?: ${name}Connections` : vectors ? "" : ", ports?: BytePorts"}${notification ? ", onReti?: () => void" : ""}) {
     checkMemory(ram);
     this.#state = readState(${schema}, initialState);
     this.#execution = createExecution(this.#state, ram, () => this.snapshot()${segmented ? ", () => connections?.ports, record => recordDevices(connections, record)" : vectors ? "" : ", ports"}${notification ? ", onReti" : ""});

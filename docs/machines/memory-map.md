@@ -78,13 +78,32 @@ before completing any transfer or device side effect.
 
 The 68000 accepts this connection directly and records successful accesses at
 physical map addresses. Its [bus-error contract](../../src/components/cpus/specifications/68000.md#bus-errors)
-defines failed-byte metadata and exception delivery. Other CPU constructors
-still accept `Ram`; this change does not generalize their memory APIs or invent
-fault delivery for them.
+defines failed-byte metadata and exception delivery.
 
 Reads through a map are execution accesses. They are not a side-effect-free
 inspection API for devices; use their snapshots. There is no bank switching, mirroring
 syntax, device scheduler, or cycle timing in this component.
+
+## Byte buses
+
+The other seven CPU constructors accept `ByteMemoryConnection`: the same
+`size`, `read(address)`, and `write(address, byte)` API, but reads return a byte
+and writes return nothing. RAM already satisfies it. Its size is the CPU's
+address space, not necessarily the amount of writable storage. These CPU
+connections have no `bus-error` result; thrown host errors still propagate.
+
+[`ByteMemoryBus(connection, undriven)`](../../src/components/memory/byte-memory-bus.ts)
+adapts a map or other `MemoryConnection` to that contract. It delegates each
+transfer once. An unanswered read (`bus-error`) becomes the declared fixed byte;
+an unanswered write is discarded. This includes holes, ROM write refusals,
+and unimplemented mapped-device registers. It does not catch exceptions or
+change the wrapped connection's host-argument validation.
+
+The [Altair chapter](../../src/machines/8080/altair-basic.md) uses FF for unused
+addresses around 4 KiB of RAM. The machine language requires an explicit
+`unmapped = byte` declaration inside an 8080 map; 68000 maps retain their fault
+policy. The adapter models a chosen constant undriven value, not a bus latch,
+electrical pull-up strength, or cycle timing.
 
 ## Checks
 

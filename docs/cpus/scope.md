@@ -19,6 +19,9 @@ will be organized for learning, exploration, and reference as support develops.
   **Altair 8800** as the first historical machine. The
   [pedagogical roadmap](../pedagogy.md#pedagogical-roadmap) describes the teaching
   progression; this choice is independent of implementation order.
+- Prioritize a [working Altair with BASIC](../machines/altair-basic.md) before
+  the 8080/6502 teaching comparison. Introduce that comparison when approaching
+  the Apple II; the order of other historical machines remains open.
 - Apply a **rule of three**: use evidence from three distinct architectures to
   judge generalizations, including examples that expose their differences.
 - Keep changes small and reviewable. The initial examples used minimal

@@ -13,14 +13,14 @@ import { decodedExecution } from "../decoded-execution.ts";
 ${policy.interrupt === "entries" ? 'import { interruptEntries } from "../interrupt-entries.ts";\n' : ""}
 import { checkByteMemory } from "../byte-execution.ts";
 import { programCounter } from "../execute-byte-instruction.ts";
-import type { Ram } from "../../memory/ram.ts";
+import type { ByteMemoryConnection } from "../../memory/connection.ts";
 import type { BytePorts } from "../port-access.ts";
 import { opcodeDecoder } from "./${module}.ts";
 import { instructions as actions, sourceReaders } from "./${module}-state.ts";
 
-export const checkMemory = (ram: Ram): void => checkByteMemory(${quoted(cpu.toUpperCase())}, ram, ${policy.memoryBits});
+export const checkMemory = (ram: ByteMemoryConnection): void => checkByteMemory(${quoted(cpu.toUpperCase())}, ram, ${policy.memoryBits});
 
-export function createExecution<Snapshot>(state: Parameters<typeof opcodeDecoder>[0], ram: Ram,
+export function createExecution<Snapshot>(state: Parameters<typeof opcodeDecoder>[0], ram: ByteMemoryConnection,
   snapshot: () => Snapshot, ports?: BytePorts${policy.notifyReti ? ", onReti?: () => void" : ""}) {
   const views = sourceReaders(state).views;
   const boundary = decodedExecution(${quoted(cpu.toUpperCase())}, ram, ports, snapshot, {

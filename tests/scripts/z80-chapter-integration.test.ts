@@ -13,6 +13,7 @@ function editedChapter(t: TestContext, edit: (chapter: string) => string) {
   mkdirSync(join(directory, "scripts"));
   for (const name of ["compile-cpu-chapters", "generate-cpu-chapters", "generate-cpu-semantics"]) cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
+  cpSync("src/literate.ts", join(directory, "src/literate.ts"));
   cpSync("src/machines", join(directory, "src/machines"), { recursive: true });
   const file = join(directory, "src/components/cpus/specifications/z80.md");
   writeFileSync(file, edit(readFileSync(file, "utf8")));

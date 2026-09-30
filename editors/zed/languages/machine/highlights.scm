@@ -1,6 +1,6 @@
 [
   "cpu" "memory" "end" "components" "map" "image"
-  "ports" "in" "out" "reset" "reset-devices"
+  "ports" "in" "out" "reset" "reset-devices" "unmapped"
 ] @keyword
 (ram_declaration "ram" @keyword)
 

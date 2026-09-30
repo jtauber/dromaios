@@ -13,6 +13,7 @@ test("listing checks are read-only and regeneration writes only the listing, wit
     cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   }
   cpSync("src/components", join(directory, "src/components"), { recursive: true, filter: source => basename(source) !== "generated" });
+  cpSync("src/literate.ts", join(directory, "src/literate.ts"));
   const target = join(directory, "docs/cpus/semantic-examples.md"), expected = readFileSync("docs/cpus/semantic-examples.md", "utf8");
   mkdirSync(join(directory, "docs/cpus"), { recursive: true });
   writeFileSync(target, expected);

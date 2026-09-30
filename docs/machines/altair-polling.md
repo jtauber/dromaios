@@ -5,7 +5,7 @@ readiness itself, echoes each arriving byte, and returns to check again.
 Waiting means executing a polling loop; it is not a stopped or halted CPU.
 
 [Lesson](../../site/templates/altair-polling.html) ·
-[Machine](../../src/machines/8080/altair-polling-lesson.machine) ·
+[Executable machine chapter](../../src/machines/8080/altair-polling-lesson.md) ·
 [Session](../../site/interactive/altair-program.ts) ·
 [Machine tests](../../tests/machines/8080/altair-polling-lesson.test.ts) ·
 [Session tests](../../tests/site/altair-program.test.ts) ·
@@ -13,32 +13,10 @@ Waiting means executing a polling loop; it is not a stopped or halted CPU.
 
 ## Machine and program
 
-The `.machine` source connects an 8080 and 64 KiB of RAM to the existing
-[byte-input](../devices/byte-input.md) and
-[byte-output](../devices/byte-output.md) teaching devices. Input port 0 reads
-readiness (0 empty, 1 pending); input port 1 consumes data. Output port 1 writes
-the separate lamp device. All other ports are unconnected. RAM address 1 is
-independent of both devices.
-
-PC starts at 0100; all other stored CPU state starts zero/clear. Both devices
-are empty. RAM is zero outside these fourteen bytes. There is no `end` boundary
-or halt instruction. Machine reset resets the CPU and devices, preserving RAM;
-lesson restart constructs a fresh machine.
-
-| PC (hex) | Bytes (hex) | Instruction | Effect |
-| --- | --- | --- | --- |
-| 0100 | DB 00 | IN 00H | Read readiness into A without consuming data or changing flags. |
-| 0102 | FE 00 | CPI 0 | Compare A with zero, changing flags and preserving A. |
-| 0104 | CA 00 01 | JZ 0100H | If Z = 1, return to the readiness check; otherwise continue at 0107. |
-| 0107 | DB 01 | IN 01H | Consume the pending byte into A, preserving flags. |
-| 0109 | D3 01 | OUT 01H | Echo A to the lamp device. |
-| 010B | C3 00 01 | JMP 0100H | Return to checking readiness. |
-
-No instruction writes RAM. An empty trip executes three instructions and no
-output transfer. A ready trip executes six and outputs exactly one byte.
-After receiving zero, Z remains clear from comparing readiness 1 with zero;
-IN does not recalculate it. A later status read replaces A while output retains
-its last byte.
+The [executable chapter](../../src/machines/8080/altair-polling-lesson.md) owns the
+components, initial state, connections, program, reset behavior, and machine
+acceptance criteria. The generator reads its `machine` fences to build the same
+factory used by this lesson and its tests.
 
 ## Interaction and ownership
 
@@ -67,12 +45,9 @@ Callbacks from the previous run remain harmless even after a new RUN.
 
 ## Acceptance
 
-- Initial state, every RAM byte, and all port connections match the source.
-- Empty polling repeats IN/CPI/JZ with captured fetches and status reads in
-  order. It keeps running and emits no output, without growing history past 12.
-- Each possible data byte, including zero, produces readiness 1, survives
-  status reads, passes through an actual data read and output transfer, and
-  returns PC to 0100. Flags, PC, and untouched RAM are checked independently.
+The chapter defines machine-level acceptance. The lesson additionally checks:
+
+- Empty polling keeps running without growing visible history past 12 records.
 - Input arriving between status, comparison, and branch waits safely for the
   next trip. Input arriving between data read and echo remains pending.
 - Repeated equal data counts as separate output writes; subsequent empty loops

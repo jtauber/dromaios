@@ -1,6 +1,9 @@
 # Machine language
 
-Dromaios uses `.machine` files for CPU state, byte images, and component wiring.
+Dromaios uses `.machine` files or executable `machine` fences in Markdown
+for CPU state, byte images, and component wiring. Both use the same syntax;
+the [chapter rules](definitions.md#literate-machine-chapters) describe extraction
+and source diagnostics.
 A flat-RAM definition uses `ram`, `cpu`, `memory`, and optional `end`. A composed
 definition instead names its components and connects memory and devices explicitly.
 A component-only definition omits the CPU and its wiring.
@@ -182,12 +185,14 @@ available kinds are:
 | ROM | `rom = rom 0400` | `000`–`3FF`, initially zero before images |
 | [Byte input](../devices/byte-input.md) | `input = byte-input` | `0` status, `1` consuming data |
 | [Byte output](../devices/byte-output.md) | `output = byte-output` | `0` output register |
+| [MC6850 polling profile](../../src/components/devices/specifications/mc6850-polling.md) | `serial = mc6850-polling` | `0` status/control, `1` receive/transmit |
+| [Altair sense switches](../../src/components/devices/specifications/altair-sense-switches.md) | `sense = altair-sense-switches` | `0` positions, read-only |
 
 RAM and ROM sizes are positive hexadecimal byte counts, at most `1000000`
 (16 MiB). `image name address { bytes }` loads a named RAM or ROM component at a
 **local offset**. The start and whole block must fit; overlapping images apply in
 source order. ROM is constructed from the completed image and then remains
-read-only. Images cannot initialize devices; devices start with empty latches.
+read-only. Images cannot initialize devices; each device defines its initial state.
 
 `memory = name` connects a full-sized RAM directly to any supported CPU, using
 the same CPU-specific sizes as the flat shorthand. The 68000 additionally accepts
@@ -211,12 +216,35 @@ component at two disjoint addresses explicitly aliases the same instance.
 Unmapped accesses and ROM writes follow the [memory-map contract](memory-map.md).
 Mapping a device preserves its read/write side effects.
 
+The 8080 also accepts maps, but requires an explicit unanswered-bus value:
+
+```text
+map 10000 {
+    0000 = ram
+    unmapped = FF
+}
+```
+
+The map size remains 10000 even when `ram` is only 1000 bytes. `unmapped` is a
+byte in the usual hexadecimal notation and may occur once anywhere in the
+block. Unanswered reads return it; unanswered writes are discarded. This
+includes a mapped component's `bus-error` response, such as a ROM write refusal.
+Thrown host errors still propagate. A 68000 map rejects this declaration and
+keeps its existing fault behavior. Other CPUs do not yet accept maps in this
+language, although their public byte-memory APIs can accept composed connections.
+
 The optional `ports` block currently connects the 8080's byte ports. `in` entries
-require byte-input components; `out` entries require byte-output components. Port
+require readable device registers; `out` entries require writable registers.
+Generated device chapters supply these capabilities to the parser. Port
 numbers are `00`–`FF`; local addresses must fit the device. Each direction may
 bind a port once, independently of the other direction. Unconnected accesses
 throw a host error before touching a device. Omitting `ports` retains the CPU's
-default unconnected-port behavior.
+default unconnected-port behavior. An explicit `unmapped = FF` inside `ports`
+instead returns that byte for unconnected input ports and ignores unconnected
+output writes. The value may be any byte, with only one declaration per block.
+Connected registers retain their own behavior. Port numbers and output bytes
+are validated even when there is no connected device. The
+[Altair BASIC chapter](../../src/machines/8080/altair-basic.md) uses this policy.
 
 Reset wiring is explicit and optional:
 
@@ -332,9 +360,11 @@ lesson.machine:3:6: Memory block extends beyond address FFFF
 
 This version describes named components with an optional CPU, RAM/ROM images,
 fixed 68000 memory maps, 8080
-byte ports, the two byte devices, and explicit reset wiring. Other devices, bank
-switching, interrupt wiring, clocks, and scripted host input remain TypeScript
-work until concrete examples establish their declarations. The language does not
+byte ports, the two teaching byte devices, the MC6850 polling profile, and explicit reset wiring. Other devices, bank
+switching, interrupt wiring, clocks, and scripted host input are not currently
+expressed. The [Altair/BASIC target](altair-basic.md) drives the next extensions:
+declarative hardware descriptions and connections, with shared
+TypeScript support for execution and host interaction. The language does not
 define instruction behavior or assemble the comments beside the bytes.
 
 Repeated addresses remain a future design question. In the 6502, 6800, and 6809

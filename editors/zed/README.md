@@ -1,7 +1,8 @@
 # Dromaios for Zed
 
-Local Zed language support for `.machine` definitions and the `cpu` language
-in [literate CPU specifications](../../docs/cpus/literate-specifications.md).
+Local Zed language support for `.machine` definitions, Markdown `machine` fences,
+and shared state/effect syntax in `cpu` and `device` fences. CPU chapters are
+described in [literate CPU specifications](../../docs/cpus/literate-specifications.md).
 Both languages have syntax colours, `//` comment toggling, and matching/autoclosing
 brackets. Colours come from the active Zed theme. Assembly annotations remain
 comments.
@@ -11,6 +12,8 @@ CPU highlighting works inside Markdown fences labelled `cpu` and in standalone
 function names, numbers, strings, and comments have distinct syntax categories.
 Opcode patterns and mnemonic templates are strings. Each fence is parsed on its
 own, so references to declarations in earlier fences still receive highlighting.
+Device fences use the same grammar for state, sources, and actions, with their
+own interface bindings.
 Standalone snippets are useful for editing; the CPU build reads Markdown chapters.
 
 ## Build and install
@@ -44,7 +47,7 @@ zed --user-data-dir /tmp/dromaios-zed
 Zed normally notices the new extension automatically. If a `.machine` file
 still shows Plain Text, restart Zed and reopen it; its language should be
 **Dromaios Machine**. A `.cpu` file should show **Dromaios CPU**; a chapter stays
-**Markdown**, with CPU colours inside its `cpu` fences.
+**Markdown**, with language colours inside its `cpu`, `device`, or `machine` fences.
 Rebuild after changing the grammar, queries, or config,
 then restart Zed if the colours have not refreshed. Reinstalling the same link
 is safe. To uninstall, remove only the `dromaios` symlink from Zed's installed
@@ -66,7 +69,7 @@ sources and pinning their commit in `extension.toml`.
 - Each grammar's `test/corpus/` contains hand-checked syntax trees, including
   incomplete input. Fixtures under `test/fixtures/` exercise colour categories.
 - `scripts/test.mjs` and `scripts/test-cpu.mjs` also parse every machine example
-  and every executable CPU fence, compile the queries, and check rendered colours.
+  and every executable machine, CPU, and device fence, compile the queries, and check rendered colours.
 
 The [machine language reference](../../docs/machines/language.md) defines the
 format. The [TypeScript parser](../../src/machines/machine-language.ts) and CPU

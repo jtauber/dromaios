@@ -145,13 +145,12 @@ The introductory browser path connects byte and memory explorations to real
 running with STOP/resume now work, with captured records and bounded history.
 Register preservation and the [tiny command prompt](docs/machines/command-prompt-lesson.md)
 now complete this introductory path. The capstone prints a prompt, reads a line,
-chooses a response, and repeats. Review the full learning path at this boundary
-before adding more introductory Altair lessons. Keep browser pacing distinct
-from emulated machine time.
+chooses a response, and repeats. The complete path has had a consistency and
+walkthrough review. Keep browser pacing distinct from emulated machine time.
 
-After that review, introduce a small 6502 comparison alongside the historical
-Altair work. Use a familiar computation to exercise shared teaching views across
-architectures while exposing the processors' different conventions.
+The next priority is the working Altair with BASIC in milestone 5. Introduce
+the 8080/6502 comparison after that milestone, when approaching the Apple II.
+Other machines may come between them; the comparison does not gate Altair work.
 
 The [pedagogical roadmap](docs/pedagogy.md#pedagogical-roadmap) defines the
 learning milestones and review points, beginning with an arithmetic explorer
@@ -198,11 +197,20 @@ and follow their effects during execution.
 
 ## 5. Build the first complete machine incrementally
 
-- Build the **Altair 8800** first, beginning with its front panel and small
-  programs familiar from the 8080 lessons. The first substantial software
-  milestone is an early BASIC. Select its exact version and the Altair hardware
-  configuration before implementing the required historical input/output and
-  loading path. Current lessons use simplified teaching devices.
+**Current priority:** a working **Altair 8800 with BASIC**, using the
+[selected configuration and acceptance criteria](docs/machines/altair-basic.md).
+The initial target is 4K BASIC 3.2 with an 88-2SIO serial interface and paper-tape
+loading. The executable chapter and generated devices now boot that tape and
+run direct arithmetic headlessly. Browser integration and the broader BASIC
+transcript remain ahead; current lessons use simplified teaching devices.
+
+- Author a literate machine chapter that explains and declares its components,
+  memory and port maps, reset behavior, panel connections, and loading setup.
+  Use the existing machine language's executable Markdown fences;
+  keep the chapter as the source for generated composition and published explanation.
+- Describe new devices declaratively alongside their hardware explanations,
+  extending shared generation and runtimes for the behavior this machine needs.
+  Develop the language through the Altair's concrete requirements.
 - Connect the CPU, memory, and devices, adding machine-specific behavior and
   timing in small steps with explanations and appropriate checks.
 - Build on existing ROM, program-image, and input/output support, extending
@@ -211,8 +219,9 @@ and follow their effects during execution.
 - Add further peripherals and tighter timing fidelity when selected software or
   a lesson requires them; these are separate milestones beyond the first BASIC.
 
-**Review point:** The target software runs with understood limitations, and
-users can inspect the relevant internal activity.
+**Review point:** The historical loader brings BASIC to its prompt; users can
+enter, list, edit, and run programs, interrupt them, and inspect the machine.
+The executable descriptions explain the modeled hardware and its limitations.
 
 ## 6. Broaden the platform
 

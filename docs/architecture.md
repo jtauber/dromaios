@@ -27,6 +27,21 @@ generation binds the definitions to shared TypeScript runtimes. Refining the
 language and its explanations through these eight architectures remains active
 work, as does expanding the hardware behavior that the models represent.
 
+The next authoring priority applies this approach to the
+[Altair with BASIC](machines/altair-basic.md): a readable machine chapter with
+executable composition fences, plus device descriptions that declare state,
+registers, and transitions beside their explanations. The machine generator
+accepts standalone `.machine` files and Markdown `machine` fences, sharing
+fence extraction with CPU chapters. The
+[polling lesson](../src/machines/8080/altair-polling-lesson.md) proves this authoring
+path. The [MC6850 polling profile](../src/components/devices/specifications/mc6850-polling.md)
+now generates a serial device through shared typed state/effect definitions;
+its chapter also declares the public API and wiring capabilities. The
+[device guide](devices/literate-specifications.md) describes this bounded extension.
+Extend the language
+and the shared generation machinery as the Altair requires them,
+preserving source locations and avoiding parallel handwritten definitions.
+
 The current [stored-state descriptions](cpus/implementation.md#stored-state-descriptions)
 are one such example: CPU-owned fields and constraints drive constructor
 validation, snapshot copying, machine parsing, and public state types. The
@@ -65,9 +80,9 @@ registers, flags, instruction semantics, and timing remain specific to that CPU.
 
 **Machine compositions** select components and connect them. Current definitions
 describe memory maps, device connections, reset wiring, and initial state.
-Clock relationships and scheduling remain future work. Configuration can use
-machine-specific TypeScript where the definition language does not yet express
-the required wiring.
+Clock relationships and scheduling remain future work. Prefer extending the
+declarative wiring when a concrete machine needs a missing connection; shared
+TypeScript runtimes implement the resulting operations and host boundaries.
 
 For example, the Apple II and BBC Micro are intended to share the 6502
 component, with their memory maps and devices defined by their machine
@@ -79,7 +94,7 @@ initial state, RAM size, addressed byte blocks (including any reset vector),
 and an optional caller completion address. The helper creates fresh RAM and
 CPU instances without reset or execution; each CPU constructor still owns
 copying and validating its state. Example exports retain their concrete CPU
-types. More complex machine wiring can use ordinary TypeScript as it develops.
+types. More complex machine wiring should extend these descriptions as it develops.
 
 The setups are [machine definitions](machines/definitions.md) written in a small
 language for CPU state, hexadecimal byte images, and component wiring. Definitions
@@ -99,7 +114,8 @@ Its `.machine` definition names the components, loads local byte images, and
 declares their map. The same language supports the 8080's directional byte-port
 connections and explicit machine reset and 68000 device-reset lists. Host output
 callbacks are named factory arguments; input offers and execution remain host
-operations. More elaborate devices and interrupt wiring can still use TypeScript.
+operations. More elaborate devices and interrupt wiring should follow the same
+literate, declarative direction, with shared TypeScript support where needed.
 
 The [byte-output device](devices/byte-output.md) uses the same memory connection.
 It owns a single register and notifies a host callback on each write; the host
@@ -194,7 +210,7 @@ dromaios/
 │   │   │   └── generated/ Generated instruction bodies (ignored by Git)
 │   │   ├── memory/        RAM, ROM, memory connections, and fixed maps
 │   │   └── devices/       Byte-input and byte-output models
-│   ├── machines/          .machine definitions, parser, setup, and generated factories
+│   ├── machines/          Machine definitions/chapters, parser, setup, and generated factories
 │   ├── runtime/           Bounded CPU runner
 │   ├── inspection/        Planned: shared observation tools and descriptions
 │   └── ui/                Planned: browser shell, controls, and reusable views
@@ -288,11 +304,14 @@ record must make its granularity clear; an instruction-level model does not
 automatically provide a complete cycle-by-cycle bus trace.
 
 The concrete CPU models take explicit initial state and memory. `Cpu8008`
-requires 16 KiB RAM; `Cpu8088` requires 1 MiB; `Cpu8080`, `Cpu6502`, `Cpu6800`,
+requires a 16 KiB address space; `Cpu8088` requires 1 MiB; `Cpu8080`, `Cpu6502`, `Cpu6800`,
 `Cpu6809`, and `CpuZ80` require 64 KiB. `Cpu68000` takes a 16 MiB
 [MemoryConnection](../src/components/memory/connection.ts), which plain `Ram`
 also satisfies. A connection can return an explicit `"bus-error"` result; thrown
-host errors propagate. Other cores still accept `Ram` directly.
+host errors propagate. Other cores accept `ByteMemoryConnection`, with successful
+byte reads and writes; `Ram` satisfies both interfaces. A machine can resolve
+unanswered transfers through the [byte-bus adapter](machines/memory-map.md#byte-buses),
+as the four-kilobyte Altair does. Address-space size is independent of allocated storage.
 They copy only declared state
 fields, including flags and any nested banks or address arrays, and expose
 `snapshot()` and `step()`.

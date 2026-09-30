@@ -1,4 +1,4 @@
-import type { Ram } from "../memory/ram.ts";
+import type { ByteMemoryConnection } from "../memory/connection.ts";
 import { checkUnsigned } from "../validation.ts";
 import type { StateTransition } from "./execution-records.ts";
 import type { InterruptAcknowledge } from "./interrupt-instruction.ts";
@@ -20,7 +20,7 @@ export interface VectorOffer<Reason extends string> {
 }
 
 /** Gate first, validate the accepted callback, apply acceptance, then obtain and enter the vector. */
-export function vectorOffers<S, Source extends string, Reason extends string>(cpu: string, ram: Ram, snapshot: () => S,
+export function vectorOffers<S, Source extends string, Reason extends string>(cpu: string, ram: ByteMemoryConnection, snapshot: () => S,
   entries: Readonly<Record<Source, VectorOffer<Reason>>>) {
   return (source: Source, acknowledge?: () => number): VectorOfferRecord<S, Source, Reason> => {
     if (typeof source !== "string" || !Object.hasOwn(entries, source)) throw new TypeError(`${cpu} interrupt source must be ${Object.keys(entries).join(" or ")}.`);

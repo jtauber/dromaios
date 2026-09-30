@@ -8,3 +8,4 @@ site/.venv/
 site/output/
 __pycache__/
 .site-dependencies/
+src/components/devices/generated/

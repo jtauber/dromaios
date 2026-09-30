@@ -47,6 +47,9 @@ be small enough to understand before we build on it.
 
 - **Compose machines from components.** Reuse CPU, memory, and device models
   where the hardware permits it, with explicit machine wiring and configuration.
+- **Make descriptions executable.** Extend the literate CPU approach to machine
+  compositions and devices, keeping explanations beside the declarations that
+  generate their implementation.
 - **Make execution observable.** State changes and interactions should support
   inspection and teaching from the beginning.
 - **Keep hardware distinctions visible.** Shared conventions should preserve
@@ -80,8 +83,12 @@ links to their specifications. The [website](site/README.md) includes
 introductory byte and memory explorations and a register lesson running the 8080
 in the browser. The teaching path now reaches the
 [Altair 8800's memory controls](docs/machines/altair-memory.md) and
-[manual program entry and execution](docs/machines/altair-program.md);
-complete machine emulation remains planned.
+[manual program entry and execution](docs/machines/altair-program.md), and continues
+through text, buffers, and subroutines to a small command prompt. The current
+priority is a [working Altair with BASIC](docs/machines/altair-basic.md), developed
+through literate, declarative descriptions. Its headless machine now loads the
+original tape and runs BASIC; browser integration remains ahead. The introductory
+lessons use teaching devices.
 
 All eight documented instruction sets now use shared definitions that generate
 execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)
@@ -110,16 +117,18 @@ npm test
 ```
 
 `npm ci` installs the locked development dependencies. `npm test` cleans generated
-code, generates instruction bodies from the [CPU specifications](docs/cpus/literate-specifications.md)
+code, generates instruction bodies from the [CPU specifications](docs/cpus/literate-specifications.md),
+devices from their [literate specifications](docs/devices/literate-specifications.md),
 and factories from the [machine definitions](docs/machines/definitions.md),
 checks the simulation without Node or browser ambient types, compiles the source,
 scripts, and tests, and runs the compiled tests.
 `npm run build` performs the same checks and compilation without running tests.
-`npm run check:src` regenerates both outputs and runs the simulation check
+`npm run check:src` regenerates all three outputs and runs the simulation check
 using [tsconfig.src.json](tsconfig.src.json), without emitting JavaScript.
 `npm run generate:cpus` compiles literate chapters and refreshes generated state schemas, instruction bodies, execution bindings, and chapter-declared public CPU modules.
+`npm run generate:devices` refreshes device classes and their construction/wiring catalogue.
 `npm run generate:machines` refreshes just the generated TypeScript factories.
-Run CPU generation first after a clean or a change to chapter-owned state.
+Run CPU and device generation first after a clean or a change to their chapter-owned contracts.
 
 The tracked [expanded instruction listing](docs/cpus/semantic-examples.md) is
 generated separately. After changing definitions or their descriptions, run
@@ -128,8 +137,8 @@ Add `--check` to check freshness without writing; the full test suite also
 checks this listing, but the build does not refresh it.
 
 Optional [Zed language support](editors/zed/README.md) adds syntax highlighting
-and bracket matching for `.machine` files and literate `cpu` fences (or `.cpu`
-snippets). Its build and tests use a separate, locked editor toolchain; the
+and bracket matching for `.machine` files, literate `machine` and `cpu` fences,
+and `.cpu` snippets. Its build and tests use a separate, locked editor toolchain; the
 simulation workflow above stays independent.
 
 For focused checks, select a CPU and optionally filter test names:

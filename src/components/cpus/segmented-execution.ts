@@ -1,4 +1,4 @@
-import type { Ram } from "../memory/ram.ts";
+import type { ByteMemoryConnection } from "../memory/connection.ts";
 import { executionBoundary } from "./execution-boundary.ts";
 import type { HaltedStep, InstructionStep, StateTransition, WaitingStep } from "./execution-records.ts";
 import type { InterruptDeferralContext, InterruptReportContext, ByteInstructionContext } from "./instruction-context.ts";
@@ -56,7 +56,7 @@ export interface SegmentedExecutionPolicy<Device, Fault extends string, Pending 
 
 /** Read-committed segmented fetching, replaceable prefixes, and one resumable body per boundary. */
 export function segmentedExecution<S, Device, External, Fault extends string, Pending extends Delivery>(
-  cpu: string, ram: Ram, ports: () => BytePorts | undefined, snapshot: () => S,
+  cpu: string, ram: ByteMemoryConnection, ports: () => BytePorts | undefined, snapshot: () => S,
   devices: (record: (access: External) => void) => Device, policy: SegmentedExecutionPolicy<Device, Fault, Pending>,
 ) {
   type Access = MemoryAccess | PortAccess | External;

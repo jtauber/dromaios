@@ -1,23 +1,22 @@
 import { posix } from "node:path";
 import { cpuModels } from "../src/components/cpus/models.ts";
+import { deviceModels, isDeviceKind } from "../src/components/devices/models.ts";
 import type { ComponentMachineDefinition, ComposedMachineDefinition } from "../src/machines/machine-language.ts";
 
 const componentTypes = {
   ram: ["Ram", "memory/ram"],
   rom: ["Rom", "memory/rom"],
-  "byte-input": ["ByteInput", "devices/byte-input"],
-  "byte-output": ["ByteOutput", "devices/byte-output"],
 } as const;
 
 /** Emit concrete construction and wiring; generated machines need no runtime interpreter. */
 export function compileComposition(machine: ComposedMachineDefinition | ComponentMachineDefinition, name: string, from: string): string {
   const imports: string[] = [];
   for (const kind of new Set(machine.components.map(component => component.kind))) {
-    const [type, module] = componentTypes[kind];
-    imports.push(`import { ${type} } from "${path(module)}";`);
+    const [type, module] = isDeviceKind(kind) ? [deviceModels[kind].name, deviceModels[kind].module] : componentTypes[kind];
+    imports.push(`import { ${type}${isDeviceKind(kind) ? ` as ${deviceType(kind)}` : ""} } from "${path(module)}";`);
   }
 
-  const outputs = machine.components.filter(component => component.kind === "byte-output");
+  const outputs = machine.components.filter(component => isDeviceKind(component.kind) && deviceModels[component.kind].output);
   const argument = outputs.length ? `bindings: { ${outputs.map(component => `readonly ${component.name}: (value: number) => void`).join("; ")} }` : "";
   const body: string[] = [];
   for (const component of machine.components) {
@@ -33,8 +32,10 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
         for (const image of images) body.push(`image_${component.name}.set(${JSON.stringify(image.bytes)}, ${image.address});`);
         body.push(`const ${local} = new Rom(image_${component.name});`);
         break;
-      case "byte-input": body.push(`const ${local} = new ByteInput();`); break;
-      case "byte-output": body.push(`const ${local} = new ByteOutput(bindings.${component.name});`); break;
+      default: {
+        const device = deviceModels[component.kind];
+        body.push(`const ${local} = new ${deviceType(component.kind)}(${device.output ? `bindings.${component.name}` : ""});`);
+      }
     }
   }
 
@@ -48,19 +49,31 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
     let memory: string;
     if (machine.connection.kind === "mapped") {
       memory = "memory";
-      body.push(`const memory = new MemoryMap(${machine.connection.size}, [`,
-        ...machine.connection.regions.map(region => `  { start: ${region.start}, memory: ${part(region.component)} },`), "]);");
+      const { size, regions, unmapped } = machine.connection;
+      if (unmapped !== undefined) imports.push(`import { ByteMemoryBus } from "${path("memory/byte-memory-bus")}";`);
+      body.push(`const memory = ${unmapped === undefined ? "" : "new ByteMemoryBus("}new MemoryMap(${size}, [`,
+        ...regions.map(region => `  { start: ${region.start}, memory: ${part(region.component)} },`),
+        `])${unmapped === undefined ? "" : `, ${unmapped})`};`);
     } else memory = part(machine.connection.component);
 
     if (machine.ports !== undefined) {
+      const unmapped = machine.unmappedPorts;
+      if (unmapped !== undefined) imports.push(`import { checkUnsigned } from "${path("validation")}";`);
       body.push("const ports: BytePorts = {");
       for (const direction of ["in", "out"] as const) {
-        body.push(direction === "in" ? "  readPort: port => {" : "  writePort: (port, value) => {", "    switch (port) {");
+        body.push(direction === "in" ? "  readPort: port => {" : "  writePort: (port, value) => {");
+        if (unmapped !== undefined) {
+          body.push('    checkUnsigned("Port", port, 0xff);');
+          if (direction === "out") body.push('    checkUnsigned("Port byte", value, 0xff);');
+        }
+        body.push("    switch (port) {");
         for (const binding of machine.ports.filter(binding => binding.direction === direction)) {
           const call = `${part(binding.component)}.${direction === "in" ? "read" : "write"}(${binding.address}${direction === "out" ? ", value" : ""})`;
           body.push(`      case ${binding.port}: return ${call};`);
         }
-        body.push(`      default: throw new Error("Unconnected ${direction === "in" ? "input" : "output"} port " + port + ".");`, "    }", "  },");
+        body.push(unmapped === undefined
+          ? `      default: throw new Error("Unconnected ${direction === "in" ? "input" : "output"} port " + port + ".");`
+          : `      default: return${direction === "in" ? ` ${unmapped}` : ""};`, "    }", "  },");
       }
       body.push("};");
     }
@@ -84,4 +97,5 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
 
   function path(module: string): string { return posix.relative(from, `../components/${module}.js`); }
   function part(component: string): string { return `part_${component}`; }
+  function deviceType(kind: string): string { return `Device_${kind.replaceAll("-", "_")}`; }
 }

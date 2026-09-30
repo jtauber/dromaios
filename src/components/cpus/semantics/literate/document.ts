@@ -1,7 +1,7 @@
+import { literateBlocks, type LiterateLine as ChapterLine, type LiterateBlock as ChapterBlock } from "../../../../literate.ts";
 import type { Width } from "../model.ts";
 
-export interface ChapterLine { readonly text: string; readonly line: number }
-export interface ChapterBlock { readonly lines: readonly ChapterLine[]; readonly explanation: string }
+export type { LiterateLine as ChapterLine, LiterateBlock as ChapterBlock } from "../../../../literate.ts";
 
 /** Diagnostics retain positions in the Markdown, including prose and unrelated code fences. */
 export class ChapterError extends Error {
@@ -28,29 +28,9 @@ export function chapterContext<T>(describe: () => string, compile: () => T): T {
   }
 }
 
-/** Only unindented `cpu` fences are executable. The preceding paragraph describes a family. */
+/** CPU fences retain their preceding paragraph as the instruction-family description. */
 export function chapterBlocks(markdown: string, file: string): readonly ChapterBlock[] {
-  const lines = markdown.replace(/\r\n/g, "\n").split("\n"), blocks: ChapterBlock[] = [];
-  let paragraph: string[] = [], preceding: string[] = [];
-  for (let index = 0; index < lines.length; index++) {
-    const text = lines[index]!;
-    const fence = /^( {0,3})(`{3,}|~{3,})(.*)$/.exec(text);
-    if (!fence) {
-      if (text.trim() === "") { if (paragraph.length) preceding = paragraph; paragraph = []; }
-      else if (/^#{1,6} /.test(text)) { paragraph = []; preceding = []; }
-      else paragraph.push(text.trim());
-      continue;
-    }
-    const marker = fence[2]!, executable = fence[1] === "" && fence[3]!.trim() === "cpu", start = index + 1;
-    const body: ChapterLine[] = [];
-    while (++index < lines.length && !new RegExp(`^ {0,3}${marker[0]}{${marker.length},}\\s*$`).test(lines[index]!)) {
-      body.push({ text: lines[index]!, line: index + 1 });
-    }
-    if (index === lines.length && executable) throw new ChapterError(file, start, 1, "Unclosed cpu fence.");
-    if (executable) blocks.push({ lines: body, explanation: (paragraph.length ? paragraph : preceding).join(" ") });
-    paragraph = []; preceding = [];
-  }
-  return blocks;
+  return literateBlocks(markdown, "cpu", line => { throw new ChapterError(file, line, 1, "Unclosed cpu fence."); });
 }
 
 interface Token { readonly text: string; readonly column: number }

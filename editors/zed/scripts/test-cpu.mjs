@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { globSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
-import { chapterBlocks } from '../../../src/components/cpus/semantics/literate/document.ts';
+import { literateBlocks } from '../../../src/literate.ts';
 import { build, configArgs, extension, repository, treeSitter } from './common.mjs';
 
 // Parse each actual fence on its own, just as Markdown injection does. A fence
@@ -9,8 +9,8 @@ import { build, configArgs, extension, repository, treeSitter } from './common.m
 const directory = resolve(build, 'cpu-blocks');
 rmSync(directory, { recursive: true, force: true });
 mkdirSync(directory, { recursive: true });
-const chapters = globSync('src/components/cpus/specifications/*.md', { cwd: repository }).sort();
-const blocks = chapters.flatMap(path => chapterBlocks(readFileSync(resolve(repository, path), 'utf8'), path)
+const chapters = globSync('src/components/{cpus,devices}/specifications/*.md', { cwd: repository }).sort();
+const blocks = chapters.flatMap(path => literateBlocks(readFileSync(resolve(repository, path), 'utf8'), path.includes('/devices/') ? 'device' : 'cpu', line => { throw new Error(`${path}:${line}: Unclosed fence.`); })
   .map(({ lines }, index) => {
     const output = resolve(directory, `${basename(path, '.md')}-${index + 1}.cpu`);
     writeFileSync(output, lines.map(({ text }) => text).join('\n') + '\n');
@@ -21,7 +21,7 @@ const fixture = resolve(extension, 'tree-sitter-cpu/test/fixtures/categories.cpu
 const paths = [...blocks, fixture];
 const parsed = treeSitter('cpu', ['parse', ...configArgs, ...paths], { capture: true });
 assert.doesNotMatch(parsed.stdout, /\((?:ERROR|MISSING)\b/);
-console.log(`Parsed all ${blocks.length} CPU fences from ${chapters.length} chapters independently.`);
+console.log(`Parsed all ${blocks.length} CPU/device fences from ${chapters.length} chapters independently.`);
 
 for (const query of ['highlights.scm', 'brackets.scm']) {
   treeSitter('cpu', ['query', ...configArgs, '--quiet', resolve(extension, 'languages/cpu', query), ...paths], { capture: true });
@@ -56,6 +56,6 @@ assert.ok(html.includes("<span class='comment'>// This remains a comment: $FF &q
 // Markdown in Zed resolves fence labels by language name or file extension.
 // The explicit fence name is also used when Zed inserts a CPU code block.
 const config = readFileSync(resolve(extension, 'languages/cpu/config.toml'), 'utf8');
-assert.match(config, /^path_suffixes = \["cpu"\]$/m);
+assert.match(config, /^path_suffixes = \["cpu", "device"\]$/m);
 assert.match(config, /^code_fence_block_name = "cpu"$/m);
 console.log('CPU colours, brackets, string/comment boundaries, and Markdown fence association checked.');

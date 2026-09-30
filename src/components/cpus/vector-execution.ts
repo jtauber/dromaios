@@ -1,4 +1,4 @@
-import type { Ram } from "../memory/ram.ts";
+import type { ByteMemoryConnection } from "../memory/connection.ts";
 import { readWordBE, readWordLE } from "./binary.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { executionBoundary } from "./execution-boundary.ts";
@@ -38,14 +38,14 @@ interface VectorExecution<Snapshot, Source extends string, Declined extends Decl
 }
 
 /** A waiting policy adds waiting records; models without one always attempt an opcode. */
-export function vectorExecution<Snapshot, Source extends string, Declined extends DeclinedVector<Source> = never>(cpu: string, ram: Ram,
+export function vectorExecution<Snapshot, Source extends string, Declined extends DeclinedVector<Source> = never>(cpu: string, ram: ByteMemoryConnection,
   snapshot: () => Snapshot, policy: VectorExecutionPolicy<Source, Declined> & { readonly waiting: () => boolean }):
   VectorExecution<Snapshot, Source, Declined, InstructionStep<Snapshot> | WaitingStep<Snapshot>>;
-export function vectorExecution<Snapshot, Source extends string, Declined extends DeclinedVector<Source> = never>(cpu: string, ram: Ram,
+export function vectorExecution<Snapshot, Source extends string, Declined extends DeclinedVector<Source> = never>(cpu: string, ram: ByteMemoryConnection,
   snapshot: () => Snapshot, policy: VectorExecutionPolicy<Source, Declined> & { readonly waiting?: never }):
   VectorExecution<Snapshot, Source, Declined, InstructionStep<Snapshot>>;
 /** Shared byte dispatch with memory-only reset and explicit, named external entry. */
-export function vectorExecution<Snapshot, Source extends string, Declined extends DeclinedVector<Source> = never>(cpu: string, ram: Ram,
+export function vectorExecution<Snapshot, Source extends string, Declined extends DeclinedVector<Source> = never>(cpu: string, ram: ByteMemoryConnection,
   snapshot: () => Snapshot, policy: VectorExecutionPolicy<Source, Declined>) {
   const atBoundary = executionBoundary(`${cpu} step, reset, and interrupt calls must not be reentrant.`);
   const readWord = policy.word === "little" ? readWordLE : readWordBE;

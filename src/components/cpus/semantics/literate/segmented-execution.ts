@@ -170,7 +170,7 @@ import type { SegmentedExecutionPolicy } from "../segmented-execution.ts";
 import { programCounter } from "../execute-byte-instruction.ts";
 import { checkByteMemory } from "../byte-execution.ts";
 import { opcodeTable } from "../opcodes.ts";
-import type { Ram } from "../../memory/ram.ts";
+import type { ByteMemoryConnection } from "../../memory/connection.ts";
 import type { BytePorts } from "../port-access.ts";
 import { recordCoprocessor } from "../coprocessor-access.ts";
 import type { CoprocessorAccess, CoprocessorContext, CoprocessorConnections } from "../coprocessor-access.ts";
@@ -179,11 +179,11 @@ import { instructions as operands } from "./${module}-operands.ts";
 import { instructions as strings } from "./${module}-strings.ts";
 import { instructions as actions, sourceReaders } from "./${module}-state.ts";
 
-export const checkMemory = (ram: Ram): void => checkByteMemory(${q(cpu)}, ram, ${policy.memoryBits});
+export const checkMemory = (ram: ByteMemoryConnection): void => checkByteMemory(${q(cpu)}, ram, ${policy.memoryBits});
 export const recordDevices = (connections: CoprocessorConnections | undefined, record: (access: CoprocessorAccess) => void) =>
   recordCoprocessor(${q(cpu)}, connections, record);
 
-export function createExecution<Snapshot>(state: Parameters<typeof opcodeEntries>[0], ram: Ram, snapshot: () => Snapshot,
+export function createExecution<Snapshot>(state: Parameters<typeof opcodeEntries>[0], ram: ByteMemoryConnection, snapshot: () => Snapshot,
   ports: () => BytePorts | undefined, devices: (record: (access: CoprocessorAccess) => void) => CoprocessorContext) {
   const views = sourceReaders(state).views;
   type Policy = SegmentedExecutionPolicy<CoprocessorContext, ${q(fault.source)}, { readonly source: ${q(pending.source)}; readonly vector: ${pending.vector} }>;

@@ -92,13 +92,13 @@ import { checkByteMemory } from "../byte-execution.ts";
 import { vectorExecution } from "../vector-execution.ts";
 import { programCounter } from "../execute-byte-instruction.ts";
 import { opcodeTable } from "../opcodes.ts";
-import type { Ram } from "../../memory/ram.ts";
+import type { ByteMemoryConnection } from "../../memory/connection.ts";
 import { opcodeEntries } from "./${module}.ts";
 import { instructions as actions, sourceReaders } from "./${module}-state.ts";
 
-export const checkMemory = (ram: Ram): void => checkByteMemory(${q(cpu)}, ram, ${policy.memoryBits});
+export const checkMemory = (ram: ByteMemoryConnection): void => checkByteMemory(${q(cpu)}, ram, ${policy.memoryBits});
 
-export function createExecution<Snapshot>(state: Parameters<typeof opcodeEntries>[0], ram: Ram, snapshot: () => Snapshot) {
+export function createExecution<Snapshot>(state: Parameters<typeof opcodeEntries>[0], ram: ByteMemoryConnection, snapshot: () => Snapshot) {
   const views = sourceReaders(state).views;
   return vectorExecution(${q(cpu)}, ram, snapshot, {
     counter: programCounter(views[${q(policy.counter)}], value => actions[${q(policy.writeCounter)}](state, value)),

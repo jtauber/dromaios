@@ -78,6 +78,10 @@ examples add polling and consuming input reads with the same devices.
 
 ## Devices
 
+- [Literate device specifications](devices/literate-specifications.md): executable
+  state, register operations, and generated device APIs.
+- [MC6850 polling profile](../src/components/devices/specifications/mc6850-polling.md):
+  the first 88-2SIO serial channel's chip behavior and explicit fidelity limits.
 - [Byte input](devices/byte-input.md): a pending-byte latch, readiness, consuming
   reads, host offers, and detached inspection.
 - [Byte output](devices/byte-output.md): a write-only register, host notifications,
@@ -90,6 +94,12 @@ examples add polling and consuming input reads with the same devices.
 
 ## Machine definitions
 
+- [Altair serial example](../src/machines/8080/altair-serial.md): an executable
+  composition that polls and echoes through the historical serial port pair.
+- [Altair BASIC chapter](../src/machines/8080/altair-basic.md): executable
+  hardware composition, historical bootstrap, and real-tape acceptance.
+- [Altair with BASIC](machines/altair-basic.md): the historical-machine
+  target, literate authoring direction, implementation gaps, and acceptance criteria.
 - [Altair memory-controls lesson](machines/altair-memory.md): switches, lights,
   EXAMINE and DEPOSIT, with explicit limits of the current panel model.
 - [Entering an Altair program](machines/altair-program.md): deposit instruction

@@ -106,7 +106,7 @@ test("wiring checks targets, CPU support, full component bounds, and overlapping
     [direct.replace("ram=ram 10000", "ram=rom 10000"), /Direct CPU memory requires RAM/],
     [direct.replace("ram 10000", "ram 1000"), /Direct CPU memory requires RAM/],
     [direct + "\nmap 10000 {}", /Choose memory/],
-    [direct.replace("memory=ram", "map 10000 {}"), /Mapped memory currently requires CPU 68000/],
+    [direct.replace("memory=ram", "map 10000 {}"), /8080 map requires an explicit unmapped bus value/],
     [mapped.replace("map 1000000", "map 10000"), /Address-space size for 68000/],
     [mapped.replace("010000 = ram", "0003FF = ram"), /Memory regions overlap/],
     [mapped.replace("010000 = ram", "FFF001 = ram"), /beyond the address space/],
@@ -116,13 +116,32 @@ test("wiring checks targets, CPU support, full component bounds, and overlapping
     [direct + "\nports { out 00=output 0 out 00=output 0 }", /Duplicate out port/],
     [direct + "\nports { read 00=input 0 }", /Expected port direction/],
     [direct + "\nports { in 100=input 0 }", /Port must be in/],
-    [direct + "\nports { in 00=output 0 }", /in ports require a byte-input/],
-    [direct + "\nports { out 00=input 0 }", /out ports require a byte-output/],
+    [direct + "\nports { in 00=output 0 }", /in ports require a readable device/],
+    [direct + "\nports { out 00=input 0 }", /out ports require a writable device/],
     [direct + "\nports { out 00=missing 0 }", /Unknown component/],
     [direct + "\nports { in 00=input 2 }", /Device address exceeds/],
     [direct + "\nports { out 00=output 1 }", /Device address exceeds/],
     [direct + "\nend 10000", /Completion address must be/],
   ] as const) assert.throws(() => parseMachine(source), message, source);
+});
+
+test("8080 maps and ports declare unanswered bus values without changing the 68000 fault policy", () => {
+  const source = direct.replace("ram 10000", "ram 1000")
+    .replace("memory=ram", "map 10000 { 0000=ram unmapped=FF }") + "\nports { unmapped=5A in 00=input 0 }";
+  const machine = parseMachine(source);
+  assert.ok("components" in machine);
+  assert.deepEqual(machine.connection, { kind: "mapped", size: 65536, unmapped: 255, regions: [{ start: 0, component: "ram" }] });
+  assert.equal(machine.unmappedPorts, 0x5a);
+  for (const [bad, error] of [
+    [source.replace("unmapped=FF", "unmapped=FF unmapped=00"), /Duplicate unmapped bus/],
+    [source.replace("unmapped=FF", "unmapped=100"), /Unmapped bus value must be/],
+    [source.replace("unmapped=5A", "unmapped=00 unmapped=FF"), /Duplicate unmapped port/],
+    [source.replace("unmapped=5A", "unmapped=100"), /Unmapped port value must be/],
+    [source.replace("map 10000", "map 1000"), /Address-space size for 8080/],
+    [source.replace("0000=ram", "F001=ram"), /beyond the address space/],
+    [source.replace("0000=ram", "0000=ram 0FFF=ram"), /overlap/],
+    [mapped.replace("map 1000000 {", "map 1000000 { unmapped=FF"), /68000 maps report bus errors/],
+  ] as const) assert.throws(() => parseMachine(bad), error);
 });
 
 test("images target RAM or ROM, fit locally, and diagnose the first excess byte at its source location", () => {

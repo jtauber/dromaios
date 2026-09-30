@@ -13,6 +13,7 @@ test("native CPU generation never imports generated data, bootstraps without it,
     cpSync(`scripts/${name}.ts`, join(directory, `scripts/${name}.ts`));
   }
   cpSync("src/components", join(directory, "src/components"), { recursive: true });
+  cpSync("src/literate.ts", join(directory, "src/literate.ts"));
   const output = join(directory, "src/components/cpus/generated");
   rmSync(output, { recursive: true, force: true });
   const chapters = join(directory, "src/components/cpus/semantics/generated");

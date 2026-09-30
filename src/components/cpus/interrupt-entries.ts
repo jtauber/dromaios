@@ -1,4 +1,4 @@
-import type { Ram } from "../memory/ram.ts";
+import type { ByteMemoryConnection } from "../memory/connection.ts";
 import type { decodedExecution } from "./decoded-execution.ts";
 import { readWordBE, readWordLE } from "./binary.ts";
 import type { StateTransition } from "./execution-records.ts";
@@ -29,7 +29,7 @@ export type EntryInterrupt<Snapshot, Entries> = StateTransition<Snapshot, Access
 );
 
 /** Named, gated requests can enter a vector or acknowledge and select supplied-instruction delivery. */
-export function interruptEntries<Snapshot, const Entries extends Readonly<Record<string, Entry>>>(cpu: string, ram: Ram,
+export function interruptEntries<Snapshot, const Entries extends Readonly<Record<string, Entry>>>(cpu: string, ram: ByteMemoryConnection,
   ports: BytePorts | undefined, snapshot: () => Snapshot, boundary: ReturnType<typeof decodedExecution<Snapshot>>,
   entries: Entries, stopped: () => boolean, word: "little" | "big") {
   const readWord = word === "little" ? readWordLE : readWordBE;
