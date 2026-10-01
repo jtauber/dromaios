@@ -17,7 +17,9 @@ source footprint, validation evidence, and remaining fidelity limits.
 All eight CPU models are now authored in executable literate specifications.
 The initial language and generation refinement pass is complete. The immediate
 focus is now interactive learning, with further refinement driven by concrete
-authoring and browser needs.
+authoring and browser needs. After completing the introductory BASIC learning
+path, the main development priority will be complete, usable historical-machine
+emulators within Dromaios, building on the existing CPU models.
 Reusable memory and byte-I/O compositions also work in simulation. The
 [microcomputer.world site](site/README.md) now presents the executable CPU
 chapters with Sauvignon diagrams, lessons from bits through 8080 programs, and
@@ -150,8 +152,12 @@ walkthrough review. Keep browser pacing distinct from emulated machine time.
 
 The working Altair in milestone 5 now supports gentle BASIC lessons. Their
 Markdown prose and authored conversations supply both the published examples
-and acceptance tests against the original interpreter. Introduce the 8080/6502
-comparison when approaching the Apple II; other machines may come between them.
+and acceptance tests against the original interpreter. Give this initial BASIC
+path a bounded finish: a small complete program that learners can understand,
+modify, and debug. After that checkpoint, shift the main development effort to
+the working emulators described in milestone 6. Further lessons can grow from
+the machines and software being implemented. Introduce the 8080/6502 comparison
+when approaching the Apple II; other machines may come between them.
 
 The [pedagogical roadmap](docs/pedagogy.md#pedagogical-roadmap) defines the
 learning milestones and review points, beginning with an arithmetic explorer
@@ -232,14 +238,27 @@ cycle-level timing, full electrical behavior, or support for other peripherals.
 
 ## 6. Broaden the platform
 
-- Add further CPU models and variants from the [intended scope](docs/cpus/scope.md#intended-eventual-scope),
-  beyond the initial eight. Test shared execution and inspection conventions
-  against each new case; their implementation order remains open.
+**Next priority after the BASIC learning path:** bring historical-machine
+emulators into regular use within Dromaios. Choose one configuration and a set
+of representative software for each machine, then carry it through boot,
+loading, interaction, and repeatable use. Agree those acceptance criteria before
+implementation, using the existing emulator projects as references.
+
+"Fully working" is measured against that selected configuration and software:
+the required display, keyboard, sound, storage, and other devices work together,
+with usable browser controls and regression checks for complete sessions.
+Record any remaining fidelity limits in the executable machine and device
+chapters. Author the hardware declaratively and literately, developing shared
+components through the requirements of these working machines.
+
 - Add machines in an order we choose as the component library develops,
   using the selected software targets in [CPU scope](docs/cpus/scope.md#intended-eventual-scope)
   to guide each machine's milestones.
 - Grow reusable device models, teaching views, and specialist instruments.
 - Bring tutorial examples onto the same components used by complete machines.
+- Add further CPU models and variants from the [intended scope](docs/cpus/scope.md#intended-eventual-scope),
+  beyond the initial eight, when selected machines need them. Test shared execution
+  and inspection conventions against each new case; their implementation order remains open.
 - Develop [detailed software guides](docs/pedagogy.md#7-understand-substantial-software-through-guided-execution)
   that connect program and subsystem analysis, line-by-line commentary, and
   interactive demonstrations to execution. Individual routine studies can

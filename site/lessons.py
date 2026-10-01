@@ -108,6 +108,8 @@ LESSON_GROUPS = [
              "summary": "Express a counting loop with a start, a limit, and a step."},
             {"slug": "a-program-that-keeps-a-total", "title": "A program that keeps a total",
              "summary": "Add successive values to a total, then combine the prices of several purchases."},
+            {"slug": "finding-and-fixing-a-mistake", "title": "Finding and fixing a mistake",
+             "summary": "Print intermediate values, find a misplaced instruction, and check the repair."},
         ],
     },
 ]
