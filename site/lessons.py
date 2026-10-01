@@ -92,7 +92,7 @@ LESSON_GROUPS = [
     {
         "slug": "basic-on-the-altair",
         "title": "BASIC on the Altair",
-        "summary": "Use the original interpreter to turn typed commands into programs.",
+        "summary": "Use the original interpreter to turn typed commands into programs, finishing with your own ticket desk.",
         "lessons": [
             {"slug": "your-first-basic-program", "title": "Your first BASIC program",
              "summary": "Calculate, store numbered lines, then list, run, and change your program."},
@@ -110,6 +110,8 @@ LESSON_GROUPS = [
              "summary": "Add successive values to a total, then combine the prices of several purchases."},
             {"slug": "finding-and-fixing-a-mistake", "title": "Finding and fixing a mistake",
              "summary": "Print intermediate values, find a misplaced instruction, and check the repair."},
+            {"slug": "a-ticket-desk-of-your-own", "title": "A ticket desk of your own",
+             "summary": "Plan, build, check, and adapt a complete program using the ideas from this BASIC path."},
         ],
     },
 ]

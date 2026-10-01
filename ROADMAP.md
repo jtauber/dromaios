@@ -15,11 +15,11 @@ use shared instruction definitions that generate execution and explanations.
 source footprint, validation evidence, and remaining fidelity limits.
 
 All eight CPU models are now authored in executable literate specifications.
-The initial language and generation refinement pass is complete. The immediate
-focus is now interactive learning, with further refinement driven by concrete
-authoring and browser needs. After completing the introductory BASIC learning
-path, the main development priority will be complete, usable historical-machine
-emulators within Dromaios, building on the existing CPU models.
+The initial language and generation refinement pass and the introductory BASIC
+learning path are complete. The main development priority is now complete,
+usable historical-machine emulators within Dromaios, building on the existing
+CPU models. Further language and browser refinement will follow concrete
+machine and teaching needs.
 Reusable memory and byte-I/O compositions also work in simulation. The
 [microcomputer.world site](site/README.md) now presents the executable CPU
 chapters with Sauvignon diagrams, lessons from bits through 8080 programs, and
@@ -150,14 +150,17 @@ now complete this introductory path. The capstone prints a prompt, reads a line,
 chooses a response, and repeats. The complete path has had a consistency and
 walkthrough review. Keep browser pacing distinct from emulated machine time.
 
-The working Altair in milestone 5 now supports gentle BASIC lessons. Their
-Markdown prose and authored conversations supply both the published examples
-and acceptance tests against the original interpreter. Give this initial BASIC
-path a bounded finish: a small complete program that learners can understand,
-modify, and debug. After that checkpoint, shift the main development effort to
-the working emulators described in milestone 6. Further lessons can grow from
-the machines and software being implemented. Introduce the 8080/6502 comparison
-when approaching the Apple II; other machines may come between them.
+The introductory BASIC path is complete through
+[A ticket desk of your own](site/content/basic/a-ticket-desk-of-your-own.md):
+plan a small program, check its behavior, change its price, and use the preceding
+debugging lesson to investigate mistakes. The path has had a consistency review;
+its authored conversations pass against the original interpreter both from
+fresh boots and through saved sessions between lessons. The same Markdown
+supplies the published examples and acceptance checks. The main development
+effort now moves to the working emulators described in milestone 6. Further
+lessons can grow from the machines and software being implemented. Introduce
+the 8080/6502 comparison when approaching the Apple II; other machines may come
+between them.
 
 The [pedagogical roadmap](docs/pedagogy.md#pedagogical-roadmap) defines the
 learning milestones and review points, beginning with an arithmetic explorer
@@ -238,7 +241,7 @@ cycle-level timing, full electrical behavior, or support for other peripherals.
 
 ## 6. Broaden the platform
 
-**Next priority after the BASIC learning path:** bring historical-machine
+**Current priority:** bring historical-machine
 emulators into regular use within Dromaios. Choose one configuration and a set
 of representative software for each machine, then carry it through boot,
 loading, interaction, and repeatable use. Agree those acceptance criteria before

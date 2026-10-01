@@ -202,10 +202,16 @@ introductory path: print a prompt, collect a bounded line, choose a response,
 and repeat. The complete path has had a consistency and walkthrough review.
 The first [working Altair with BASIC](machines/altair-basic.md) milestone is
 complete, with hardware explanations and executable declarations developed
-together. Literate BASIC lessons now introduce stored programs, editing,
-variables, and numeric input, with authored conversations checked against the
-original interpreter. The 8080/6502 comparison follows when we approach the Apple II;
-other historical machines may be developed between them.
+together. The introductory BASIC path goes from stored programs and numeric
+input through decisions, loops, totals, and debugging to
+[a ticket-desk capstone](../site/content/basic/a-ticket-desk-of-your-own.md).
+Its review point is whether learners can turn requirements into a small program,
+explain its paths, change it, and check its results. Authored conversations are
+checked against the original interpreter, including continuation between lessons.
+Further teaching can grow from the working machines in the
+[project roadmap](../ROADMAP.md#6-broaden-the-platform). The 8080/6502 comparison
+follows when we approach the Apple II; other historical machines may be developed
+between them.
 
 A later teaching goal remains milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the
