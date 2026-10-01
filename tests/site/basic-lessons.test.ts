@@ -26,7 +26,8 @@ test("BASIC lessons continue through saved sessions while keeping or replacing t
   let previous: BasicSession | undefined;
   for (const [slug, skipSetup] of [["your-first-basic-program", false], ["a-program-that-asks-a-question", false],
     ["a-program-that-makes-a-decision", true], ["a-program-that-asks-again", true],
-    ["a-program-that-counts", false], ["counting-with-for-and-next", true]] as const) {
+    ["a-program-that-counts", false], ["counting-with-for-and-next", true],
+    ["a-program-that-keeps-a-total", true]] as const) {
     const path = `${directory}/${slug}.md`, chapter = parseBasicLesson(readFileSync(path, "utf8"), path);
     const state = await checkLesson(path, chapter.sessions.slice(skipSetup ? 1 : 0).flat(), previous);
     previous = await readBasicSession(saveBasicSession(state), media);

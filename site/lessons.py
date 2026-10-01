@@ -106,6 +106,8 @@ LESSON_GROUPS = [
              "summary": "Add one to a variable, repeat the change, and choose when to stop."},
             {"slug": "counting-with-for-and-next", "title": "Counting with FOR and NEXT",
              "summary": "Express a counting loop with a start, a limit, and a step."},
+            {"slug": "a-program-that-keeps-a-total", "title": "A program that keeps a total",
+             "summary": "Add successive values to a total, then combine the prices of several purchases."},
         ],
     },
 ]
