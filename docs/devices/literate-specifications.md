@@ -31,6 +31,7 @@ The final `interface ClassName` block selects public operations:
 | `initialize action` | An action without inputs | Called on fresh construction after fields are zero/clear. |
 | `reset action` | An action without inputs | Called by the device's `reset()` method. |
 | `validate source` | A read-only flag source without inputs | Checks initialized or restored state; false rejects construction. |
+| `view source` | A read-only source, with optional typed inputs | Public method with the source's name, input types, and result type. |
 | `offer source` | A flag source with one eight-bit input | Optional host `offer(value)` operation; returns acceptance. |
 | `read address source` | An eight-bit source without inputs | Read the selected local register. |
 | `write address source` | A flag source with one eight-bit input | Write the register; false throws `RangeError`. |
@@ -42,6 +43,14 @@ at the same address. The chapter owns the effects of rejection; it must preserve
 state when its contract promises that. Host values and addresses are validated
 before any declared effect. Unbound addresses within the device return
 `bus-error`; machine port validation rejects bindings to unimplemented directions.
+
+Views may read fields and call other read-only sources, but cannot mutate state,
+including through nested calls. Their names cannot replace built-in device
+methods. Inputs are checked before evaluation: unsigned values must fit their
+declared widths and flags must be Boolean. The
+[Apple II video chapter](../../src/components/devices/specifications/apple2-video.md)
+uses views for text addresses and character attributes, keeping hardware decoding
+in the specification without exposing guest register reads to inspection.
 
 Construction takes an output callback when any write binding uses `notify`,
 followed by an optional snapshot. Other devices take only the optional snapshot.

@@ -14,6 +14,7 @@ export interface DeviceInterface {
   readonly offer?: string;
   readonly reads: ReadonlyMap<number, string>;
   readonly writes: ReadonlyMap<number, { readonly source: string; readonly notify: boolean }>;
+  readonly views: readonly string[];
 }
 export interface DeviceChapter {
   readonly model: CpuDeclaration;
@@ -90,9 +91,19 @@ function deviceInterface(header: ChapterTokens, body: readonly ChapterTokens[],
   if (!/^[A-Z][A-Za-z0-9]*$/.test(name)) header.fail("Expected a public class name.");
   if (["MemoryConnection", "ReadonlyState", "StoredState", "TypeError", "RangeError"].includes(name)) header.fail("Public class name is reserved.");
   const reads = new Map<number, string>(), writes = new Map<number, { source: string; notify: boolean }>();
+  const views: string[] = [];
   const entries = new Map<string, string>(); let size: number | undefined;
   for (const tokens of body) {
     const kind = tokens.word();
+    if (kind === "view") {
+      const target = tokens.word(); tokens.end();
+      const source = sources.get(target) ?? tokens.fail(`Unknown source ${target}.`);
+      if (["constructor", "size", "snapshot", "reset", "offer", "read", "write", "then", "__proto__"].includes(target)) tokens.fail("View name conflicts with the public device API.");
+      if (views.includes(target)) tokens.fail(`Duplicate view ${target}.`);
+      tokens.checked(() => checkStateEffects(source.steps, "view"));
+      views.push(target);
+      continue;
+    }
     if (kind === "size") {
       if (size !== undefined) tokens.fail("Duplicate size.");
       size = tokens.number(); tokens.end();
@@ -128,5 +139,5 @@ function deviceInterface(header: ChapterTokens, body: readonly ChapterTokens[],
   const required = (key: string): string => entries.get(key) ?? header.fail(`Missing ${key} binding.`);
   if (size === undefined) return header.fail("Missing size.");
   return { name, size, initialize: required("initialize"), reset: required("reset"), validate: required("validate"),
-    ...(entries.has("offer") ? { offer: entries.get("offer")! } : {}), reads, writes };
+    ...(entries.has("offer") ? { offer: entries.get("offer")! } : {}), reads, writes, views };
 }

@@ -20,7 +20,7 @@ from check import check_site
 from diagrams import state_diagram
 from lessons import BASIC_LESSONS, LESSON_GROUPS
 from lesson_rendering import basic_lesson_catalogue, lesson_markdown
-from machines import ALTAIR, MACHINES, media_record
+from machines import ALTAIR, APPLE2, MACHINES, media_record, rom_container_record
 from rendering import CHAPTERS, REPOSITORY, ChapterRendering, github_slug
 
 SITE = Path(__file__).resolve().parent
@@ -79,6 +79,7 @@ def build(base):
     site.copy_to_output(browser, interactive)
     site.set_global("lesson_script", f"{interactive}/site/interactive/lessons.js")
     site.set_global("altair_script", f"{interactive}/site/interactive/altair-basic.js")
+    site.set_global("apple2_script", f"{interactive}/site/interactive/apple2.js")
     site.write_output("assets/highlight.css", HtmlFormatter(style="friendly").get_style_defs(".code-block"))
     site.add_hash("assets/style.css")
     site.set_global("chapters", chapters)
@@ -119,6 +120,9 @@ def build(base):
     site.set_global("altair_media", media_record(ALTAIR.read_text()))
     site.set_global("altair_url", MACHINES[ALTAIR])
     site.render_template("altair-basic.html", f"{MACHINES[ALTAIR]}index.html", render_guide(ALTAIR))
+    site.render_template("apple2.html", f"{MACHINES[APPLE2]}index.html", {
+        **render_guide(APPLE2), "apple2_container": rom_container_record(APPLE2.read_text()),
+    })
     loading_source = SITE / "content/basic-loading.md"
     loading = Markup(lesson_markdown(loading_source, base).convert(loading_source.read_text()))
     for index, lesson in enumerate(lessons):
@@ -148,7 +152,7 @@ def build(base):
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + lesson index + {len(lessons)} introductory lessons + {len(chapters)} CPU chapters + Altair BASIC in {site.output_dir} (base {base}).")
+    print(f"Built home + lesson index + {len(lessons)} introductory lessons + {len(chapters)} CPU chapters + {len(MACHINES)} machine guides in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

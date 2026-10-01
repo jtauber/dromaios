@@ -4,7 +4,7 @@ The next historical machine is an **Apple II Plus**, using
 [dromaios-apple2][reference] as the primary reference for behavior, devices,
 browser interaction, and software targets. The initial
 [executable chapter](../../src/machines/6502/apple2.md) now boots ROM and runs
-text BASIC programs headlessly; the full configuration below remains the target.
+text BASIC programs on a browser text screen; the full configuration below remains the target.
 ApplePy remains a
 historical reference; it is not the migration baseline.
 
@@ -123,10 +123,10 @@ delivery, and scheduling host work.
 | Need | Existing support and concrete gap |
 | --- | --- |
 | 6502 with ROM and mapped devices | Implemented through the existing byte bus, with an explicit unanswered-bus policy in the chapter. |
-| Caller-supplied ROM | External image declarations require verified bindings before synchronous construction/restoration; snapshots retain ROM identity. Browser file selection is next. |
-| Keyboard and display switches | The keyboard now generates from its device chapter using existing state, offers, effects, reset, and snapshot support. Apply the same language to display switches. |
+| Caller-supplied ROM | External image declarations require verified bindings before synchronous construction/restoration; snapshots retain ROM identity. Browser selection verifies the complete file before replacement. |
+| Keyboard and display switches | Keyboard and display switches generate from device chapters, with state, offers, effects, reset, and snapshots. |
 | Banked memory | Fixed maps cover whole components and reject overlap. Language Card read/write routing needs explicit bank/window selection and storage ownership. Develop it when the card is introduced. |
-| Video | Frame decoding should consume RAM and switch snapshots. Explain interleaved addresses and character/pixel decoding alongside declarative definitions; do not hide hardware formulas in a browser controller. |
+| Video | Read-only generated views own text addresses, character codes, attributes, and visible rows. The host reads RAM and draws cells. Pixel decoding follows at the graphics checkpoint. |
 | Disk and speaker time | No current machine clock or device scheduler. Define emulated elapsed time and observable transitions before claiming timed disk behavior or producing audio. |
 | Inspection | Use captured CPU records and device snapshots. A future mapped-memory preview must have an explicit side-effect-free path; unavailable device bytes must not masquerade as read results. |
 
@@ -151,11 +151,12 @@ now cover native ROM boot, keyboard input, stored BASIC programs, editing,
 Control-C, and snapshot continuation. Its declarations own the implemented
 memory, media, and reset contracts.
 
-Remaining: independently test every text-row mapping and normal/inverse
-characters in the production display decoder. Browser acceptance adds file
-validation, keyboard focus, readable output, Step, Run/Pause, reset, and fresh
-power-on. Inspection must preserve the keyboard and execution state. Neither
-the text display nor its controls should replace the existing generated machine.
+The production display decoder has independent checks for every text cell on
+both pages and all normal/inverse/flashing character codes. Browser-session
+acceptance covers file verification, queued input, stored programs, editing,
+pause/resume, Step, reset, and power-on. The chapter describes the visible
+controls and remaining presentation approximations. Inspection preserves the
+keyboard and execution state.
 
 ### 2. Graphics and Language Card
 
@@ -208,12 +209,11 @@ the basic emulator's completion.
 
 ## Next implementation slice
 
-Finish checkpoint 1 with **text display and browser controls** around the
-generated machine: local ROM selection, keyboard delivery, Run/Pause, Step,
-CPU reset, and fresh power-on. Move the text-address and character-decoding
-rules into an executable display description with independent tests. This
-slice needs neither Language Card banking nor Disk II nor a general timing
-framework.
+Begin checkpoint 2 with **graphics decoding and rendering**: low-resolution
+colour blocks first, then high-resolution addressing and the chosen colour
+approximation. Extend the video chapter and independent frame checks, and
+exercise both modes from Applesoft. Language Card banking follows as a separate
+hardware contract; neither this display work nor that card requires Disk II yet.
 
 As implementation lands, move hardware/reset/media contracts and acceptance
 details into the executable chapter alongside their declarations. Keep this

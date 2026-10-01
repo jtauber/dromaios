@@ -3,6 +3,7 @@
 from html.parser import HTMLParser
 from pathlib import Path
 import re
+import json
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
@@ -12,7 +13,7 @@ from markdown import Markdown
 from check import check_site
 from diagrams import state_diagram
 from rendering import CHAPTERS, REPOSITORY, ChapterRendering, chapter_link, github_slug
-from machines import ALTAIR, MACHINES, media_record
+from machines import ALTAIR, APPLE2, MACHINES, media_record, rom_container_record
 from lessons import BASIC_LESSONS
 from lesson_rendering import basic_lesson_catalogue, lesson_markdown
 
@@ -70,6 +71,18 @@ class PublishingTests(unittest.TestCase):
         for invalid in ("", source + '\n```json\n{}\n```', '```json\n{"bytes": -1, "sha256": "bad"}\n```'):
             with self.assertRaises(ValueError):
                 media_record(invalid)
+
+    def test_apple2_guide_publishes_machine_fences_and_container_identity(self):
+        source = APPLE2.read_text()
+        markdown = Markdown(extensions=["fenced_code", ChapterRendering(APPLE2, "/demo/", lambda *_: "")])
+        output = markdown.convert(source)
+        self.assertEqual(CpuBlocks(output, "machine").blocks, re.findall(r"^```machine\n(.*?)^```$", source, re.M | re.S))
+        self.assertEqual(chapter_link("apple2.md#using-the-browser-machine", APPLE2, "/demo/"),
+                         f"/demo/{MACHINES[APPLE2]}#using-the-browser-machine")
+        self.assertEqual(rom_container_record(source)["offset"], 8192)
+        for offset in (-1, 20480, True, 1.5):
+            with self.assertRaises(ValueError):
+                rom_container_record(source.replace('"offset": 8192', f'"offset": {json.dumps(offset)}'))
 
     def test_every_cpu_block_survives_highlighting_verbatim(self):
         for path in CHAPTERS.glob("*.md"):

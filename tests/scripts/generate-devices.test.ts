@@ -45,13 +45,14 @@ test("generated device code follows chapter edits and failed regeneration preser
   cpSync("src/components/validation.ts", join(root, "src/components/validation.ts"));
   writeFileSync(join(root, "package.json"), '{"type":"module"}');
   const path = join(specifications, "probe.md");
-  writeFileSync(path, source.replace("RX <- byte", "RX <- xor(byte, u8($FF))").replace("size 2", "size 3"));
+  writeFileSync(path, source.replace("RX <- byte", "RX <- xor(byte, u8($FF))").replace("size 2", "size 3\n  view status"));
   generateDevices(directory);
   const files = ["catalogue.ts", "probe-effects.ts", "probe-state.ts", "probe.ts"];
   assert.deepEqual(readdirSync(join(directory, "generated")).sort(), files);
   const { Mc6850Polling } = await import(pathToFileURL(join(directory, "generated/probe.ts")).href);
   const device = new Mc6850Polling(() => {});
   device.write(0, 0x15); device.offer(0x42);
+  assert.equal(device.status(), device.read(0));
   assert.equal(device.read(1), 0xbd); // Changed formal effect reaches the public device API.
   assert.equal(device.size, 3);
   assert.equal(device.read(2), "bus-error");
@@ -82,4 +83,22 @@ test("machine ports and reset use the generated device's register capabilities",
   ]);
   assert.throws(() => parseMachine(source.replace("in 11 = serial 1", "in 11 = serial 2")), /Device address exceeds/);
   assert.throws(() => parseMachine(source.replace("in 11 = serial 1", "in 11 = ram 0")), /Ports require a device/);
+});
+
+
+test("public device views reject unknown, duplicate, reserved, and transitively effectful sources", () => {
+  const chapter = readFileSync("src/components/devices/specifications/apple2-video.md", "utf8");
+  for (const [binding, expected] of [
+    ["view missing", /Unknown source/],
+    ["view inverse", /Duplicate view/],
+    ["view readGraphics", /Views may only read/],
+  ] as const) {
+    assert.throws(() => compileDeviceChapter(chapter.replace("view textAddress", binding), "video.md"), error => {
+      assert.ok(error instanceof Error); assert.match(error.message, /^video\.md:\d+:\d+:/);
+      assert.match(error.message, expected); return true;
+    });
+  }
+  assert.throws(() => compileDeviceChapter(chapter.replaceAll("characterCode", "snapshot")), /conflicts/);
+  const nested = chapter.replace('  return and(not(bit(byte, 7))', '  ignored = source readGraphics()\n  return and(not(bit(byte, 7))');
+  assert.throws(() => compileDeviceChapter(nested), /Views may only read/);
 });

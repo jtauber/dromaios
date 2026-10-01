@@ -4,10 +4,12 @@ interface ExecutionOptions<Record> {
   readonly onChange: () => void;
   /** Schedule one callback, returning a function that cancels it. */
   readonly schedule: (callback: () => void, delayMs: number) => () => void;
+  readonly batchSize?: number;
 }
 
-/** Pace single instructions, yielding between them without accumulating missed ticks. */
-export function createExecutionController<Record>({ step, canStep, onChange, schedule }: ExecutionOptions<Record>) {
+/** Yield between bounded batches; manual Step always executes just one instruction. */
+export function createExecutionController<Record>({ step, canStep, onChange, schedule, batchSize = 1 }: ExecutionOptions<Record>) {
+  if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 10_000) throw new RangeError("Instruction batch size must be in 1..10000.");
   let running = false;
   let delayMs = 1000;
   let error: string | undefined;
@@ -40,7 +42,7 @@ export function createExecutionController<Record>({ step, canStep, onChange, sch
       // Cancellation also rejects callbacks already queued by the host before STOP.
       if (!running || token !== generation) return;
       cancel = () => {};
-      if (canStep()) advance();
+      for (let count = 0; count < batchSize && running && error === undefined && canStep(); count++) advance();
       if (error !== undefined || !canStep()) running = false;
       onChange();
       if (running) queue();

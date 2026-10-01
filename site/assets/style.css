@@ -605,3 +605,19 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
   .panel-banks, .panel-switch-numbers { grid-template-columns: 1fr; gap: 16px; }
   .panel-data-lights { max-width: none; margin-left: 0; }
 }
+
+/* Machine guides share the catalogue cards; the Apple II owns a RAM-backed screen. */
+.machine-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.apple2-display-surround { container-type: inline-size; margin: 24px 0 12px; padding: 16px; border: 1px solid #b9ac93; border-radius: 10px; background: #e6dcc6; }
+.apple2-display-label { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; color: #4e493e; font: 600 11px/1.4 var(--mono); letter-spacing: .08em; }
+.apple2-screen { display: grid; grid-template-rows: repeat(24, 1fr); aspect-ratio: 4 / 3; padding: 4%; background: #111a13; color: #bcf5a8; border-radius: 5px; font-family: var(--mono); font-size: min(2.5cqw, 22px); line-height: 1; overflow: hidden; }
+.apple2-row { display: grid; grid-template-columns: repeat(40, minmax(0, 1fr)); min-height: 0; }
+.apple2-row > span { white-space: pre; text-align: center; align-content: center; }
+.apple2-row > .inverse { color: #111a13; background: #bcf5a8; }
+.apple2-screen:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+.apple2-machine textarea { box-sizing: border-box; width: 100%; resize: vertical; min-height: 48px; font: 15px/1.5 var(--mono); }
+@media (max-width: 700px) {
+  .machine-grid { grid-template-columns: 1fr; }
+  .apple2-display-surround { padding: 8px; }
+  .apple2-display-label { font-size: 9px; }
+}

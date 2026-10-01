@@ -187,6 +187,7 @@ available kinds are:
 | [Byte output](../devices/byte-output.md) | `output = byte-output` | `0` output register |
 | [MC6850 polling profile](../../src/components/devices/specifications/mc6850-polling.md) | `serial = mc6850-polling` | `0` status/control, `1` receive/transmit |
 | [Altair sense switches](../../src/components/devices/specifications/altair-sense-switches.md) | `sense = altair-sense-switches` | `0` positions, read-only |
+| [Apple II video](../../src/components/devices/specifications/apple2-video.md) | `video = apple2-video` | `0`–`7` display switches; read-only text views |
 | [Apple II keyboard](../../src/components/devices/specifications/apple2-keyboard.md) | `keyboard = apple2-keyboard` | `00`–`0F` data, `10`–`1F` acknowledgement |
 
 RAM and ROM sizes are positive hexadecimal byte counts, at most `1000000`

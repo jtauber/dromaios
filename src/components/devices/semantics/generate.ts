@@ -10,6 +10,15 @@ export function generateDevice(chapter: DeviceChapter, stem: string) {
     [name, field.kind === "unsigned" ? 0 : false])));
   const read = (source: string, argument = "") => `this.#sources[${JSON.stringify(source)}](${argument})`;
   const lifecycle = (action: string) => `instructions[${JSON.stringify(action)}](this.#state)`;
+  const views = api.views.map(name => {
+    const source = chapter.sources[name]!;
+    const inputs = Object.entries(source.inputs ?? {}).map(([name, type], index) => ({ name, type, argument: `input${index}` }));
+    const parameters = inputs.map(({ argument, type }) => `${argument}: ${type === "flag" ? "boolean" : "number"}`);
+    const checks = inputs.map(({ name, type, argument }) => type === "flag"
+      ? `    if (typeof ${argument} !== "boolean") throw new TypeError(${JSON.stringify(`${name} must be Boolean.`)});`
+      : `    checkUnsigned(${JSON.stringify(name)}, ${argument}, ${2 ** type - 1});`);
+    return `  ${JSON.stringify(name)}(${parameters.join(", ")}): ${source.type === "flag" ? "boolean" : "number"} {\n${checks.join("\n")}\n    return ${read(name, inputs.map(input => input.argument).join(", "))};\n  }\n`;
+  }).join("\n");
   const description = {
     name: api.name, module: `devices/generated/${stem}`, size: api.size,
     reads: [...api.reads.keys()], writes: [...api.writes.keys()], output,
@@ -48,6 +57,7 @@ ${output ? `    if (typeof onWrite !== "function") throw new TypeError("Device r
   get size(): number { return ${api.size}; }
   snapshot(): ${api.name}Snapshot { return copyState(description, this.#state); }
   reset(): void { ${lifecycle(api.reset)}; }
+${views}
 ${api.offer ? `
   /** Offer a host byte; false leaves it with the host for later delivery. */
   offer(value: number): boolean {

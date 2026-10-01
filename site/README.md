@@ -5,7 +5,7 @@ the processor models and executable specifications; it is credited alongside
 the site’s other tools, Ryland and Sauvignon.
 
 Ryland builds the home page, the lesson index, the introductory lessons, one
-guide per processor, and the Altair machine guide from executable specifications. Sauvignon renders both
+guide per processor, and the Altair and Apple II Plus machine guides from executable specifications. Sauvignon renders both
 architecture diagrams and state maps
 derived from the CPU compiler. Pages use ordinary HTML, CSS, and SVG, with
 small TypeScript modules for the lesson interactions. Processor guides need no
@@ -133,6 +133,23 @@ they are explicitly skipped; syntax and publication checks still run. These
 transcripts are test inputs and published examples, not commands automatically
 sent by the browser. The lesson format currently describes linear conversations,
 not branching exercises or a general lesson language.
+
+## Apple II Plus
+
+`/machines/apple-ii-plus/` publishes the executable [Apple II chapter](../src/machines/6502/apple2.md)
+with local ROM selection and a text screen. The Machines navigation opens the
+home-page machine index. `rom-file.ts` checks the complete container and extracted
+ROM; `apple2-session.ts` delivers queued keys through the generated latch.
+`apple2-screen.ts` reads RAM using generated, read-only video views. The controller
+owns host events and scheduling; it contains no ROM traps or hardware decoding.
+The shared execution controller supports bounded batches with single-instruction
+manual stepping; existing lessons retain their original pacing.
+
+Set `APPLE2_ROM` for the production browser-session acceptance test. Check local
+file selection, a real Applesoft session, editing, Control-C, failed replacement,
+pause/resume, reset/power-on, keyboard focus, and wide/narrow layouts in the browser.
+The chapter owns the behavior and limitations, including session lifetime and
+approximate character shapes and flash timing.
 
 ## Build and preview
 
