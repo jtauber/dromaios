@@ -20,12 +20,13 @@ for (const file of readdirSync(directory).filter(name => name.endsWith(".md")).s
   }, async () => { await checkLesson(path, chapter.sessions.flat()); });
 }
 
-test("BASIC lessons continue through saved sessions while keeping the preceding ticket program", {
+test("BASIC lessons continue through saved sessions while keeping or replacing the preceding program", {
   skip: tapePath === undefined ? "Set ALTAIR_BASIC_TAPE to check lesson continuation" : false,
 }, async () => {
   let previous: BasicSession | undefined;
   for (const [slug, skipSetup] of [["your-first-basic-program", false], ["a-program-that-asks-a-question", false],
-    ["a-program-that-makes-a-decision", true], ["a-program-that-asks-again", true]] as const) {
+    ["a-program-that-makes-a-decision", true], ["a-program-that-asks-again", true],
+    ["a-program-that-counts", false], ["counting-with-for-and-next", true]] as const) {
     const path = `${directory}/${slug}.md`, chapter = parseBasicLesson(readFileSync(path, "utf8"), path);
     const state = await checkLesson(path, chapter.sessions.slice(skipSetup ? 1 : 0).flat(), previous);
     previous = await readBasicSession(saveBasicSession(state), media);

@@ -102,6 +102,10 @@ LESSON_GROUPS = [
              "summary": "Compare an answer with zero and choose a different path with IF…THEN."},
             {"slug": "a-program-that-asks-again", "title": "A program that asks again",
              "summary": "Return to a question with GOTO, try several answers, and use zero to finish."},
+            {"slug": "a-program-that-counts", "title": "A program that counts",
+             "summary": "Add one to a variable, repeat the change, and choose when to stop."},
+            {"slug": "counting-with-for-and-next", "title": "Counting with FOR and NEXT",
+             "summary": "Express a counting loop with a start, a limit, and a step."},
         ],
     },
 ]
