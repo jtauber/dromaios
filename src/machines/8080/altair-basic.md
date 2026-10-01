@@ -222,13 +222,51 @@ memory and sense-switch controls at instruction boundaries as described below.
 
 ## Using the browser machine
 
-Download the [selected tape][tape], choose it in the file control, raise A11/A10
-on the front panel, leaving all other switches down and PC at 0000, then
-select RUN. **Do not press EXAMINE after raising the loading switches:** that
-would move PC to 0C00 instead of leaving it at the bootstrap. Click the keyboard field
-below the terminal. At MEMORY SIZE? press Enter; press Enter for the default
-terminal width, then type Y and Enter at WANT SIN?. BASIC should report
-727 BYTES FREE and OK. Type `PRINT 40+2` and Enter to see 42.
+1. Download the [selected tape][tape] and choose it in the Paper tape control.
+   The verified filename appears below it; the machine is stopped with a fresh
+   bootstrap at PC 0000.
+2. In the front panel, raise only A11 and A10. **Do not press EXAMINE:** that
+   would move PC to 0C00 instead of leaving it at the bootstrap. You may close
+   the panel to bring the terminal closer.
+3. Select the browser's RUN button. Wait for each BASIC prompt before answering
+   in the terminal keyboard:
+
+| BASIC asks | Your response |
+| --- | --- |
+| MEMORY SIZE? | Enter, with no number: let BASIC find the RAM limit. |
+| TERMINAL WIDTH? | Enter, with no number: retain the default width. |
+| WANT SIN? | Y followed by Enter: retain the optional math routines. |
+
+BASIC should report **727 BYTES FREE** and **OK**. Type `PRINT 40+2` and Enter to
+see 42. The Enter button beside the keyboard sends the same byte as its Enter
+key. All terminal output comes from the original interpreter running on the CPU.
+
+### Working with a BASIC program
+
+The browser's RUN button lets the processor execute. Once BASIC is waiting at
+OK, type the BASIC command `RUN` to execute your stored program. These controls
+operate at different levels: BASIC still needs the processor to be running to
+receive a command or print its result.
+
+For a complete session, enter the numbered lines in
+[the program above](#programs-editing-and-execution-controls), one line at a time.
+Type `LIST` to see them in numeric order, then `RUN` and answer 3 to the `?`
+prompt. The program prints 2, 4, and 6. Replace line 100 with `100 PRINT I*3`
+and run again: it now prints 3, 6, and 9. Entering a line number alone deletes
+that line; `NEW` removes the stored program. Wait for the echo of each complete
+line before entering another; BASIC may discard typeahead during line storage.
+
+| Browser control | What it means during a BASIC session |
+| --- | --- |
+| STOP, then RUN | Pause the processor and continue from its current PC; BASIC receives no break character. |
+| Break / Control-C | Send byte 03 so a running BASIC program can return to OK. While stopped, the byte waits until RUN resumes execution. |
+| Reset CPU + serial | Stop, reset the CPU and ACIA, and eject host input. RAM and switches remain; this is not a BASIC warm start. |
+| Reload tape | Restore the initial machine and tape, clear the terminal, and reopen the panel with all switches down. Raise A11/A10 again before RUN. |
+
+After reset the media readout says that the tape was ejected, while retaining
+the verified file for Reload tape. Its progress bar is hidden until another tape
+is attached. The keyboard queue has its own readout, including when no tape is
+selected. Queued input is not local echo and has not necessarily reached BASIC.
 
 The keyboard sends ASCII as typed, with no local echo or automatic capitalization;
 use uppercase BASIC commands. Enter sends carriage return. Backspace sends
@@ -255,12 +293,11 @@ keyboard queue rejects another offer rather than silently dropping characters.
 The [browser-session test](../../../tests/site/altair-basic.test.ts) checks this
 scheduler, printing terminal, and panel with the supplied tape, a BASIC loop,
 STOP, inspection and restoration of PC, Control-C, and reload. The same
-`ALTAIR_BASIC_TAPE` setting enables it.
-
-Reset preserves loaded RAM and switches but ejects host input and resets the
-CPU and ACIA; it does not warm-start BASIC. Reload tape constructs a fresh
-machine with the original bootstrap and the last verified tape, clears the
-terminal, and lowers the switches. Raise A11/A10 again and RUN to repeat loading.
+`ALTAIR_BASIC_TAPE` setting enables it. Synthetic
+[media checks](../../../tests/site/altair-basic-media.test.ts) cover rejection of
+wrong-sized or altered files, read failures, and the ejected-tape readout without
+requiring historical software. A failed verification never replaces the
+previous verified file or machine.
 
 ### Front panel and execution state
 
@@ -294,7 +331,11 @@ and port connections. Registers, flags, interrupt latches, and the halted state
 remain intact. Machine reset follows this current CPU. Reset releases a halted
 CPU; EXAMINE alone does not. After inspecting another location during a stopped
 BASIC session, restore the saved PC before resuming if you want execution to
-continue where it stopped. Deposits can modify the running program when resumed.
+continue where it stopped. If panel operations change PC after execution, a
+reminder beside RUN shows the previous execution address and the current selected
+address. It disappears when that PC is restored, execution resumes, or the
+execution history is cleared by reset/reload. It neither restores registers nor
+undoes deposits. Deposits can modify the running program when resumed.
 
 The lights show PC and its memory byte between batches of instructions, not
 instantaneous electrical address/data bus values. Bus-status lamps, cycle

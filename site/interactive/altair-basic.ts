@@ -2,6 +2,8 @@ import { create8080AltairBasic } from "../../src/machines/generated/8080/altair-
 import { SerialSession } from "../../src/runtime/serial-session.js";
 import { mountAltairExplorer } from "./altair-explorer.js";
 import { createAltairMachinePanel } from "./altair-machine-panel.js";
+import { describeBasicTape, readBasicTape } from "./altair-basic-media.js";
+import type { BasicTape } from "./altair-basic-media.js";
 import { createSerialExecution } from "./serial-execution.js";
 import { createSerialTerminal, terminalControlKey, terminalInput } from "./serial-terminal.js";
 
@@ -15,10 +17,12 @@ export function mountAltairBasic(root: HTMLElement): void {
   const enter = element<HTMLButtonElement>("terminal-enter"), interrupt = element<HTMLButtonElement>("terminal-break");
   const status = element<HTMLElement>("machine-status"), message = element<HTMLElement>("machine-message");
   const progress = element<HTMLProgressElement>("tape-progress"), tapeStatus = element<HTMLElement>("tape-status");
+  const inputStatus = element<HTMLElement>("input-status"), resumePosition = element<HTMLElement>("resume-position");
+  const panelDetails = element<HTMLDetailsElement>("machine-panel");
   const inspect = element<HTMLElement>("machine-inspect"), trace = element<HTMLElement>("machine-trace");
   const terminal = createSerialTerminal();
   const session = new SerialSession(output => create8080AltairBasic({ serial: output }));
-  let tape: Uint8Array | undefined, tapeName = "", selecting = false, selection = 0;
+  let tape: BasicTape | undefined, selecting = false, selection = 0;
   const execution = createSerialExecution(session, {
     schedule(callback) { const timer = window.setTimeout(callback, 0); return () => window.clearTimeout(timer); },
     output: terminal.write,
@@ -40,14 +44,19 @@ export function mountAltairBasic(root: HTMLElement): void {
     if (execution.error !== undefined) message.textContent = execution.error;
     progress.max = session.tapeLength || 1;
     progress.value = session.tapePosition;
-    tapeStatus.textContent = selecting ? "Checking selected file…" : tape === undefined ? "No tape selected."
-      : `${tapeName} · ${session.tapePosition.toLocaleString()} / ${session.tapeLength.toLocaleString()} bytes offered · ${session.pendingInput} keyboard bytes queued`;
+    progress.hidden = session.tapeLength === 0;
+    tapeStatus.textContent = selecting ? "Checking selected file…" : describeBasicTape(tape, session.tapePosition, session.tapeLength);
+    inputStatus.textContent = `${session.pendingInput} keyboard bytes queued`;
     if (screen.textContent !== terminal.text) {
       const following = screen.scrollHeight - screen.scrollTop - screen.clientHeight < 40;
       screen.textContent = terminal.text;
       if (following) screen.scrollTop = screen.scrollHeight;
     }
     const cpu = session.machine.cpu.snapshot(), serial = session.machine.serial.snapshot();
+    const previousPc = execution.records.at(-1)?.after.pc;
+    resumePosition.hidden = session.running || selecting || previousPc === undefined || previousPc === cpu.pc;
+    resumePosition.textContent = previousPc === undefined ? ""
+      : `Last execution left PC at ${hex(previousPc)}. The panel now selects ${hex(cpu.pc)}. Restore ${hex(previousPc)} with EXAMINE to resume from that location.`;
     inspect.textContent = `PC ${hex(cpu.pc)}   SP ${hex(cpu.sp)}   A ${hex(cpu.a, 2)}   HL ${hex(cpu.hl)}\nSerial receive: ${serial.full ? "full" : "empty"}   Sense switches: ${hex(session.machine.sense.snapshot().switches, 2)}`;
     // Only format history when opened; inspection reads snapshots, never device ports.
     if (trace.closest("details")!.open) {
@@ -69,8 +78,9 @@ export function mountAltairBasic(root: HTMLElement): void {
   function sendText(text: string): void { action(() => send(terminalInput(text))); }
   function freshTape(): void {
     execution.clear();
-    session.reload(tape);
+    session.reload(tape?.bytes);
     terminal.clear(); keyboard.value = "";
+    panelDetails.open = true;
     message.textContent = "Raise only A11 + A10, then RUN to load BASIC. Leave PC at 0000.";
     panelView.reset();
   }
@@ -81,13 +91,9 @@ export function mountAltairBasic(root: HTMLElement): void {
     const token = ++selection;
     execution.stop(); selecting = true; message.textContent = ""; refresh();
     try {
-      if (chosen.size !== Number(root.dataset.tapeSize)) throw new Error(`This machine needs the ${root.dataset.tapeSize}-byte 4K BASIC 3.2 tape.`);
-      const bytes = new Uint8Array(await chosen.arrayBuffer());
-      const digest = await crypto.subtle.digest("SHA-256", bytes);
-      const hash = Array.from(new Uint8Array(digest), byte => hex(byte, 2).toLowerCase()).join("");
-      if (hash !== root.dataset.tapeSha256) throw new Error("This file does not match the 4K BASIC 3.2 tape in the guide.");
+      const verified = await readBasicTape(chosen, { bytes: Number(root.dataset.tapeSize), sha256: root.dataset.tapeSha256! });
       if (token !== selection) return;
-      tape = bytes; tapeName = chosen.name;
+      tape = verified;
       freshTape();
     } catch (cause) {
       if (token === selection) message.textContent = cause instanceof Error ? cause.message : String(cause);

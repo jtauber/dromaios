@@ -30,15 +30,19 @@ navigation instead of naming their neighbors. The index works without JavaScript
 [machine chapter](../src/machines/8080/altair-basic.md) with a working browser
 terminal. `machines.py` selects the chapter and validates its JSON media record;
 the build passes that size/digest into the file control. The site neither fetches
-nor distributes BASIC. The chapter owns loading instructions, terminal conventions,
+nor distributes BASIC. `interactive/altair-basic-media.ts` verifies the complete
+local file before replacement and distinguishes attached tape from the verified
+file retained after reset. The chapter owns loading instructions, terminal conventions,
 reset/reload behavior, and limitations.
 
 `interactive/altair-basic.ts` connects the generated factory and shared
 `SerialSession` to browser controls. `serial-execution.ts` schedules cancellable
 batches; `serial-terminal.ts` supplies bounded printing-terminal presentation.
 `altair-machine-panel.ts` connects the shared panel model and view to this
-machine's mapped memory, PC, and live sense switches. Reload rebinds the panel
-to the fresh machine; CPU/serial reset preserves both switch banks.
+machine's mapped memory, PC, and live sense switches. Reload rebinds and opens
+the panel on the fresh machine; CPU/serial reset preserves both switch banks.
+If panel actions change PC after execution, a reminder beside RUN compares it
+with the last execution record. It does not restore state automatically.
 The earlier lessons retain their individual-instruction pacing. The machine's
 script loads only on its page; the guide remains readable without JavaScript.
 
@@ -48,7 +52,9 @@ test. Browser checks cover initialization, typing and pasting one line, editing,
 LIST/RUN/INPUT, STOP/resume, Control-C, invalid files, reset/reload, keyboard
 navigation, and wide/narrow layouts. Also check the shared panel: setting A11/A10
 without EXAMINE, PC changes, deposits at and beyond 0FFF, disabled memory actions
-while running, live sense switches, and reload with number guides hidden.
+while running, live sense switches, the changed-PC reminder, reset's ejected-tape
+readout, and reload with number guides hidden. The queue count remains visible
+without selected media.
 
 ## Build and preview
 

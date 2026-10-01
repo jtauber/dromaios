@@ -33,18 +33,20 @@
         <label>Paper tape <input type="file" data-tape-file disabled></label>
       </div>
       <p class="basic-hint">The file stays on your computer. Selecting a verified tape prepares a fresh, stopped machine.</p>
-      <progress data-tape-progress aria-label="Tape bytes offered" max="{{ media.bytes }}" value="0"></progress>
+      <progress data-tape-progress aria-label="Tape bytes offered" max="{{ media.bytes }}" value="0" hidden></progress>
       <p data-tape-status class="basic-readout">No tape selected.</p>
-      <details class="basic-panel" open>
+      <details class="basic-panel" data-machine-panel open>
         <summary>Front panel · address, data, and sense switches</summary>
+        <p class="basic-hint">To load BASIC, raise only A11 and A10 and leave PC at 0000.
+          Do not press EXAMINE after raising the loading switches. You can then close this panel to bring the terminal closer.</p>
         <fieldset data-panel-controls disabled>
           <legend class="visually-hidden">Operate the front panel</legend>
           {{ memory_controls(machine=true) }}
         </fieldset>
-        <p class="basic-hint">Raise only A11 and A10 to load BASIC; leave PC at 0000. Do not press EXAMINE after raising them.
-          EXAMINE and NEXT change PC. Only 0000–0FFF contain RAM; other addresses read FF and discard deposits.
+        <p class="basic-hint">EXAMINE and NEXT change PC. Only 0000–0FFF contain RAM; other addresses read FF and discard deposits.
           Lights show instruction boundaries, not individual bus cycles.</p>
       </details>
+      <p data-resume-position class="basic-hint" role="status" hidden></p>
       <div class="basic-controls" role="group" aria-label="Machine controls">
         <button type="button" data-machine-run disabled>RUN</button>
         <button type="button" data-machine-stop disabled>STOP</button>
@@ -52,6 +54,8 @@
         <button type="button" data-machine-reload disabled>Reload tape</button>
       </div>
       <p data-machine-status class="basic-readout" role="status">Stopped · 0 instructions</p>
+      <p class="basic-hint">RUN lets the processor execute; STOP pauses it. At BASIC’s prompt, type <code>RUN</code>
+        to run your BASIC program. Break sends Control-C to BASIC.</p>
       <pre class="serial-screen" data-serial-screen tabindex="0" aria-label="Terminal output"></pre>
       <label class="basic-keyboard">Terminal keyboard
         <textarea data-terminal-keyboard rows="1" disabled spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="keyboard-help" placeholder="Click here and type to BASIC"></textarea>
@@ -60,6 +64,7 @@
         <button type="button" data-terminal-enter disabled>Enter ↵</button>
         <button type="button" data-terminal-break disabled>Break · Ctrl-C</button>
       </div>
+      <p data-input-status class="basic-readout">0 keyboard bytes queued</p>
       <p id="keyboard-help" class="basic-hint">Use uppercase commands. Enter sends a line; Backspace sends BASIC’s erase character (_).
         Paste one line at a time. Only the machine’s echoes appear above.</p>
       <p data-machine-message class="basic-message" role="status"></p>

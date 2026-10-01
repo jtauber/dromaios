@@ -5,19 +5,21 @@ import { test } from "node:test";
 import { create8080AltairBasic } from "../../src/machines/generated/8080/altair-basic.js";
 import { SerialSession } from "../../src/runtime/serial-session.js";
 import { createAltairMachinePanel } from "../../site/interactive/altair-machine-panel.js";
+import { describeBasicTape, readBasicTape } from "../../site/interactive/altair-basic-media.js";
 import { createSerialExecution } from "../../site/interactive/serial-execution.js";
 import { createSerialTerminal, terminalInput } from "../../site/interactive/serial-terminal.js";
 
 const tapePath = process.env.ALTAIR_BASIC_TAPE;
 test("browser batching and terminal run the supplied BASIC tape, program, STOP, break, and reload", {
   skip: tapePath === undefined ? "Set ALTAIR_BASIC_TAPE for the historical BASIC session" : false,
-}, () => {
+}, async () => {
   assert.ok(tapePath);
   const media = JSON.parse(readFileSync("src/machines/8080/altair-basic.md", "utf8").match(/^```json\n(.*?)^```/ms)![1]!);
   const tape = readFileSync(tapePath);
   assert.equal(tape.length, media.bytes);
   assert.equal(createHash("sha256").update(tape).digest("hex"), media.sha256);
-  const session = new SerialSession(output => create8080AltairBasic({ serial: output }), tape);
+  const verified = await readBasicTape({ name: "4k-basic-3-2.tap", size: tape.length, arrayBuffer: async () => Uint8Array.from(tape).buffer }, media);
+  const session = new SerialSession(output => create8080AltairBasic({ serial: output }), verified.bytes);
   const terminal = createSerialTerminal();
   let panel = createAltairMachinePanel(session.machine, () => !session.running);
   function setSwitches(value: number): void {
@@ -62,7 +64,16 @@ test("browser batching and terminal run the supplied BASIC tape, program, STOP, 
   assert.deepEqual(session.machine.cpu.snapshot(), cpu);
   execution.run(); session.send([3]); until("OK\n");
   assert.ok(execution.records.length <= 12);
-  execution.clear(); session.reload(tape); terminal.clear();
+  execution.clear();
+  const loadedMachine = session.machine, beforeReset = terminal.text;
+  session.send(terminalInput("PRINT 123")); session.reset();
+  assert.equal(session.machine, loadedMachine);
+  assert.equal(session.pendingInput, 0);
+  assert.equal(session.tapeLength, 0);
+  assert.equal(terminal.text, beforeReset);
+  assert.match(describeBasicTape(verified, session.tapePosition, session.tapeLength), /tape ejected by reset/);
+  session.reload(verified.bytes); terminal.clear();
+  assert.match(describeBasicTape(verified, session.tapePosition, session.tapeLength), /0 \/ 4,352 bytes offered/);
   panel = createAltairMachinePanel(session.machine, () => !session.running);
   assert.equal(panel.switches, 0);
   setSwitches(0x0c00); execution.run(); until("MEMORY SIZE? ");
