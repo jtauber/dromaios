@@ -159,8 +159,7 @@ fresh boots and through saved sessions between lessons. The same Markdown
 supplies the published examples and acceptance checks. The main development
 effort now moves to the working emulators described in milestone 6. Further
 lessons can grow from the machines and software being implemented. Introduce
-the 8080/6502 comparison when approaching the Apple II; other machines may come
-between them.
+the 8080/6502 comparison when useful during the Apple II work.
 
 The [pedagogical roadmap](docs/pedagogy.md#pedagogical-roadmap) defines the
 learning milestones and review points, beginning with an arithmetic explorer
@@ -246,6 +245,12 @@ emulators into regular use within Dromaios. Choose one configuration and a set
 of representative software for each machine, then carry it through boot,
 loading, interaction, and repeatable use. Agree those acceptance criteria before
 implementation, using the existing emulator projects as references.
+
+The next target is the [Apple II Plus](docs/machines/apple2.md), with
+**dromaios-apple2** as its primary reference. Its plan starts with ROM, keyboard,
+and text, then adds graphics, Language Card banking, DOS 3.3, writable disks,
+and sound. The existing generated 6502 remains the CPU implementation; new
+hardware behavior should be authored in executable machine and device chapters.
 
 "Fully working" is measured against that selected configuration and software:
 the required display, keyboard, sound, storage, and other devices work together,

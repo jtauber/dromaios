@@ -96,6 +96,8 @@ examples add polling and consuming input reads with the same devices.
 
 ## Machine definitions
 
+- [Apple II Plus target](machines/apple2.md): proposed configuration, pinned
+  dromaios-apple2 audit, literate implementation gaps, and acceptance checkpoints.
 - [Altair serial example](../src/machines/8080/altair-serial.md): an executable
   composition that polls and echoes through the historical serial port pair.
 - [Altair BASIC chapter](../src/machines/8080/altair-basic.md): executable

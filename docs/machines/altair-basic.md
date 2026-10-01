@@ -1,9 +1,8 @@
 # Altair 8800 with BASIC
 
 The first historical-machine milestone is complete: a usable Altair with BASIC
-at the declared modeling fidelity. It now supports programming lessons before
-the 8080/6502 comparison and later move toward the Apple II. Other historical
-machines may come between them.
+at the declared modeling fidelity. Its introductory programming path is also
+complete. The next machine target is the [Apple II Plus](apple2.md).
 
 The [executable machine chapter](../../src/machines/8080/altair-basic.md) owns
 the selected hardware, bus responses, serial and panel connections, bootstrap,

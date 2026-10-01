@@ -210,8 +210,8 @@ explain its paths, change it, and check its results. Authored conversations are
 checked against the original interpreter, including continuation between lessons.
 Further teaching can grow from the working machines in the
 [project roadmap](../ROADMAP.md#6-broaden-the-platform). The 8080/6502 comparison
-follows when we approach the Apple II; other historical machines may be developed
-between them.
+can accompany the next machine target, the [Apple II Plus](machines/apple2.md),
+when it helps explain the machine.
 
 A later teaching goal remains milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the
