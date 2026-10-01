@@ -11,11 +11,13 @@
     <a class="source-link" href="{{ source_url }}" target="_blank" rel="noopener">View lesson source ↗</a>
   </header>
   <div id="load-basic" class="lesson-prose">{{ loading }}</div>
-  {{ altair_basic(altair_media, guide_url=calc_url(altair_url), loading_url='#load-basic') }}
+  {{ altair_basic(altair_media, guide_url=calc_url(altair_url), loading_url='#load-basic', session_key=calc_url('learn/')) }}
   <article class="lesson-prose">
     {{ content }}
-    <p>You can keep experimenting in the terminal. Your program lives only in this page's current machine:
-      navigating away, refreshing, or reloading the tape loses it. Copy your numbered lines somewhere to keep them.</p>
+    <p>You can keep experimenting in the terminal. This tab carries the BASIC machine and program between these lessons,
+      including a visit to All lessons, and restores them paused after a refresh. Press the browser's RUN button to continue.
+      Start fresh discards the program and reloads the retained tape. Copy your numbered lines somewhere for a lasting copy;
+      browser session storage is temporary.</p>
     <p>The <a href="{{ calc_url(altair_url) }}#using-the-browser-machine" target="_blank" rel="noopener">machine guide (opens in a new tab)</a>
       explains the hardware, loading process, and recovery controls. These lessons use that same machine and original interpreter.</p>
     {% include "lesson-navigation.html" %}

@@ -6,14 +6,21 @@ answer before calculating a price.
 
 ## Start with the question
 
-Load BASIC using the instructions above. This page has a fresh machine, so
-enter the small program from [the previous lesson](a-program-that-asks-a-question.md)
-again. Each ticket costs 2 pounds; N holds the number of tickets.
+Load or resume BASIC using the instructions above, and begin at OK. If you
+continued directly from [the previous lesson](a-program-that-asks-a-question.md),
+keep its four-line ticket program and skip the setup block below. Each ticket
+costs 2 pounds; N holds the number of tickets.
+
+If you are starting here or returning from a different lesson, type NEW to
+clear the stored program and variables, then enter these four lines.
 
 Type one numbered line at a time, pressing Enter and waiting for the complete
 echo before sending the next:
 
 ```basic-session
+> NEW
+
+OK
 > 10 PRINT "HOW MANY TICKETS"
 > 20 INPUT N
 > 30 PRINT N*2

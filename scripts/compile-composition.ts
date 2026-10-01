@@ -10,22 +10,26 @@ const componentTypes = {
 
 /** Emit concrete construction and wiring; generated machines need no runtime interpreter. */
 export function compileComposition(machine: ComposedMachineDefinition | ComponentMachineDefinition, name: string, from: string): string {
-  const imports: string[] = [];
+  const imports: string[] = [`import { checkMachineSnapshot, snapshotRam, restoreRam } from "${posix.relative(from, "snapshot.js")}";`];
+  const fields: string[] = [], snapshots: string[] = [];
   for (const kind of new Set(machine.components.map(component => component.kind))) {
     const [type, module] = isDeviceKind(kind) ? [deviceModels[kind].name, deviceModels[kind].module] : componentTypes[kind];
     imports.push(`import { ${type}${isDeviceKind(kind) ? ` as ${deviceType(kind)}` : ""} } from "${path(module)}";`);
   }
 
   const outputs = machine.components.filter(component => isDeviceKind(component.kind) && deviceModels[component.kind].output);
-  const argument = outputs.length ? `bindings: { ${outputs.map(component => `readonly ${component.name}: (value: number) => void`).join("; ")} }` : "";
+  const argument = outputs.length ? `bindings: { ${outputs.map(component => `readonly ${component.name}: (value: number) => void`).join("; ")} }, ` : "";
   const body: string[] = [];
   for (const component of machine.components) {
     const local = part(component.name);
     const images = machine.images.filter(image => image.component === component.name);
     switch (component.kind) {
       case "ram":
+        fields.push(`readonly ${component.name}: readonly number[]`);
+        snapshots.push(`${component.name}: snapshotRam(${local})`);
         body.push(`const ${local} = new Ram(${component.size});`);
         for (const image of images) body.push(`${JSON.stringify(image.bytes)}.forEach((value, offset) => ${local}.write(${image.address} + offset, value));`);
+        body.push(`if (initialState !== undefined) restoreRam(${local}, initialState.${component.name});`);
         break;
       case "rom":
         body.push(`const image_${component.name} = new Uint8Array(${component.size});`);
@@ -34,7 +38,9 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
         break;
       default: {
         const device = deviceModels[component.kind];
-        body.push(`const ${local} = new ${deviceType(component.kind)}(${device.output ? `bindings.${component.name}` : ""});`);
+        fields.push(`readonly ${component.name}: ReturnType<${deviceType(component.kind)}["snapshot"]>`);
+        snapshots.push(`${component.name}: ${local}.snapshot()`);
+        body.push(`const ${local} = new ${deviceType(component.kind)}(${device.output ? `bindings.${component.name}, ` : ""}initialState?.${component.name});`);
       }
     }
   }
@@ -42,6 +48,8 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
   const returned = machine.components.map(component => `${component.name}: ${part(component.name)}`);
   if (machine.cpu !== undefined) {
     const { name: cpuClass, module: cpuModule } = cpuModels[machine.cpu];
+    fields.unshift(`readonly cpu: ConstructorParameters<typeof ${cpuClass}>[1]`);
+    snapshots.unshift("cpu: instance.cpu.snapshot()");
     imports.unshift(`import { ${cpuClass} } from "${path(`cpus/${cpuModule}`)}";`);
     if (machine.connection.kind === "mapped") imports.push(`import { MemoryMap } from "${path("memory/memory-map")}";`);
     if (machine.ports !== undefined) imports.push(`import type { BytePorts } from "${path("cpus/port-access")}";`);
@@ -81,7 +89,7 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
       ...machine.resetDevices.map(target => `  ${part(target)}.reset();`), "};");
 
     const connection = machine.ports !== undefined ? ", ports" : machine.resetDevices !== undefined ? ", { resetDevices }" : "";
-    body.push(`const cpu = new ${cpuClass}(${memory}, ${JSON.stringify(machine.initialState, null, 2)}${connection});`);
+    body.push(`const cpu = new ${cpuClass}(${memory}, initialState === undefined ? ${JSON.stringify(machine.initialState, null, 2)} : initialState.cpu${connection});`);
     if (machine.reset !== undefined) {
       body.push("const reset = (): ReturnType<typeof cpu.reset> => {", "  // Follow the current CPU, including one restored from a host snapshot.", "  const record = instance.cpu.reset();",
         ...machine.reset.slice(1).map(target => `  ${part(target)}.reset();`), "  return record;", "};");
@@ -92,10 +100,12 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
     if (machine.reset !== undefined) returned.push("reset");
     if (machine.endAddress !== undefined) returned.push(`endAddress: ${machine.endAddress}`);
   }
-  if (machine.cpu !== undefined && machine.reset !== undefined) {
-    body.push(`const instance = { ${returned.join(", ")} };`, "return instance;");
-  } else body.push(`return { ${returned.join(", ")} };`);
-  return `${imports.join("\n")}\n\nexport function ${name}(${argument}) {\n${body.join("\n").split("\n").map(line => `  ${line}`).join("\n")}\n}\n`;
+  const snapshotFields = [...(machine.cpu === undefined ? [] : ["cpu"]), ...machine.components.filter(component => component.kind !== "rom").map(component => component.name)];
+  body.unshift(`if (initialState !== undefined) checkMachineSnapshot(initialState, ${JSON.stringify(snapshotFields)});`);
+  body.push(`const snapshot = (): { ${fields.join("; ")} } => ({ ${snapshots.join(", ")} });`);
+  returned.push("snapshot");
+  body.push(`const instance = { ${returned.join(", ")} };`, "return instance;");
+  return `${imports.join("\n")}\n\nexport function ${name}(${argument}initialState?: { ${fields.join("; ")} }) {\n${body.join("\n").split("\n").map(line => `  ${line}`).join("\n")}\n}\n`;
 
   function path(module: string): string { return posix.relative(from, `../components/${module}.js`); }
   function part(component: string): string { return `part_${component}`; }

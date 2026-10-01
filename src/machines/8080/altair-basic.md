@@ -249,6 +249,13 @@ BASIC should report **727 BYTES FREE** and **OK**. Type `PRINT 40+2` and Enter t
 see 42. The Enter button beside the keyboard sends the same byte as its Enter
 key. All terminal output comes from the original interpreter running on the CPU.
 
+The machine on this guide is independent of the BASIC lessons. Those lessons
+keep a tab-local checkpoint of this same generated machine, its host transport,
+terminal, and selected tape. Moving between lessons or refreshing restores the
+checkpoint paused, without reloading BASIC or replaying input. The shared
+[lesson instructions](../../../site/content/basic-loading.md) explain continuation
+and Start fresh. The guide's machine itself starts fresh on navigation or refresh.
+
 ### Working with a BASIC program
 
 The browser's RUN button lets the processor execute. Once BASIC is waiting at

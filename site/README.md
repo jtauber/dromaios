@@ -40,9 +40,27 @@ reset/reload behavior, and limitations.
 BASIC lessons under [`content/basic/`](content/basic/) are literate Markdown.
 They share the [loading explanation](content/basic-loading.md),
 [page template](templates/basic-lesson.html), [machine instrument](templates/instruments/altair-basic.html),
-browser controller, and chapter-owned media record. Each page has its own fresh
-machine; sessions are not shared or saved between pages. Guide links open in a
-new tab so consulting them does not replace that machine.
+browser controller, and chapter-owned media record. BASIC lessons opt into a shared
+tab-local session through the template's `session_key`, scoped to the published
+base path. The machine guide retains its independent, unsaved machine. Guide links
+open in a new tab so consulting them does not replace a lesson's machine.
+
+[`altair-basic-session.ts`](interactive/altair-basic-session.ts) encodes the generated
+machine snapshot, host transport, verified tape, terminal cursor and bounded text,
+panel choices, instruction count, execution error, and last execution PC. STOP,
+page hiding, and navigation save it in `sessionStorage`; a new lesson or refresh
+validates it and restores a stopped machine. Back/Forward restores the latest
+checkpoint rather than reviving an older cached program. Recent instruction
+records start empty on each page. No instruction, guest reset, or host output is
+produced by restoration. Retained media is verified against the chapter again.
+
+The saved format is versioned; bump it for incompatible machine or host changes.
+Invalid snapshots fall back to a fresh machine with an explanation. Failed writes
+remove a stale checkpoint when storage permits, and a visible message explains
+that continuation is unavailable. Storage is temporary and local; no program or
+tape is uploaded. Tabs are independent after any browser-provided initial copy.
+Start fresh reloads the retained tape and replaces the saved program. `NEW` at
+BASIC's OK prompt clears only the program and variables, keeping BASIC loaded.
 
 `interactive/altair-basic.ts` connects the generated factory and shared
 `SerialSession` to browser controls. `serial-execution.ts` schedules cancellable
@@ -65,6 +83,10 @@ without EXAMINE, PC changes, deposits at and beyond 0FFF, disabled memory action
 while running, live sense switches, the changed-PC reminder, reset's ejected-tape
 readout, and reload with number guides hidden. The queue count remains visible
 without selected media.
+Continuation tests cover the original tape during loading and INPUT, queued bytes,
+saved programs, reset/reload, rejected snapshots, and storage failures. Browser
+checks also cover Previous/Next, All lessons, Back/Forward, refresh, restored
+switches, and an explicit RUN after restoration.
 
 ### Authoring a BASIC lesson
 

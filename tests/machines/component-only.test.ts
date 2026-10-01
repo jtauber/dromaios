@@ -42,7 +42,7 @@ test("component-only definitions reject CPU wiring, empty compositions, and inva
 
 test("the eight-byte lesson factory supplies independent zero-filled RAM with isolated addresses", () => {
   const machine = createLessonsEightByteMemory();
-  assert.deepEqual(Object.keys(machine), ["ram"]);
+  assert.deepEqual(Object.keys(machine), ["ram", "snapshot"]);
   assert.ok(machine.ram instanceof Ram);
   assert.equal(machine.ram.size, 8);
   const bytes = () => Array.from({ length: machine.ram.size }, (_, address) => machine.ram.read(address));

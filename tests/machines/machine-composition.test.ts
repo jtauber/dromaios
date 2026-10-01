@@ -85,6 +85,7 @@ test("composition declarations reject invalid names, duplicate declarations, and
     [mapped + "\nreset-devices {}", /Duplicate reset-devices/],
     [direct.replace("ram=ram", "ram=rom 10 ram=ram"), /Duplicate component/],
     [direct.replace("input=byte-input", "cpu=byte-input"), /Reserved component/],
+    [direct.replace("input=byte-input", "snapshot=byte-input"), /Reserved component/],
     [direct.replace("input=byte-input", "Input=byte-input"), /lowercase component name/],
     [direct.replace("input=byte-input", "bad-name=byte-input"), /lowercase component name/],
     [direct.replace("byte-input", "unknown-device"), /Expected component kind/],

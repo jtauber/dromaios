@@ -185,7 +185,8 @@ test("guest callbacks cannot reenter session mutations, but inspection remains a
     serial: { offer: () => true }, reset: () => {},
   }));
   for (const mutate of [() => session.start(), () => session.stop(), () => session.run(0), () => session.step(),
-    () => session.send([1]), () => session.reset(), () => session.reload(), () => session.drainOutput()]) {
+    () => session.send([1]), () => session.reset(), () => session.reload(), () => session.drainOutput(),
+    () => session.snapshotTransport(), () => session.restoreTransport({ tape: [], tapePosition: 0, input: [], output: [] })]) {
     callback = () => { assert.equal(session.running, true); mutate(); };
     session.start();
     assert.throws(() => session.run(1), /must not be reentrant/);
@@ -194,4 +195,39 @@ test("guest callbacks cannot reenter session mutations, but inspection remains a
   callback = () => {};
   session.start();
   assert.equal(session.run(1).records.length, 1);
+});
+
+test("transport snapshots resume after an accepted byte without duplicating input or output", () => {
+  const create = (output: (byte: number) => void) => create8080AltairSerial({ serial: output });
+  const original = new SerialSession(create, [42, 43]);
+  original.start(); original.run(6); original.send([44]); original.stop();
+  const hardware = original.machine.snapshot(), transport = original.snapshotTransport();
+  const restored = new SerialSession(create, [], output => create8080AltairSerial({ serial: output }, hardware));
+  restored.restoreTransport(JSON.parse(JSON.stringify(transport)));
+  assert.equal(restored.running, false);
+  assert.deepEqual(restored.machine.snapshot(), hardware);
+  original.start(); restored.start();
+  assert.deepEqual(restored.run(80), original.run(80));
+  assert.deepEqual(restored.drainOutput(), original.drainOutput());
+  restored.reload([99]);
+  assert.deepEqual(restored.machine.snapshot(), create(() => {}).snapshot(), "Reload constructs declared initial hardware");
+  restored.start(); restored.run(50);
+  assert.deepEqual(restored.drainOutput(), [99]);
+});
+
+test("transport restore copies buffers, preserves captured output, and rejects invalid state atomically", () => {
+  const session = new SerialSession(output => create8080AltairSerial({ serial: output }));
+  const state = { tape: [1], tapePosition: 1, input: [2], output: [3] };
+  session.restoreTransport(state);
+  state.tape[0] = state.input[0] = state.output[0] = 99;
+  const before = session.snapshotTransport();
+  session.start();
+  for (const invalid of [{ ...before, tapePosition: 2 }, { ...before, input: [256] },
+    { ...before, output: [-1] }, { ...before, tape: undefined }, { ...before, input: {} }]) {
+    assert.throws(() => session.restoreTransport(invalid as typeof before));
+    assert.deepEqual(session.snapshotTransport(), before);
+    assert.equal(session.running, true);
+  }
+  assert.deepEqual(session.drainOutput(), [3]);
+  assert.deepEqual(before, { tape: [1], tapePosition: 1, input: [2], output: [3] });
 });

@@ -2,6 +2,22 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createSerialTerminal, terminalControlKey, terminalInput } from "../../site/interactive/serial-terminal.js";
 
+test("terminal snapshots preserve cursor position, including CR without LF, and own their lines", () => {
+  const original = createSerialTerminal();
+  original.write([...Buffer.from("HELLO\rXY\t")]);
+  const state = JSON.parse(JSON.stringify(original.snapshot()));
+  const restored = createSerialTerminal(state);
+  state.lines[0] = "CHANGED";
+  for (const bytes of [[90, 13], [10], [65, 8, 66], [13, 67]]) {
+    original.write(bytes); restored.write(bytes);
+    assert.deepEqual(restored.snapshot(), original.snapshot());
+  }
+  for (const invalid of [{ ...state, column: -1 }, { ...state, received: NaN },
+    { ...state, lines: [] }, { ...state, lines: ["\n"] }, { ...state, lines: ["A".repeat(133)] }]) {
+    assert.throws(() => createSerialTerminal(invalid));
+  }
+});
+
 test("printing terminal separates cursor controls from raw serial bytes", () => {
   const terminal = createSerialTerminal();
   terminal.write([...Buffer.from("AB\rZ\r\r\n")]);

@@ -3,6 +3,20 @@ import { test } from "node:test";
 import { SerialSession } from "../../src/runtime/serial-session.js";
 import { createSerialExecution } from "../../site/interactive/serial-execution.js";
 
+test("restoring execution counters stays paused and preserves a blocked execution error", () => {
+  const session = new SerialSession(() => ({ cpu: { step: () => ({ outcome: "executed" as const }) }, serial: { offer: () => true }, reset() {} }));
+  const execution = createSerialExecution(session, {
+    schedule() { assert.fail("Restore must not schedule work"); }, output() {}, onChange() {},
+  }, { steps: 1234, error: "Stopped after a device failure" });
+  assert.equal(session.running, false);
+  assert.equal(execution.steps, 1234);
+  assert.equal(execution.error, "Stopped after a device failure");
+  assert.deepEqual(execution.records, []);
+  execution.run();
+  execution.clear();
+  assert.deepEqual(execution.snapshot(), { steps: 0 });
+});
+
 test("serial scheduling yields bounded batches, keeps twelve records, and cancels stale work across STOP and clear", () => {
   const jobs: (() => void)[] = [], bytes: number[] = [];
   let count = 0, cancelled = 0;

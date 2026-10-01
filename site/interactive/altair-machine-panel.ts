@@ -1,10 +1,12 @@
 import { Cpu8080 } from "../../src/components/cpus/generated/8080-cpu.js";
 import type { create8080AltairBasic } from "../../src/machines/generated/8080/altair-basic.js";
 import { createAltairMemoryPanel } from "./altair-panel.js";
+import { checkUnsigned } from "../../src/components/validation.js";
 
 /** Connect the shared controls to the chapter's memory map, live PC, and sense-switch device. */
-export function createAltairMachinePanel(machine: ReturnType<typeof create8080AltairBasic>, canAccessMemory: () => boolean) {
-  let lowSwitches = 0;
+export function createAltairMachinePanel(machine: ReturnType<typeof create8080AltairBasic>, canAccessMemory: () => boolean, initialLowSwitches = 0) {
+  checkUnsigned("Lower panel switches", initialLowSwitches, 0xff);
+  let lowSwitches = initialLowSwitches;
   return createAltairMemoryPanel(machine.memory, {
     get value() { return machine.cpu.snapshot().pc; },
     set value(pc: number) {

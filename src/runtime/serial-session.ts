@@ -16,6 +16,13 @@ export interface SerialBatch<Record> {
   readonly stopReason: "paused" | "step-limit" | "halted" | "waiting" | "unsupported";
 }
 
+export interface SerialTransportSnapshot {
+  readonly tape: readonly number[];
+  readonly tapePosition: number;
+  readonly input: readonly number[];
+  readonly output: readonly number[];
+}
+
 /** Host transport and execution controls. The supplied factory owns all hardware configuration. */
 export class SerialSession<Machine extends SerialMachine> {
   readonly #createMachine: (output: (byte: number) => void) => Machine;
@@ -27,10 +34,12 @@ export class SerialSession<Machine extends SerialMachine> {
   #inputPosition = 0;
   #running = false;
 
-  constructor(createMachine: (output: (byte: number) => void) => Machine, tape: Bytes = []) {
+  constructor(createMachine: (output: (byte: number) => void) => Machine, tape: Bytes = [],
+    restoreMachine?: (output: (byte: number) => void) => Machine) {
     this.#createMachine = createMachine;
     this.#tape = copyBytes(tape);
-    this.#instance = this.#create();
+    // A restored first instance must not change what a later reload constructs.
+    this.#instance = this.#create(restoreMachine);
   }
 
   get machine(): Machine { return this.#instance.machine; }
@@ -38,6 +47,28 @@ export class SerialSession<Machine extends SerialMachine> {
   get tapePosition(): number { return this.#tapePosition; }
   get tapeLength(): number { return this.#tape.length; }
   get pendingInput(): number { return this.#input.length - this.#inputPosition; }
+
+  /** Host state only; save the machine's snapshot at the same instruction boundary. */
+  snapshotTransport(): SerialTransportSnapshot {
+    return this.#atBoundary(() => ({
+      tape: Array.from(this.#tape), tapePosition: this.#tapePosition,
+      input: this.#input.slice(this.#inputPosition), output: [...this.#instance.output],
+    }));
+  }
+
+  /** Restore owned queues without offering bytes or starting execution. */
+  restoreTransport(state: SerialTransportSnapshot): void {
+    this.#atBoundary(() => {
+      const tape = copyBytes(state.tape), input = copyBytes(state.input), output = copyBytes(state.output);
+      checkUnsigned("Tape position", state.tapePosition, tape.length);
+      this.#running = false;
+      this.#tape = tape; this.#tapePosition = state.tapePosition;
+      this.#input = Array.from(input); this.#inputPosition = 0;
+      // The machine's callback closes over this buffer; retain that identity.
+      this.#instance.output.length = 0;
+      for (const byte of output) this.#instance.output.push(byte);
+    });
+  }
 
   /** Queue raw keyboard bytes after the tape; no echo, line editing, or character conversion. */
   send(bytes: Bytes): void {
@@ -112,10 +143,10 @@ export class SerialSession<Machine extends SerialMachine> {
     });
   }
 
-  #create(): { machine: Machine; output: number[] } {
+  #create(createMachine = this.#createMachine): { machine: Machine; output: number[] } {
     // Each generation captures its own buffer; old machine references cannot write into a reload.
     const output: number[] = [];
-    const machine = this.#createMachine(byte => { checkUnsigned("Serial output byte", byte, 0xff); output.push(byte); });
+    const machine = createMachine(byte => { checkUnsigned("Serial output byte", byte, 0xff); output.push(byte); });
     return { machine, output };
   }
 
@@ -137,5 +168,6 @@ export class SerialSession<Machine extends SerialMachine> {
 
 /** Copy and validate the entire offer before any queue or machine changes. */
 function copyBytes(bytes: Bytes): Uint8Array {
+  if (!Array.isArray(bytes) && !(bytes instanceof Uint8Array)) throw new TypeError("Serial bytes require an array.");
   return Uint8Array.from(bytes, byte => { checkUnsigned("Serial input byte", byte, 0xff); return byte; });
 }

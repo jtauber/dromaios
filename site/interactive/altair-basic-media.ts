@@ -18,8 +18,8 @@ export async function readBasicTape(file: {
 }
 
 /** The verified file survives reset; the session's attached tape does not. */
-export function describeBasicTape(tape: BasicTape | undefined, position: number, length: number): string {
+export function describeBasicTape(tape: BasicTape | undefined, position: number, length: number, reloadLabel = "Reload tape"): string {
   if (tape === undefined) return "No tape selected.";
-  if (length === 0) return `${tape.name} · tape ejected by reset. Reload tape to prepare a fresh boot.`;
+  if (length === 0) return `${tape.name} · tape ejected by reset. ${reloadLabel} to prepare a fresh boot.`;
   return `${tape.name} · ${position.toLocaleString()} / ${length.toLocaleString()} bytes offered`;
 }

@@ -1,11 +1,13 @@
 {% from "instruments/altair-panel.html" import memory_controls %}
-{% macro altair_basic(media, guide_url="", loading_url="#using-the-browser-machine") %}
-<section id="try-basic" class="basic-machine" aria-labelledby="basic-heading" data-altair-basic data-tape-size="{{ media.bytes }}" data-tape-sha256="{{ media.sha256 }}">
+{% macro altair_basic(media, guide_url="", loading_url="#using-the-browser-machine", session_key="") %}
+<section id="try-basic" class="basic-machine" aria-labelledby="basic-heading" data-altair-basic data-tape-size="{{ media.bytes }}" data-tape-sha256="{{ media.sha256 }}"{% if session_key %} data-basic-session="{{ session_key }}"{% endif %}>
   <p class="eyebrow">A computer waiting for your instructions</p>
   <h2 id="basic-heading">From paper tape to BASIC.</h2>
-  <p>Choose the <a href="{{ guide_url }}#media-and-host-delivery"{% if guide_url %} target="_blank" rel="noopener"{% endif %}>4K BASIC 3.2 tape{% if guide_url %} (guide opens in a new tab){% endif %}</a>, raise the loading switches, then RUN.
+  <p>{% if session_key %}Resume a saved session with RUN. To load BASIC for the first time, choose the{% else %}Choose the{% endif %}
+    <a href="{{ guide_url }}#media-and-host-delivery"{% if guide_url %} target="_blank" rel="noopener"{% endif %}>4K BASIC 3.2 tape{% if guide_url %} (guide opens in a new tab){% endif %}</a>, raise the loading switches, then RUN.
     <a href="{{ loading_url }}">Loading instructions</a></p>
   <noscript><p>Enable JavaScript to run the machine. The instructions on this page remain readable.</p></noscript>
+  {% if session_key %}<p data-session-status class="basic-hint" role="status">This tab can keep your BASIC session between lessons. Checking for a saved session…</p>{% endif %}
   <div class="basic-media">
     <label>Paper tape <input type="file" data-tape-file disabled></label>
   </div>
@@ -28,7 +30,7 @@
     <button type="button" data-machine-run disabled>RUN</button>
     <button type="button" data-machine-stop disabled>STOP</button>
     <button type="button" data-machine-reset disabled>Reset CPU + serial</button>
-    <button type="button" data-machine-reload disabled>Reload tape</button>
+    <button type="button" data-machine-reload disabled>{% if session_key %}Start fresh{% else %}Reload tape{% endif %}</button>
   </div>
   <p data-machine-status class="basic-readout" role="status">Stopped · 0 instructions</p>
   <p class="basic-hint">RUN lets the processor execute; STOP pauses it. At BASIC’s prompt, type <code>RUN</code>
@@ -47,10 +49,10 @@
   <p data-machine-message class="basic-message" role="status"></p>
   <details class="basic-inspection"><summary>Inspect the running machine</summary>
     <pre data-machine-inspect></pre>
-    <p class="basic-hint">Latest twelve instructions · PC before → after (hexadecimal)</p>
+    <p class="basic-hint">Latest twelve instructions on this page · PC before → after (hexadecimal)</p>
     <pre data-machine-trace></pre>
   </details>
-  <p class="basic-hint">Reset keeps RAM and the switches but resets the CPU and serial device. Reload restores the bootstrap,
+  <p class="basic-hint">Reset keeps RAM and the switches but resets the CPU and serial device. {% if session_key %}Start fresh{% else %}Reload tape{% endif %} discards the program, restores the bootstrap,
     rewinds the selected tape, and clears the terminal; raise the switches again before RUN.</p>
 </section>
 {% endmacro %}

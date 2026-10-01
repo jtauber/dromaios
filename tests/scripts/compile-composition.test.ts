@@ -13,8 +13,9 @@ async function load(source: string, path: string, t: TestContext) {
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   cpSync("dist/src/components", join(directory, "src/components"), { recursive: true });
   writeFileSync(join(directory, "package.json"), JSON.stringify({ type: "module" }));
-  const filename = join(directory, "src/machines/generated", path.replace(/\.machine$/, ".ts"));
+  const filename = join(directory, "src/machines/generated", path.replace(/\.(?:machine|md)$/, ".ts"));
   mkdirSync(dirname(filename), { recursive: true });
+  cpSync("dist/src/machines/snapshot.js", join(directory, "src/machines/snapshot.js"));
   writeFileSync(filename, compileMachine(source, path));
   return import(pathToFileURL(filename).href);
 }
@@ -122,7 +123,7 @@ test("generated direct machines need no bindings, ports, reset method, or memory
   const module = await load(source, "plain.machine", t);
   assert.deepEqual(Object.keys(module), ["createPlain"]);
   const machine = module.createPlain();
-  assert.deepEqual(Object.keys(machine).sort(), ["cpu", "endAddress", "storage"]);
+  assert.deepEqual(Object.keys(machine).sort(), ["cpu", "endAddress", "snapshot", "storage"]);
   assert.equal(machine.storage.size, 0x10000);
   assert.equal(machine.storage.read(0x200), 0x18);
   machine.cpu.reset();
@@ -137,8 +138,9 @@ image firmware 0 { 12 34 }`;
   assert.doesNotMatch(compileMachine(source, "lessons/components.machine"), /cpus\//);
   const { createLessonsComponents } = await load(source, "lessons/components.machine", t);
   const output: number[] = [];
-  const machine = createLessonsComponents({ output: (byte: number) => output.push(byte) });
-  assert.deepEqual(Object.keys(machine), ["storage", "firmware", "input", "output"]);
+  const bindings = { output: (byte: number) => output.push(byte) };
+  const machine = createLessonsComponents(bindings);
+  assert.deepEqual(Object.keys(machine), ["storage", "firmware", "input", "output", "snapshot"]);
   assert.deepEqual(output, []);
   assert.deepEqual(Array.from({ length: 8 }, (_, i) => machine.storage.read(i)), [0, 0xaa, 0xcc, 0, 0, 0, 0, 0]);
   assert.deepEqual([machine.firmware.read(0), machine.firmware.read(1)], [0x12, 0x34]);
@@ -147,4 +149,43 @@ image firmware 0 { 12 34 }`;
   assert.equal(machine.input.read(1), 42);
   machine.output.write(0, 200);
   assert.deepEqual(output, [200]);
+  const saved = JSON.parse(JSON.stringify(machine.snapshot()));
+  const restored = createLessonsComponents(bindings, saved);
+  assert.deepEqual(restored.snapshot(), saved);
+  assert.deepEqual(output, [200], "Restoring an output latch does not notify the host");
+  assert.equal(Object.hasOwn(saved, "firmware"), false, "ROM is rebuilt from the declaration");
+  saved.storage[1] = 0;
+  assert.equal(restored.storage.read(1), 0xaa);
+  restored.output.write(0, 201);
+  assert.deepEqual(output, [200, 201]);
+});
+
+test("composed snapshots restore current CPU state, device latches, and wiring", async t => {
+  const source = readFileSync("src/machines/8080/altair-basic.md", "utf8");
+  const { createSaved } = await load(source, "saved.md", t);
+  const machine = createSaved({ serial() {} });
+  machine.cpu.step(); machine.cpu.step(); machine.cpu.step(); machine.cpu.step();
+  machine.serial.offer(0);
+  machine.ram.write(0xfff, 0x42);
+  machine.sense.offer(0xa5);
+  const saved = JSON.parse(JSON.stringify(machine.snapshot()));
+  const output: number[] = [];
+  const restored = createSaved({ serial: (byte: number) => output.push(byte) }, saved);
+  assert.deepEqual(restored.snapshot(), saved);
+  assert.equal(restored.ports.readPort(0x10), 3);
+  assert.equal(restored.ports.readPort(0x11), 0);
+  assert.equal(restored.serial.snapshot().full, false);
+  assert.equal(restored.ports.readPort(0xff), 0xa5);
+  restored.ports.writePort(0x11, 0x41);
+  assert.deepEqual(output, [0x41]);
+  restored.reset();
+  assert.equal(restored.cpu.snapshot().pc, 0);
+  assert.equal(restored.ram.read(0xfff), 0x42);
+  assert.equal(restored.serial.snapshot().full, false);
+  assert.equal(machine.serial.snapshot().full, true);
+  for (const invalid of [null, {}, { ...saved, extra: 0 }, { ...saved, serial: undefined },
+    { ...saved, ram: saved.ram.slice(1) }, { ...saved, ram: saved.ram.with(0, 256) },
+    { ...saved, serial: { control: 3, rx: 0, tx: 0, full: true } }, { ...saved, cpu: { ...saved.cpu, pc: -1 } }]) {
+    assert.throws(() => createSaved({ serial() { assert.fail("Restore must not emit"); } }, invalid));
+  }
 });

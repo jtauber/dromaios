@@ -155,14 +155,15 @@ file access when imported or used.
 
 A composed definition generates one factory, with no memory-only counterpart.
 It returns every component under its declared name and `cpu` when declared, plus `memory` for
-a map, `ports` for an explicit port block, and `reset` for a machine-reset list.
+a map, `ports` for an explicit port block, `reset` for a machine-reset list, and
+`snapshot()` for the mutable hardware state. `snapshot` is a reserved component name.
 These connection objects can also be used when reconstructing a CPU from a
 snapshot. If host controls replace `machine.cpu` with a restored CPU, the
 generated `machine.reset()` follows that current CPU before resetting the
 declared devices. Reuse the existing connections when restoring state.
 
 Every component with an output callback requires a named binding in the factory argument.
-A machine with no outputs takes no argument. For example:
+A machine with no outputs needs no bindings argument. For example:
 
 ```typescript
 const bytes: number[] = [];
@@ -174,6 +175,23 @@ machine.input.offer(0x41);
 With multiple outputs, each callback is keyed by its component name. There are
 no host expressions or callbacks inside a `.machine` file; host code supplies
 functions and decides when to offer input, reset, or execute.
+
+Composed factories also accept an optional complete hardware snapshot, after
+the bindings argument when outputs exist. `machine.snapshot()` copies the current
+CPU, every RAM byte, and each device's snapshot under the declared component names.
+Restoration constructs fresh components and validates their state without executing
+instructions, resetting the CPU, or notifying output callbacks. ROM, aliases,
+maps, and port connections are rebuilt from the definition; snapshots contain
+no wiring or callbacks. Missing components and wrong-sized RAM images are errors.
+
+```typescript
+const saved = machine.snapshot();
+const resumed = create8080EchoExample({ output: value => { bytes.push(value); } }, saved);
+```
+
+Use snapshots with the same machine definition. The host owns format versioning,
+transport queues, terminal state, and when execution resumes. Flat-RAM examples
+retain their existing CPU snapshot and memory APIs.
 
 ## Editing and building
 

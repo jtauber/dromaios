@@ -78,5 +78,5 @@ export function mountAltairExplorer(root: HTMLElement, {
   last.textContent = initialMessage;
   render();
   root.querySelector<HTMLFieldSetElement>("[data-panel-controls]")!.disabled = false;
-  return { refresh: render, reset };
+  return { refresh: render, reset, get switches() { return panel.switches; } };
 }

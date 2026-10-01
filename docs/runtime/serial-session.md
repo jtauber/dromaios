@@ -59,6 +59,8 @@ history. The session does not retain already drained output or previous batches.
 | `step()` | Execute one instruction and its input offer while stopped; remain stopped |
 | `reset()` | Stop, call the existing machine's declared reset, then discard tape and keyboard queues; retain captured output |
 | `reload(tape?)` | Construct a fresh stopped machine and transport; discard old queues/output, restore factory RAM/device state, copy the supplied tape |
+| `snapshotTransport()` | Copy the complete tape and its accepted-byte position, remaining keyboard input, and undrained output |
+| `restoreTransport(state)` | Validate and copy those host buffers, then stop; do not offer bytes or change hardware |
 
 A zero budget does not offer input or step. A completed batch returns original
 CPU records and `step-limit`; the session remains running. A CPU outcome of
@@ -81,6 +83,18 @@ be set again. Omitted reload media means an empty tape; retaining a selected fil
 for another reload is the caller's responsibility. Neither operation downloads
 or validates a specific software image; the [Altair chapter](../../src/machines/8080/altair-basic.md#media-and-host-delivery)
 owns its tape identity and prerequisites.
+
+To continue in a different host page, stop at an instruction boundary and save
+both `machine.snapshot()` and `snapshotTransport()` together. An accepted byte
+is already in the device snapshot; the transport position prevents offering it
+again. Output already drained belongs to the terminal, whose cursor and text
+must be saved separately.
+
+The constructor's optional third argument is a one-time restored-machine factory.
+It receives the new session's output callback. The ordinary first factory remains
+responsible for subsequent reloads, so starting fresh cannot accidentally restore
+the old program. Restore transport before calling `start()`. Transport validation
+is atomic; snapshot and restore reject reentry during guest callbacks.
 
 [Session tests](../../tests/runtime/serial-session.test.ts) check transport,
 pause/resume, lifecycle, validation, failure handling, and independent captures.

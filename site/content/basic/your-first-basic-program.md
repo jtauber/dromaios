@@ -35,11 +35,15 @@ OK
 
 ## Instructions for later
 
-Now type these three lines, pressing Enter after each one. If you paste, paste
+At OK, type NEW to clear any program left from another lesson. Then type these
+three lines, pressing Enter after each one. If you paste, paste
 **one line at a time**. Wait until the complete line has appeared in the
 terminal before sending the next.
 
 ```basic-session
+> NEW
+
+OK
 > 10 PRINT "HELLO"
 > 20 PRINT 2+3
 > 30 END

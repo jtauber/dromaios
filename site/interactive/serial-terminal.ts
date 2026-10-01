@@ -1,7 +1,23 @@
+import { checkUnsigned } from "../../src/components/validation.js";
+
+export interface SerialTerminalSnapshot {
+  readonly lines: readonly string[];
+  readonly column: number;
+  readonly received: number;
+}
+
 /** A bounded, seven-bit printing terminal. Serial bytes remain unchanged in the machine. */
-export function createSerialTerminal() {
-  const lines = [""];
-  let column = 0, received = 0;
+export function createSerialTerminal(initial?: SerialTerminalSnapshot) {
+  if (initial !== undefined) {
+    if (!Array.isArray(initial.lines) || initial.lines.length < 1 || initial.lines.length > 200
+      || initial.lines.some(line => typeof line !== "string" || !/^[\x20-\x7e]{0,132}$/.test(line))) {
+      throw new TypeError("Invalid terminal lines.");
+    }
+    checkUnsigned("Terminal column", initial.column, 132);
+    checkUnsigned("Received bytes", initial.received, Number.MAX_SAFE_INTEGER);
+  }
+  const lines = initial === undefined ? [""] : [...initial.lines];
+  let column = initial?.column ?? 0, received = initial?.received ?? 0;
   function newline(): void {
     lines.push("");
     if (lines.length > 200) lines.shift();
@@ -9,6 +25,7 @@ export function createSerialTerminal() {
   return {
     get text(): string { return lines.join("\n"); },
     get received(): number { return received; },
+    snapshot(): SerialTerminalSnapshot { return { lines: [...lines], column, received }; },
     write(bytes: readonly number[]): void {
       for (const raw of bytes) {
         received++;

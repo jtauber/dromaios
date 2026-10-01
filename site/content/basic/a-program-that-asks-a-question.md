@@ -6,8 +6,9 @@ of the program.
 
 ## A name for a number
 
-Load BASIC using the instructions above. This page has a fresh machine,
-independent of the [first BASIC lesson](your-first-basic-program.md).
+Load or resume BASIC using the instructions above, and begin at OK. If you
+continued from the [first BASIC lesson](your-first-basic-program.md), your
+earlier program is still stored; these immediate commands leave its lines alone.
 
 Suppose each ticket costs 2 pounds. We would like the computer to work out the
 cost for different numbers of tickets. First, give the number of tickets a
@@ -56,10 +57,14 @@ evaluates it. Assigning a new value replaces the old one.
 
 ## Ask instead of choosing
 
-Turn the calculation into a small stored program. Enter one numbered line at
+Turn the calculation into a small stored program. Type NEW at OK to clear any
+earlier program and variables, then enter one numbered line at
 a time, waiting for its complete echo before sending the next:
 
 ```basic-session
+> NEW
+
+OK
 > 10 PRINT "HOW MANY TICKETS"
 > 20 INPUT N
 > 30 PRINT N*2

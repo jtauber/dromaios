@@ -6,14 +6,21 @@ finish.
 
 ## Start with the decisions
 
-Load BASIC using the instructions above. This page has a fresh machine, so
-enter the ticket program from [the previous lesson](a-program-that-makes-a-decision.md)
-again. Each ticket costs 2 pounds; N holds the number of tickets.
+Load or resume BASIC using the instructions above, and begin at OK. If you
+continued directly from [the previous lesson](a-program-that-makes-a-decision.md),
+keep its ticket program and skip the setup block below. Each ticket costs
+2 pounds; N holds the number of tickets.
+
+If you are starting here or returning from a different lesson, type NEW to
+clear the stored program and variables, then enter these lines.
 
 Type one numbered line at a time, pressing Enter and waiting for the complete
 echo before sending the next:
 
 ```basic-session
+> NEW
+
+OK
 > 10 PRINT "HOW MANY TICKETS"
 > 20 INPUT N
 > 22 IF N<0 THEN 80

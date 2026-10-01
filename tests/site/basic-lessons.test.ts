@@ -8,27 +8,41 @@ import { createSerialExecution } from "../../site/interactive/serial-execution.j
 import { createSerialTerminal, terminalInput } from "../../site/interactive/serial-terminal.js";
 import { create8080AltairBasic } from "../../src/machines/generated/8080/altair-basic.js";
 import { SerialSession } from "../../src/runtime/serial-session.js";
+import { readBasicSession, saveBasicSession } from "../../site/interactive/altair-basic-session.js";
+import type { BasicSession } from "../../site/interactive/altair-basic-session.js";
 
 const directory = "site/content/basic", tapePath = process.env.ALTAIR_BASIC_TAPE;
+const media = JSON.parse(readFileSync("src/machines/8080/altair-basic.md", "utf8").match(/^```json\n(.*?)^```/ms)![1]!);
 for (const file of readdirSync(directory).filter(name => name.endsWith(".md")).sort()) {
   const path = `${directory}/${file}`, chapter = parseBasicLesson(readFileSync(path, "utf8"), path);
   test(`BASIC lesson: ${chapter.title}`, {
     skip: tapePath === undefined ? "Set ALTAIR_BASIC_TAPE to check the authored transcript" : false,
-  }, () => checkLesson(path, chapter.sessions.flat()));
+  }, async () => { await checkLesson(path, chapter.sessions.flat()); });
 }
 
-async function checkLesson(path: string, turns: readonly BasicTurn[]): Promise<void> {
+test("BASIC lessons continue through saved sessions while keeping the preceding ticket program", {
+  skip: tapePath === undefined ? "Set ALTAIR_BASIC_TAPE to check lesson continuation" : false,
+}, async () => {
+  let previous: BasicSession | undefined;
+  for (const [slug, skipSetup] of [["your-first-basic-program", false], ["a-program-that-asks-a-question", false],
+    ["a-program-that-makes-a-decision", true], ["a-program-that-asks-again", true]] as const) {
+    const path = `${directory}/${slug}.md`, chapter = parseBasicLesson(readFileSync(path, "utf8"), path);
+    const state = await checkLesson(path, chapter.sessions.slice(skipSetup ? 1 : 0).flat(), previous);
+    previous = await readBasicSession(saveBasicSession(state), media);
+  }
+});
+
+async function checkLesson(path: string, turns: readonly BasicTurn[], previous?: BasicSession): Promise<BasicSession> {
   assert.ok(tapePath);
-  const media = JSON.parse(readFileSync("src/machines/8080/altair-basic.md", "utf8").match(/^```json\n(.*?)^```/ms)![1]!);
   const bytes = readFileSync(tapePath);
   const tape = await readBasicTape({ name: tapePath, size: bytes.length, arrayBuffer: async () => Uint8Array.from(bytes).buffer }, media);
-  const session = new SerialSession(output => create8080AltairBasic({ serial: output }), tape.bytes);
-  const terminal = createSerialTerminal();
+  const session = previous?.session ?? new SerialSession(output => create8080AltairBasic({ serial: output }), tape.bytes);
+  const terminal = previous?.terminal ?? createSerialTerminal();
   let location = `${path}: loading BASIC`;
   let next: (() => void) | undefined;
   const execution = createSerialExecution(session, {
     schedule(callback) { next = callback; return () => { next = undefined; }; }, output: terminal.write, onChange() {},
-  });
+  }, previous?.execution);
   function tick(): void {
     const callback = next; next = undefined;
     assert.ok(callback, `${location}: ${execution.error ?? execution.status}\n${terminal.text}`);
@@ -38,11 +52,14 @@ async function checkLesson(path: string, turns: readonly BasicTurn[]): Promise<v
     for (let count = 0; count < 200; count++) { tick(); if (terminal.text.endsWith(expected)) return; }
     assert.fail(`Missing ${JSON.stringify(expected)}: ${terminal.text}`);
   }
-  session.machine.sense.offer(0x0c); execution.run();
-  until("MEMORY SIZE? "); session.send([13]);
-  until("TERMINAL WIDTH? "); session.send([13]);
-  until("WANT SIN? "); session.send(terminalInput("Y\n"));
-  until("OK\n"); assert.ok(terminal.text.includes("727 BYTES FREE"));
+  execution.run();
+  if (previous === undefined) {
+    session.machine.sense.offer(0x0c);
+    until("MEMORY SIZE? "); session.send([13]);
+    until("TERMINAL WIDTH? "); session.send([13]);
+    until("WANT SIN? "); session.send(terminalInput("Y\n"));
+    until("OK\n"); assert.ok(terminal.text.includes("727 BYTES FREE"));
+  }
 
   for (const turn of turns) {
     location = `${path}:${turn.line}: ${turn.input}`;
@@ -62,4 +79,6 @@ async function checkLesson(path: string, turns: readonly BasicTurn[]): Promise<v
     assert.equal(session.running, true);
   }
   execution.stop();
+  return { session, terminal, tape, execution: execution.snapshot(),
+    panel: { lowSwitches: 0, open: false, guides: true }, previousPc: session.machine.cpu.snapshot().pc };
 }

@@ -1,4 +1,10 @@
 import type { SerialBatch } from "../../src/runtime/serial-session.js";
+import { checkUnsigned } from "../../src/components/validation.js";
+
+export interface SerialExecutionSnapshot {
+  readonly steps: number;
+  readonly error?: string;
+}
 
 interface Session<Record> {
   readonly running: boolean;
@@ -13,9 +19,13 @@ export function createSerialExecution<Record>(session: Session<Record>, options:
   readonly schedule: (callback: () => void) => () => void;
   readonly output: (bytes: readonly number[]) => void;
   readonly onChange: () => void;
-}) {
-  let cancel = () => {}, generation = 0, steps = 0;
-  let error: string | undefined;
+}, initial?: SerialExecutionSnapshot) {
+  if (initial !== undefined) {
+    checkUnsigned("Executed instructions", initial.steps, Number.MAX_SAFE_INTEGER);
+    if (initial.error !== undefined && typeof initial.error !== "string") throw new TypeError("Invalid execution error.");
+  }
+  let cancel = () => {}, generation = 0, steps = initial?.steps ?? 0;
+  let error = initial?.error;
   let reason = "Stopped";
   let records: readonly Record[] = [];
 
@@ -49,6 +59,7 @@ export function createSerialExecution<Record>(session: Session<Record>, options:
     get records() { return records; },
     get error() { return error; },
     get status() { return reason; },
+    snapshot(): SerialExecutionSnapshot { return { steps, ...(error === undefined ? {} : { error }) }; },
     run(): void {
       if (session.running || error !== undefined) return;
       session.start(); reason = "Running";
