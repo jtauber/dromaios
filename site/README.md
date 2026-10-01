@@ -14,7 +14,8 @@ JavaScript; diagrams are rendered during the build. No CDN requests are needed.
 ## Lesson navigation
 
 The Learn link opens `/learn/`, a contents page grouped into bits and memory,
-8080 programming, the Altair panel and I/O, and text, buffers, and subroutines.
+8080 programming, the Altair panel and I/O, text, buffers, and subroutines, and
+BASIC on the Altair.
 Each lesson has an All lessons link alongside Previous/Next navigation.
 
 [`lessons.py`](lessons.py) owns lesson titles, summaries, grouping, and order.
@@ -35,6 +36,15 @@ local file before replacement and distinguishes attached tape from the verified
 file retained after reset. The chapter owns loading instructions, terminal conventions,
 reset/reload behavior, and limitations.
 
+The [Your first BASIC program lesson](templates/your-first-basic-program.html)
+uses the same [machine instrument](templates/instruments/altair-basic.html),
+browser controller, and chapter-owned media record. Its prose introduces
+immediate commands, numbered lines, LIST, RUN, and replacement through a
+three-line program. The supplied-tape browser-session test checks every example,
+including the absence of execution and OK when storing a line. The lesson has
+its own fresh machine; sessions are not shared or saved between pages. Guide
+links open in a new tab so consulting them does not replace that machine.
+
 `interactive/altair-basic.ts` connects the generated factory and shared
 `SerialSession` to browser controls. `serial-execution.ts` schedules cancellable
 batches; `serial-terminal.ts` supplies bounded printing-terminal presentation.
@@ -44,7 +54,8 @@ the panel on the fresh machine; CPU/serial reset preserves both switch banks.
 If panel actions change PC after execution, a reminder beside RUN compares it
 with the last execution record. It does not restore state automatically.
 The earlier lessons retain their individual-instruction pacing. The machine's
-script loads only on its page; the guide remains readable without JavaScript.
+script loads only on the machine guide and BASIC lesson; their prose remains
+readable without JavaScript.
 
 The emulator suite includes scheduler and terminal tests. Set `ALTAIR_BASIC_TAPE`
 to include the real-tape browser-session test as well as the headless acceptance

@@ -85,4 +85,13 @@ LESSON_GROUPS = [
              "summary": "Read a line, choose a response, and return for another command."},
         ],
     },
+    {
+        "slug": "basic-on-the-altair",
+        "title": "BASIC on the Altair",
+        "summary": "Use the original interpreter to turn typed commands into programs.",
+        "lessons": [
+            {"slug": "your-first-basic-program", "title": "Your first BASIC program",
+             "summary": "Calculate, store numbered lines, then list, run, and change your program."},
+        ],
+    },
 ]

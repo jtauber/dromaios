@@ -111,9 +111,9 @@ def build(base):
             "previous": chapters[index - 1] if index else None,
             "next": chapters[index + 1] if index + 1 < len(chapters) else None,
         })
-    site.render_template("altair-basic.html", f"{MACHINES[ALTAIR]}index.html", {
-        **render_guide(ALTAIR), "media": media_record(ALTAIR.read_text()),
-    })
+    site.set_global("altair_media", media_record(ALTAIR.read_text()))
+    site.set_global("altair_url", MACHINES[ALTAIR])
+    site.render_template("altair-basic.html", f"{MACHINES[ALTAIR]}index.html", render_guide(ALTAIR))
     for index, lesson in enumerate(lessons):
         site.render_template(f"{lesson['slug']}.html", f"{lesson['url']}index.html", {
             "title": lesson["title"],

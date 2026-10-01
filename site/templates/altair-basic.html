@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "instruments/altair-panel.html" import memory_controls %}
+{% from "instruments/altair-basic.html" import altair_basic %}
 {% block description %}Load the original 4K BASIC tape on an Altair 8800 in your browser, then explore the executable machine specification.{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ calc_url('assets/highlight.css') }}">
@@ -23,59 +23,7 @@
       <h1>{{ title }}</h1>
       <div class="chapter-meta"><span>Working machine and executable guide</span><a href="{{ source_url }}">View source ↗</a></div>
     </header>
-    <section id="try-basic" class="basic-machine" aria-labelledby="basic-heading" data-altair-basic data-tape-size="{{ media.bytes }}" data-tape-sha256="{{ media.sha256 }}">
-      <p class="eyebrow">A computer waiting for your instructions</p>
-      <h2 id="basic-heading">From paper tape to BASIC.</h2>
-      <p>Choose the <a href="#media-and-host-delivery">4K BASIC 3.2 tape</a>, raise the loading switches, then RUN.
-        <a href="#using-the-browser-machine">Follow the loading instructions ↓</a></p>
-      <noscript><p>Enable JavaScript to run the machine. The complete guide below remains readable.</p></noscript>
-      <div class="basic-media">
-        <label>Paper tape <input type="file" data-tape-file disabled></label>
-      </div>
-      <p class="basic-hint">The file stays on your computer. Selecting a verified tape prepares a fresh, stopped machine.</p>
-      <progress data-tape-progress aria-label="Tape bytes offered" max="{{ media.bytes }}" value="0" hidden></progress>
-      <p data-tape-status class="basic-readout">No tape selected.</p>
-      <details class="basic-panel" data-machine-panel open>
-        <summary>Front panel · address, data, and sense switches</summary>
-        <p class="basic-hint">To load BASIC, raise only A11 and A10 and leave PC at 0000.
-          Do not press EXAMINE after raising the loading switches. You can then close this panel to bring the terminal closer.</p>
-        <fieldset data-panel-controls disabled>
-          <legend class="visually-hidden">Operate the front panel</legend>
-          {{ memory_controls(machine=true) }}
-        </fieldset>
-        <p class="basic-hint">EXAMINE and NEXT change PC. Only 0000–0FFF contain RAM; other addresses read FF and discard deposits.
-          Lights show instruction boundaries, not individual bus cycles.</p>
-      </details>
-      <p data-resume-position class="basic-hint" role="status" hidden></p>
-      <div class="basic-controls" role="group" aria-label="Machine controls">
-        <button type="button" data-machine-run disabled>RUN</button>
-        <button type="button" data-machine-stop disabled>STOP</button>
-        <button type="button" data-machine-reset disabled>Reset CPU + serial</button>
-        <button type="button" data-machine-reload disabled>Reload tape</button>
-      </div>
-      <p data-machine-status class="basic-readout" role="status">Stopped · 0 instructions</p>
-      <p class="basic-hint">RUN lets the processor execute; STOP pauses it. At BASIC’s prompt, type <code>RUN</code>
-        to run your BASIC program. Break sends Control-C to BASIC.</p>
-      <pre class="serial-screen" data-serial-screen tabindex="0" aria-label="Terminal output"></pre>
-      <label class="basic-keyboard">Terminal keyboard
-        <textarea data-terminal-keyboard rows="1" disabled spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="keyboard-help" placeholder="Click here and type to BASIC"></textarea>
-      </label>
-      <div class="basic-controls">
-        <button type="button" data-terminal-enter disabled>Enter ↵</button>
-        <button type="button" data-terminal-break disabled>Break · Ctrl-C</button>
-      </div>
-      <p data-input-status class="basic-readout">0 keyboard bytes queued</p>
-      <p id="keyboard-help" class="basic-hint">Use uppercase commands. Enter sends a line; Backspace sends BASIC’s erase character (_).
-        Paste one line at a time. Only the machine’s echoes appear above.</p>
-      <p data-machine-message class="basic-message" role="status"></p>
-      <details class="basic-inspection"><summary>Inspect the running machine</summary>
-        <pre data-machine-inspect></pre>
-        <p class="basic-hint">Latest twelve instructions · PC before → after (hexadecimal)</p>
-        <pre data-machine-trace></pre>
-      </details>
-      <p class="basic-hint">Reset keeps RAM and the switches but resets the CPU and serial device. Reload restores the bootstrap,
-        rewinds the selected tape, and clears the terminal; raise the switches again before RUN.</p>
-    </section>
+    {{ altair_basic(altair_media) }}
     <article class="chapter-prose" aria-label="Altair machine guide">{{ content }}</article>
   </div>
 </main>
