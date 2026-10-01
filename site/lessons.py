@@ -100,6 +100,8 @@ LESSON_GROUPS = [
              "summary": "Give a value a name, ask for a number, and calculate an answer."},
             {"slug": "a-program-that-makes-a-decision", "title": "A program that makes a decision",
              "summary": "Compare an answer with zero and choose a different path with IF…THEN."},
+            {"slug": "a-program-that-asks-again", "title": "A program that asks again",
+             "summary": "Return to a question with GOTO, try several answers, and use zero to finish."},
         ],
     },
 ]

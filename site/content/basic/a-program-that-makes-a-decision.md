@@ -193,6 +193,10 @@ We still expect whole numbers of tickets. This check rejects negative numbers;
 it does not reject a fraction such as 1.5. The program can only check the rules
 we have given it.
 
+In the [next lesson](a-program-that-asks-again.md), we will make the program
+ask again after an unsuitable answer, then let it calculate several prices
+in one run.
+
 [Check all three paths ↑](#basic-terminal)
 
 The original [Altair BASIC manual](https://altairclone.com/downloads/manuals/BASIC%20Manual%2075.pdf){:target="_blank" rel="noopener"}
