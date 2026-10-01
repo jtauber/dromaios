@@ -98,6 +98,8 @@ LESSON_GROUPS = [
              "summary": "Calculate, store numbered lines, then list, run, and change your program."},
             {"slug": "a-program-that-asks-a-question", "title": "A program that asks a question",
              "summary": "Give a value a name, ask for a number, and calculate an answer."},
+            {"slug": "a-program-that-makes-a-decision", "title": "A program that makes a decision",
+             "summary": "Compare an answer with zero and choose a different path with IF…THEN."},
         ],
     },
 ]

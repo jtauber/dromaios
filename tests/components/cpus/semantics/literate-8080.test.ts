@@ -14,12 +14,12 @@ const state = (): Cpu8080State => ({ a: 0x81, b: 0x12, c: 0x34, d: 0x56, e: 0x78
   pc: 0xffff, sp: 0, flags: { s: true, z: false, ac: true, p: false, cy: true },
   interruptEnabled: true, interruptDeferred: true, halted: true });
 
-test("the 8080 chapter owns all 244 documented encodings in the production catalogue", () => {
+test("the 8080 chapter owns 244 documented encodings and seven NOP aliases in the production catalogue", () => {
   const chapter = compileCpuChapter(markdown, { name: "8080" }, file);
   const definitions = Object.fromEntries(Object.values(chapter.families).flat());
-  const undocumented = [0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38, 0xcb, 0xd9, 0xdd, 0xed, 0xfd];
-  const expected = Array.from({ length: 256 }, (_, i) => i).filter(opcode => !undocumented.includes(opcode));
-  assert.equal(expected.length, 244);
+  const unsupported = [0xcb, 0xd9, 0xdd, 0xed, 0xfd];
+  const expected = Array.from({ length: 256 }, (_, i) => i).filter(opcode => !unsupported.includes(opcode));
+  assert.equal(expected.length, 244 + 7);
   assert.deepEqual(Object.keys(definitions).map(Number).sort((a, b) => a - b), expected);
   assert.deepEqual(instructions8080, definitions, "Every production definition comes directly from the chapter");
 });

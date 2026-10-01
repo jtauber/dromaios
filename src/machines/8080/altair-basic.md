@@ -173,7 +173,15 @@ checksum loader's transfer to BASIC; reaching a prompt alone is not the test.
 
 ### Programs, editing, and execution controls
 
-The same test now drives a shared [serial session](../../../docs/runtime/serial-session.md).
+The [decision lesson](../../../site/content/basic/a-program-that-makes-a-decision.md)
+checks true and false IF paths with the original tape. Its false path enters
+`04F7`, containing byte `10`: an undocumented 8080 NOP. The
+[annotated disassembly](https://altairbasic.org/int_dis_11.htm) independently
+identifies this same byte in the shared false-IF/REM routine. The CPU's
+[NOP family](../../components/cpus/specifications/8080.md#complement-carry-halt-and-no-operation)
+supports that encoding; loading does not patch it to a documented instruction.
+
+The external-media test drives a shared [serial session](../../../docs/runtime/serial-session.md).
 The session owns host queues and bounded execution; every BASIC operation below
 still executes in the original interpreter. The program is entered out of line
 number order, and LIST must produce this ordered result:

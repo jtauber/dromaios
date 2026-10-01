@@ -24,11 +24,16 @@ async function checkLesson(path: string, turns: readonly BasicTurn[]): Promise<v
   const tape = await readBasicTape({ name: tapePath, size: bytes.length, arrayBuffer: async () => Uint8Array.from(bytes).buffer }, media);
   const session = new SerialSession(output => create8080AltairBasic({ serial: output }), tape.bytes);
   const terminal = createSerialTerminal();
+  let location = `${path}: loading BASIC`;
   let next: (() => void) | undefined;
   const execution = createSerialExecution(session, {
     schedule(callback) { next = callback; return () => { next = undefined; }; }, output: terminal.write, onChange() {},
   });
-  function tick(): void { const callback = next; next = undefined; assert.ok(callback, execution.error); callback(); }
+  function tick(): void {
+    const callback = next; next = undefined;
+    assert.ok(callback, `${location}: ${execution.error ?? execution.status}\n${terminal.text}`);
+    callback();
+  }
   function until(expected: string): void {
     for (let count = 0; count < 200; count++) { tick(); if (terminal.text.endsWith(expected)) return; }
     assert.fail(`Missing ${JSON.stringify(expected)}: ${terminal.text}`);
@@ -40,6 +45,7 @@ async function checkLesson(path: string, turns: readonly BasicTurn[]): Promise<v
   until("OK\n"); assert.ok(terminal.text.includes("727 BYTES FREE"));
 
   for (const turn of turns) {
+    location = `${path}:${turn.line}: ${turn.input}`;
     terminal.clear(); // Compare each exchange independently of the bounded display's history.
     const expected = basicDisplay(turn.input + "\n" + turn.output);
     session.send(terminalInput(turn.input + "\n"));
@@ -50,7 +56,7 @@ async function checkLesson(path: string, turns: readonly BasicTurn[]): Promise<v
     // Echo precedes storage. Give the interpreter time to finish the operation,
     // also catching unwanted output for a line declared to have no reply.
     for (let count = 0; count < 5; count++) tick();
-    assert.equal(basicDisplay(terminal.text), expected, `${path}:${turn.line}: ${turn.input}`);
+    assert.equal(basicDisplay(terminal.text), expected, location);
     assert.equal(session.pendingInput, 0);
     assert.equal(session.machine.serial.snapshot().full, false);
     assert.equal(session.running, true);

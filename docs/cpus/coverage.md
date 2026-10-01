@@ -18,7 +18,7 @@ emulators do not count toward implementation here.
 | Model | Introduced | Transistors (approx.) | Handwritten CPU core lines | Literate spec lines | `cpu` fence lines | Literate / documented forms | Literate instruction coverage |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [0](../../src/components/cpus/specifications/8008.md) | [1,439](../../src/components/cpus/specifications/8008.md) | 341 | 250 / 250 | 100% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [0](../../src/components/cpus/specifications/8080.md) | [1,603](../../src/components/cpus/specifications/8080.md) | 510 | 244 / 244 | 100% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [0](../../src/components/cpus/specifications/8080.md) | [1,616](../../src/components/cpus/specifications/8080.md) | 510 | 244 / 244 | 100% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [0](../../src/components/cpus/specifications/6800.md) | [1,784](../../src/components/cpus/specifications/6800.md) | 745 | 197 / 197 | 100% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,788](../../src/components/cpus/specifications/6502.md) | 600 | 151 / 151 | 100% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,911](../../src/components/cpus/specifications/z80.md) | 1,506 | 698 / 698 | 100% |
@@ -87,10 +87,10 @@ judging source reduction; all counts include comments and blank lines.
 | Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,843 |
 | **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,843** |
 | Shared CPU/machine Markdown reader (`src/literate.ts`, outside the CPU directory) | 30 |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,095 |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,108 |
 | CPU compilation and generation scripts (`compile-cpu-chapters.ts`, `generate-cpu-chapters.ts`, and `generate-cpu-semantics.ts`) | 166 |
-| Generated executable CPU output, counted separately | 604,686 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 995,495 |
+| Generated executable CPU output, counted separately | 604,721 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 995,502 |
 | Generated state schemas/types, counted separately | 213 |
 
 Chapter-data generation reuses an existing reference when it encounters the same
@@ -387,6 +387,13 @@ and [program specifications](../README.md#cpu-examples) for acceptance evidence.
 ## 8080
 
 [Specification and model contract](../../src/components/cpus/specifications/8080.md)
+
+All 244 documented forms are complete. The seven undocumented NOP aliases
+`08 10 18 20 28 30 38` are also supported, including `10` used by Altair BASIC's
+false-IF path. They are outside the documented-form percentage. The remaining
+five undocumented jump, call, and return aliases are unsupported; the
+[chapter](../../src/components/cpus/specifications/8080.md#halt-and-unsupported-opcodes)
+owns that boundary.
 
 The MOV row groups 63 forms: all B/C/D/E/H/L/M/A source and destination
 combinations except M,M, whose encoding is HLT. M means memory at current HL.

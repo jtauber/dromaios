@@ -134,8 +134,9 @@ OK
 ```
 
 We have kept this program small: it expects a whole number of tickets, zero or
-more. It does not yet check whether an answer is sensible. Decisions and input
-checking can come after the basic conversation is familiar.
+more. It does not yet check whether an answer is sensible. In the
+[next lesson](a-program-that-makes-a-decision.md), we will give zero its own
+reply and check for negative answers.
 
 [Try another answer ↑](#basic-terminal)
 

@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block description %}Browse every interactive lesson: bits and memory, programming the Intel 8080, the Altair panel, text, subroutines, and your first BASIC program.{% endblock %}
+{% block description %}Browse every interactive lesson: bits and memory, programming the Intel 8080, the Altair panel, text, subroutines, and programming in BASIC.{% endblock %}
 {% block main %}
 <main id="main" class="lesson lesson-index">
   <header class="lesson-header">
     <p class="eyebrow">Learn · {{ lesson_count }} interactive lessons</p>
     <h1>Find your<br><em>next lesson.</em></h1>
-    <p class="lesson-intro">Follow the lessons in order, or jump straight to a topic. Each has its own experiment. The BASIC lesson shows you how to supply and load the original paper tape.</p>
+    <p class="lesson-intro">Follow the lessons in order, or jump straight to a topic. Each has its own experiment. The BASIC lessons show you how to supply and load the original paper tape.</p>
   </header>
   <nav class="lesson-groups" aria-label="Lesson topics">
     {% for group in lesson_groups %}<a href="#{{ group.slug }}">{{ group.title }} <span aria-hidden="true">↓</span></a>{% endfor %}

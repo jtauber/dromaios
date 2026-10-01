@@ -106,9 +106,9 @@ test("an already halted CPU contributes its own no-fetch record when stepped", (
 });
 
 test("unsupported opcodes stop immediately, preserve their record, and beat the step limit", (t) => {
-  // Unsupported encodings differ by CPU: 08 is PHP on the 6502; its undocumented 02 remains excluded.
+  // Each CPU has its own unsupported encodings, including a prefixed Z80 form.
   for (const [create, bytes] of [
-    [create8080Example, [0x08]], [create6502Example, [0x02]],
+    [create8080Example, [0xcb]], [create6502Example, [0x02]],
     [create6809Example, [0x01]], [createZ80Example, [0xed, 0x00]],
   ] as const) {
     const { cpu, ram } = create();

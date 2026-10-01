@@ -61,7 +61,7 @@ test("8080 owns its initial state and returns independent snapshots without RAM 
 
 test("8080 copies only model fields, excluding extra state and flag metadata", () => {
   const ram = new ObservedRam();
-  ram.write(0x1234, 0x08); // Unsupported encoding keeps successive snapshots identical.
+  ram.write(0x1234, 0xcb); // Unsupported encoding keeps successive snapshots identical.
   const supplied = {
     ...initialState(),
     metadata: { label: "initial state" },
@@ -875,25 +875,29 @@ test("8080 PSW shares the pair stack, rereads edited RAM, normalizes reserved bi
   assert.deepEqual(records, edited);
 });
 
-test("8080 NOP reads only its opcode, preserves all data and control state, and advances wrapped PC", () => {
+test("8080 NOP and its aliases preserve data and flags, retire EI deferral, and advance wrapped PC", () => {
   const ram = new ObservedRam();
-  for (const pc of [0, 0xff, 0xffff]) {
-    ram.write(pc, 0x00);
-    ram.write((pc + 1) % 0x10000, 0x76);
-    for (const a of [0, 0x11, 0xff]) {
-      for (const flags of flagCombinations) {
-        for (const interruptEnabled of [false, true]) {
-          const before = expectedSnapshot({ a, pc, flags, interruptEnabled });
-          const cpu = new Cpu8080(ram, before);
-          ram.accesses.length = 0;
-          const record = cpu.step();
-          assert.deepEqual(record, {
-            instruction: { address: pc, bytes: [0] }, before,
-            after: { ...before, pc: (pc + 1) % 0x10000 }, outcome: "executed",
-            accesses: [{ kind: "read", address: pc, value: 0 }],
-          });
-          assert.deepEqual(ram.accesses, record.accesses);
-          assert.deepEqual(cpu.snapshot(), record.after);
+  for (const opcode of [0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38]) {
+    for (const pc of [0, 0xff, 0xffff]) {
+      ram.write(pc, opcode);
+      ram.write((pc + 1) % 0x10000, 0x76);
+      for (const a of [0, 0x11, 0xff]) {
+        for (const flags of flagCombinations) {
+          for (const interruptEnabled of [false, true]) {
+            for (const interruptDeferred of [false, true]) {
+              const before = expectedSnapshot({ a, pc, flags, interruptEnabled, interruptDeferred });
+              const cpu = new Cpu8080(ram, before);
+              ram.accesses.length = 0;
+              const record = cpu.step();
+              assert.deepEqual(record, {
+                instruction: { address: pc, bytes: [opcode] }, before,
+                after: { ...before, pc: (pc + 1) % 0x10000, interruptDeferred: false }, outcome: "executed",
+                accesses: [{ kind: "read", address: pc, value: opcode }],
+              });
+              assert.deepEqual(ram.accesses, record.accesses);
+              assert.deepEqual(cpu.snapshot(), record.after);
+            }
+          }
         }
       }
     }
@@ -2716,7 +2720,7 @@ test("8080 interrupt RST covers all vectors and wrapped stacks, preserving the i
         for (const flags of flagCombinations) {
           for (const halted of [false, true]) {
             const ram = new ObservedRam();
-            ram.write(pc, 0x08); // RAM at PC would be an unsupported opcode if fetched.
+            ram.write(pc, 0xcb); // RAM at PC would be an unsupported opcode if fetched.
             ram.accesses.length = 0;
             const before = expectedSnapshot({ pc, sp, flags, halted });
             const cpu = new Cpu8080(ram, before);
@@ -2749,7 +2753,7 @@ test("8080 interrupt RST covers all vectors and wrapped stacks, preserving the i
 
 test("8080 interrupt CALL acknowledges all three bytes without advancing PC, then writes the return address high first", () => {
   const ram = new ObservedRam();
-  ram.write(0xffff, 0x08); ram.write(0, 0x76); ram.write(0x1234, 0xc9);
+  ram.write(0xffff, 0xcb); ram.write(0, 0x76); ram.write(0x1234, 0xc9);
   ram.accesses.length = 0;
   const before = expectedSnapshot({ pc: 0xffff, sp: 1, halted: true });
   const cpu = new Cpu8080(ram, before);
@@ -2788,9 +2792,9 @@ test("8080 interrupt CALL acknowledges all three bytes without advancing PC, the
   assert.deepEqual(cpu.snapshot(), returned.after);
 });
 
-test("8080 interrupt delivery preserves every documented handler's behavior with a different instruction source", () => {
-  // Independent Intel length/legality inventory; no CPU table introspection.
-  const absent = [0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38, 0xcb, 0xd9, 0xdd, 0xed, 0xfd];
+test("8080 interrupt delivery preserves every supported handler's behavior with a different instruction source", () => {
+  // Independent length/legality inventory including NOP aliases; no CPU table introspection.
+  const absent = [0xcb, 0xd9, 0xdd, 0xed, 0xfd];
   const wordOperands = [0x01, 0x11, 0x21, 0x31, 0x22, 0x2a, 0x32, 0x3a, 0xc3, 0xcd,
     0xc2, 0xca, 0xd2, 0xda, 0xe2, 0xea, 0xf2, 0xfa, 0xc4, 0xcc, 0xd4, 0xdc, 0xe4, 0xec, 0xf4, 0xfc];
   const byteOperands = [0x06, 0x0e, 0x16, 0x1e, 0x26, 0x2e, 0x36, 0x3e,
@@ -2831,7 +2835,7 @@ test("8080 interrupt delivery preserves every documented handler's behavior with
 });
 
 test("8080 interrupt-supplied unsupported opcodes retain acceptance effects and acknowledge only once", () => {
-  for (const opcode of [0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38, 0xcb, 0xd9, 0xdd, 0xed, 0xfd]) {
+  for (const opcode of [0xcb, 0xd9, 0xdd, 0xed, 0xfd]) {
     const ram = new ObservedRam();
     const before = expectedSnapshot({ halted: true });
     const cpu = new Cpu8080(ram, before);
@@ -3037,7 +3041,7 @@ test("8080 EI delays through the following instruction, another EI renews it, an
 
 test("8080 rejected instructions and idle HALT do not consume EI deferral; reset clears it", () => {
   const ram = new ObservedRam();
-  ram.write(0, 0x08); // Undocumented.
+  ram.write(0, 0xcb); // Unsupported undocumented jump alias.
   for (const halted of [false, true]) {
     const before = expectedSnapshot({ pc: 0, interruptDeferred: true, halted });
     const cpu = new Cpu8080(ram, before);
@@ -3198,7 +3202,7 @@ test("every other 8080 opcode reports unsupported repeatedly with one read and u
       0x05, 0x0d, 0x15, 0x1d, 0x25, 0x2d, 0x35, 0x3d,
       0x09, 0x19, 0x29, 0x39, 0x0b, 0x1b, 0x2b, 0x3b,
       0x07, 0x0f, 0x17, 0x1f, 0x2f, 0x37, 0x3f,
-      0x00, 0xf1, 0xf5,
+      0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38, 0xf1, 0xf5,
       0x27, 0xd3, 0xdb, 0xf3, 0xfb,
     ].includes(opcode)) continue;
     ram.write(0xffff, opcode);

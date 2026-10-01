@@ -37,9 +37,8 @@ local file before replacement and distinguishes attached tape from the verified
 file retained after reset. The chapter owns loading instructions, terminal conventions,
 reset/reload behavior, and limitations.
 
-The [first BASIC program](content/basic/your-first-basic-program.md) and
-[program that asks a question](content/basic/a-program-that-asks-a-question.md)
-are literate Markdown lessons. They share the [loading explanation](content/basic-loading.md),
+BASIC lessons under [`content/basic/`](content/basic/) are literate Markdown.
+They share the [loading explanation](content/basic-loading.md),
 [page template](templates/basic-lesson.html), [machine instrument](templates/instruments/altair-basic.html),
 browser controller, and chapter-owned media record. Each page has its own fresh
 machine; sessions are not shared or saved between pages. Guide links open in a
@@ -54,7 +53,7 @@ the panel on the fresh machine; CPU/serial reset preserves both switch banks.
 If panel actions change PC after execution, a reminder beside RUN compares it
 with the last execution record. It does not restore state automatically.
 The earlier lessons retain their individual-instruction pacing. The machine's
-script loads only on the machine guide and BASIC lesson; their prose remains
+script loads only on the machine guide and BASIC lessons; their prose remains
 readable without JavaScript.
 
 The emulator suite includes scheduler and terminal tests. Set `ALTAIR_BASIC_TAPE`

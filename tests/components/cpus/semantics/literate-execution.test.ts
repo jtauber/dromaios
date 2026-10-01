@@ -250,7 +250,7 @@ test("8080 chapter retirement consumes old delays, renews EI, and skips failures
   const error = Error("device failed"), cpu = model.createExecution(state, ram, () => structuredClone(state), {
     readPort() { throw error; }, writePort() { throw error; },
   });
-  [0xfb, 0xfb, 0xdb, 0x07, 0x08, 0x40, 0xf3].forEach((byte, address) => ram.write(address, byte));
+  [0xfb, 0xfb, 0xdb, 0x07, 0xcb, 0x40, 0xf3].forEach((byte, address) => ram.write(address, byte));
   cpu.step(); assert.equal(state.interruptDeferred, true);
   cpu.step(); assert.equal(state.interruptDeferred, true);
   assert.throws(() => cpu.step(), thrown => thrown === error);
