@@ -187,12 +187,22 @@ available kinds are:
 | [Byte output](../devices/byte-output.md) | `output = byte-output` | `0` output register |
 | [MC6850 polling profile](../../src/components/devices/specifications/mc6850-polling.md) | `serial = mc6850-polling` | `0` status/control, `1` receive/transmit |
 | [Altair sense switches](../../src/components/devices/specifications/altair-sense-switches.md) | `sense = altair-sense-switches` | `0` positions, read-only |
+| [Apple II keyboard](../../src/components/devices/specifications/apple2-keyboard.md) | `keyboard = apple2-keyboard` | `00`–`0F` data, `10`–`1F` acknowledgement |
 
 RAM and ROM sizes are positive hexadecimal byte counts, at most `1000000`
 (16 MiB). `image name address { bytes }` loads a named RAM or ROM component at a
 **local offset**. The start and whole block must fit; overlapping images apply in
 source order. ROM is constructed from the completed image and then remains
 read-only. Images cannot initialize devices; each device defines its initial state.
+
+`image name external sha256 digest` instead requires a caller-supplied ROM
+image covering that component's entire declared size. The digest is exactly
+64 bare hexadecimal digits, normalized to lowercase. There can be only one
+external image per component; it cannot be combined with embedded images or
+target RAM/devices. References may precede component declarations. This syntax
+also works for component-only definitions. It declares an identity, not a path,
+download, or asynchronous constructor. The [factory API](definitions.md#external-rom-images)
+accepts verified images and binds snapshots to their identities.
 
 `memory = name` connects a full-sized RAM directly to any supported CPU, using
 the same CPU-specific sizes as the flat shorthand. The 68000 additionally accepts
@@ -216,7 +226,7 @@ component at two disjoint addresses explicitly aliases the same instance.
 Unmapped accesses and ROM writes follow the [memory-map contract](memory-map.md).
 Mapping a device preserves its read/write side effects.
 
-The 8080 also accepts maps, but requires an explicit unanswered-bus value:
+The 8080 and 6502 also accept maps, but require an explicit unanswered-bus value:
 
 ```text
 map 10000 {

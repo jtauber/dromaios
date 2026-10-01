@@ -12,3 +12,4 @@ components {
 }
 memory = ram
 image ram 0000 { 00 FF } // MVI A, FF
+image firmware external sha256 378ba00c86a64cca49cedaca7de8d5d351983ebc295d9d11e0752febfc346249

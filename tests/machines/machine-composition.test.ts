@@ -177,3 +177,38 @@ test("reset declarations separate machine reset from the 68000 device signal", (
   assert.deepEqual(noDevices.reset, ["cpu"]);
   assert.deepEqual(noDevices.resetDevices, []);
 });
+
+test("6502 maps require an explicit bus policy and retain their full address-space size", () => {
+  const cpu = `cpu 6502 { A=0 X=0 Y=0 SP=FF PC=0 flags { N=0 V=0 D=0 I=0 Z=0 C=0 } }`;
+  const source = `${cpu} components { ram=ram C000 rom=rom 3000 }
+map 10000 { 0000=ram D000=rom unmapped=00 }`;
+  const machine = parseMachine(source);
+  assert.ok("components" in machine);
+  assert.deepEqual(machine.connection, { kind: "mapped", size: 65536, unmapped: 0,
+    regions: [{ start: 0, component: "ram" }, { start: 0xd000, component: "rom" }] });
+  assert.throws(() => parseMachine(source.replace("unmapped=00", "")), /6502 map requires an explicit/);
+  assert.throws(() => parseMachine(source.replace("map 10000", "map FFFF")), /Address-space size for 6502/);
+  assert.throws(() => parseMachine(source.replace("D000=rom", "BFFF=rom")), /overlap/);
+});
+
+test("external images resolve ROM identities and reject ambiguous initialization", () => {
+  const sha256 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+  const image = `image firmware external sha256 ${sha256}`;
+  const components = "components { firmware=rom 3 ram=ram 3 keyboard=byte-input }";
+  assert.deepEqual(parseDefinition(`${image.replace(sha256, sha256.toUpperCase())}\n${components}`), {
+    components: [{ name: "firmware", kind: "rom", size: 3 }, { name: "ram", kind: "ram", size: 3 }, { name: "keyboard", kind: "byte-input" }],
+    images: [], externalImages: [{ component: "firmware", sha256 }],
+  });
+  for (const [bad, error] of [
+    [image.replace(sha256, "abc"), /64-digit SHA-256/],
+    [image.replace(sha256, "g".repeat(64)), /64-digit SHA-256/],
+    [image.replace("firmware", "ram"), /External images require ROM/],
+    [image.replace("firmware", "keyboard"), /External images require ROM/],
+    [image.replace("firmware", "absent"), /Unknown component/],
+    [image + "\n" + image, /Duplicate external image/],
+    [image + "\nimage firmware 0 { AA }", /cannot also contain embedded/],
+    ["image firmware 0 {}\n" + image, /cannot also contain embedded/],
+  ] as const) assert.throws(() => parseDefinition(`${components}\n${bad}`, "image.machine"), error);
+  assert.throws(() => parseDefinition(`${components}\nimage firmware external sha256 xyz`, "bad.machine"),
+    /bad.machine:2:32: Expected a 64-digit SHA-256 digest/);
+});

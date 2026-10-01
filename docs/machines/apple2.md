@@ -2,11 +2,13 @@
 
 The next historical machine is an **Apple II Plus**, using
 [dromaios-apple2][reference] as the primary reference for behavior, devices,
-browser interaction, and software targets. This is a proposed implementation
-plan, not a claim that Dromaios already has this machine. ApplePy remains a
+browser interaction, and software targets. The initial
+[executable chapter](../../src/machines/6502/apple2.md) now boots ROM and runs
+text BASIC programs headlessly; the full configuration below remains the target.
+ApplePy remains a
 historical reference; it is not the migration baseline.
 
-The first useful checkpoint is ROM boot, keyboard input, and a text screen.
+The first interactive checkpoint is ROM boot, keyboard input, and a text screen.
 The selected machine then grows through graphics and DOS 3.3 to writable disks
 and sound. This gives “fully working” a concrete scope beyond reaching a prompt.
 
@@ -94,27 +96,23 @@ Focused probes also confirmed:
   mode and offering write data leaves the track bytes unchanged, while the
   controller reports no write protection.
 
-### Media identities
+### Audit media
 
-The following identities pin the audit inputs. No ROM or disk bytes are added
-to Dromaios by this plan.
+The [machine chapter](../../src/machines/6502/apple2.md#firmware-supplied-by-the-caller)
+owns the audited ROM identities and normalization contract. Neither ROM nor disk
+bytes are embedded in Dromaios. The disk audit used:
 
 | Input | Bytes | SHA-256 |
 | --- | ---: | --- |
-| Reference `roms/apple2p.rom` | 20,480 | `92c4bef609920842ea472d21b661a0d35dbda6cd90963b8b734a205e22d84108` |
-| Its last 12 KiB, mapped at `D000` | 12,288 | `378ba00c86a64cca49cedaca7de8d5d351983ebc295d9d11e0752febfc346249` |
 | Reference `disks/dos33-master.dsk` | 143,360 | `06075b2b73922cfa292c5c36de5a27b17f9fbf21ef0450a3dc00b53a6bf55d17` |
 
-The reference accepts several ROM lengths permissively. Dromaios should
-declare the supported file and any normalization explicitly: for this 20 KiB
-container, validate it before selecting bytes `2000`–`4FFF`, then verify the
-12 KiB image. Also allow that exact normalized image directly. A bad media
-selection must leave the current machine intact. Keep loading local to the
-browser, as with Altair BASIC; media identity belongs in the machine chapter.
+The reference accepts several ROM lengths permissively. Dromaios verifies the
+declared image instead. Browser loading should stay local, as with Altair BASIC;
+a rejected selection must preserve the current machine.
 
 ## Literate implementation boundaries
 
-The executable machine chapter will own components, ROM requirements, the
+The executable machine chapter owns the implemented components, ROM requirements, the
 memory map, reset wiring, selected device profiles, and acceptance conversations.
 Device chapters will own keyboard, soft-switch, Language Card, and Disk II
 state transitions. Shared runtimes should implement reusable operations such
@@ -124,9 +122,9 @@ delivery, and scheduling host work.
 
 | Need | Existing support and concrete gap |
 | --- | --- |
-| 6502 with ROM and mapped devices | The CPU already accepts byte-memory connections. Machine maps currently allow only 8080 and 68000; extend that path for the 6502 with an explicit unanswered-bus policy. |
-| Caller-supplied ROM | ROM is immutable after construction, but factories currently construct it from embedded images. Add a declared external image binding, validated before construction/restoration. |
-| Keyboard and display switches | Generated devices already have registers, latches, byte offers, read/write effects, reset, and detached snapshots. Use these before extending the language. |
+| 6502 with ROM and mapped devices | Implemented through the existing byte bus, with an explicit unanswered-bus policy in the chapter. |
+| Caller-supplied ROM | External image declarations require verified bindings before synchronous construction/restoration; snapshots retain ROM identity. Browser file selection is next. |
+| Keyboard and display switches | The keyboard now generates from its device chapter using existing state, offers, effects, reset, and snapshot support. Apply the same language to display switches. |
 | Banked memory | Fixed maps cover whole components and reject overlap. Language Card read/write routing needs explicit bank/window selection and storage ownership. Develop it when the card is introduced. |
 | Video | Frame decoding should consume RAM and switch snapshots. Explain interleaved addresses and character/pixel decoding alongside declarative definitions; do not hide hardware formulas in a browser controller. |
 | Disk and speaker time | No current machine clock or device scheduler. Define emulated elapsed time and observable transitions before claiming timed disk behavior or producing audio. |
@@ -148,21 +146,16 @@ power-on state, and decoded address aliases before declaring their contracts.
 
 ### 1. ROM, keyboard, and text
 
-Use the card-free bring-up configuration. Start from explicit RAM/device state,
-perform the real 6502 reset-vector reads, and execute the selected ROM to its
-Applesoft prompt. Offer characters through the emulated keyboard latch, enter
-and list a two-line BASIC program, run it, and independently check the resulting
-screen characters and RAM. Include line editing and Control-C.
+The [chapter's acceptance checks](../../src/machines/6502/apple2.md#headless-acceptance)
+now cover native ROM boot, keyboard input, stored BASIC programs, editing,
+Control-C, and snapshot continuation. Its declarations own the implemented
+memory, media, and reset contracts.
 
-Check keyboard polling/acknowledgement, address aliases, ROM write protection,
-every text-row mapping, and normal/inverse characters directly. Browser
-acceptance adds file validation, keyboard focus, readable output, Step,
-Run/Pause, reset, and fresh power-on. Define reset and power-on separately:
-CPU reset must not silently clear RAM, reload media, or reinitialize every device.
-
-Inspection must leave keyboard state and execution unchanged. A restored
-snapshot must continue with the same next instruction and output as an
-uninterrupted machine; bind it to the selected ROM identity.
+Remaining: independently test every text-row mapping and normal/inverse
+characters in the production display decoder. Browser acceptance adds file
+validation, keyboard focus, readable output, Step, Run/Pause, reset, and fresh
+power-on. Inspection must preserve the keyboard and execution state. Neither
+the text display nor its controls should replace the existing generated machine.
 
 ### 2. Graphics and Language Card
 
@@ -215,12 +208,12 @@ the basic emulator's completion.
 
 ## Next implementation slice
 
-Start checkpoint 1 with **6502 mapped memory, a verified external ROM binding,
-and a literate keyboard device**. Add the executable machine chapter at
-`src/machines/6502/apple2.md` once it can generate its composition. Prove ROM
-boot and a typed calculation headlessly using independent text-screen decoding,
-then put that same machine behind a browser text display. This slice needs
-neither Language Card banking nor Disk II nor a general timing framework.
+Finish checkpoint 1 with **text display and browser controls** around the
+generated machine: local ROM selection, keyboard delivery, Run/Pause, Step,
+CPU reset, and fresh power-on. Move the text-address and character-decoding
+rules into an executable display description with independent tests. This
+slice needs neither Language Card banking nor Disk II nor a general timing
+framework.
 
 As implementation lands, move hardware/reset/media contracts and acceptance
 details into the executable chapter alongside their declarations. Keep this

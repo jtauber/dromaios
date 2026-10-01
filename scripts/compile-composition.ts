@@ -12,13 +12,22 @@ const componentTypes = {
 export function compileComposition(machine: ComposedMachineDefinition | ComponentMachineDefinition, name: string, from: string): string {
   const imports: string[] = [`import { checkMachineSnapshot, snapshotRam, restoreRam } from "${posix.relative(from, "snapshot.js")}";`];
   const fields: string[] = [], snapshots: string[] = [];
-  for (const kind of new Set(machine.components.map(component => component.kind))) {
+  const externalImages = new Map(machine.externalImages?.map(image => [image.component, image]));
+  for (const kind of new Set(machine.components.filter(component => !externalImages.has(component.name)).map(component => component.kind))) {
     const [type, module] = isDeviceKind(kind) ? [deviceModels[kind].name, deviceModels[kind].module] : componentTypes[kind];
     imports.push(`import { ${type}${isDeviceKind(kind) ? ` as ${deviceType(kind)}` : ""} } from "${path(module)}";`);
   }
 
   const outputs = machine.components.filter(component => isDeviceKind(component.kind) && deviceModels[component.kind].output);
-  const argument = outputs.length ? `bindings: { ${outputs.map(component => `readonly ${component.name}: (value: number) => void`).join("; ")} }, ` : "";
+  const identities: string[] = [];
+  if (externalImages.size) imports.push(
+    `import { romFromImage } from "${posix.relative(from, "rom-image.js")}";`,
+    `import type { RomImage } from "${posix.relative(from, "rom-image.js")}";`);
+  const bindings = [
+    ...outputs.map(component => `readonly ${component.name}: (value: number) => void`),
+    ...[...externalImages.keys()].map(component => `readonly ${component}: RomImage`),
+  ];
+  const argument = bindings.length ? `bindings: { ${bindings.join("; ")} }, ` : "";
   const body: string[] = [];
   for (const component of machine.components) {
     const local = part(component.name);
@@ -32,9 +41,17 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
         body.push(`if (initialState !== undefined) restoreRam(${local}, initialState.${component.name});`);
         break;
       case "rom":
-        body.push(`const image_${component.name} = new Uint8Array(${component.size});`);
-        for (const image of images) body.push(`image_${component.name}.set(${JSON.stringify(image.bytes)}, ${image.address});`);
-        body.push(`const ${local} = new Rom(image_${component.name});`);
+        if (externalImages.has(component.name)) {
+          const identity = { size: component.size, sha256: externalImages.get(component.name)!.sha256 };
+          identities.push(`  ${component.name}: Object.freeze(${JSON.stringify(identity)}),`);
+          fields.push(`readonly ${component.name}: string`);
+          snapshots.push(`${component.name}: romImages.${component.name}.sha256`);
+          body.push(`const ${local} = romFromImage(bindings.${component.name}, romImages.${component.name}, initialState?.${component.name});`);
+        } else {
+          body.push(`const image_${component.name} = new Uint8Array(${component.size});`);
+          for (const image of images) body.push(`image_${component.name}.set(${JSON.stringify(image.bytes)}, ${image.address});`);
+          body.push(`const ${local} = new Rom(image_${component.name});`);
+        }
         break;
       default: {
         const device = deviceModels[component.kind];
@@ -100,12 +117,14 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
     if (machine.reset !== undefined) returned.push("reset");
     if (machine.endAddress !== undefined) returned.push(`endAddress: ${machine.endAddress}`);
   }
-  const snapshotFields = [...(machine.cpu === undefined ? [] : ["cpu"]), ...machine.components.filter(component => component.kind !== "rom").map(component => component.name)];
+  const snapshotFields = [...(machine.cpu === undefined ? [] : ["cpu"]), ...machine.components
+    .filter(component => component.kind !== "rom" || externalImages.has(component.name)).map(component => component.name)];
   body.unshift(`if (initialState !== undefined) checkMachineSnapshot(initialState, ${JSON.stringify(snapshotFields)});`);
   body.push(`const snapshot = (): { ${fields.join("; ")} } => ({ ${snapshots.join(", ")} });`);
   returned.push("snapshot");
   body.push(`const instance = { ${returned.join(", ")} };`, "return instance;");
-  return `${imports.join("\n")}\n\nexport function ${name}(${argument}initialState?: { ${fields.join("; ")} }) {\n${body.join("\n").split("\n").map(line => `  ${line}`).join("\n")}\n}\n`;
+  const metadata = externalImages.size ? `export const romImages = Object.freeze({\n${identities.join("\n")}\n});\n\n` : "";
+  return `${imports.join("\n")}\n\n${metadata}export function ${name}(${argument}initialState?: { ${fields.join("; ")} }) {\n${body.join("\n").split("\n").map(line => `  ${line}`).join("\n")}\n}\n`;
 
   function path(module: string): string { return posix.relative(from, `../components/${module}.js`); }
   function part(component: string): string { return `part_${component}`; }

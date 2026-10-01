@@ -82,6 +82,8 @@ examples add polling and consuming input reads with the same devices.
   state, register operations, and generated device APIs.
 - [MC6850 polling profile](../src/components/devices/specifications/mc6850-polling.md):
   the first 88-2SIO serial channel's chip behavior and explicit fidelity limits.
+- [Apple II keyboard](../src/components/devices/specifications/apple2-keyboard.md):
+  character/strobe latch, guest acknowledgement, aliases, and paced host input.
 - [Byte input](devices/byte-input.md): a pending-byte latch, readiness, consuming
   reads, host offers, and detached inspection.
 - [Byte output](devices/byte-output.md): a write-only register, host notifications,
@@ -96,7 +98,9 @@ examples add polling and consuming input reads with the same devices.
 
 ## Machine definitions
 
-- [Apple II Plus target](machines/apple2.md): proposed configuration, pinned
+- [Apple II Plus chapter](../src/machines/6502/apple2.md): executable ROM/keyboard
+  composition, external firmware identity, and native headless BASIC acceptance.
+- [Apple II Plus target](machines/apple2.md): selected configuration, pinned
   dromaios-apple2 audit, literate implementation gaps, and acceptance checkpoints.
 - [Altair serial example](../src/machines/8080/altair-serial.md): an executable
   composition that polls and echoes through the historical serial port pair.

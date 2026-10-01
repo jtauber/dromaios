@@ -11,6 +11,10 @@ export interface ImageDefinition {
   readonly address: number;
   readonly bytes: readonly number[];
 }
+export interface ExternalImageDefinition {
+  readonly component: string;
+  readonly sha256: string;
+}
 export interface PortBinding {
   readonly direction: "in" | "out";
   readonly port: number;
@@ -20,6 +24,7 @@ export interface PortBinding {
 export interface ComponentsDefinition {
   readonly components: readonly ComponentDefinition[];
   readonly images: readonly ImageDefinition[];
+  readonly externalImages?: readonly ExternalImageDefinition[];
 }
 export interface CompositionDefinition extends ComponentsDefinition {
   readonly connection: { readonly kind: "direct"; readonly component: string } | {
@@ -40,6 +45,7 @@ export function compositionSyntax(syntax: MachineSyntax) {
   const declarations = new Map<string, Token>();
   const components = new Map<string, ComponentDefinition>();
   const images: (ImageDefinition & { token: Token; addressToken: Token; byteTokens: Token[] })[] = [];
+  const externalImages: (ExternalImageDefinition & { token: Token })[] = [];
   const regions: { start: number; component: string; token: Token }[] = [];
   const ports: (PortBinding & { token: Token; addressToken: Token })[] = [];
   const resets = new Map<string, Token[]>();
@@ -73,6 +79,12 @@ export function compositionSyntax(syntax: MachineSyntax) {
   function finishComponents(): ComponentsDefinition {
     if (!declarations.has("components")) fail(current(), "Missing components declaration");
     if (!components.size) fail(declarations.get("components")!, "Declare at least one component");
+    for (const image of externalImages) {
+      if (component(image.token).kind !== "rom") fail(image.token, "External images require ROM");
+      if (images.some(embedded => embedded.component === image.component)) {
+        fail(image.token, "External ROM cannot also contain embedded images");
+      }
+    }
     for (const image of images) {
       const target = component(image.token);
       if (target.kind !== "ram" && target.kind !== "rom") fail(image.token, "Images require RAM or ROM");
@@ -84,6 +96,7 @@ export function compositionSyntax(syntax: MachineSyntax) {
     return {
       components: [...components.values()],
       images: images.map(({ component, address, bytes }) => ({ component, address, bytes })),
+      ...(externalImages.length ? { externalImages: externalImages.map(({ component, sha256 }) => ({ component, sha256 })) } : {}),
     };
   }
 
@@ -134,6 +147,15 @@ export function compositionSyntax(syntax: MachineSyntax) {
           break;
         case "image": {
           const token = name();
+          if (current().text === "external") {
+            take();
+            expect("sha256");
+            const digest = take();
+            if (!/^[\da-fA-F]{64}$/.test(digest.text)) fail(digest, "Expected a 64-digit SHA-256 digest");
+            if (externalImages.some(image => image.component === token.text)) fail(token, "Duplicate external image");
+            externalImages.push({ component: token.text, sha256: digest.text.toLowerCase(), token });
+            break;
+          }
           const addressToken = take();
           const address = readNumber(addressToken, "Image address", 0xffffff);
           const bytes: number[] = [], byteTokens: Token[] = [];
@@ -197,9 +219,9 @@ export function compositionSyntax(syntax: MachineSyntax) {
         }
         connection = { kind: "direct", component: direct.text };
       } else if (mapSize !== undefined) {
-        if (cpu !== "68000" && cpu !== "8080") fail(declarations.get("map")!, "Mapped memory currently requires CPU 8080 or 68000");
-        if (cpu === "8080" && unmapped === undefined) fail(declarations.get("map")!, "An 8080 map requires an explicit unmapped bus value");
-        if (cpu === "68000" && unmapped !== undefined) fail(declarations.get("map")!, "68000 maps report bus errors; unmapped bus values currently require CPU 8080");
+        if (!["68000", "8080", "6502"].includes(cpu)) fail(declarations.get("map")!, "Mapped memory currently requires CPU 6502, 8080, or 68000");
+        if (cpu !== "68000" && unmapped === undefined) fail(declarations.get("map")!, `A ${cpu} map requires an explicit unmapped bus value`);
+        if (cpu === "68000" && unmapped !== undefined) fail(declarations.get("map")!, "68000 maps report bus errors; unmapped bus values currently require CPU 6502 or 8080");
         if (mapSize !== requiredSize) fail(declarations.get("map")!, `Address-space size for ${cpu} must be ${requiredSize.toString(16).toUpperCase()}`);
         const sorted = regions.map(region => ({ ...region, end: region.start + size(component(region.token)) }))
           .sort((left, right) => left.start - right.start);

@@ -111,3 +111,14 @@ cpu 6502 { A = FF
 (source_file
   (cpu_declaration (cpu_model)
     (state_block (assignment (field_name) (number)) (MISSING "}"))))
+
+==================
+External ROM identities
+==================
+components { firmware = rom 3000 }
+image firmware external sha256 378ba00c86a64cca49cedaca7de8d5d351983ebc295d9d11e0752febfc346249
+---
+(source_file
+  (components_block
+    (component_declaration (component_name) (storage_kind) (number)))
+  (external_image (component_name) (digest)))

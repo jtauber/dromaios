@@ -163,7 +163,7 @@ generated `machine.reset()` follows that current CPU before resetting the
 declared devices. Reuse the existing connections when restoring state.
 
 Every component with an output callback requires a named binding in the factory argument.
-A machine with no outputs needs no bindings argument. For example:
+A machine with no outputs or external ROM images needs no bindings argument. For example:
 
 ```typescript
 const bytes: number[] = [];
@@ -177,7 +177,7 @@ no host expressions or callbacks inside a `.machine` file; host code supplies
 functions and decides when to offer input, reset, or execute.
 
 Composed factories also accept an optional complete hardware snapshot, after
-the bindings argument when outputs exist. `machine.snapshot()` copies the current
+the bindings argument when outputs or external ROM images exist. `machine.snapshot()` copies the current
 CPU, every RAM byte, and each device's snapshot under the declared component names.
 Restoration constructs fresh components and validates their state without executing
 instructions, resetting the CPU, or notifying output callbacks. ROM, aliases,
@@ -192,6 +192,34 @@ const resumed = create8080EchoExample({ output: value => { bytes.push(value); } 
 Use snapshots with the same machine definition. The host owns format versioning,
 transport queues, terminal state, and when execution resumes. Flat-RAM examples
 retain their existing CPU snapshot and memory APIs.
+
+### External ROM images
+
+The [Apple II chapter](../../src/machines/6502/apple2.md) declares an external
+image for its `firmware` ROM. Its factory requires a verified `RomImage` under
+that component name, alongside any output callbacks. The generated module
+exports `romImages`, with each external component's declared `size` and `sha256`.
+
+```typescript
+const firmware = await RomImage.verify(bytes, romImages.firmware, sha256);
+const machine = create6502Apple2({ firmware });
+const resumed = create6502Apple2({ firmware }, machine.snapshot());
+```
+
+Here `bytes` is a `Uint8Array` and `sha256` is a trusted host function taking a
+byte array and returning a promise for its lowercase hexadecimal digest. The
+[verification helper](../../src/machines/rom-image.ts) has no file, network, or
+cryptography dependency: the host supplies hashing, for example Web Crypto in
+a browser. It checks size before hashing and copies bytes before yielding.
+Neither the caller nor the hashing function retains access to verified storage.
+Each factory construction creates an independent immutable ROM. A wrong size,
+digest, unverified binding, or binding for another image is rejected.
+
+External ROM snapshots store their digest under the component name, not ROM
+bytes. Restore requires every such identity and checks it against the chapter;
+it also requires the verified image again. Embedded ROMs retain their existing
+snapshot behavior. Verification and any declared file normalization happen
+before the caller replaces its current machine; constructors remain synchronous.
 
 ## Editing and building
 

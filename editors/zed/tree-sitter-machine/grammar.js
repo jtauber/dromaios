@@ -15,6 +15,7 @@ module.exports = grammar({
       $.memory_connection,
       $.map_block,
       $.image_block,
+      $.external_image,
       $.ports_block,
       $.reset_block,
     )),
@@ -65,6 +66,8 @@ module.exports = grammar({
     unmapped_value: $ => seq('unmapped', '=', $.number),
     map_entry: $ => seq(field('address', $.number), '=', $.component_name),
     image_block: $ => seq('image', $.component_name, field('address', $.number), $.byte_block),
+    external_image: $ => seq('image', $.component_name, 'external', 'sha256', $.digest),
+    digest: _ => /[0-9a-fA-F]{64}/,
     ports_block: $ => seq('ports', '{', repeat(choice($.port_binding, $.unmapped_value)), '}'),
     port_binding: $ => seq(
       field('direction', choice('in', 'out')), field('port', $.number), '=',

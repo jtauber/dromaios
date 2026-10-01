@@ -101,8 +101,9 @@ change the wrapped connection's host-argument validation.
 
 The [Altair chapter](../../src/machines/8080/altair-basic.md) uses FF for unused
 addresses around 4 KiB of RAM. The machine language requires an explicit
-`unmapped = byte` declaration inside an 8080 map; 68000 maps retain their fault
-policy. The adapter models a chosen constant undriven value, not a bus latch,
+`unmapped = byte` declaration inside an 8080 or 6502 map; 68000 maps retain their fault
+policy. The [Apple II chapter](../../src/machines/6502/apple2.md) chooses 00 for
+its initial ROM/keyboard composition. The adapter models a chosen constant undriven value, not a bus latch,
 electrical pull-up strength, or cycle timing.
 
 ## Checks
