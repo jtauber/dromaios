@@ -84,12 +84,13 @@ introductory byte and memory explorations and a register lesson running the 8080
 in the browser. The teaching path now reaches the
 [Altair 8800's memory controls](docs/machines/altair-memory.md) and
 [manual program entry and execution](docs/machines/altair-program.md), and continues
-through text, buffers, and subroutines to a small command prompt. The current
-priority is a [working Altair with BASIC](docs/machines/altair-basic.md), developed
-through literate, declarative descriptions. Its generated machine now loads the
-original tape and runs BASIC headlessly and in the browser, with a terminal and
-front-panel memory and sense-switch controls. The introductory lessons use
-teaching devices.
+through text, buffers, and subroutines to a small command prompt. The first
+historical-machine milestone, a [working Altair with BASIC](docs/machines/altair-basic.md),
+is complete at its declared fidelity. Its generated machine loads the original
+tape and runs BASIC headlessly and in the browser, with a terminal and front-panel
+memory and sense-switch controls. Literate BASIC lessons use that machine, with
+authored conversations checked against the interpreter. The earlier introductory
+lessons retain their teaching devices.
 
 All eight documented instruction sets now use shared definitions that generate
 execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)

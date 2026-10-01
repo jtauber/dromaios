@@ -20,9 +20,9 @@ focus is now interactive learning, with further refinement driven by concrete
 authoring and browser needs.
 Reusable memory and byte-I/O compositions also work in simulation. The
 [microcomputer.world site](site/README.md) now presents the executable CPU
-chapters with Sauvignon diagrams, introductory byte/memory explorations, and
-a register lesson executing real 8080 instructions. The first historical
-machine will be the Altair 8800; complete machine emulation remains ahead. The stages overlap:
+chapters with Sauvignon diagrams, lessons from bits through 8080 programs, and
+a working Altair 8800 running the original 4K BASIC. The first historical-machine
+milestone is complete at its declared instruction-level fidelity. The stages overlap:
 browser work can build on these foundations while CPU and component work continues.
 Implementation order is independent of the tutorial's historical teaching
 order. See [CPU scope](docs/cpus/scope.md) for the rationale,
@@ -148,9 +148,10 @@ now complete this introductory path. The capstone prints a prompt, reads a line,
 chooses a response, and repeats. The complete path has had a consistency and
 walkthrough review. Keep browser pacing distinct from emulated machine time.
 
-The next priority is the working Altair with BASIC in milestone 5. Introduce
-the 8080/6502 comparison after that milestone, when approaching the Apple II.
-Other machines may come between them; the comparison does not gate Altair work.
+The working Altair in milestone 5 now supports gentle BASIC lessons. Their
+Markdown prose and authored conversations supply both the published examples
+and acceptance tests against the original interpreter. Introduce the 8080/6502
+comparison when approaching the Apple II; other machines may come between them.
 
 The [pedagogical roadmap](docs/pedagogy.md#pedagogical-roadmap) defines the
 learning milestones and review points, beginning with an arithmetic explorer
@@ -197,14 +198,16 @@ and follow their effects during execution.
 
 ## 5. Build the first complete machine incrementally
 
-**Current priority:** a working **Altair 8800 with BASIC**, using the
+**First BASIC milestone complete:** a usable **Altair 8800 with BASIC**, using the
 [selected configuration and acceptance criteria](docs/machines/altair-basic.md).
 The initial target is 4K BASIC 3.2 with an 88-2SIO serial interface and paper-tape
 loading. The executable chapter and generated devices now boot that tape and
 run the BASIC program/editing transcript, with a browser terminal, execution
 controls, and front-panel memory/sense switches alongside the published guide.
-Review the complete workflow before broadening this configuration; the
-introductory lessons use simplified teaching devices.
+The integrated loading, editing, execution, Break, inspection, reset, and reload
+workflow has been exercised in the browser and through automated acceptance.
+Gentle programming lessons now build on this configuration. The earlier
+introductory lessons retain their simplified teaching devices.
 
 - Author a literate machine chapter that explains and declares its components,
   memory and port maps, reset behavior, panel connections, and loading setup.
@@ -224,6 +227,8 @@ introductory lessons use simplified teaching devices.
 **Review point:** The historical loader brings BASIC to its prompt; users can
 enter, list, edit, and run programs, interrupt them, and inspect the machine.
 The executable descriptions explain the modeled hardware and its limitations.
+This checkpoint is met for the selected configuration. It does not imply
+cycle-level timing, full electrical behavior, or support for other peripherals.
 
 ## 6. Broaden the platform
 

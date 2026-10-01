@@ -22,8 +22,9 @@ Each lesson has an All lessons link alongside Previous/Next navigation.
 The build uses this catalogue both to render the lesson pages and to populate
 [`learn.html`](templates/learn.html) and the shared
 [navigation include](templates/lesson-navigation.html). Add new lessons to the
-catalogue in their intended learning order; their templates include the shared
-navigation instead of naming their neighbors. The index works without JavaScript.
+catalogue in their intended learning order; the shared navigation supplies their
+neighbors. BASIC lessons use the Markdown format below; earlier lessons retain
+their individual templates. The index works without JavaScript.
 
 ## Altair BASIC
 
@@ -36,14 +37,13 @@ local file before replacement and distinguishes attached tape from the verified
 file retained after reset. The chapter owns loading instructions, terminal conventions,
 reset/reload behavior, and limitations.
 
-The [Your first BASIC program lesson](templates/your-first-basic-program.html)
-uses the same [machine instrument](templates/instruments/altair-basic.html),
-browser controller, and chapter-owned media record. Its prose introduces
-immediate commands, numbered lines, LIST, RUN, and replacement through a
-three-line program. The supplied-tape browser-session test checks every example,
-including the absence of execution and OK when storing a line. The lesson has
-its own fresh machine; sessions are not shared or saved between pages. Guide
-links open in a new tab so consulting them does not replace that machine.
+The [first BASIC program](content/basic/your-first-basic-program.md) and
+[program that asks a question](content/basic/a-program-that-asks-a-question.md)
+are literate Markdown lessons. They share the [loading explanation](content/basic-loading.md),
+[page template](templates/basic-lesson.html), [machine instrument](templates/instruments/altair-basic.html),
+browser controller, and chapter-owned media record. Each page has its own fresh
+machine; sessions are not shared or saved between pages. Guide links open in a
+new tab so consulting them does not replace that machine.
 
 `interactive/altair-basic.ts` connects the generated factory and shared
 `SerialSession` to browser controls. `serial-execution.ts` schedules cancellable
@@ -66,6 +66,52 @@ without EXAMINE, PC changes, deposits at and beyond 0FFF, disabled memory action
 while running, live sense switches, the changed-PC reminder, reset's ejected-tape
 readout, and reload with number guides hidden. The queue count remains visible
 without selected media.
+
+### Authoring a BASIC lesson
+
+Add a Markdown file under `site/content/basic/` and register its filename stem,
+title, and summary in the BASIC group of `lessons.py`. Start with a level-one
+title, a blank line, an introductory paragraph, and a blank line. The remaining
+Markdown follows the shared loading instructions and machine on the page.
+Relative links to another BASIC lesson stay local when published; links to
+repository material use the same rules as the processor and machine guides.
+The shared template supplies the `#load-basic` and `#basic-terminal` anchors
+for links back to its loading instructions and terminal.
+
+Use `basic-session` fences for checked examples:
+
+````markdown
+```basic-session
+> PRINT 2+3
+ 5
+
+OK
+```
+````
+
+`> ` introduces one line to type, followed by Enter. The following lines are
+the expected reply, excluding the echo of that input. Consecutive input lines
+declare no additional reply between them; numbered program lines normally only
+echo. Fences continue one session in document order after a fresh BASIC boot.
+An INPUT exchange ends its reply at `?`, then supplies the answer as another
+input line. Inline code and ordinary code fences are explanatory, not executed.
+
+The [parser](basic-lesson.ts) retains source locations and supplies the same
+turns to publication and the [transcript tests](../tests/site/basic-lessons.test.ts).
+The renderer labels inputs “Type, then Enter” and outputs “BASIC replies”; it
+does not show the source's `>` markers. No interpreter output is generated into
+the expectations: authors supply the expected results. Tests use the real tape,
+CPU, serial session, browser batching, and terminal display. They check the echo
+as well as the reply, allowing time for line storage before the next input.
+Only right-hand spaces and final line endings are ignored; leading spaces,
+interior blank lines, case, and all other text must match. Byte-level terminal
+and machine tests retain their separate exact checks.
+
+Set `ALTAIR_BASIC_TAPE` to run these acceptance tests. Without the external file
+they are explicitly skipped; syntax and publication checks still run. These
+transcripts are test inputs and published examples, not commands automatically
+sent by the browser. The lesson format currently describes linear conversations,
+not branching exercises or a general lesson language.
 
 ## Build and preview
 

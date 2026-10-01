@@ -266,10 +266,10 @@ remains open.
 
 ## Steps toward the site
 
-These steps describe the broader website design. The current delivery priority
-is a [working Altair with BASIC](machines/altair-basic.md), following the
-completed introductory lesson path. Use that machine and its executable
-description to develop the next browser workspace. The arithmetic and
+These steps describe the broader website design. The first
+[working Altair with BASIC](machines/altair-basic.md) milestone and introductory
+lesson path are complete. Use that machine, its executable description, and
+its BASIC lessons to develop the next browser workspace. The arithmetic and
 cross-processor sketches below remain future design exercises; the 6502
 comparison waits until the later move toward the Apple II.
 

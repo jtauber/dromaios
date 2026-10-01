@@ -584,6 +584,11 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .serial-screen { height: 360px; overflow: auto; margin: 0 0 18px; padding: 20px; background: #20342d; color: #edf0cd; font: 13px/1.5 var(--mono); tab-size: 8; border: 1px solid #13271e; }
 .basic-keyboard textarea { width: 100%; resize: vertical; min-height: 44px; padding: 10px; border: 1px solid #b8c5b9; background: var(--paper); color: var(--ink); font: 14px var(--mono); }
 .basic-machine .basic-hint { font-size: 12px; color: var(--muted); line-height: 1.65; }
+.basic-example { margin-block: 24px; padding: 16px 20px; border-left: 3px solid var(--accent); background: #efefe7; }
+.basic-example .basic-example-label { font: 12px/1.6 system-ui, sans-serif; color: var(--muted); margin: 0 0 6px; }
+.basic-example pre { margin: 0; overflow-x: auto; font: 14px/1.7 var(--mono); }
+.basic-example pre + .basic-example-label { margin-top: 16px; }
+.basic-example pre code { padding: 0; background: none; font: inherit; }
 .basic-message { min-height: 1.6em; color: var(--accent); }
 .basic-panel, .basic-inspection { margin-block: 22px; }
 .basic-panel { container-type: inline-size; }

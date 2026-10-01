@@ -13,6 +13,8 @@ from check import check_site
 from diagrams import state_diagram
 from rendering import CHAPTERS, REPOSITORY, ChapterRendering, chapter_link, github_slug
 from machines import ALTAIR, MACHINES, media_record
+from lessons import BASIC_LESSONS
+from lesson_rendering import basic_lesson_catalogue, lesson_markdown
 
 
 class CpuBlocks(HTMLParser):
@@ -37,6 +39,26 @@ class CpuBlocks(HTMLParser):
 
 
 class PublishingTests(unittest.TestCase):
+    def test_basic_lessons_publish_the_same_inputs_as_the_checked_transcripts(self):
+        for slug, chapter in basic_lesson_catalogue().items():
+            with self.subTest(lesson=slug):
+                source = BASIC_LESSONS / f"{slug}.md"
+                output = lesson_markdown(source, "/demo/", chapter["sessions"]).convert(chapter["body"])
+                inputs = [line for block in CpuBlocks(output, "basic").blocks for line in block.split("\n")]
+                self.assertEqual(inputs, [turn["input"] for session in chapter["sessions"] for turn in session])
+                self.assertNotIn("<!-- basic-session:", output)
+        self.assertEqual(chapter_link("your-first-basic-program.md", BASIC_LESSONS / "a-program-that-asks-a-question.md", "/demo/"),
+                         "/demo/learn/your-first-basic-program/")
+
+    def test_basic_replies_are_preserved_and_escaped_with_their_input(self):
+        turns = [[{"input": 'PRINT "<script>&"', "output": "<script>&\n\nOK"}]]
+        output = lesson_markdown(BASIC_LESSONS / "your-first-basic-program.md", "/", turns).convert("<!-- basic-session:0 -->")
+        self.assertNotIn("<script>", output)
+        self.assertEqual(CpuBlocks(output, "basic").blocks, ['PRINT "<script>&"'])
+        self.assertIn("&lt;script&gt;&amp;\n\nOK</pre>", output)
+        self.assertIn("Type, then Enter", output)
+        self.assertIn("BASIC replies", output)
+
     def test_machine_guide_preserves_fences_and_owns_browser_media_identity(self):
         source = ALTAIR.read_text()
         markdown = Markdown(extensions=["fenced_code", ChapterRendering(ALTAIR, "/demo/", lambda *_: "")])

@@ -34,11 +34,6 @@ test("browser batching and terminal run the supplied BASIC tape, program, STOP, 
     for (let count = 0; count < 200; count++) { tick(); if (terminal.text.endsWith(suffix)) return; }
     assert.fail(`No ${suffix}: ${terminal.text}`);
   }
-  function command(line: string): string {
-    const start = terminal.text.length;
-    session.send(terminalInput(line + "\n")); until("OK\n");
-    return terminal.text.slice(start);
-  }
   function enterLine(line: string): void {
     const start = terminal.text.length;
     session.send(terminalInput(line + "\n")); until(line + "\n");
@@ -59,19 +54,6 @@ test("browser batching and terminal run the supplied BASIC tape, program, STOP, 
   assert.deepEqual(session.machine.cpu.snapshot(), ready);
   assert.equal(execution.records, records); // Panel actions do not invent CPU execution records.
   execution.run();
-
-  // "Your first BASIC program": immediate commands, stored lines, LIST, repeated RUN, and replacement.
-  assert.equal(command("PRINT 2+3"), "PRINT 2+3\n 5 \n\nOK\n");
-  assert.equal(command("PRINT 2+8"), "PRINT 2+8\n 10 \n\nOK\n");
-  for (const line of ['10 PRINT "HELLO"', "20 PRINT 2+3", "30 END"]) enterLine(line);
-  assert.equal(command("LIST"), 'LIST\n\n10 PRINT "HELLO"\n20 PRINT 2+3\n30 END\nOK\n');
-  for (let count = 0; count < 2; count++) assert.equal(command("RUN"), "RUN\nHELLO\n 5 \n\nOK\n");
-  enterLine("20 PRINT 2+8");
-  assert.equal(command("LIST"), 'LIST\n\n10 PRINT "HELLO"\n20 PRINT 2+8\n30 END\nOK\n');
-  assert.equal(command("RUN"), "RUN\nHELLO\n 10 \n\nOK\n");
-  enterLine('10 PRINT "HI"');
-  assert.equal(command("RUN"), "RUN\nHI\n 10 \n\nOK\n");
-  command("NEW");
 
   for (const line of ["10 FOR I=1 TO 3", "20 PRINT I*2", "30 NEXT I", "40 END"]) enterLine(line);
   session.send(terminalInput("RUN\n")); until("OK\n");

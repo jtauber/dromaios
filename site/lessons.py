@@ -1,5 +1,9 @@
 """The learning path, grouped for browsing and ordered for Previous/Next links."""
 
+from pathlib import Path
+
+BASIC_LESSONS = Path(__file__).resolve().parent / "content/basic"
+
 LESSON_GROUPS = [
     {
         "slug": "bits-and-memory",
@@ -92,6 +96,8 @@ LESSON_GROUPS = [
         "lessons": [
             {"slug": "your-first-basic-program", "title": "Your first BASIC program",
              "summary": "Calculate, store numbered lines, then list, run, and change your program."},
+            {"slug": "a-program-that-asks-a-question", "title": "A program that asks a question",
+             "summary": "Give a value a name, ask for a number, and calculate an answer."},
         ],
     },
 ]

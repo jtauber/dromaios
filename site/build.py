@@ -18,7 +18,8 @@ from ryland import Ryland
 
 from check import check_site
 from diagrams import state_diagram
-from lessons import LESSON_GROUPS
+from lessons import BASIC_LESSONS, LESSON_GROUPS
+from lesson_rendering import basic_lesson_catalogue, lesson_markdown
 from machines import ALTAIR, MACHINES, media_record
 from rendering import CHAPTERS, REPOSITORY, ChapterRendering, github_slug
 
@@ -61,6 +62,10 @@ def build(base):
         for group in LESSON_GROUPS
     ]
     lessons = [lesson for group in lesson_groups for lesson in group["lessons"]]
+    basic_lessons = basic_lesson_catalogue()
+    basic_group = next(group for group in lesson_groups if group["slug"] == "basic-on-the-altair")
+    if basic_lessons.keys() != {lesson["slug"] for lesson in basic_group["lessons"]}:
+        raise ValueError("The BASIC lesson catalogue and Markdown sources must agree.")
     site = Ryland(output_dir=SITE / "output", template_dir=SITE / "templates", url_root=base)
     site.jinja_env.autoescape = select_autoescape(["html"])
     site.clear_output()
@@ -114,8 +119,25 @@ def build(base):
     site.set_global("altair_media", media_record(ALTAIR.read_text()))
     site.set_global("altair_url", MACHINES[ALTAIR])
     site.render_template("altair-basic.html", f"{MACHINES[ALTAIR]}index.html", render_guide(ALTAIR))
+    loading_source = SITE / "content/basic-loading.md"
+    loading = Markup(lesson_markdown(loading_source, base).convert(loading_source.read_text()))
     for index, lesson in enumerate(lessons):
-        site.render_template(f"{lesson['slug']}.html", f"{lesson['url']}index.html", {
+        template, content = f"{lesson['slug']}.html", {}
+        if lesson["slug"] in basic_lessons:
+            chapter = basic_lessons[lesson["slug"]]
+            source = BASIC_LESSONS / f"{lesson['slug']}.md"
+            if chapter["title"] != lesson["title"]:
+                raise ValueError(f"{source}: title differs from the lesson catalogue")
+            markdown = lesson_markdown(source, base, chapter["sessions"])
+            template = "basic-lesson.html"
+            content = {
+                "introduction": Markup(markdown.convert(chapter["introduction"])),
+                "content": Markup(markdown.reset().convert(chapter["body"])),
+                "loading": loading,
+                "source_url": f"{REPOSITORY}/blob/main/{source.relative_to(ROOT)}",
+            }
+        site.render_template(template, f"{lesson['url']}index.html", {
+            **content, "summary": lesson["summary"],
             "title": lesson["title"],
             "previous_lesson": lessons[index - 1] if index else None,
             "next_lesson": lessons[index + 1] if index + 1 < len(lessons) else None,

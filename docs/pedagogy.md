@@ -200,17 +200,19 @@ and POP H to preserve the caller's message pointer.
 [A tiny command prompt](machines/command-prompt-lesson.md) completes this
 introductory path: print a prompt, collect a bounded line, choose a response,
 and repeat. The complete path has had a consistency and walkthrough review.
-The next priority is a [working Altair with BASIC](machines/altair-basic.md),
-with hardware explanations and executable declarations developed together.
-The 8080/6502 comparison follows that milestone when we approach the Apple II;
+The first [working Altair with BASIC](machines/altair-basic.md) milestone is
+complete, with hardware explanations and executable declarations developed
+together. Literate BASIC lessons now introduce stored programs, editing,
+variables, and numeric input, with authored conversations checked against the
+original interpreter. The 8080/6502 comparison follows when we approach the Apple II;
 other historical machines may be developed between them.
 
 A later teaching goal remains milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the
 arithmetic delivery checkpoint and gives later instruments a concrete
-foundation. This and further comparisons do not precede the current Altair/BASIC
-priority. Supporting instruments can still develop when the machine or its
-explanation needs them.
+foundation. The completed Altair/BASIC milestone makes that comparison possible;
+its timing remains a teaching choice. Supporting instruments can develop when
+the machine or its explanation needs them.
 
 ### 1. Understand one calculation completely
 

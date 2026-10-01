@@ -14,6 +14,7 @@ from pygments.lexer import RegexLexer, words
 from pygments.lexers import XmlLexer
 from pygments.token import Comment, Keyword, Name, Number, Operator, Punctuation, String, Text
 from machines import MACHINES
+from lessons import BASIC_LESSONS
 
 ROOT = Path(__file__).resolve().parent.parent
 CHAPTERS = ROOT / "src/components/cpus/specifications"
@@ -95,6 +96,8 @@ def chapter_link(href, source, base):
         raise ValueError(f"{source.name}: missing linked source {href}")
     if destination in MACHINES:
         path = f"{base}{MACHINES[destination]}"
+    elif destination.parent == BASIC_LESSONS and destination.suffix == ".md":
+        path = f"{base}learn/{destination.stem}/"
     elif destination.parent == CHAPTERS and destination.suffix == ".md":
         path = f"{base}cpus/{destination.stem}/"
     else:

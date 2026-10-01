@@ -27,7 +27,7 @@ generation binds the definitions to shared TypeScript runtimes. Refining the
 language and its explanations through these eight architectures remains active
 work, as does expanding the hardware behavior that the models represent.
 
-The next authoring priority applies this approach to the
+This approach also defines the working
 [Altair with BASIC](machines/altair-basic.md): a readable machine chapter with
 executable composition fences, plus device descriptions that declare state,
 registers, and transitions beside their explanations. The machine generator
@@ -167,7 +167,12 @@ through the inspection interface.
 
 **Lessons** combine small programs, machine compositions, views, and explanatory
 content. A lesson can expose only the parts needed for its concept while using
-the same underlying models as a complete machine.
+the same underlying models as a complete machine. BASIC lessons are Markdown
+documents whose authored input/output conversations supply both the rendered
+examples and tests against the original interpreter. A shared page template
+embeds the Altair controls; the browser does not execute lesson transcripts
+on the learner's behalf. The [site authoring guide](../site/README.md#authoring-a-basic-lesson)
+owns the current bounded format.
 
 **Software guides** connect program architecture and line-by-line source or
 disassembly analysis to lessons, instruments, and execution. Guides own their

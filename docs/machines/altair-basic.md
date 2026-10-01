@@ -1,6 +1,7 @@
 # Altair 8800 with BASIC
 
-The current historical-machine target is a usable Altair with BASIC, before
+The first historical-machine milestone is complete: a usable Altair with BASIC
+at the declared modeling fidelity. It now supports programming lessons before
 the 8080/6502 comparison and later move toward the Apple II. Other historical
 machines may come between them.
 
@@ -30,14 +31,16 @@ register. The executable machine chapter is also the published machine guide.
 
 ## Review point
 
-Review the complete loading/program workflow with the integrated panel before
-broadening the configuration. The chapter owns its PC effects, memory boundary,
+The integrated loading/program workflow has been exercised in the browser,
+including editing, execution, the Break button, memory inspection, reset, and
+reload. Keyboard Control-C still needs manual browser confirmation; its mapping
+and serial byte are covered separately by automated tests. The chapter owns its PC effects, memory boundary,
 switch sharing, and reset/reload contract; the introductory lessons continue to
 use their deliberately simplified teaching devices.
 
 ## Completion criteria
 
-The first milestone is this declared configuration operating both headlessly
+The completed first milestone is this declared configuration operating both headlessly
 and in the browser: authentic loading, the chapter's BASIC acceptance transcript,
 responsive execution controls, and documented reset/reload effects. Tests must
 use independent expected results, not only generated descriptions of generated

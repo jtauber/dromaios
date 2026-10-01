@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "instruments/altair-basic.html" import altair_basic %}
+{% block description %}{{ summary }}{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(altair_script) }}"></script>{% endblock %}
+{% block main %}
+<main id="main" class="lesson altair-lesson">
+  <header class="lesson-header">
+    <p class="eyebrow">BASIC on the Altair</p>
+    <h1>{{ title }}</h1>
+    <div class="lesson-intro">{{ introduction }}</div>
+    <a class="source-link" href="{{ source_url }}" target="_blank" rel="noopener">View lesson source ↗</a>
+  </header>
+  <div id="load-basic" class="lesson-prose">{{ loading }}</div>
+  {{ altair_basic(altair_media, guide_url=calc_url(altair_url), loading_url='#load-basic') }}
+  <article class="lesson-prose">
+    {{ content }}
+    <p>You can keep experimenting in the terminal. Your program lives only in this page's current machine:
+      navigating away, refreshing, or reloading the tape loses it. Copy your numbered lines somewhere to keep them.</p>
+    <p>The <a href="{{ calc_url(altair_url) }}#using-the-browser-machine" target="_blank" rel="noopener">machine guide (opens in a new tab)</a>
+      explains the hardware, loading process, and recovery controls. These lessons use that same machine and original interpreter.</p>
+    {% include "lesson-navigation.html" %}
+  </article>
+</main>
+{% endblock %}
