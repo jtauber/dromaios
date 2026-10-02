@@ -1,6 +1,7 @@
 [
   "cpu" "memory" "end" "components" "map" "image"
   "ports" "in" "out" "reset" "reset-devices" "unmapped" "external" "sha256"
+  "window" "read" "write" "discard" "offset" "when" "and"
 ] @keyword
 (ram_declaration "ram" @keyword)
 
@@ -18,3 +19,5 @@
 (comment) @comment
 "=" @operator
 ["{" "}" "[" "]"] @punctuation.bracket
+
+"." @punctuation.delimiter

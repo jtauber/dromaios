@@ -19,6 +19,50 @@ memory=ram
 ${cpu8080}`;
 const mapped = readFileSync("src/machines/68000/echo-example.machine", "utf8");
 
+test("memory windows resolve pure flag selectors, offsets, and explicit per-direction fallbacks", () => {
+  const source = `${cpu8080}
+map 10000 { D000=window 1000 {
+  read=bank when card.ramRead and card.bank2
+  read=rom offset 1000
+  write=bank when card.ramWrite
+  write=discard
+} unmapped=00 }
+components { bank=ram 1000 rom=rom 2000 card=apple2-language-card video=apple2-video }`;
+  const machine = parseMachine(source);
+  assert.ok("components" in machine && machine.connection.kind === "mapped");
+  assert.deepEqual(machine.connection.regions, [{ start: 0xd000, window: { size: 0x1000,
+    read: [
+      { target: { component: "bank", offset: 0 }, when: [{ component: "card", view: "ramRead" }, { component: "card", view: "bank2" }] },
+      { target: { component: "rom", offset: 0x1000 }, when: [] },
+    ], write: [
+      { target: { component: "bank", offset: 0 }, when: [{ component: "card", view: "ramWrite" }] },
+      { target: "discard", when: [] },
+    ],
+  } }]);
+  for (const [before, after, message] of [
+    ["window 1000", "window 0", /must be positive/],
+    ["window 1000", "window 1001", /beyond its target/],
+    ["offset 1000", "offset 1001", /beyond its target/],
+    ["read=rom offset 1000", "read=discard", /Only writes/],
+    ["read=rom offset 1000", "", /unconditional read/],
+    ["write=discard", "", /unconditional write/],
+    ["write=discard", "write=discard write=bank", /must be last/],
+    ["card.ramRead", "video.inverse", /zero-input flag view/], // Has a byte input.
+    ["card.ramRead", "video.textAddress", /zero-input flag view/], // Returns an address.
+    ["card.ramRead", "card.readSwitch", /zero-input flag view/], // Has effects; not a view.
+    ["card.ramRead", "bank.ramRead", /zero-input flag view/],
+    ["card.ramRead", "absent.ramRead", /Unknown component/],
+    ["card.ramRead", "card", /component.view/],
+    ["read=bank", "read=absent", /Unknown component/],
+    ["D000=window", "F001=window", /beyond the address space/],
+    ["unmapped=00", "DFFF=bank unmapped=00", /overlap/],
+  ] as const) assert.throws(() => parseMachine(source.replace(before, after), "window.machine"), error => {
+    assert.ok(error instanceof Error); assert.match(error.message, /^window\.machine:\d+:\d+:/);
+    assert.match(error.message, message);
+    return true;
+  });
+});
+
 test("named definitions resolve forward references, preserve image order, and distinguish port directions", () => {
   const machine = parseMachine(`image main $100 { AA BB }
 image main 0101h { CC }

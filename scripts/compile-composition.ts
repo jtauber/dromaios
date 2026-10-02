@@ -2,6 +2,7 @@ import { posix } from "node:path";
 import { cpuModels } from "../src/components/cpus/models.ts";
 import { deviceModels, isDeviceKind } from "../src/components/devices/models.ts";
 import type { ComponentMachineDefinition, ComposedMachineDefinition } from "../src/machines/machine-language.ts";
+import type { MemoryWindowDefinition } from "../src/machines/language/memory-window.ts";
 
 const componentTypes = {
   ram: ["Ram", "memory/ram"],
@@ -77,7 +78,7 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
       const { size, regions, unmapped } = machine.connection;
       if (unmapped !== undefined) imports.push(`import { ByteMemoryBus } from "${path("memory/byte-memory-bus")}";`);
       body.push(`const memory = ${unmapped === undefined ? "" : "new ByteMemoryBus("}new MemoryMap(${size}, [`,
-        ...regions.map(region => `  { start: ${region.start}, memory: ${part(region.component)} },`),
+        ...regions.map(region => `  { start: ${region.start}, memory: ${"window" in region ? window(region.window) : part(region.component)} },`),
         `])${unmapped === undefined ? "" : `, ${unmapped})`};`);
     } else memory = part(machine.connection.component);
 
@@ -129,4 +130,18 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
   function path(module: string): string { return posix.relative(from, `../components/${module}.js`); }
   function part(component: string): string { return `part_${component}`; }
   function deviceType(kind: string): string { return `Device_${kind.replaceAll("-", "_")}`; }
+  function window(definition: MemoryWindowDefinition): string {
+    const lines = [`{ size: ${definition.size},`];
+    for (const direction of ["read", "write"] as const) {
+      lines.push(`    ${direction}: (address: number${direction === "write" ? ", value: number" : ""}) => {`);
+      for (const route of definition[direction]) {
+        const condition = route.when.map(({ component, view }) => `${part(component)}.${view}()`).join(" && ");
+        const result = route.target === "discard" ? ""
+          : ` ${part(route.target.component)}.${direction}(address + ${route.target.offset}${direction === "write" ? ", value" : ""})`;
+        lines.push(`      ${condition ? `if (${condition}) ` : ""}return${result};`);
+      }
+      lines.push("    },");
+    }
+    return lines.join("\n") + "\n  }";
+  }
 }

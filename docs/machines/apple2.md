@@ -114,8 +114,8 @@ a rejected selection must preserve the current machine.
 
 The executable machine chapter owns the implemented components, ROM requirements, the
 memory map, reset wiring, selected device profiles, and acceptance conversations.
-Device chapters will own keyboard, soft-switch, Language Card, and Disk II
-state transitions. Shared runtimes should implement reusable operations such
+Device chapters own keyboard, display-switch, and Language Card state
+transitions; Disk II will follow the same approach. Shared runtimes should implement reusable operations such
 as banked storage or timed transitions; the chapter must supply each machine's
 hardware rules. Browser code owns file selection, keyboard events, canvas/audio
 delivery, and scheduling host work.
@@ -125,7 +125,7 @@ delivery, and scheduling host work.
 | 6502 with ROM and mapped devices | Implemented through the existing byte bus, with an explicit unanswered-bus policy in the chapter. |
 | Caller-supplied ROM | External image declarations require verified bindings before synchronous construction/restoration; snapshots retain ROM identity. Browser selection verifies the complete file before replacement. |
 | Keyboard and display switches | Keyboard and display switches generate from device chapters, with state, offers, effects, reset, and snapshots. |
-| Banked memory | Fixed maps cover whole components and reject overlap. Language Card read/write routing needs explicit bank/window selection and storage ownership. Develop it when the card is introduced. |
+| Banked memory | Conditional windows now select independent read/write destinations through pure device views. The machine chapter names both lower banks and common upper storage. |
 | Video | Read-only generated views own text and graphics addresses, character attributes, colour decoding, and visible rows. The host reads RAM and draws decoded cells; the chapter declares its high-resolution colour-pair approximation. |
 | Disk and speaker time | No current machine clock or device scheduler. Define emulated elapsed time and observable transitions before claiming timed disk behavior or producing audio. |
 | Inspection | Use captured CPU records and device snapshots. A future mapped-memory preview must have an explicit side-effect-free path; unavailable device bytes must not masquerade as read results. |
@@ -139,8 +139,8 @@ Primary hardware references are Apple's [Apple II Reference Manual][hardware],
 especially memory/I/O and display descriptions, the [Language Card manual][language-card]
 Appendix D, and [The DOS Manual][dos-manual] for software-visible commands.
 The reference emulator is evidence to compare, not the authority for unresolved
-hardware behavior. In particular, verify Language Card read/write sequences,
-power-on state, and decoded address aliases before declaring their contracts.
+hardware behavior. The Language Card chapter records the hardware checks and
+differences from the reference; apply the same scrutiny to the disk controller.
 
 ## Acceptance checkpoints
 
@@ -166,11 +166,12 @@ drawing programs. The chapters own the examples and rendering limitations:
 fixed RGB palettes and high-resolution even/odd colour pairs, without a scanner
 or composite-signal model.
 
-Test both Language Card banks and their shared upper RAM, read/write selection,
-write protection, access-direction-sensitive enable sequences, reset, and
-snapshot continuation. Match the hardware contract even where it differs from
-the reference. Unanswered/floating-bus behavior must have an explicit model and
-limitation; the reference's constant zero is not a hardware-accuracy claim.
+The [Language Card chapter](../../src/components/devices/specifications/apple2-language-card.md)
+and machine windows now cover both banks, shared upper RAM, independent reads
+and writes, protection, reset, and restoration. Hardware-based tests distinguish
+control reads from writes. A real-ROM check copies Applesoft into card RAM and
+continues executing there. The chapters own the transfer-level and undriven-bus
+limitations.
 
 ### 3. Read-only DOS 3.3
 
@@ -209,11 +210,11 @@ the basic emulator's completion.
 
 ## Next implementation slice
 
-Continue checkpoint 2 with **Language Card banking**: an executable device
-chapter for its selection and write-enable latches, plus declarative routing
-between ROM and the two lower RAM banks and shared upper RAM. Verify the
-access-direction-sensitive enable sequence against hardware sources and test
-independent read/write routing, reset, and snapshot continuation before Disk II.
+Begin checkpoint 3 with **read-only Disk II**: declare the controller's
+switches and retained state in a device chapter, validate DOS sector ordering
+and 6-and-2 encoding independently, then attach the slot-6 bootstrap and selected
+local disk image. Keep controller effects, disk-image conversion, and host media
+selection distinct. The first end-to-end target is a DOS 3.3 cold boot and CATALOG.
 
 As implementation lands, move hardware/reset/media contracts and acceptance
 details into the executable chapter alongside their declarations. Keep this

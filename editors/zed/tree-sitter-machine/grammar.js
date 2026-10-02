@@ -64,7 +64,12 @@ module.exports = grammar({
     memory_connection: $ => seq('memory', '=', $.component_name),
     map_block: $ => seq('map', field('size', $.number), '{', repeat(choice($.map_entry, $.unmapped_value)), '}'),
     unmapped_value: $ => seq('unmapped', '=', $.number),
-    map_entry: $ => seq(field('address', $.number), '=', $.component_name),
+    map_entry: $ => seq(field('address', $.number), '=', choice($.component_name, $.memory_window)),
+    memory_window: $ => seq('window', field('size', $.number), '{', repeat($.memory_route), '}'),
+    memory_route: $ => seq(choice('read', 'write'), '=', choice(
+      'discard', seq($.component_name, optional(seq('offset', $.number))),
+    ), optional(seq('when', $.device_view, repeat(seq('and', $.device_view))))),
+    device_view: $ => seq($.component_name, '.', $.field_name),
     image_block: $ => seq('image', $.component_name, field('address', $.number), $.byte_block),
     external_image: $ => seq('image', $.component_name, 'external', 'sha256', $.digest),
     digest: _ => /[0-9a-fA-F]{64}/,

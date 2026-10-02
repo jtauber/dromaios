@@ -137,7 +137,7 @@ not branching exercises or a general lesson language.
 ## Apple II Plus
 
 `/machines/apple-ii-plus/` publishes the executable [Apple II chapter](../src/machines/6502/apple2.md)
-with local ROM selection, text, and both graphics resolutions. The Machines navigation opens the
+with local ROM selection, text, both graphics resolutions, and Language Card RAM. The Machines navigation opens the
 home-page machine index. `rom-file.ts` checks the complete container and extracted
 ROM; `apple2-session.ts` delivers queued keys through the generated latch.
 `apple2-screen.ts` reads RAM using generated, read-only video views.

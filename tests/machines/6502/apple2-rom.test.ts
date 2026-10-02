@@ -89,4 +89,24 @@ test("Apple II ROM boots natively and supports BASIC programs, editing, break, a
   assert.match(screen(), /BREAK IN 10/);
   command("PRINT 1+1");
   assert.match(screen(), /\]PRINT 1\+1\n2\n/);
+
+  // A guest ROM-copy loop at $0300; preserve Applesoft's zero-page scratch bytes.
+  const copy = [
+    0x48, 0xa5, 0x06, 0x48, 0xa5, 0x07, 0x48, // Save A, $06, $07.
+    0xa9, 0x00, 0x85, 0x06, 0xa9, 0xd0, 0x85, 0x07, 0xa0, 0x00,
+    0x2c, 0x82, 0xc0, 0x2c, 0x81, 0xc0, 0x2c, 0x81, 0xc0,
+    0xb1, 0x06, 0x91, 0x06, 0xc8, 0xd0, 0xf9, // Copy a page through ($06),Y.
+    0xe6, 0x07, 0xd0, 0xf5, // Advance through $D000–$FFFF.
+    0x2c, 0x80, 0xc0, // Protect RAM and select its copy of BASIC/Monitor for reads.
+    0x68, 0x85, 0x07, 0x68, 0x85, 0x06, 0x68, 0x60,
+  ];
+  copy.forEach((byte, i) => machine.ram.write(0x300 + i, byte));
+  command("CALL 768");
+  assert.deepEqual(machine.language.snapshot(), { bank2: true, ram_read: true, ram_write: false, prewrite: false });
+  for (let i = 0; i < bytes.length; i++) assert.equal(machine.memory.read(0xd000 + i), bytes[i], `Copied ROM byte ${i}`);
+  command("PRINT 6*7"); // Continue executing Applesoft and the Monitor from the card's RAM.
+  assert.match(screen(), /\]PRINT 6\*7\n42\n/);
+  machine.reset();
+  assert.equal(machine.cpu.snapshot().pc, 0xfa62, "Reset vector also comes from copied RAM");
+  assert.equal(machine.language.ramRead(), true);
 });

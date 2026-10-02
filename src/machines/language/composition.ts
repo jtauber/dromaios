@@ -1,6 +1,8 @@
 import type { MachineSyntax, Token } from "./syntax.ts";
 import { deviceModels, isDeviceKind } from "../../components/devices/models.ts";
 import type { DeviceKind } from "../../components/devices/models.ts";
+import { readMemoryWindow } from "./memory-window.ts";
+import type { MemoryWindowDefinition } from "./memory-window.ts";
 
 export type ComponentDefinition = { readonly name: string } & (
   | { readonly kind: "ram" | "rom"; readonly size: number }
@@ -26,11 +28,15 @@ export interface ComponentsDefinition {
   readonly images: readonly ImageDefinition[];
   readonly externalImages?: readonly ExternalImageDefinition[];
 }
+export type MappedRegionDefinition = { readonly start: number } & (
+  | { readonly component: string }
+  | { readonly window: MemoryWindowDefinition }
+);
 export interface CompositionDefinition extends ComponentsDefinition {
   readonly connection: { readonly kind: "direct"; readonly component: string } | {
     readonly kind: "mapped"; readonly size: number;
     readonly unmapped?: number;
-    readonly regions: readonly { readonly start: number; readonly component: string }[];
+    readonly regions: readonly MappedRegionDefinition[];
   };
   readonly ports?: readonly PortBinding[];
   readonly unmappedPorts?: number;
@@ -46,7 +52,8 @@ export function compositionSyntax(syntax: MachineSyntax) {
   const components = new Map<string, ComponentDefinition>();
   const images: (ImageDefinition & { token: Token; addressToken: Token; byteTokens: Token[] })[] = [];
   const externalImages: (ExternalImageDefinition & { token: Token })[] = [];
-  const regions: { start: number; component: string; token: Token }[] = [];
+  const regions: (MappedRegionDefinition & { token: Token })[] = [];
+  const windows: (() => void)[] = [];
   const ports: (PortBinding & { token: Token; addressToken: Token })[] = [];
   const resets = new Map<string, Token[]>();
   let direct: Token | undefined;
@@ -111,7 +118,7 @@ export function compositionSyntax(syntax: MachineSyntax) {
         case "components":
           block("components", () => {
             const token = name();
-            if (["cpu", "memory", "ports", "reset", "snapshot"].includes(token.text)) fail(token, `Reserved component name ${token.text}`);
+            if (["cpu", "memory", "ports", "reset", "snapshot", "window", "discard"].includes(token.text)) fail(token, `Reserved component name ${token.text}`);
             if (components.has(token.text)) fail(token, `Duplicate component ${token.text}`);
             expect("=");
             const kind = take();
@@ -142,7 +149,11 @@ export function compositionSyntax(syntax: MachineSyntax) {
             const start = readNumber(take(), "Region start", 0xffffff);
             expect("=");
             const token = name();
-            regions.push({ start, component: token.text, token });
+            if (token.text === "window") {
+              const window = readMemoryWindow(syntax, component);
+              regions.push({ start, window: window.definition, token });
+              windows.push(window.validate);
+            } else regions.push({ start, component: token.text, token });
           });
           break;
         case "image": {
@@ -223,14 +234,16 @@ export function compositionSyntax(syntax: MachineSyntax) {
         if (cpu !== "68000" && unmapped === undefined) fail(declarations.get("map")!, `A ${cpu} map requires an explicit unmapped bus value`);
         if (cpu === "68000" && unmapped !== undefined) fail(declarations.get("map")!, "68000 maps report bus errors; unmapped bus values currently require CPU 6502 or 8080");
         if (mapSize !== requiredSize) fail(declarations.get("map")!, `Address-space size for ${cpu} must be ${requiredSize.toString(16).toUpperCase()}`);
-        const sorted = regions.map(region => ({ ...region, end: region.start + size(component(region.token)) }))
+        for (const validate of windows) validate();
+        const sorted = regions.map(region => ({ ...region,
+          end: region.start + ("window" in region ? region.window.size : size(component(region.token))) }))
           .sort((left, right) => left.start - right.start);
         for (const [index, region] of sorted.entries()) {
           if (region.end > mapSize) fail(region.token, "Mapped component extends beyond the address space");
           if (index && region.start < sorted[index - 1]!.end) fail(region.token, "Memory regions overlap");
         }
         connection = { kind: "mapped", size: mapSize, ...(unmapped === undefined ? {} : { unmapped }),
-          regions: regions.map(({ start, component }) => ({ start, component })) };
+          regions: regions.map(({ token, ...region }) => region) };
       } else return fail(current(), "Missing CPU memory connection: memory = component or map");
 
       if (declarations.has("ports") && cpu !== "8080") fail(declarations.get("ports")!, "Port bindings currently require CPU 8080");

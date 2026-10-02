@@ -20,6 +20,38 @@ async function load(source: string, path: string, t: TestContext) {
   return import(pathToFileURL(filename).href);
 }
 
+test("window routes select once without fallback after a failed transfer, and discard explicitly", async t => {
+  const cpu = readFileSync("src/machines/68000/echo-example.machine", "utf8").split("cpu 68000")[1]!.split("\nmap ")[0]!;
+  const { createWindow } = await load(`cpu 68000${cpu}
+components { ram=ram 2 rom=rom 1 sink=byte-output card=apple2-language-card }
+image ram 0 { 11 22 }
+map 1000000 { 100=window 1 {
+  read=sink when card.bank2
+  read=ram offset 1
+  write=discard when card.ramWrite
+  write=rom when card.bank2
+  write=ram offset 1
+} }`, "window.machine", t);
+  const machine = createWindow({ sink: () => assert.fail("Unselected device write") });
+  assert.equal(machine.memory.read(0x100), "bus-error", "Failed first route must not fall through to RAM");
+  assert.equal(machine.memory.write(0x100, 0xaa), undefined, "Explicit discard succeeds, even on the 68000 bus");
+  assert.equal(machine.ram.read(1), 0x22);
+  machine.card.read(2); // Protect bank 2: select ROM write refusal.
+  assert.equal(machine.memory.write(0x100, 0xaa), "bus-error");
+  assert.equal(machine.ram.read(1), 0x22);
+  machine.card.read(10); // Bank 1: both routes now select the RAM slice.
+  assert.equal(machine.memory.read(0x100), 0x22);
+  machine.memory.write(0x100, 0x33);
+  assert.deepEqual([machine.ram.read(0), machine.ram.read(1)], [0x11, 0x33]);
+  let selected = 0;
+  machine.card.bank2 = () => { selected++; return false; };
+  assert.throws(() => machine.memory.read(-1), RangeError);
+  assert.throws(() => machine.memory.write(0x100, 256), RangeError);
+  assert.equal(selected, 0, "Map validates host arguments before evaluating selectors");
+  assert.equal(machine.memory.read(0x100), 0x33);
+  assert.equal(selected, 1);
+});
+
 test("generated 8008 compositions use the chapter entry point and preserve stepping and reset", async t => {
   const example = readFileSync("src/machines/8008/example.machine", "utf8");
   const state = example.slice(example.indexOf("cpu 8008"), example.indexOf("memory "));

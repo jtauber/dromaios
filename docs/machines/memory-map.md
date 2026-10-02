@@ -81,8 +81,11 @@ physical map addresses. Its [bus-error contract](../../src/components/cpus/speci
 defines failed-byte metadata and exception delivery.
 
 Reads through a map are execution accesses. They are not a side-effect-free
-inspection API for devices; use their snapshots. There is no bank switching, mirroring
-syntax, device scheduler, or cycle timing in this component.
+inspection API for devices; use their snapshots. The
+[machine language's windows](language.md#memory-windows) generate fixed-size
+connections whose read/write closures select underlying storage through pure
+device views. `MemoryMap` still owns bounds and non-overlap checks; it does not
+interpret banking rules. There is no device scheduler or cycle timing here.
 
 ## Byte buses
 

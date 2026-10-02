@@ -175,8 +175,8 @@ the flat `ram` declaration or `memory address { bytes }` shorthand. All referenc
 are resolved after parsing, so images and connections may precede their targets.
 
 Component names are case-sensitive: a lowercase letter followed by lowercase
-letters, digits, or underscores. `cpu`, `memory`, `ports`, and `reset` are reserved
-for the factory API. Every component name is unique within the machine. The
+letters, digits, or underscores. `cpu`, `memory`, `ports`, `reset`, and `snapshot` are reserved
+for the factory API; `window` and `discard` are reserved routing words. Every component name is unique within the machine. The
 available kinds are:
 
 | Kind | Declaration | Local addresses |
@@ -188,6 +188,7 @@ available kinds are:
 | [MC6850 polling profile](../../src/components/devices/specifications/mc6850-polling.md) | `serial = mc6850-polling` | `0` status/control, `1` receive/transmit |
 | [Altair sense switches](../../src/components/devices/specifications/altair-sense-switches.md) | `sense = altair-sense-switches` | `0` positions, read-only |
 | [Apple II video](../../src/components/devices/specifications/apple2-video.md) | `video = apple2-video` | `0`–`7` display switches; read-only display views |
+| [Apple II Language Card](../../src/components/devices/specifications/apple2-language-card.md) | `language = apple2-language-card` | `0`–`F` control switches; pure routing views |
 | [Apple II keyboard](../../src/components/devices/specifications/apple2-keyboard.md) | `keyboard = apple2-keyboard` | `00`–`0F` data, `10`–`1F` acknowledgement |
 
 RAM and ROM sizes are positive hexadecimal byte counts, at most `1000000`
@@ -221,7 +222,7 @@ reset { cpu input output }
 reset-devices { input output }
 ```
 
-Each region maps the whole named component beginning at local address zero.
+A simple region entry maps the whole named component beginning at local address zero.
 Regions must fit the CPU's address space and must not overlap. Mapping one
 component at two disjoint addresses explicitly aliases the same instance.
 Unmapped accesses and ROM writes follow the [memory-map contract](memory-map.md).
@@ -243,6 +244,38 @@ includes a mapped component's `bus-error` response, such as a ROM write refusal.
 Thrown host errors still propagate. A 68000 map rejects this declaration and
 keeps its existing fault behavior. Other CPUs do not yet accept maps in this
 language, although their public byte-memory APIs can accept composed connections.
+
+### Memory windows
+
+A region can instead declare a fixed-size window with independent read and
+write routes. For example, the Apple II's shared upper Language Card RAM uses:
+
+```text
+E000 = window 2000 {
+    read = upper when language.ramRead
+    read = firmware offset 1000
+    write = upper when language.ramWrite
+    write = discard
+}
+```
+
+Each direction selects its **first matching route**, in source order, on every
+transfer. A condition calls a zero-input flag `view` declared by a device;
+`when card.ramRead and card.bank2` requires both views to return true.
+Conditions cannot read guest registers or run arbitrary host expressions.
+Each direction must end with exactly one unconditional route, and no routes
+in that direction may follow it. A failed selected transfer propagates its
+result; it does not try another route.
+
+A destination is a component with an optional hexadecimal `offset` (default
+zero), or `discard` for writes only. The whole window must fit every destination
+from that offset. Its own extent must fit the map and not overlap other regions.
+A write to `discard` succeeds without touching storage; a write routed to ROM
+retains ROM's normal refusal. A window owns no bytes, latches, or snapshot state:
+named components retain that ownership. Generated factories emit ordinary typed
+closures, with no runtime parser or rule interpreter.
+
+### Ports and reset
 
 The optional `ports` block currently connects the 8080's byte ports. `in` entries
 require readable device registers; `out` entries require writable registers.
@@ -370,10 +403,10 @@ lesson.machine:3:6: Memory block extends beyond address FFFF
 ## Scope and future extensions
 
 This version describes named components with an optional CPU, RAM/ROM images,
-fixed 68000 memory maps, 8080
-byte ports, the two teaching byte devices, the MC6850 polling profile, and explicit reset wiring. Other devices, bank
-switching, interrupt wiring, clocks, and scripted host input are not currently
-expressed. The [Altair/BASIC target](altair-basic.md) drives the next extensions:
+6502/8080/68000 memory maps with conditional windows, 8080 byte ports,
+chapter-defined devices, and explicit reset wiring. Interrupt wiring, clocks,
+and scripted host input are not currently expressed. The
+[Apple II target](apple2.md) drives the next extensions:
 declarative hardware descriptions and connections, with shared
 TypeScript support for execution and host interaction. The language does not
 define instruction behavior or assemble the comments beside the bytes.

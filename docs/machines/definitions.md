@@ -43,6 +43,10 @@ protection, and unmapped-access behavior.
 The [Altair BASIC chapter](../../src/machines/8080/altair-basic.md) maps 4 KiB of
 RAM into the 8080 address space and declares the response to unused memory and
 ports. Its bootstrap and sense-switch wiring are part of the same executable source.
+The [Apple II chapter](../../src/machines/6502/apple2.md) adds conditional memory
+windows: device views choose separate read/write destinations, including RAM
+behind ROM. Windows own no storage or snapshot fields. The generated closures
+route transfers directly, and the chapter owns the hardware's bank-selection rules.
 
 The [68000 ROM-output example](../cpus/68000/examples/output.md) also maps a
 byte-output register and connects device reset to the CPU's RESET instruction.

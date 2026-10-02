@@ -10,10 +10,23 @@ import { parseMachine } from "../../src/machines/machine-language.js";
 
 const source = readFileSync("src/components/devices/specifications/mc6850-polling.md", "utf8");
 
+test("addressed device bindings require byte-address signatures and cannot overlap individual bindings", () => {
+  const chapter = readFileSync("src/components/devices/specifications/apple2-language-card.md", "utf8");
+  for (const [before, after, error] of [
+    ["read * readSwitch", "read 0 readSwitch", /signature/],
+    ["read * readSwitch", "read * ramRead", /signature/],
+    ["write * writeSwitch", "write 0 writeSwitch", /signature/],
+    ["read * readSwitch", "read * readSwitch\n  read * readSwitch", /Duplicate read/],
+    ["write * writeSwitch", "write * writeSwitch\n  write * writeSwitch", /Duplicate write/],
+    ["size 16", "", /Declare size/],
+  ] as const) assert.throws(() => compileDeviceChapter(chapter.replace(before, after)), error);
+  assert.throws(() => compileDeviceChapter(source.replace("read 1 readData", "read * readData")), /signature/);
+});
+
 test("device chapters share typed effects and reject invalid operations at Markdown locations", () => {
   const chapter = compileDeviceChapter(source, "serial.md");
   assert.equal(chapter.model.name, "mc6850-polling");
-  assert.deepEqual([...chapter.interface.reads], [[0, "status"], [1, "readData"]]);
+  assert.deepEqual([...chapter.interface.reads], [[0, { source: "status", addressed: false }], [1, { source: "readData", addressed: false }]]);
   for (const [before, after, message] of [
     ["RX <- byte", "RX <- u16($0000)", /expected 8-bit value/],
     ["byte = register RX", "byte = memory(u16($0000))", /cannot.*memory/],
@@ -59,7 +72,7 @@ test("generated device code follows chapter edits and failed regeneration preser
   assert.equal(device.write(2, 42), "bus-error");
   const { deviceModels } = await import(pathToFileURL(join(directory, "generated/catalogue.ts")).href);
   assert.deepEqual(deviceModels["mc6850-polling"], {
-    name: "Mc6850Polling", module: "devices/generated/probe", size: 3, reads: [0, 1], writes: [0, 1], output: true,
+    name: "Mc6850Polling", module: "devices/generated/probe", size: 3, reads: [0, 1], writes: [0, 1], output: true, selectors: [],
   });
   const previous = files.map(file => readFileSync(join(directory, "generated", file), "utf8"));
   writeFileSync(path, source.replace("RX <- byte", "RX <- u16(0)"));

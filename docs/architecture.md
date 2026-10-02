@@ -110,6 +110,12 @@ The [first mapped composition](cpus/68000/examples/rom-boot.md) connects
 owned ROM and RAM through a [fixed memory map](machines/memory-map.md). Regions
 translate physical addresses into local component addresses; holes and ROM
 writes report bus errors. The map owns routing and components own storage.
+The [Apple II composition](../src/machines/6502/apple2.md) uses fixed-size
+[memory windows](machines/language.md#memory-windows) to select separate read
+and write destinations through pure device views. The generator emits direct
+closures; device chapters own the selection latches and storage remains in
+named RAM/ROM components. Addressed device bindings let a chapter decode local
+address bits once instead of listing a separate source for each switch alias.
 Its `.machine` definition names the components, loads local byte images, and
 declares their map. The same language supports the 8080's directional byte-port
 connections and explicit machine reset and 68000 device-reset lists. Host output

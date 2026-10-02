@@ -35,10 +35,12 @@ The final `interface ClassName` block selects public operations:
 | `offer source` | A flag source with one eight-bit input | Optional host `offer(value)` operation; returns acceptance. |
 | `read address source` | An eight-bit source without inputs | Read the selected local register. |
 | `write address source` | A flag source with one eight-bit input | Write the register; false throws `RangeError`. |
+| `read * source` | An eight-bit source with one eight-bit address input | Bind every local address, passing its offset. |
+| `write * source` | A flag source with two eight-bit inputs: address, byte | Bind every local address; supports `notify` too. |
 | `write address source notify` | As above | After acceptance, call the host output callback with the written byte. |
 
 Initialization, reset, validation, and size are required. Register addresses
-cannot repeat within a direction; read and write may select different behavior
+cannot repeat within a direction, including overlaps with `*`; read and write may select different behavior
 at the same address. The chapter owns the effects of rejection; it must preserve
 state when its contract promises that. Host values and addresses are validated
 before any declared effect. Unbound addresses within the device return
@@ -46,7 +48,9 @@ before any declared effect. Unbound addresses within the device return
 
 Views may read fields and call other read-only sources, but cannot mutate state,
 including through nested calls. Their names cannot replace built-in device
-methods. Inputs are checked before evaluation: unsigned values must fit their
+methods. Zero-input flag views also become named selectors for
+[machine memory windows](../machines/language.md#memory-windows). Numeric views
+and views requiring inputs cannot be routing conditions. Inputs are checked before evaluation: unsigned values must fit their
 declared widths and flags must be Boolean. The
 [Apple II video chapter](../../src/components/devices/specifications/apple2-video.md)
 uses views for text addresses and character attributes, keeping hardware decoding
@@ -65,7 +69,7 @@ history are not implicit device state.
 `npm run generate:devices` reads all chapters before replacing
 `src/components/devices/generated/`. It emits state, effects, and public modules
 plus a small catalogue containing class/module names, size, readable/writable
-registers, and output-callback requirements. The machine language uses this
+registers, zero-input flag selectors, and output-callback requirements. The machine language uses this
 catalogue through `devices/models.ts`, alongside the two teaching devices.
 Registering a generated device does not require handwritten constructor or
 port-routing cases.

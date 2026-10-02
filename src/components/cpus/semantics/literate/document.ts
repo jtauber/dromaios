@@ -48,7 +48,7 @@ export class ChapterTokens {
     this.file = file; this.widthParameter = widthParameter;
     if (source instanceof ChapterTokens) { this.#tokens = source.#tokens; return; }
     const tokens: Token[] = [];
-    const pattern = /\s+|\/\/.*|"(?:[^"\\]|\\.)*"|[A-Za-z][A-Za-z0-9_]*|\$[\da-fA-F]+|\d+|<-|[{}\[\]():=.,<>]/y;
+    const pattern = /\s+|\/\/.*|"(?:[^"\\]|\\.)*"|[A-Za-z][A-Za-z0-9_]*|\$[\da-fA-F]+|\d+|<-|[{}\[\]():=.,<>*]/y;
     let offset = 0;
     while (offset < source.text.length) {
       pattern.lastIndex = offset;

@@ -22,6 +22,8 @@ export function generateDevice(chapter: DeviceChapter, stem: string) {
   const description = {
     name: api.name, module: `devices/generated/${stem}`, size: api.size,
     reads: [...api.reads.keys()], writes: [...api.writes.keys()], output,
+    selectors: api.views.filter(name => chapter.sources[name]!.type === "flag"
+      && Object.keys(chapter.sources[name]!.inputs ?? {}).length === 0),
   };
   return {
     description,
@@ -70,7 +72,7 @@ ${api.reads.size && api.reads.size < api.size ? `  read(address: ${[...api.reads
 ` : ""}  read(address: number): number${api.reads.size === api.size ? "" : ' | "bus-error"'} {
     checkUnsigned("Device address", address, ${api.size - 1});
     switch (address) {
-${[...api.reads].map(([address, source]) => `      case ${address}: return ${read(source)};`).join("\n")}
+${[...api.reads].map(([address, { source, addressed }]) => `      case ${address}: return ${read(source, addressed ? String(address) : "")};`).join("\n")}
       default: ${api.reads.size === api.size ? 'throw new RangeError("Invalid device address.");' : 'return "bus-error";'}
     }
   }
@@ -79,8 +81,8 @@ ${[...api.reads].map(([address, source]) => `      case ${address}: return ${rea
     checkUnsigned("Device address", address, ${api.size - 1});
     checkUnsigned("Device byte", value, 0xff);
     switch (address) {
-${[...api.writes].map(([address, { source, notify }]) => `      case ${address}:
-        if (!${read(source, "value")}) throw new RangeError("Unsupported ${model.name} write to register ${address}: " + value);
+${[...api.writes].map(([address, { source, addressed, notify }]) => `      case ${address}:
+        if (!${read(source, addressed ? `${address}, value` : "value")}) throw new RangeError("Unsupported ${model.name} write to register ${address}: " + value);
 ${notify ? "        this.#onWrite(value);\n" : ""}        return;`).join("\n")}
       default: ${api.writes.size === api.size ? 'throw new RangeError("Invalid device address.");' : 'return "bus-error";'}
     }

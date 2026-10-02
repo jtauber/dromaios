@@ -12,9 +12,13 @@ export interface DeviceInterface {
   readonly reset: string;
   readonly validate: string;
   readonly offer?: string;
-  readonly reads: ReadonlyMap<number, string>;
-  readonly writes: ReadonlyMap<number, { readonly source: string; readonly notify: boolean }>;
+  readonly reads: ReadonlyMap<number, DeviceReadBinding>;
+  readonly writes: ReadonlyMap<number, DeviceReadBinding & { readonly notify: boolean }>;
   readonly views: readonly string[];
+}
+interface DeviceReadBinding {
+  readonly source: string;
+  readonly addressed: boolean;
 }
 export interface DeviceChapter {
   readonly model: CpuDeclaration;
@@ -90,7 +94,7 @@ function deviceInterface(header: ChapterTokens, body: readonly ChapterTokens[],
   const name = header.word(); header.expect("{"); header.end();
   if (!/^[A-Z][A-Za-z0-9]*$/.test(name)) header.fail("Expected a public class name.");
   if (["MemoryConnection", "ReadonlyState", "StoredState", "TypeError", "RangeError"].includes(name)) header.fail("Public class name is reserved.");
-  const reads = new Map<number, string>(), writes = new Map<number, { source: string; notify: boolean }>();
+  const reads = new Map<number, DeviceReadBinding>(), writes = new Map<number, DeviceReadBinding & { notify: boolean }>();
   const views: string[] = [];
   const entries = new Map<string, string>(); let size: number | undefined;
   for (const tokens of body) {
@@ -110,7 +114,8 @@ function deviceInterface(header: ChapterTokens, body: readonly ChapterTokens[],
       if (size < 1 || size > 256) tokens.fail("Device size must be from 1 to 256.");
       continue;
     }
-    const address = kind === "read" || kind === "write" ? tokens.number() : undefined;
+    const addressed = (kind === "read" || kind === "write") && tokens.take("*");
+    const address = !addressed && (kind === "read" || kind === "write") ? tokens.number() : undefined;
     const target = tokens.word();
     if (kind === "initialize" || kind === "reset") {
       const action = actions.get(target) ?? tokens.fail(`Unknown action ${target}.`);
@@ -118,19 +123,22 @@ function deviceInterface(header: ChapterTokens, body: readonly ChapterTokens[],
     } else if (["validate", "offer", "read", "write"].includes(kind)) {
       const source = sources.get(target) ?? tokens.fail(`Unknown source ${target}.`);
       const inputTypes = Object.values(source.inputs ?? {}), byteInput = kind === "offer" || kind === "write";
-      if (source.type !== (kind === "read" ? 8 : "flag") || inputTypes.length !== (byteInput ? 1 : 0)
-        || (byteInput && inputTypes[0] !== 8)) tokens.fail(`Invalid ${kind} source signature.`);
+      if (source.type !== (kind === "read" ? 8 : "flag") || inputTypes.length !== Number(byteInput) + Number(addressed)
+        || inputTypes.some(type => type !== 8)) tokens.fail(`Invalid ${kind} source signature.`);
       if (kind === "validate") {
         // A constructor check must not repair or mutate a supplied snapshot.
         tokens.checked(() => checkStateEffects(source.steps, "view"));
       }
     } else tokens.fail(`Unknown interface binding ${kind}.`);
     const notify = kind === "write" && tokens.take("notify"); tokens.end();
-    if (address !== undefined) {
-      if (size === undefined || address >= size) tokens.fail("Declare size before register bindings; address must be within it.");
-      const bindings = kind === "read" ? reads : writes;
-      if (bindings.has(address)) tokens.fail(`Duplicate ${kind} address ${address}.`);
-      if (kind === "read") reads.set(address, target); else writes.set(address, { source: target, notify });
+    if (address !== undefined || addressed) {
+      if (size === undefined || (address !== undefined && address >= size)) return tokens.fail("Declare size before register bindings; address must be within it.");
+      for (const local of addressed ? Array.from({ length: size }, (_, i) => i) : [address!]) {
+        const bindings = kind === "read" ? reads : writes;
+        if (bindings.has(local)) tokens.fail(`Duplicate ${kind} address ${local}.`);
+        if (kind === "read") reads.set(local, { source: target, addressed });
+        else writes.set(local, { source: target, addressed, notify });
+      }
     } else {
       if (entries.has(kind)) tokens.fail(`Duplicate ${kind}.`);
       entries.set(kind, target);

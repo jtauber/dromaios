@@ -13,3 +13,11 @@ components {
 memory = ram
 image ram 0000 { 00 FF } // MVI A, FF
 image firmware external sha256 378ba00c86a64cca49cedaca7de8d5d351983ebc295d9d11e0752febfc346249
+map 10000 {
+    D000 = window 1000 {
+        read = bank2 when card.ramRead and card.bank2
+        read = firmware offset 1000
+        write = bank2 when card.ramWrite
+        write = discard
+    }
+}

@@ -417,3 +417,8 @@ family incrementByte "00000000" {
   result = source increment<8>(u8(1))
   A <- result
 }
+interface AddressedDevice {
+  size 16
+  read * readSwitch
+  write * writeSwitch
+}

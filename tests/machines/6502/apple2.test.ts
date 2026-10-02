@@ -15,7 +15,7 @@ test("the generated Apple II map boots synthetic ROM and records guest keyboard 
     0xad, 0x0f, 0xc0, // D000: LDA $C00F — keyboard alias.
     0x8d, 0x00, 0x04, // STA $0400 — retained screen character.
     0x8d, 0x1f, 0xc0, // STA $C01F — acknowledge alias.
-    0x8d, 0x00, 0xd0, // STA $D000 — discarded ROM write.
+    0x8d, 0x00, 0xd0, // STA $D000 — write RAM behind ROM at power-on.
     0xad, 0x00, 0xc1, // LDA $C100 — empty slot reads zero.
     0x4c, 0x00, 0xd0, // JMP $D000.
   ]);
@@ -51,6 +51,7 @@ test("the generated Apple II map boots synthetic ROM and records guest keyboard 
   assert.equal(machine.ram.read(0x400), 0xc1);
   assert.equal(machine.keyboard.snapshot().strobe, false);
   assert.equal(machine.firmware.read(0), 0xad);
+  assert.equal(machine.bank2.read(0), 0xc1);
   assert.equal(machine.memory.read(0xc100), 0);
   assert.equal(machine.memory.read(0xffff), 0);
   machine.ram.write(0xbfff, 0x5a);

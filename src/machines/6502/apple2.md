@@ -7,8 +7,8 @@ the upper 12 KiB of the address space.
 
 This is the first native composition in the [Apple II Plus plan](../../../docs/machines/apple2.md):
 48 KiB of main RAM, caller-supplied firmware, the keyboard latch, and text and
-graphics displays. It boots the selected ROM and runs BASIC programs in the
-browser. Language Card banking, Disk II, and sound remain future work.
+graphics displays, plus a 16 KiB Language Card. It boots the selected ROM and runs BASIC programs in the
+browser. Disk II and sound remain future work.
 The main reference is the pinned [dromaios-apple2 implementation][reference];
 Apple's [Reference Manual][manual] supplies the hardware background.
 
@@ -20,8 +20,13 @@ owns character/strobe state and all C000–C01F aliases. The
 [video chapter](../../components/devices/specifications/apple2-video.md) owns
 C050–C057 display switches, interleaved display addresses, character attributes,
 and low- and high-resolution colour decoding.
-ROM fills D000–FFFF,
-including the interrupt and reset vectors. There is no Disk II bootstrap in an
+The [Language Card chapter](../../components/devices/specifications/apple2-language-card.md)
+owns C080–C08F selection and write-protection latches. Two 4 KiB RAM banks
+share D000–DFFF, followed by 8 KiB of common RAM at E000–FFFF. ROM supplies
+reads at power-on; RAM can receive writes behind it. The windows below select
+the first matching rule independently for reads and writes. The common upper
+window includes interrupt and reset vectors, so enabling RAM reads also selects
+the vectors stored in RAM. There is no Disk II bootstrap in an
 empty slot, so the Autostart Monitor falls through to Applesoft.
 
 ```machine
@@ -30,19 +35,38 @@ components {
     keyboard = apple2-keyboard
     video = apple2-video
     firmware = rom 3000
+    language = apple2-language-card
+    bank1 = ram 1000
+    bank2 = ram 1000
+    upper = ram 2000
 }
 
 map 10000 {
     0000 = ram
     C000 = keyboard
     C050 = video
-    D000 = firmware
+    C080 = language
+    D000 = window 1000 {
+        read = bank2 when language.ramRead and language.bank2
+        read = bank1 when language.ramRead
+        read = firmware
+        write = bank2 when language.ramWrite and language.bank2
+        write = bank1 when language.ramWrite
+        write = discard
+    }
+    E000 = window 2000 {
+        read = upper when language.ramRead
+        read = firmware offset 1000
+        write = upper when language.ramWrite
+        write = discard
+    }
     unmapped = 00
 }
 ```
 
-Unanswered reads return 00 and unanswered writes are discarded, including
-writes to ROM. This explicit byte-bus policy is an approximation, not a model
+Unanswered reads return 00 and unanswered writes are discarded. Protected
+Language Card writes are discarded; enabled writes change the selected RAM
+even while reads still see ROM. Firmware bytes never change. This explicit byte-bus policy is an approximation, not a model
 of the Apple II video scanner's floating bus. Unimplemented soft switches have
 no effect. Programs that depend on them are outside this initial composition.
 
@@ -79,9 +103,10 @@ replacing an existing machine.
 
 ## Construction, reset, and restoration
 
-Construction provides zero-filled RAM and deterministic CPU, keyboard, and display state.
+Construction provides zero-filled RAM and deterministic CPU, keyboard, display, and Language Card state.
 It does not execute or reset the CPU. Call `reset()` to perform the processor's
-real reset-vector reads at FFFC and FFFD; the selected firmware points to FA62.
+real reset-vector reads at FFFC and FFFD; at power-on these read ROM, which
+points to FA62. Later resets follow the card's current RAM/ROM selection.
 The initial PC below is not a shortcut into the ROM.
 
 ```machine
@@ -94,13 +119,14 @@ cpu 6502 {
 reset { cpu }
 ```
 
-CPU reset preserves RAM, firmware, the keyboard latch, and display switches. It follows the
+CPU reset preserves RAM, firmware, the keyboard latch, display switches, and all Language Card latches. It follows the
 [6502 reset contract](../../components/cpus/specifications/6502.md#reset-and-instruction-boundaries),
 including its stack-pointer and interrupt-mask changes. Firmware may then
 clear the strobe and initialize its own workspace. Fresh construction, followed
 by reset, represents power-on in this deterministic model.
 
-`snapshot()` captures CPU, RAM, keyboard, display switches, and the firmware digest. Restoration
+`snapshot()` captures CPU, all four RAM components, keyboard, display and Language Card latches,
+and the firmware digest. Restoration
 requires that digest and the same verified ROM binding; it creates independent
 hardware without resetting or executing. Snapshot inspection performs no
 guest device reads. There is no generic safe preview of mapped I/O: inspect
@@ -239,7 +265,11 @@ and mode changes without modifying the firmware.
 [Synthetic tests](../../../tests/machines/6502/apple2.test.ts) exercise the
 generated map using independently supplied ROM code: real reset-vector reads,
 keyboard polling and acknowledgement through CPU instructions, recorded bus
-accesses, discarded ROM writes, reset preservation, and snapshot continuation.
+accesses, ROM immutability, reset preservation, and snapshot continuation.
+The [Language Card checks](../../../tests/machines/6502/apple2-language-card.test.ts)
+exercise bank isolation, shared upper RAM, protection, writes behind ROM,
+restoration between enable reads, and RAM-selected reset vectors. A short
+6502 program probes and copies banks while executing from main RAM.
 The synthetic definition uses its own declared digest; it cannot impersonate
 this firmware binding.
 
@@ -248,7 +278,11 @@ the selected firmware without the reference emulator's devices or routine traps.
 It checks the APPLE ][ banner and Applesoft prompt, enters a stored two-line
 program out of order, checks ordered LIST output, and executes RUN to print 5.
 It also checks a line-editing backspace, Control-C from a loop, and independent
-continuation from a hardware snapshot. Characters pass through the generated
+continuation from a hardware snapshot. A CPU copy loop then reads all 12 KiB
+of firmware into RAM behind ROM, selects the protected RAM copy, and returns
+to Applesoft there. `PRINT 6*7` must still print 42; a subsequent reset must
+fetch the copied reset vector. This exercises real code in banked RAM, beyond
+latch inspection. Characters pass through the generated
 keyboard; output is decoded from RAM, not intercepted at a ROM routine.
 
 ```sh
