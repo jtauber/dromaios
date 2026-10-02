@@ -85,7 +85,7 @@ examples add polling and consuming input reads with the same devices.
 - [Apple II keyboard](../src/components/devices/specifications/apple2-keyboard.md):
   character/strobe latch, guest acknowledgement, aliases, and paced host input.
 - [Apple II video](../src/components/devices/specifications/apple2-video.md): display
-  switches, text attributes, and low-resolution graphics decoding.
+  switches, text attributes, and low- and high-resolution graphics decoding.
 - [Byte input](devices/byte-input.md): a pending-byte latch, readiness, consuming
   reads, host offers, and detached inspection.
 - [Byte output](devices/byte-output.md): a write-only register, host notifications,

@@ -1,13 +1,13 @@
-# Apple II video: text, low-resolution graphics, and display switches
+# Apple II video: text, graphics, and display switches
 
 Apple II video hardware repeatedly fetches screen bytes from main RAM. It
 does not receive a stream of printed characters: changing a screen byte changes
 what the next display refresh sees. The [machine](../../../machines/6502/apple2.md)
 maps eight soft switches at C050–C057. Reads and writes select the same modes.
 
-This chapter implements the switch state, text decoding, and low-resolution
-graphics decoding. High-resolution graphics, the scanner, composite colour,
-and floating bus are not yet modeled. Apple's [Reference Manual][manual], its screen-memory
+This chapter implements the switch state, text and low-resolution decoding,
+and a declared high-resolution colour approximation. The scanner, composite
+signal, and floating bus are not modeled. Apple's [Reference Manual][manual], its screen-memory
 maps and display controls, and the pinned [dromaios-apple2 video][reference]
 are the references. This model uses the original 64-character uppercase set.
 
@@ -170,14 +170,19 @@ does not make them visible cells. The host reads the resulting address from
 RAM directly, never through mapped I/O.
 
 ```device
-source textAddress "Map a row and column through the selected text page" (row: 8, column: 8): 16 {
-  pageTwo = latch PAGE2
-  page = select(pageTwo, u16($0800), u16($0400))
+source rowOffset "Interleave forty-byte rows in groups of eight" (row: 8, column: 8): 16 {
   line = extend(and(row, u8($07)), 16)
   group = extend(shiftBits(row, right, 3), 16)
   groupOffset = truncate(multiply(group, u16($0028)), 16)
   offset = add(shiftBits(line, left, 7), groupOffset)
-  return add(add(page, offset), extend(column, 16))
+  return add(offset, extend(column, 16))
+}
+
+source textAddress "Map a row and column through the selected text page" (row: 8, column: 8): 16 {
+  pageTwo = latch PAGE2
+  page = select(pageTwo, u16($0800), u16($0400))
+  offset = source rowOffset(row, column)
+  return add(page, offset)
 }
 
 source visibleRow "Select text rows in full or mixed mode" (row: 8): flag {
@@ -269,6 +274,90 @@ including two distinct greys. It neither simulates NTSC decoding nor claims
 measured colour fidelity. Its canvas scales the 40-by-48 block grid without
 smoothing; the selectable text layer occupies the same display area.
 
+## High-resolution graphics: seven dots per byte
+
+Each high-resolution page occupies 8 KiB: 2000–3FFF for page one, 4000–5FFF
+for page two. A full screen has 192 scan lines of 40 bytes, with seven dots per
+byte, giving 280 dots across. Bits 0–6 appear left to right; bit 7 changes the
+colour phase of those seven dots rather than supplying an eighth dot.
+
+The address interleave has another level. Scan lines 0–7 start at offsets
+0000, 0400, …, 1C00. Lines 8–15 start 0080 bytes later; the next groups of
+64 scan lines start 0028 and 0050 bytes later. Thus each of eight 1-KiB bands
+contains the same forty-byte row pattern as text. Only 7,680 bytes are visible;
+the 512 screen-hole bytes are not fetched by this frame decoder.
+
+```device
+source hiresAddress "Map a scan line and byte column through the selected high-resolution page" (row: 8, column: 8): 16 {
+  pageTwo = latch PAGE2
+  page = select(pageTwo, u16($4000), u16($2000))
+  band = shiftBits(extend(and(row, u8($07)), 16), left, 10)
+  offset = source rowOffset(shiftBits(row, right, 3), column)
+  return add(add(page, band), offset)
+}
+
+source visibleHiresRow "Select high-resolution scan lines in full or mixed mode" (row: 8): flag {
+  text = latch TEXT
+  hires = latch HIRES
+  mixed = latch MIXED
+  limit = select(mixed, u8(160), u8(192))
+  return and(and(not(text), hires), lessThan(row, limit, unsigned))
+}
+```
+
+Callers use scan lines 0–191 and byte columns 0–39. Other eight-bit coordinates
+have defined addresses but are not visible positions. Mixed mode shows the
+first 160 scan lines above four text rows from the selected **text** page.
+The two high-resolution buffers are separate from text/low-resolution storage.
+Changing a display switch does not modify any of them.
+
+### Colour: hardware and the chosen approximation
+
+The hardware produces a timed monochrome bit stream that a colour television
+interprets. An isolated even-column dot appears violet (or blue with bit 7 set);
+an odd-column dot appears green (or orange). Adjacent set dots appear white.
+The phase bit delays a byte's dots by half a dot period, so byte boundaries can
+produce further colour effects. Apple's manual explains the basic dot rules;
+the [circuit description][circuit] describes the signal timing.
+
+For this functional renderer, we use the pinned reference's **even/odd pair
+approximation**, not a composite decoder. Pair 00 is black, 11 white, 10
+(even dot only) violet/blue, and 01 green/orange. The phase comes from the byte
+of the set dot. One colour fills both dot positions, producing 140 coloured
+cells per scan line. The host uses the reference's approximate RGB palette.
+This preserves the reference's broad shapes and fills, but does not reproduce
+half-dot displacement, fringes, or whitening between dots in different pairs.
+In particular, adjacent dots at columns 1 and 2 remain two coloured cells in
+this approximation; columns 0 and 1 form one white cell. This is a rendering
+limitation, not a claim that the hardware treats those adjacencies differently.
+
+Two consecutive bytes contain fourteen dots, hence seven pairs. Joining their
+low seven bits before selecting the pair makes pair 3 span bit 6 of the first
+byte and bit 0 of the second. Its two phase bits may differ. The source returns
+Applesoft colour numbers: 0 black, 1 green, 2 violet, 3 white, 5 orange, 6 blue;
+the second black and white (4 and 7) look identical and use 0 and 3 here.
+
+```device
+source hiresPairColour "Approximate one even/odd pair from two consecutive screen bytes" (first: 8, second: 8, pair: 3): 8 {
+  lowDots = extend(and(first, u8($7F)), 16)
+  highDots = shiftBits(extend(and(second, u8($7F)), 16), left, 7)
+  dots = iterate(extend(pair, 8), or(lowDots, highDots)) {
+    return shiftBits(dots, right, 2)
+  }
+  evenOn: flag = bit(dots, 0)
+  oddOn: flag = bit(dots, 1)
+  evenByte = select(lessThan(pair, u3(4), unsigned), first, second)
+  oddByte = select(lessThan(pair, u3(3), unsigned), first, second)
+  evenColour = select(bit(evenByte, 7), u8(6), u8(2))
+  oddColour = select(bit(oddByte, 7), u8(5), u8(1))
+  return select(and(evenOn, oddOn), u8(3), select(evenOn, evenColour, select(oddOn, oddColour, u8(0))))
+}
+```
+
+Pair numbers 0–6 are visible; the remaining three-bit value 7 returns black.
+The source is read-only and receives already captured RAM bytes. Address and
+colour inspection cannot consume input, toggle switches, or advance execution.
+
 ## Public interface and acceptance
 
 ```device
@@ -300,6 +389,9 @@ interface Apple2Video {
   view loresAddress
   view loresColour
   view visibleLoresRow
+  view hiresAddress
+  view visibleHiresRow
+  view hiresPairColour
 }
 ```
 
@@ -314,8 +406,12 @@ Low-resolution checks cover every address on both pages, both nibbles of every
 byte, all latch combinations, and the mixed-mode boundary. The
 [browser-session checks](../../../../tests/site/apple2.test.ts) run real Applesoft
 GR, COLOR, PLOT, HLIN, and VLIN commands, then test page and mode switching.
-High-resolution rows remain blank with an explicit message; mixed mode retains
-the bottom four text rows in either graphics mode.
+High-resolution checks cover every visible address and screen hole on both
+pages, all byte-pair values, phase changes at byte boundaries, and mixed-mode
+visibility. Real HGR, HGR2, HCOLOR, and HPLOT commands exercise both buffers
+with independent byte and frame expectations. The host retains the bottom four
+text rows in either mixed graphics mode.
 
 [manual]: https://www.applelogic.org/files/AIIREF.pdf
+[circuit]: https://mirrors.apple2.org.za/ftp.apple.asimov.net/documentation/hardware/machines/The%20Apple%20II%20Circuit%20Description_HiRes.pdf
 [reference]: https://github.com/jtauber/dromaios-apple2/blob/569baf98006f61e80ed93c36aa4f8d9ae23011d3/js/video.js

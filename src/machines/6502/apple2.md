@@ -1,4 +1,4 @@
-# Apple II Plus: BASIC and low-resolution graphics
+# Apple II Plus: BASIC and graphics
 
 The Apple II Plus pairs a MOS 6502 with memory-mapped input and display hardware.
 Unlike the Altair's serial terminal, its text output lives in RAM, where video
@@ -7,9 +7,8 @@ the upper 12 KiB of the address space.
 
 This is the first native composition in the [Apple II Plus plan](../../../docs/machines/apple2.md):
 48 KiB of main RAM, caller-supplied firmware, the keyboard latch, and text and
-low-resolution video. It boots the selected ROM and runs BASIC programs in the
-browser. High-resolution graphics, Language Card banking, Disk II, and sound
-remain future work.
+graphics displays. It boots the selected ROM and runs BASIC programs in the
+browser. Language Card banking, Disk II, and sound remain future work.
 The main reference is the pinned [dromaios-apple2 implementation][reference];
 Apple's [Reference Manual][manual] supplies the hardware background.
 
@@ -20,7 +19,7 @@ The [keyboard chapter](../../components/devices/specifications/apple2-keyboard.m
 owns character/strobe state and all C000–C01F aliases. The
 [video chapter](../../components/devices/specifications/apple2-video.md) owns
 C050–C057 display switches, interleaved display addresses, character attributes,
-and low-resolution colour indices.
+and low- and high-resolution colour decoding.
 ROM fills D000–FFFF,
 including the interrupt and reset vectors. There is no Disk II bootstrap in an
 empty slot, so the Autostart Monitor falls through to Applesoft.
@@ -148,9 +147,9 @@ page loses the session; there is no saved browser checkpoint yet.
 
 Both text pages support normal, inverse, and flashing characters. The browser
 uses a selectable monospace font, not the character ROM's exact pixels.
-Low-resolution graphics draws coloured blocks; high-resolution rows remain
-blank with an explicit message. Mixed mode keeps four text rows. The video
-chapter defines those choices, the approximate RGB palette, and host flashing.
+Low-resolution graphics draws coloured blocks; high-resolution graphics uses
+the reference's approximate colour pairs. Mixed mode keeps four text rows. The
+video chapter defines those choices, the RGB palettes, and host flashing.
 
 ## Drawing with Applesoft
 
@@ -193,6 +192,47 @@ verify the upper and lower nibbles. C052 then reveals the bottom eight block
 rows; C054 and C053 restore page one and mixed mode. The check restores 0800
 to zero before running the program again. All of these changes pass through real CPU accesses.
 The video chapter owns the addresses, mode rules, and colour interpretation.
+
+## Drawing at high resolution
+
+Type `TEXT`, then `NEW`, and enter this program one line at a time. `RUN` draws
+five narrow bands: green, violet, white, orange, and blue. The gap between white
+and orange is a sixth, black band against the black background.
+
+```basic
+10 HGR
+20 FOR C=1 TO 6
+30 HCOLOR=C
+40 FOR Y=C*20 TO C*20+7
+50 HPLOT 14,Y TO 265,Y
+60 NEXT Y
+70 NEXT C
+80 PRINT "HIGH RESOLUTION"
+90 END
+```
+
+`HGR` clears the first high-resolution buffer and selects mixed mode. `HPLOT`
+draws a dot or a line between coordinates; here it draws horizontal lines.
+`HCOLOR` uses a different numbering from low-resolution `COLOR`: 0 and 4 are
+black, 1 green, 2 violet, 3 and 7 white, 5 orange, and 6 blue. The two groups
+differ in the byte's phase bit. The [video chapter](../../components/devices/specifications/apple2-video.md#colour-hardware-and-the-chosen-approximation)
+explains how dots become colour and the renderer's approximation.
+
+Now type `HGR2`, then `HCOLOR=3`, then `HPLOT 0,191 TO 279,191`. These clear the
+second high-resolution buffer, select full-screen graphics, and draw a white
+line at its bottom edge. Full-screen graphics hides the prompt; the keyboard
+still accepts commands. `POKE 49235,0` selects mixed mode and hides those last
+32 graphics lines. `POKE 49236,0` switches back to page one, revealing the
+earlier bands. Neither switch clears a buffer or redirects subsequent HPLOT
+drawing: Applesoft's drawing-page choice is separate from the display switch.
+`TEXT` restores the text display, and `RUN` draws the first program again.
+
+Both graphics buffers occupy main RAM. This short program stays below 2000;
+larger programs and variables need a memory plan to avoid overwriting graphics
+or being overwritten by them. The [graphics acceptance test](../../../tests/site/apple2-graphics.test.ts)
+runs the exact published program through Applesoft, checks independently
+specified byte patterns and every displayed colour pair, and exercises page
+and mode changes without modifying the firmware.
 
 ## Headless acceptance
 

@@ -75,7 +75,14 @@ test("read-only video views reject invalid arguments without changing state", ()
     assert.throws(() => video.loresColour(byte, 0), RangeError);
     assert.throws(() => video.loresColour(0, byte), RangeError);
     assert.throws(() => video.visibleLoresRow(byte), RangeError);
+    assert.throws(() => video.hiresAddress(byte, 0), RangeError);
+    assert.throws(() => video.hiresAddress(0, byte), RangeError);
+    assert.throws(() => video.visibleHiresRow(byte), RangeError);
+    assert.throws(() => video.hiresPairColour(byte, 0, 0), RangeError);
+    assert.throws(() => video.hiresPairColour(0, byte, 0), RangeError);
+    assert.throws(() => video.hiresPairColour(0, 0, byte), RangeError);
   }
+  assert.throws(() => video.hiresPairColour(0, 0, 8), RangeError);
   assert.throws(() => video.inverse(0, 1 as never), TypeError);
   assert.deepEqual(video.snapshot(), before);
 });
@@ -100,15 +107,61 @@ test("low-resolution graphics shares text addresses and decodes both nibbles ind
   assert.deepEqual(video.snapshot(), before);
 });
 
-test("all display modes select exactly their visible text and low-resolution rows", () => {
+test("all display modes select exactly their visible text and graphics rows", () => {
   for (const text of [false, true]) for (const mixed of [false, true]) {
     for (const page2 of [false, true]) for (const hires of [false, true]) {
       const state = { text, mixed, page2, hires }, video = new Apple2Video(state);
       for (let row = 0; row < 256; row++) {
         assert.equal(video.visibleLoresRow(row), !text && !hires && row < (mixed ? 40 : 48));
+        assert.equal(video.visibleHiresRow(row), !text && hires && row < (mixed ? 160 : 192));
         assert.equal(video.visibleRow(row), row < 24 && (text || mixed && row >= 20));
       }
       assert.deepEqual(video.snapshot(), state);
     }
   }
+});
+
+test("high-resolution pages interleave all scan lines while leaving their screen holes unread", () => {
+  // Manual's base addresses for scan lines 0, 8, 16, ... 184; the seven intervening lines add 0400 each.
+  const bases = [0x2000, 0x2080, 0x2100, 0x2180, 0x2200, 0x2280, 0x2300, 0x2380,
+    0x2028, 0x20a8, 0x2128, 0x21a8, 0x2228, 0x22a8, 0x2328, 0x23a8,
+    0x2050, 0x20d0, 0x2150, 0x21d0, 0x2250, 0x22d0, 0x2350, 0x23d0];
+  for (const page2 of [false, true]) {
+    const video = new Apple2Video({ text: false, mixed: false, page2, hires: true });
+    const before = video.snapshot(), visited = new Set<number>();
+    bases.forEach((base, group) => {
+      for (let line = 0; line < 8; line++) for (let column = 0; column < 40; column++) {
+        const address = video.hiresAddress(group * 8 + line, column);
+        assert.equal(address, base + (page2 ? 0x2000 : 0) + line * 0x400 + column);
+        visited.add(address);
+      }
+    });
+    assert.equal(visited.size, 7680);
+    for (let block = 0; block < 64; block++) for (let hole = 120; hole < 128; hole++) {
+      assert.equal(visited.has((page2 ? 0x4000 : 0x2000) + block * 128 + hole), false);
+    }
+    assert.deepEqual(video.snapshot(), before);
+  }
+});
+
+test("high-resolution colour pairs cover every byte combination, including separate phases at their boundary", () => {
+  const video = new Apple2Video(), before = video.snapshot();
+  // Each entry identifies the even and odd dot independently, without packing or shifting a combined word.
+  const positions = [[0, 1, 0, 2], [0, 4, 0, 8], [0, 16, 0, 32], [0, 64, 1, 1],
+    [1, 2, 1, 4], [1, 8, 1, 16], [1, 32, 1, 64]] as const;
+  for (let first = 0; first < 256; first++) for (let second = 0; second < 256; second++) {
+    const bytes = [first, second];
+    positions.forEach(([evenByte, evenMask, oddByte, oddMask], pair) => {
+      const even = bytes[evenByte]!, odd = bytes[oddByte]!;
+      const expected = even & evenMask
+        ? odd & oddMask ? 3 : even >= 128 ? 6 : 2
+        : odd & oddMask ? odd >= 128 ? 5 : 1 : 0;
+      assert.equal(video.hiresPairColour(first, second, pair), expected);
+    });
+    assert.equal(video.hiresPairColour(first, second, 7), 0);
+  }
+  // Record the declared approximation: neighbors spanning distinct pairs do not turn white.
+  assert.equal(video.hiresPairColour(0x06, 0, 0), 1);
+  assert.equal(video.hiresPairColour(0x06, 0, 1), 2);
+  assert.deepEqual(video.snapshot(), before);
 });

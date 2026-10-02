@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block description %}Run Applesoft BASIC and low-resolution graphics on an Apple II Plus in your browser and explore its executable machine description.{% endblock %}
+{% block description %}Run Applesoft BASIC with low- and high-resolution graphics on an Apple II Plus in your browser and explore its executable machine description.{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ calc_url('assets/highlight.css') }}">
 <script type="module" src="{{ calc_url(apple2_script) }}"></script>
@@ -26,7 +26,8 @@
       <h2 id="apple2-heading">Meet Applesoft.</h2>
       <p>Choose your <a href="#firmware-supplied-by-the-caller">Apple II Plus ROM</a>, select Run, and wait for <code>]</code>.
         Try <code>PRINT 2+3</code>, then Enter. <a href="#using-the-browser-machine">See the controls and a short program.</a>
-        Then <a href="#drawing-with-applesoft">draw in sixteen colours</a>.</p>
+        Then <a href="#drawing-with-applesoft">draw in sixteen colours</a>
+        or <a href="#drawing-at-high-resolution">try high-resolution graphics</a>.</p>
       <noscript><p>Enable JavaScript to run the machine. Its guide remains readable below.</p></noscript>
       <div class="basic-media"><label>ROM file <input type="file" data-rom-file disabled></label></div>
       <p class="basic-hint">The file stays on your computer. A verified selection prepares a fresh, paused machine.</p>

@@ -50,7 +50,7 @@ export function mountApple2(root: HTMLElement): void {
     const { ram, video, cpu, keyboard: latch } = session.machine;
     renderScreen(ram, video, flash);
     const display = video.snapshot();
-    const mode = display.text ? "Text" : display.hires ? "High-resolution graphics not yet rendered" : "Low-resolution graphics";
+    const mode = display.text ? "Text" : display.hires ? "High-resolution graphics" : "Low-resolution graphics";
     element<HTMLElement>("display-status").textContent = `${mode} · page ${display.page2 ? 2 : 1}${!display.text && display.mixed ? " · bottom four text rows shown" : ""}`;
     if (inspect.closest("details")!.open) {
       const state = cpu.snapshot(), key = latch.snapshot();

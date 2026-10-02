@@ -94,7 +94,7 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
 
   // The published program executes unchanged; expected blocks are independent of its drawing loops.
   const examples = literateBlocks(chapter, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
-  assert.equal(examples.length, 1);
+  assert.equal(examples.length, 2);
   command("NEW");
   for (const line of examples[0]!.lines) command(line.text);
   command("RUN");
@@ -118,7 +118,7 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
   command("POKE 49234,0"); // Full graphics reveals the bottom eight block rows.
   graphics = apple2LoresFrame(ram, video);
   assert.equal(graphics[46]![39], 3); assert.equal(graphics[47]![39], 12);
-  command("POKE 49239,0"); // Hires must not retain a stale low-resolution image.
+  command("POKE 49239,0"); // High-resolution mode must not expose low-resolution rows.
   assert.ok(apple2LoresFrame(ram, video).every(row => row === undefined));
   command("POKE 49238,0:POKE 49236,0:POKE 49235,0");
   assert.deepEqual(apple2LoresFrame(ram, video).slice(0, 32), Array.from({ length: 32 }, (_, row) => new Array(40).fill(Math.floor(row / 2))));

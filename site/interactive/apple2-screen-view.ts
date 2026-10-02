@@ -1,13 +1,17 @@
 import type { Apple2Video } from "../../src/components/devices/generated/apple2-video.js";
-import { apple2LoresFrame, apple2TextFrame } from "./apple2-screen.js";
+import { apple2HiresFrame, apple2LoresFrame, apple2TextFrame } from "./apple2-screen.js";
 
 // Presentation palette from the pinned dromaios-apple2 video renderer.
 // Hardware supplies colour indices; these RGB values do not simulate composite video.
-const colours = [
+const loresColours = [
   "#000000", "#d00030", "#000080", "#ff00ff", // black, magenta, dark blue, purple
   "#008000", "#808080", "#0000ff", "#60a0ff", // dark green, grey 1, medium blue, light blue
   "#805000", "#ff8000", "#c0c0c0", "#ff9080", // brown, orange, grey 2, pink
   "#00ff00", "#ffff00", "#40ff90", "#ffffff", // light green, yellow, aquamarine, white
+] as const;
+const hiresColours = [
+  "#000000", "#14f53c", "#ff44fd", "#ffffff", // black, green, violet, white
+  "#000000", "#ff6a3c", "#14cffd", "#ffffff", // black, orange, blue, white
 ] as const;
 
 /** Scale decoded blocks behind selectable text, with no guest accesses or addressing rules. */
@@ -28,9 +32,14 @@ export function createApple2Screen(screen: HTMLElement) {
   canvas.hidden = true;
 
   return (ram: { read(address: number): number }, video: Apple2Video, flash: boolean): void => {
-    const graphics = apple2LoresFrame(ram, video);
+    const hires = video.snapshot().hires;
+    const graphics = hires ? apple2HiresFrame(ram, video) : apple2LoresFrame(ram, video);
+    const width = hires ? 140 : 40, height = graphics.length;
+    const colours = hires ? hiresColours : loresColours;
+    if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+    canvas.setAttribute("aria-label", hires ? "High-resolution graphics" : "Low-resolution graphics");
     canvas.hidden = graphics.every(row => row === undefined);
-    context.clearRect(0, 0, 40, 48);
+    context.clearRect(0, 0, width, height);
     graphics.forEach((row, y) => row?.forEach((colour, x) => {
       context.fillStyle = colours[colour]!;
       context.fillRect(x, y, 1, 1);
