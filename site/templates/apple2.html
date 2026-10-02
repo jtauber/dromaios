@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block description %}Run Applesoft BASIC on an Apple II Plus in your browser and explore its executable machine description.{% endblock %}
+{% block description %}Run Applesoft BASIC and low-resolution graphics on an Apple II Plus in your browser and explore its executable machine description.{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ calc_url('assets/highlight.css') }}">
 <script type="module" src="{{ calc_url(apple2_script) }}"></script>
@@ -25,7 +25,8 @@
       <p class="eyebrow">A screen of your own</p>
       <h2 id="apple2-heading">Meet Applesoft.</h2>
       <p>Choose your <a href="#firmware-supplied-by-the-caller">Apple II Plus ROM</a>, select Run, and wait for <code>]</code>.
-        Try <code>PRINT 2+3</code>, then Enter. <a href="#using-the-browser-machine">See the controls and a short program.</a></p>
+        Try <code>PRINT 2+3</code>, then Enter. <a href="#using-the-browser-machine">See the controls and a short program.</a>
+        Then <a href="#drawing-with-applesoft">draw in sixteen colours</a>.</p>
       <noscript><p>Enable JavaScript to run the machine. Its guide remains readable below.</p></noscript>
       <div class="basic-media"><label>ROM file <input type="file" data-rom-file disabled></label></div>
       <p class="basic-hint">The file stays on your computer. A verified selection prepares a fresh, paused machine.</p>
@@ -40,7 +41,7 @@
       <p data-machine-status class="basic-readout" role="status">No ROM loaded · 0 instructions</p>
       <div class="apple2-display-surround">
         <div class="apple2-display-label"><span>APPLE II PLUS</span><span>48K · APPLESOFT</span></div>
-        <div class="apple2-screen" data-apple2-screen tabindex="0" role="region" aria-label="Apple II text display, 40 columns by 24 rows"></div>
+        <div class="apple2-screen" data-apple2-screen tabindex="0" role="region" aria-label="Apple II display"></div>
       </div>
       <p data-display-status class="basic-readout">Text · page 1</p>
       <label class="basic-keyboard">Apple II keyboard

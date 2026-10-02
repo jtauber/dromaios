@@ -1,7 +1,7 @@
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { createExecutionController } from "./execution-controller.js";
 import { createApple2Session, apple2ControlKey, apple2Input } from "./apple2-session.js";
-import { apple2TextFrame } from "./apple2-screen.js";
+import { createApple2Screen } from "./apple2-screen-view.js";
 import { readRomFile } from "./rom-file.js";
 import type { RomFile } from "./rom-file.js";
 
@@ -18,13 +18,7 @@ export function mountApple2(root: HTMLElement): void {
   const container = { bytes: Number(root.dataset.romBytes), offset: Number(root.dataset.romOffset), sha256: root.dataset.romSha256! };
   let session: ReturnType<typeof createApple2Session> | undefined, rom: RomFile | undefined;
   let selecting = false, selection = 0, flash = false, nextFlash = 0;
-  const cells = Array.from({ length: 24 }, () => {
-    const row = document.createElement("div"); row.className = "apple2-row";
-    const cells = Array.from({ length: 40 }, () => {
-      const cell = document.createElement("span"); cell.textContent = " "; row.append(cell); return cell;
-    });
-    screen.append(row); return cells;
-  });
+  const renderScreen = createApple2Screen(screen);
   const execution = createExecutionController({
     step: () => {
       const record = session!.step();
@@ -54,16 +48,10 @@ export function mountApple2(root: HTMLElement): void {
     const now = performance.now();
     if (execution.running && now >= nextFlash) { flash = !flash; nextFlash = now + 500; }
     const { ram, video, cpu, keyboard: latch } = session.machine;
-    const frame = apple2TextFrame(ram, video, flash);
-    frame.forEach((row, y) => row.forEach((cell, x) => {
-      const span = cells[y]![x]!;
-      if (span.textContent !== cell.character) span.textContent = cell.character;
-      span.classList.toggle("inverse", cell.inverse);
-    }));
+    renderScreen(ram, video, flash);
     const display = video.snapshot();
-    element<HTMLElement>("display-status").textContent = display.text
-      ? `Text · page ${display.page2 ? 2 : 1}`
-      : `${display.hires ? "High" : "Low"}-resolution graphics not yet rendered${display.mixed ? " · bottom four text rows shown" : ""}`;
+    const mode = display.text ? "Text" : display.hires ? "High-resolution graphics not yet rendered" : "Low-resolution graphics";
+    element<HTMLElement>("display-status").textContent = `${mode} · page ${display.page2 ? 2 : 1}${!display.text && display.mixed ? " · bottom four text rows shown" : ""}`;
     if (inspect.closest("details")!.open) {
       const state = cpu.snapshot(), key = latch.snapshot();
       inspect.textContent = `PC ${hex(state.pc)}   SP ${hex(state.sp, 2)}   A ${hex(state.a, 2)}   X ${hex(state.x, 2)}   Y ${hex(state.y, 2)}\nKeyboard ${hex(key.key, 2)} · strobe ${key.strobe ? "set" : "clear"}`;

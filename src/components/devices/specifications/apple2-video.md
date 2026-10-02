@@ -1,13 +1,13 @@
-# Apple II video: text and display switches
+# Apple II video: text, low-resolution graphics, and display switches
 
 Apple II video hardware repeatedly fetches screen bytes from main RAM. It
 does not receive a stream of printed characters: changing a screen byte changes
 what the next display refresh sees. The [machine](../../../machines/6502/apple2.md)
 maps eight soft switches at C050–C057. Reads and writes select the same modes.
 
-This chapter implements the switch state and text decoding. Low- and
-high-resolution graphics rendering, the scanner, composite colour, and floating
-bus are not yet modeled. Apple's [Reference Manual][manual], its screen-memory
+This chapter implements the switch state, text decoding, and low-resolution
+graphics decoding. High-resolution graphics, the scanner, composite colour,
+and floating bus are not yet modeled. Apple's [Reference Manual][manual], its screen-memory
 maps and display controls, and the pinned [dromaios-apple2 video][reference]
 are the references. This model uses the original 64-character uppercase set.
 
@@ -212,6 +212,63 @@ half second while running and freezes while paused. It is not emulated CPU
 time, scanner timing, or a claim about the original flash circuit's frequency.
 Changing this phase cannot affect guest memory or execution.
 
+## Low-resolution graphics: two blocks per byte
+
+Low-resolution graphics reuses the text pages, including their interleaved rows
+and screen holes. Each text cell becomes two vertically stacked colour blocks.
+The full display has 40 columns and 48 block rows, numbered from zero. The
+lower four bits of the byte colour the upper block (an even row); the upper
+four bits colour the lower block (an odd row). A byte of A3 therefore draws
+colour 3 above colour A. These are colour indices, not character codes.
+
+The same TEXT, MIXED, PAGE2, and HIRES latches select the display. TEXT takes
+precedence; low-resolution blocks are visible only with TEXT and HIRES clear.
+Mixed mode shows block rows 0–39 above text rows 20–23. Full graphics shows all
+48 block rows. Switching modes or pages changes interpretation, not RAM.
+
+```device
+source loresAddress "Two block rows share each interleaved text row" (row: 8, column: 8): 16 {
+  address = source textAddress(shiftBits(row, right, 1), column)
+  return address
+}
+
+source loresColour "The even block takes the low nibble; the odd block takes the high nibble" (byte: 8, row: 8): 8 {
+  return select(bit(row, 0), shiftBits(byte, right, 4), and(byte, u8($0F)))
+}
+
+source visibleLoresRow "Select low-resolution block rows in full or mixed mode" (row: 8): flag {
+  text = latch TEXT
+  hires = latch HIRES
+  mixed = latch MIXED
+  limit = select(mixed, u8($28), u8($30))
+  return and(not(or(text, hires)), lessThan(row, limit, unsigned))
+}
+```
+
+Address callers use rows 0–47 and columns 0–39. As with `textAddress`, the
+formula accepts other eight-bit coordinates without making them visible.
+The colour view always returns an index from 0 to 15. The display reads main
+RAM directly at these addresses; it never acknowledges keys or operates switches.
+
+| Index (hex) | Colour | Index (hex) | Colour |
+| --- | --- | --- | --- |
+| 0 | Black | 8 | Brown |
+| 1 | Magenta | 9 | Orange |
+| 2 | Dark blue | A | Grey 2 |
+| 3 | Purple | B | Pink |
+| 4 | Dark green | C | Light green |
+| 5 | Grey 1 | D | Yellow |
+| 6 | Medium blue | E | Aquamarine |
+| 7 | Light blue | F | White |
+
+The hardware emits repeating bit patterns into a composite video signal, rather
+than RGB values. Monitor adjustment and decoding affect the perceived colours.
+The [browser renderer](../../../../site/interactive/apple2-screen-view.ts) uses
+the pinned reference's fixed RGB palette as a presentation approximation,
+including two distinct greys. It neither simulates NTSC decoding nor claims
+measured colour fidelity. Its canvas scales the 40-by-48 block grid without
+smoothing; the selectable text layer occupies the same display area.
+
 ## Public interface and acceptance
 
 ```device
@@ -240,6 +297,9 @@ interface Apple2Video {
   view visibleRow
   view characterCode
   view inverse
+  view loresAddress
+  view loresColour
+  view visibleLoresRow
 }
 ```
 
@@ -250,8 +310,12 @@ read memory, or invoke a guest access. Snapshots contain `text`, `mixed`,
 [Tests](../../../../tests/components/devices/apple2-video.test.ts) independently
 check every visible cell on both pages, every character byte and flash phase,
 all switch accesses in both directions, reset, restoration, and inspection.
-The current browser leaves graphics rows blank and labels graphics as not yet
-rendered, while mixed mode retains the bottom four text rows.
+Low-resolution checks cover every address on both pages, both nibbles of every
+byte, all latch combinations, and the mixed-mode boundary. The
+[browser-session checks](../../../../tests/site/apple2.test.ts) run real Applesoft
+GR, COLOR, PLOT, HLIN, and VLIN commands, then test page and mode switching.
+High-resolution rows remain blank with an explicit message; mixed mode retains
+the bottom four text rows in either graphics mode.
 
 [manual]: https://www.applelogic.org/files/AIIREF.pdf
 [reference]: https://github.com/jtauber/dromaios-apple2/blob/569baf98006f61e80ed93c36aa4f8d9ae23011d3/js/video.js

@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { Apple2Video } from "../../src/components/devices/generated/apple2-video.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
-import { apple2TextFrame } from "../../site/interactive/apple2-screen.js";
+import { literateBlocks } from "../../src/literate.js";
+import { apple2LoresFrame, apple2TextFrame } from "../../site/interactive/apple2-screen.js";
 import { createApple2Session, apple2Input, apple2ControlKey } from "../../site/interactive/apple2-session.js";
 import { createExecutionController } from "../../site/interactive/execution-controller.js";
 import { readRomFile } from "../../site/interactive/rom-file.js";
@@ -91,6 +92,44 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
   assert.match(screen(), /BREAK IN 10/);
   command("print 1+1"); assert.match(screen(), /\]PRINT 1\+1\n2\n/);
 
+  // The published program executes unchanged; expected blocks are independent of its drawing loops.
+  const examples = literateBlocks(chapter, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
+  assert.equal(examples.length, 1);
+  command("NEW");
+  for (const line of examples[0]!.lines) command(line.text);
+  command("RUN");
+  assert.match(screen(), /16 COLOURS/);
+  const video = session.machine.video;
+  assert.deepEqual(video.snapshot(), { text: false, mixed: true, page2: false, hires: false });
+  let graphics = apple2LoresFrame(ram, video);
+  assert.deepEqual(graphics.slice(0, 32), Array.from({ length: 32 }, (_, row) => new Array(40).fill(Math.floor(row / 2))));
+  assert.deepEqual(graphics.slice(32, 40), Array.from({ length: 8 }, (_, row) => Array.from({ length: 40 }, (_, column) =>
+    column === 0 || row === 7 && column === 39 ? 15 : 0)));
+  assert.ok(graphics.slice(40).every(row => row === undefined));
+  const inspected = session.machine.snapshot();
+  apple2TextFrame(ram, video, true); apple2LoresFrame(ram, video);
+  assert.deepEqual(session.machine.snapshot(), inspected);
+
+  // Page two overlaps BASIC storage, including the zero byte required immediately before the program.
+  command("POKE 2048,241:POKE 3063,195:POKE 49237,0");
+  graphics = apple2LoresFrame(ram, video);
+  assert.equal(graphics[0]![0], 1); assert.equal(graphics[1]![0], 15);
+  assert.equal(graphics[46], undefined);
+  command("POKE 49234,0"); // Full graphics reveals the bottom eight block rows.
+  graphics = apple2LoresFrame(ram, video);
+  assert.equal(graphics[46]![39], 3); assert.equal(graphics[47]![39], 12);
+  command("POKE 49239,0"); // Hires must not retain a stale low-resolution image.
+  assert.ok(apple2LoresFrame(ram, video).every(row => row === undefined));
+  command("POKE 49238,0:POKE 49236,0:POKE 49235,0");
+  assert.deepEqual(apple2LoresFrame(ram, video).slice(0, 32), Array.from({ length: 32 }, (_, row) => new Array(40).fill(Math.floor(row / 2))));
+  command("POKE 2048,0"); // Restore Applesoft's leading zero before running the program again.
+  command("TEXT");
+  assert.equal(video.snapshot().text, true);
+  assert.ok(apple2LoresFrame(ram, video).every(row => row === undefined));
+  command("PRINT 2+3"); assert.match(screen(), /\]PRINT 2\+3\n5\n/);
+  command("RUN"); assert.match(screen(), /16 COLOURS/);
+  assert.deepEqual(apple2LoresFrame(ram, video).slice(0, 32), Array.from({ length: 32 }, (_, row) => new Array(40).fill(Math.floor(row / 2))));
+
   session.machine.video.read(5); session.machine.keyboard.offer(65); session.send([66]);
   const saved = session.machine.snapshot();
   execution.reset(); session.reset();
@@ -105,4 +144,25 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
   assert.deepEqual(session.machine.keyboard.snapshot(), { key: 0, strobe: false });
   assert.deepEqual(session.machine.video.snapshot(), { text: true, mixed: false, page2: false, hires: false });
   runUntil(idle); assert.match(screen(), /APPLE \]\[/);
+});
+
+test("low-resolution frames read only visible RAM and refresh the selected page without effects", () => {
+  const video = new Apple2Video({ text: false, mixed: true, page2: true, hires: false });
+  const before = video.snapshot(), reads: number[] = [];
+  const ram = { read(address: number) { reads.push(address); return address === 0x800 ? 0xa3 : 0x51; } };
+  const frame = apple2LoresFrame(ram, video);
+  assert.equal(reads.length, 1600);
+  assert.deepEqual(reads.slice(0, 40), Array.from({ length: 40 }, (_, column) => 0x800 + column));
+  assert.deepEqual(reads.slice(40, 80), reads.slice(0, 40));
+  assert.equal(frame[0]![0], 3); assert.equal(frame[1]![0], 10);
+  assert.equal(frame[0]![1], 1); assert.equal(frame[1]![1], 5);
+  assert.ok(frame.slice(40).every(row => row === undefined));
+  assert.deepEqual(video.snapshot(), before);
+  video.write(4, 0); // No writes to RAM: only the displayed page changes.
+  assert.equal(apple2LoresFrame(ram, video)[0]![0], 1);
+  for (const switchAddress of [7, 1]) {
+    video.read(switchAddress); reads.length = 0;
+    assert.ok(apple2LoresFrame(ram, video).every(row => row === undefined));
+    assert.deepEqual(reads, []);
+  }
 });

@@ -10,3 +10,10 @@ export function apple2TextFrame(ram: { read(address: number): number }, video: A
     return { character: String.fromCharCode(video.characterCode(byte)), inverse: video.inverse(byte, flash) };
   }));
 }
+
+/** Invisible rows are absent; only visible graphics fetch bytes from RAM. */
+export function apple2LoresFrame(ram: { read(address: number): number }, video: Apple2Video): readonly (readonly number[] | undefined)[] {
+  return Array.from({ length: 48 }, (_, row) => video.visibleLoresRow(row)
+    ? Array.from({ length: 40 }, (_, column) => video.loresColour(ram.read(video.loresAddress(row, column)), row))
+    : undefined);
+}

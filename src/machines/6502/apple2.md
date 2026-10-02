@@ -1,4 +1,4 @@
-# Apple II Plus: text and BASIC
+# Apple II Plus: BASIC and low-resolution graphics
 
 The Apple II Plus pairs a MOS 6502 with memory-mapped input and display hardware.
 Unlike the Altair's serial terminal, its text output lives in RAM, where video
@@ -6,9 +6,10 @@ hardware fetches character codes. Applesoft and the Autostart Monitor occupy
 the upper 12 KiB of the address space.
 
 This is the first native composition in the [Apple II Plus plan](../../../docs/machines/apple2.md):
-48 KiB of main RAM, caller-supplied firmware, the keyboard latch, and text video.
-It boots the selected ROM and runs text BASIC programs in the browser. Graphics
-rendering, Language Card banking, Disk II, and sound remain future work.
+48 KiB of main RAM, caller-supplied firmware, the keyboard latch, and text and
+low-resolution video. It boots the selected ROM and runs BASIC programs in the
+browser. High-resolution graphics, Language Card banking, Disk II, and sound
+remain future work.
 The main reference is the pinned [dromaios-apple2 implementation][reference];
 Apple's [Reference Manual][manual] supplies the hardware background.
 
@@ -18,7 +19,8 @@ Main RAM fills 0000–BFFF; page-one text uses 0400–07FF within that same stor
 The [keyboard chapter](../../components/devices/specifications/apple2-keyboard.md)
 owns character/strobe state and all C000–C01F aliases. The
 [video chapter](../../components/devices/specifications/apple2-video.md) owns
-C050–C057 display switches, interleaved text addresses, and character attributes.
+C050–C057 display switches, interleaved display addresses, character attributes,
+and low-resolution colour indices.
 ROM fills D000–FFFF,
 including the interrupt and reset vectors. There is no Disk II bootstrap in an
 empty slot, so the Autostart Monitor falls through to Applesoft.
@@ -145,9 +147,52 @@ selection replaces it with a fresh paused machine. Refreshing or leaving the
 page loses the session; there is no saved browser checkpoint yet.
 
 Both text pages support normal, inverse, and flashing characters. The browser
-uses a selectable monospace font, not the character ROM's exact pixels. Graphics
-rows remain blank with an explicit message; mixed mode keeps four text rows.
-The video chapter defines those choices and the limits of the host flashing phase.
+uses a selectable monospace font, not the character ROM's exact pixels.
+Low-resolution graphics draws coloured blocks; high-resolution rows remain
+blank with an explicit message. Mixed mode keeps four text rows. The video
+chapter defines those choices, the approximate RGB palette, and host flashing.
+
+## Drawing with Applesoft
+
+At the Applesoft prompt, type `NEW` to clear the earlier program, then enter
+these lines one at a time. `RUN` draws sixteen horizontal colour bands, a white
+vertical line at the lower left, and a white block at the lower right:
+
+```basic
+10 GR
+20 FOR C=0 TO 15
+30 COLOR=C
+40 HLIN 0,39 AT C*2
+50 HLIN 0,39 AT C*2+1
+60 NEXT C
+70 COLOR=15
+80 VLIN 32,39 AT 0
+90 PLOT 39,39
+100 PRINT "16 COLOURS"
+110 END
+```
+
+`GR` selects the primary page in mixed low-resolution mode and clears its
+40-by-40 graphics area. Each byte holds two blocks, so the two HLIN commands
+fill one complete byte row with the chosen colour. VLIN and PLOT alter only
+the selected blocks. The bottom four text rows show the caption and prompt.
+The acceptance test enters this exact fenced program into the real interpreter
+and checks every graphics block, with no drawing commands executed by the host.
+
+`TEXT` returns to text mode. Switching does not erase graphics memory: its bytes
+can become unusual characters until the firmware overwrites them. Pause and
+Step work in graphics as in text; observing a frame changes no guest state.
+
+The hardware supports a second page and full-screen low-resolution graphics.
+BASIC's ordinary drawing routines still use the primary page; changing the
+PAGE2 display switch alone does not redirect their writes. **Page two overlaps
+Applesoft program storage**, so arbitrary POKEs there can damage the program.
+The checks temporarily change 0800 (the leading zero byte required by Applesoft)
+and 0BF7 (beyond this short program), select the second page through C055, and
+verify the upper and lower nibbles. C052 then reveals the bottom eight block
+rows; C054 and C053 restore page one and mixed mode. The check restores 0800
+to zero before running the program again. All of these changes pass through real CPU accesses.
+The video chapter owns the addresses, mode rules, and colour interpretation.
 
 ## Headless acceptance
 

@@ -137,17 +137,21 @@ not branching exercises or a general lesson language.
 ## Apple II Plus
 
 `/machines/apple-ii-plus/` publishes the executable [Apple II chapter](../src/machines/6502/apple2.md)
-with local ROM selection and a text screen. The Machines navigation opens the
+with local ROM selection, text, and low-resolution graphics. The Machines navigation opens the
 home-page machine index. `rom-file.ts` checks the complete container and extracted
 ROM; `apple2-session.ts` delivers queued keys through the generated latch.
-`apple2-screen.ts` reads RAM using generated, read-only video views. The controller
+`apple2-screen.ts` reads RAM using generated, read-only video views.
+`apple2-screen-view.ts` draws colour blocks behind selectable text; its fixed RGB
+palette is a presentation approximation of the pinned reference. The controller
 owns host events and scheduling; it contains no ROM traps or hardware decoding.
 The shared execution controller supports bounded batches with single-instruction
 manual stepping; existing lessons retain their original pacing.
 
 Set `APPLE2_ROM` for the production browser-session acceptance test. Check local
 file selection, a real Applesoft session, editing, Control-C, failed replacement,
-pause/resume, reset/power-on, keyboard focus, and wide/narrow layouts in the browser.
+pause/resume, reset/power-on, keyboard focus, and wide/narrow layouts in the browser. The
+chapter's drawing program also exercises colour bands, HLIN, VLIN, and PLOT;
+check full/mixed modes, both pages, and clearing stale graphics on TEXT or hires.
 The chapter owns the behavior and limitations, including session lifetime and
 approximate character shapes and flash timing.
 

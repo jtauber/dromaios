@@ -4,7 +4,7 @@ The next historical machine is an **Apple II Plus**, using
 [dromaios-apple2][reference] as the primary reference for behavior, devices,
 browser interaction, and software targets. The initial
 [executable chapter](../../src/machines/6502/apple2.md) now boots ROM and runs
-text BASIC programs on a browser text screen; the full configuration below remains the target.
+BASIC programs with browser text and low-resolution graphics; the full configuration below remains the target.
 ApplePy remains a
 historical reference; it is not the migration baseline.
 
@@ -126,7 +126,7 @@ delivery, and scheduling host work.
 | Caller-supplied ROM | External image declarations require verified bindings before synchronous construction/restoration; snapshots retain ROM identity. Browser selection verifies the complete file before replacement. |
 | Keyboard and display switches | Keyboard and display switches generate from device chapters, with state, offers, effects, reset, and snapshots. |
 | Banked memory | Fixed maps cover whole components and reject overlap. Language Card read/write routing needs explicit bank/window selection and storage ownership. Develop it when the card is introduced. |
-| Video | Read-only generated views own text addresses, character codes, attributes, and visible rows. The host reads RAM and draws cells. Pixel decoding follows at the graphics checkpoint. |
+| Video | Read-only generated views own text and low-resolution addresses, character attributes, colour indices, and visible rows. The host reads RAM and draws decoded cells or blocks. High-resolution decoding is next. |
 | Disk and speaker time | No current machine clock or device scheduler. Define emulated elapsed time and observable transitions before claiming timed disk behavior or producing audio. |
 | Inspection | Use captured CPU records and device snapshots. A future mapped-memory preview must have an explicit side-effect-free path; unavailable device bytes must not masquerade as read results. |
 
@@ -160,10 +160,13 @@ keyboard and execution state.
 
 ### 2. Graphics and Language Card
 
-Check both display pages, low-resolution colour blocks, high-resolution address
-decoding and the chosen colour approximation, mixed-mode boundaries, and
-flashing text. Small Applesoft programs should drive each mode through guest
-accesses, with independent memory/pixel expectations. Declare the distinction
+Low-resolution graphics now has generated decoding for both pages and full/mixed
+modes, with independent block expectations and a real Applesoft drawing program.
+The chapter owns the example and the fixed-palette presentation limitation.
+
+Next check high-resolution address decoding and the chosen colour approximation,
+both pages, and mixed-mode boundaries. Small Applesoft programs should drive
+each mode through guest accesses, with independent memory/pixel expectations. Declare the distinction
 between functional frame rendering and a video-scanner or composite-signal model.
 
 Test both Language Card banks and their shared upper RAM, read/write selection,
@@ -209,11 +212,11 @@ the basic emulator's completion.
 
 ## Next implementation slice
 
-Begin checkpoint 2 with **graphics decoding and rendering**: low-resolution
-colour blocks first, then high-resolution addressing and the chosen colour
-approximation. Extend the video chapter and independent frame checks, and
-exercise both modes from Applesoft. Language Card banking follows as a separate
-hardware contract; neither this display work nor that card requires Disk II yet.
+Continue checkpoint 2 with **high-resolution graphics**: interleaved scan-line
+addresses, bit order, both pages, and an explicit colour approximation. Extend
+the video chapter and independent frame checks, then exercise the renderer from
+Applesoft. Language Card banking follows as a separate hardware contract; neither
+this display work nor that card requires Disk II yet.
 
 As implementation lands, move hardware/reset/media contracts and acceptance
 details into the executable chapter alongside their declarations. Keep this

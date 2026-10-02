@@ -70,7 +70,45 @@ test("read-only video views reject invalid arguments without changing state", ()
     assert.throws(() => video.visibleRow(byte), RangeError);
     assert.throws(() => video.characterCode(byte), RangeError);
     assert.throws(() => video.inverse(byte, false), RangeError);
+    assert.throws(() => video.loresAddress(byte, 0), RangeError);
+    assert.throws(() => video.loresAddress(0, byte), RangeError);
+    assert.throws(() => video.loresColour(byte, 0), RangeError);
+    assert.throws(() => video.loresColour(0, byte), RangeError);
+    assert.throws(() => video.visibleLoresRow(byte), RangeError);
   }
   assert.throws(() => video.inverse(0, 1 as never), TypeError);
   assert.deepEqual(video.snapshot(), before);
+});
+
+test("low-resolution graphics shares text addresses and decodes both nibbles independently", () => {
+  const video = new Apple2Video();
+  for (const page of [1, 2]) {
+    video.write(page === 1 ? 4 : 5, 0);
+    rows.forEach((address, pair) => {
+      for (let column = 0; column < 40; column++) {
+        const expected = address + (page - 1) * 0x400 + column;
+        assert.equal(video.loresAddress(pair * 2, column), expected);
+        assert.equal(video.loresAddress(pair * 2 + 1, column), expected);
+      }
+    });
+  }
+  const before = video.snapshot();
+  for (let high = 0; high < 16; high++) for (let low = 0; low < 16; low++) {
+    const byte = high * 16 + low;
+    for (let row = 0; row < 48; row++) assert.equal(video.loresColour(byte, row), row % 2 === 0 ? low : high);
+  }
+  assert.deepEqual(video.snapshot(), before);
+});
+
+test("all display modes select exactly their visible text and low-resolution rows", () => {
+  for (const text of [false, true]) for (const mixed of [false, true]) {
+    for (const page2 of [false, true]) for (const hires of [false, true]) {
+      const state = { text, mixed, page2, hires }, video = new Apple2Video(state);
+      for (let row = 0; row < 256; row++) {
+        assert.equal(video.visibleLoresRow(row), !text && !hires && row < (mixed ? 40 : 48));
+        assert.equal(video.visibleRow(row), row < 24 && (text || mixed && row >= 20));
+      }
+      assert.deepEqual(video.snapshot(), state);
+    }
+  }
 });
