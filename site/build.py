@@ -21,6 +21,7 @@ from diagrams import state_diagram
 from lessons import BASIC_LESSONS, LESSON_GROUPS
 from lesson_rendering import basic_lesson_catalogue, lesson_markdown
 from machines import ALTAIR, APPLE2, MACHINES, media_record, rom_container_record
+from apple2_rom import APPLE2_ROM, explorer_catalogue
 from rendering import CHAPTERS, REPOSITORY, ChapterRendering, github_slug
 
 SITE = Path(__file__).resolve().parent
@@ -122,6 +123,7 @@ def build(base):
     site.render_template("altair-basic.html", f"{MACHINES[ALTAIR]}index.html", render_guide(ALTAIR))
     site.render_template("apple2.html", f"{MACHINES[APPLE2]}index.html", {
         **render_guide(APPLE2), "apple2_container": rom_container_record(APPLE2.read_text()),
+        "rom_guide": render_guide(APPLE2_ROM), "rom_explorer": explorer_catalogue(),
     })
     loading_source = SITE / "content/basic-loading.md"
     loading = Markup(lesson_markdown(loading_source, base).convert(loading_source.read_text()))

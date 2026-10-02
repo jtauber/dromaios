@@ -14,6 +14,23 @@ function fixture(batchSize: number, limit = Infinity, failAt = Infinity) {
   return { controller, pending, get count() { return count; }, get changes() { return changes; } };
 }
 
+test("run boundaries stop before side effects within a batch while leaving manual Step available", () => {
+  let count = 0, boundary = 3;
+  const pending: (() => void)[] = [];
+  const controller = createExecutionController({
+    step: () => ++count, canStep: () => true, pauseBeforeStep: () => count === boundary,
+    onChange() {}, batchSize: 20, schedule(callback) { pending.push(callback); return () => {}; },
+  });
+  controller.run(); pending.shift()!();
+  assert.equal(count, 3); assert.equal(controller.running, false);
+  assert.equal(controller.error, undefined); assert.equal(pending.length, 0);
+  controller.run(); pending.shift()!(); assert.equal(count, 3);
+  controller.step(); assert.equal(count, 4);
+  boundary = 6; controller.run(); pending.shift()!(); assert.equal(count, 6);
+  boundary = 10; controller.run(); const stale = pending.shift()!;
+  controller.reset(); stale(); assert.equal(count, 6); assert.equal(controller.steps, 0);
+});
+
 test("instruction batches yield once, retain bounded history, and keep manual Step singular", () => {
   const f = fixture(20);
   f.controller.step(); assert.equal(f.count, 1);

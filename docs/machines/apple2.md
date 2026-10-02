@@ -53,7 +53,7 @@ The reference repository requires access for its private source links.
 | Disk writes and drives | Write mode has no media-writing implementation. Drive 2 selects a label but continues using the same stream. Write-protect sense reports writable. | A read-only milestone must report write protection honestly. Saving and media export are separate required work. An absent drive must not alias drive 1. |
 | Sound and paddles | Speaker state toggles, but no audio output is connected. Two paddle values use a CPU counter. | Audible sound is new work; paddle support is outside the first configuration. |
 | Time | CPU adds static instruction costs; disk advances on reads, and motor spin-down counts browser frames. | These are approximations, not an accurate clock contract. Keep device time independent of browser refresh. |
-| Inspection | Memory, disassembly, instruction explanations, stack, switches, and disk views. Applesoft listing, variables, execution state, stepping, breakpoints, history, and profiling hooks. | Useful later instruments; inspection must not perform guest device accesses. ROM-specific interpretation belongs to a software guide. |
+| Inspection | Memory, disassembly, instruction explanations, stack, switches, and disk views. Applesoft listing, variables, execution state, stepping, breakpoints, history, and profiling hooks. | Use these as references for the current ROM/DOS understanding work. Inspection must not perform guest device accesses; software-specific interpretation belongs to a versioned guide. |
 | Software evidence | ROM and DOS 3.3 System Master are tracked. Ultima IV and Akalabeth names occur in the startup choices, but their images are absent from this revision. | Use the checked DOS fixture for the first disk acceptance. A named game is not a demonstrated working session. |
 
 Sources: [memory/I/O][reference-memory], [video][reference-video],
@@ -203,20 +203,60 @@ independent of browser frame rate and host scheduling. Address the necessary
 6502 timing and bus-access fidelity explicitly; static opcode costs alone
 cannot establish those properties.
 
-These four checkpoints define the first usable Apple II Plus release. The
-reference's BASIC-analysis instruments and an Ultima IV boot/play/save session
-can follow, with separately selected acceptance criteria. They do not postpone
-the basic emulator's completion.
+These four checkpoints define the first usable Apple II Plus release. Writable
+disks and sound remain unfinished. The current priority is to make the working
+ROM and read-only DOS configuration understandable before moving on to games
+such as Mystery House and Ultima IV. Playing a game and explaining its software
+remain separate acceptance targets.
+
+## Software exploration
+
+The **ROM execution explorer** and its
+[versioned walkthrough](../software/apple2p-rom.md#rom-walkthrough) now provide
+the first observation tools. The software guide owns its routine annotations,
+stops, and acceptance path; the browser uses captured CPU records for disassembly
+and changes. Address breakpoints and ROM routine stops are bounded, one-shot
+requests. The tested path follows reset to the Applesoft prompt, then a keypress
+through acknowledgement and echo.
 
 ## Next implementation slice
 
-Begin checkpoint 4 with **writable DOS-order media** on a disposable in-memory
-copy. Specify the controller write path and sector-update contract against
-hardware references, then prove SAVE/NEW/LOAD/RUN and export/re-import with the
-selected System Master. Keep malformed/incomplete writes from silently
-corrupting sectors, and retain an explicit protected mode. This goes beyond the
-reference's unfinished write path; it needs independent evidence. Continue with
-focused controller/media code until another device motivates a shared abstraction.
+Follow that foundation with connected views and guides:
+
+1. **Disk boot:** follow the handoffs from motherboard ROM to slot-6 bootstrap,
+   disk-loaded code, DOS, and HELLO. Show where bytes arrive in RAM and when
+   execution moves into them. Report observed handoffs rather than assuming a
+   fixed boot sequence from instruction counts or elapsed time.
+2. **Disk reads:** connect controller switches and the byte stream to address
+   fields, sector decoding, checksums, and destination buffers. Distinguish
+   bytes consumed by the CPU from a read-only view of the stored image.
+3. **DOS commands and files:** trace CATALOG and LOAD HELLO through routines,
+   catalogue entries, track/sector lists, and memory. Connect the visible
+   result to the disk structures and code responsible for it.
+4. **Applesoft in ROM:** use a small program to connect its listing and tokens
+   to interpreter routines, variables, and execution state, drawing on the
+   reference's existing BASIC instruments.
+
+Keep the CPU's encoding knowledge in its executable specification; avoid a
+second handwritten opcode table for the explorer. ROM/DOS symbols, comments,
+data interpretations, and walkthrough stops belong to guides tied to the exact
+software identities, not to the CPU or peripheral models. DOS labels must
+account for the loaded image and its location; an address alone does not prove
+which software occupies RAM. The [pedagogy plan](../pedagogy.md#inspection-without-side-effects)
+owns the observation boundary: completed-step explanations use captured records,
+and live previews require explicit side-effect-free inspection. Tests must show
+that opening a view cannot acknowledge a key, consume a disk byte, or change a bank.
+
+Use these concrete examples to discover shared instruments. Keep machine wiring
+and hardware contracts in the executable machine chapter, with software
+walkthroughs linking to them. Do not introduce a general plugin framework or
+extend the peripheral language merely to host these first tools.
+
+When writable disks resume, implement them on a disposable in-memory copy and
+prove SAVE/NEW/LOAD/RUN plus export/re-import with the selected System Master.
+Keep malformed/incomplete writes from silently corrupting sectors and retain
+an explicit protected mode. This goes beyond the reference's unfinished write
+path and needs independent evidence.
 
 As implementation lands, move hardware/reset/media contracts and acceptance
 details into the executable chapter alongside their declarations. Keep this

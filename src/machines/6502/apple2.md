@@ -166,6 +166,13 @@ device snapshots and read-only views, and read RAM or ROM directly instead.
 
 ## Using the browser machine
 
+The browser also provides **Explore the ROM**, with recorded instructions,
+register and flag changes, memory accesses, and one-shot address or ROM routine
+stops. Follow the [ROM walkthrough](../../../docs/software/apple2p-rom.md#rom-walkthrough)
+from reset to the Applesoft prompt, then trace a keypress to its screen write.
+The software guide owns the versioned labels and walkthrough; these do not
+change the machine's wiring or firmware execution.
+
 Choose the matching local ROM file, then **Run**. Nothing is uploaded or fetched.
 Wait for the `APPLE ][` banner and Applesoft's `]` prompt, click the keyboard
 field, and type `PRINT 2+3`, then Enter. The reply is `5`. The display reads the

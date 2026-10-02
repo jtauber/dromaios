@@ -16,6 +16,7 @@ from rendering import CHAPTERS, REPOSITORY, ChapterRendering, chapter_link, gith
 from machines import ALTAIR, APPLE2, MACHINES, media_record, rom_container_record
 from lessons import BASIC_LESSONS
 from lesson_rendering import basic_lesson_catalogue, lesson_markdown
+from apple2_rom import APPLE2_ROM, rom_annotations, explorer_catalogue
 
 
 class CpuBlocks(HTMLParser):
@@ -40,6 +41,20 @@ class CpuBlocks(HTMLParser):
 
 
 class PublishingTests(unittest.TestCase):
+    def test_rom_walkthrough_owns_versioned_stops_and_uses_cpu_instruction_names(self):
+        catalogue = explorer_catalogue()
+        self.assertEqual(len(catalogue["instructions"]), 151)
+        self.assertEqual(catalogue["instructions"]["16"], "BPL relative")
+        self.assertEqual(catalogue["instructions"]["32"], "JSR absolute")
+        source = APPLE2_ROM.read_text()
+        self.assertEqual(chapter_link("../software/apple2p-rom.md#rom-walkthrough", APPLE2_ROM.parent.parent / "machines/apple2.md", "/demo/"),
+                         "/demo/machines/apple-ii-plus/#rom-walkthrough")
+        for broken in ["", source.replace(catalogue["sha256"], "0" * 64),
+                       source.replace('"FC58"', '"FA62"'), source.replace('"FC58"', '"C058"'),
+                       source.replace('"HOME"', '"RESET"')]:
+            with self.assertRaises(ValueError):
+                rom_annotations(broken, {"sha256": catalogue["sha256"]})
+
     def test_basic_lessons_publish_the_same_inputs_as_the_checked_transcripts(self):
         for slug, chapter in basic_lesson_catalogue().items():
             with self.subTest(lesson=slug):

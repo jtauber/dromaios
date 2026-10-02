@@ -11,6 +11,8 @@
     <details class="contents" open><summary>In this guide</summary>
       <nav aria-label="Sections in the Apple II guide"><ol>
         <li><a href="#try-basic">Run Applesoft</a></li>
+        <li><a href="#rom-explorer">Explore the ROM</a></li>
+        {% for heading in rom_guide.toc %}<li><a href="#{{ heading.id }}">{{ heading.name }}</a></li>{% endfor %}
         {% for heading in toc %}<li><a href="#{{ heading.id }}">{{ heading.name }}</a></li>{% endfor %}
       </ol></nav>
     </details>
@@ -66,14 +68,35 @@
         Paste one line at a time; the screen shows the computer’s response, with no local echo.</p>
       <p data-input-status class="basic-readout">0 keyboard characters queued</p>
       <p data-machine-message class="basic-message" role="status"></p>
-      <details class="basic-inspection"><summary>Inspect the machine</summary>
+      <details id="rom-explorer" class="basic-inspection" data-rom-explorer><summary>Explore the ROM</summary>
+        <p>Follow the <a href="#rom-walkthrough">reset-to-prompt walkthrough</a>, or stop at an address of your own.</p>
+        <script type="application/json" data-rom-catalogue>{{ rom_explorer | tojson }}</script>
+        <div class="rom-controls">
+          <label>ROM routine <select data-rom-routine disabled>
+            {% for routine in rom_explorer.routines %}<option value="{{ routine.address }}">{{ routine.name }} · ${{ routine.address }}</option>{% endfor %}
+          </select></label>
+          <button type="button" data-rom-run-routine disabled>Run to routine</button>
+          <label>Address (hex) <input data-rom-address type="text" value="FD21" spellcheck="false" autocomplete="off" maxlength="5" disabled></label>
+          <button type="button" data-rom-run-address disabled>Run to address</button>
+        </div>
+        <p class="basic-message" data-rom-stop-status role="status"></p>
+        <p class="rom-current" data-rom-current>Choose a ROM to begin.</p>
+        <div class="basic-controls">
+          <button type="button" data-rom-step disabled>Step instruction</button>
+          <button type="button" data-rom-continue disabled>Continue</button>
+          <button type="button" data-rom-pause disabled>Pause exploration</button>
+        </div>
         <pre data-machine-inspect></pre>
-        <p class="basic-hint">Latest twelve instructions · PC before → after (hexadecimal)</p>
+        <p class="basic-hint">Latest twelve completed instructions, newest first · fetched bytes, assembly, changes, then ordered memory accesses (including fetches).
+          Opening this view does not read guest devices. Step executes the instruction at the current PC.</p>
         <pre data-machine-trace></pre>
       </details>
       <p class="basic-hint">Pause preserves your program. Reset CPU preserves RAM and devices; Fresh power-on discards the program.
         This page does not save your session when you leave or reload.</p>
     </section>
+    <article class="chapter-prose" aria-label="Apple II ROM walkthrough">{{ rom_guide.content }}
+      <p><a href="{{ rom_guide.source_url }}">View the walkthrough source ↗</a></p>
+    </article>
     <article class="chapter-prose" aria-label="Apple II machine guide">{{ content }}</article>
   </div>
 </main>

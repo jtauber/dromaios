@@ -100,6 +100,9 @@ examples add polling and consuming input reads with the same devices.
 
 ## Machine definitions
 
+- [Apple II Plus ROM walkthrough](software/apple2p-rom.md): versioned routine stops
+  and an execution path from reset to the prompt, keyboard acknowledgement, and echo.
+
 - [Apple II Plus chapter](../src/machines/6502/apple2.md): executable ROM/keyboard/video
   composition, external firmware identity, and browser BASIC controls.
 - [Apple II Plus target](machines/apple2.md): selected configuration, pinned

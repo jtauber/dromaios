@@ -14,6 +14,7 @@ from pygments.lexer import RegexLexer, words
 from pygments.lexers import XmlLexer
 from pygments.token import Comment, Keyword, Name, Number, Operator, Punctuation, String, Text
 from machines import MACHINES
+from apple2_rom import APPLE2_ROM
 from lessons import BASIC_LESSONS
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -94,7 +95,9 @@ def chapter_link(href, source, base):
     destination = (source.parent / unquote(url.path)).resolve()
     if not destination.is_relative_to(ROOT) or not destination.exists():
         raise ValueError(f"{source.name}: missing linked source {href}")
-    if destination in MACHINES:
+    if destination == APPLE2_ROM:
+        path = f"{base}machines/apple-ii-plus/"
+    elif destination in MACHINES:
         path = f"{base}{MACHINES[destination]}"
     elif destination.parent == BASIC_LESSONS and destination.suffix == ".md":
         path = f"{base}learn/{destination.stem}/"

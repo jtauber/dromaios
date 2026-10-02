@@ -1,6 +1,8 @@
 interface ExecutionOptions<Record> {
   readonly step: () => Record;
   readonly canStep: () => boolean;
+  /** Automatic runs check this at each boundary; manual Step remains available. */
+  readonly pauseBeforeStep?: () => boolean;
   readonly onChange: () => void;
   /** Schedule one callback, returning a function that cancels it. */
   readonly schedule: (callback: () => void, delayMs: number) => () => void;
@@ -8,7 +10,7 @@ interface ExecutionOptions<Record> {
 }
 
 /** Yield between bounded batches; manual Step always executes just one instruction. */
-export function createExecutionController<Record>({ step, canStep, onChange, schedule, batchSize = 1 }: ExecutionOptions<Record>) {
+export function createExecutionController<Record>({ step, canStep, pauseBeforeStep, onChange, schedule, batchSize = 1 }: ExecutionOptions<Record>) {
   if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 10_000) throw new RangeError("Instruction batch size must be in 1..10000.");
   let running = false;
   let delayMs = 1000;
@@ -42,7 +44,10 @@ export function createExecutionController<Record>({ step, canStep, onChange, sch
       // Cancellation also rejects callbacks already queued by the host before STOP.
       if (!running || token !== generation) return;
       cancel = () => {};
-      for (let count = 0; count < batchSize && running && error === undefined && canStep(); count++) advance();
+      for (let count = 0; count < batchSize && running && error === undefined && canStep(); count++) {
+        if (pauseBeforeStep?.()) { running = false; break; }
+        advance();
+      }
       if (error !== undefined || !canStep()) running = false;
       onChange();
       if (running) queue();
