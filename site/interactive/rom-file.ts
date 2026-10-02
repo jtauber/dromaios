@@ -24,7 +24,7 @@ export async function readRomFile(file: {
   return { name: file.name, image: await RomImage.verify(bytes, expected, sha256) };
 }
 
-async function sha256(bytes: Uint8Array): Promise<string> {
+export async function sha256(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new Uint8Array(bytes));
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
 }

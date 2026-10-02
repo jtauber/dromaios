@@ -66,4 +66,20 @@ test("the generated Apple II map boots synthetic ROM and records guest keyboard 
   const { firmware: omitted, ...incomplete } = saved;
   assert.throws(() => create({ firmware }, incomplete as never), /Machine snapshot requires/);
   assert.throws(() => create({ firmware }, { ...saved, firmware: undefined } as never), /Machine snapshot requires/);
+
+  // The same generated map attaches a slot-6 controller without special factory logic.
+  assert.equal(machine.memory.read(0xc600), 0, "Uninstalled card is an empty slot");
+  const bootstrap = new Uint8Array(256).fill(0xa5);
+  machine.disk.install(bootstrap); bootstrap[0] = 0;
+  assert.equal(machine.memory.read(0xc600), 0xa5);
+  assert.equal(machine.memory.read(0xc6ff), 0xa5);
+  machine.memory.write(0xc600, 0); assert.equal(machine.memory.read(0xc600), 0xa5);
+  assert.equal(machine.memory.read(0xc500), 0); assert.equal(machine.memory.read(0xc700), 0);
+  const io = create({ firmware }, { ...machine.snapshot(), cpu: { ...machine.cpu.snapshot(), pc: 0x200 } });
+  [0xad, 0xe9, 0xc0, 0xad, 0xed, 0xc0, 0xad, 0xee, 0xc0].forEach((byte, i) => io.ram.write(0x200 + i, byte));
+  assert.deepEqual(io.cpu.step().accesses.at(-1), { kind: "read", address: 0xc0e9, value: 0 });
+  assert.equal(io.disk.inspect().motor, true);
+  io.cpu.step();
+  assert.deepEqual(io.cpu.step().accesses.at(-1), { kind: "read", address: 0xc0ee, value: 0x80 });
+  const controller = io.disk.snapshot(); io.reset(); assert.deepEqual(io.disk.snapshot(), controller);
 });

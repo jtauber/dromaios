@@ -21,7 +21,10 @@
       <h1>{{ title }}</h1>
       <div class="chapter-meta"><span>Working machine and executable guide</span><a href="{{ source_url }}">View source ↗</a></div>
     </header>
-    <section id="try-basic" class="basic-machine apple2-machine" aria-labelledby="apple2-heading" data-apple2 data-rom-bytes="{{ apple2_container.bytes }}" data-rom-sha256="{{ apple2_container.sha256 }}" data-rom-offset="{{ apple2_container.offset }}">
+    <section id="try-basic" class="basic-machine apple2-machine" aria-labelledby="apple2-heading" data-apple2
+      data-rom-bytes="{{ apple2_container.bytes }}" data-rom-sha256="{{ apple2_container.sha256 }}" data-rom-offset="{{ apple2_container.offset }}"
+      data-bootstrap-bytes="{{ apple2_container.bootstrap.bytes }}" data-bootstrap-sha256="{{ apple2_container.bootstrap.sha256 }}" data-bootstrap-offset="{{ apple2_container.bootstrap.offset }}"
+      data-disk-bytes="{{ apple2_container.disk.bytes }}" data-disk-sha256="{{ apple2_container.disk.sha256 }}">
       <p class="eyebrow">A screen of your own</p>
       <h2 id="apple2-heading">Meet Applesoft.</h2>
       <p>Choose your <a href="#firmware-supplied-by-the-caller">Apple II Plus ROM</a>, select Run, and wait for <code>]</code>.
@@ -32,6 +35,13 @@
       <div class="basic-media"><label>ROM file <input type="file" data-rom-file disabled></label></div>
       <p class="basic-hint">The file stays on your computer. A verified selection prepares a fresh, paused machine.</p>
       <p class="basic-readout" data-rom-status>No ROM selected.</p>
+      <details class="basic-inspection"><summary>Boot DOS 3.3 from disk</summary>
+        <p>Use the 20 KiB ROM container above, then choose the matching <a href="#booting-dos-33">DOS 3.3 System Master</a>.
+          A verified disk selection starts a fresh, paused machine. Run boots DOS; the original file stays unchanged.</p>
+        <div class="basic-media"><label>Disk image <input type="file" data-disk-file disabled></label></div>
+        <p class="basic-readout" data-disk-status>No disk selected.</p>
+        <button type="button" data-disk-eject disabled>Eject disk</button>
+      </details>
       <div class="basic-controls" role="group" aria-label="Apple II controls">
         <button type="button" data-machine-run disabled>Run</button>
         <button type="button" data-machine-pause disabled>Pause</button>

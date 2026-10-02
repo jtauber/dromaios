@@ -2,12 +2,16 @@ import { create6502Apple2 } from "../../src/machines/generated/6502/apple2.js";
 import type { RomImage } from "../../src/machines/rom-image.js";
 import { checkUnsigned } from "../../src/components/validation.js";
 import { terminalInput } from "./serial-terminal.js";
+import type { Dos33Disk } from "../../src/components/devices/dos33-disk.js";
 
 /** Host keyboard transport for a generated machine; all BASIC behavior still executes in ROM. */
-export function createApple2Session(firmware: RomImage) {
+export function createApple2Session(firmware: RomImage, disk?: { readonly bootstrap: readonly number[]; readonly image: Dos33Disk }) {
+  // Fresh power-on retains selected media; eject changes that selection as well as the live drive.
+  let selected = disk === undefined ? undefined : { bootstrap: [...disk.bootstrap], image: disk.image };
   let machine = powerOn(), input: number[] = [];
   function powerOn() {
     const machine = create6502Apple2({ firmware });
+    if (selected !== undefined) { machine.disk.install(selected.bootstrap); machine.disk.insert(selected.image); }
     machine.reset();
     return machine;
   }
@@ -25,6 +29,7 @@ export function createApple2Session(firmware: RomImage) {
     },
     reset(): void { machine.reset(); input = []; },
     powerOn(): void { machine = powerOn(); input = []; },
+    eject(): void { machine.disk.eject(); selected = undefined; },
   };
 }
 

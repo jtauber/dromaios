@@ -4,7 +4,8 @@ The next historical machine is an **Apple II Plus**, using
 [dromaios-apple2][reference] as the primary reference for behavior, devices,
 browser interaction, and software targets. The initial
 [executable chapter](../../src/machines/6502/apple2.md) now boots ROM and runs
-BASIC programs with browser text and both graphics resolutions; the full configuration below remains the target.
+BASIC programs with browser text and both graphics resolutions, Language Card
+banking, and read-only DOS 3.3. Writable disks and sound complete the target below.
 ApplePy remains a
 historical reference; it is not the migration baseline.
 
@@ -100,11 +101,8 @@ Focused probes also confirmed:
 
 The [machine chapter](../../src/machines/6502/apple2.md#firmware-supplied-by-the-caller)
 owns the audited ROM identities and normalization contract. Neither ROM nor disk
-bytes are embedded in Dromaios. The disk audit used:
-
-| Input | Bytes | SHA-256 |
-| --- | ---: | --- |
-| Reference `disks/dos33-master.dsk` | 143,360 | `06075b2b73922cfa292c5c36de5a27b17f9fbf21ef0450a3dc00b53a6bf55d17` |
+bytes are embedded in Dromaios. The same chapter now owns the selected DOS disk
+and bootstrap identities, as well as the browser's local-media verification contract.
 
 The reference accepts several ROM lengths permissively. Dromaios verifies the
 declared image instead. Browser loading should stay local, as with Altair BASIC;
@@ -115,9 +113,11 @@ a rejected selection must preserve the current machine.
 The executable machine chapter owns the implemented components, ROM requirements, the
 memory map, reset wiring, selected device profiles, and acceptance conversations.
 Device chapters own keyboard, display-switch, and Language Card state
-transitions; Disk II will follow the same approach. Shared runtimes should implement reusable operations such
-as banked storage or timed transitions; the chapter must supply each machine's
-hardware rules. Browser code owns file selection, keyboard events, canvas/audio
+transitions. Disk II uses focused TypeScript controller and media classes, with
+wiring, contracts, and limitations in the machine chapter. Keep this concrete
+until more peripheral examples justify shared representations; do not extend
+the device language solely to make this one implementation declarative.
+Browser code owns file selection, keyboard events, canvas/audio
 delivery, and scheduling host work.
 
 | Need | Existing support and concrete gap |
@@ -132,8 +132,10 @@ delivery, and scheduling host work.
 
 Do not copy the reference's CPU, DOM-dependent device logging, or global
 instrument registry into the simulation. Keep the existing generated 6502.
-Use [machine](definitions.md) and [device](../devices/literate-specifications.md)
-generation throughout, choosing new syntax from the smallest concrete need.
+Use [machine](definitions.md) declarations for composition and existing
+[device](../devices/literate-specifications.md) generation where it fits. Choose
+new shared syntax from repeated concrete needs, rather than requiring every
+peripheral to fit a declarative framework immediately.
 
 Primary hardware references are Apple's [Apple II Reference Manual][hardware],
 especially memory/I/O and display descriptions, the [Language Card manual][language-card]
@@ -175,18 +177,16 @@ limitations.
 
 ### 3. Read-only DOS 3.3
 
-Attach slot-6 Disk II and its bootstrap. Cold-boot the pinned System Master
-through the controller and on-disk loader, reach its banner/prompt, display the
-catalogue through pagination, and `LOAD`/`LIST` the on-disk `HELLO` program.
-Then create and run the small arithmetic program again under DOS.
+The [machine chapter](../../src/machines/6502/apple2.md#booting-dos-33) now owns
+this completed checkpoint: native boot through slot-6 Disk II, CATALOG
+pagination, LOAD/LIST HELLO, and a stored BASIC program under DOS. SAVE reports
+write protection. Its controller and encoding checks cover independent known
+vectors, stream restoration, head movement, missing media, and absent drive 2.
 
-Validate sector order and 6-and-2 encoding with independent known sectors;
-an encoder/decoder round trip alone is insufficient. Test head movement,
-motor and Q6/Q7 behavior, no media, absent drive 2, and clean media replacement.
-Expose write protection until writes are implemented. The browser must remain
-responsive during boot and disk polling, and pausing/inspection must not advance
-the disk or consume a byte. Any access-driven disk approximation is declared
-as such and is not proof of rotational or copy-protection compatibility.
+The browser accepts the selected local media, remains schedulable during disk
+polling, and preserves controller state during pause and inspection. The chapter
+explicitly declares the access-driven stream, simplified head, and immediate
+motor-off behavior; these are not rotational or copy-protection compatibility.
 
 ### 4. Writable disks and sound
 
@@ -210,11 +210,13 @@ the basic emulator's completion.
 
 ## Next implementation slice
 
-Begin checkpoint 3 with **read-only Disk II**: declare the controller's
-switches and retained state in a device chapter, validate DOS sector ordering
-and 6-and-2 encoding independently, then attach the slot-6 bootstrap and selected
-local disk image. Keep controller effects, disk-image conversion, and host media
-selection distinct. The first end-to-end target is a DOS 3.3 cold boot and CATALOG.
+Begin checkpoint 4 with **writable DOS-order media** on a disposable in-memory
+copy. Specify the controller write path and sector-update contract against
+hardware references, then prove SAVE/NEW/LOAD/RUN and export/re-import with the
+selected System Master. Keep malformed/incomplete writes from silently
+corrupting sectors, and retain an explicit protected mode. This goes beyond the
+reference's unfinished write path; it needs independent evidence. Continue with
+focused controller/media code until another device motivates a shared abstraction.
 
 As implementation lands, move hardware/reset/media contracts and acceptance
 details into the executable chapter alongside their declarations. Keep this

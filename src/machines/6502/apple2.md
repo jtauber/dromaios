@@ -1,4 +1,4 @@
-# Apple II Plus: BASIC and graphics
+# Apple II Plus: BASIC, graphics, and DOS
 
 The Apple II Plus pairs a MOS 6502 with memory-mapped input and display hardware.
 Unlike the Altair's serial terminal, its text output lives in RAM, where video
@@ -7,8 +7,9 @@ the upper 12 KiB of the address space.
 
 This is the first native composition in the [Apple II Plus plan](../../../docs/machines/apple2.md):
 48 KiB of main RAM, caller-supplied firmware, the keyboard latch, and text and
-graphics displays, plus a 16 KiB Language Card. It boots the selected ROM and runs BASIC programs in the
-browser. Disk II and sound remain future work.
+graphics displays, plus a 16 KiB Language Card and an optional slot-6 Disk II.
+It runs BASIC and boots the selected DOS 3.3 System Master from a local,
+read-only disk image. Disk writes and sound remain future work.
 The main reference is the pinned [dromaios-apple2 implementation][reference];
 Apple's [Reference Manual][manual] supplies the hardware background.
 
@@ -26,8 +27,9 @@ share D000–DFFF, followed by 8 KiB of common RAM at E000–FFFF. ROM supplies
 reads at power-on; RAM can receive writes behind it. The windows below select
 the first matching rule independently for reads and writes. The common upper
 window includes interrupt and reset vectors, so enabling RAM reads also selects
-the vectors stored in RAM. There is no Disk II bootstrap in an
-empty slot, so the Autostart Monitor falls through to Applesoft.
+the vectors stored in RAM. Disk II uses C0E0–C0EF for control and C600–C6FF
+for its bootstrap. The device starts uninstalled: without a host-supplied
+bootstrap, both windows are unanswered and the Monitor falls through to Applesoft.
 
 ```machine
 components {
@@ -39,6 +41,7 @@ components {
     bank1 = ram 1000
     bank2 = ram 1000
     upper = ram 2000
+    disk = apple2-disk-ii
 }
 
 map 10000 {
@@ -46,6 +49,14 @@ map 10000 {
     C000 = keyboard
     C050 = video
     C080 = language
+    C0E0 = window 10 {
+        read = disk
+        write = disk
+    }
+    C600 = window 100 {
+        read = disk offset 100
+        write = discard
+    }
     D000 = window 1000 {
         read = bank2 when language.ramRead and language.bank2
         read = bank1 when language.ramRead
@@ -85,14 +96,24 @@ uses `RomImage.verify` with its SHA-256 implementation before calling
 remain synchronous and copy ROM into fresh components.
 
 The reference's `roms/apple2p.rom` is a container. This record gives its byte
-count, SHA-256, and the decimal offset of the mapped ROM. The browser uses this
-record directly:
+count, SHA-256, and the decimal offset of the mapped ROM, followed by the
+Disk II bootstrap slice and selected DOS disk identity. The browser uses this
+record directly; none of these files is bundled with the site:
 
 ```json
 {
   "bytes": 20480,
   "sha256": "92c4bef609920842ea472d21b661a0d35dbda6cd90963b8b734a205e22d84108",
-  "offset": 8192
+  "offset": 8192,
+  "bootstrap": {
+    "bytes": 256,
+    "sha256": "de1e3e035878bab43d0af8fe38f5839c527e9548647036598ee6fe7ec74d2a7d",
+    "offset": 1536
+  },
+  "disk": {
+    "bytes": 143360,
+    "sha256": "06075b2b73922cfa292c5c36de5a27b17f9fbf21ef0450a3dc00b53a6bf55d17"
+  }
 }
 ```
 
@@ -101,9 +122,19 @@ hexadecimal offsets 2000–4FFF, then verify the normalized image above. The exa
 is also accepted directly. Other sizes or altered files are rejected before
 replacing an existing machine.
 
+Disk boot also extracts the 256-byte P5 bootstrap at container offsets
+0600–06FF and verifies its separate digest. The browser's disk option requires
+this container; a bare 12 KiB motherboard image still supports ROM-only use.
+The selected disk is the reference's `disks/dos33-master.dsk`. Its size and
+whole-file digest above are checked before insertion. The host calls
+`disk.install(bootstrap)` and `disk.insert(new Dos33Disk(bytes))`; those focused
+device methods own copies of their inputs. The generated machine needs no
+Disk II-specific construction code.
+
 ## Construction, reset, and restoration
 
-Construction provides zero-filled RAM and deterministic CPU, keyboard, display, and Language Card state.
+Construction provides zero-filled RAM and deterministic CPU, keyboard, display,
+Language Card, and disk-controller state.
 It does not execute or reset the CPU. Call `reset()` to perform the processor's
 real reset-vector reads at FFFC and FFFD; at power-on these read ROM, which
 points to FA62. Later resets follow the card's current RAM/ROM selection.
@@ -119,14 +150,15 @@ cpu 6502 {
 reset { cpu }
 ```
 
-CPU reset preserves RAM, firmware, the keyboard latch, display switches, and all Language Card latches. It follows the
+CPU reset preserves RAM, firmware, the keyboard latch, display switches, all
+Language Card latches, and the disk controller, head, and stream position. It follows the
 [6502 reset contract](../../components/cpus/specifications/6502.md#reset-and-instruction-boundaries),
 including its stack-pointer and interrupt-mask changes. Firmware may then
 clear the strobe and initialize its own workspace. Fresh construction, followed
 by reset, represents power-on in this deterministic model.
 
 `snapshot()` captures CPU, all four RAM components, keyboard, display and Language Card latches,
-and the firmware digest. Restoration
+the disk controller with its bootstrap and media bytes, and the firmware digest. Restoration
 requires that digest and the same verified ROM binding; it creates independent
 hardware without resetting or executing. Snapshot inspection performs no
 guest device reads. There is no generic safe preview of mapped I/O: inspect
@@ -166,10 +198,19 @@ acknowledging keys or changing display switches.
 **Reset CPU** discards the host input queue and performs the reset-vector reads,
 preserving RAM and device latches immediately. The firmware's subsequent actions
 are separate from that reset. **Fresh power-on** replaces the machine with empty
-RAM and fresh devices using the retained verified ROM; the old program is lost.
+RAM and fresh devices using the retained verified ROM and selected disk; the old program is lost.
 A failed ROM selection preserves the previous machine, paused. A successful
 selection replaces it with a fresh paused machine. Refreshing or leaving the
 page loses the session; there is no saved browser checkpoint yet.
+
+For DOS, open **Boot DOS 3.3 from disk** and choose the matching local image.
+A successful selection replaces the running machine with a fresh, paused disk
+configuration. A rejected file preserves the previous machine, paused. **Run**
+then boots DOS; **Fresh power-on** retains the selected disk and starts it again.
+**Eject disk** pauses and removes the medium while preserving RAM and controller
+latches. Run can continue resident software, but disk reads cannot complete
+without media. Fresh power-on after eject returns to ROM-only Applesoft.
+Replacing the ROM clears the disk selection. All media stays on your computer.
 
 Both text pages support normal, inverse, and flashing characters. The browser
 uses a selectable monospace font, not the character ROM's exact pixels.
@@ -260,6 +301,104 @@ runs the exact published program through Applesoft, checks independently
 specified byte patterns and every displayed colour pair, and exercises page
 and mode changes without modifying the firmware.
 
+## Booting DOS 3.3
+
+The Disk II controller leaves much of the work to software. Its small slot ROM
+finds and reads the first disk sectors; code loaded from those sectors loads
+DOS; DOS runs the disk's HELLO program. In this machine the same 6502 executes
+every stage. No host routine intercepts a ROM call or supplies a DOS command.
+
+Select the ROM container and System Master, then Run. Wait for
+`DOS VERSION 3.3` and the System Master banner. HELLO detects the Language Card
+and loads Integer BASIC into it before returning to the Applesoft `]` prompt.
+This takes substantially longer than a ROM-only boot; the browser yields
+between bounded instruction batches so Pause remains available.
+
+Enter `CATALOG`. DOS shows `DISK VOLUME 254` and entries including
+`*A 006 HELLO` and `*A 009 COLOR DEMOSOFT`. A full screen pauses the catalogue:
+press Enter to continue until `]` returns. Then enter these commands separately:
+
+```text
+NEW
+LOAD HELLO
+LIST
+```
+
+LIST displays the program from disk, including the Language Card detection
+and `BLOAD INTBASIC,A$D000` command. Next use `NEW`, enter the earlier two-line
+arithmetic program, and try LIST and RUN again. DOS and Applesoft work together;
+RUN still prints 5. `SAVE TEST` must instead report `WRITE PROTECTED`. This
+milestone cannot save or export disk changes, and never alters the selected file.
+
+## Disk II controller and media profile
+
+The machine fence above owns slot placement. A focused
+[TypeScript controller](../../components/devices/apple2-disk-ii.ts) owns the
+switch effects; [DOS-order media](../../components/devices/dos33-disk.ts) owns
+sector encoding. These remain ordinary device implementations while we gather
+more peripheral examples. The machine description does not require a new
+general language for rotating media.
+
+Each access first selects its switch, whether the CPU reads or writes:
+
+| Slot-6 address | Effect |
+| --- | --- |
+| C0E0–C0E7 | Four pairs: phase 0 off/on, phase 1 off/on, phase 2 off/on, phase 3 off/on. |
+| C0E8 / C0E9 | Motor off / on. |
+| C0EA / C0EB | Select drive 1 / drive 2. Only drive 1 exists in this profile. |
+| C0EC / C0ED | Q6 low / high. |
+| C0EE / C0EF | Q7 low / high. |
+
+Q7 selects read or write operation; Q6 selects shifting or loading/sensing:
+
+| Q7 | Q6 | Modeled result |
+| ---: | ---: | --- |
+| 0 | 0 | Reading C0EC consumes one disk byte. Other even-address reads sample the current latch. |
+| 0 | 1 | Even-address reads return 80: the medium is write protected. |
+| 1 | 0 | The latch is retained; no bytes are written to the medium. |
+| 1 | 1 | CPU writes load the latch, but the protected medium still cannot change. |
+
+Odd addresses do not drive the data bus; this model returns 00. In particular,
+DOS senses protection by reading C0ED and then C0EE: the first access selects
+Q6 high, and the second supplies bit 7. Reporting protection only on C0ED would
+miss DOS's actual test. This follows Sather's controller explanation and RWTS
+listing in [Understanding the Apple II][disk-hardware], rather than the
+reference emulator's writable indication.
+
+The controller stores the selected drive (initially 1), motor/Q6/Q7 booleans
+(all initially false), phase (0), half-track position (0), byte-stream position
+(0), and data latch (00). Bootstrap and media start absent. CPU reset preserves
+all of these. Snapshot restoration validates the fields, owns the bootstrap
+and disk data, and resumes at the same byte without executing a guest access.
+`inspect()` reveals control state without copying the medium or advancing it.
+Insertion and eject reset the byte position and latch, preserving head and controls.
+
+The selected image has 35 tracks of sixteen 256-byte sectors in DOS file order.
+The encoder builds address fields containing volume 254, track, physical sector,
+and XOR checksum using four-and-four encoding. Physical sectors 0–15 draw from
+file sectors 0, 7, 14, 6, 13, 5, 12, 4, 11, 3, 10, 2, 9, 1, 8, 15. Each data
+field separates the high six bits of every byte from its reversed low-bit pair.
+Three groups of low pairs pack into 86 auxiliary values; those precede the 256
+high-bit values. An XOR chain and the 64-entry disk-byte translation table
+produce 343 encoded bytes, including the checksum. Address and data prologues,
+epilogues, and fixed FF gaps make a circular 6,162-byte track stream.
+
+This is deliberately an **access-driven byte model**. With motor on, drive 1
+selected, and media present, C0EC reads advance that stream. Pausing or
+inspecting never advances it. Reading without those conditions returns 00
+without consuming data; absent drive 2 cannot borrow drive 1's stream or move
+its head. Selecting a drive clears the data latch. Motor-off is immediate,
+without the real drive's delay or the reference's browser-frame countdown.
+
+Head movement follows the reference's simplified phase sequence: energizing
+an adjacent phase moves one half track; the phase-difference table resolves
+opposite phases. Phase-off accesses do not move the head. The range is clamped
+to tracks 0–34; odd half tracks read the lower whole track. This is not a model
+of simultaneous phase currents, head settling, rotational speed, bit timing,
+the sequencer, or flux transitions. Custom formats, copy protection, other disk
+sizes, disk writes, and drive 2 are outside this profile. Successful DOS reads
+establish the stated software checkpoint, not those stronger hardware claims.
+
 ## Headless acceptance
 
 [Synthetic tests](../../../tests/machines/6502/apple2.test.ts) exercise the
@@ -293,6 +432,24 @@ Set the same variable for `npm test` to include the real-ROM acceptance run.
 Without it, that test is explicitly skipped; synthetic machine, device, and
 media-verification checks still run. No test downloads firmware.
 
+The [disk acceptance test](../../../tests/site/apple2-disk.test.ts) uses the
+same host media verification and keyboard queue as the browser. It cold-boots
+DOS, restores and compares instruction records while the bootstrap is reading,
+finishes CATALOG pagination, clears BASIC before LOAD/LIST HELLO, and runs the
+arithmetic program under DOS. SAVE must report protection and leave every media
+byte unchanged. Reset, eject, and fresh power-on check media retention separately.
+
+```sh
+APPLE2_ROM=/path/to/apple2p.rom APPLE2_DISK=/path/to/dos33-master.dsk npm test
+```
+
+This test requires the 20 KiB ROM container and is explicitly skipped when either
+variable is absent. The [encoding vectors](../../../tests/components/devices/dos33-disk.test.ts)
+independently specify sector order, address fields, low-pair packing, shortened
+auxiliary groups, and checksums. [Controller checks](../../../tests/components/devices/apple2-disk-ii.test.ts)
+cover switch direction, circular reads, head bounds, sense/write modes, missing
+media/drive, snapshot continuation, and invalid input without depending on firmware.
+
 For these checks, text rows use the independently transcribed page-one base
 addresses 0400, 0480, …, 0780; 0428, 04A8, …, 07A8; then 0450, 04D0, …, 07D0.
 Each row contains forty characters. Low six bits select the original uppercase
@@ -306,3 +463,4 @@ reset/power-on, failed replacement, page hiding, and wide/narrow layouts.
 
 [manual]: https://www.applelogic.org/files/AIIREF.pdf
 [reference]: https://github.com/jtauber/dromaios-apple2/tree/569baf98006f61e80ed93c36aa4f8d9ae23011d3
+[disk-hardware]: https://archive.org/details/understanding_the_apple_ii

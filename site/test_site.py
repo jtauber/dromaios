@@ -83,6 +83,12 @@ class PublishingTests(unittest.TestCase):
         for offset in (-1, 20480, True, 1.5):
             with self.assertRaises(ValueError):
                 rom_container_record(source.replace('"offset": 8192', f'"offset": {json.dumps(offset)}'))
+        self.assertEqual(rom_container_record(source)["bootstrap"]["offset"], 1536)
+        self.assertEqual(rom_container_record(source)["disk"]["bytes"], 143360)
+        for old, new in [('"offset": 1536', '"offset": 20400'), ('"bytes": 256', '"bytes": 255'),
+                         ('"bytes": 143360', '"bytes": 8192')]:
+            with self.assertRaises(ValueError):
+                rom_container_record(source.replace(old, new))
 
     def test_every_cpu_block_survives_highlighting_verbatim(self):
         for path in CHAPTERS.glob("*.md"):

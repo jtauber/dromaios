@@ -70,7 +70,9 @@ history are not implicit device state.
 `src/components/devices/generated/`. It emits state, effects, and public modules
 plus a small catalogue containing class/module names, size, readable/writable
 registers, zero-input flag selectors, and output-callback requirements. The machine language uses this
-catalogue through `devices/models.ts`, alongside the two teaching devices.
+catalogue through `devices/models.ts`, alongside the teaching devices and the
+focused handwritten Disk II implementation. Machine declarations can use either;
+a device need not acquire new declarative syntax before it can be composed.
 Registering a generated device does not require handwritten constructor or
 port-routing cases.
 
