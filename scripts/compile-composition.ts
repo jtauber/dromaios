@@ -22,11 +22,11 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
   const outputs = machine.components.filter(component => isDeviceKind(component.kind) && deviceModels[component.kind].output);
   const identities: string[] = [];
   if (externalImages.size) imports.push(
-    `import { romFromImage } from "${posix.relative(from, "rom-image.js")}";`,
+    `import { ExternalRom } from "${posix.relative(from, "rom-image.js")}";`,
     `import type { RomImage } from "${posix.relative(from, "rom-image.js")}";`);
   const bindings = [
     ...outputs.map(component => `readonly ${component.name}: (value: number) => void`),
-    ...[...externalImages.keys()].map(component => `readonly ${component}: RomImage`),
+    ...[...externalImages.keys()].map(component => `readonly ${component}: RomImage | null`),
   ];
   const argument = bindings.length ? `bindings: { ${bindings.join("; ")} }, ` : "";
   const body: string[] = [];
@@ -45,9 +45,9 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
         if (externalImages.has(component.name)) {
           const identity = { size: component.size, sha256: externalImages.get(component.name)!.sha256 };
           identities.push(`  ${component.name}: Object.freeze(${JSON.stringify(identity)}),`);
-          fields.push(`readonly ${component.name}: string`);
-          snapshots.push(`${component.name}: romImages.${component.name}.sha256`);
-          body.push(`const ${local} = romFromImage(bindings.${component.name}, romImages.${component.name}, initialState?.${component.name});`);
+          fields.push(`readonly ${component.name}: string | null`);
+          snapshots.push(`${component.name}: ${local}.snapshot()`);
+          body.push(`const ${local} = new ExternalRom(romImages.${component.name}, bindings.${component.name}, initialState?.${component.name});`);
         } else {
           body.push(`const image_${component.name} = new Uint8Array(${component.size});`);
           for (const image of images) body.push(`image_${component.name}.set(${JSON.stringify(image.bytes)}, ${image.address});`);

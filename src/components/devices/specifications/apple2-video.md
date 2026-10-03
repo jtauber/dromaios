@@ -211,11 +211,21 @@ source inverse "Decode inverse and flashing attributes" (byte: 8, flash: flag): 
 }
 ```
 
-The browser uses a monospace font, not a reproduction of the character ROM's
-pixel shapes. A host presentation phase alternates flashing characters every
+The browser uses the pinned reference's [64 bitmap glyphs](../../../../site/interactive/apple2-character-set.ts):
+eight rows of five dots, with a blank column on each side, form a 7-by-8-pixel
+cell. Inverse characters invert the entire cell, including those margins.
+Text is white on black, matching the reference's colour display. A transparent
+text layer preserves selection and accessibility; the visible letters are pixels,
+not a browser font. A host presentation phase alternates flashing characters every
 half second while running and freezes while paused. It is not emulated CPU
 time, scanner timing, or a claim about the original flash circuit's frequency.
 Changing this phase cannot affect guest memory or execution.
+
+The optional **Scanlines** effect is enabled initially in both browser views.
+Like the reference, it overlays one translucent black band per native raster row,
+resizing with the screen. It works before firmware is loaded and while paused,
+and changes neither the captured pixels nor machine state. This is a display
+effect, not a model of the video scanner or a CRT's analogue response.
 
 ## Low-resolution graphics: two blocks per byte
 
@@ -268,11 +278,12 @@ RAM directly at these addresses; it never acknowledges keys or operates switches
 
 The hardware emits repeating bit patterns into a composite video signal, rather
 than RGB values. Monitor adjustment and decoding affect the perceived colours.
-The [browser renderer](../../../../site/interactive/apple2-screen-view.ts) uses
+The [browser raster](../../../../site/interactive/apple2-raster.ts) uses
 the pinned reference's fixed RGB palette as a presentation approximation,
 including two distinct greys. It neither simulates NTSC decoding nor claims
-measured colour fidelity. Its canvas scales the 40-by-48 block grid without
-smoothing; the selectable text layer occupies the same display area.
+measured colour fidelity. Each block occupies 7 by 4 pixels on the 280-by-192
+raster shared with bitmap text and high-resolution graphics. The browser scales
+the canvas without smoothing; selectable text occupies the same display area.
 
 ## High-resolution graphics: seven dots per byte
 

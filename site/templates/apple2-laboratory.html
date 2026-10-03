@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% from "apple2-controls.html" import media_attributes, execution_controls, display_controls, rom_storage_controls, rom_controls, media_picker with context %}
+{% block description %}The Apple II Plus laboratory: run Applesoft and DOS, step through ROM, and inspect the processor, memory, and devices with Dromaios.{% endblock %}
+{% block body_class %}laboratory-page{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(apple2_script) }}"></script>{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ calc_url('assets/laboratory.css') }}">{% endblock %}
+{% block header %}
+<header class="laboratory-header">
+  <a class="laboratory-brand" href="{{ calc_url('') }}">microcomputer.world</a>
+  <h1>Apple II Plus <span>/ Laboratory</span></h1>
+  <a href="{{ calc_url(apple2_url) }}" target="_blank" rel="noopener">Classroom ↗</a>
+</header>
+{% endblock %}
+{% block footer %}{% endblock %}
+{% block main %}
+<main id="main" class="laboratory apple2-laboratory" data-apple2 data-laboratory {{ media_attributes(apple2_container) }}>
+  <noscript><p>Enable JavaScript to use the laboratory. The classroom remains readable without it.</p></noscript>
+  <div class="lab-column lab-primary">
+    <section class="lab-panel lab-display" aria-labelledby="display-heading">
+      <h2 id="display-heading" class="lab-panel-heading">Apple II Plus <span>64K · Applesoft</span></h2>
+      <div class="lab-panel-body">
+        {{ execution_controls() }}
+        <p data-machine-status class="basic-readout" role="status">Preparing hardware…</p>
+        <div class="apple2-display-surround">
+          <div class="apple2-screen" data-apple2-screen tabindex="0" role="region" aria-label="Apple II display" aria-describedby="lab-keyboard-help"></div>
+        </div>
+        {{ display_controls() }}
+        <p data-display-status class="basic-readout">Text · page 1</p>
+        <details class="lab-keyboard"><summary>Keyboard and paste</summary>
+          <label>Apple II keyboard <textarea data-apple2-keyboard rows="1" disabled spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="Type or paste one BASIC line"></textarea></label>
+          <div class="basic-controls"><button type="button" data-keyboard-enter disabled>Enter ↵</button><button type="button" data-keyboard-break disabled>Break · Ctrl-C</button></div>
+          <p data-input-status class="basic-readout">0 keyboard characters queued</p>
+        </details>
+        <p id="lab-keyboard-help" class="lab-hint">Click the screen to type. Letters become uppercase; paste one line at a time. Pause preserves your program.</p>
+        <p data-machine-message class="basic-message" role="status"></p>
+      </div>
+    </section>
+    <div class="lab-cpu-columns">
+      <div class="lab-column">
+        <section class="lab-panel" aria-labelledby="cpu-heading"><h2 id="cpu-heading" class="lab-panel-heading">MOS 6502</h2><div class="lab-panel-body"><pre data-machine-inspect>Preparing the processor…</pre><p class="lab-hint">Highlighted values changed in the last instruction. Hover for the previous value.</p></div></section>
+        <section class="lab-panel lab-grow" aria-labelledby="instruction-heading"><h2 id="instruction-heading" class="lab-panel-heading">Last instruction</h2><div class="lab-panel-body lab-scroll"><pre data-instruction-detail>No instructions recorded yet.</pre></div></section>
+      </div>
+      <section class="lab-panel lab-grow" aria-labelledby="trace-heading"><h2 id="trace-heading" class="lab-panel-heading">Executed instructions</h2><div class="lab-panel-body lab-scroll">
+        <p class="lab-hint">Latest twelve, newest first. Assembly uses the bytes fetched during execution.</p>
+        <pre data-machine-trace data-trace-compact>No instructions recorded yet.</pre>
+      </div></section>
+    </div>
+    <p class="laboratory-credit">Powered by <a href="{{ repository }}">Dromaios</a> · An executable machine, open to inspection.</p>
+  </div>
+  <div class="lab-column lab-memory">
+    <section class="lab-panel lab-grow" aria-labelledby="zero-heading"><h2 id="zero-heading" class="lab-panel-heading">Zero page <span>$0000–00FF</span></h2><div class="lab-panel-body lab-scroll"><pre data-zero-page>Preparing RAM…</pre></div></section>
+    <section class="lab-panel lab-grow" aria-labelledby="memory-heading"><h2 id="memory-heading" class="lab-panel-heading">Memory</h2><div class="lab-panel-body lab-scroll">
+      <form data-memory-form class="lab-address"><label>Address (hex) <input data-memory-address value="0400" maxlength="5" spellcheck="false" autocomplete="off" disabled></label><button type="submit" disabled>Go</button></form>
+      <p data-memory-status class="lab-hint" role="status">Mapped storage only. -- means unavailable, including missing ROM and device addresses. Highlights mark bytes changed in the last instruction; hover for the previous value.</p>
+      <pre data-memory-view></pre>
+    </div></section>
+    <section class="lab-panel lab-grow" aria-labelledby="stack-heading"><h2 id="stack-heading" class="lab-panel-heading">Stack page <span>$0100–01FF</span></h2><div class="lab-panel-body lab-scroll"><p data-stack-status class="lab-hint">SP marks the next push location, not the top item.</p><pre data-stack-view></pre></div></section>
+  </div>
+  <section class="lab-panel lab-tools" aria-label="Machine tools" data-lab-tabs>
+    <div class="lab-tabs" role="tablist" aria-label="Apple II tools">
+      {% for id, label in [('rom', 'ROM'), ('code', 'Code'), ('log', 'Log'), ('system', 'System'), ('disk', 'Disk')] %}
+      <button id="tab-{{ id }}" type="button" role="tab" aria-controls="panel-{{ id }}" aria-selected="{{ 'true' if loop.first else 'false' }}" tabindex="{{ '0' if loop.first else '-1' }}">{{ label }}</button>
+      {% endfor %}
+    </div>
+    <div id="panel-rom" class="lab-panel-body lab-scroll" role="tabpanel" aria-labelledby="tab-rom" tabindex="0" data-rom-explorer>
+      <h2>Firmware</h2>
+      {{ media_picker('rom', 'ROM') }}
+      <p data-rom-status class="basic-readout">No ROM loaded.</p>
+      {{ rom_storage_controls() }}
+      <p class="lab-hint">Choose the verified Apple II Plus ROM. RAM and devices are available before boot. Files stay on your computer. <a href="{{ calc_url(apple2_url ~ '#firmware-supplied-by-the-caller') }}" target="_blank" rel="noopener">Which file? ↗</a></p>
+      <h2>Explore execution</h2>
+      {{ rom_controls(rom_explorer) }}
+      <p class="lab-hint">Stops pause before the selected instruction. Step executes the instruction at PC. A ROM stop applies only while ROM is mapped.</p>
+      <details><summary>Routine reference</summary><dl class="lab-routines">{% for routine in rom_explorer.routines %}<dt>${{ routine.address }} · {{ routine.name }}</dt><dd>{{ routine.description }}</dd>{% endfor %}</dl></details>
+      <p><a href="{{ calc_url(apple2_url ~ '#rom-walkthrough') }}" target="_blank" rel="noopener">Follow the ROM walkthrough in the classroom ↗</a></p>
+      <p class="lab-hint">Both views remember the same ROM in this browser. Each starts its own machine; RAM, programs, and disk selections are not saved on reload. Fresh power-on discards RAM; Reset CPU preserves RAM and devices.</p>
+    </div>
+    <div id="panel-code" class="lab-panel-body lab-scroll" role="tabpanel" aria-labelledby="tab-code" tabindex="0" data-disassembly hidden>
+      <h2>Live disassembly</h2>
+      <form data-disassembly-form class="lab-address"><label>Disassembly address (hex) <input data-disassembly-address value="0000" maxlength="5" spellcheck="false" autocomplete="off"></label><button type="submit">Go</button></form>
+      <div class="lab-code-navigation">
+        <label><input type="checkbox" data-disassembly-follow checked> Follow PC</label>
+        <button type="button" data-disassembly-back disabled>Back</button>
+        <button type="button" data-disassembly-next>Next 16</button>
+      </div>
+      <p data-disassembly-status class="lab-hint" role="status"></p>
+      <p data-disassembly-stop-status class="basic-message" role="status"></p>
+      <table class="lab-code"><caption class="lab-hint">· executed &nbsp; → next instruction</caption>
+        <thead><tr><th scope="col">PC</th><th scope="col">Address</th><th scope="col">Bytes</th><th scope="col">Instruction</th></tr></thead>
+        <tbody data-disassembly-rows></tbody>
+      </table>
+      <p class="lab-hint">Follow PC shows the last three executed instructions above the arrow, then current mapped memory. Solid lines mark unconditional transfers; dotted lines mark conditional branches, taken or not.</p>
+      <p class="lab-hint">A listing interprets bytes as code; data may look like instructions. -- means unavailable; .byte marks an unsupported opcode. No device reads are performed.</p>
+      <p class="lab-hint">Address buttons pause before executing that address, in any bank. Step and Pause remain in the main controls.</p>
+      <p><a href="{{ calc_url(apple2_url ~ '#live-disassembly') }}" target="_blank" rel="noopener">Read the disassembly guide ↗</a></p>
+    </div>
+    <div id="panel-log" class="lab-panel-body lab-scroll" role="tabpanel" aria-labelledby="tab-log" tabindex="0" data-change-log hidden>
+      <h2>Change log</h2>
+      <div class="lab-log-controls"><label><input type="checkbox" data-log-recording checked> Record changes</label><button type="button" data-log-clear>Clear log</button></div>
+      <fieldset class="lab-log-filters"><legend>Show changes to</legend>
+        <label><input type="checkbox" data-log-filter="register" checked> Registers</label>
+        <label><input type="checkbox" data-log-filter="flag" checked> Flags</label>
+        <label><input type="checkbox" data-log-filter="memory" checked> Memory</label>
+        <label><input type="checkbox" data-log-filter="pc" checked> PC</label>
+      </fieldset>
+      <p data-log-status class="lab-hint">Recording · 0 / 500 instructions retained</p>
+      <p class="lab-hint">Instruction address · before → after · newest first</p>
+      <details class="lab-log-help"><summary>About this log</summary>
+        <p class="lab-hint">Values are hex; flags use 0 and 1. Filters only change what is shown. Records every instruction, even with this tab closed. Keeps the latest 500 recorded instructions.</p>
+        <p class="lab-hint">Pause recording to keep a capture while the CPU runs. Instruction numbers leave gaps for unrecorded steps. Clear log restarts numbering.</p>
+        <p class="lab-hint">Memory lists actual RAM changes in write order, including Language Card banks. Unchanged stores, ROM and device writes are omitted. Reset, power-on and successful media replacement clear the log.</p>
+      </details>
+      <pre data-log-output aria-label="Recorded changes">No instructions recorded yet.</pre>
+    </div>
+    <div id="panel-system" class="lab-panel-body lab-scroll" role="tabpanel" aria-labelledby="tab-system" tabindex="0" hidden>
+      <h2>Device state</h2><pre data-system-inspect>Preparing devices…</pre>
+      <p class="lab-hint">Snapshots of the keyboard, display switches, Language Card, and Disk II. Reading these views never operates a soft switch.</p>
+      <p><a href="{{ source_url }}" target="_blank" rel="noopener">Read the executable machine description ↗</a></p>
+    </div>
+    <div id="panel-disk" class="lab-panel-body lab-scroll" role="tabpanel" aria-labelledby="tab-disk" tabindex="0" hidden>
+      <h2>Drive 1</h2>
+      {{ media_picker('disk', 'disk') }}
+      <p data-disk-status class="basic-readout">No disk loaded.</p>
+      <button type="button" data-disk-eject disabled>Eject disk</button>
+      <p class="lab-hint">Use the 20 KiB ROM container, then the verified DOS 3.3 System Master. Selecting a disk prepares a fresh, paused machine. Run boots DOS; allow time for Integer BASIC to load.</p>
+      <h2>Disk II controller</h2><pre data-disk-inspect>No disk controller installed.</pre>
+      <p class="lab-hint">This configuration is read-only. Eject preserves RAM; fresh power-on retains the selected disk. No guest reads are used to inspect the controller.</p>
+      <p><a href="{{ calc_url(apple2_url ~ '#booting-dos-33') }}" target="_blank" rel="noopener">DOS boot guide ↗</a></p>
+    </div>
+  </section>
+</main>
+{% endblock %}

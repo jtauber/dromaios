@@ -44,7 +44,18 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
   assert.ok(romPath);
   const buffer = new Uint8Array(readFileSync(romPath)).buffer;
   const { image } = await readRomFile({ name: "apple2p.rom", size: buffer.byteLength, async arrayBuffer() { return buffer; } }, romImages.firmware, container);
-  const session = createApple2Session(image), pending: (() => void)[] = [];
+  const session = createApple2Session(), pending: (() => void)[] = [];
+  const hardware = session.machine;
+  hardware.ram.write(0xbfff, 0x5a);
+  const initial = hardware.snapshot();
+  session.installFirmware(image);
+  assert.equal(session.machine, hardware);
+  assert.equal(session.hasFirmware, true);
+  assert.deepEqual(hardware.snapshot(), { ...initial, firmware: romImages.firmware.sha256 });
+  session.reset();
+  assert.equal(hardware.ram.read(0xbfff), 0x5a);
+  assert.equal(hardware.cpu.snapshot().pc, 0xfa62);
+  assert.equal(hardware.cpu.snapshot().sp, 0xfc);
   const execution = createExecutionController({
     step: () => session.step(), canStep: () => true, onChange() {}, batchSize: 2000,
     schedule(callback) { pending.push(callback); return () => {}; },

@@ -8,10 +8,11 @@
   <link rel="icon" type="image/svg+xml" href="{{ calc_url('assets/favicon.svg') }}">
   {% block head %}{% endblock %}
   <link rel="stylesheet" href="{{ calc_url('assets/style.css') }}">
+  {% block styles %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <a class="skip-link" href="#main">Skip to content</a>
-  <header class="site-header">
+  {% block header %}<header class="site-header">
     <a class="brand" href="{{ calc_url('') }}"><span class="brand-mark" aria-hidden="true">M</span> microcomputer.world</a>
     <nav aria-label="Main navigation">
       <a href="{{ calc_url('learn/') }}">Learn</a>
@@ -20,12 +21,12 @@
       <a href="{{ calc_url('#about') }}">About</a>
       <a href="{{ repository }}">GitHub <span aria-hidden="true">↗</span></a>
     </nav>
-  </header>
+  </header>{% endblock %}
   {% block main %}{% endblock %}
-  <footer class="site-footer">
+  {% block footer %}<footer class="site-footer">
     <a class="wordmark" href="{{ calc_url('') }}">microcomputer.world</a>
     <p>Understanding computers, one instruction at a time.</p>
     <p>Built with <a href="{{ repository }}">Dromaios</a>, <a href="https://github.com/jtauber/ryland">Ryland</a> &amp; <a href="https://jtauber.github.io/sauvignon-new/">Sauvignon</a>.</p>
-  </footer>
+  </footer>{% endblock %}
 </body>
 </html>

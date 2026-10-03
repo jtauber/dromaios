@@ -137,13 +137,59 @@ not branching exercises or a general lesson language.
 ## Apple II Plus
 
 `/machines/apple-ii-plus/` publishes the executable [Apple II chapter](../src/machines/6502/apple2.md)
-with local ROM selection, text, both graphics resolutions, and Language Card RAM. The Machines navigation opens the
+as the **classroom**, with local ROM selection, text, both graphics resolutions, and Language Card RAM.
+`/machines/apple-ii-plus/laboratory/` is the separate dark **laboratory** with the
+reference's screen/CPU, memory, and tabbed-tool columns. It targets a large
+screen (roughly 1200 CSS pixels wide); smaller windows scroll across the
+workspace. Both mount `apple2.ts`
+and share the machine/session and control templates. They have independent,
+unsaved machine state; classroom links from the laboratory open a separate tab.
+`apple2-rom-storage.ts` remembers the selected ROM file in `localStorage`, shared
+by both views on the same origin. It retains the complete container for Disk II
+boot, revalidates every restored file, and keeps storage failures separate from
+loading usable media. Forget saved ROM removes only the stored copy. RAM,
+programs, and disk selections are not persisted.
+`laboratory.ts` and `laboratory.css` own reusable presentation. Apple II
+instruments remain concrete in `apple2-inspection-view.ts`; their storage reader
+uses RAM/ROM and pure device snapshots, never the guest bus. Device-space bytes
+without a storage view appear as `--`. `apple2-disassembly-view.ts` uses this
+same reader for the Code tab's live listing, address navigation, and PC following.
+`apple2-disassembly.ts` prepends the last three captured instructions while
+following PC, retaining their bytes and ROM mapping. Executed and upcoming
+instructions both carry the chapter-derived control-flow classification for
+solid unconditional-transfer and dotted conditional-branch separators.
+`apple2-change-log.ts` captures instruction-boundary CPU changes and observes
+physical `Ram` stores for old/new memory values, independently of the display
+refresh rate. Its bounded history includes Language Card bank identities and
+completed effects of interrupted steps. `apple2-change-log-view.ts` provides the
+laboratory's Log tab; the machine chapter owns capture and lifetime behavior.
+Last-step RAM observations also feed the inspection panels' byte highlights,
+independently of log recording. The inspector matches physical banks to the
+currently displayed storage, without reading a soft switch or treating bank
+selection as a memory write.
+`6502-instruction-catalogue.ts` derives fixed instruction lengths and control flow
+from the chapter's operand fetches and explicit PC writes at build time, including
+BRK's padding byte. The browser receives names, lengths, and transfer kinds
+alongside the versioned ROM labels; it does not load the
+semantic compiler or maintain a second opcode table. Address buttons share the
+explorer's bounded run-to controller. The [replacement plan](../docs/machines/apple2.md#replacement-progress)
+tracks feature gaps separately from the layout. The Machines navigation opens the
 home-page machine index. `rom-file.ts` checks the complete container and extracted
-ROM; `apple2-session.ts` delivers queued keys through the generated latch.
+ROM; `apple2-session.ts` creates hardware immediately with an explicit empty
+firmware binding and delivers queued keys through the generated latch. Its
+`installFirmware` method installs a verified image without resetting or
+replacing the machine; `reset` prepares execution. The first browser ROM
+selection performs both steps, while later selections keep the fresh-machine
+workflow. RAM and devices are inspectable before boot, with missing ROM shown
+as unavailable. Browser execution and keyboard input remain disabled until
+firmware is installed.
 `apple2-screen.ts` reads RAM using generated, read-only video views.
-`apple2-screen-view.ts` draws decoded colours behind selectable text; its fixed RGB
-palettes follow the pinned reference. The device chapter owns the high-resolution
-colour-pair approximation, including its limitations. The controller
+`apple2-raster.ts` combines decoded graphics with the pinned reference's bitmap
+character set on a 280-by-192 raster. Its fixed RGB palettes also follow that
+reference. `apple2-screen-view.ts` presents the pixels with a transparent,
+selectable text layer and a switchable scanline overlay, shared by both views.
+The device chapter owns the glyph, flashing, and high-resolution colour-pair
+choices, including their limitations. The controller
 owns host events and scheduling; it contains no ROM traps or hardware decoding.
 The shared execution controller supports bounded batches with single-instruction
 manual stepping; existing lessons retain their original pacing.
@@ -154,8 +200,13 @@ pause/resume, reset/power-on, keyboard focus, and wide/narrow layouts in the bro
 chapter's drawing programs exercise colour bands, HLIN, VLIN, PLOT, HGR, HGR2,
 HCOLOR, and HPLOT. Check full/mixed modes, both pages, returning to text, and
 switching between graphics resolutions without a stale image or incorrect scale.
-The chapter owns the behavior and limitations, including session lifetime and
-approximate character shapes and flash timing.
+The chapter owns the behavior and limitations, including session lifetime,
+the character set, and approximate flash timing. In the laboratory, check Code's
+PC following, address browsing, ROM labels, and run-to stops. Browsing device
+addresses must leave keyboard, disk, and Language Card state unchanged.
+Check Log across steps and running batches, filtering, paused recording, clear,
+reset, power-on, and media replacement. Memory before-values must come from the
+written bank even when ROM is mapped for reads.
 
 ## Build and preview
 

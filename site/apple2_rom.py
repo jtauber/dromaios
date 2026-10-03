@@ -1,4 +1,4 @@
-"""The ROM walkthrough owns its versioned symbols; the CPU chapter owns instruction names."""
+"""The ROM walkthrough owns its versioned symbols; the CPU chapter owns instruction metadata."""
 
 import json
 import re

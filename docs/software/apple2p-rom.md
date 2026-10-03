@@ -4,9 +4,10 @@
 
 The Apple II can reach its Applesoft prompt without a disk. Follow that path in
 the [browser machine](../../src/machines/6502/apple2.md#using-the-browser-machine), then watch one
-keypress travel from the keyboard latch to the screen. Open **Explore the ROM**
-under the keyboard. Keep it open while stepping; the latest twelve instructions
-show their fetched bytes, assembly, register and flag changes, and memory accesses.
+keypress travel from the keyboard latch to the screen. In the classroom, open
+**Explore the ROM** under the keyboard and keep it open while stepping. In the
+laboratory, use the **ROM** tab. Both show the latest twelve executed instructions;
+the laboratory puts the latest step's changes and memory accesses in **Last instruction**.
 Instructions appear newest first; each instruction's accesses retain execution
 order. All numbers in that view are hexadecimal; flags are `0` or `1`.
 
@@ -80,9 +81,53 @@ does not read through the guest bus, inspect disk bytes, or replay instructions
 to produce explanations. The machine's
 [model limitations](../../src/machines/6502/apple2.md#components-and-address-decoding) still apply.
 
+### Live disassembly
+
+The laboratory's **Code** tab shows a sixteen-row listing. **Follow PC** places
+the last three executed instructions above the processor's next instruction,
+followed by a live listing of current memory. Stepping moves the view with it.
+To browse elsewhere, enter a
+hexadecimal address and choose **Go**. This turns off Follow PC. **Next 16**
+continues after the last displayed instruction; **Back** returns to the previous
+view. Browsing does not execute anything or change the processor's PC.
+
+The dimmed rows marked `·` show actual execution in chronological order, including
+repeated visits to an address. A solid horizontal line appears below an
+unconditional transfer (`JMP`, `JSR`, `RTS`, `RTI`, or `BRK`); a dotted line
+appears below a conditional branch, whether taken or not. These markers apply
+to both executed and upcoming instructions, even when the target happens to
+be the following address. The `→` arrow marks only the next instruction, even if
+its address also appears in the history. Before three instructions have run,
+there are fewer history rows. Address browsing turns off this history prefix.
+
+Select an instruction's address to run to it. This uses the same bounded,
+one-shot address stop described above, pausing before execution in any bank.
+An address button is available only when all its instruction bytes are visible
+and firmware is installed. Use **Step** to execute the stopped instruction.
+The arrow marks PC when that address appears in the listing. Known routine
+names on live rows appear only while motherboard ROM is mapped at those
+addresses; Language Card RAM does not inherit ROM labels. Executed rows retain
+their recorded ROM mapping.
+
+The CPU chapter supplies instruction names, lengths, and control-flow behavior. Decoding proceeds
+forward from the selected address, without following jumps or reading data
+operands. Data can look like valid instructions, and starting partway through
+an instruction produces a different listing. An unsupported opcode appears as
+`.byte $XX` and advances one byte. Unavailable storage appears as `--`; missing
+operands appear as question marks. Neither offers a run-to button. `BRK`
+includes its fetched padding byte. Operand bytes wrap at FFFF as on the CPU,
+but the listing itself stops at the end of the address space.
+
+Rows from PC onwards show memory now. The history rows preserve the bytes
+actually fetched, as does the longer **Executed instructions** panel;
+self-modifying code can make those views differ. Both observations leave the machine untouched. The live listing reads
+RAM, mapped ROM, and the installed slot ROM directly, never a keyboard, disk,
+or Language Card switch through the guest bus. Those device addresses remain
+unavailable even when the machine can read them during execution.
+
 ## ROM identity and stops
 
-This record supplies the browser's routine selector and trace annotations.
+This record supplies the browser's routine selector, trace, and live-code annotations.
 Addresses and labels apply only to the motherboard image identified below;
 the build checks it against the machine's firmware declaration. These selected
 entry points are not a full symbol table. “Acknowledge key” names an instruction

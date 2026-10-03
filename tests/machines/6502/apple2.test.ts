@@ -9,6 +9,22 @@ import { compileMachine } from "../../../scripts/generate-machines.js";
 import { create6502Apple2, romImages } from "../../../src/machines/generated/6502/apple2.js";
 import { RomImage } from "../../../src/machines/rom-image.js";
 
+test("the generated Apple II exists without firmware and restores that absence explicitly", () => {
+  const machine = create6502Apple2({ firmware: null });
+  assert.equal(machine.ram.size, 0xc000); assert.equal(machine.ram.read(0xbfff), 0);
+  assert.equal(machine.cpu.snapshot().pc, 0); assert.equal(machine.cpu.snapshot().sp, 0xff);
+  assert.equal(machine.firmware.loaded, false); assert.equal(machine.firmware.read(0), "bus-error");
+  assert.equal(machine.memory.read(0xd000), 0, "The declared undriven-bus policy still applies");
+  machine.ram.write(0x200, 0xe8); // INX can execute from RAM without any ROM.
+  const saved = machine.snapshot();
+  const restored = create6502Apple2({ firmware: null }, { ...saved, cpu: { ...saved.cpu, pc: 0x200 } });
+  assert.equal(restored.cpu.step().after.x, 1);
+  assert.equal(restored.firmware.loaded, false);
+  assert.equal(saved.firmware, null);
+  assert.deepEqual(create6502Apple2({ firmware: null }, saved).snapshot(), saved);
+  assert.throws(() => create6502Apple2({ firmware: null }, { ...saved, firmware: romImages.firmware.sha256 }), /Snapshot ROM identity/);
+});
+
 test("the generated Apple II map boots synthetic ROM and records guest keyboard and storage transfers", async t => {
   const bytes = new Uint8Array(0x3000);
   bytes.set([
@@ -34,7 +50,12 @@ test("the generated Apple II map boots synthetic ROM and records guest keyboard 
   writeFileSync(join(directory, "package.json"), '{"type":"module"}');
   writeFileSync(join(directory, "machine.ts"), generated);
   const { create6502Apple2: create } = await import(pathToFileURL(join(directory, "machine.ts")).href) as { create6502Apple2: typeof create6502Apple2 };
-  const machine = create({ firmware });
+  const machine = create({ firmware: null });
+  machine.ram.write(0x200, 0x5a); machine.keyboard.offer(0x41);
+  const before = machine.snapshot(), connection = machine.memory;
+  machine.firmware.install(firmware);
+  assert.equal(machine.memory, connection);
+  assert.deepEqual(machine.snapshot(), { ...before, firmware: sha256 });
   assert.equal(machine.cpu.snapshot().pc, 0);
   const reads: number[] = [];
   const read = machine.memory.read.bind(machine.memory);
@@ -46,6 +67,8 @@ test("the generated Apple II map boots synthetic ROM and records guest keyboard 
   machine.keyboard.offer(0x41);
   assert.deepEqual(machine.cpu.step().accesses.at(-1), { kind: "read", address: 0xc00f, value: 0xc1 });
   const saved = machine.snapshot(), resumed = create({ firmware }, saved);
+  assert.throws(() => create({ firmware: null }, saved), /Snapshot ROM identity/);
+  assert.throws(() => create({ firmware }, { ...saved, firmware: null }), /Snapshot ROM identity/);
   for (let step = 0; step < 5; step++) assert.deepEqual(machine.cpu.step(), resumed.cpu.step());
   assert.deepEqual(machine.snapshot(), resumed.snapshot());
   assert.equal(machine.ram.read(0x400), 0xc1);

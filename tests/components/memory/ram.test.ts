@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Ram } from "../../../src/components/memory/ram.js";
+import type { RamWrite } from "../../../src/components/memory/ram.js";
 
 test("RAM starts with the requested number of zero bytes", () => {
   const ram = new Ram(257);
@@ -70,4 +71,25 @@ test("RAM rejects invalid byte values without truncating or changing memory", ()
     assert.throws(() => ram.write(0, value), RangeError, `byte value ${value}`);
     assert.equal(ram.read(0), 0x5a);
   }
+});
+
+test("RAM observers see completed stores, including unchanged values, without another read", () => {
+  const ram = new Ram(2), writes: RamWrite[] = [], second: RamWrite[] = [];
+  ram.write(1, 0x81);
+  const remove = ram.observeWrites(write => { writes.push(write); assert.equal(ram.read(write.address), write.after); });
+  const removeSecond = ram.observeWrites(write => second.push(write));
+  ram.write(1, 0x82); ram.write(1, 0x82); ram.write(1, 0);
+  assert.throws(() => ram.write(2, 4), RangeError);
+  assert.throws(() => ram.write(1, 256), RangeError);
+  assert.deepEqual(writes, [
+    { address: 1, before: 0x81, after: 0x82 }, { address: 1, before: 0x82, after: 0x82 }, { address: 1, before: 0x82, after: 0 },
+  ]);
+  assert.deepEqual(second, writes);
+  remove(); remove();
+  // Observation itself never calls the public reader (or a mapped guest bus).
+  ram.read = () => { throw new Error("Unexpected read"); };
+  ram.write(1, 7);
+  assert.equal(writes.length, 3); assert.equal(second.length, 4);
+  removeSecond(); ram.write(1, 8);
+  assert.equal(second.length, 4);
 });

@@ -1,24 +1,11 @@
 import type { Apple2Video } from "../../src/components/devices/generated/apple2-video.js";
-import { apple2HiresFrame, apple2LoresFrame, apple2TextFrame } from "./apple2-screen.js";
+import { apple2RasterFrame } from "./apple2-raster.js";
 
-// Presentation palette from the pinned dromaios-apple2 video renderer.
-// Hardware supplies colour indices; these RGB values do not simulate composite video.
-const loresColours = [
-  "#000000", "#d00030", "#000080", "#ff00ff", // black, magenta, dark blue, purple
-  "#008000", "#808080", "#0000ff", "#60a0ff", // dark green, grey 1, medium blue, light blue
-  "#805000", "#ff8000", "#c0c0c0", "#ff9080", // brown, orange, grey 2, pink
-  "#00ff00", "#ffff00", "#40ff90", "#ffffff", // light green, yellow, aquamarine, white
-] as const;
-const hiresColours = [
-  "#000000", "#14f53c", "#ff44fd", "#ffffff", // black, green, violet, white
-  "#000000", "#ff6a3c", "#14cffd", "#ffffff", // black, orange, blue, white
-] as const;
-
-/** Scale decoded blocks behind selectable text, with no guest accesses or addressing rules. */
-export function createApple2Screen(screen: HTMLElement) {
+/** Bitmap display with selectable, accessible text and optional presentation scanlines. */
+export function createApple2Screen(screen: HTMLElement, scanlines: HTMLInputElement) {
   const raster = document.createElement("div"); raster.className = "apple2-raster";
-  const canvas = document.createElement("canvas"); canvas.width = 40; canvas.height = 48;
-  canvas.setAttribute("role", "img"); canvas.setAttribute("aria-label", "Low-resolution graphics");
+  const canvas = document.createElement("canvas"); canvas.width = 280; canvas.height = 192;
+  canvas.setAttribute("role", "img");
   const context = canvas.getContext("2d")!;
   raster.append(canvas);
   const cells = Array.from({ length: 24 }, () => {
@@ -29,26 +16,28 @@ export function createApple2Screen(screen: HTMLElement) {
     raster.append(row); return cells;
   });
   screen.replaceChildren(raster);
-  canvas.hidden = true;
+  const updateScanlines = () => raster.classList.toggle("apple2-scanlines", scanlines.checked);
+  scanlines.disabled = false;
+  scanlines.addEventListener("change", updateScanlines);
+  updateScanlines();
+  // Match the reference: a dark band per native row, at least one displayed pixel tall.
+  new ResizeObserver(([entry]) => {
+    if (!entry || entry.contentRect.height === 0) return;
+    const rowHeight = entry.contentRect.height / 192;
+    const dark = Math.min(rowHeight, Math.max(1, rowHeight * 0.25));
+    raster.style.setProperty("--scanline-row", `${rowHeight}px`);
+    raster.style.setProperty("--scanline-clear", `${rowHeight - dark}px`);
+  }).observe(raster);
 
   return (ram: { read(address: number): number }, video: Apple2Video, flash: boolean): void => {
-    const hires = video.snapshot().hires;
-    const graphics = hires ? apple2HiresFrame(ram, video) : apple2LoresFrame(ram, video);
-    const width = hires ? 140 : 40, height = graphics.length;
-    const colours = hires ? hiresColours : loresColours;
-    if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
-    canvas.setAttribute("aria-label", hires ? "High-resolution graphics" : "Low-resolution graphics");
-    canvas.hidden = graphics.every(row => row === undefined);
-    context.clearRect(0, 0, width, height);
-    graphics.forEach((row, y) => row?.forEach((colour, x) => {
-      context.fillStyle = colours[colour]!;
-      context.fillRect(x, y, 1, 1);
-    }));
-    const text = apple2TextFrame(ram, video, flash);
+    const { width, height, pixels, text } = apple2RasterFrame(ram, video, flash);
+    const mode = video.snapshot();
+    canvas.setAttribute("aria-hidden", String(mode.text));
+    canvas.setAttribute("aria-label", mode.hires ? "High-resolution graphics" : "Low-resolution graphics");
+    context.putImageData(new ImageData(pixels, width, height), 0, 0);
     text.forEach((row, y) => row.forEach((cell, x) => {
       const span = cells[y]![x]!;
       if (span.textContent !== cell.character) span.textContent = cell.character;
-      span.classList.toggle("inverse", cell.inverse);
     }));
   };
 }

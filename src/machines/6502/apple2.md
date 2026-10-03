@@ -92,8 +92,17 @@ image firmware external sha256 378ba00c86a64cca49cedaca7de8d5d351983ebc295d9d11e
 
 The generated module exports `romImages.firmware` (size and SHA-256). The host
 uses `RomImage.verify` with its SHA-256 implementation before calling
-`create6502Apple2({ firmware })`. The verified image owns its bytes. Factories
-remain synchronous and copy ROM into fresh components.
+`create6502Apple2({ firmware })`. To allocate hardware before firmware is
+available, use `create6502Apple2({ firmware: null })`. RAM and devices exist
+immediately; `machine.firmware.loaded` is false. The empty ROM connection
+returns an unanswered transfer, which the declared bus resolves to 00. This is
+absence of firmware, not a stored zero-filled ROM image.
+
+After verification, `machine.firmware.install(firmware)` installs an owned,
+immutable image without replacing RAM, resetting the CPU, or changing devices.
+Call `machine.reset()` separately to read the reset vector and prepare to boot.
+Factories remain synchronous. These operations are also described in the
+[external ROM contract](../../../docs/machines/definitions.md#external-rom-images).
 
 The reference's `roms/apple2p.rom` is a container. This record gives its byte
 count, SHA-256, and the decimal offset of the mapped ROM, followed by the
@@ -158,13 +167,67 @@ clear the strobe and initialize its own workspace. Fresh construction, followed
 by reset, represents power-on in this deterministic model.
 
 `snapshot()` captures CPU, all four RAM components, keyboard, display and Language Card latches,
-the disk controller with its bootstrap and media bytes, and the firmware digest. Restoration
-requires that digest and the same verified ROM binding; it creates independent
+the disk controller with its bootstrap and media bytes, and the firmware digest
+(or `null` when not installed). Restoration requires a matching binding: the
+same verified image for a digest, or `null` for absence. It creates independent
 hardware without resetting or executing. Snapshot inspection performs no
 guest device reads. There is no generic safe preview of mapped I/O: inspect
 device snapshots and read-only views, and read RAM or ROM directly instead.
 
 ## Using the browser machine
+
+The **classroom** presents this guide alongside an embedded machine. Its
+**laboratory** link opens a separate dark workspace with the screen, CPU and
+execution trace, memory, stack, and ROM/Code/Log/System/Disk tools visible together.
+Both use the same machine implementation, but each page starts its own session.
+Hardware is created immediately, before any ROM selection. RAM, stack memory,
+registers, and device state are inspectable in their deterministic initial state:
+RAM is zero, PC is 0000, and SP is FF; no reset has occurred. The screen also
+reflects this uninitialized text RAM: zero is an inverse `@` character, until
+firmware fills the display. The browser's Run, Step, keyboard, and Reset CPU
+controls wait for verified firmware; Fresh power-on is available without it.
+This is a host boot workflow, not a hardware requirement for executing code in RAM.
+The laboratory's memory and **Code** views read mapped storage without operating
+devices; `--` denotes unavailable bytes, including soft switches. Code follows
+PC or browses a chosen address, while **Executed instructions** preserves the
+bytes actually fetched. The [live disassembly guide](../../../docs/software/apple2p-rom.md#live-disassembly)
+explains navigation and address stops.
+
+Register and flag highlights compare the last completed instruction's recorded
+before-and-after values, including flags cleared to zero. They remain visible
+while paused, with the old value on hover, until the next instruction replaces
+them. While running, only the latest completed instruction is represented.
+Reset, fresh power-on, and an execution error clear the highlights; the values
+themselves always show the current processor state.
+
+The laboratory's zero page, stack page, and memory window use the same
+last-instruction highlight and previous-value tooltip for changed RAM bytes.
+Overlapping windows highlight the same byte consistently. The highlights
+remain when browsing memory or clearing or pausing the log, and are replaced
+by the next instruction. They reflect actual stores to the visible RAM bank;
+a bank switch alone does not highlight newly visible bytes, and writes behind
+ROM do not highlight the ROM. Multiple stores to one byte compare its first
+before-value with its final value, so a byte restored by the instruction is
+not highlighted. Reset, fresh power-on, and execution errors clear these
+highlights along with those on the processor.
+
+The laboratory's **Log** records every instruction while **Record changes** is
+enabled, including steps between display refreshes and while another tab is
+selected. It retains the latest 500 recorded instructions, newest first, and
+reports how many older instructions were discarded. Each group identifies the
+instruction's starting address and fetched bytes decoded as assembly. Register,
+flag, and PC changes compare instruction boundaries; memory changes preserve
+the order of actual stores. Values are hexadecimal, with flags shown as 0 or 1.
+RAM observation captures the old byte at the store itself, without a guest
+read. Language Card bank 1, bank 2, and common upper RAM are labeled separately,
+even when writes occur behind mapped ROM. Unchanged stores, ignored ROM writes,
+and device accesses are not RAM changes; device state remains in **System**.
+Filters change only the display, not capture. Pausing recording preserves the
+history while execution continues; instruction numbers leave gaps for unrecorded
+steps. **Clear log** restarts numbering. Reset, fresh power-on, and successful
+ROM or disk replacement clear the history. A failed replacement preserves it.
+Execution errors retain completed effects, marked as interrupted if no complete
+CPU record was returned; they are not presented as successful instructions.
 
 The browser also provides **Explore the ROM**, with recorded instructions,
 register and flag changes, memory accesses, and one-shot address or ROM routine
@@ -173,7 +236,22 @@ from reset to the Applesoft prompt, then trace a keypress to its screen write.
 The software guide owns the versioned labels and walkthrough; these do not
 change the machine's wiring or firmware execution.
 
-Choose the matching local ROM file, then **Run**. Nothing is uploaded or fetched.
+Use **Load ROM…** to choose the matching local file, then **Run**. The file
+picker stays hidden behind the button; the separate loaded-file status identifies
+the installed ROM, including one restored from browser storage. Once loaded,
+the button becomes **Replace ROM…**. Disk selection uses the same Load/Replace
+pattern. Canceling a picker or rejecting an invalid file retains the loaded media.
+Nothing is uploaded or fetched.
+The browser remembers the verified file in local storage, including the Disk II
+bootstrap when the selected file is the 20 KiB container. On later visits, both
+the classroom and laboratory reverify that saved copy and prepare a fresh,
+paused machine automatically. This is shared within the same browser and site;
+the local preview and public site have separate storage. **Forget saved ROM**
+removes that copy without unloading firmware from an already open machine.
+If storage is unavailable or the saved copy fails verification, a message explains
+the failure and you can still choose a local file. A rejected file selection does
+not replace the saved ROM.
+
 Wait for the `APPLE ][` banner and Applesoft's `]` prompt, click the keyboard
 field, and type `PRINT 2+3`, then Enter. The reply is `5`. The display reads the
 same RAM the CPU writes; output does not pass through a host BASIC interpreter.
@@ -207,8 +285,11 @@ preserving RAM and device latches immediately. The firmware's subsequent actions
 are separate from that reset. **Fresh power-on** replaces the machine with empty
 RAM and fresh devices using the retained verified ROM and selected disk; the old program is lost.
 A failed ROM selection preserves the previous machine, paused. A successful
-selection replaces it with a fresh paused machine. Refreshing or leaving the
-page loses the session; there is no saved browser checkpoint yet.
+first selection installs firmware into the existing hardware, then resets the
+CPU without changing RAM or devices. Selecting a ROM again prepares a fresh,
+paused machine, as does disk selection. Refreshing or leaving the page loses
+RAM, programs, and the disk selection; only the ROM file is remembered. There is
+no saved browser checkpoint yet.
 
 For DOS, open **Boot DOS 3.3 from disk** and choose the matching local image.
 A successful selection replaces the running machine with a fresh, paused disk
@@ -219,8 +300,9 @@ latches. Run can continue resident software, but disk reads cannot complete
 without media. Fresh power-on after eject returns to ROM-only Applesoft.
 Replacing the ROM clears the disk selection. All media stays on your computer.
 
-Both text pages support normal, inverse, and flashing characters. The browser
-uses a selectable monospace font, not the character ROM's exact pixels.
+Both text pages support normal, inverse, and flashing characters, using the
+same bitmap character set as dromaios-apple2. Text remains selectable. The
+**Scanlines** control toggles the display effect, including while paused.
 Low-resolution graphics draws coloured blocks; high-resolution graphics uses
 the reference's approximate colour pairs. Mixed mode keeps four text rows. The
 video chapter defines those choices, the RGB palettes, and host flashing.

@@ -1,0 +1,50 @@
+{% macro media_attributes(media) -%}
+data-rom-bytes="{{ media.bytes }}" data-rom-sha256="{{ media.sha256 }}" data-rom-offset="{{ media.offset }}"
+data-bootstrap-bytes="{{ media.bootstrap.bytes }}" data-bootstrap-sha256="{{ media.bootstrap.sha256 }}" data-bootstrap-offset="{{ media.bootstrap.offset }}"
+data-disk-bytes="{{ media.disk.bytes }}" data-disk-sha256="{{ media.disk.sha256 }}"
+{%- endmacro %}
+
+{% macro execution_controls() %}
+<div class="basic-controls" role="group" aria-label="Apple II controls">
+  <button type="button" data-machine-run disabled>Run</button>
+  <button type="button" data-machine-pause disabled>Pause</button>
+  <button type="button" data-machine-step disabled>Step</button>
+  <button type="button" data-machine-reset disabled>Reset CPU</button>
+  <button type="button" data-machine-power disabled>Fresh power-on</button>
+</div>
+{% endmacro %}
+
+{% macro display_controls() %}
+<div class="apple2-display-options" role="group" aria-label="Display effects">
+  <label><input type="checkbox" data-apple2-scanlines checked disabled> Scanlines</label>
+</div>
+{% endmacro %}
+
+{% macro rom_storage_controls() %}
+<p class="basic-readout" data-rom-storage-status role="status">Checking for a remembered ROM…</p>
+<div class="basic-controls"><button type="button" data-rom-forget disabled>Forget saved ROM</button></div>
+{% endmacro %}
+
+{% macro media_picker(kind, label) %}
+<input type="file" data-{{ kind }}-file aria-label="{{ label }} file" hidden disabled>
+<button type="button" data-{{ kind }}-load disabled>Load {{ label }}…</button>
+{% endmacro %}
+
+{% macro rom_controls(catalogue) %}
+<script type="application/json" data-rom-catalogue>{{ catalogue | tojson }}</script>
+<div class="rom-controls">
+  <label>ROM routine <select data-rom-routine disabled>
+    {% for routine in catalogue.routines %}<option value="{{ routine.address }}">{{ routine.name }} · ${{ routine.address }}</option>{% endfor %}
+  </select></label>
+  <button type="button" data-rom-run-routine disabled>Run to routine</button>
+  <label>Address (hex) <input data-rom-address type="text" value="FD21" spellcheck="false" autocomplete="off" maxlength="5" disabled></label>
+  <button type="button" data-rom-run-address disabled>Run to address</button>
+</div>
+<p class="basic-message" data-rom-stop-status role="status"></p>
+<p class="rom-current" data-rom-current>Choose a ROM to begin.</p>
+<div class="basic-controls">
+  <button type="button" data-rom-step disabled>Step instruction</button>
+  <button type="button" data-rom-continue disabled>Continue</button>
+  <button type="button" data-rom-pause disabled>Pause exploration</button>
+</div>
+{% endmacro %}

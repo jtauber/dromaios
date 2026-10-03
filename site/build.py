@@ -83,6 +83,7 @@ def build(base):
     site.set_global("apple2_script", f"{interactive}/site/interactive/apple2.js")
     site.write_output("assets/highlight.css", HtmlFormatter(style="friendly").get_style_defs(".code-block"))
     site.add_hash("assets/style.css")
+    site.add_hash("assets/laboratory.css")
     site.set_global("chapters", chapters)
     site.set_global("lesson_groups", lesson_groups)
     site.set_global("lesson_count", len(lessons))
@@ -121,10 +122,13 @@ def build(base):
     site.set_global("altair_media", media_record(ALTAIR.read_text()))
     site.set_global("altair_url", MACHINES[ALTAIR])
     site.render_template("altair-basic.html", f"{MACHINES[ALTAIR]}index.html", render_guide(ALTAIR))
-    site.render_template("apple2.html", f"{MACHINES[APPLE2]}index.html", {
+    apple2 = {
         **render_guide(APPLE2), "apple2_container": rom_container_record(APPLE2.read_text()),
         "rom_guide": render_guide(APPLE2_ROM), "rom_explorer": explorer_catalogue(),
-    })
+        "apple2_url": MACHINES[APPLE2], "apple2_lab_url": f"{MACHINES[APPLE2]}laboratory/",
+    }
+    site.render_template("apple2.html", f"{apple2['apple2_url']}index.html", apple2)
+    site.render_template("apple2-laboratory.html", f"{apple2['apple2_lab_url']}index.html", {**apple2, "title": "Apple II Plus laboratory"})
     loading_source = SITE / "content/basic-loading.md"
     loading = Markup(lesson_markdown(loading_source, base).convert(loading_source.read_text()))
     for index, lesson in enumerate(lessons):
@@ -154,7 +158,7 @@ def build(base):
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + lesson index + {len(lessons)} introductory lessons + {len(chapters)} CPU chapters + {len(MACHINES)} machine guides in {site.output_dir} (base {base}).")
+    print(f"Built home + lesson index + {len(lessons)} introductory lessons + {len(chapters)} CPU chapters + {len(MACHINES)} machine guides + Apple II laboratory in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

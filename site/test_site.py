@@ -44,8 +44,10 @@ class PublishingTests(unittest.TestCase):
     def test_rom_walkthrough_owns_versioned_stops_and_uses_cpu_instruction_names(self):
         catalogue = explorer_catalogue()
         self.assertEqual(len(catalogue["instructions"]), 151)
-        self.assertEqual(catalogue["instructions"]["16"], "BPL relative")
-        self.assertEqual(catalogue["instructions"]["32"], "JSR absolute")
+        self.assertEqual(catalogue["instructions"]["16"], {"name": "BPL relative", "length": 2, "controlFlow": "conditional"})
+        self.assertEqual(catalogue["instructions"]["32"], {"name": "JSR absolute", "length": 3, "controlFlow": "unconditional"})
+        self.assertEqual(catalogue["instructions"]["0"], {"name": "BRK", "length": 2, "controlFlow": "unconditional"})
+        self.assertEqual(catalogue["instructions"]["234"], {"name": "NOP", "length": 1, "controlFlow": "sequential"})
         source = APPLE2_ROM.read_text()
         self.assertEqual(chapter_link("../software/apple2p-rom.md#rom-walkthrough", APPLE2_ROM.parent.parent / "machines/apple2.md", "/demo/"),
                          "/demo/machines/apple-ii-plus/#rom-walkthrough")

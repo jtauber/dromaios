@@ -10,12 +10,22 @@ export interface Apple2TraceEntry {
   /** Capture the mapping before execution; a later bank switch must not relabel history. */
   readonly romMapped: boolean;
 }
-export type InstructionNames = Readonly<Record<number, string>>;
+export type InstructionControlFlow = "sequential" | "conditional" | "unconditional";
+export type InstructionCatalogue = Readonly<Partial<Record<number, {
+  readonly name: string;
+  readonly length: 1 | 2 | 3;
+  readonly controlFlow: InstructionControlFlow;
+}>>>;
 export const hex = (value: number, width = 4): string => value.toString(16).toUpperCase().padStart(width, "0");
 
-/** Format the chapter's addressing notation using only bytes captured by the CPU. */
-export function disassemble6502(address: number, bytes: readonly number[], names: InstructionNames): string {
-  const name = bytes[0] === undefined ? undefined : names[bytes[0]];
+export function parseApple2Address(value: string): number {
+  if (!/^\$?[\da-f]{1,4}$/i.test(value.trim())) throw new RangeError("Use a hexadecimal address from 0000 to FFFF.");
+  return parseInt(value.trim().replace(/^\$/, ""), 16);
+}
+
+/** Format chapter notation from supplied bytes, without fetching operands or following pointers. */
+export function disassemble6502(address: number, bytes: readonly (number | undefined)[], instructions: InstructionCatalogue): string {
+  const name = bytes[0] === undefined ? undefined : instructions[bytes[0]]?.name;
   if (name === undefined) return "Unknown instruction";
   const byte = bytes[1], high = bytes[2];
   if (/absolute|indirect/.test(name)) {
@@ -34,11 +44,17 @@ export function romRoutine(address: number, romMapped: boolean, routines: readon
   return romMapped && address >= 0xd000 ? routines.find(routine => parseInt(routine.address, 16) === address) : undefined;
 }
 
+/** A compact row and the detailed trace share the same captured instruction. */
+export function formatApple2Instruction({ record }: Apple2TraceEntry, instructions: InstructionCatalogue): string {
+  const { instruction } = record;
+  return `${hex(instruction.address)}  ${instruction.bytes.map(byte => hex(byte, 2)).join(" ").padEnd(8)}  ${disassemble6502(instruction.address, instruction.bytes, instructions)}`;
+}
+
 /** Rendering has no machine connection: it cannot read a device or observe later RAM contents. */
-export function formatApple2Trace({ record, romMapped }: Apple2TraceEntry, names: InstructionNames, routines: readonly RomRoutine[]): string {
+export function formatApple2Trace({ record, romMapped }: Apple2TraceEntry, instructions: InstructionCatalogue, routines: readonly RomRoutine[]): string {
   const { instruction, before, after, accesses } = record;
   const routine = romRoutine(instruction.address, romMapped, routines);
-  const heading = `${hex(instruction.address)}  ${instruction.bytes.map(byte => hex(byte, 2)).join(" ").padEnd(8)}  ${disassemble6502(instruction.address, instruction.bytes, names)}`;
+  const heading = formatApple2Instruction({ record, romMapped }, instructions);
   const changes: string[] = [];
   for (const register of ["a", "x", "y", "sp"] as const) {
     if (before[register] !== after[register]) changes.push(`${register.toUpperCase()} ${hex(before[register], 2)}→${hex(after[register], 2)}`);

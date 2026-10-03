@@ -200,13 +200,16 @@ retain their existing CPU snapshot and memory APIs.
 ### External ROM images
 
 The [Apple II chapter](../../src/machines/6502/apple2.md) declares an external
-image for its `firmware` ROM. Its factory requires a verified `RomImage` under
-that component name, alongside any output callbacks. The generated module
+image for its `firmware` ROM. Its factory accepts a verified `RomImage` or
+explicit `null` (not installed) under that component name, alongside any output
+callbacks. Omitting the binding is an error. The generated module
 exports `romImages`, with each external component's declared `size` and `sha256`.
 
 ```typescript
+const machine = create6502Apple2({ firmware: null }); // Allocate hardware without firmware.
 const firmware = await RomImage.verify(bytes, romImages.firmware, sha256);
-const machine = create6502Apple2({ firmware });
+machine.firmware.install(firmware);                // No reset or execution.
+machine.reset();                                   // Read the installed reset vector.
 const resumed = create6502Apple2({ firmware }, machine.snapshot());
 ```
 
@@ -216,12 +219,22 @@ byte array and returning a promise for its lowercase hexadecimal digest. The
 cryptography dependency: the host supplies hashing, for example Web Crypto in
 a browser. It checks size before hashing and copies bytes before yielding.
 Neither the caller nor the hashing function retains access to verified storage.
-Each factory construction creates an independent immutable ROM. A wrong size,
+Each external component is an `ExternalRom` connection with a fixed size and
+declared identity. Its `loaded` getter distinguishes installed firmware from
+absence. `install(image)` validates and copies the verified image before
+replacing its private ROM, without changing RAM, CPU state, device state, or
+connections. Supplying an image in the factory argument installs it during
+construction. Installed ROM bytes are immutable; guest writes cannot load or
+change them. An empty component returns `bus-error`, resolved by the machine's
+declared bus policy. Inspection must show missing bytes as unavailable instead
+of displaying the bus fallback as stored ROM. A wrong size,
 digest, unverified binding, or binding for another image is rejected.
 
-External ROM snapshots store their digest under the component name, not ROM
-bytes. Restore requires every such identity and checks it against the chapter;
-it also requires the verified image again. Embedded ROMs retain their existing
+External ROM snapshots store their digest under the component name, or `null`
+when uninstalled, never ROM bytes. Restore requires that field and checks it
+against the supplied binding: a loaded snapshot needs the same verified image,
+and an unloaded snapshot needs `null`. Neither state can silently become the
+other during restoration. Embedded ROMs retain their existing
 snapshot behavior. Verification and any declared file normalization happen
 before the caller replaces its current machine; constructors remain synchronous.
 

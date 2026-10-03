@@ -198,6 +198,14 @@ scenario is an explicit execution action. The
 [software-guide design](web-design.md#detailed-software-guides) describes these
 interactions and their layout requirements.
 
+The first Apple II views distinguish **classroom** (guided prose and experiments)
+from **laboratory** (a standalone machine workspace). They share the generated
+machine and host execution/session controls; each page currently owns an
+independent session. Laboratory panels and tab navigation are presentation
+concerns. Machine inspectors expose hardware state through explicit observation
+paths, while software guides own versioned interpretations such as BASIC
+variables and ROM routine names.
+
 The [web design plan](web-design.md) proposes Learn, Explore, Reference, and
 About as the site's main navigation, with CPUs, Machines, and Software as
 peers under Explore. Lessons, examples, machine pages, and software guides

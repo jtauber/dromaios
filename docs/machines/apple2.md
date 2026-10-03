@@ -1,6 +1,6 @@
 # Apple II Plus: target and acceptance plan
 
-The next historical machine is an **Apple II Plus**, using
+The current historical-machine target is an **Apple II Plus**, using
 [dromaios-apple2][reference] as the primary reference for behavior, devices,
 browser interaction, and software targets. The initial
 [executable chapter](../../src/machines/6502/apple2.md) now boots ROM and runs
@@ -123,12 +123,12 @@ delivery, and scheduling host work.
 | Need | Existing support and concrete gap |
 | --- | --- |
 | 6502 with ROM and mapped devices | Implemented through the existing byte bus, with an explicit unanswered-bus policy in the chapter. |
-| Caller-supplied ROM | External image declarations require verified bindings before synchronous construction/restoration; snapshots retain ROM identity. Browser selection verifies the complete file before replacement. |
+| Caller-supplied ROM | External image declarations accept a verified binding or explicit absence. Hardware can be inspected before firmware installation; snapshots retain ROM identity or absence. Browser selection verifies the complete file before installation. |
 | Keyboard and display switches | Keyboard and display switches generate from device chapters, with state, offers, effects, reset, and snapshots. |
 | Banked memory | Conditional windows now select independent read/write destinations through pure device views. The machine chapter names both lower banks and common upper storage. |
 | Video | Read-only generated views own text and graphics addresses, character attributes, colour decoding, and visible rows. The host reads RAM and draws decoded cells; the chapter declares its high-resolution colour-pair approximation. |
 | Disk and speaker time | No current machine clock or device scheduler. Define emulated elapsed time and observable transitions before claiming timed disk behavior or producing audio. |
-| Inspection | Use captured CPU records and device snapshots. A future mapped-memory preview must have an explicit side-effect-free path; unavailable device bytes must not masquerade as read results. |
+| Inspection | Use captured CPU records and device snapshots. The laboratory previews mapped storage directly; unavailable device bytes are marked explicitly instead of masquerading as read results. |
 
 Do not copy the reference's CPU, DOM-dependent device logging, or global
 instrument registry into the simulation. Keep the existing generated 6502.
@@ -214,14 +214,65 @@ remain separate acceptance targets.
 The **ROM execution explorer** and its
 [versioned walkthrough](../software/apple2p-rom.md#rom-walkthrough) now provide
 the first observation tools. The software guide owns its routine annotations,
-stops, and acceptance path; the browser uses captured CPU records for disassembly
-and changes. Address breakpoints and ROM routine stops are bounded, one-shot
+stops, and acceptance path. Captured CPU records explain completed instructions;
+the laboratory's Code tab also decodes current mapped storage, follows PC, and
+browses addresses without guest device reads. Address breakpoints and ROM routine stops are bounded, one-shot
 requests. The tested path follows reset to the Applesoft prompt, then a keypress
 through acknowledgement and echo.
 
-## Next implementation slice
+## Classroom and laboratory
 
-Follow that foundation with connected views and guides:
+The goal is to replace dromaios-apple2 with the new Dromaios implementation,
+then extend it to other Apple II software and other machines. The two views
+serve different purposes:
+
+- **Classroom:** a guided explanation with embedded experiments and executable
+  machine and software descriptions.
+- **Laboratory:** a separate, dark workspace for running the machine and inspecting
+  its screen, processor, memory, and devices together.
+
+Both use the same generated machine, host session, execution controller, and
+ROM exploration controls. They currently start independent sessions; opening
+the classroom from the laboratory preserves the laboratory tab, but does not
+transfer its machine state. Both views share the remembered ROM file in browser
+local storage, reverified on each visit. RAM, programs, and disk selections are
+not saved across reloads.
+
+The laboratory follows the reference's three-column layout: screen and CPU
+instruments on the left, memory instruments in the middle, and tabbed tools on
+the right. It is designed for a large screen; smaller windows scroll across the
+three columns instead of rearranging the instruments. Its panel layout and accessible tab navigation are independent of
+Apple II behavior. The Apple II storage inspector is deliberately concrete:
+it follows the chapter's RAM/ROM/Language Card mapping, reads the installed card
+ROM from a snapshot, and marks other device-space bytes unavailable. It never
+uses the guest bus. Additional machines should supply their own observation
+paths before a shared peripheral-inspection abstraction is designed.
+
+### Replacement progress
+
+| Capability | Current Dromaios laboratory | Remaining reference parity |
+| --- | --- | --- |
+| Workspace | Dark three-column layout for a large screen, ROM/Code/Log/System/Disk tabs, classroom link. | Per-panel collapse and update controls. |
+| Execution and display | Reference bitmap characters, shared text/graphics raster, toggleable scanlines, direct screen typing, local media selection, run/pause/step, reset, fresh power-on. | Green monochrome display. Reference speed controls require an explicit timing model; do not label instruction batching as a hardware clock. |
+| CPU inspection | Registers and flags with last-instruction change highlights and previous values; live disassembly with PC following, address browsing and run-to stops; captured disassembly of the last twelve instructions, detailed changes and ordered accesses for the latest step. | Register editing and richer instruction explanations. |
+| Memory | Zero page, addressable mapped-storage preview, stack page and push/pull addresses; last-instruction byte highlights with previous values across all three views. | Software-owned zero-page names and address annotations. |
+| Change history | Instruction-attributed before/after values for registers, flags, PC, and physical RAM, including Language Card banks; bounded history with recording and display filters. | Address watchpoints and export. |
+| ROM and system | Versioned routine stops and descriptions; keyboard, display, Language Card, and disk snapshots. | Expanded ROM reference and navigation between code and annotations. |
+| Applesoft tools | BASIC runs on the machine; ROM walkthrough reaches input and echo. | Listing, variables, interpreter state, source stepping, breakpoints, execution history, and profiling. |
+| Disk tools | Verified DOS disk boot, read-only drive/eject controls, controller state. | Nibble stream, sector map, and observed disk-access history. |
+| Software selection | Verified Applesoft ROM and pinned DOS System Master. | Explicit software/media profiles and acceptance for additional disks and programs. |
+
+Layout parity is the first replacement slice, not a claim of complete tool
+parity. The reference's absent audio and incorrect writable/drive-2 behavior
+remain governed by the hardware acceptance checkpoints above.
+
+## Next implementation slices
+
+First extend the laboratory with Applesoft listing, variables, and interpreter
+state from the pinned reference, owned by the versioned software guide. Then
+connect those instruments to source stepping and breakpoints. Alongside this,
+build the connected disk views and classroom guides:
+
 
 1. **Disk boot:** follow the handoffs from motherboard ROM to slot-6 bootstrap,
    disk-loaded code, DOS, and HELLO. Show where bytes arrive in RAM and when

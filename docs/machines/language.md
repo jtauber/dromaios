@@ -197,14 +197,15 @@ RAM and ROM sizes are positive hexadecimal byte counts, at most `1000000`
 source order. ROM is constructed from the completed image and then remains
 read-only. Images cannot initialize devices; each device defines its initial state.
 
-`image name external sha256 digest` instead requires a caller-supplied ROM
+`image name external sha256 digest` instead declares the identity of a caller-supplied ROM
 image covering that component's entire declared size. The digest is exactly
 64 bare hexadecimal digits, normalized to lowercase. There can be only one
 external image per component; it cannot be combined with embedded images or
 target RAM/devices. References may precede component declarations. This syntax
 also works for component-only definitions. It declares an identity, not a path,
 download, or asynchronous constructor. The [factory API](definitions.md#external-rom-images)
-accepts verified images and binds snapshots to their identities.
+accepts verified images or an explicit uninstalled binding (`null`), supports
+later installation, and binds snapshots to the installed identity or absence.
 
 `memory = name` connects a full-sized RAM directly to any supported CPU, using
 the same CPU-specific sizes as the flat shorthand. The 68000 additionally accepts
