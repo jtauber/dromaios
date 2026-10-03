@@ -7,11 +7,10 @@ import type { Apple2RomFile, Apple2DiskFile } from "./apple2-media.js";
 import { apple2RomStorage } from "./apple2-rom-storage.js";
 import { createApple2Inspection } from "./apple2-inspection-view.js";
 import { createApple2ChangeLogView } from "./apple2-change-log-view.js";
-import { mountLaboratoryTabs } from "./laboratory.js";
 import { createApple2Explorer } from "./apple2-explorer-view.js";
 
 /** File controls, host scheduling, and screen presentation around the generated machine. */
-export function mountApple2(root: HTMLElement): void {
+export function mountApple2(root: HTMLElement): { refresh: () => void } {
   const element = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
   const file = element<HTMLInputElement>("rom-file"), keyboard = element<HTMLTextAreaElement>("apple2-keyboard");
   const diskFile = element<HTMLInputElement>("disk-file"), eject = element<HTMLButtonElement>("disk-eject");
@@ -36,7 +35,6 @@ export function mountApple2(root: HTMLElement): void {
   const inspection = createApple2Inspection(root);
   const changeLog = createApple2ChangeLogView(root, () => session.machine);
   const inputTarget = root.hasAttribute("data-laboratory") ? screen : keyboard;
-  mountLaboratoryTabs(root);
   const execution = createExecutionController({
     step: () => {
       const romMapped = !session.machine.language.ramRead();
@@ -210,6 +208,5 @@ export function mountApple2(root: HTMLElement): void {
     }
   }
   void restoreRom();
+  return { refresh };
 }
-
-for (const root of document.querySelectorAll<HTMLElement>("[data-apple2]")) mountApple2(root);

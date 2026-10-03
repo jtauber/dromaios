@@ -179,6 +179,9 @@ device snapshots and read-only views, and read RAM or ROM directly instead.
 The **classroom** presents this guide alongside an embedded machine. Its
 **laboratory** link opens a separate dark workspace with the screen, CPU and
 execution trace, memory, stack, and ROM/Code/Log/System/Disk tools visible together.
+Panels can be moved, resized, grouped into tabs, or collapsed to their headers.
+Closing a panel hides its tool; it does not stop the machine or its capture.
+**Reset layout** restores the arrangement while preserving the current experiment.
 Both use the same machine implementation, but each page starts its own session.
 Hardware is created immediately, before any ROM selection. RAM, stack memory,
 registers, and device state are inspectable in their deterministic initial state:

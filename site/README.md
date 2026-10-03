@@ -139,9 +139,9 @@ not branching exercises or a general lesson language.
 `/machines/apple-ii-plus/` publishes the executable [Apple II chapter](../src/machines/6502/apple2.md)
 as the **classroom**, with local ROM selection, text, both graphics resolutions, and Language Card RAM.
 `/machines/apple-ii-plus/laboratory/` is the separate dark **laboratory** with the
-reference's screen/CPU, memory, and tabbed-tool columns. It targets a large
-screen (roughly 1200 CSS pixels wide); smaller windows scroll across the
-workspace. Both mount `apple2.ts`
+reference's screen/CPU, memory, and tabbed-tool columns as its starting layout.
+It targets a large screen (roughly 1200 CSS pixels wide); smaller windows scroll
+across the workspace. `apple2-page.ts` and `apple2-laboratory.ts` both mount `apple2.ts`
 and share the machine/session and control templates. They have independent,
 unsaved machine state; classroom links from the laboratory open a separate tab.
 `apple2-rom-storage.ts` remembers the selected ROM file in `localStorage`, shared
@@ -149,8 +149,32 @@ by both views on the same origin. It retains the complete container for Disk II
 boot, revalidates every restored file, and keeps storage failures separate from
 loading usable media. Forget saved ROM removes only the stored copy. RAM,
 programs, and disk selections are not persisted.
-`laboratory.ts` and `laboratory.css` own reusable presentation. Apple II
-instruments remain concrete in `apple2-inspection-view.ts`; their storage reader
+`workspace/` and `workspace.css` own docking presentation independently of the
+machine. Drag a tab into the middle of a group to combine tools, onto its tab
+strip to reorder, or near an edge to split. The header arrow collapses a panel
+or tab group; its header stays visible and vertically adjacent panels use the
+released space. Expanding restores the previous split proportions. Selecting a
+tab also expands its group. The standalone headers retain the compact, uppercase
+instrument styling, while grouped tools use tabs.
+
+**Panels** closes and reopens tools; **Arrange panels** provides a keyboard
+alternative to docking gestures. Arrow keys navigate tabs and resize focused
+dividers (Shift uses larger steps). Collapse/expand buttons work with the
+keyboard too. **Reset layout** restores the default arrangement without resetting
+the machine or tools. Layout operations preserve the same content elements,
+including inputs, navigation, and log capture. Closed panels remain mounted in
+a hidden container within the application. Collapse state is part of the saved
+layout.
+
+`workspace/layout.ts` defines pure layout operations; `state.ts` validates
+versioned local preferences. `dock.ts`, `pointer.ts`, and `controls.ts` render
+and operate that model. `apple2-laboratory.ts` supplies the panel list, default
+layout, and visibility refresh callback. No simulation objects cross that
+boundary. Layouts are saved per browser origin; unavailable or invalid saved
+preferences fall back to the default. This storage is separate from the ROM
+and does not persist machine or tool state across page reloads.
+
+Apple II instruments remain concrete in `apple2-inspection-view.ts`; their storage reader
 uses RAM/ROM and pure device snapshots, never the guest bus. Device-space bytes
 without a storage view appear as `--`. `apple2-disassembly-view.ts` uses this
 same reader for the Code tab's live listing, address navigation, and PC following.
@@ -196,7 +220,11 @@ manual stepping; existing lessons retain their original pacing.
 
 Set `APPLE2_ROM` for the production browser-session acceptance test. Check local
 file selection, a real Applesoft session, editing, Control-C, failed replacement,
-pause/resume, reset/power-on, keyboard focus, and wide/narrow layouts in the browser. The
+pause/resume, reset/power-on, keyboard focus, and wide/narrow layouts in the browser.
+For workspace changes, also check tab reordering, splits, divider resizing, collapse/expand, keyboard controls,
+close/reopen, and layout restoration after reload.
+Check that rearranging and resetting the layout preserve CPU state, tool inputs,
+and captured history. The
 chapter's drawing programs exercise colour bands, HLIN, VLIN, PLOT, HGR, HGR2,
 HCOLOR, and HPLOT. Check full/mixed modes, both pages, returning to text, and
 switching between graphics resolutions without a stale image or incorrect scale.

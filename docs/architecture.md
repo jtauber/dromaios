@@ -201,10 +201,27 @@ interactions and their layout requirements.
 The first Apple II views distinguish **classroom** (guided prose and experiments)
 from **laboratory** (a standalone machine workspace). They share the generated
 machine and host execution/session controls; each page currently owns an
-independent session. Laboratory panels and tab navigation are presentation
-concerns. Machine inspectors expose hardware state through explicit observation
-paths, while software guides own versioned interpretations such as BASIC
-variables and ROM routine names.
+independent session. The laboratory has three distinct layers:
+
+- **Workspace:** `site/interactive/workspace/` owns an immutable layout tree,
+  tabs, split areas, collapse state, pointer and keyboard interactions, and
+  saved layout preferences. It accepts panel identities and existing content
+  elements, with no dependency on a machine, CPU, device, or inspector.
+- **Tools:** inspectors own their rendering, navigation, filters, and captured
+  history. Moving, collapsing, or closing a panel preserves its content and
+  tool state; visibility notifications allow a newly visible tool to refresh. Machine
+  inspectors use explicit observation paths; software guides own versioned
+  interpretations such as BASIC variables and ROM routine names.
+- **Simulation:** generated machines, CPUs, and devices remain headless.
+  Host sessions and execution controllers connect them to tools. Layout
+  operations do not pause, reset, or otherwise operate the machine.
+
+`site/interactive/apple2-laboratory.ts` composes the Apple II tools with a
+default arrangement and connects visibility notifications to display refresh.
+The classroom mounts the same machine controls without the docking workspace.
+Workspace preferences contain only geometry, panel membership, collapse state,
+and active tabs; saving a layout does not save an emulation session. The workspace is
+implemented in this repository, without a third-party docking dependency.
 
 The [web design plan](web-design.md) proposes Learn, Explore, Reference, and
 About as the site's main navigation, with CPUs, Machines, and Software as

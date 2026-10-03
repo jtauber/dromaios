@@ -238,11 +238,13 @@ transfer its machine state. Both views share the remembered ROM file in browser
 local storage, reverified on each visit. RAM, programs, and disk selections are
 not saved across reloads.
 
-The laboratory follows the reference's three-column layout: screen and CPU
+The laboratory starts with the reference's three-column layout: screen and CPU
 instruments on the left, memory instruments in the middle, and tabbed tools on
 the right. It is designed for a large screen; smaller windows scroll across the
-three columns instead of rearranging the instruments. Its panel layout and accessible tab navigation are independent of
-Apple II behavior. The Apple II storage inspector is deliberately concrete:
+workspace. Panels can be rearranged into split areas and tab groups, or collapsed
+to their headers, with the layout remembered independently of the machine. The
+[workspace guide](../../site/README.md#apple-ii-plus) describes pointer and
+keyboard controls. The Apple II storage inspector is deliberately concrete:
 it follows the chapter's RAM/ROM/Language Card mapping, reads the installed card
 ROM from a snapshot, and marks other device-space bytes unavailable. It never
 uses the guest bus. Additional machines should supply their own observation
@@ -252,7 +254,7 @@ paths before a shared peripheral-inspection abstraction is designed.
 
 | Capability | Current Dromaios laboratory | Remaining reference parity |
 | --- | --- | --- |
-| Workspace | Dark three-column layout for a large screen, ROM/Code/Log/System/Disk tabs, classroom link. | Per-panel collapse and update controls. |
+| Workspace | Dark workspace with draggable panels, resizable splits, tab groups, collapse/expand and close/reopen controls, keyboard arrangement, saved layout, and classroom link. | Per-panel live-update controls. |
 | Execution and display | Reference bitmap characters, shared text/graphics raster, toggleable scanlines, direct screen typing, local media selection, run/pause/step, reset, fresh power-on. | Green monochrome display. Reference speed controls require an explicit timing model; do not label instruction batching as a hardware clock. |
 | CPU inspection | Registers and flags with last-instruction change highlights and previous values; live disassembly with PC following, address browsing and run-to stops; captured disassembly of the last twelve instructions, detailed changes and ordered accesses for the latest step. | Register editing and richer instruction explanations. |
 | Memory | Zero page, addressable mapped-storage preview, stack page and push/pull addresses; last-instruction byte highlights with previous values across all three views. | Software-owned zero-page names and address annotations. |

@@ -38,9 +38,6 @@ export function createApple2ChangeLogView(root: HTMLElement, machine: () => Retu
   recording.addEventListener("change", refresh);
   for (const filter of filters) filter.addEventListener("change", refresh);
   panel.querySelector<HTMLButtonElement>("[data-log-clear]")!.addEventListener("click", () => { current().clear(); refresh(); });
-  // Tab handlers run on the buttons before these bubbling events, including keyboard navigation.
-  const tabs = panel.closest<HTMLElement>("[data-lab-tabs]")!;
-  tabs.addEventListener("click", refresh); tabs.addEventListener("keydown", refresh);
   return {
     capture(step: () => Cpu6502StepRecord): Cpu6502StepRecord { return current().capture(step); },
     memoryChanges(record: Cpu6502StepRecord | undefined) { return current().memoryChanges(record); },
