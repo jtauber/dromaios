@@ -28,6 +28,32 @@ test("instruction preview uses current addressing, decimal mode, and branch flag
   assert.equal(preview6502(state({ flags: { ...before.flags, z: true } }), address => ram[address], instructions).record?.after.pc, 0x202);
 });
 
+test("every branch preview explains its flag test and outcome, including zero offsets and address wrapping", () => {
+  const branches = [
+    [0x10, "n", "Negative", false], [0x30, "n", "Negative", true],
+    [0x50, "v", "Overflow", false], [0x70, "v", "Overflow", true],
+    [0x90, "c", "Carry", false], [0xb0, "c", "Carry", true],
+    [0xd0, "z", "Zero", false], [0xf0, "z", "Zero", true],
+  ] as const;
+  for (const [opcode, flag, name, set] of branches) for (const current of [false, true]) {
+    for (const pc of [0x200, 0xffff]) for (const offset of [-128, -2, 0, 127]) {
+      const ram = new Uint8Array(0x10000); ram[pc] = opcode; ram[(pc + 1) & 0xffff] = offset & 0xff;
+      const before = state({ pc, flags: { n: !current, v: !current, d: true, i: true, z: !current, c: !current, [flag]: current } });
+      const saved = structuredClone(before), memory = ram.slice();
+      const preview = preview6502(before, address => ram[address], instructions);
+      const taken = current === set, destination = (pc + 2 + (taken ? offset : 0)) & 0xffff;
+      assert.deepEqual(preview.effects, [
+        `Branch if ${name} flag (${flag.toUpperCase()}) is ${set ? "set" : "clear"} (${+set}).`,
+        `${flag.toUpperCase()} is ${+current}: branch ${taken ? "taken" : "not taken"}.`,
+        `PC → $${destination.toString(16).toUpperCase().padStart(4, "0")}`,
+      ]);
+      assert.equal(preview.record?.after.pc, destination);
+      assert.deepEqual(preview.record?.after.flags, before.flags);
+      assert.deepEqual(before, saved); assert.deepEqual(ram, memory);
+    }
+  }
+});
+
 test("previewed stores and stack writes stay private, including operands overwritten by JSR", () => {
   const ram = new Uint8Array(0x10000); ram.set([0x8d, 0x00, 0x04], 0x200);
   const store = preview6502(state(), address => ram[address], instructions);
@@ -61,4 +87,8 @@ test("preview distinguishes unsupported opcodes and unavailable instruction byte
   const unknown = preview6502(state(), () => 0x02, instructions);
   assert.equal(unknown.record?.outcome, "unsupported");
   assert.ok(unknown.effects.includes("Unsupported instruction."));
+  const missingOffset = preview6502(state(), address => address === 0x200 ? 0xf0 : undefined, instructions);
+  assert.equal(missingOffset.blocked, 0x201);
+  assert.ok(missingOffset.effects.includes("Result cannot be previewed without executing."));
+  assert.ok(missingOffset.effects.every(line => !line.includes("taken") && !line.startsWith("PC")));
 });

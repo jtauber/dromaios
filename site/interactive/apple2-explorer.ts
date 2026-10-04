@@ -19,10 +19,15 @@ export interface Apple2TraceEntry {
   readonly romMapped: boolean;
 }
 export type InstructionControlFlow = "sequential" | "conditional" | "unconditional";
+export interface BranchCondition6502 {
+  readonly flag: "n" | "v" | "c" | "z";
+  readonly set: boolean;
+}
 export type InstructionCatalogue = Readonly<Partial<Record<number, {
   readonly name: string;
   readonly length: 1 | 2 | 3;
   readonly controlFlow: InstructionControlFlow;
+  readonly branchCondition?: BranchCondition6502;
 }>>>;
 export const hex = (value: number, width = 4): string => value.toString(16).toUpperCase().padStart(width, "0");
 

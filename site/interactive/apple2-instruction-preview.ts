@@ -29,6 +29,13 @@ export function preview6502(state: Cpu6502Snapshot, read: (address: number) => n
   if (blocked !== undefined) effects.push(`Read $${hex(blocked)}: device or unavailable storage.`, "Result cannot be previewed without executing.");
   else if (record?.outcome !== "executed") effects.push("Unsupported instruction.");
   else {
+    if (info?.branchCondition) {
+      const { flag, set } = info.branchCondition, current = state.flags[flag];
+      const name = { n: "Negative", v: "Overflow", c: "Carry", z: "Zero" }[flag];
+      const label = flag.toUpperCase();
+      effects.push(`Branch if ${name} flag (${label}) is ${set ? "set" : "clear"} (${+set}).`,
+        `${label} is ${+current}: branch ${current === set ? "taken" : "not taken"}.`);
+    }
     for (const name of ["a", "x", "y", "sp"] as const) {
       if (state[name] !== record.after[name]) effects.push(`${name.toUpperCase()}  $${hex(state[name], 2)} → $${hex(record.after[name], 2)}`);
     }

@@ -216,7 +216,10 @@ Changes, while both remain independent tools. `apple2-instruction-view.ts` owns
 the upcoming-instruction panel. Its pure `apple2-instruction-preview.ts` runs a
 copied generated CPU against safe storage reads and private writes, stopping at
 unavailable/device reads. It does not duplicate the instruction set or operate
-the guest bus. The Execution panel owns Run, Pause, Step, Reset CPU, Fresh power-on,
+the guest bus. Its branch explanations use the catalogue's chapter-derived flag
+tests, including taken branches with a zero offset; equality of the final PC and
+the next instruction's address does not determine whether a branch was taken.
+The Execution panel owns Run, Pause, Step, Reset CPU, Fresh power-on,
 instruction count, and status messages. Below Screen, Execution, MOS 6502, and
 Instruction form a narrow column beside a full-height Disassembly panel.
 Execution can be moved, collapsed, tabbed, or reopened through Panels.

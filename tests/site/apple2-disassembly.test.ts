@@ -50,6 +50,21 @@ test("the chapter identifies every 6502 control transfer, including calls and so
   }
 });
 
+test("branch descriptions follow the chapter's flag reads and tests, independently of opcode or mnemonic", () => {
+  assert.deepEqual(instructions[0xf0]?.branchCondition, { flag: "z", set: true });
+  assert.deepEqual(instructions[0xd0]?.branchCondition, { flag: "z", set: false });
+  assert.equal(Object.values(instructions).filter(info => info?.branchCondition).length, 8);
+  const branch = entries.find(([opcode]) => opcode === 0xf0)![1];
+  const renamed = { ...branch, name: "Changed description", steps: branch.steps.map(step => step.kind === "read-flag"
+    ? { ...step, flag: { ...step.flag, field: "c" } } : step) };
+  assert.deepEqual(instructionCatalogue6502([[0xea, renamed]])[0xea]?.branchCondition, { flag: "c", set: true });
+  const writePC = entries.find(([opcode]) => opcode === 0x4c)![1].steps.at(-1)!;
+  for (const steps of [[...branch.steps, writePC], [...branch.steps, ...branch.steps]]) {
+    assert.equal(instructionCatalogue6502([[0xea, { ...renamed, steps }]])[0xea]?.branchCondition, undefined,
+      "a single flag test must not describe unconditional or multiple transfers");
+  }
+});
+
 test("only direct calls, jumps and branches expose an encoded destination", () => {
   const branches = new Set([0x10, 0x30, 0x50, 0x70, 0x90, 0xb0, 0xd0, 0xf0]);
   for (const [opcode] of entries) {

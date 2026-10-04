@@ -247,7 +247,11 @@ shows all 256 bytes, including the next push slot. The status gives both push
 and pull addresses, wrapping the pull within page 01.
 
 **Instruction** previews the next instruction's register and flag changes,
-write requests, destination PC, and ordered memory accesses. It runs a copy of
+write requests, destination PC, and ordered memory accesses. For conditional
+branches it names the flag and required value, shows the current value, and
+explains whether the branch is taken. Conditions come from the CPU chapter;
+BEQ tests Z, without assuming which earlier instruction set it.
+It runs a copy of
 the generated CPU against storage observations and private RAM writes; it never
 executes on the guest machine. Device or unavailable reads stop the preview
 with an explicit explanation. Writes to mapped devices are shown as requests,
