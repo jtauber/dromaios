@@ -1,9 +1,9 @@
 import { formatApple2Instruction, formatApple2Trace } from "./apple2-explorer.js";
-import type { Apple2TraceEntry, InstructionCatalogue, RomRoutine } from "./apple2-explorer.js";
+import type { Apple2TraceEntry, InstructionCatalogue, AddressLabel } from "./apple2-explorer.js";
 
 /** Captured execution only: selecting a step never reads or changes the live machine. */
 export function createApple2History(root: HTMLElement, catalogue: {
-  readonly instructions: InstructionCatalogue; readonly routines: readonly RomRoutine[];
+  readonly instructions: InstructionCatalogue; readonly routines: readonly AddressLabel[];
 }) {
   const panel = root.querySelector<HTMLElement>("[data-execution-history]");
   if (panel === null) return undefined;

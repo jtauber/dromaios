@@ -151,25 +151,33 @@ loading usable media. Forget saved ROM removes only the stored copy. RAM,
 programs, and disk selections are not persisted.
 `workspace/` and `workspace.css` own docking presentation independently of the
 machine. Drag a tab into the middle of a group to combine tools, onto its tab
-strip to reorder, or near an edge to split. The header arrow collapses a panel
+strip to reorder tabs, or between panels to reorder a row or column. A line marks
+the insertion point; moving a standalone panel within that row or column retains
+every panel's size. Docking across the other axis creates a nested area. Each
+divider resizes only its two neighbours. The header arrow collapses a panel
 or tab group; its header stays visible and vertically adjacent panels use the
 released space. Expanding restores the previous split proportions. Selecting a
 tab also expands its group. The standalone headers retain the compact, uppercase
 instrument styling, while grouped tools use tabs.
 
+The top-right page header contains the layout controls.
 **Panels** closes and reopens tools; **Arrange panels** provides a keyboard
 alternative to docking gestures. Arrow keys navigate tabs and resize focused
 dividers (Shift uses larger steps). Collapse/expand buttons work with the
 keyboard too. **Reset layout** restores the default arrangement without resetting
-the machine or tools. Layout operations preserve the same content elements,
+the machine or tools. Docking hints and arrangement feedback appear inside
+**Arrange panels**. Layout operations preserve the same content elements,
 including inputs, navigation, and log capture. Closed panels remain mounted in
 a hidden container within the application. Collapse state is part of the saved
 layout.
 
-`workspace/layout.ts` defines pure layout operations; `state.ts` validates
-versioned local preferences. `dock.ts`, `pointer.ts`, and `controls.ts` render
-and operate that model. `apple2-laboratory.ts` supplies the panel list, default
-layout, and visibility refresh callback. No simulation objects cross that
+`workspace/layout.ts` defines pure layout operations on ordered, weighted rows
+and columns; adjacent splits along the same axis are flattened. `state.ts`
+validates versioned local preferences and migrates the earlier binary splits,
+retaining their proportions, tabs, and collapse state. `dock.ts`, `pointer.ts`, and `controls.ts` render
+and operate that model. `apple2-laboratory.ts` supplies the panel list and
+visibility refresh callback; `apple2-workspace.ts` owns the default arrangement
+and adds Execution below Screen when migrating older saved layouts. No simulation objects cross that
 boundary. Layouts are saved per browser origin; unavailable or invalid saved
 preferences fall back to the default. This storage is separate from the ROM
 and does not persist machine state across page reloads. `panel-updates.ts` owns
@@ -179,17 +187,45 @@ while capture and execution availability remain independent.
 
 Apple II instruments remain concrete in `apple2-inspection-view.ts`; their storage reader
 uses RAM/ROM and pure device snapshots, never the guest bus. Device-space bytes
-without a storage view appear as `--`. `apple2-disassembly-view.ts` uses this
-same reader for the Code tab's live listing, address navigation, and PC following.
+without a storage view appear as `--`. `apple2-memory-view.ts` owns the shared
+byte renderer and per-panel 8/16-byte row toggle. Its header control regroups
+existing cells without refreshing held values; preferences are separate from
+docking and machine state. `apple2-memory-scroll-view.ts` keeps a detached 64K
+storage image and renders the visible range computed by `apple2-memory-window.ts`.
+Scrolling and reformatting a held view never acquire newer values. The address
+form lives in the tool-owned header. `apple2-stack-view.ts` offers entries above
+SP or the full stack page. `inspector-controls.ts` supplies the compact choice
+buttons used by memory, stack, and disassembly.
+`apple2-disassembly-view.ts` uses the same storage reader for its live listing;
+its PC/MEM header toggle follows the CPU or Memory's selected address.
 `apple2-disassembly.ts` prepends the last three captured instructions while
 following PC, retaining their bytes and ROM mapping. Executed and upcoming
 instructions both carry the chapter-derived control-flow classification for
 solid unconditional-transfer and dotted conditional-branch separators.
+The Routine column precedes Address; the Operand column labels encoded addresses
+from calls, branches, loads, stores, comparisons, and other memory instructions.
+It preserves indexed and indirect notation without resolving registers or
+pointers. The ROM guide owns the labels and their ROM/workspace/hardware scopes.
+Mapping and captured-byte rules also apply to operand labels. Exact reference
+lookup covers all labels; nearest-routine navigation only considers routine
+entries.
 `apple2-history-view.ts` combines the recent executed-instruction list with
 selectable captured details. Selecting pins a record even as the recent list
 advances; Follow latest restores tracking. It shares a default tab group with
-Changes, while both remain independent tools. The machine controls sit outside
-all dockable panels; Code owns execution targets and ROM owns firmware selection.
+Changes, while both remain independent tools. `apple2-instruction-view.ts` owns
+the upcoming-instruction panel. Its pure `apple2-instruction-preview.ts` runs a
+copied generated CPU against safe storage reads and private writes, stopping at
+unavailable/device reads. It does not duplicate the instruction set or operate
+the guest bus. The Execution panel owns Run, Pause, Step, Reset CPU, Fresh power-on,
+instruction count, and status messages. Below Screen, Execution, MOS 6502, and
+Instruction form a narrow column beside a full-height Disassembly panel.
+Execution can be moved, collapsed, tabbed, or reopened through Panels.
+Disassembly owns execution targets and ROM owns firmware selection
+and reference browsing. `apple2-rom-reference.ts` searches the guide's entries and
+locates the nearest documented label within its declared ROM region, without
+inventing routine extents. The reference view follows PC or Memory, and exposes
+navigation callbacks to the concrete tools. Only the composition layer opens
+the destination panel; no machine objects enter the docking system.
 Screen accepts keyboard and paste directly; only the classroom has a separate
 keyboard field.
 `apple2-change-log.ts` captures instruction-boundary CPU changes and observes
@@ -244,13 +280,22 @@ chapter's drawing programs exercise colour bands, HLIN, VLIN, PLOT, HGR, HGR2,
 HCOLOR, and HPLOT. Check full/mixed modes, both pages, returning to text, and
 switching between graphics resolutions without a stale image or incorrect scale.
 The chapter owns the behavior and limitations, including session lifetime,
-the character set, and approximate flash timing. In the laboratory, switch individual Live dots off during Run; their
+the character set, and approximate flash timing. In the laboratory, switch individual Live squares off during Run; their
 contents should hold while other views advance, then catch up on Pause or Step.
 Check their state survives tab changes, docking, close/reopen, and reload.
 Try Memory's fixed/PC/changes modes with Live both on and off, then enter a
-manual address to return to Fixed. Check Code's
-PC following, address browsing, ROM labels, and run-to stops. Browsing device
+manual address to return to Fixed. Check Disassembly's
+PC/MEM selection, address browsing, ROM labels, and run-to stops. Scroll Memory
+from 0000 to FFFF in both row widths, including with Live off during Run. Check
+its header address and MEM listing agree. Switch Stack between entries and PAGE;
+check JSR/RTS push and pull addresses. Check Instruction before a RAM operation
+and a device read: only the former can predict the complete result. Browsing device
 addresses must leave keyboard, disk, and Language Card state unchanged.
+In ROM, search by label/address/description, select an entry, and browse its
+Disassembly and Memory. Check PC and instruction count do not change. Follow PC and
+Memory independently, hold the view with Live, and follow a Disassembly label back to
+its reference. Without ROM, or with Language Card RAM mapped over it, the view
+must distinguish the static reference from the machine's current storage.
 Check history selection across repeated addresses, stepping, running past the
 twelve-entry window, and reset. Closing Screen must leave machine controls usable.
 Check Changes across steps and running batches, filtering, paused recording, clear,

@@ -22,6 +22,28 @@ test("memory following keeps its window steady until the target leaves it, and b
   for (const value of [-1, 0x10000, NaN, 1.5]) assert.throws(() => position.browse(value), RangeError);
 });
 
+test("row width changes preserve the displayed window and align the next followed position", () => {
+  const machine = create6502Apple2({ firmware: null }), position = createApple2MemoryPosition();
+  position.mode = "pc";
+  assert.equal(position.refresh(machine, 0x48b, 8).start, 0x488);
+  assert.equal(position.refresh(machine, 0x490, 16).start, 0x488, "Reformatting does not move a visible target");
+  assert.equal(position.refresh(machine, 0x519, 16).start, 0x510);
+  assert.equal(position.refresh(machine, 0x607, 8).start, 0x600);
+  for (const width of [8, 16] as const) {
+    position.browse(0x400); position.mode = "pc";
+    assert.equal(position.refresh(machine, 0xffff, width).start, 0xff80);
+    assert.equal(position.refresh(machine, 0, width).start, 0);
+    position.browse(0xfffa);
+    assert.deepEqual(position.refresh(machine, 0x200, width), { start: 0xfffa, target: undefined });
+    position.mode = "pc";
+    assert.equal(position.refresh(machine, 0xffff, width).start, 0xfffa, "Following keeps an already visible target near the boundary");
+  }
+  machine.ram.write(0x123b, 0x55);
+  position.observe(machine, [{ region: "ram", address: 0x123b, before: 0, after: 0x55 }]);
+  position.mode = "changes";
+  assert.deepEqual(position.refresh(machine, 0x200, 16), { start: 0x1230, target: 0x123b });
+});
+
 test("following catches writes earlier in a running batch even with recording disabled", () => {
   const machine = create6502Apple2({ firmware: null });
   // LDA #$55; STA $1234; STA $1234 (unchanged); NOP. Only refresh after all four steps.
@@ -41,6 +63,16 @@ test("following catches writes earlier in a running batch even with recording di
   assert.deepEqual(position.refresh(machine, 0x209), { start: 0x1230, target: undefined });
   assert.equal(position.mode, "changes", "Reset forgets the write target, not the navigation preference");
   log.dispose();
+});
+
+test("following uses the actual viewport after resizing, row alignment and bottom clamping", () => {
+  const machine = create6502Apple2({ firmware: null }), position = createApple2MemoryPosition();
+  position.browse(0x407); position.mode = "pc";
+  assert.equal(position.refresh(machine, 0x400, 16, 64, 0x400).start, 0x407);
+  assert.equal(position.refresh(machine, 0x440, 16, 64, 0x400).start, 0x440);
+  position.browse(0xfffa); position.mode = "pc";
+  assert.equal(position.refresh(machine, 0xff80, 16, 128, 0xff80).start, 0xfffa);
+  assert.equal(position.refresh(machine, 0xff7f, 16, 128, 0xff80).start, 0xff70);
 });
 
 test("following uses actual write order, ignores net-zero stores and retains the last changed byte across non-writing steps", () => {

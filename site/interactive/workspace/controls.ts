@@ -48,7 +48,7 @@ export function mountWorkspaceControls(root: HTMLElement, workspace: Workspace, 
   });
   root.append(button("Reset layout", () => workspace.reset()));
   const help = document.createElement("span"); help.className = "workspace-hint";
-  help.textContent = "Drag headers to rearrange panels. Drag dividers to resize. Use the arrows to collapse or expand.";
-  root.append(help, status);
+  help.textContent = "Drag headers between panels to reorder, or into a panel to make tabs. Drag dividers to resize neighbours.";
+  form.append(help, status);
   workspace.subscribe(update); update();
 }

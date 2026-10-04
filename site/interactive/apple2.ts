@@ -11,10 +11,11 @@ import { createApple2Explorer } from "./apple2-explorer-view.js";
 import { createPanelUpdates } from "./panel-updates.js";
 
 /** File controls, host scheduling, and screen presentation around the generated machine. */
-export function mountApple2(root: HTMLElement) {
+export function mountApple2(root: HTMLElement, showPanel: (id: string) => void = () => {}) {
   const element = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
   const file = element<HTMLInputElement>("rom-file");
   const keyboard = root.querySelector<HTMLTextAreaElement>("[data-apple2-keyboard]");
+  const inputStatus = root.querySelector<HTMLElement>("[data-input-status]");
   const diskFile = element<HTMLInputElement>("disk-file"), eject = element<HTMLButtonElement>("disk-eject");
   const loadRom = element<HTMLButtonElement>("rom-load"), loadDisk = element<HTMLButtonElement>("disk-load");
   const screen = element<HTMLElement>("apple2-screen"), message = element<HTMLElement>("machine-message");
@@ -41,7 +42,7 @@ export function mountApple2(root: HTMLElement) {
   let requestedPanels: readonly string[] = [];
   const updates = createPanelUpdates(root, id => refreshPanels([id]));
   const shouldUpdate = (id: string) => requestedPanels.includes(id) || updates.shouldUpdate(id, execution.running);
-  const inspection = createApple2Inspection(root, shouldUpdate);
+  const inspection = createApple2Inspection(root, shouldUpdate, () => refreshPanels(["rom", "code"]));
   const changeLog = createApple2ChangeLogView(root, () => session.machine);
   const inputTarget = keyboard ?? screen;
   const execution = createExecutionController({
@@ -57,7 +58,9 @@ export function mountApple2(root: HTMLElement) {
     schedule(callback, delay) { const id = window.setTimeout(callback, delay); return () => window.clearTimeout(id); },
     onChange: refresh, batchSize: 10000,
   });
-  const explorer = createApple2Explorer(root, () => session.machine, () => { message.textContent = ""; execution.run(); }, shouldUpdate);
+  const explorer = createApple2Explorer(root, () => session.machine, () => { message.textContent = ""; execution.run(); }, shouldUpdate, {
+    memoryAddress: () => inspection.memoryAddress, browseMemory: address => inspection.browseMemory(address), showPanel,
+  });
   root.querySelector<HTMLElement>("[data-rom-explorer]")?.addEventListener("toggle", refresh);
   execution.setDelay(1);
 
@@ -80,12 +83,12 @@ export function mountApple2(root: HTMLElement) {
       : restoring ? "Checking saved ROM…" : "No ROM loaded.";
     element<HTMLElement>("disk-status").textContent = disk ? `Loaded: ${disk.name} · drive 1 · write protected`
       : rom?.bootstrap ? "No disk loaded. Fresh power-on boots Applesoft." : "Disk boot needs the 20 KiB ROM container, which includes the Disk II bootstrap.";
-    element<HTMLElement>("input-status").textContent = `${session.pendingInput} keyboard characters queued`;
+    if (inputStatus) inputStatus.textContent = `${session.pendingInput} keyboard characters queued`;
     if (execution.error !== undefined) explorer.cancel();
-    explorer.refresh(execution.records, available && execution.error === undefined, execution.running);
     if (execution.error !== undefined) message.textContent = execution.error;
     const latest = execution.error === undefined ? execution.records.at(-1)?.record : undefined;
     inspection.refresh(session.machine, latest, changeLog?.memoryChanges(latest));
+    explorer.refresh(execution.records, available && execution.error === undefined, execution.running);
     if (shouldUpdate("log")) changeLog?.refresh();
     const now = performance.now();
     if (execution.running && now >= nextFlash) { flash = !flash; nextFlash = now + 500; }
@@ -224,5 +227,15 @@ export function mountApple2(root: HTMLElement) {
     }
   }
   void restoreRom();
-  return { refreshPanels, controls: updates.controls };
+  return {
+    refreshPanels,
+    controls(id: string): HTMLElement | undefined {
+      const format = inspection.controls(id) ?? explorer.controls(id), live = updates.controls(id);
+      if (!format) return live;
+      const controls = document.createElement("span"); controls.className = "lab-inspector-controls";
+      controls.append(format);
+      if (live) controls.append(live);
+      return controls;
+    },
+  };
 }

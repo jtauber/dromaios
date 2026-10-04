@@ -68,6 +68,40 @@ class PublishingTests(unittest.TestCase):
         self.assertEqual(chapter_link("your-first-basic-program.md", BASIC_LESSONS / "a-program-that-asks-a-question.md", "/demo/"),
                          "/demo/learn/your-first-basic-program/")
 
+    def test_rom_regions_bound_reference_lookup_without_inventing_routine_ranges(self):
+        source = APPLE2_ROM.read_text()
+        record = json.loads(re.search(r"```json\n(.*?)\n```", source, re.S)[1])
+        firmware = {"sha256": record["sha256"]}
+        self.assertEqual(rom_annotations(source, firmware)["regions"][-1],
+                         {"start": "F800", "end": "FFFF", "name": "Monitor ROM"})
+        for regions in [[], None, [{"start": "C000", "end": "FFFF", "name": "Devices"}],
+                        [{"start": "FFFF", "end": "F800", "name": "Backwards"}],
+                        [{"start": "D000", "end": "F800", "name": "First"}, {"start": "F800", "end": "FFFF", "name": "Overlap"}],
+                        [{"start": "D000", "end": "F7FF", "name": "Entries outside region"}],
+                        [{"start": "D000", "end": "FFFF", "name": ""}]]:
+            with self.subTest(regions=regions), self.assertRaises(ValueError):
+                rom_annotations("```json\n" + json.dumps({**record, "regions": regions}) + "\n```", firmware)
+
+    def test_address_labels_keep_workspace_hardware_and_rom_scopes_distinct(self):
+        record = json.loads(re.search(r"```json\n(.*?)\n```", APPLE2_ROM.read_text(), re.S)[1])
+        firmware = {"sha256": record["sha256"]}
+        labels = {label["name"]: label for label in record["labels"]}
+        self.assertEqual(labels["KBD"]["address"], "C000")
+        self.assertEqual(labels["INVFLG"]["address"], "0032")
+        self.assertEqual(labels["FMT1"]["scope"], "rom")
+        invalid = [None, {}, [labels["KBD"], labels["KBD"]],
+                   [{**labels["KBD"], "scope": "workspace"}],
+                   [{**labels["INVFLG"], "scope": "rom"}],
+                   [{**labels["FMT1"], "scope": "hardware"}],
+                   [{**labels["KBD"], "scope": "device"}],
+                   [{**labels["KBD"], "address": "c000"}],
+                   [{**labels["KBD"], "name": "HOME"}],
+                   [{**labels["KBD"], "description": ""}],
+                   [{**labels["FMT1"], "address": "FC58"}]]
+        for labels in invalid:
+            with self.subTest(labels=labels), self.assertRaises(ValueError):
+                rom_annotations("```json\n" + json.dumps({**record, "labels": labels}) + "\n```", firmware)
+
     def test_basic_replies_are_preserved_and_escaped_with_their_input(self):
         turns = [[{"input": 'PRINT "<script>&"', "output": "<script>&\n\nOK"}]]
         output = lesson_markdown(BASIC_LESSONS / "your-first-basic-program.md", "/", turns).convert("<!-- basic-session:0 -->")

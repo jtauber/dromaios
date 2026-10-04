@@ -1,4 +1,4 @@
-import { activatePanel, closePanel, collapsedHeight, collapseGroup, groups, movePanel, openPanel, panelGroup, resizeSplit } from "./layout.js";
+import { activatePanel, closePanel, collapsedHeight, collapseGroup, groups, movePanel, openPanel, panelGroup, parentSplit, resizeItems, resizeSplit } from "./layout.js";
 import type { Box, DropTarget, LayoutNode, Split, TabGroup, WorkspaceLayout } from "./layout.js";
 import { decodeWorkspaceState, encodeWorkspaceState } from "./state.js";
 import { dragPointer } from "./pointer.js";
@@ -57,7 +57,7 @@ export function createWorkspace(host: HTMLElement, parking: HTMLElement, panels:
     root: HTMLElement; header: HTMLElement; body: HTMLElement; collapse: HTMLButtonElement;
     detail: HTMLElement; controls: HTMLElement; close: HTMLButtonElement;
   }>();
-  const splitViews = new Map<string, { root: HTMLElement; divider: HTMLElement }>();
+  const splitViews = new Map<string, { root: HTMLElement; dividers: HTMLElement[] }>();
   const tabs = new Map<string, { root: HTMLElement; button: HTMLButtonElement }>();
   const visible = new Set<string>();
   let cancelGesture = () => {};
@@ -83,21 +83,24 @@ export function createWorkspace(host: HTMLElement, parking: HTMLElement, panels:
   // Keep these dimensions in step with workspace.css. A collapsed group is one header high.
   const headerHeight = 34, dividerSize = 6;
   const compactHeight = (node: LayoutNode) => collapsedHeight(node, headerHeight, dividerSize);
-  function canResize(split: Split): boolean {
-    return split.axis === "horizontal" || (compactHeight(split.first) === undefined && compactHeight(split.second) === undefined);
+  function canResize(split: Split, index: number): boolean {
+    return split.axis === "horizontal" || (compactHeight(split.items[index]!.node) === undefined && compactHeight(split.items[index + 1]!.node) === undefined);
   }
   function splitStyle(root: HTMLElement, split: Split): void {
-    const flexible = `minmax(0, ${split.ratio}fr) ${dividerSize}px minmax(0, ${1 - split.ratio}fr)`;
-    root.style.gridTemplateColumns = split.axis === "horizontal" ? flexible : "minmax(0, 1fr)";
-    if (split.axis === "horizontal") root.style.gridTemplateRows = "minmax(0, 1fr)";
-    else {
-      const first = compactHeight(split.first), second = compactHeight(split.second);
-      root.style.gridTemplateRows = first === undefined && second === undefined ? flexible
-        : `${first === undefined ? "minmax(0, 1fr)" : `${first}px`} ${dividerSize}px ${second === undefined ? "minmax(0, 1fr)" : `${second}px`}`;
-    }
+    const heights = split.items.map(item => split.axis === "vertical" ? compactHeight(item.node) : undefined);
+    const flexibleWeight = split.items.reduce((sum, item, index) => sum + (heights[index] === undefined ? item.weight : 0), 0);
+    const tracks = split.items.map((item, index) => {
+      const height = heights[index];
+      return height === undefined ? `minmax(0, ${100 * (item.weight / flexibleWeight)}fr)` : `${height}px`;
+    }).join(` ${dividerSize}px `);
+    root.style.gridTemplateColumns = split.axis === "horizontal" ? tracks : "minmax(0, 1fr)";
+    root.style.gridTemplateRows = split.axis === "vertical" ? tracks : "minmax(0, 1fr)";
   }
   function findSplit(node: LayoutNode | null, id: string): Split | undefined {
-    return !node || node.kind === "tabs" ? undefined : node.id === id ? node : findSplit(node.first, id) ?? findSplit(node.second, id);
+    if (!node || node.kind === "tabs") return undefined;
+    if (node.id === id) return node;
+    for (const item of node.items) { const split = findSplit(item.node, id); if (split) return split; }
+    return undefined;
   }
   function tab(id: string) {
     let view = tabs.get(id);
@@ -161,38 +164,51 @@ export function createWorkspace(host: HTMLElement, parking: HTMLElement, panels:
     children(view.body, group.panels.map(id => definition(id).content));
     return view.root;
   }
+  const dividerRatio = (split: Split, index: number) => split.items[index]!.weight / (split.items[index]!.weight + split.items[index + 1]!.weight);
+  function createDivider(root: HTMLElement, id: string, index: number): HTMLElement {
+    const divider = element("workspace-divider");
+    divider.dataset.dividerIndex = String(index);
+    divider.setAttribute("role", "separator");
+    divider.setAttribute("aria-valuemin", "10"); divider.setAttribute("aria-valuemax", "90");
+    divider.addEventListener("pointerdown", event => {
+      const split = findSplit(layout.root, id); if (!split || !canResize(split, index)) return;
+      const first = root.children[index * 2]!.getBoundingClientRect(), second = root.children[index * 2 + 2]!.getBoundingClientRect();
+      const horizontal = split.axis === "horizontal", size = horizontal ? first.width + second.width : first.height + second.height;
+      if (size <= 0) return;
+      const start = dividerRatio(split, index), origin = horizontal ? event.clientX : event.clientY;
+      const ratio = ({ x, y }: PointerPosition) => start + ((horizontal ? x : y) - origin) / size;
+      drag(event, { move: position => splitStyle(root, resizeItems(split, index, ratio(position))),
+        finish: position => commit(resizeSplit(layout, id, index, ratio(position))), cancel: render });
+    });
+    divider.addEventListener("keydown", event => {
+      const split = findSplit(layout.root, id); if (!split || !canResize(split, index)) return;
+      const minus = split.axis === "horizontal" ? "ArrowLeft" : "ArrowUp", plus = split.axis === "horizontal" ? "ArrowRight" : "ArrowDown";
+      const step = event.shiftKey ? .1 : .02, current = dividerRatio(split, index);
+      const ratio = event.key === minus ? current - step : event.key === plus ? current + step
+        : event.key === "Home" ? .1 : event.key === "End" ? .9 : undefined;
+      if (ratio !== undefined) { event.preventDefault(); commit(resizeSplit(layout, id, index, ratio)); }
+    });
+    return divider;
+  }
   function renderNode(node: LayoutNode): HTMLElement {
     if (node.kind === "tabs") return renderGroup(node);
     let view = splitViews.get(node.id);
-    if (!view) {
-      const root = element("workspace-split"), divider = element("workspace-divider");
-      divider.setAttribute("role", "separator"); divider.tabIndex = 0;
-      divider.setAttribute("aria-valuemin", "10"); divider.setAttribute("aria-valuemax", "90");
-      divider.addEventListener("pointerdown", event => {
-        const split = findSplit(layout.root, node.id); if (!split || !canResize(split)) return;
-        const rect = root.getBoundingClientRect();
-        const ratio = ({ x, y }: PointerPosition) => Math.max(.1, Math.min(.9, split.axis === "horizontal"
-          ? (x - rect.left) / rect.width : (y - rect.top) / rect.height));
-        drag(event, { move: position => splitStyle(root, { ...split, ratio: ratio(position) }),
-          finish: position => commit(resizeSplit(layout, split.id, ratio(position))), cancel: render });
-      });
-      divider.addEventListener("keydown", event => {
-        const split = findSplit(layout.root, node.id); if (!split || !canResize(split)) return;
-        const minus = split.axis === "horizontal" ? "ArrowLeft" : "ArrowUp", plus = split.axis === "horizontal" ? "ArrowRight" : "ArrowDown";
-        const step = event.shiftKey ? .1 : .02;
-        const ratio = event.key === minus ? split.ratio - step : event.key === plus ? split.ratio + step
-          : event.key === "Home" ? .1 : event.key === "End" ? .9 : undefined;
-        if (ratio !== undefined) { event.preventDefault(); commit(resizeSplit(layout, split.id, ratio)); }
-      });
-      view = { root, divider }; splitViews.set(node.id, view);
-    }
-    const horizontal = node.axis === "horizontal";
-    view.root.dataset.workspaceSplit = node.id; view.divider.className = `workspace-divider ${horizontal ? "horizontal" : "vertical"}`;
-    view.divider.setAttribute("aria-orientation", horizontal ? "vertical" : "horizontal");
-    view.divider.setAttribute("aria-label", horizontal ? "Resize columns" : "Resize rows");
-    view.divider.setAttribute("aria-valuenow", String(Math.round(node.ratio * 100)));
-    view.divider.setAttribute("aria-disabled", String(!canResize(node))); view.divider.tabIndex = canResize(node) ? 0 : -1;
-    splitStyle(view.root, node); children(view.root, [renderNode(node.first), view.divider, renderNode(node.second)]); return view.root;
+    if (!view) { view = { root: element("workspace-split"), dividers: [] }; splitViews.set(node.id, view); }
+    view.root.dataset.workspaceSplit = node.id;
+    const { root, dividers } = view, content: HTMLElement[] = [];
+    node.items.forEach((item, index) => {
+      content.push(renderNode(item.node));
+      if (index === node.items.length - 1) return;
+      const divider = dividers[index] ??= createDivider(root, node.id, index), horizontal = node.axis === "horizontal";
+      divider.className = `workspace-divider ${horizontal ? "horizontal" : "vertical"}`;
+      divider.setAttribute("aria-orientation", horizontal ? "vertical" : "horizontal");
+      divider.setAttribute("aria-label", horizontal ? "Resize columns" : "Resize rows");
+      divider.setAttribute("aria-valuenow", String(Math.round(dividerRatio(node, index) * 100)));
+      divider.setAttribute("aria-disabled", String(!canResize(node, index))); divider.tabIndex = canResize(node, index) ? 0 : -1;
+      content.push(divider);
+    });
+    view.dividers.length = node.items.length - 1;
+    splitStyle(view.root, node); children(view.root, content); return view.root;
   }
   function render(): void {
     const focused = document.activeElement instanceof HTMLElement && host.contains(document.activeElement) ? document.activeElement : undefined;
@@ -210,15 +226,39 @@ export function createWorkspace(host: HTMLElement, parking: HTMLElement, panels:
     for (const id of active) if (!visible.has(id)) options.onShow(id);
     visible.clear(); for (const id of active) visible.add(id);
   }
-  function dropAt(position: PointerPosition): { target: DropTarget; rect: Box; label: string } | undefined {
+  function dropPreview(target: DropTarget): { target: DropTarget; rect: Box; label: string; insertion: boolean } {
+    const group = groupViews.get(target.group)!.root, rect = group.getBoundingClientRect(), hostRect = host.getBoundingClientRect();
+    const side = target.side, horizontal = side === "left" || side === "right";
+    const insertion = side !== "tab" && parentSplit(layout, target.group)?.axis === (horizontal ? "horizontal" : "vertical");
+    const preview = { x: rect.left - hostRect.left, y: rect.top - hostRect.top, width: rect.width, height: rect.height };
+    if (horizontal) {
+      preview.width = insertion ? 4 : rect.width / 2;
+      if (side === "right") preview.x += rect.width - preview.width;
+    } else if (side !== "tab") {
+      preview.height = insertion ? 4 : rect.height / 2;
+      if (side === "below") preview.y += rect.height - preview.height;
+    }
+    return { target, rect: preview, label: insertion ? "" : side === "tab" ? "Add to tab group" : `Dock ${side}`, insertion };
+  }
+  function dropAt(position: PointerPosition): ReturnType<typeof dropPreview> | undefined {
     const hit = document.elementFromPoint(position.x, position.y), groupElement = hit?.closest<HTMLElement>("[data-workspace-group]");
-    const hostRect = host.getBoundingClientRect();
-    if (!groupElement || !host.contains(groupElement)) return undefined;
+    if (!hit || !host.contains(hit)) return undefined;
+    const divider = hit.closest<HTMLElement>("[data-divider-index]");
+    if (divider) {
+      const split = findSplit(layout.root, divider.parentElement!.dataset.workspaceSplit!);
+      if (!split) return undefined;
+      const index = Number(divider.dataset.dividerIndex), before = split.items[index]!.node, after = split.items[index + 1]!.node;
+      if (after.kind === "tabs") return dropPreview({ group: after.id, side: split.axis === "horizontal" ? "left" : "above" });
+      if (before.kind === "tabs") return dropPreview({ group: before.id, side: split.axis === "horizontal" ? "right" : "below" });
+      return undefined;
+    }
+    if (!groupElement) return undefined;
     const group = groups(layout).find(group => group.id === groupElement.dataset.workspaceGroup)!;
     const rect = groupElement.getBoundingClientRect(), x = position.x - rect.left, y = position.y - rect.top;
     const tabElement = hit?.closest<HTMLElement>("[data-panel-tab]"), header = hit?.closest(".workspace-heading");
     let side: PanelPosition = "tab", index: number | undefined;
-    if (header) {
+    if (y < 6 && parentSplit(layout, group.id)?.axis === "vertical") side = "above";
+    else if (header) {
       if (tabElement) {
         const bounds = tabElement.getBoundingClientRect();
         index = group.panels.indexOf(tabElement.dataset.panelTab!) + (position.x > bounds.left + bounds.width / 2 ? 1 : 0);
@@ -229,15 +269,12 @@ export function createWorkspace(host: HTMLElement, parking: HTMLElement, panels:
       else if (y < rect.height * .25) side = "above";
       else if (y > rect.height * .75) side = "below";
     }
-    const preview = { x: rect.left - hostRect.left, y: rect.top - hostRect.top, width: rect.width, height: rect.height };
-    if (side === "left" || side === "right") { preview.width /= 2; if (side === "right") preview.x += preview.width; }
-    if (side === "above" || side === "below") { preview.height /= 2; if (side === "below") preview.y += preview.height; }
-    return { target: { group: group.id, side, index }, rect: preview, label: side === "tab" ? "Add to tab group" : `Dock ${side}` };
+    return dropPreview({ group: group.id, side, index });
   }
   function dragTab(event: PointerEvent, id: string): void {
     const update = (position: PointerPosition) => {
       const drop = dropAt(position); overlay.hidden = !drop;
-      if (drop) { boxStyle(overlay, drop.rect); overlay.textContent = drop.label; }
+      if (drop) { boxStyle(overlay, drop.rect); overlay.textContent = drop.label; overlay.classList.toggle("is-insertion", drop.insertion); }
       return drop;
     };
     drag(event, { move: position => { update(position); }, finish: position => {

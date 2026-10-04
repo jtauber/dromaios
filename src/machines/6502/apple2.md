@@ -178,21 +178,31 @@ device snapshots and read-only views, and read RAM or ROM directly instead.
 
 The **classroom** presents this guide alongside an embedded machine. Its
 **laboratory** link opens a separate dark workspace with the screen, CPU and
-execution history, memory, stack, and Code/Changes/ROM/System/Disk tools visible together.
+instruction preview, execution history, memory, stack, and Disassembly/Changes/ROM/System/Disk tools.
 Panels can be moved, resized, grouped into tabs, or collapsed to their headers.
+Moving a standalone panel within a row or column reorders it without changing
+the panels' sizes. Drop between panels at the insertion line, or use **Arrange
+panels** with **Above**, **Below**, **Left of**, or **Right of**. Each divider
+resizes only its two neighbours.
 Closing a panel hides its tool; it does not stop the machine or its capture.
 **Reset layout** restores the arrangement while preserving the current experiment.
-Each inspector header has a **Live** toggle: a filled green dot enables automatic
-updates during Run; an empty dot holds that view. Pause, Step, and opening a panel
+Each inspector header has a **Live** toggle: a green square enables automatic
+updates during Run; an empty square holds that view. Pause, Step, and opening a panel
 refresh it regardless of Live. Its own navigation and filtering controls also
 refresh on demand. These switches never stop execution or history capture, and
 are remembered separately from the layout. All inspectors start Live except Memory.
 The screen and machine/media controls always stay current.
-Run, Pause, Step, Reset CPU, and Fresh power-on stay in the machine-control bar,
-independent of which panels are open. The screen accepts typing and pasting
+The **Execution** panel contains Run, Pause, Step, Reset CPU, Fresh power-on,
+the instruction count, and status messages. Below Screen, it shares a narrow
+column with MOS 6502 and Instruction; Disassembly spans the height beside them.
+It can be moved, collapsed, or reopened through **Panels**, like the other tools.
+The screen accepts typing and pasting
 directly, including Enter and Ctrl-C; the classroom also has an explicit keyboard
-field. Code owns run-to-address and run-to-routine controls; ROM owns firmware
-selection and its routine reference.
+field. Disassembly owns run-to-address and run-to-routine controls; ROM owns firmware
+selection and its searchable Monitor reference, with PC/Memory following and
+navigation to the other inspectors. Browsing a reference entry never executes it;
+the [ROM guide](../../../docs/software/apple2p-rom.md#exploring-the-rom-reference)
+owns the annotation and mapping contracts.
 Both use the same machine implementation, but each page starts its own session.
 Hardware is created immediately, before any ROM selection. RAM, stack memory,
 registers, and device state are inspectable in their deterministic initial state:
@@ -201,25 +211,48 @@ reflects this uninitialized text RAM: zero is an inverse `@` character, until
 firmware fills the display. The browser's Run, Step, keyboard, and Reset CPU
 controls wait for verified firmware; Fresh power-on is available without it.
 This is a host boot workflow, not a hardware requirement for executing code in RAM.
-The laboratory's memory and **Code** views read mapped storage without operating
-devices; `--` denotes unavailable bytes, including soft switches. Code follows
-PC or browses a chosen address, while **Execution history** preserves the
+The laboratory's memory and **Disassembly** views read mapped storage without operating
+devices; `--` denotes unavailable bytes, including soft switches. Disassembly's
+**PC / MEM** header toggle selects the next instruction or Memory's selected
+address, while **Execution history** preserves the
 bytes actually fetched. The [live disassembly guide](../../../docs/software/apple2p-rom.md#live-disassembly)
 explains navigation and address stops.
 
-Memory starts at a **Fixed address**. **Follow PC** keeps the next instruction's
-address visible; **Follow changes** tracks the last byte of visible RAM actually
+Memory's **FIX / PC / CHG** header toggle controls its position. **FIX** starts
+at a fixed address. **PC** keeps the next instruction's address visible;
+**CHG** follows the last byte of visible RAM actually
 changed by an executed instruction, including earlier instructions in a running
 batch and writes captured while Changes recording is off. Hidden Language Card
 writes, unchanged stores, and device accesses do not move it. A later bank switch
 can hide its last target; the inspector waits for a visible changed byte.
-Following moves the 128-byte window only when the target leaves it, aligning the
-new start to eight bytes and stopping at FFFF. Entering an address with **Go**
-returns to Fixed. Following controls position independently of Live: with Live
-off, the window catches up when paused, stepped, or explicitly refreshed.
-Reset, fresh power-on, and successful media replacement forget the last change
-target but keep the following mode; fixed windows retain their address.
-Position and mode last for this visit; they are not saved across reloads.
+Zero page, Memory, and the full stack page each have a compact **8 / 16**
+header toggle for bytes per row, remembered separately. Reformatting preserves
+held values and change highlights. Memory scrolls through the complete 64K
+address space, rendering only the visible rows and a small margin. Its header
+address field selects a byte on Enter; scrolling selects the first visible row.
+Both return to Fixed. With Live off, even newly scrolled rows come from the
+same captured storage image; scrolling does not read newer machine values.
+
+Following moves the viewport only when the target leaves it, aligning the
+new start to the selected row width and stopping at FFFF. Following controls
+position independently of Live: with Live off, the viewport catches up when
+paused, stepped, or explicitly refreshed. Reset, fresh power-on, and successful
+media replacement forget the last change target but keep the following mode;
+fixed views retain their address. Position and mode last for this visit.
+
+**Stack** shows one byte per line from SP+1 through 01FF, with the next pull
+marked. This is a conventional view above SP, not a claim that the 6502 tracks
+stack depth: wrapping and software writes can use any byte in page 01. **PAGE**
+shows all 256 bytes, including the next push slot. The status gives both push
+and pull addresses, wrapping the pull within page 01.
+
+**Instruction** previews the next instruction's register and flag changes,
+write requests, destination PC, and ordered memory accesses. It runs a copy of
+the generated CPU against storage observations and private RAM writes; it never
+executes on the guest machine. Device or unavailable reads stop the preview
+with an explicit explanation. Writes to mapped devices are shown as requests,
+without predicting peripheral effects. This keeps instruction behavior owned
+by the CPU specification while **Execution history** describes actual execution.
 
 Execution history lists the latest twelve captured instructions, newest first,
 and shows the selected instruction's register/flag changes and ordered memory

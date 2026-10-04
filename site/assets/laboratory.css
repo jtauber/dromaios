@@ -16,7 +16,7 @@
 .laboratory-page [hidden] { display: none !important; }
 .laboratory-page label { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
 .laboratory-page pre { color: var(--ink); background: none; border: 0; border-radius: 0; padding: 0; margin: 0; font: 12px/1.6 var(--mono); white-space: pre; }
-.laboratory-header { display: flex; align-items: center; gap: 24px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: #0c1322; }
+.laboratory-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 24px; padding: 6px 14px; border-bottom: 1px solid var(--line); background: #0c1322; }
 .laboratory-brand { font-weight: 700; text-decoration: none; }
 .laboratory-header h1 { flex: 1; font: 600 14px/1.4 system-ui, sans-serif; margin: 0; letter-spacing: 0; }
 .laboratory-header h1 span { color: var(--muted); font-weight: 400; }
@@ -30,17 +30,40 @@
 .laboratory-page .basic-controls button { padding: 5px 8px; font-size: 11px; }
 .laboratory-page .basic-readout { font: 11px/1.5 var(--mono); color: var(--muted); margin: 6px 0; overflow-wrap: anywhere; }
 .laboratory-page .basic-message { min-height: 0; margin: 8px 0 0; font: 12px/1.5 system-ui, sans-serif; color: #ffd18a; }
-.lab-machine-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; padding: 7px 14px; border-bottom: 1px solid var(--line); background: #101a2b; }
-.lab-machine-controls .basic-readout { margin: 0; }
-.lab-machine-controls .basic-message { flex-basis: 100%; margin: 0; }
 .lab-machine-controls .basic-message:empty { display: none; }
 .laboratory-page .basic-controls button:first-child { background: #304e73; color: #eff6ff; }
-.laboratory-page .apple2-cpu-value.is-changed, .laboratory-page .apple2-memory-byte.is-changed { background: #594420; color: #ffe0a2; }
+.laboratory-page .apple2-memory-byte.is-changed { background: #594420; color: #ffe0a2; }
+.lab-tool-registers .apple2-registers { display: grid; grid-template-columns: repeat(auto-fit, minmax(8ch, 1fr)); gap: 3px 16px; font: 21px/1.25 var(--mono); }
+.lab-tool-registers .apple2-registers .apple2-cpu-value { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; min-width: 0; }
+.lab-tool-registers .apple2-registers .apple2-cpu-label { color: #a3b0c5; }
+.lab-tool-registers .apple2-registers .apple2-cpu-number { color: #65ef8b; padding: 0 2px; border-radius: 3px; }
+.lab-tool-registers .apple2-registers .is-changed { background: transparent; text-decoration: none; }
+.lab-tool-registers .apple2-registers .is-changed .apple2-cpu-number { background: #594420; color: #ffe0a2; }
+.lab-tool-registers .apple2-flags { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; max-width: 193px; margin-top: 12px; }
+.lab-tool-registers .apple2-cpu-flag, .lab-tool-registers .apple2-cpu-flag.is-changed { display: grid; place-items: center; height: 30px; padding-bottom: 3px; border: 1px solid #435674; border-radius: 3px; background: #101c30; color: #d5deec; font: 700 16px/1 var(--mono); text-decoration: none; }
+.lab-tool-registers .apple2-cpu-flag.is-set { background: #962740; border-color: #e94560; color: #fff; }
+.lab-tool-registers .apple2-cpu-flag.is-changed { border-color: #ffd18a; box-shadow: inset 0 -3px #ffd18a; }
+.lab-tool-registers .apple2-cpu-flag .apple2-cpu-number { display: none; }
 .lab-address { display: flex; align-items: end; gap: 8px; margin-bottom: 8px; }
 .lab-address input { width: 85px; font-family: var(--mono); }
-.laboratory-page .lab-live-toggle { border: 0; background: transparent; color: #8093ac; padding: 3px 5px; font: 14px/1 var(--mono); }
-.laboratory-page .lab-live-toggle[aria-pressed=true] { color: #7ac9a1; }
-.laboratory-page .lab-memory-follow { display: flex; align-items: center; gap: 8px; }
+.laboratory-page .lab-live-toggle { width: 11px; height: 11px; margin: 0 4px; padding: 0; border: 1px solid #58677c; border-radius: 2px; background: #273245; }
+.laboratory-page .lab-live-toggle[aria-pressed=true] { background: #7ac9a1; border-color: #7ac9a1; box-shadow: 0 0 3px #7ac9a166; }
+.lab-inspector-controls { display: flex; align-items: center; gap: 4px; }
+.lab-inspector-choices { display: inline-flex; border: 1px solid #435674; border-radius: 3px; }
+.laboratory-page .lab-inspector-choices button { min-width: 22px; padding: 2px 4px; border: 0; border-radius: 0; background: transparent; color: var(--muted); font: 10px/1.4 var(--mono); }
+.laboratory-page .lab-inspector-choices button + button { border-left: 1px solid #435674; }
+.laboratory-page .lab-inspector-choices button[aria-pressed=true] { background: #304e73; color: #eff6ff; }
+.laboratory-page .lab-inspector-choices button:focus-visible { outline-offset: -2px; }
+.lab-memory-address { display: flex; margin: 0; }
+.laboratory-page .lab-memory-address input { width: 54px; padding: 2px 4px; font: 12px/1.4 var(--mono); }
+.lab-tool-memory .lab-panel-body { height: 100%; display: flex; flex-direction: column; gap: 8px; }
+.lab-memory-scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-color: #435674 #18253b; }
+.lab-memory-space { position: relative; min-width: 100%; }
+.lab-memory-space pre { position: absolute; left: 0; min-width: 100%; width: max-content; }
+.apple2-memory-byte.is-selected { box-shadow: inset 0 -1px #83c9f4; }
+.laboratory-page [data-stack-view] { color: #7ac9a1; font-size: 13px; }
+.laboratory-page [data-instruction-preview] { white-space: pre-wrap; font-size: 12px; }
+.lab-instruction-assembly { color: #ffd18a; font-size: 16px; }
 .laboratory-page summary { cursor: pointer; color: #b4cce8; font-size: 12px; padding: 6px 0; }
 .laboratory-page .rom-controls { display: grid; grid-template-columns: 1fr; gap: 8px; }
 .laboratory-page .rom-controls button { justify-self: start; }
@@ -53,7 +76,10 @@
 .lab-code { width: 100%; border-collapse: collapse; font: 11px/1.7 var(--mono); }
 .lab-code caption { text-align: left; }
 .lab-code th { text-align: left; font-size: 10px; color: var(--muted); font-weight: 400; }
+.lab-code th:first-child { padding-right: 6px; }
 .lab-code td { padding: 3px 2px; vertical-align: top; white-space: nowrap; }
+.lab-code th:last-child, .lab-code td:last-child { padding-left: 12px; }
+.lab-code th:nth-child(2), .lab-code td:nth-child(2) { padding-right: 12px; }
 .lab-code td:first-child { color: var(--accent); }
 .lab-code button { border: 0; padding: 0; background: transparent; color: var(--accent); font: inherit; text-decoration: underline; text-underline-offset: .2em; }
 .lab-code button:disabled { opacity: 1; color: var(--muted); text-decoration: none; }
@@ -61,7 +87,14 @@
 .lab-code .is-executed { color: var(--muted); }
 .lab-code .flow-unconditional td { border-bottom: 1px solid #7087a5; }
 .lab-code .flow-conditional td { border-bottom: 1px dotted #7087a5; }
-.lab-code-label { display: block; max-width: 16ch; white-space: normal; color: #ffd18a; font: 10px/1.4 system-ui, sans-serif; }
+.lab-code .lab-code-label { white-space: nowrap; text-align: left; color: #ffd18a; }
+.lab-rom-reference h2 { margin: 12px 0; font: 600 14px/1.4 system-ui, sans-serif; }
+.lab-reference-current { margin: 10px 0 14px; padding: 10px; background: #131f33; border: 1px solid var(--line); border-radius: 4px; }
+.lab-reference-current h3 { margin: 0; color: #ffd18a; font: 600 12px/1.5 var(--mono); }
+.lab-reference-current p { margin: 8px 0; font-size: 12px; }
+.lab-reference-list { max-height: 260px; overflow: auto; scrollbar-width: thin; }
+.lab-reference-list button { display: block; width: 100%; padding: 5px 7px; border: 0; border-radius: 0; text-align: left; background: transparent; font: 12px/1.5 var(--mono); }
+.lab-reference-list button[aria-pressed=true] { background: #304e73; color: #eff6ff; }
 .lab-log-controls, .lab-log-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .lab-log-controls label, .lab-log-filters label { display: flex; align-items: center; gap: 4px; }
 .lab-log-controls button { margin-left: auto; }
@@ -82,5 +115,11 @@
 
 .laboratory { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .lab-tool { position: relative; height: 100%; width: 100%; overflow: auto; background: #18253b; scrollbar-color: #435674 #18253b; }
-.lab-tool-registers pre, .lab-tool-trace pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
-.lab-tool-screen .apple2-display-surround { max-width: min(100%, 55dvh); margin-inline: auto; }
+.lab-tool-trace pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
+.lab-tool-screen .lab-panel-body { height: 100%; display: grid; grid-template-rows: minmax(120px, 1fr) auto; gap: 6px; }
+.lab-display-area { container-type: size; display: grid; place-items: center; min-width: 0; min-height: 0; }
+.lab-display-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.lab-display-footer .apple2-display-options { margin-left: auto; }
+/* Fit the 4:3 screen plus its surround's 10px padding and 1px border into the available area. */
+.lab-tool-screen .apple2-display-surround { width: min(100cqw, calc((100cqh - 22px) * 4 / 3 + 22px)); margin: 0; }
+.lab-tool-screen .basic-readout { margin: 0; }

@@ -15,7 +15,6 @@ export function createPanelUpdates(root: HTMLElement, refresh: (id: string) => v
     button.type = "button"; button.className = "lab-live-toggle";
     button.setAttribute("aria-label", `Live updates for ${panel.dataset.panelTitle}`);
     function label(): void {
-      button.textContent = live.get(id) ? "●" : "○";
       button.setAttribute("aria-pressed", String(live.get(id)));
       button.title = `Live updates ${live.get(id) ? "on" : "off"}. Pause and Step always refresh this inspector.`;
     }

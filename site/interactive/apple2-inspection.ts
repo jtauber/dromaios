@@ -2,6 +2,7 @@ import type { createApple2Session } from "./apple2-session.js";
 import { checkUnsigned } from "../../src/components/validation.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
+export type MemoryRowWidth = 8 | 16;
 export const apple2RamRegions = [
   { part: "ram", base: 0, label: "RAM" }, { part: "bank1", base: 0xd000, label: "LC bank 1" },
   { part: "bank2", base: 0xd000, label: "LC bank 2" }, { part: "upper", base: 0xe000, label: "LC upper" },

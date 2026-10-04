@@ -1,5 +1,5 @@
 import { apple2MemoryHighlights } from "./apple2-inspection.js";
-import type { Apple2MemoryChange, Apple2Storage } from "./apple2-inspection.js";
+import type { Apple2MemoryChange, Apple2Storage, MemoryRowWidth } from "./apple2-inspection.js";
 import { checkUnsigned } from "../../src/components/validation.js";
 
 export type Apple2MemoryMode = "fixed" | "pc" | "changes";
@@ -25,12 +25,13 @@ export function createApple2MemoryPosition() {
       }
     },
     reset(): void { lastChange = undefined; },
-    refresh(storage: Apple2Storage, pc: number): { start: number; target: number | undefined } {
+    refresh(storage: Apple2Storage, pc: number, rowWidth: MemoryRowWidth = 8,
+      visibleBytes = apple2MemoryWindowSize, visibleStart = start): { start: number; target: number | undefined } {
       // A later bank switch can hide the last changed byte. Do not follow it into ROM or another bank.
       const changed = lastChange && apple2MemoryHighlights(storage, [lastChange]).has(lastChange.address) ? lastChange.address : undefined;
       const target = mode === "pc" ? pc : mode === "changes" ? changed : undefined;
-      if (target !== undefined && (target < start || target >= start + apple2MemoryWindowSize)) {
-        start = Math.min(target & ~7, 0x10000 - apple2MemoryWindowSize);
+      if (target !== undefined && (target < visibleStart || target >= visibleStart + visibleBytes)) {
+        start = Math.min(target - target % rowWidth, Math.max(0, 0x10000 - visibleBytes));
       }
       return { start, target };
     },

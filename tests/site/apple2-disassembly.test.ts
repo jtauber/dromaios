@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import { Cpu6502 } from "../../src/components/cpus/generated/6502-cpu.js";
 import { families } from "../../src/components/cpus/semantics/generated/6502.js";
 import { fetchByte, flagLiteral, perform, when } from "../../src/components/cpus/semantics/model.js";
@@ -7,12 +8,14 @@ import type { Statement } from "../../src/components/cpus/semantics/model.js";
 import { Ram } from "../../src/components/memory/ram.js";
 import { instructionCatalogue6502 } from "../../site/6502-instruction-catalogue.js";
 import { disassemble6502Rows } from "../../site/interactive/6502-disassembly.js";
-import { apple2CodeRows } from "../../site/interactive/apple2-disassembly.js";
-import { parseApple2Address } from "../../site/interactive/apple2-explorer.js";
+import { apple2CodeReferences, apple2CodeRows } from "../../site/interactive/apple2-disassembly.js";
+import { address6502Operand, direct6502Target, parseApple2Address } from "../../site/interactive/apple2-explorer.js";
+import type { MemoryLabel } from "../../site/interactive/apple2-explorer.js";
 import { apple2StorageReader } from "../../site/interactive/apple2-inspection.js";
 import { createApple2Session } from "../../site/interactive/apple2-session.js";
 
 const entries = Object.values(families).flat(), instructions = instructionCatalogue6502(entries);
+const labels: readonly MemoryLabel[] = JSON.parse(readFileSync("docs/software/apple2p-rom.md", "utf8").match(/```json\n([\s\S]*?)```/)![1]!).labels;
 
 test("chapter-derived 6502 lengths match actual fetches for every documented opcode", () => {
   assert.equal(Object.keys(instructions).length, 151);
@@ -44,6 +47,70 @@ test("the chapter identifies every 6502 control transfer, including calls and so
     assert.equal(instructions[opcode]?.controlFlow, expected, instructions[opcode]?.name);
     const rows = apple2CodeRows(address => address === 0x200 ? opcode : 0, 0x200, instructions, false);
     assert.equal(rows[0]?.controlFlow, expected, `Upcoming ${instructions[opcode]?.name}`);
+  }
+});
+
+test("only direct calls, jumps and branches expose an encoded destination", () => {
+  const branches = new Set([0x10, 0x30, 0x50, 0x70, 0x90, 0xb0, 0xd0, 0xf0]);
+  for (const [opcode] of entries) {
+    const expected = opcode === 0x20 || opcode === 0x4c ? 0xfd21 : branches.has(opcode) ? 0x223 : undefined;
+    assert.equal(direct6502Target(0x200, [opcode, 0x21, 0xfd], instructions), expected, instructions[opcode]?.name);
+  }
+  for (const bytes of [[], [undefined], [0x02], [0x20], [0x20, 0xed], [0x4c, undefined, 0xfd], [0xd0]]) {
+    assert.equal(direct6502Target(0x200, bytes, instructions), undefined);
+  }
+  // An indirect operand can itself name ROM; it remains a pointer, not a destination.
+  assert.equal(direct6502Target(0x200, [0x6c, 0xed, 0xfd], instructions), undefined);
+});
+
+test("branch destination labels use signed offsets and wrap at the address-space boundaries", () => {
+  for (const address of [0, 0x7f, 0xfd21, 0xfffe, 0xffff]) {
+    for (let offset = -128; offset <= 127; offset++) {
+      assert.equal(direct6502Target(address, [0xd0, offset & 0xff], instructions), (address + 2 + offset + 0x10000) % 0x10000);
+    }
+  }
+});
+
+test("code references distinguish a routine entry from its target and require mapped ROM", () => {
+  const routines = [{ address: "FD00", name: "CALLER", description: "A caller" },
+    { address: "FDED", name: "COUT", description: "An output routine" }];
+  const bytes = [0x20, 0xed, 0xfd];
+  const row = apple2CodeRows(address => bytes[address - 0xfd00], 0xfd00, instructions, true)[0]!;
+  assert.deepEqual(apple2CodeReferences(row, instructions, routines), { entry: routines[0], operand: { label: routines[1], text: "→ COUT", target: true } });
+  assert.deepEqual(apple2CodeReferences({ ...row, romMapped: false }, instructions, routines), { entry: undefined, operand: undefined });
+  assert.equal(apple2CodeReferences({ ...row, complete: false }, instructions, routines).operand, undefined);
+  assert.equal(apple2CodeReferences({ ...row, bytes: [0x20, 0x00, 0x03] }, instructions, routines).operand, undefined);
+  assert.equal(apple2CodeReferences({ ...row, bytes: [0xad, 0xed, 0xfd] }, instructions, routines).operand?.text, "COUT");
+});
+
+test("operand labels cover loads, stores, BIT, comparisons, indexed bases, and indirect pointers", () => {
+  const examples: readonly (readonly [readonly number[], string])[] = [
+    [[0xad, 0x00, 0xc0], "KBD"], [[0x8d, 0x51, 0xc0], "TXTSET"], [[0x2c, 0x10, 0xc0], "KBDSTRB"],
+    [[0xa5, 0x24], "CH"], [[0x84, 0x32], "INVFLG"], [[0x24, 0x32], "INVFLG"], [[0xc5, 0x21], "WNDWDTH"],
+    [[0xbd, 0x62, 0xf9], "FMT1,X"], [[0x99, 0x00, 0x02], "INPUT_BUFFER,Y"], [[0xb5, 0x28], "BASL,X"],
+    [[0xb6, 0x28], "BASL,Y"], [[0xb1, 0x28], "(BASL),Y"], [[0x91, 0x28], "(BASL),Y"],
+    [[0xa1, 0x28], "(BASL,X)"], [[0x6c, 0x36, 0x00], "(CSWL)"],
+  ];
+  for (const [bytes, text] of examples) {
+    const row = apple2CodeRows(address => bytes[address - 0xfd00], 0xfd00, instructions, true)[0]!;
+    assert.equal(apple2CodeReferences(row, instructions, [], labels).operand?.text, text, row.assembly);
+    assert.equal(apple2CodeReferences({ ...row, complete: false }, instructions, [], labels).operand, undefined);
+  }
+  for (const bytes of [[0xa9, 0x24], [0xc9, 0x32], [0x00, 0x24], [0xea], [0x02], [0x6c, 0x36], [0xad, 0x00, undefined]]) {
+    assert.equal(address6502Operand(0xfd00, bytes, instructions), undefined, String(bytes));
+  }
+});
+
+test("hardware labels survive ROM banking while workspace labels require instructions in the identified ROM", () => {
+  const row = apple2CodeRows(address => [0xa5, 0x24][address - 0xfd00], 0xfd00, instructions, true)[0]!;
+  assert.equal(apple2CodeReferences(row, instructions, [], labels).operand?.label.name, "CH");
+  assert.equal(apple2CodeReferences({ ...row, romMapped: false }, instructions, [], labels).operand, undefined);
+  assert.equal(apple2CodeReferences({ ...row, address: 0x200 }, instructions, [], labels).operand, undefined);
+  for (const address of [0x200, 0xfd00]) for (const romMapped of [false, true]) {
+    const hardware = { ...row, address, romMapped, bytes: [0x2c, 0x00, 0xc0] };
+    assert.equal(apple2CodeReferences(hardware, instructions, [], labels).operand?.label.name, "KBD");
+    const table = { ...hardware, bytes: [0xbd, 0x62, 0xf9] };
+    assert.equal(apple2CodeReferences(table, instructions, [], labels).operand?.text, romMapped ? "FMT1,X" : undefined);
   }
 });
 
@@ -135,6 +202,38 @@ function program(bytes: readonly number[], address = 0x200, zero = false) {
     flags: { n: false, v: false, d: false, i: true, z: zero, c: false } });
   return { memory, cpu, step: () => ({ record: cpu.step(), romMapped: false }) };
 }
+
+test("historical targets use captured operands and mapping after memory and banks change", () => {
+  const { memory, cpu, step } = program([0x20, 0xed, 0xfd]);
+  const entry = { ...step(), romMapped: true };
+  memory.write(0x201, 0x21); memory.write(0x202, 0xfd);
+  const read = (address: number) => {
+    assert.ok(address >= 0xfded, "Do not reread the executed call or its operands"); return memory.read(address);
+  };
+  const rows = apple2CodeRows(read, cpu.snapshot().pc, instructions, false, [entry]);
+  const routines = [{ address: "FDED", name: "COUT", description: "Output" }];
+  assert.equal(apple2CodeReferences(rows[0]!, instructions, routines).operand?.label, routines[0]);
+  assert.equal(apple2CodeReferences(rows[1]!, instructions, routines).entry, undefined);
+});
+
+test("historical memory labels use captured operand bytes and the mapping before execution", () => {
+  const { memory, cpu, step } = program([0xa5, 0x24], 0xfd00);
+  const captured = { ...step(), romMapped: true };
+  memory.write(0xfd01, 0x25);
+  const rows = apple2CodeRows(address => memory.read(address), cpu.snapshot().pc, instructions, false, [captured]);
+  assert.equal(apple2CodeReferences(rows[0]!, instructions, [], labels).operand?.text, "CH");
+});
+
+test("branch references name the possible destination whether the recorded branch was taken or not", () => {
+  const routines = [{ address: "FD21", name: "KEYIN2", description: "Keyboard test" }];
+  for (const zero of [false, true]) {
+    const { memory, cpu, step } = program([0xd0, 0x02], 0xfd1d, zero);
+    const entry = { ...step(), romMapped: true };
+    const row = apple2CodeRows(address => memory.read(address), cpu.snapshot().pc, instructions, true, [entry])[0]!;
+    assert.equal(apple2CodeReferences(row, instructions, routines).operand?.label, routines[0]);
+    assert.equal(entry.record.after.pc, zero ? 0xfd1f : 0xfd21);
+  }
+});
 
 test("PC following shows the last three executed instructions before live memory", () => {
   const { memory, cpu, step } = program([0xa9, 0x41, 0xe8, 0x8d, 0x00, 0x04, 0xea]);

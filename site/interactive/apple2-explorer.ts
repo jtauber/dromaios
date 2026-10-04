@@ -1,9 +1,17 @@
 import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 
-export interface RomRoutine {
+export interface AddressLabel {
   readonly address: string;
   readonly name: string;
   readonly description: string;
+}
+export interface MemoryLabel extends AddressLabel {
+  readonly scope: "workspace" | "hardware" | "rom";
+}
+export interface RomRegion {
+  readonly start: string;
+  readonly end: string;
+  readonly name: string;
 }
 export interface Apple2TraceEntry {
   readonly record: Cpu6502StepRecord;
@@ -23,6 +31,33 @@ export function parseApple2Address(value: string): number {
   return parseInt(value.trim().replace(/^\$/, ""), 16);
 }
 
+function relative6502Target(address: number, offset: number): number {
+  return (address + 2 + (offset < 128 ? offset : offset - 256)) & 0xffff;
+}
+
+/** A destination encoded in the instruction, not an indirect pointer or a prediction of a branch. */
+export function direct6502Target(address: number, bytes: readonly (number | undefined)[], instructions: InstructionCatalogue): number | undefined {
+  const instruction = bytes[0] === undefined ? undefined : instructions[bytes[0]];
+  if (instruction === undefined || instruction.controlFlow === "sequential") return undefined;
+  const low = bytes[1], high = bytes[2];
+  if (low === undefined) return undefined;
+  if (instruction.name.endsWith(" relative")) return relative6502Target(address, low);
+  if (instruction.name.endsWith(" absolute") && high !== undefined) return low | high << 8;
+  return undefined;
+}
+
+/** The encoded address or base, without consulting registers, pointers, or device state. */
+export function address6502Operand(address: number, bytes: readonly (number | undefined)[], instructions: InstructionCatalogue) {
+  const instruction = bytes[0] === undefined ? undefined : instructions[bytes[0]];
+  if (!instruction || bytes.length < instruction.length || bytes.slice(0, instruction.length).some(byte => byte === undefined)) return undefined;
+  const mode = instruction.name.slice(instruction.name.indexOf(" ") + 1);
+  const target = direct6502Target(address, bytes, instructions);
+  if (target !== undefined) return { address: target, mode, target: true };
+  if (mode.includes("zero page")) return { address: bytes[1]!, mode, target: false };
+  if (mode.includes("absolute") || mode === "indirect") return { address: bytes[1]! | bytes[2]! << 8, mode, target: false };
+  return undefined;
+}
+
 /** Format chapter notation from supplied bytes, without fetching operands or following pointers. */
 export function disassemble6502(address: number, bytes: readonly (number | undefined)[], instructions: InstructionCatalogue): string {
   const name = bytes[0] === undefined ? undefined : instructions[bytes[0]]?.name;
@@ -33,14 +68,14 @@ export function disassemble6502(address: number, bytes: readonly (number | undef
     return name.replace("absolute", `$${word}`).replace("indirect", `($${word})`);
   }
   if (name.includes("relative")) {
-    const target = byte === undefined ? "????" : hex((address + 2 + (byte < 128 ? byte : byte - 256)) & 0xffff);
+    const target = byte === undefined ? "????" : hex(relative6502Target(address, byte));
     return name.replace("relative", `$${target}`);
   }
   const operand = byte === undefined ? "??" : hex(byte, 2);
   return name.replace("#byte", `#$${operand}`).replace("zero page", `$${operand}`);
 }
 
-export function romRoutine(address: number, romMapped: boolean, routines: readonly RomRoutine[]): RomRoutine | undefined {
+export function romRoutine(address: number, romMapped: boolean, routines: readonly AddressLabel[]): AddressLabel | undefined {
   return romMapped && address >= 0xd000 ? routines.find(routine => parseInt(routine.address, 16) === address) : undefined;
 }
 
@@ -51,7 +86,7 @@ export function formatApple2Instruction({ record }: Apple2TraceEntry, instructio
 }
 
 /** Rendering has no machine connection: it cannot read a device or observe later RAM contents. */
-export function formatApple2Trace({ record, romMapped }: Apple2TraceEntry, instructions: InstructionCatalogue, routines: readonly RomRoutine[]): string {
+export function formatApple2Trace({ record, romMapped }: Apple2TraceEntry, instructions: InstructionCatalogue, routines: readonly AddressLabel[]): string {
   const { instruction, before, after, accesses } = record;
   const routine = romRoutine(instruction.address, romMapped, routines);
   const heading = formatApple2Instruction({ record, romMapped }, instructions);

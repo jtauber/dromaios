@@ -13,33 +13,38 @@
 <header class="laboratory-header">
   <a class="laboratory-brand" href="{{ calc_url('') }}">microcomputer.world</a>
   <h1>Apple II Plus <span>/ Laboratory</span></h1>
-  <a href="{{ calc_url(apple2_url) }}" target="_blank" rel="noopener">Classroom ↗</a>
+  <div id="apple2-layout-controls" class="workspace-toolbar" data-workspace-controls role="group" aria-label="Workspace layout"></div>
 </header>
 {% endblock %}
 {% block footer %}{% endblock %}
 {% block main %}
-<main id="main" class="laboratory apple2-laboratory" data-apple2 data-laboratory {{ media_attributes(apple2_container) }}>
+<main id="main" class="laboratory apple2-laboratory" data-apple2 data-laboratory data-layout-controls="apple2-layout-controls" {{ media_attributes(apple2_container) }}>
   <noscript><p>Enable JavaScript to use the laboratory. The classroom remains readable without it.</p></noscript>
-  <div class="lab-machine-controls">
-    {{ execution_controls() }}
-    <p data-machine-status class="basic-readout" role="status">Preparing hardware…</p>
-    <p data-machine-message class="basic-message" role="status"></p>
-  </div>
-  <div class="workspace-toolbar" data-workspace-controls></div>
   <div class="workspace-scroll"><div class="workspace-dock" data-workspace-root aria-label="Laboratory workspace"></div></div>
   <div data-workspace-panels hidden>
     <section class="lab-tool lab-tool-screen" data-workspace-panel="screen" data-panel-title="Screen" data-panel-heading="Apple II Plus" data-panel-detail="64K · Applesoft">
       <div class="lab-panel-body">
-        <div class="apple2-display-surround">
-          <div class="apple2-screen" data-apple2-screen tabindex="0" role="region" aria-label="Apple II display" aria-describedby="lab-keyboard-help"></div>
+        <div class="lab-display-area">
+          <div class="apple2-display-surround">
+            <div class="apple2-screen" data-apple2-screen tabindex="0" role="region" aria-label="Apple II display"></div>
+          </div>
         </div>
-        {{ display_controls() }}
-        <p data-display-status class="basic-readout">Text · page 1</p>
-        <p id="lab-keyboard-help" class="lab-hint">Click the screen to type or paste. Enter sends a line; Ctrl-C sends Break. Letters become uppercase; paste one line at a time.</p>
-        <p data-input-status class="basic-readout">0 keyboard characters queued</p>
+        <div class="lab-display-footer">
+          <p data-display-status class="basic-readout">Text · page 1</p>
+          {{ display_controls() }}
+        </div>
       </div>
     </section>
-    <section class="lab-tool lab-tool-registers" data-workspace-panel="registers" data-panel-live="true" data-panel-title="Registers" data-panel-heading="MOS 6502"><div class="lab-panel-body"><pre data-machine-inspect>Preparing the processor…</pre><p class="lab-hint">Highlighted values changed in the last instruction. Hover for the previous value.</p></div></section>
+    <section class="lab-tool lab-panel-body lab-machine-controls" data-workspace-panel="execution" data-panel-title="Execution">
+      {{ execution_controls() }}
+      <p data-machine-status class="basic-readout" role="status">Preparing hardware…</p>
+      <p data-machine-message class="basic-message" role="status"></p>
+    </section>
+    <section class="lab-tool lab-tool-registers" data-workspace-panel="registers" data-panel-live="true" data-panel-title="Registers" data-panel-heading="MOS 6502"><div class="lab-panel-body"><div data-machine-inspect>Preparing the processor…</div></div></section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="instruction" data-panel-live="true" data-panel-title="Instruction">
+      <p data-instruction-location class="lab-hint"></p><pre data-instruction-preview>Preparing the processor…</pre>
+      <details><summary>Previewed memory accesses</summary><pre data-instruction-accesses></pre></details>
+    </section>
     <section class="lab-tool lab-tool-trace" data-workspace-panel="trace" data-panel-live="true" data-panel-title="Execution history" data-execution-history><div class="lab-panel-body lab-scroll">
         <div class="lab-history-controls"><label><input type="checkbox" data-history-follow checked> Follow latest</label></div>
         <p class="lab-hint">Latest twelve, newest first. Select an instruction to inspect its captured changes and memory accesses.</p>
@@ -48,49 +53,59 @@
         <pre data-history-detail>No instructions recorded yet.</pre>
       </div></section>
     <section class="lab-tool lab-tool-zero" data-workspace-panel="zero" data-panel-live="true" data-panel-title="Zero page" data-panel-detail="$0000–00FF"><div class="lab-panel-body lab-scroll"><pre data-zero-page>Preparing RAM…</pre></div></section>
-    <section class="lab-tool lab-tool-memory" data-workspace-panel="memory" data-panel-live="false" data-panel-title="Memory"><div class="lab-panel-body lab-scroll">
-      <form data-memory-form class="lab-address"><label>Address (hex) <input data-memory-address value="0400" maxlength="5" spellcheck="false" autocomplete="off" disabled></label><button type="submit" disabled>Go</button></form>
-      <label class="lab-memory-follow">Position <select data-memory-follow aria-label="Memory position"><option value="fixed">Fixed address</option><option value="pc">Follow PC</option><option value="changes">Follow changes</option></select></label>
-      <p data-memory-position class="lab-hint"></p>
-      <pre data-memory-view></pre>
-      <details><summary>About this view</summary>
-      <p data-memory-status class="lab-hint">Mapped storage only. -- means unavailable, including missing ROM and device addresses. Highlights mark bytes changed in the last instruction; hover for the previous value.</p>
-      </details>
+    <section class="lab-tool lab-tool-memory" data-workspace-panel="memory" data-panel-live="false" data-panel-title="Memory"><div class="lab-panel-body">
+      <form data-memory-form class="lab-memory-address"><input data-memory-address aria-label="Memory address (hex)" title="Memory address in hex; press Enter to go" value="0400" maxlength="5" spellcheck="false" autocomplete="off" disabled></form>
+      <p data-memory-position class="visually-hidden"></p>
+      <div data-memory-scroll class="lab-memory-scroll" tabindex="0" role="region" aria-label="Memory contents"><div class="lab-memory-space"><pre data-memory-view></pre></div></div>
     </div></section>
-    <section class="lab-tool lab-tool-stack" data-workspace-panel="stack" data-panel-live="true" data-panel-title="Stack page" data-panel-detail="$0100–01FF"><div class="lab-panel-body lab-scroll"><p data-stack-status class="lab-hint">SP marks the next push location, not the top item.</p><pre data-stack-view></pre></div></section>
-    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="rom" data-panel-title="ROM">
-      <h2>Firmware</h2>
+    <section class="lab-tool lab-tool-stack" data-workspace-panel="stack" data-panel-live="true" data-panel-title="Stack"><div class="lab-panel-body lab-scroll"><p data-stack-status class="lab-hint" title="Entries above SP in page $0100–01FF; software can change SP or wrap the stack."></p><pre data-stack-view></pre><pre data-stack-page hidden></pre></div></section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="rom" data-panel-live="true" data-panel-title="ROM">
       {{ media_picker('rom', 'ROM') }}
       <p data-rom-status class="basic-readout">No ROM loaded.</p>
-      {{ rom_storage_controls() }}
-      <p class="lab-hint">Choose the verified Apple II Plus ROM. RAM and devices are available before boot. Files stay on your computer. <a href="{{ calc_url(apple2_url ~ '#firmware-supplied-by-the-caller') }}" target="_blank" rel="noopener">Which file? ↗</a></p>
-      <p class="lab-hint">Use Code to browse memory or run to a ROM routine. Execution history shows captured instructions and their effects.</p>
-      <details><summary>Routine reference</summary><dl class="lab-routines">{% for routine in rom_explorer.routines %}<dt>${{ routine.address }} · {{ routine.name }}</dt><dd>{{ routine.description }}</dd>{% endfor %}</dl></details>
-      <p><a href="{{ calc_url(apple2_url ~ '#rom-walkthrough') }}" target="_blank" rel="noopener">Follow the ROM walkthrough in the classroom ↗</a></p>
-      <p class="lab-hint">Both views remember the same ROM in this browser. Each starts its own machine; RAM, programs, and disk selections are not saved on reload. Fresh power-on discards RAM; Reset CPU preserves RAM and devices.</p>
+      <details><summary>ROM file and browser storage</summary>
+        {{ rom_storage_controls() }}
+        <p class="lab-hint">Choose the verified Apple II Plus ROM. Files stay on your computer. <a href="{{ calc_url(apple2_url ~ '#firmware-supplied-by-the-caller') }}" target="_blank" rel="noopener">Which file? ↗</a></p>
+        <p class="lab-hint">Both views remember the same ROM. RAM, programs, and disks are not saved on reload.</p>
+      </details>
+      <div data-rom-reference class="lab-rom-reference">
+        <h2>ROM reference</h2>
+        <label>Reference position <select data-reference-mode><option value="pc">Follow PC</option><option value="memory">Follow Memory</option><option value="selection">Selected entry</option></select></label>
+        <p data-reference-context class="lab-hint"></p>
+        <div class="lab-reference-current">
+          <h3 data-reference-heading></h3>
+          <p data-reference-description></p>
+          <p data-reference-offset class="lab-hint"></p>
+          <div class="basic-controls"><button type="button" data-reference-code disabled>Browse code</button><button type="button" data-reference-memory disabled>View memory</button></div>
+        </div>
+        <label>Search ROM reference <input type="search" data-reference-search placeholder="Name, address, or description" autocomplete="off" spellcheck="false"></label>
+        <p data-reference-count class="lab-hint"></p>
+        <div data-reference-list class="lab-reference-list" role="group" aria-label="ROM entries"></div>
+        <p class="lab-hint">Selected ROM entries, workspace names, and hardware addresses. Other software may reuse the workspace.</p>
+      </div>
+      <p><a href="{{ calc_url(apple2_url ~ '#exploring-the-rom-reference') }}" target="_blank" rel="noopener">Read the reference guide ↗</a> · <a href="{{ calc_url(apple2_url ~ '#rom-walkthrough') }}" target="_blank" rel="noopener">ROM walkthrough ↗</a></p>
     </section>
-    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="code" data-panel-live="true" data-panel-title="Code" data-disassembly>
-      <h2>Live disassembly</h2>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="code" data-panel-live="true" data-panel-title="Disassembly" data-disassembly>
+      <p data-disassembly-status class="lab-hint" role="status"></p>
+      <table class="lab-code"><caption class="visually-hidden">· executed &nbsp; → next instruction</caption>
+        <thead><tr><th scope="col">PC</th><th scope="col">Routine</th><th scope="col">Address</th><th scope="col">Bytes</th><th scope="col">Instruction</th><th scope="col">Operand</th></tr></thead>
+        <tbody data-disassembly-rows></tbody>
+      </table>
+      <details class="lab-code-navigation-details"><summary>Navigate or run to an address</summary>
       <form data-disassembly-form class="lab-address"><label>Address (hex) <input data-disassembly-address value="0000" maxlength="5" spellcheck="false" autocomplete="off"></label><button type="submit">Browse</button><button type="button" data-disassembly-run disabled>Run to address</button></form>
       <div class="lab-code-navigation">
-        <label><input type="checkbox" data-disassembly-follow checked> Follow PC</label>
         <button type="button" data-disassembly-back disabled>Back</button>
         <button type="button" data-disassembly-next>Next 16</button>
       </div>
-      <p data-disassembly-status class="lab-hint" role="status"></p>
       <details class="lab-code-routines"><summary>Run to a ROM routine</summary>
         {{ rom_routine_controls(rom_explorer) }}
         <p class="lab-hint">Pauses before the selected instruction, only while ROM is mapped. Run to address accepts any bank.</p>
       </details>
-      <p data-disassembly-stop-status class="basic-message" role="status"></p>
-      <table class="lab-code"><caption class="lab-hint">· executed &nbsp; → next instruction</caption>
-        <thead><tr><th scope="col">PC</th><th scope="col">Address</th><th scope="col">Bytes</th><th scope="col">Instruction</th></tr></thead>
-        <tbody data-disassembly-rows></tbody>
-      </table>
-      <p class="lab-hint">Follow PC shows the last three executed instructions above the arrow, then current mapped memory. Solid lines mark unconditional transfers; dotted lines mark conditional branches, taken or not.</p>
+      <p class="lab-hint">PC shows the last three executed instructions above the arrow, then current mapped memory. MEM follows the Memory panel's address. Solid lines mark unconditional transfers; dotted lines mark conditional branches, taken or not.</p>
       <p class="lab-hint">A listing interprets bytes as code; data may look like instructions. -- means unavailable; .byte marks an unsupported opcode. No device reads are performed.</p>
-      <p class="lab-hint">Address buttons pause before executing that address, in any bank. Step and Pause remain in the main controls.</p>
+      <p class="lab-hint">Address buttons pause before executing that address, in any bank. Step and Pause are in the Execution panel.</p>
       <p><a href="{{ calc_url(apple2_url ~ '#live-disassembly') }}" target="_blank" rel="noopener">Read the disassembly guide ↗</a></p>
+      </details>
+      <p data-disassembly-stop-status class="basic-message" role="status"></p>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="log" data-panel-live="true" data-panel-title="Changes" data-change-log>
       <h2>Recorded changes</h2>

@@ -1,12 +1,27 @@
 import { disassemble6502Rows } from "./6502-disassembly.js";
 import type { DisassemblyRow } from "./6502-disassembly.js";
-import { disassemble6502 } from "./apple2-explorer.js";
-import type { Apple2TraceEntry, InstructionCatalogue, InstructionControlFlow } from "./apple2-explorer.js";
+import { address6502Operand, disassemble6502, romRoutine } from "./apple2-explorer.js";
+import type { Apple2TraceEntry, InstructionCatalogue, InstructionControlFlow, AddressLabel, MemoryLabel } from "./apple2-explorer.js";
 
 export interface Apple2CodeRow extends DisassemblyRow {
   readonly executed: boolean;
   readonly romMapped: boolean;
   readonly controlFlow: InstructionControlFlow;
+}
+
+/** ROM identities follow captured mapping; workspace names apply only to instructions in that ROM. */
+export function apple2CodeReferences(row: Apple2CodeRow, instructions: InstructionCatalogue,
+  routines: readonly AddressLabel[], labels: readonly MemoryLabel[] = []) {
+  const operand = row.complete ? address6502Operand(row.address, row.bytes, instructions) : undefined;
+  const label = operand === undefined ? undefined : romRoutine(operand.address, row.romMapped, routines)
+    ?? labels.find(label => parseInt(label.address, 16) === operand.address && (label.scope === "hardware"
+      || row.romMapped && (label.scope === "rom" || row.address >= 0xd000)));
+  return {
+    entry: romRoutine(row.address, row.romMapped, routines),
+    operand: operand && label ? { label, text: operand.target ? `→ ${label.name}`
+      : operand.mode === "indirect" ? `(${label.name})` : operand.mode.replace(/absolute|zero page/, label.name),
+      target: operand.target } : undefined,
+  };
 }
 
 /** Captured execution leads into live memory at PC; both use the chapter's control-flow classification. */

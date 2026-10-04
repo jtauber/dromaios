@@ -1,10 +1,11 @@
 /* The workspace owns geometry; tool content owns its display and scrolling. */
 .workspace-scroll { flex: 1; min-height: 0; overflow: auto; }
 .workspace-dock { height: 100%; min-width: 1180px; min-height: 700px; padding: 6px; }
-.workspace-toolbar { display: flex; align-items: start; gap: 10px; padding: 7px 12px; background: #131f33; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.workspace-toolbar { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
+.workspace-toolbar > button { font-size: 12px; }
 .workspace-toolbar > details { position: relative; }
 .workspace-toolbar summary { padding: 5px 8px; border: 1px solid #435674; border-radius: 4px; }
-.workspace-toolbar > details > div, .workspace-toolbar > details > form { position: absolute; z-index: 10001; top: 100%; left: 0; min-width: 225px; padding: 12px; background: #18253b; border: 1px solid #435674; border-radius: 5px; box-shadow: 0 8px 24px #0008; }
+.workspace-toolbar > details > div, .workspace-toolbar > details > form { position: absolute; z-index: 10001; top: calc(100% + 6px); right: 0; width: 260px; max-height: calc(100dvh - 72px); overflow: auto; padding: 12px; background: #18253b; border: 1px solid #435674; border-radius: 5px; box-shadow: 0 8px 24px #0008; }
 .workspace-toolbar form { display: grid; gap: 12px; }
 .workspace-panel-list { display: grid; gap: 6px; }
 .workspace-panel-list label { display: flex; align-items: center; gap: 8px; }
@@ -27,6 +28,7 @@
 .workspace-group.is-single [role=tab] { display: block; width: 100%; padding-inline: 2px; color: #a9bdd9; text-align: left; box-shadow: none; overflow: hidden; text-overflow: ellipsis; }
 .workspace-panel-detail { flex-shrink: 0; color: #a9bdd9; font: 400 10px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
 .workspace-panel-controls { display: flex; flex-shrink: 0; }
+.workspace-panel-detail:not(:empty) + .workspace-panel-controls:not(:empty) { margin-inline-start: 8px; }
 .workspace-heading .workspace-collapse, .workspace-heading .workspace-close { flex-shrink: 0; border: 0; background: transparent; color: #a9bdd9; padding: 3px; line-height: 1; }
 .workspace-heading .workspace-close { color: #8093ac; }
 .workspace-body { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
@@ -35,6 +37,7 @@
 .workspace-divider.vertical { cursor: row-resize; }
 .workspace-divider:hover, .workspace-divider:focus-visible { background: #83c9f4; outline: none; }
 .workspace-drop-preview { position: absolute; z-index: 1000; display: grid; place-items: center; border: 2px solid #83c9f4; background: #83c9f433; color: white; pointer-events: none; font-size: 14px; }
+.workspace-drop-preview.is-insertion { border: 0; border-radius: 2px; background: #83c9f4; }
 .workspace-empty { display: grid; place-items: center; padding: 24px; height: 100%; color: var(--muted); }
 .workspace-dragging, .workspace-dragging * { user-select: none !important; }
 .workspace-divider[aria-disabled=true] { cursor: default; background: #111827; }

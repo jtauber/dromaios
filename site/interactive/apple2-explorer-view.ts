@@ -1,15 +1,22 @@
 import type { createApple2Session } from "./apple2-session.js";
 import { createApple2RunTarget, formatApple2Trace, hex, parseApple2Address, romRoutine } from "./apple2-explorer.js";
-import type { Apple2TraceEntry, InstructionCatalogue, RomRoutine } from "./apple2-explorer.js";
+import type { Apple2TraceEntry, InstructionCatalogue, AddressLabel, MemoryLabel, RomRegion } from "./apple2-explorer.js";
 import { createApple2Disassembly } from "./apple2-disassembly-view.js";
 import { createApple2History } from "./apple2-history-view.js";
+import { createApple2RomReference } from "./apple2-rom-reference-view.js";
+import { createApple2InstructionView } from "./apple2-instruction-view.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 
-export function createApple2Explorer(root: HTMLElement, machine: () => Machine | undefined, run: () => void, shouldUpdate: (id: string) => boolean) {
+export function createApple2Explorer(root: HTMLElement, machine: () => Machine | undefined, run: () => void, shouldUpdate: (id: string) => boolean, navigation: {
+  readonly memoryAddress: () => number;
+  readonly browseMemory: (address: number) => void;
+  readonly showPanel: (id: string) => void;
+}) {
   const element = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
   const catalogue = JSON.parse(element("rom-catalogue").textContent!) as {
-    readonly instructions: InstructionCatalogue; readonly routines: readonly RomRoutine[];
+    readonly instructions: InstructionCatalogue; readonly routines: readonly AddressLabel[];
+    readonly labels: readonly MemoryLabel[]; readonly regions: readonly RomRegion[];
   };
   const optional = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`);
   const details = optional("rom-explorer"), current = optional("rom-current"), trace = optional("machine-trace");
@@ -18,8 +25,16 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   const step = optional<HTMLButtonElement>("rom-step"), resume = optional<HTMLButtonElement>("rom-continue");
   const pause = optional<HTMLButtonElement>("rom-pause");
   const target = createApple2RunTarget();
-  const disassembly = createApple2Disassembly(root, catalogue, address => { target.arm(address, false); run(); });
+  const disassembly = createApple2Disassembly(root, catalogue, address => { target.arm(address, false); run(); }, address => {
+    reference?.select(address); navigation.showPanel("rom");
+  }, { address: navigation.memoryAddress, browse: navigation.browseMemory });
+  const reference = createApple2RomReference(root, catalogue, (tool, address) => {
+    if (tool === "code") disassembly?.browse(address);
+    else navigation.browseMemory(address);
+    navigation.showPanel(tool);
+  });
   const history = createApple2History(root, catalogue);
+  const instruction = createApple2InstructionView(root, catalogue.instructions);
   const stopMessages = root.querySelectorAll<HTMLElement>("[data-rom-stop-status], [data-disassembly-stop-status]");
   function showStopStatus(value: string, running = false): void {
     for (const message of stopMessages) {
@@ -41,6 +56,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     if (event.key === "Enter" && toAddress && !toAddress.disabled) { event.preventDefault(); start(address.value, false); }
   });
   return {
+    controls: (id: string) => id === "code" ? disassembly?.controls : undefined,
     cancel(): void { target.cancel(); showStopStatus(""); },
     pauseBeforeStep(): boolean {
       if (!target.active) return false;
@@ -54,8 +70,11 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
       if (pause) pause.disabled = !running;
       showStopStatus(target.status, running);
       const selected = machine();
+      if (selected && shouldUpdate("instruction")) instruction?.(selected);
       disassembly?.refresh(selected, records, available, running, shouldUpdate("code"));
       history?.refresh(records, shouldUpdate("trace"));
+      if (selected) reference?.refresh({ pc: selected.cpu.snapshot().pc, memory: navigation.memoryAddress(),
+        installed: selected.firmware.loaded, mapped: !selected.language.ramRead() }, shouldUpdate("rom"));
       if (!current || !trace) return;
       if (details instanceof HTMLDetailsElement && !details.open) return;
       if (selected === undefined) { current.textContent = "Choose a ROM to begin."; trace.textContent = ""; return; }

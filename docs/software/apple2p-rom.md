@@ -6,7 +6,7 @@ The Apple II can reach its Applesoft prompt without a disk. Follow that path in
 the [browser machine](../../src/machines/6502/apple2.md#using-the-browser-machine), then watch one
 keypress travel from the keyboard latch to the screen. In the classroom, open
 **Explore the ROM** under the keyboard and keep it open while stepping. In the
-laboratory, load firmware in **ROM**, use **Code** for run-to controls, and keep
+laboratory, load firmware in **ROM**, use **Disassembly** for run-to controls, and keep
 **Execution history** visible while stepping with the machine-control bar.
 Both show the latest twelve executed instructions; select a laboratory history
 entry to inspect that step's changes and memory accesses.
@@ -80,20 +80,25 @@ The trace describes completed instructions, not a speculative listing of the
 next bytes. Its ordered memory accesses include instruction fetches as well as
 data reads and writes; the fetched bytes also appear beside the assembly.
 Recorded ROM labels retain the bank mapping at execution time. The explorer
-does not read through the guest bus, inspect disk bytes, or replay instructions
-to produce explanations. The machine's
+does not read through the guest bus or inspect disk bytes. Captured history
+uses execution records; the separate Instruction panel previews a copied CPU
+against safe storage observations. The machine's
 [model limitations](../../src/machines/6502/apple2.md#components-and-address-decoding) still apply.
 
 ### Live disassembly
 
-The laboratory's **Code** tab shows a sixteen-row listing. **Follow PC** places
-the last three executed instructions above the processor's next instruction,
-followed by a live listing of current memory. Stepping moves the view with it.
-To browse elsewhere, enter a
-hexadecimal address and choose **Browse**. This turns off Follow PC. **Next 16**
-continues after the last displayed instruction; **Back** returns to the previous
-view. Browsing does not execute anything or change the processor's PC.
-**Run to address** beside Browse instead executes until PC reaches that address.
+The laboratory's **Disassembly** panel shows a sixteen-row listing. Its
+**PC / MEM** header toggle chooses the source. **PC** places the last three
+executed instructions above the processor's next instruction, followed by a
+live listing of current memory. Stepping moves the view with it. **MEM** starts
+at Memory's selected address: enter a hexadecimal address in Memory's header
+and press Enter, or scroll its contents.
+
+**Navigate or run to an address** exposes explicit navigation and execution
+controls. Enter an address and choose **Browse** to select MEM and move Memory
+there. **Next 16** continues after the last displayed instruction; **Back**
+returns to the previous view. Browsing never executes or changes the processor's
+PC. **Run to address** instead executes until PC reaches that address.
 
 The dimmed rows marked `·` show actual execution in chronological order, including
 repeated visits to an address. A solid horizontal line appears below an
@@ -113,6 +118,27 @@ names on live rows appear only while motherboard ROM is mapped at those
 addresses; Language Card RAM does not inherit ROM labels. Executed rows retain
 their recorded ROM mapping.
 
+The **Routine** column, before **Address**, names a documented ROM entry at
+that instruction's exact address. The **Operand** column on the right labels
+the encoded address: a `JSR`, direct `JMP`, or branch destination, but also a
+load, store, comparison, `BIT`, or other memory operand. Control destinations
+keep their arrow (`→ SETNORM`); data references use their symbolic operand
+notation (`INVFLG`, `FMT1,X`, or `(BASL),Y`). Immediate values are not addresses.
+Branch labels describe the possible target whether taken or not.
+
+Indexed labels name the encoded base, not the address after adding X or Y.
+Indirect labels name the pointer, not its contents or destination. The listing
+never reads that pointer or a device to resolve a label. Incomplete instructions
+do not receive operand labels. Both columns open the corresponding reference.
+
+The guide owns selected `labels` alongside its routine stops. Each label declares
+its scope: `rom` data requires the identified ROM to be mapped; `workspace`
+names apply only to instructions in that ROM, since other software can reuse
+RAM; `hardware` addresses remain identifiable regardless of ROM banking.
+History uses the fetched bytes and mapping captured before execution. Hardware
+names describe addresses, not a claim that every peripheral is emulated; the
+machine chapter owns device behavior and limitations.
+
 The CPU chapter supplies instruction names, lengths, and control-flow behavior. Decoding proceeds
 forward from the selected address, without following jumps or reading data
 operands. Data can look like valid instructions, and starting partway through
@@ -129,26 +155,161 @@ RAM, mapped ROM, and the installed slot ROM directly, never a keyboard, disk,
 or Language Card switch through the guest bus. Those device addresses remain
 unavailable even when the machine can read them during execution.
 
+## Exploring the ROM reference
+
+The laboratory's **ROM** panel connects reference material to the existing
+inspectors. Search by name, hexadecimal address (with or without `$`), or words
+in the description. Selecting an entry holds its description. **Browse code**
+opens Disassembly at that entry; **View memory** opens Memory there in Fixed mode.
+Neither action executes instructions or changes PC. A named label in Disassembly
+opens its ROM reference in the other direction. Execution remains in the
+machine-control bar and Disassembly's explicit run-to controls.
+
+**Follow PC** locates the processor's current address. **Follow Memory** uses
+Memory's selected address, including when that view is held by its Live
+control. ROM's own Live control governs automatic reference
+updates during Run. Search and selection remain available while held. Following
+shows the nearest documented entry at or before the address *within the same
+ROM region*, with an explicit offset; proximity does not prove that execution
+is inside that routine. Search also includes the guide's workspace, hardware, and ROM data labels.
+Selecting one shows its exact address and description; these labels do not
+become routine stops or inferred routine boundaries. The reference is not an
+exhaustive symbol table.
+
+The reference can be browsed without loading firmware. PC and Memory following
+only associate addresses with ROM when the verified image is installed and
+mapped. When Language Card RAM covers ROM, the panel says so; selecting a
+reference still explains the ROM, while Disassembly and Memory show the storage that
+is actually mapped. The Monitor uses scratch addresses such as `$28–$29` and
+`$3A–$3B`; these are software variables, distinct from CPU registers. Other
+software can reuse them.
+
 ## ROM identity and stops
 
-This record supplies the browser's routine selector, trace, and live-code annotations.
-Addresses and labels apply only to the motherboard image identified below;
-the build checks it against the machine's firmware declaration. These selected
+This record supplies the browser's searchable reference, routine selector, trace,
+and live-code annotations. The region bounds describe ROM areas, not routine ends.
+Routine entries and software labels describe the motherboard image identified
+below; hardware labels describe machine addresses. The build checks the image
+identity against the machine's firmware declaration and validates each label's
+address and scope. These selected
 entry points are not a full symbol table. “Acknowledge key” names an instruction
 within KEYIN, rather than a separate subroutine.
 
 ```json
 {
   "sha256": "378ba00c86a64cca49cedaca7de8d5d351983ebc295d9d11e0752febfc346249",
+  "regions": [
+    {"start": "D000", "end": "F7FF", "name": "Applesoft ROM"},
+    {"start": "F800", "end": "FFFF", "name": "Monitor ROM"}
+  ],
   "routines": [
-    { "address": "FA62", "name": "RESET", "description": "Begin the autostart firmware's reset path." },
-    { "address": "FC58", "name": "HOME", "description": "Clear the text window and move its cursor home." },
-    { "address": "FDED", "name": "COUT", "description": "Send A through the output hook at $0036–$0037." },
-    { "address": "FD0C", "name": "RDKEY", "description": "Prepare the cursor and enter the input hook at $0038–$0039." },
-    { "address": "FD1B", "name": "KEYIN", "description": "Wait for a key while updating the random-number seed." },
-    { "address": "FD21", "name": "KEYIN2", "description": "Test the keyboard ready bit with BIT $C000." },
-    { "address": "FD2B", "name": "Acknowledge key", "description": "Read $C010 to clear the keyboard strobe." },
-    { "address": "FBF0", "name": "STORADV", "description": "Store A at the text cursor, then advance it." }
+    {"address": "FA62", "name": "RESET", "description": "Begin the autostart firmware's reset path."},
+    {"address": "FC58", "name": "HOME", "description": "Clear the text window and move its cursor home."},
+    {"address": "FDED", "name": "COUT", "description": "Send A through the output hook at $0036–$0037."},
+    {"address": "FD0C", "name": "RDKEY", "description": "Prepare the cursor and enter the input hook at $0038–$0039."},
+    {"address": "FD1B", "name": "KEYIN", "description": "Wait for a key while updating the random-number seed."},
+    {"address": "FD21", "name": "KEYIN2", "description": "Test the keyboard ready bit with BIT $C000."},
+    {"address": "FD2B", "name": "Acknowledge key", "description": "Read $C010 to clear the keyboard strobe."},
+    {"address": "FBF0", "name": "STORADV", "description": "Store A at the text cursor, then advance it."},
+    {"address": "F800", "name": "PLOT", "description": "Draw a low-resolution pixel using row A and column Y."},
+    {"address": "F847", "name": "GBASCALC", "description": "Convert a graphics row into its screen-memory base address."},
+    {"address": "F864", "name": "SETCOL", "description": "Expand the colour in A into both halves of COLOR ($30)."},
+    {"address": "F871", "name": "SCRN", "description": "Return the colour at row A, column Y."},
+    {"address": "F882", "name": "INSDS1", "description": "Decode an instruction at the Monitor pointer $003A–$003B."},
+    {"address": "FB2F", "name": "INIT", "description": "Initialize the text window and cursor."},
+    {"address": "FBC1", "name": "BASCALC", "description": "Compute a text row address in BASL/BASH ($28–$29)."},
+    {"address": "FC22", "name": "VTAB", "description": "Recompute the text pointer from CV and WNDLFT."},
+    {"address": "FC70", "name": "SCROLL", "description": "Move the text window upward by one row."},
+    {"address": "FC9C", "name": "CLREOL", "description": "Fill the remainder of the current text row with spaces."},
+    {"address": "FD6A", "name": "GETLN", "description": "Print the prompt and collect an edited line at $0200."},
+    {"address": "FD8E", "name": "CROUT", "description": "Send a carriage return through COUT."},
+    {"address": "FDF0", "name": "COUT1", "description": "Apply INVFLG and route a character to the screen handler."},
+    {"address": "FE80", "name": "SETINV", "description": "Set INVFLG ($32) to $3F for inverse characters."},
+    {"address": "FE84", "name": "SETNORM", "description": "Set INVFLG ($32) to $FF for normal characters."},
+    {"address": "FE89", "name": "SETKBD", "description": "Point the input hook at KEYIN."},
+    {"address": "FE93", "name": "SETVID", "description": "Point the output hook at COUT1."}
+  ],
+  "labels": [
+    {"address": "0020", "name": "WNDLFT", "description": "window left edge", "scope": "workspace"},
+    {"address": "0021", "name": "WNDWDTH", "description": "window width", "scope": "workspace"},
+    {"address": "0022", "name": "WNDTOP", "description": "window top", "scope": "workspace"},
+    {"address": "0023", "name": "WNDBTM", "description": "window bottom", "scope": "workspace"},
+    {"address": "0024", "name": "CH", "description": "cursor horizontal position", "scope": "workspace"},
+    {"address": "0025", "name": "CV", "description": "cursor vertical position", "scope": "workspace"},
+    {"address": "0026", "name": "GBASL", "description": "graphics base address low", "scope": "workspace"},
+    {"address": "0027", "name": "GBASH", "description": "graphics base address high", "scope": "workspace"},
+    {"address": "0028", "name": "BASL", "description": "text base address low", "scope": "workspace"},
+    {"address": "0029", "name": "BASH", "description": "text base address high", "scope": "workspace"},
+    {"address": "002A", "name": "BAS2L", "description": "secondary text base low", "scope": "workspace"},
+    {"address": "002B", "name": "BAS2H", "description": "secondary text base high", "scope": "workspace"},
+    {"address": "0030", "name": "COLOR", "description": "lo-res colour / HMASK (hi-res bit mask)", "scope": "workspace"},
+    {"address": "0031", "name": "MODE", "description": "monitor mode", "scope": "workspace"},
+    {"address": "0032", "name": "INVFLG", "description": "inverse flag ($FF=normal, $7F=flash, $3F=inverse)", "scope": "workspace"},
+    {"address": "0033", "name": "PROMPT", "description": "prompt character", "scope": "workspace"},
+    {"address": "0034", "name": "YSAV", "description": "Y register save", "scope": "workspace"},
+    {"address": "0035", "name": "YSAV1", "description": "Y register save (secondary)", "scope": "workspace"},
+    {"address": "0036", "name": "CSWL", "description": "character output hook low", "scope": "workspace"},
+    {"address": "0037", "name": "CSWH", "description": "character output hook high", "scope": "workspace"},
+    {"address": "0038", "name": "KSWL", "description": "character input hook low", "scope": "workspace"},
+    {"address": "0039", "name": "KSWH", "description": "character input hook high", "scope": "workspace"},
+    {"address": "003A", "name": "PCL", "description": "program counter low", "scope": "workspace"},
+    {"address": "003B", "name": "PCH", "description": "program counter high", "scope": "workspace"},
+    {"address": "003C", "name": "A1L", "description": "general purpose address 1 low", "scope": "workspace"},
+    {"address": "003D", "name": "A1H", "description": "general purpose address 1 high", "scope": "workspace"},
+    {"address": "003E", "name": "A2L", "description": "general purpose address 2 low", "scope": "workspace"},
+    {"address": "003F", "name": "A2H", "description": "general purpose address 2 high", "scope": "workspace"},
+    {"address": "0040", "name": "A3L", "description": "general purpose address 3 low", "scope": "workspace"},
+    {"address": "0041", "name": "A3H", "description": "general purpose address 3 high", "scope": "workspace"},
+    {"address": "0042", "name": "A4L", "description": "general purpose address 4 low", "scope": "workspace"},
+    {"address": "0043", "name": "A4H", "description": "general purpose address 4 high", "scope": "workspace"},
+    {"address": "0044", "name": "A5L", "description": "general purpose address 5 low", "scope": "workspace"},
+    {"address": "0045", "name": "A5H / ACC", "description": "address 5 high / accumulator save (overlap)", "scope": "workspace"},
+    {"address": "0046", "name": "XREG", "description": "X register save", "scope": "workspace"},
+    {"address": "0047", "name": "YREG", "description": "Y register save", "scope": "workspace"},
+    {"address": "0048", "name": "STATUS", "description": "processor status save", "scope": "workspace"},
+    {"address": "0049", "name": "SPNT", "description": "stack pointer save", "scope": "workspace"},
+    {"address": "004E", "name": "RNDL", "description": "random number low", "scope": "workspace"},
+    {"address": "004F", "name": "RNDH", "description": "random number high", "scope": "workspace"},
+    {"address": "0200", "name": "INPUT_BUFFER", "description": "Input buffer (256 bytes)", "scope": "workspace"},
+    {"address": "03F0", "name": "BRKV", "description": "BRK vector (2 bytes)", "scope": "workspace"},
+    {"address": "03F2", "name": "SOFTEV", "description": "Soft entry (warm start) vector (2 bytes)", "scope": "workspace"},
+    {"address": "03F4", "name": "PWREDUP", "description": "Power-up check byte (must = EOR #$A5 of SOFTEV+1)", "scope": "workspace"},
+    {"address": "03F8", "name": "USRADR", "description": "USR() jump address (3 bytes)", "scope": "workspace"},
+    {"address": "03FB", "name": "NMI", "description": "NMI vector on page 3 (3 bytes)", "scope": "workspace"},
+    {"address": "03FE", "name": "IRQLOC", "description": "IRQ location vector (2 bytes)", "scope": "workspace"},
+    {"address": "C000", "name": "KBD", "description": "R: last key pressed + 128", "scope": "hardware"},
+    {"address": "C010", "name": "KBDSTRB", "description": "RW: keyboard strobe (clear)", "scope": "hardware"},
+    {"address": "C020", "name": "TAPEOUT", "description": "RW: toggle cassette tape output", "scope": "hardware"},
+    {"address": "C030", "name": "SPKR", "description": "RW: toggle speaker", "scope": "hardware"},
+    {"address": "C050", "name": "TXTCLR", "description": "RW: display graphics", "scope": "hardware"},
+    {"address": "C051", "name": "TXTSET", "description": "RW: display text", "scope": "hardware"},
+    {"address": "C052", "name": "MIXCLR", "description": "RW: display full screen", "scope": "hardware"},
+    {"address": "C053", "name": "MIXSET", "description": "RW: display split screen", "scope": "hardware"},
+    {"address": "C054", "name": "TXTPAGE1", "description": "RW: display page 1", "scope": "hardware"},
+    {"address": "C055", "name": "TXTPAGE2", "description": "RW: display page 2", "scope": "hardware"},
+    {"address": "C056", "name": "LORES", "description": "RW: display lo-res graphics", "scope": "hardware"},
+    {"address": "C057", "name": "HIRES", "description": "RW: display hi-res graphics", "scope": "hardware"},
+    {"address": "C058", "name": "SETAN0", "description": "RW: annunciator 0 off (TTL high)", "scope": "hardware"},
+    {"address": "C059", "name": "CLRAN0", "description": "RW: annunciator 0 on (TTL low)", "scope": "hardware"},
+    {"address": "C05A", "name": "SETAN1", "description": "RW: annunciator 1 off (TTL high)", "scope": "hardware"},
+    {"address": "C05B", "name": "CLRAN1", "description": "RW: annunciator 1 on (TTL low)", "scope": "hardware"},
+    {"address": "C05C", "name": "SETAN2", "description": "RW: annunciator 2 off (TTL high)", "scope": "hardware"},
+    {"address": "C05D", "name": "CLRAN2", "description": "RW: annunciator 2 on (TTL low)", "scope": "hardware"},
+    {"address": "C05E", "name": "SETAN3", "description": "RW: annunciator 3 off (TTL high)", "scope": "hardware"},
+    {"address": "C05F", "name": "CLRAN3", "description": "RW: annunciator 3 on (TTL low)", "scope": "hardware"},
+    {"address": "C060", "name": "TAPEIN", "description": "R: cassette input", "scope": "hardware"},
+    {"address": "C064", "name": "PADDL0", "description": "R: analog input 0", "scope": "hardware"},
+    {"address": "C065", "name": "PADDL1", "description": "R: analog input 1", "scope": "hardware"},
+    {"address": "C066", "name": "PADDL2", "description": "R: analog input 2", "scope": "hardware"},
+    {"address": "C067", "name": "PADDL3", "description": "R: analog input 3", "scope": "hardware"},
+    {"address": "C070", "name": "PTRIG", "description": "RW: analog input reset (trigger)", "scope": "hardware"},
+    {"address": "CFFF", "name": "CLRROM", "description": "Disable slot C8 ROM", "scope": "hardware"},
+    {"address": "F962", "name": "FMT1", "description": "Instruction format table 1", "scope": "rom"},
+    {"address": "F9A6", "name": "FMT2", "description": "Instruction format table 2", "scope": "rom"},
+    {"address": "F9B4", "name": "CHAR1", "description": "Addressing mode character table 1", "scope": "rom"},
+    {"address": "F9BA", "name": "CHAR2", "description": "Addressing mode character table 2", "scope": "rom"},
+    {"address": "F9C0", "name": "MNEML", "description": "Mnemonic table (left bytes)", "scope": "rom"},
+    {"address": "FA00", "name": "MNEMR", "description": "Mnemonic table (right bytes)", "scope": "rom"}
   ]
 }
 ```

@@ -5,7 +5,8 @@ import { families } from "../../src/components/cpus/semantics/generated/6502.js"
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { createApple2Session } from "../../site/interactive/apple2-session.js";
 import { createApple2RunTarget, disassemble6502, formatApple2Trace, romRoutine } from "../../site/interactive/apple2-explorer.js";
-import type { RomRoutine, Apple2TraceEntry } from "../../site/interactive/apple2-explorer.js";
+import type { AddressLabel, MemoryLabel, RomRegion, Apple2TraceEntry } from "../../site/interactive/apple2-explorer.js";
+import { createRomReference } from "../../site/interactive/apple2-rom-reference.js";
 import { readRomFile } from "../../site/interactive/rom-file.js";
 import { apple2StorageReader, apple2MemoryAddresses } from "../../site/interactive/apple2-inspection.js";
 import { apple2TextFrame } from "../../site/interactive/apple2-screen.js";
@@ -17,7 +18,46 @@ import { apple2CodeRows } from "../../site/interactive/apple2-disassembly.js";
 import { disassemble6502Rows } from "../../site/interactive/6502-disassembly.js";
 
 const instructions = instructionCatalogue6502(Object.values(families).flat());
-const annotations: { sha256: string; routines: RomRoutine[] } = JSON.parse(readFileSync("docs/software/apple2p-rom.md", "utf8").match(/```json\n([\s\S]*?)```/)![1]!);
+const annotations: { sha256: string; regions: RomRegion[]; routines: AddressLabel[]; labels: MemoryLabel[] } = JSON.parse(readFileSync("docs/software/apple2p-rom.md", "utf8").match(/```json\n([\s\S]*?)```/)![1]!);
+
+test("the reference finds exact workspace and hardware labels without treating them as routine boundaries", () => {
+  const reference = createRomReference(annotations.regions, annotations.routines, annotations.labels);
+  assert.equal(reference.at(0xc000)?.name, "KBD");
+  assert.equal(reference.at(0x32)?.name, "INVFLG");
+  assert.equal(reference.at(0xc001), undefined);
+  assert.ok(reference.search("text base").some(entry => entry.name === "BASL"));
+  assert.equal(reference.at(0xf962)?.name, "FMT1");
+  assert.equal(reference.locate(0xf962, true)?.entry?.name, "INSDS1");
+  assert.equal(reference.locate(0x32, true), undefined);
+});
+
+test("ROM reference searches names, addresses and descriptions without changing the authored order", () => {
+  const before = [...annotations.routines], reference = createRomReference(annotations.regions, annotations.routines);
+  assert.equal(reference.search("  $fd21  ")[0]?.name, "KEYIN2");
+  assert.deepEqual(reference.search("cout").map(entry => entry.name), ["CROUT", "COUT", "COUT1", "SETVID"]);
+  assert.equal(reference.search("input hook").some(entry => entry.name === "RDKEY"), true);
+  assert.equal(reference.search("not an entry").length, 0);
+  const addresses = reference.search("").map(entry => entry.address);
+  assert.deepEqual(addresses, [...addresses].sort());
+  assert.deepEqual(annotations.routines, before);
+});
+
+test("ROM location distinguishes exact and nearby entries, unmapped ROM, and unrelated regions", () => {
+  const reference = createRomReference(annotations.regions, annotations.routines);
+  const exact = reference.locate(0xfd21, true)!;
+  assert.equal(exact.region.name, "Monitor ROM"); assert.equal(exact.entry?.name, "KEYIN2"); assert.equal(exact.offset, 0);
+  const nearby = reference.locate(0xfd24, true)!;
+  assert.equal(nearby.entry?.name, "KEYIN2"); assert.equal(nearby.offset, 3);
+  assert.equal(reference.locate(0xfd21, false), undefined);
+  assert.equal(reference.locate(0xcfff, true), undefined);
+  assert.equal(reference.locate(0x10000, true), undefined);
+  assert.equal(reference.locate(0xf7ff, true)?.entry, undefined, "Do not borrow a label from another ROM region");
+  assert.equal(reference.locate(0xf800, true)?.entry?.name, "PLOT");
+  const separated = createRomReference([{ start: "D000", end: "D00F", name: "First" }, { start: "E000", end: "E00F", name: "Second" }],
+    [{ address: "D000", name: "ENTRY", description: "First region entry" }]);
+  assert.equal(separated.locate(0xd010, true), undefined);
+  assert.equal(separated.locate(0xe000, true)?.entry, undefined);
+});
 
 test("6502 disassembly uses chapter names and captured operands for all addressing forms", () => {
   assert.equal(Object.keys(instructions).length, 151);
@@ -79,6 +119,25 @@ test("trace formatting retains captured bytes, changes, and access order after m
 });
 
 const romPath = process.env.APPLE2_ROM;
+test("new Monitor reference entries identify routines reached during the verified ROM's initialization", {
+  skip: romPath === undefined ? "Set APPLE2_ROM to the selected local firmware" : false,
+}, async () => {
+  assert.ok(romPath);
+  const buffer = new Uint8Array(readFileSync(romPath)).buffer;
+  const container = JSON.parse(readFileSync("src/machines/6502/apple2.md", "utf8").match(/```json\n([\s\S]*?)```/)![1]!);
+  const rom = await readRomFile({ name: "local ROM", size: buffer.byteLength, async arrayBuffer() { return buffer; } }, romImages.firmware, container);
+  const session = createApple2Session(rom.image), reference = createRomReference(annotations.regions, annotations.routines);
+  for (const [name, address] of [["SETNORM", 0xfe84], ["INIT", 0xfb2f], ["SETVID", 0xfe93], ["SETKBD", 0xfe89]] as const) {
+    for (let budget = 1000; session.machine.cpu.snapshot().pc !== address; budget--) {
+      assert.ok(budget > 0, `Did not reach ${name}`); assert.equal(session.step().outcome, "executed");
+    }
+    const before = session.machine.snapshot();
+    assert.equal(reference.locate(address, true)?.entry?.name, name);
+    assert.deepEqual(session.machine.snapshot(), before, "Reference lookup must not execute or read the machine");
+    session.step();
+  }
+});
+
 test("the published ROM walkthrough reaches the prompt and follows A through polling, acknowledgement, and echo", {
   skip: romPath === undefined ? "Set APPLE2_ROM to the selected local firmware" : false,
 }, async () => {
