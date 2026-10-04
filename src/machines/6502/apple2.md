@@ -321,6 +321,8 @@ Replacing the ROM clears the disk selection. All media stays on your computer.
 Both text pages support normal, inverse, and flashing characters, using the
 same bitmap character set as dromaios-apple2. Text remains selectable. The
 **Scanlines** control toggles the display effect, including while paused.
+**Monochrome** switches text and graphics to a green display; both controls work
+independently, redraw while paused, and leave the machine state unchanged.
 Low-resolution graphics draws coloured blocks; high-resolution graphics uses
 the reference's approximate colour pairs. Mixed mode keeps four text rows. The
 video chapter defines those choices, the RGB palettes, and host flashing.

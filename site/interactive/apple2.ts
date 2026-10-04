@@ -34,6 +34,9 @@ export function mountApple2(root: HTMLElement): { refresh: () => void } {
   let session = createApple2Session(), rom: Apple2RomFile | undefined, disk: Apple2DiskFile | undefined;
   let selecting = false, selection = 0, flash = false, nextFlash = 0, restoring = false;
   const renderScreen = createApple2Screen(screen, element<HTMLInputElement>("apple2-scanlines"));
+  const monochrome = element<HTMLInputElement>("apple2-monochrome");
+  monochrome.disabled = false;
+  monochrome.addEventListener("change", refresh);
   const inspection = createApple2Inspection(root);
   const changeLog = createApple2ChangeLogView(root, () => session.machine);
   const inputTarget = keyboard ?? screen;
@@ -82,7 +85,7 @@ export function mountApple2(root: HTMLElement): { refresh: () => void } {
     const now = performance.now();
     if (execution.running && now >= nextFlash) { flash = !flash; nextFlash = now + 500; }
     const { ram, video } = session.machine;
-    renderScreen(ram, video, flash);
+    renderScreen(ram, video, flash, monochrome.checked);
     const display = video.snapshot();
     const mode = display.text ? "Text" : display.hires ? "High-resolution graphics" : "Low-resolution graphics";
     element<HTMLElement>("display-status").textContent = `${mode} · page ${display.page2 ? 2 : 1}${!display.text && display.mixed ? " · bottom four text rows shown" : ""}`

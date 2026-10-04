@@ -29,8 +29,8 @@ export function createApple2Screen(screen: HTMLElement, scanlines: HTMLInputElem
     raster.style.setProperty("--scanline-clear", `${rowHeight - dark}px`);
   }).observe(raster);
 
-  return (ram: { read(address: number): number }, video: Apple2Video, flash: boolean): void => {
-    const { width, height, pixels, text } = apple2RasterFrame(ram, video, flash);
+  return (ram: { read(address: number): number }, video: Apple2Video, flash: boolean, monochrome: boolean): void => {
+    const { width, height, pixels, text } = apple2RasterFrame(ram, video, flash, monochrome);
     const mode = video.snapshot();
     canvas.setAttribute("aria-hidden", String(mode.text));
     canvas.setAttribute("aria-label", mode.hires ? "High-resolution graphics" : "Low-resolution graphics");

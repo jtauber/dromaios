@@ -219,6 +219,8 @@ firmware is installed.
 character set on a 280-by-192 raster. Its fixed RGB palettes also follow that
 reference. `apple2-screen-view.ts` presents the pixels with a transparent,
 selectable text layer and a switchable scanline overlay, shared by both views.
+Both offer a Monochrome toggle: green bitmap text, individual high-resolution
+dots, and five low-resolution brightness levels, with immediate redraw while paused.
 The device chapter owns the glyph, flashing, and high-resolution colour-pair
 choices, including their limitations. The controller
 owns host events and scheduling; it contains no ROM traps or hardware decoding.

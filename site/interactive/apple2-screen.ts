@@ -18,11 +18,12 @@ export function apple2LoresFrame(ram: { read(address: number): number }, video: 
     : undefined);
 }
 
-/** Forty captured bytes supply seven colour pairs per two-byte group. */
-export function apple2HiresFrame(ram: { read(address: number): number }, video: Apple2Video): readonly (readonly number[] | undefined)[] {
+/** Forty captured bytes supply colour pairs or individual monochrome dots. */
+export function apple2HiresFrame(ram: { read(address: number): number }, video: Apple2Video, monochrome = false): readonly (readonly number[] | undefined)[] {
   return Array.from({ length: 192 }, (_, row) => {
     if (!video.visibleHiresRow(row)) return undefined;
     const bytes = Array.from({ length: 40 }, (_, column) => ram.read(video.hiresAddress(row, column)));
+    if (monochrome) return bytes.flatMap(byte => Array.from({ length: 7 }, (_, bit) => (byte >> bit) & 1));
     return Array.from({ length: 140 }, (_, column) => {
       const group = Math.floor(column / 7) * 2;
       return video.hiresPairColour(bytes[group]!, bytes[group + 1]!, column % 7);

@@ -623,7 +623,7 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .apple2-row > span { white-space: pre; text-align: center; align-content: center; color: transparent; }
 .apple2-row > span::selection { color: transparent; background: #659ad480; }
 .apple2-scanlines::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, transparent 0, transparent var(--scanline-clear), #00000073 var(--scanline-clear), #00000073 var(--scanline-row)); }
-.apple2-display-options { display: flex; justify-content: flex-end; font-size: 12px; }
+.apple2-display-options { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px 16px; font-size: 12px; }
 .apple2-display-options label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .apple2-display-options input { accent-color: var(--accent); }
 .apple2-screen:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }

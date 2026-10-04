@@ -89,3 +89,56 @@ test("both graphics pages share the raster with four text rows without covering 
     assert.deepEqual(colourAt(apple2RasterFrame(ram, video, false), 0, 0), [0, 0, 0, 255]);
   }
 });
+
+test("monochrome text preserves glyphs, inverse, flash, and accessible text on both pages", () => {
+  for (const page2 of [false, true]) for (const flash of [false, true]) {
+    const bytes = new Uint8Array(0xc000).fill(0xa0);
+    bytes.set([0xc1, 0x01, 0x41], page2 ? 0x800 : 0x400);
+    const video = new Apple2Video({ text: true, mixed: false, page2, hires: false }), before = video.snapshot();
+    const ram = { read: (address: number) => bytes[address]! };
+    const colour = apple2RasterFrame(ram, video, flash), mono = apple2RasterFrame(ram, video, flash, true);
+    for (let offset = 0; offset < mono.pixels.length; offset += 4) {
+      assert.deepEqual(Array.from(mono.pixels.slice(offset, offset + 4)),
+        [0, colour.pixels[offset] === 255 ? 200 : 0, 0, 255]);
+    }
+    assert.deepEqual(mono.text, colour.text);
+    assert.deepEqual(video.snapshot(), before);
+    assert.deepEqual(apple2RasterFrame(ram, video, flash), colour);
+  }
+});
+
+test("monochrome HIRES resolves individual dots across byte boundaries and ignores the phase bit", () => {
+  for (const page2 of [false, true]) for (const mixed of [false, true]) {
+    const bytes = new Uint8Array(0xc000).fill(0xa0, 0x400, 0xc00);
+    const base = page2 ? 0x4000 : 0x2000, textBase = page2 ? 0x800 : 0x400;
+    bytes.set([0x01, 0x82, 0x40, 0xff], base);
+    bytes[textBase + 0x250] = 0xc1; // A at row 20, column 0.
+    bytes[base + 0x250] = 0x01; // HIRES scan line 160.
+    const video = new Apple2Video({ text: false, hires: true, page2, mixed }), before = video.snapshot();
+    const reads: number[] = [];
+    const frame = apple2RasterFrame({ read: address => { reads.push(address); return bytes[address]!; } }, video, false, true);
+    const lit = new Set([0, 8, 20, 21, 22, 23, 24, 25, 26, 27]);
+    for (let x = 0; x < 280; x++) assert.deepEqual(colourAt(frame, x, 0), [0, lit.has(x) ? 200 : 0, 0, 255]);
+    assert.deepEqual(colourAt(frame, 0, 160), [0, mixed ? 0 : 200, 0, 255]);
+    assert.deepEqual(colourAt(frame, 3, 161), [0, mixed ? 200 : 0, 0, 255]);
+    assert.equal(frame.text[20]![0]!.character, mixed ? "A" : " ");
+    assert.equal(reads.length, mixed ? 6400 + 160 : 7680);
+    assert.ok(reads.every(address => address < 0xc000));
+    assert.deepEqual(video.snapshot(), before);
+  }
+});
+
+test("monochrome LORES uses five brightness levels for all sixteen patterns on both pages", () => {
+  const brightness = [0, 50, 50, 100, 50, 100, 100, 150, 50, 100, 100, 150, 100, 150, 150, 200];
+  for (const page2 of [false, true]) {
+    const bytes = new Uint8Array(0xc000), base = page2 ? 0x800 : 0x400;
+    bytes.set(brightness.map((_, index) => ((15 - index) << 4) | index), base);
+    const video = new Apple2Video({ text: false, mixed: false, page2, hires: false }), before = video.snapshot();
+    const frame = apple2RasterFrame({ read: address => bytes[address]! }, video, false, true);
+    for (let index = 0; index < 16; index++) {
+      assert.deepEqual(colourAt(frame, index * 7, 0), [0, brightness[index], 0, 255]);
+      assert.deepEqual(colourAt(frame, index * 7 + 6, 7), [0, brightness[15 - index], 0, 255]);
+    }
+    assert.deepEqual(video.snapshot(), before);
+  }
+});

@@ -13,9 +13,16 @@ const hiresColours = [
   0x000000, 0x14f53c, 0xff44fd, 0xffffff, // black, green, violet, white
   0x000000, 0xff6a3c, 0x14cffd, 0xffffff, // black, orange, blue, white
 ] as const;
+const phosphorGreen = 0x00c800;
+// Average the four repeating LORES bits into five green brightness levels.
+const monochromeLoresColours = loresColours.map((_, pattern) => {
+  const dots = (pattern & 1) + ((pattern >> 1) & 1) + ((pattern >> 2) & 1) + ((pattern >> 3) & 1);
+  return (200 * dots / 4) << 8;
+});
+const monochromeHiresColours = [0x000000, phosphorGreen];
 
 /** Compose bitmap text and decoded graphics on the native 280×192 raster. */
-export function apple2RasterFrame(ram: { read(address: number): number }, video: Apple2Video, flash: boolean) {
+export function apple2RasterFrame(ram: { read(address: number): number }, video: Apple2Video, flash: boolean, monochrome = false) {
   const width = 280, height = 192;
   const pixels = new Uint8ClampedArray(width * height * 4);
   for (let alpha = 3; alpha < pixels.length; alpha += 4) pixels[alpha] = 255;
@@ -31,9 +38,12 @@ export function apple2RasterFrame(ram: { read(address: number): number }, video:
   }
 
   const hires = video.snapshot().hires;
-  const graphics = hires ? apple2HiresFrame(ram, video) : apple2LoresFrame(ram, video);
-  const colours = hires ? hiresColours : loresColours;
-  const blockWidth = hires ? 2 : 7, blockHeight = hires ? 1 : 4;
+  const graphics = hires ? apple2HiresFrame(ram, video, monochrome) : apple2LoresFrame(ram, video);
+  const hiresPalette = monochrome ? monochromeHiresColours : hiresColours;
+  const loresPalette = monochrome ? monochromeLoresColours : loresColours;
+  const colours = hires ? hiresPalette : loresPalette;
+  const hiresDotWidth = monochrome ? 1 : 2;
+  const blockWidth = hires ? hiresDotWidth : 7, blockHeight = hires ? 1 : 4;
   graphics.forEach((row, y) => row?.forEach((colour, x) => {
     rectangle(x * blockWidth, y * blockHeight, blockWidth, blockHeight, colours[colour]!);
   }));
@@ -47,7 +57,7 @@ export function apple2RasterFrame(ram: { read(address: number): number }, video:
         // Shift the five-bit glyph into its seven-bit cell, then invert the whole cell.
         const dots = (bits << 1) ^ (cell.inverse ? 0x7f : 0);
         for (let dot = 0; dot < 7; dot++) {
-          if (dots & (0x40 >> dot)) rectangle(x * 7 + dot, y * 8 + line, 1, 1, 0xffffff);
+          if (dots & (0x40 >> dot)) rectangle(x * 7 + dot, y * 8 + line, 1, 1, monochrome ? phosphorGreen : 0xffffff);
         }
       });
     });

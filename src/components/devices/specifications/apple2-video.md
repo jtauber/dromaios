@@ -214,7 +214,8 @@ source inverse "Decode inverse and flashing attributes" (byte: 8, flash: flag): 
 The browser uses the pinned reference's [64 bitmap glyphs](../../../../site/interactive/apple2-character-set.ts):
 eight rows of five dots, with a blank column on each side, form a 7-by-8-pixel
 cell. Inverse characters invert the entire cell, including those margins.
-Text is white on black, matching the reference's colour display. A transparent
+Text is white on black by default, or green on black with **Monochrome** enabled,
+matching the reference's display choices. A transparent
 text layer preserves selection and accessibility; the visible letters are pixels,
 not a browser font. A host presentation phase alternates flashing characters every
 half second while running and freezes while paused. It is not emulated CPU
@@ -226,6 +227,13 @@ Like the reference, it overlays one translucent black band per native raster row
 resizing with the screen. It works before firmware is loaded and while paused,
 and changes neither the captured pixels nor machine state. This is a display
 effect, not a model of the video scanner or a CRT's analogue response.
+
+**Monochrome** selects the reference's green (`#00C800`) for lit text and
+high-resolution dots. It also presents low-resolution blocks in green brightness
+levels, as described below. The control works independently of Scanlines, including
+before firmware is loaded and while paused. Switching monitors preserves RAM,
+video latches, and the current flash phase; it only redraws the display. Colour
+is selected on each page load; the monitor choice lasts for that page's session.
 
 ## Low-resolution graphics: two blocks per byte
 
@@ -284,6 +292,10 @@ including two distinct greys. It neither simulates NTSC decoding nor claims
 measured colour fidelity. Each block occupies 7 by 4 pixels on the 280-by-192
 raster shared with bitmap text and high-resolution graphics. The browser scales
 the canvas without smoothing; selectable text occupies the same display area.
+In monochrome, the renderer averages each repeating four-bit pattern: zero to
+four set bits select green channel levels 0, 50, 100, 150, or 200. Thus patterns
+5 and A have the same brightness. This is a uniform block approximation, without
+composite waveforms or a monitor response model.
 
 ## High-resolution graphics: seven dots per byte
 
@@ -321,6 +333,11 @@ have defined addresses but are not visible positions. Mixed mode shows the
 first 160 scan lines above four text rows from the selected **text** page.
 The two high-resolution buffers are separate from text/low-resolution storage.
 Changing a display switch does not modify any of them.
+
+The monochrome browser view draws each of the 280 dots separately, green for a
+set bit and black for a clear bit. Like the reference, it ignores bit 7 rather
+than modeling the half-dot delay. Mixed mode still reserves the bottom four
+text rows; changing the monitor does not change the display mode or selected page.
 
 ### Colour: hardware and the chosen approximation
 
