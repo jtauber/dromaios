@@ -15,6 +15,7 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: {
   if (panel === null) return undefined;
   const element = <T extends HTMLElement>(name: string) => panel.querySelector<T>(`[data-disassembly-${name}]`)!;
   const form = element<HTMLFormElement>("form"), address = element<HTMLInputElement>("address");
+  const run = element<HTMLButtonElement>("run");
   const follow = element<HTMLInputElement>("follow"), back = element<HTMLButtonElement>("back");
   const next = element<HTMLButtonElement>("next"), status = element("status"), body = element<HTMLTableSectionElement>("rows");
   let start = 0, machine: Machine | undefined, canRun = false, running = false;
@@ -40,11 +41,14 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: {
     const last = rows.at(-1), value = last === undefined ? 0x10000 : last.address + last.bytes.length;
     return value <= 0xffff ? value : undefined;
   }
-  form.addEventListener("submit", event => {
-    event.preventDefault();
-    try { go(parseApple2Address(address.value)); }
+  function useAddress(action: (value: number) => void): void {
+    try { address.setCustomValidity(""); action(parseApple2Address(address.value)); }
     catch (error) { address.setCustomValidity((error as Error).message); address.reportValidity(); }
+  }
+  form.addEventListener("submit", event => {
+    event.preventDefault(); useAddress(go);
   });
+  run.addEventListener("click", () => { if (canRun) useAddress(runTo); });
   address.addEventListener("input", () => address.setCustomValidity(""));
   follow.addEventListener("change", () => { history.length = 0; address.setCustomValidity(""); render(); });
   back.addEventListener("click", () => {
@@ -83,7 +87,7 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: {
       view.label.textContent = routine?.name ?? "";
       view.label.title = routine?.description ?? "";
     });
-    back.disabled = history.length === 0; next.disabled = nextAddress() === undefined;
+    back.disabled = history.length === 0; next.disabled = nextAddress() === undefined; run.disabled = !canRun;
     status.setAttribute("aria-live", running ? "off" : "polite");
     status.textContent = `${follow.checked ? "Following PC" : "Browsing"} · $${hex(start)} · select an address to run there.`;
   }

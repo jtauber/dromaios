@@ -30,7 +30,10 @@
 .laboratory-page .basic-controls button { padding: 5px 8px; font-size: 11px; }
 .laboratory-page .basic-readout { font: 11px/1.5 var(--mono); color: var(--muted); margin: 6px 0; overflow-wrap: anywhere; }
 .laboratory-page .basic-message { min-height: 0; margin: 8px 0 0; font: 12px/1.5 system-ui, sans-serif; color: #ffd18a; }
-.laboratory-page [data-machine-message] { min-height: 3em; }
+.lab-machine-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; padding: 7px 14px; border-bottom: 1px solid var(--line); background: #101a2b; }
+.lab-machine-controls .basic-readout { margin: 0; }
+.lab-machine-controls .basic-message { flex-basis: 100%; margin: 0; }
+.lab-machine-controls .basic-message:empty { display: none; }
 .laboratory-page .basic-controls button:first-child { background: #304e73; color: #eff6ff; }
 .laboratory-page .apple2-cpu-value.is-changed, .laboratory-page .apple2-memory-byte.is-changed { background: #594420; color: #ffe0a2; }
 .lab-address { display: flex; align-items: end; gap: 8px; margin-bottom: 8px; }
@@ -63,14 +66,18 @@
 .lab-log-filters legend { color: var(--muted); font-size: 11px; }
 .lab-log-help { margin-bottom: 12px; }
 .laboratory-page [data-log-output] { font-size: 11px; }
+.lab-history-controls label { display: flex; align-items: center; gap: 5px; }
+.lab-tool-trace .lab-panel-body { display: grid; height: 100%; grid-template-rows: auto auto minmax(70px, 1fr) auto minmax(70px, 1fr); }
+.lab-history-list, .laboratory-page [data-history-detail] { overflow: auto; min-height: 0; }
+.lab-history-list button { display: block; width: 100%; border: 0; border-radius: 0; padding: 2px 4px; text-align: left; white-space: pre; background: transparent; font: 11px/1.6 var(--mono); }
+.lab-history-list button[aria-pressed="true"] { background: #304e73; color: #eff6ff; }
+.laboratory-page [data-history-detail] { border-top: 1px solid var(--line); padding-top: 8px; }
 /* Apple II presentation uses the same screen renderer as the classroom. */
 .apple2-laboratory .apple2-display-surround { margin: 8px 0 4px; padding: 10px; background: #080f15; border: 1px solid #314152; border-radius: 5px; }
 .apple2-laboratory .apple2-screen { padding: 2%; font-size: 2.5cqw; border-radius: 0; }
 .apple2-laboratory .apple2-display-options label { display: flex; }
-.lab-keyboard textarea { width: 100%; resize: vertical; margin-bottom: 6px; }
 
 .laboratory { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.lab-tool { height: 100%; width: 100%; overflow: auto; background: #18253b; scrollbar-color: #435674 #18253b; }
-.lab-tool-registers pre, .lab-tool-instruction pre { white-space: pre-wrap; overflow-wrap: anywhere; }
-.lab-tool-registers pre, .lab-tool-instruction pre, .lab-tool-trace pre { font-size: 11px; }
+.lab-tool { position: relative; height: 100%; width: 100%; overflow: auto; background: #18253b; scrollbar-color: #435674 #18253b; }
+.lab-tool-registers pre, .lab-tool-trace pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
 .lab-tool-screen .apple2-display-surround { max-width: min(100%, 55dvh); margin-inline: auto; }

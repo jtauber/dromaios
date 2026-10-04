@@ -178,10 +178,15 @@ device snapshots and read-only views, and read RAM or ROM directly instead.
 
 The **classroom** presents this guide alongside an embedded machine. Its
 **laboratory** link opens a separate dark workspace with the screen, CPU and
-execution trace, memory, stack, and ROM/Code/Log/System/Disk tools visible together.
+execution history, memory, stack, and Code/Changes/ROM/System/Disk tools visible together.
 Panels can be moved, resized, grouped into tabs, or collapsed to their headers.
 Closing a panel hides its tool; it does not stop the machine or its capture.
 **Reset layout** restores the arrangement while preserving the current experiment.
+Run, Pause, Step, Reset CPU, and Fresh power-on stay in the machine-control bar,
+independent of which panels are open. The screen accepts typing and pasting
+directly, including Enter and Ctrl-C; the classroom also has an explicit keyboard
+field. Code owns run-to-address and run-to-routine controls; ROM owns firmware
+selection and its routine reference.
 Both use the same machine implementation, but each page starts its own session.
 Hardware is created immediately, before any ROM selection. RAM, stack memory,
 registers, and device state are inspectable in their deterministic initial state:
@@ -192,9 +197,19 @@ controls wait for verified firmware; Fresh power-on is available without it.
 This is a host boot workflow, not a hardware requirement for executing code in RAM.
 The laboratory's memory and **Code** views read mapped storage without operating
 devices; `--` denotes unavailable bytes, including soft switches. Code follows
-PC or browses a chosen address, while **Executed instructions** preserves the
+PC or browses a chosen address, while **Execution history** preserves the
 bytes actually fetched. The [live disassembly guide](../../../docs/software/apple2p-rom.md#live-disassembly)
 explains navigation and address stops.
+
+Execution history lists the latest twelve captured instructions, newest first,
+and shows the selected instruction's register/flag changes and ordered memory
+accesses. **Follow latest** initially selects the newest step. Selecting an entry
+pins its record, including when it leaves the recent twelve; the view labels
+that case and retains only that one extra record. Follow latest resumes tracking.
+Selection never executes an instruction or changes the live inspectors. Reset,
+fresh power-on, and successful media replacement clear this selection and history;
+failed replacements leave them intact. Execution history and Changes start in one
+tab group, but either can be docked separately.
 
 Register and flag highlights compare the last completed instruction's recorded
 before-and-after values, including flags cleared to zero. They remain visible
@@ -214,7 +229,7 @@ before-value with its final value, so a byte restored by the instruction is
 not highlighted. Reset, fresh power-on, and execution errors clear these
 highlights along with those on the processor.
 
-The laboratory's **Log** records every instruction while **Record changes** is
+The laboratory's **Changes** records every instruction while **Record changes** is
 enabled, including steps between display refreshes and while another tab is
 selected. It retains the latest 500 recorded instructions, newest first, and
 reports how many older instructions were discarded. Each group identifies the

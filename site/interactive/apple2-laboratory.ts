@@ -11,12 +11,11 @@ const split = (id: string, axis: "horizontal" | "vertical", ratio: number, first
 const defaultLayout: WorkspaceLayout = {
   root: split("columns", "horizontal", .44,
     split("screen-and-cpu", "vertical", .65, group("screen"),
-      split("cpu-details", "horizontal", .5,
-        split("registers-and-instruction", "vertical", .45, group("registers"), group("instruction")), group("trace"))),
+      split("cpu-details", "horizontal", .35, group("registers"), group("trace", "log"))),
     split("memory-and-tools", "horizontal", .47,
       split("zero-and-memory", "vertical", .36, group("zero"),
         split("memory-and-stack", "vertical", .55, group("memory"), group("stack"))),
-      group("rom", "code", "log", "system", "disk"))),
+      group("code", "rom", "system", "disk"))),
 };
 
 for (const root of document.querySelectorAll<HTMLElement>("[data-laboratory]")) {

@@ -182,11 +182,18 @@ same reader for the Code tab's live listing, address navigation, and PC followin
 following PC, retaining their bytes and ROM mapping. Executed and upcoming
 instructions both carry the chapter-derived control-flow classification for
 solid unconditional-transfer and dotted conditional-branch separators.
+`apple2-history-view.ts` combines the recent executed-instruction list with
+selectable captured details. Selecting pins a record even as the recent list
+advances; Follow latest restores tracking. It shares a default tab group with
+Changes, while both remain independent tools. The machine controls sit outside
+all dockable panels; Code owns execution targets and ROM owns firmware selection.
+Screen accepts keyboard and paste directly; only the classroom has a separate
+keyboard field.
 `apple2-change-log.ts` captures instruction-boundary CPU changes and observes
 physical `Ram` stores for old/new memory values, independently of the display
 refresh rate. Its bounded history includes Language Card bank identities and
 completed effects of interrupted steps. `apple2-change-log-view.ts` provides the
-laboratory's Log tab; the machine chapter owns capture and lifetime behavior.
+laboratory's Changes tab; the machine chapter owns capture and lifetime behavior.
 Last-step RAM observations also feed the inspection panels' byte highlights,
 independently of log recording. The inspector matches physical banks to the
 currently displayed storage, without reading a soft switch or treating bank
@@ -232,7 +239,9 @@ The chapter owns the behavior and limitations, including session lifetime,
 the character set, and approximate flash timing. In the laboratory, check Code's
 PC following, address browsing, ROM labels, and run-to stops. Browsing device
 addresses must leave keyboard, disk, and Language Card state unchanged.
-Check Log across steps and running batches, filtering, paused recording, clear,
+Check history selection across repeated addresses, stepping, running past the
+twelve-entry window, and reset. Closing Screen must leave machine controls usable.
+Check Changes across steps and running batches, filtering, paused recording, clear,
 reset, power-on, and media replacement. Memory before-values must come from the
 written bank even when ROM is mapped for reads.
 

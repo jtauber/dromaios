@@ -12,14 +12,16 @@ import { createApple2Explorer } from "./apple2-explorer-view.js";
 /** File controls, host scheduling, and screen presentation around the generated machine. */
 export function mountApple2(root: HTMLElement): { refresh: () => void } {
   const element = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
-  const file = element<HTMLInputElement>("rom-file"), keyboard = element<HTMLTextAreaElement>("apple2-keyboard");
+  const file = element<HTMLInputElement>("rom-file");
+  const keyboard = root.querySelector<HTMLTextAreaElement>("[data-apple2-keyboard]");
   const diskFile = element<HTMLInputElement>("disk-file"), eject = element<HTMLButtonElement>("disk-eject");
   const loadRom = element<HTMLButtonElement>("rom-load"), loadDisk = element<HTMLButtonElement>("disk-load");
   const screen = element<HTMLElement>("apple2-screen"), message = element<HTMLElement>("machine-message");
   const run = element<HTMLButtonElement>("machine-run"), pause = element<HTMLButtonElement>("machine-pause");
   const step = element<HTMLButtonElement>("machine-step"), reset = element<HTMLButtonElement>("machine-reset");
-  const power = element<HTMLButtonElement>("machine-power"), enter = element<HTMLButtonElement>("keyboard-enter");
-  const interrupt = element<HTMLButtonElement>("keyboard-break");
+  const power = element<HTMLButtonElement>("machine-power");
+  const enter = root.querySelector<HTMLButtonElement>("[data-keyboard-enter]");
+  const interrupt = root.querySelector<HTMLButtonElement>("[data-keyboard-break]");
   const status = element<HTMLElement>("machine-status");
   const forgetRom = element<HTMLButtonElement>("rom-forget");
   const storageStatus = element<HTMLElement>("rom-storage-status");
@@ -34,7 +36,7 @@ export function mountApple2(root: HTMLElement): { refresh: () => void } {
   const renderScreen = createApple2Screen(screen, element<HTMLInputElement>("apple2-scanlines"));
   const inspection = createApple2Inspection(root);
   const changeLog = createApple2ChangeLogView(root, () => session.machine);
-  const inputTarget = root.hasAttribute("data-laboratory") ? screen : keyboard;
+  const inputTarget = keyboard ?? screen;
   const execution = createExecutionController({
     step: () => {
       const romMapped = !session.machine.language.ramRead();
@@ -48,7 +50,7 @@ export function mountApple2(root: HTMLElement): { refresh: () => void } {
     onChange: refresh, batchSize: 10000,
   });
   const explorer = createApple2Explorer(root, () => session.machine, () => { message.textContent = ""; execution.run(); });
-  root.querySelector<HTMLElement>("[data-rom-explorer]")!.addEventListener("toggle", refresh);
+  root.querySelector<HTMLElement>("[data-rom-explorer]")?.addEventListener("toggle", refresh);
   execution.setDelay(1);
 
   function refresh(): void {
@@ -58,7 +60,7 @@ export function mountApple2(root: HTMLElement): { refresh: () => void } {
     step.disabled = !available || execution.running || execution.error !== undefined;
     reset.disabled = !available;
     power.disabled = selecting;
-    keyboard.disabled = enter.disabled = interrupt.disabled = !available;
+    for (const control of [keyboard, enter, interrupt]) if (control) control.disabled = !available;
     loadRom.disabled = file.disabled = forgetRom.disabled = selecting;
     loadDisk.disabled = diskFile.disabled = selecting || rom?.bootstrap === undefined;
     loadRom.textContent = rom ? "Replace ROM…" : "Load ROM…";
@@ -91,7 +93,7 @@ export function mountApple2(root: HTMLElement): { refresh: () => void } {
     catch (cause) { message.textContent = cause instanceof Error ? cause.message : String(cause); }
   }
   function send(bytes: readonly number[]): void {
-    if (keyboard.disabled) return;
+    if (!session.hasFirmware || selecting) return;
     session.send(bytes);
     message.textContent = execution.running ? "" : "Input queued. Run resumes the machine.";
     refresh();
@@ -106,7 +108,8 @@ export function mountApple2(root: HTMLElement): { refresh: () => void } {
       const verified = await verify(chosen);
       if (token !== selection) return;
       apply(verified);
-      execution.reset(); changeLog?.reset(); flash = false; nextFlash = 0; keyboard.value = "";
+      execution.reset(); changeLog?.reset(); flash = false; nextFlash = 0;
+      if (keyboard) keyboard.value = "";
     } catch (cause) {
       if (token === selection) message.textContent = cause instanceof Error ? cause.message : String(cause);
     } finally {
@@ -158,26 +161,27 @@ export function mountApple2(root: HTMLElement): { refresh: () => void } {
     refresh();
   }));
   power.addEventListener("click", () => action(() => {
-    explorer.cancel(); execution.reset(); session.powerOn(); changeLog?.reset(); flash = false; nextFlash = 0; keyboard.value = "";
+    explorer.cancel(); execution.reset(); session.powerOn(); changeLog?.reset(); flash = false; nextFlash = 0;
+    if (keyboard) keyboard.value = "";
     message.textContent = session.hasFirmware
       ? `Fresh power-on. The previous program is gone; Run boots ${disk ? "DOS 3.3 from the retained disk" : "Applesoft"} again.`
       : "Fresh hardware. RAM is zeroed; install a ROM to boot.";
     refresh();
   }));
-  enter.addEventListener("click", () => { action(() => send([13])); inputTarget.focus(); });
-  interrupt.addEventListener("click", () => { action(() => send([3])); inputTarget.focus(); });
-  keyboard.addEventListener("keydown", event => {
+  enter?.addEventListener("click", () => { action(() => send([13])); inputTarget.focus(); });
+  interrupt?.addEventListener("click", () => { action(() => send([3])); inputTarget.focus(); });
+  keyboard?.addEventListener("keydown", event => {
     const byte = apple2ControlKey(event);
     if (byte !== undefined) { event.preventDefault(); action(() => send([byte])); }
   });
-  keyboard.addEventListener("beforeinput", event => {
+  keyboard?.addEventListener("beforeinput", event => {
     if (event.isComposing) return;
     if (event.inputType === "deleteContentBackward") { event.preventDefault(); action(() => send([8])); }
     else if (event.inputType === "insertLineBreak" || event.inputType === "insertParagraph") { event.preventDefault(); action(() => send([13])); }
     else if (event.inputType === "insertText" && event.data !== null) { event.preventDefault(); sendText(event.data); }
   });
-  keyboard.addEventListener("input", event => { if (!event.isComposing) { sendText(keyboard.value); keyboard.value = ""; } });
-  keyboard.addEventListener("paste", event => { event.preventDefault(); sendText(event.clipboardData?.getData("text/plain") ?? ""); });
+  keyboard?.addEventListener("input", event => { if (!event.isComposing) { sendText(keyboard.value); keyboard.value = ""; } });
+  keyboard?.addEventListener("paste", event => { event.preventDefault(); sendText(event.clipboardData?.getData("text/plain") ?? ""); });
   screen.addEventListener("keydown", event => {
     const byte = apple2ScreenKey(event);
     if (byte !== undefined) { event.preventDefault(); action(() => send([byte])); }

@@ -30,13 +30,19 @@ data-disk-bytes="{{ media.disk.bytes }}" data-disk-sha256="{{ media.disk.sha256 
 <button type="button" data-{{ kind }}-load disabled>Load {{ label }}…</button>
 {% endmacro %}
 
-{% macro rom_controls(catalogue) %}
+{% macro rom_routine_controls(catalogue) %}
 <script type="application/json" data-rom-catalogue>{{ catalogue | tojson }}</script>
 <div class="rom-controls">
   <label>ROM routine <select data-rom-routine disabled>
     {% for routine in catalogue.routines %}<option value="{{ routine.address }}">{{ routine.name }} · ${{ routine.address }}</option>{% endfor %}
   </select></label>
   <button type="button" data-rom-run-routine disabled>Run to routine</button>
+</div>
+{% endmacro %}
+
+{% macro rom_controls(catalogue) %}
+{{ rom_routine_controls(catalogue) }}
+<div class="rom-controls">
   <label>Address (hex) <input data-rom-address type="text" value="FD21" spellcheck="false" autocomplete="off" maxlength="5" disabled></label>
   <button type="button" data-rom-run-address disabled>Run to address</button>
 </div>
