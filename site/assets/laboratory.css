@@ -38,6 +38,9 @@
 .laboratory-page .apple2-cpu-value.is-changed, .laboratory-page .apple2-memory-byte.is-changed { background: #594420; color: #ffe0a2; }
 .lab-address { display: flex; align-items: end; gap: 8px; margin-bottom: 8px; }
 .lab-address input { width: 85px; font-family: var(--mono); }
+.laboratory-page .lab-live-toggle { border: 0; background: transparent; color: #8093ac; padding: 3px 5px; font: 14px/1 var(--mono); }
+.laboratory-page .lab-live-toggle[aria-pressed=true] { color: #7ac9a1; }
+.laboratory-page .lab-memory-follow { display: flex; align-items: center; gap: 8px; }
 .laboratory-page summary { cursor: pointer; color: #b4cce8; font-size: 12px; padding: 6px 0; }
 .laboratory-page .rom-controls { display: grid; grid-template-columns: 1fr; gap: 8px; }
 .laboratory-page .rom-controls button { justify-self: start; }

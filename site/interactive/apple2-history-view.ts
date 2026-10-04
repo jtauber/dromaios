@@ -10,10 +10,10 @@ export function createApple2History(root: HTMLElement, catalogue: {
   const element = <T extends HTMLElement>(name: string) => panel.querySelector<T>(`[data-history-${name}]`)!;
   const list = element("list"), detail = element("detail"), status = element("status");
   const follow = element<HTMLInputElement>("follow");
-  let entries: readonly Apple2TraceEntry[] = [], selected: Apple2TraceEntry | undefined;
+  let entries: readonly Apple2TraceEntry[] = [], latest: readonly Apple2TraceEntry[] = [], selected: Apple2TraceEntry | undefined;
   // Key each button by its captured record, so repeated visits to one address remain distinct.
   const buttons = new Map<Apple2TraceEntry, HTMLButtonElement>();
-  follow.addEventListener("change", () => { if (follow.checked) selected = entries[0]; render(); });
+  follow.addEventListener("change", () => { if (follow.checked) entries = latest; render(); });
 
   function render(): void {
     if (entries.length === 0) { selected = undefined; follow.checked = true; }
@@ -39,8 +39,9 @@ export function createApple2History(root: HTMLElement, catalogue: {
     follow.disabled = entries.length === 0;
   }
   return {
-    refresh(records: readonly Apple2TraceEntry[]): void {
-      entries = [...records].reverse(); render();
+    refresh(records: readonly Apple2TraceEntry[], update: boolean): void {
+      latest = [...records].reverse();
+      if (update) { entries = latest; render(); }
     },
   };
 }

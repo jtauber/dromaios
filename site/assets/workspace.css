@@ -26,6 +26,7 @@
 .workspace-group.is-single .workspace-tab { flex: 1; min-width: 0; }
 .workspace-group.is-single [role=tab] { display: block; width: 100%; padding-inline: 2px; color: #a9bdd9; text-align: left; box-shadow: none; overflow: hidden; text-overflow: ellipsis; }
 .workspace-panel-detail { flex-shrink: 0; color: #a9bdd9; font: 400 10px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.workspace-panel-controls { display: flex; flex-shrink: 0; }
 .workspace-heading .workspace-collapse, .workspace-heading .workspace-close { flex-shrink: 0; border: 0; background: transparent; color: #a9bdd9; padding: 3px; line-height: 1; }
 .workspace-heading .workspace-close { color: #8093ac; }
 .workspace-body { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }

@@ -172,7 +172,10 @@ and operate that model. `apple2-laboratory.ts` supplies the panel list, default
 layout, and visibility refresh callback. No simulation objects cross that
 boundary. Layouts are saved per browser origin; unavailable or invalid saved
 preferences fall back to the default. This storage is separate from the ROM
-and does not persist machine or tool state across page reloads.
+and does not persist machine state across page reloads. `panel-updates.ts` owns
+inspector Live preferences in separate storage; docking only reparents the
+optional tool-owned header controls. The controller gates display refreshes,
+while capture and execution availability remain independent.
 
 Apple II instruments remain concrete in `apple2-inspection-view.ts`; their storage reader
 uses RAM/ROM and pure device snapshots, never the guest bus. Device-space bytes
@@ -197,7 +200,10 @@ laboratory's Changes tab; the machine chapter owns capture and lifetime behavior
 Last-step RAM observations also feed the inspection panels' byte highlights,
 independently of log recording. The inspector matches physical banks to the
 currently displayed storage, without reading a soft switch or treating bank
-selection as a memory write.
+selection as a memory write. `apple2-memory-position.ts` observes every executed
+instruction's RAM changes and computes the Memory window only when that view
+refreshes. Its tests cover batches ending with a non-writing instruction,
+recording disabled, repeated writes, bank visibility, and address boundaries.
 `6502-instruction-catalogue.ts` derives fixed instruction lengths and control flow
 from the chapter's operand fetches and explicit PC writes at build time, including
 BRK's padding byte. The browser receives names, lengths, and transfer kinds
@@ -238,7 +244,11 @@ chapter's drawing programs exercise colour bands, HLIN, VLIN, PLOT, HGR, HGR2,
 HCOLOR, and HPLOT. Check full/mixed modes, both pages, returning to text, and
 switching between graphics resolutions without a stale image or incorrect scale.
 The chapter owns the behavior and limitations, including session lifetime,
-the character set, and approximate flash timing. In the laboratory, check Code's
+the character set, and approximate flash timing. In the laboratory, switch individual Live dots off during Run; their
+contents should hold while other views advance, then catch up on Pause or Step.
+Check their state survives tab changes, docking, close/reopen, and reload.
+Try Memory's fixed/PC/changes modes with Live both on and off, then enter a
+manual address to return to Fixed. Check Code's
 PC following, address browsing, ROM labels, and run-to stops. Browsing device
 addresses must leave keyboard, disk, and Language Card state unchanged.
 Check history selection across repeated addresses, stepping, running past the

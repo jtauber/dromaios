@@ -11,6 +11,8 @@ export interface WorkspacePanel {
   readonly detail?: string;
   /** Owned by the application: docking reparents this element but never recreates it. */
   readonly content: HTMLElement;
+  /** Optional tool-owned header controls; shown for the active tab. */
+  readonly controls?: HTMLElement;
 }
 export type PanelPosition = "tab" | "left" | "right" | "above" | "below";
 export interface Workspace {
@@ -53,7 +55,7 @@ export function createWorkspace(host: HTMLElement, parking: HTMLElement, panels:
   overlay.hidden = true; overlay.setAttribute("aria-hidden", "true"); host.append(tree, overlay);
   const groupViews = new Map<string, {
     root: HTMLElement; header: HTMLElement; body: HTMLElement; collapse: HTMLButtonElement;
-    detail: HTMLElement; close: HTMLButtonElement;
+    detail: HTMLElement; controls: HTMLElement; close: HTMLButtonElement;
   }>();
   const splitViews = new Map<string, { root: HTMLElement; divider: HTMLElement }>();
   const tabs = new Map<string, { root: HTMLElement; button: HTMLButtonElement }>();
@@ -122,6 +124,7 @@ export function createWorkspace(host: HTMLElement, parking: HTMLElement, panels:
     if (!view) {
       const root = element("workspace-group"), heading = element("workspace-heading");
       const header = element("workspace-tabs"), body = element("workspace-body"), detail = element("workspace-panel-detail");
+      const controls = element("workspace-panel-controls");
       const collapse = document.createElement("button"), close = document.createElement("button");
       root.dataset.workspaceGroup = group.id; header.setAttribute("role", "tablist"); header.setAttribute("aria-label", "Panel group");
       body.id = `${prefix}-body-${group.id}`;
@@ -137,8 +140,8 @@ export function createWorkspace(host: HTMLElement, parking: HTMLElement, panels:
         const remaining = groups(layout), next = remaining.find(item => item.id === group.id) ?? remaining[0];
         if (next) tabs.get(next.active)!.button.focus();
       });
-      heading.append(collapse, header, detail, close); root.append(heading, body);
-      view = { root, header, body, collapse, detail, close }; groupViews.set(group.id, view);
+      heading.append(collapse, header, detail, controls, close); root.append(heading, body);
+      view = { root, header, body, collapse, detail, controls, close }; groupViews.set(group.id, view);
     }
     const selected = definition(group.active), single = group.panels.length === 1;
     view.root.classList.toggle("is-single", single); view.root.classList.toggle("is-collapsed", group.collapsed);
@@ -147,6 +150,7 @@ export function createWorkspace(host: HTMLElement, parking: HTMLElement, panels:
     view.collapse.setAttribute("aria-label", `${group.collapsed ? "Expand" : "Collapse"} ${selected.title}`);
     view.close.setAttribute("aria-label", `Close ${selected.title}`);
     view.detail.textContent = single ? selected.detail ?? "" : "";
+    children(view.controls, selected.controls ? [selected.controls] : []);
     view.body.hidden = group.collapsed;
     children(view.header, group.panels.map(id => {
       const view = tab(id), active = id === group.active;

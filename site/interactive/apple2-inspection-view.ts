@@ -2,6 +2,8 @@ import type { createApple2Session } from "./apple2-session.js";
 import type { Cpu6502Snapshot, Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 import { apple2MemoryAddresses, apple2MemoryHighlights, apple2StorageReader } from "./apple2-inspection.js";
 import type { Apple2MemoryChange } from "./apple2-inspection.js";
+import { createApple2MemoryPosition, apple2MemoryWindowSize } from "./apple2-memory-position.js";
+import type { Apple2MemoryMode } from "./apple2-memory-position.js";
 import { hex, parseApple2Address } from "./apple2-explorer.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
@@ -38,18 +40,20 @@ function createMemoryView(container: HTMLElement | null, length: number) {
 }
 
 /** Both views observe the same machine. Only the laboratory includes memory instruments. */
-export function createApple2Inspection(root: HTMLElement) {
+export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: string) => boolean) {
   const element = (name: string) => root.querySelector<HTMLElement>(`[data-${name}]`);
   const cpuView = element("machine-inspect")!, system = element("system-inspect")!;
   const diskView = element("disk-inspect"), zero = element("zero-page"), stack = element("stack-view");
   const memory = element("memory-view"), stackStatus = element("stack-status");
   const form = root.querySelector<HTMLFormElement>("[data-memory-form]");
   const address = root.querySelector<HTMLInputElement>("[data-memory-address]");
-  let start = 0x400, machine: Machine | undefined;
+  const follow = root.querySelector<HTMLSelectElement>("[data-memory-follow]");
+  const positionStatus = element("memory-position"), position = createApple2MemoryPosition();
+  let machine: Machine | undefined;
   let latest: Cpu6502StepRecord | undefined;
   let memoryChanges: readonly Apple2MemoryChange[] = [];
   const renderZero = createMemoryView(zero, 256), renderStack = createMemoryView(stack, 256);
-  const renderMemory = createMemoryView(memory, 128);
+  const renderMemory = createMemoryView(memory, apple2MemoryWindowSize);
   const updateValues: ((state: Cpu6502Snapshot) => void)[] = [];
   cpuView.replaceChildren();
   function addValue(name: string, read: (state: Cpu6502Snapshot) => number, width: number, separator: string): void {
@@ -74,33 +78,56 @@ export function createApple2Inspection(root: HTMLElement) {
   for (const flag of ["n", "v", "d", "i", "z", "c"] as const) addValue(flag, state => +state.flags[flag], 1, "=");
   form?.addEventListener("submit", event => {
     event.preventDefault();
-    try { start = parseApple2Address(address!.value); }
+    try { position.browse(parseApple2Address(address!.value)); follow!.value = "fixed"; }
     catch (error) { address!.setCustomValidity((error as Error).message); address!.reportValidity(); return; }
-    render();
+    renderMemoryWindow();
+  });
+  follow?.addEventListener("change", () => {
+    position.mode = follow.value as Apple2MemoryMode; address!.setCustomValidity(""); renderMemoryWindow();
   });
   address?.addEventListener("input", () => address.setCustomValidity(""));
+  function renderMemoryWindow(): void {
+    if (!memory || !machine) return;
+    const { start, target } = position.refresh(machine, machine.cpu.snapshot().pc);
+    renderMemory(apple2StorageReader(machine), start, apple2MemoryHighlights(machine, memoryChanges));
+    if (document.activeElement !== address) address!.value = hex(start);
+    const mode = position.mode === "fixed" ? "Fixed address" : position.mode === "pc" ? "Following PC" : "Following changed RAM";
+    positionStatus!.textContent = `${mode} · $${hex(start)}–${hex(Math.min(0xffff, start + apple2MemoryWindowSize - 1))}`
+      + (position.mode === "changes" && target === undefined ? " · waiting for a visible RAM change" : "");
+  }
   function render(): void {
     for (const control of form?.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input, button") ?? []) control.disabled = machine === undefined;
+    if (follow) follow.disabled = machine === undefined;
     if (machine === undefined) return;
     const details = cpuView.closest("details");
     if (details !== null && !details.open) return;
-    const cpu = machine.cpu.snapshot(), key = machine.keyboard.snapshot(), drive = machine.disk.inspect();
-    const language = machine.language.snapshot(), video = machine.video.snapshot();
-    for (const update of updateValues) update(cpu);
-    const on = (value: boolean) => value ? "on" : "off";
-    const disk = `Disk II ${drive.installed ? "installed" : "absent"}\nMedia ${drive.loaded ? "loaded · protected" : "absent"}\nDrive ${drive.drive} · motor ${on(drive.motor)}\nTrack ${drive.halfTrack / 2} · byte ${drive.position}\nPhase ${drive.phase} · Q6 ${+drive.q6} · Q7 ${+drive.q7}\nLatch $${hex(drive.latch, 2)}`;
-    system.textContent = `KEYBOARD\nKey $${hex(key.key, 2)} · strobe ${key.strobe ? "set" : "clear"}\n\nDISPLAY\nText ${on(video.text)} · mixed ${on(video.mixed)}\nHi-res ${on(video.hires)} · page ${video.page2 ? 2 : 1}\n\nLANGUAGE CARD\nRAM read ${on(language.ram_read)}\nRAM write ${on(language.ram_write)}\nBank ${language.bank2 ? 2 : 1} · prewrite ${on(language.prewrite)}\n\n${disk}`;
-    if (diskView) diskView.textContent = disk;
+    const cpu = machine.cpu.snapshot();
+    if (shouldUpdate("registers")) for (const update of updateValues) update(cpu);
+    if (shouldUpdate("system") || shouldUpdate("disk")) {
+      const drive = machine.disk.inspect(), on = (value: boolean) => value ? "on" : "off";
+      const disk = `Disk II ${drive.installed ? "installed" : "absent"}\nMedia ${drive.loaded ? "loaded · protected" : "absent"}\nDrive ${drive.drive} · motor ${on(drive.motor)}\nTrack ${drive.halfTrack / 2} · byte ${drive.position}\nPhase ${drive.phase} · Q6 ${+drive.q6} · Q7 ${+drive.q7}\nLatch $${hex(drive.latch, 2)}`;
+      if (shouldUpdate("system")) {
+        const key = machine.keyboard.snapshot(), language = machine.language.snapshot(), video = machine.video.snapshot();
+        system.textContent = `KEYBOARD\nKey $${hex(key.key, 2)} · strobe ${key.strobe ? "set" : "clear"}\n\nDISPLAY\nText ${on(video.text)} · mixed ${on(video.mixed)}\nHi-res ${on(video.hires)} · page ${video.page2 ? 2 : 1}\n\nLANGUAGE CARD\nRAM read ${on(language.ram_read)}\nRAM write ${on(language.ram_write)}\nBank ${language.bank2 ? 2 : 1} · prewrite ${on(language.prewrite)}\n\n${disk}`;
+      }
+      if (diskView && shouldUpdate("disk")) diskView.textContent = disk;
+    }
     if (memory) {
       const read = apple2StorageReader(machine), changes = apple2MemoryHighlights(machine, memoryChanges);
-      renderZero(read, 0, changes);
-      renderMemory(read, start, changes);
-      renderStack(read, 0x100, changes);
-      stackStatus!.textContent = `SP $${hex(cpu.sp, 2)} · next push $01${hex(cpu.sp, 2)} · next pull $01${hex((cpu.sp + 1) & 0xff, 2)}`;
+      if (shouldUpdate("zero")) renderZero(read, 0, changes);
+      if (shouldUpdate("memory")) renderMemoryWindow();
+      if (shouldUpdate("stack")) {
+        renderStack(read, 0x100, changes);
+        stackStatus!.textContent = `SP $${hex(cpu.sp, 2)} · next push $01${hex(cpu.sp, 2)} · next pull $01${hex((cpu.sp + 1) & 0xff, 2)}`;
+      }
     }
   }
   return {
+    observe(selected: Machine, writes: readonly Apple2MemoryChange[]): void {
+      if (memory) position.observe(selected, writes);
+    },
     refresh(selected: Machine | undefined, record?: Cpu6502StepRecord, changes: readonly Apple2MemoryChange[] = []): void {
+      if (record === undefined) position.reset();
       machine = selected; latest = record; memoryChanges = changes; render();
     },
   };

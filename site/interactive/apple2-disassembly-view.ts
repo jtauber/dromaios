@@ -92,8 +92,12 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: {
     status.textContent = `${follow.checked ? "Following PC" : "Browsing"} · $${hex(start)} · select an address to run there.`;
   }
   return {
-    refresh(selected: Machine | undefined, records: readonly Apple2TraceEntry[], available: boolean, active: boolean): void {
-      machine = selected; recent = records; canRun = available && !active; running = active; render();
+    refresh(selected: Machine | undefined, records: readonly Apple2TraceEntry[], available: boolean, active: boolean, update: boolean): void {
+      machine = selected; recent = records; canRun = available && !active; running = active;
+      // Execution controls must stay safe even while the displayed code is frozen.
+      run.disabled = !canRun;
+      views.forEach((view, index) => { view.button.disabled = !canRun || !rows[index]?.complete; });
+      if (update) render();
     },
   };
 }

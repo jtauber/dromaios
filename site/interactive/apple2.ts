@@ -8,9 +8,10 @@ import { apple2RomStorage } from "./apple2-rom-storage.js";
 import { createApple2Inspection } from "./apple2-inspection-view.js";
 import { createApple2ChangeLogView } from "./apple2-change-log-view.js";
 import { createApple2Explorer } from "./apple2-explorer-view.js";
+import { createPanelUpdates } from "./panel-updates.js";
 
 /** File controls, host scheduling, and screen presentation around the generated machine. */
-export function mountApple2(root: HTMLElement): { refresh: () => void } {
+export function mountApple2(root: HTMLElement) {
   const element = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
   const file = element<HTMLInputElement>("rom-file");
   const keyboard = root.querySelector<HTMLTextAreaElement>("[data-apple2-keyboard]");
@@ -37,7 +38,10 @@ export function mountApple2(root: HTMLElement): { refresh: () => void } {
   const monochrome = element<HTMLInputElement>("apple2-monochrome");
   monochrome.disabled = false;
   monochrome.addEventListener("change", refresh);
-  const inspection = createApple2Inspection(root);
+  let requestedPanels: readonly string[] = [];
+  const updates = createPanelUpdates(root, id => refreshPanels([id]));
+  const shouldUpdate = (id: string) => requestedPanels.includes(id) || updates.shouldUpdate(id, execution.running);
+  const inspection = createApple2Inspection(root, shouldUpdate);
   const changeLog = createApple2ChangeLogView(root, () => session.machine);
   const inputTarget = keyboard ?? screen;
   const execution = createExecutionController({
@@ -45,6 +49,7 @@ export function mountApple2(root: HTMLElement): { refresh: () => void } {
       const romMapped = !session.machine.language.ramRead();
       const record = changeLog ? changeLog.capture(() => session.step()) : session.step();
       if (record.outcome !== "executed") throw new Error(`Processor stopped: ${record.outcome}.`);
+      inspection.observe(session.machine, changeLog?.memoryChanges(record) ?? []);
       return { record, romMapped };
     },
     canStep: () => session.hasFirmware && !selecting,
@@ -52,7 +57,7 @@ export function mountApple2(root: HTMLElement): { refresh: () => void } {
     schedule(callback, delay) { const id = window.setTimeout(callback, delay); return () => window.clearTimeout(id); },
     onChange: refresh, batchSize: 10000,
   });
-  const explorer = createApple2Explorer(root, () => session.machine, () => { message.textContent = ""; execution.run(); });
+  const explorer = createApple2Explorer(root, () => session.machine, () => { message.textContent = ""; execution.run(); }, shouldUpdate);
   root.querySelector<HTMLElement>("[data-rom-explorer]")?.addEventListener("toggle", refresh);
   execution.setDelay(1);
 
@@ -81,7 +86,7 @@ export function mountApple2(root: HTMLElement): { refresh: () => void } {
     if (execution.error !== undefined) message.textContent = execution.error;
     const latest = execution.error === undefined ? execution.records.at(-1)?.record : undefined;
     inspection.refresh(session.machine, latest, changeLog?.memoryChanges(latest));
-    changeLog?.refresh();
+    if (shouldUpdate("log")) changeLog?.refresh();
     const now = performance.now();
     if (execution.running && now >= nextFlash) { flash = !flash; nextFlash = now + 500; }
     const { ram, video } = session.machine;
@@ -90,6 +95,10 @@ export function mountApple2(root: HTMLElement): { refresh: () => void } {
     const mode = display.text ? "Text" : display.hires ? "High-resolution graphics" : "Low-resolution graphics";
     element<HTMLElement>("display-status").textContent = `${mode} · page ${display.page2 ? 2 : 1}${!display.text && display.mixed ? " · bottom four text rows shown" : ""}`
       + (session.hasFirmware ? "" : " · initial RAM: 00 = inverse @");
+  }
+  function refreshPanels(ids: readonly string[]): void {
+    requestedPanels = ids;
+    try { refresh(); } finally { requestedPanels = []; }
   }
   function action(perform: () => void): void {
     try { perform(); }
@@ -215,5 +224,5 @@ export function mountApple2(root: HTMLElement): { refresh: () => void } {
     }
   }
   void restoreRom();
-  return { refresh };
+  return { refreshPanels, controls: updates.controls };
 }

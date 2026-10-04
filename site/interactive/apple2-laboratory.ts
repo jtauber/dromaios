@@ -20,21 +20,23 @@ const defaultLayout: WorkspaceLayout = {
 
 for (const root of document.querySelectorAll<HTMLElement>("[data-laboratory]")) {
   const tools = mountApple2(root);
-  let refreshPending = false;
-  function refreshVisibleTools(): void {
-    if (refreshPending) return;
-    refreshPending = true;
-    queueMicrotask(() => { refreshPending = false; tools.refresh(); });
+  const pending = new Set<string>();
+  function refreshVisibleTool(id: string): void {
+    const scheduled = pending.size > 0;
+    pending.add(id);
+    if (scheduled) return;
+    queueMicrotask(() => { tools.refreshPanels([...pending]); pending.clear(); });
   }
   const panels = [...root.querySelectorAll<HTMLElement>("[data-workspace-panel]")].map(content => ({
     id: content.dataset.workspacePanel!, title: content.dataset.panelTitle!,
     heading: content.dataset.panelHeading, detail: content.dataset.panelDetail, content,
+    controls: tools.controls(content.dataset.workspacePanel!),
   }));
   const status = document.createElement("span"); status.className = "workspace-status"; status.setAttribute("role", "status");
   const workspace = createWorkspace(root.querySelector<HTMLElement>("[data-workspace-root]")!,
     root.querySelector<HTMLElement>("[data-workspace-panels]")!, panels, {
       defaults: defaultLayout, storageKey: "dromaios:workspace:apple2",
-      onShow: refreshVisibleTools, onStatus: message => { status.textContent = message; },
+      onShow: refreshVisibleTool, onStatus: message => { status.textContent = message; },
     });
   mountWorkspaceControls(root.querySelector<HTMLElement>("[data-workspace-controls]")!, workspace, status);
 }

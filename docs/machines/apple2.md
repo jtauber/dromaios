@@ -254,10 +254,10 @@ paths before a shared peripheral-inspection abstraction is designed.
 
 | Capability | Current Dromaios laboratory | Remaining reference parity |
 | --- | --- | --- |
-| Workspace | Dark workspace with draggable panels, resizable splits, tab groups, collapse/expand and close/reopen controls, keyboard arrangement, saved layout, and classroom link. | Per-panel live-update controls. |
+| Workspace | Dark workspace with draggable panels, resizable splits, tab groups, collapse/expand and close/reopen controls, keyboard arrangement, saved layout, per-inspector Live toggles, and classroom link. | — |
 | Execution and display | Reference bitmap characters, shared text/graphics raster, colour/green monochrome and scanline toggles, direct screen typing, local media selection, a persistent run/pause/step/reset/power control bar. | Reference speed controls require an explicit timing model; do not label instruction batching as a hardware clock. |
 | CPU inspection | Registers and flags with last-instruction change highlights and previous values; live disassembly with PC following, address browsing and run-to stops; captured disassembly of the last twelve instructions, selectable captured changes and ordered accesses for each retained step. | Register editing and richer instruction explanations. |
-| Memory | Zero page, addressable mapped-storage preview, stack page and push/pull addresses; last-instruction byte highlights with previous values across all three views. | Software-owned zero-page names and address annotations. |
+| Memory | Zero page, mapped-storage preview with fixed/PC/changed-RAM following, stack page and push/pull addresses; last-instruction byte highlights with previous values across all three views. | Software-owned zero-page names and address annotations. |
 | Change history | Instruction-attributed before/after values for registers, flags, PC, and physical RAM, including Language Card banks; bounded history with recording and display filters. | Address watchpoints and export. |
 | ROM and system | Versioned routine stops and descriptions; keyboard, display, Language Card, and disk snapshots. | Expanded ROM reference and navigation between code and annotations. |
 | Applesoft tools | BASIC runs on the machine; ROM walkthrough reaches input and echo. | Listing, variables, interpreter state, source stepping, breakpoints, execution history, and profiling. |

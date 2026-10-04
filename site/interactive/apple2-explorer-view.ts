@@ -6,7 +6,7 @@ import { createApple2History } from "./apple2-history-view.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 
-export function createApple2Explorer(root: HTMLElement, machine: () => Machine | undefined, run: () => void) {
+export function createApple2Explorer(root: HTMLElement, machine: () => Machine | undefined, run: () => void, shouldUpdate: (id: string) => boolean) {
   const element = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
   const catalogue = JSON.parse(element("rom-catalogue").textContent!) as {
     readonly instructions: InstructionCatalogue; readonly routines: readonly RomRoutine[];
@@ -54,8 +54,8 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
       if (pause) pause.disabled = !running;
       showStopStatus(target.status, running);
       const selected = machine();
-      disassembly?.refresh(selected, records, available, running);
-      history?.refresh(records);
+      disassembly?.refresh(selected, records, available, running, shouldUpdate("code"));
+      history?.refresh(records, shouldUpdate("trace"));
       if (!current || !trace) return;
       if (details instanceof HTMLDetailsElement && !details.open) return;
       if (selected === undefined) { current.textContent = "Choose a ROM to begin."; trace.textContent = ""; return; }

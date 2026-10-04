@@ -182,6 +182,12 @@ execution history, memory, stack, and Code/Changes/ROM/System/Disk tools visible
 Panels can be moved, resized, grouped into tabs, or collapsed to their headers.
 Closing a panel hides its tool; it does not stop the machine or its capture.
 **Reset layout** restores the arrangement while preserving the current experiment.
+Each inspector header has a **Live** toggle: a filled green dot enables automatic
+updates during Run; an empty dot holds that view. Pause, Step, and opening a panel
+refresh it regardless of Live. Its own navigation and filtering controls also
+refresh on demand. These switches never stop execution or history capture, and
+are remembered separately from the layout. All inspectors start Live except Memory.
+The screen and machine/media controls always stay current.
 Run, Pause, Step, Reset CPU, and Fresh power-on stay in the machine-control bar,
 independent of which panels are open. The screen accepts typing and pasting
 directly, including Enter and Ctrl-C; the classroom also has an explicit keyboard
@@ -200,6 +206,20 @@ devices; `--` denotes unavailable bytes, including soft switches. Code follows
 PC or browses a chosen address, while **Execution history** preserves the
 bytes actually fetched. The [live disassembly guide](../../../docs/software/apple2p-rom.md#live-disassembly)
 explains navigation and address stops.
+
+Memory starts at a **Fixed address**. **Follow PC** keeps the next instruction's
+address visible; **Follow changes** tracks the last byte of visible RAM actually
+changed by an executed instruction, including earlier instructions in a running
+batch and writes captured while Changes recording is off. Hidden Language Card
+writes, unchanged stores, and device accesses do not move it. A later bank switch
+can hide its last target; the inspector waits for a visible changed byte.
+Following moves the 128-byte window only when the target leaves it, aligning the
+new start to eight bytes and stopping at FFFF. Entering an address with **Go**
+returns to Fixed. Following controls position independently of Live: with Live
+off, the window catches up when paused, stepped, or explicitly refreshed.
+Reset, fresh power-on, and successful media replacement forget the last change
+target but keep the following mode; fixed windows retain their address.
+Position and mode last for this visit; they are not saved across reloads.
 
 Execution history lists the latest twelve captured instructions, newest first,
 and shows the selected instruction's register/flag changes and ordered memory

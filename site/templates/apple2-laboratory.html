@@ -39,21 +39,25 @@
         <p data-input-status class="basic-readout">0 keyboard characters queued</p>
       </div>
     </section>
-    <section class="lab-tool lab-tool-registers" data-workspace-panel="registers" data-panel-title="Registers" data-panel-heading="MOS 6502"><div class="lab-panel-body"><pre data-machine-inspect>Preparing the processor…</pre><p class="lab-hint">Highlighted values changed in the last instruction. Hover for the previous value.</p></div></section>
-    <section class="lab-tool lab-tool-trace" data-workspace-panel="trace" data-panel-title="Execution history" data-execution-history><div class="lab-panel-body lab-scroll">
+    <section class="lab-tool lab-tool-registers" data-workspace-panel="registers" data-panel-live="true" data-panel-title="Registers" data-panel-heading="MOS 6502"><div class="lab-panel-body"><pre data-machine-inspect>Preparing the processor…</pre><p class="lab-hint">Highlighted values changed in the last instruction. Hover for the previous value.</p></div></section>
+    <section class="lab-tool lab-tool-trace" data-workspace-panel="trace" data-panel-live="true" data-panel-title="Execution history" data-execution-history><div class="lab-panel-body lab-scroll">
         <div class="lab-history-controls"><label><input type="checkbox" data-history-follow checked> Follow latest</label></div>
         <p class="lab-hint">Latest twelve, newest first. Select an instruction to inspect its captured changes and memory accesses.</p>
         <div class="lab-history-list" data-history-list role="group" aria-label="Executed instructions"></div>
         <p data-history-status class="lab-hint"></p>
         <pre data-history-detail>No instructions recorded yet.</pre>
       </div></section>
-    <section class="lab-tool lab-tool-zero" data-workspace-panel="zero" data-panel-title="Zero page" data-panel-detail="$0000–00FF"><div class="lab-panel-body lab-scroll"><pre data-zero-page>Preparing RAM…</pre></div></section>
-    <section class="lab-tool lab-tool-memory" data-workspace-panel="memory" data-panel-title="Memory"><div class="lab-panel-body lab-scroll">
+    <section class="lab-tool lab-tool-zero" data-workspace-panel="zero" data-panel-live="true" data-panel-title="Zero page" data-panel-detail="$0000–00FF"><div class="lab-panel-body lab-scroll"><pre data-zero-page>Preparing RAM…</pre></div></section>
+    <section class="lab-tool lab-tool-memory" data-workspace-panel="memory" data-panel-live="false" data-panel-title="Memory"><div class="lab-panel-body lab-scroll">
       <form data-memory-form class="lab-address"><label>Address (hex) <input data-memory-address value="0400" maxlength="5" spellcheck="false" autocomplete="off" disabled></label><button type="submit" disabled>Go</button></form>
-      <p data-memory-status class="lab-hint" role="status">Mapped storage only. -- means unavailable, including missing ROM and device addresses. Highlights mark bytes changed in the last instruction; hover for the previous value.</p>
+      <label class="lab-memory-follow">Position <select data-memory-follow aria-label="Memory position"><option value="fixed">Fixed address</option><option value="pc">Follow PC</option><option value="changes">Follow changes</option></select></label>
+      <p data-memory-position class="lab-hint"></p>
       <pre data-memory-view></pre>
+      <details><summary>About this view</summary>
+      <p data-memory-status class="lab-hint">Mapped storage only. -- means unavailable, including missing ROM and device addresses. Highlights mark bytes changed in the last instruction; hover for the previous value.</p>
+      </details>
     </div></section>
-    <section class="lab-tool lab-tool-stack" data-workspace-panel="stack" data-panel-title="Stack page" data-panel-detail="$0100–01FF"><div class="lab-panel-body lab-scroll"><p data-stack-status class="lab-hint">SP marks the next push location, not the top item.</p><pre data-stack-view></pre></div></section>
+    <section class="lab-tool lab-tool-stack" data-workspace-panel="stack" data-panel-live="true" data-panel-title="Stack page" data-panel-detail="$0100–01FF"><div class="lab-panel-body lab-scroll"><p data-stack-status class="lab-hint">SP marks the next push location, not the top item.</p><pre data-stack-view></pre></div></section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="rom" data-panel-title="ROM">
       <h2>Firmware</h2>
       {{ media_picker('rom', 'ROM') }}
@@ -65,7 +69,7 @@
       <p><a href="{{ calc_url(apple2_url ~ '#rom-walkthrough') }}" target="_blank" rel="noopener">Follow the ROM walkthrough in the classroom ↗</a></p>
       <p class="lab-hint">Both views remember the same ROM in this browser. Each starts its own machine; RAM, programs, and disk selections are not saved on reload. Fresh power-on discards RAM; Reset CPU preserves RAM and devices.</p>
     </section>
-    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="code" data-panel-title="Code" data-disassembly>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="code" data-panel-live="true" data-panel-title="Code" data-disassembly>
       <h2>Live disassembly</h2>
       <form data-disassembly-form class="lab-address"><label>Address (hex) <input data-disassembly-address value="0000" maxlength="5" spellcheck="false" autocomplete="off"></label><button type="submit">Browse</button><button type="button" data-disassembly-run disabled>Run to address</button></form>
       <div class="lab-code-navigation">
@@ -88,7 +92,7 @@
       <p class="lab-hint">Address buttons pause before executing that address, in any bank. Step and Pause remain in the main controls.</p>
       <p><a href="{{ calc_url(apple2_url ~ '#live-disassembly') }}" target="_blank" rel="noopener">Read the disassembly guide ↗</a></p>
     </section>
-    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="log" data-panel-title="Changes" data-change-log>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="log" data-panel-live="true" data-panel-title="Changes" data-change-log>
       <h2>Recorded changes</h2>
       <div class="lab-log-controls"><label><input type="checkbox" data-log-recording checked> Record changes</label><button type="button" data-log-clear>Clear log</button></div>
       <fieldset class="lab-log-filters"><legend>Show changes to</legend>
@@ -106,12 +110,12 @@
       </details>
       <pre data-log-output aria-label="Recorded changes">No instructions recorded yet.</pre>
     </section>
-    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="system" data-panel-title="System">
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="system" data-panel-live="true" data-panel-title="System">
       <h2>Device state</h2><pre data-system-inspect>Preparing devices…</pre>
       <p class="lab-hint">Snapshots of the keyboard, display switches, Language Card, and Disk II. Reading these views never operates a soft switch.</p>
       <p><a href="{{ source_url }}" target="_blank" rel="noopener">Read the executable machine description ↗</a></p>
     </section>
-    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="disk" data-panel-title="Disk">
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="disk" data-panel-live="true" data-panel-title="Disk">
       <h2>Drive 1</h2>
       {{ media_picker('disk', 'disk') }}
       <p data-disk-status class="basic-readout">No disk loaded.</p>
