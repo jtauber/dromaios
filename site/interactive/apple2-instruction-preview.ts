@@ -3,6 +3,9 @@ import type { Cpu6502Snapshot, Cpu6502StepRecord, Cpu6502MemoryAccess } from "..
 import { disassemble6502, hex } from "./apple2-explorer.js";
 import type { InstructionCatalogue } from "./apple2-explorer.js";
 import { explain6502Address } from "./6502-address-explanation.js";
+import { upcomingMemoryAccesses } from "./apple2-memory-accesses.js";
+
+export type Apple2InstructionPreview = ReturnType<typeof preview6502>;
 
 /** Run one copied CPU against storage observations and private writes, never the guest bus. */
 export function preview6502(state: Cpu6502Snapshot, read: (address: number) => number | undefined, instructions: InstructionCatalogue) {
@@ -47,6 +50,7 @@ export function preview6502(state: Cpu6502Snapshot, read: (address: number) => n
     effects.push(`PC → $${hex(record.after.pc)}`);
   }
   const addressing = explain6502Address(state, info, bytes, accesses, blocked);
-  return { assembly, effects, accesses, record, blocked, addressing: addressing.lines,
+  return { address: state.pc, assembly, effects, accesses, record, blocked, addressing: addressing.lines,
+    memory: upcomingMemoryAccesses(accesses, info?.accesses, blocked),
     explanation: info?.explanation, calculations: info?.calculations ?? [] };
 }

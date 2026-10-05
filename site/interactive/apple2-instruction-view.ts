@@ -1,21 +1,17 @@
-import type { createApple2Session } from "./apple2-session.js";
-import type { InstructionCatalogue } from "./apple2-explorer.js";
 import { hex } from "./apple2-explorer.js";
-import { apple2StorageReader } from "./apple2-inspection.js";
-import { preview6502 } from "./apple2-instruction-preview.js";
+import type { Apple2InstructionPreview } from "./apple2-instruction-preview.js";
 import { memoryAddressText } from "./memory-link.js";
 
 /** Explain the upcoming instruction independently of recorded execution history. */
-export function createApple2InstructionView(root: HTMLElement, instructions: InstructionCatalogue, browse: (address: number) => void) {
+export function createApple2InstructionView(root: HTMLElement, browse: (address: number) => void) {
   const output = root.querySelector<HTMLElement>("[data-instruction-preview]");
   if (!output) return undefined;
   const location = root.querySelector<HTMLElement>("[data-instruction-location]")!;
   const accesses = root.querySelector<HTMLElement>("[data-instruction-accesses]")!;
   const explanation = root.querySelector<HTMLElement>("[data-instruction-explanation]")!;
   const calculations = root.querySelector<HTMLElement>("[data-instruction-calculations]")!;
-  return (machine: ReturnType<typeof createApple2Session>["machine"]): void => {
-    const state = machine.cpu.snapshot(), preview = preview6502(state, apple2StorageReader(machine), instructions);
-    location.textContent = `Next · $${hex(state.pc)}`;
+  return (preview: Apple2InstructionPreview): void => {
+    location.textContent = `Next · $${hex(preview.address)}`;
     const heading = document.createElement("strong"); heading.className = "lab-instruction-assembly"; heading.textContent = preview.assembly;
     const addresses = preview.addressing.length ? preview.addressing.join("\n") + "\n\n" : "";
     const effects = preview.effects.filter(line => !line.startsWith("Write ") || !preview.addressing.includes(line));

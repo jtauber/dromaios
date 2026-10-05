@@ -4,7 +4,6 @@ import type { Apple2TraceEntry, InstructionCatalogue, AddressLabel, MemoryLabel,
 import { createApple2Disassembly } from "./apple2-disassembly-view.js";
 import { createApple2History } from "./apple2-history-view.js";
 import { createApple2RomReference } from "./apple2-rom-reference-view.js";
-import { createApple2InstructionView } from "./apple2-instruction-view.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 
@@ -34,9 +33,6 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     navigation.showPanel(tool);
   });
   const history = createApple2History(root, catalogue);
-  const instruction = createApple2InstructionView(root, catalogue.instructions, address => {
-    navigation.browseMemory(address); navigation.showPanel("memory");
-  });
   const stopMessages = root.querySelectorAll<HTMLElement>("[data-rom-stop-status], [data-disassembly-stop-status]");
   function showStopStatus(value: string, running = false): void {
     for (const message of stopMessages) {
@@ -72,7 +68,6 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
       if (pause) pause.disabled = !running;
       showStopStatus(target.status, running);
       const selected = machine();
-      if (selected && shouldUpdate("instruction")) instruction?.(selected);
       disassembly?.refresh(selected, records, available, running, shouldUpdate("code"));
       history?.refresh(records, shouldUpdate("trace"));
       if (selected) reference?.refresh({ pc: selected.cpu.snapshot().pc, memory: navigation.memoryAddress(),

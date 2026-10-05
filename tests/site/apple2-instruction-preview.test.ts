@@ -136,3 +136,26 @@ test("chapter-derived explanations retain unchanged assignments and respond to s
     assert.ok(catalogue[0xd8]!.calculations!.includes("D ← 1"));
   }
 });
+
+test("upcoming memory marks separate fetched bytes, wrapped pointers, data reads and writes", () => {
+  const ram = new Uint8Array(0x10000); ram.set([0xb1, 0xff], 0x200); ram[0xff] = 0xfe; ram[0] = 0xff;
+  const preview = preview6502(state(), address => ram[address], instructions);
+  assert.deepEqual([...preview.memory], [[0x200, ["fetch"]], [0x201, ["fetch"]], [0xff, ["read"]], [0, ["read"]], [1, ["read"]]]);
+  ram.set([0xe6, 0x24], 0x200);
+  const modify = preview6502(state(), address => ram[address], instructions);
+  assert.deepEqual(modify.memory.get(0x24), ["read", "write"]);
+  assert.equal(ram[0x24], 0, "The highlighted write was only predicted");
+  ram.set([0x20, 0x34, 0x12], 0x1fd);
+  const call = preview6502(state({ pc: 0x1fd }), address => ram[address], instructions);
+  assert.deepEqual(call.memory.get(0x1ff), ["write", "fetch"], "The late operand fetch overlaps a stack write");
+  assert.deepEqual(call.memory.get(0x1fe), ["fetch", "write"]);
+});
+
+test("upcoming marks include the blocked read without inventing its later accesses", () => {
+  const ram = new Uint8Array(0x10000); ram.set([0xee, 0x10, 0xc0], 0x200); // INC keyboard strobe
+  const preview = preview6502(state(), address => address < 0xc000 ? ram[address] : undefined, instructions);
+  assert.equal(preview.blocked, 0xc010);
+  assert.deepEqual(preview.memory.get(0xc010), ["read"], "A failed data read cannot predict the later write");
+  const fetch = preview6502(state(), () => undefined, instructions);
+  assert.deepEqual(fetch.memory.get(0x200), ["fetch"], "Even an unavailable opcode is an instruction fetch");
+});

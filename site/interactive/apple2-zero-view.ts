@@ -5,6 +5,8 @@ import { hex } from "./apple2-explorer.js";
 import type { Apple2MemoryChange } from "./apple2-inspection.js";
 import { createWorkspacePosition, monitorWorkspace, workspaceValue } from "./apple2-workspace-values.js";
 import { memoryLink } from "./memory-link.js";
+import type { UpcomingMemoryAccesses } from "./apple2-memory-accesses.js";
+import { markMemoryAccess } from "./memory-access-view.js";
 
 export function createApple2ZeroPage(container: HTMLElement | null, labels: readonly MemoryLabel[], browse: (address: number) => void) {
   const hexView = createApple2MemoryView(container, 256);
@@ -63,8 +65,8 @@ export function createApple2ZeroPage(container: HTMLElement | null, labels: read
     control,
     observe: position.observe,
     reset(): void { position.reset(); displayedTarget = undefined; },
-    render(read: (address: number) => number | undefined, changes: ReadonlyMap<number, Apple2MemoryChange>, installed: boolean): void {
-      hexView.render(read, 0, changes);
+    render(read: (address: number) => number | undefined, changes: ReadonlyMap<number, Apple2MemoryChange>, installed: boolean, upcoming: UpcomingMemoryAccesses): void {
+      hexView.render(read, 0, changes, upcoming);
       notice.textContent = installed ? "Monitor workspace conventions; other software may reuse these bytes. Words are low byte first."
         : "No ROM installed. These are the Monitor's workspace conventions, shown against initial RAM.";
       for (const row of rows) {
@@ -73,7 +75,8 @@ export function createApple2ZeroPage(container: HTMLElement | null, labels: read
         const changed = value !== undefined && before !== undefined && value !== before;
         row.value.textContent = value === undefined ? "—" : `$${hex(value, row.bytes * 2)}`;
         row.value.classList.toggle("is-changed", changed);
-        row.value.title = changed ? `Changed from $${hex(before, row.bytes * 2)} in the last instruction` : "";
+        markMemoryAccess(row.value, upcoming, row.address, row.bytes,
+          changed ? `Changed from $${hex(before, row.bytes * 2)} in the last instruction` : "");
       }
       displayedTarget = position.target; reveal();
     },

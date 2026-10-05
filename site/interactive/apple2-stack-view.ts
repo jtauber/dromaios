@@ -2,6 +2,9 @@ import { createApple2MemoryView } from "./apple2-memory-view.js";
 import { createInspectorChoices } from "./inspector-controls.js";
 import { hex } from "./apple2-explorer.js";
 import type { Apple2MemoryChange } from "./apple2-inspection.js";
+import { apple2StackAddresses } from "./apple2-memory-accesses.js";
+import type { UpcomingMemoryAccesses } from "./apple2-memory-accesses.js";
+import { markMemoryAccess } from "./memory-access-view.js";
 
 /** SP identifies the next push slot, so conventional stack entries begin at SP + 1. */
 export function createApple2StackView(container: HTMLElement | null, page: HTMLElement | null) {
@@ -18,19 +21,21 @@ export function createApple2StackView(container: HTMLElement | null, page: HTMLE
   controls.append(mode.element, bytes.control); display();
   return {
     control: controls,
-    render(read: (address: number) => number | undefined, sp: number, changes: ReadonlyMap<number, Apple2MemoryChange>): void {
-      bytes.render(read, 0x100, changes);
+    render(read: (address: number) => number | undefined, sp: number, changes: ReadonlyMap<number, Apple2MemoryChange>, upcoming: UpcomingMemoryAccesses): void {
+      bytes.render(read, 0x100, changes, upcoming);
       output.replaceChildren();
-      if (sp === 0xff) { output.textContent = "(empty above SP)"; return; }
-      for (let offset = sp + 1; offset <= 0xff; offset++) {
-        const address = 0x100 + offset, value = read(address), change = changes.get(address);
+      const addresses = apple2StackAddresses(sp, upcoming);
+      if (!addresses.length) { output.textContent = "(empty above SP)"; return; }
+      for (const address of addresses) {
+        const offset = address - 0x100, value = read(address), change = changes.get(address);
         const field = document.createElement("span"); field.dataset.memoryByte = hex(address);
         field.className = "apple2-memory-byte";
         field.textContent = value === undefined ? "--" : hex(value, 2);
         if (change && value === change.after) {
           field.classList.add("is-changed"); field.title = `Changed ${hex(change.before, 2)} → ${hex(change.after, 2)} in the last instruction`;
         }
-        output.append(`$${hex(address)}  `, field, offset === sp + 1 ? " ← SP+1\n" : "\n");
+        markMemoryAccess(field, upcoming, address, 1, field.title);
+        output.append(`$${hex(address)}  `, field, offset <= sp ? " ← next access\n" : offset === sp + 1 ? " ← SP+1\n" : "\n");
       }
     },
   };

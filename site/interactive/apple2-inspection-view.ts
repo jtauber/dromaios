@@ -4,7 +4,10 @@ import { apple2MemoryHighlights, apple2StorageReader } from "./apple2-inspection
 import type { Apple2MemoryChange } from "./apple2-inspection.js";
 import { createApple2ZeroPage } from "./apple2-zero-view.js";
 import { createApple2Watches } from "./apple2-watch-view.js";
-import type { MemoryLabel } from "./apple2-explorer.js";
+import type { InstructionCatalogue, MemoryLabel } from "./apple2-explorer.js";
+import { createApple2InstructionView } from "./apple2-instruction-view.js";
+import { preview6502 } from "./apple2-instruction-preview.js";
+import type { Apple2InstructionPreview } from "./apple2-instruction-preview.js";
 import { createApple2MemoryScrollView } from "./apple2-memory-scroll-view.js";
 import { createApple2StackView } from "./apple2-stack-view.js";
 import { createApple2MemoryPosition } from "./apple2-memory-position.js";
@@ -36,8 +39,13 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
   let machine: Machine | undefined;
   let latest: Cpu6502StepRecord | undefined, editable = false;
   let memoryChanges: readonly Apple2MemoryChange[] = [];
-  const { labels } = JSON.parse(element("rom-catalogue")!.textContent!) as { labels: readonly MemoryLabel[] };
+  const { labels, instructions } = JSON.parse(element("rom-catalogue")!.textContent!) as { labels: readonly MemoryLabel[]; instructions: InstructionCatalogue };
+  let preview: Apple2InstructionPreview | undefined;
+  function nextInstruction(): Apple2InstructionPreview {
+    return preview ??= preview6502(machine!.cpu.snapshot(), apple2StorageReader(machine!), instructions);
+  }
   const browse = (value: number) => { browseMemory(value); showPanel("memory"); onMemoryPosition(); };
+  const instruction = createApple2InstructionView(root, browse);
   const zeroView = createApple2ZeroPage(zero, labels, browse), stackView = createApple2StackView(stack, element("stack-page"));
   const watches = createApple2Watches(root, labels, browse);
   const memoryView = createApple2MemoryScrollView(memory, value => {
@@ -60,7 +68,7 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
     const view = memoryView!;
     const { start, target } = position.refresh(machine, machine.cpu.snapshot().pc, view.rowWidth, view.visibleBytes, view.visibleStart);
     displayedStart = start;
-    view.render(apple2StorageReader(machine), start, apple2MemoryHighlights(machine, memoryChanges));
+    view.render(apple2StorageReader(machine), start, apple2MemoryHighlights(machine, memoryChanges), nextInstruction().memory);
     if (document.activeElement !== address) address!.value = hex(start);
     const mode = position.mode === "fixed" ? "Fixed address" : position.mode === "pc" ? "Following PC" : "Following changed RAM";
     positionStatus!.textContent = `${mode} · $${hex(start)}`
@@ -73,6 +81,7 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
     if (details !== null && !details.open) return;
     const cpu = machine.cpu.snapshot();
     registers.refresh(cpu, latest, editable, shouldUpdate("registers"));
+    if (instruction && shouldUpdate("instruction")) instruction(nextInstruction());
     if (shouldUpdate("system") || shouldUpdate("disk")) {
       const drive = machine.disk.inspect(), on = (value: boolean) => value ? "on" : "off";
       const disk = `Disk II ${drive.installed ? "installed" : "absent"}\nMedia ${drive.loaded ? "loaded · protected" : "absent"}\nDrive ${drive.drive} · motor ${on(drive.motor)}\nTrack ${drive.halfTrack / 2} · byte ${drive.position}\nPhase ${drive.phase} · Q6 ${+drive.q6} · Q7 ${+drive.q7}\nLatch $${hex(drive.latch, 2)}`;
@@ -84,11 +93,11 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
     }
     if (memory) {
       const read = apple2StorageReader(machine), changes = apple2MemoryHighlights(machine, memoryChanges);
-      if (shouldUpdate("zero")) zeroView?.render(read, changes, machine.firmware.loaded);
+      if (shouldUpdate("zero")) zeroView?.render(read, changes, machine.firmware.loaded, nextInstruction().memory);
       if (shouldUpdate("memory")) renderMemoryWindow();
       if (shouldUpdate("watches")) watches?.refresh(machine, read, machine.firmware.loaded, !machine.language.ramRead());
       if (shouldUpdate("stack")) {
-        stackView?.render(read, cpu.sp, changes);
+        stackView?.render(read, cpu.sp, changes, nextInstruction().memory);
         stackStatus!.textContent = `SP $${hex(cpu.sp, 2)} · push $01${hex(cpu.sp, 2)} · pull $01${hex((cpu.sp + 1) & 0xff, 2)}`;
       }
     }
@@ -108,7 +117,7 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
     },
     refresh(selected: Machine | undefined, record?: Cpu6502StepRecord, changes: readonly Apple2MemoryChange[] = [], canEdit = false): void {
       if (record === undefined) { position.reset(); zeroView?.reset(); }
-      machine = selected; editable = canEdit; latest = record; memoryChanges = changes; render();
+      machine = selected; editable = canEdit; latest = record; memoryChanges = changes; preview = undefined; render();
     },
   };
 }

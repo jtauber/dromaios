@@ -257,7 +257,7 @@ paths before a shared peripheral-inspection abstraction is designed.
 | Workspace | Dark workspace with draggable panels, resizable splits, tab groups, collapse/expand and close/reopen controls, keyboard arrangement, saved layout, and per-inspector Live toggles. | — |
 | Execution and display | Reference bitmap characters, shared text/graphics raster, colour/green monochrome and scanline toggles, direct screen typing, local media selection, a dockable Execution panel below Screen by default. | Reference speed controls require an explicit timing model; do not label instruction batching as a hardware clock. |
 | CPU inspection | Registers and flags with last-instruction change highlights and previous values; paused register editing; next-instruction preview with branch tests, address calculations, declared assignments, and chapter-derived explanations; disassembly with PC/MEM selection, address browsing and run-to stops; captured disassembly of the last twelve instructions, selectable captured changes and ordered accesses for each retained step. | — |
-| Memory | Zero page, full-address-space scrolling memory with a header address field and fixed/PC/changed-RAM following, stack entries/full-page toggle and push/pull addresses; per-panel 8/16-byte rows and last-instruction byte highlights with previous values across all three views; named Monitor workspace words, clickable operand addresses, and saved byte watches. | Character column and next-instruction operand highlighting. |
+| Memory | Zero page, full-address-space scrolling memory with a header address field and fixed/PC/changed-RAM following, stack entries/full-page toggle and push/pull addresses; per-panel 8/16-byte rows with optional Apple II characters; last-instruction changes and next-instruction fetch/read/write marks across all three views, including named workspace words and pending stack accesses; clickable operand addresses and saved byte watches. | — |
 | Change history | Instruction-attributed before/after values for registers, flags, PC, and physical RAM, including Language Card banks; bounded history with recording and display filters. | — |
 | ROM and system | Searchable Monitor reference with PC/Memory following, mapping-aware context, and navigation to Disassembly and Memory; versioned routine stops; keyboard, display, Language Card, and disk snapshots. | Further annotations and visual activity indicators. |
 | Applesoft tools | BASIC runs on the machine; ROM walkthrough reaches input and echo. | Listing, variables, interpreter state, source stepping, breakpoints, execution history, and profiling. |
@@ -271,7 +271,7 @@ remain governed by the hardware acceptance checkpoints above.
 ## Next implementation slices
 
 Continue deepening the ROM and existing inspectors: extend annotations where
-a walkthrough needs them and connect the next instruction to its workspace bytes. Keep these observations
+a walkthrough needs them. Keep these observations
 linked to their software identity and avoid inferring routine boundaries from
 sparse labels. This takes priority over new BASIC and disk tools.
 

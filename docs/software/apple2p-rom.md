@@ -197,6 +197,23 @@ latest changed named value, including either byte of a word. CHG remembers
 changes between display refreshes; Live still controls whether the running
 inspector refreshes. The position preference is saved.
 
+Memory, Zero Page, and Stack also mark the next instruction's accesses: dotted
+underline for instruction fetches, cyan underline for data reads (including
+pointers), and a violet outline for writes. A byte can carry more than one mark;
+amber still means it changed in the previous instruction. A paired workspace
+word carries marks for either byte, with exact addresses in its tooltip. Stack
+entries also show pending accesses below SP, so a push is visible before it
+executes. Writes are predicted bus requests, not claims that ROM or a device
+will store the byte. A blocked device read ends the prediction at that address.
+
+The **TXT** toggle beside **8 / 16** adds an Apple II character column to a byte
+view. It uses the video specification's uppercase character decoding: inverse
+characters have a light background, flashing characters are amber without
+animation, and unavailable storage is a dot. Hover for the attribute and byte.
+This is a text interpretation of memory, not a claim that all bytes are text.
+Each inspector saves its choice. Reformatting a held view retains its displayed
+bytes and access marks; it does not sample newer machine state.
+
 **Watches**, initially a tab beside Memory, keeps a saved list of byte
 addresses and optional labels. Values show hex and decimal. A highlight means
 the value changed since the previous displayed sample, which can span many

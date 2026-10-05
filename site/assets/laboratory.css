@@ -61,6 +61,14 @@
 .lab-memory-space { position: relative; min-width: 100%; }
 .lab-memory-space pre { position: absolute; left: 0; min-width: 100%; width: max-content; }
 .apple2-memory-byte.is-selected { box-shadow: inset 0 -1px #83c9f4; }
+.lab-memory-character { display: inline-block; width: 1ch; text-align: center; color: #7ac9a1; }
+.lab-memory-character.is-inverse { background: #a3b0c5; color: #132139; }
+.lab-memory-character.is-flashing { color: #ffd18a; }
+.is-next-fetch { text-decoration: underline dotted #99aef4; text-underline-offset: 3px; }
+.is-next-read { text-decoration: underline solid #68d9e8 2px; text-underline-offset: 3px; }
+.is-next-write { outline: 1px solid #e3a1df; outline-offset: 1px; }
+.lab-memory-key { font: 10px/1.6 var(--mono); color: var(--muted); }
+.lab-memory-key span { margin: 0 3px; }
 .laboratory-page [data-stack-view] { color: #7ac9a1; font-size: 13px; }
 .laboratory-page [data-instruction-preview] { white-space: pre-wrap; font-size: 12px; }
 .lab-instruction-assembly { color: #ffd18a; font-size: 16px; }
