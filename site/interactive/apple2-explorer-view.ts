@@ -27,14 +27,16 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   const target = createApple2RunTarget();
   const disassembly = createApple2Disassembly(root, catalogue, address => { target.arm(address, false); run(); }, address => {
     reference?.select(address); navigation.showPanel("rom");
-  }, { address: navigation.memoryAddress, browse: navigation.browseMemory });
+  }, { address: navigation.memoryAddress, browse: navigation.browseMemory, show: () => navigation.showPanel("memory") });
   const reference = createApple2RomReference(root, catalogue, (tool, address) => {
     if (tool === "code") disassembly?.browse(address);
     else navigation.browseMemory(address);
     navigation.showPanel(tool);
   });
   const history = createApple2History(root, catalogue);
-  const instruction = createApple2InstructionView(root, catalogue.instructions);
+  const instruction = createApple2InstructionView(root, catalogue.instructions, address => {
+    navigation.browseMemory(address); navigation.showPanel("memory");
+  });
   const stopMessages = root.querySelectorAll<HTMLElement>("[data-rom-stop-status], [data-disassembly-stop-status]");
   function showStopStatus(value: string, running = false): void {
     for (const message of stopMessages) {

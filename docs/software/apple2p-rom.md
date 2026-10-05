@@ -7,7 +7,7 @@ the [browser machine](../../src/machines/6502/apple2.md#using-the-browser-machin
 keypress travel from the keyboard latch to the screen. In the classroom, open
 **Explore the ROM** under the keyboard and keep it open while stepping. In the
 laboratory, load firmware in **ROM**, use **Disassembly** for run-to controls, and keep
-**Execution history** visible while stepping with the machine-control bar.
+**Execution history** visible while stepping with the **Execution** panel.
 Both show the latest twelve executed instructions; select a laboratory history
 entry to inspect that step's changes and memory accesses.
 Instructions appear newest first; each instruction's accesses retain execution
@@ -163,7 +163,7 @@ in the description. Selecting an entry holds its description. **Browse code**
 opens Disassembly at that entry; **View memory** opens Memory there in Fixed mode.
 Neither action executes instructions or changes PC. A named label in Disassembly
 opens its ROM reference in the other direction. Execution remains in the
-machine-control bar and Disassembly's explicit run-to controls.
+**Execution** panel and Disassembly's explicit run-to controls.
 
 **Follow PC** locates the processor's current address. **Follow Memory** uses
 Memory's selected address, including when that view is held by its Live
@@ -184,6 +184,44 @@ is actually mapped. The Monitor uses scratch addresses such as `$28–$29` and
 `$3A–$3B`; these are software variables, distinct from CPU registers. Other
 software can reuse them.
 
+## Experimenting with the Monitor workspace
+
+In the laboratory, **Zero page → NAMES** shows the Monitor's named bytes and
+little-endian words. For example, **BASL/BASH** combines `$28–$29` into the text
+row pointer, and **CSWL/CSWH** combines the output hook. The guide explicitly
+declares each word with `bytes: 2`; neighbouring names alone do not imply a word.
+The hexadecimal view remains available. Values reflect RAM, and other programs
+may use the same addresses differently. Click an address to inspect its bytes in
+Memory. In NAMES, **FIX / CHG** keeps the scroll position fixed or follows the
+latest changed named value, including either byte of a word. CHG remembers
+changes between display refreshes; Live still controls whether the running
+inspector refreshes. The position preference is saved.
+
+**Watches**, initially a tab beside Memory, keeps a saved list of byte
+addresses and optional labels. Values show hex and decimal. A highlight means
+the value changed since the previous displayed sample, which can span many
+instructions during Run. These watches do not stop execution, and do not observe
+every intermediate write. Language Card addresses follow the currently mapped
+bank; a bank switch may therefore change a displayed value without a write.
+Hardware addresses show unavailable storage rather than reading a device.
+
+Click A, X, Y, SP, or PC in **MOS 6502** while paused to edit a hexadecimal value.
+Enter applies it; Escape or leaving the field cancels. An edit clears execution
+history and run-to stops, preserving RAM, peripherals, media, and queued input.
+For example, setting PC to a routine entry chooses where the next instruction
+runs; it does not perform a JSR or construct a return address on the stack.
+
+The **Instruction** panel shows observed operand reads/writes and address
+calculations, including zero-page indexing and wrapped indirect pointers.
+Address links open Memory. Assignments remain visible even when a register or
+flag retains its value: CLD can show `D 0 → 0`. **How this instruction works**
+contains prose and symbolic calculations extracted from the executable CPU
+specification. The values in the preview still come from executing the generated
+CPU against a private copy; the explanation does not implement another ALU.
+Device reads stop prediction without operating a switch. Disassembly's encoded
+operand addresses also link to Memory; its routine and operand labels continue
+to open the ROM reference.
+
 ## ROM identity and stops
 
 This record supplies the browser's searchable reference, routine selector, trace,
@@ -191,7 +229,7 @@ and live-code annotations. The region bounds describe ROM areas, not routine end
 Routine entries and software labels describe the motherboard image identified
 below; hardware labels describe machine addresses. The build checks the image
 identity against the machine's firmware declaration and validates each label's
-address and scope. These selected
+address and scope, including the bounds of declared workspace words. These selected
 entry points are not a full symbol table. “Acknowledge key” names an instruction
 within KEYIN, rather than a separate subroutine.
 
@@ -227,7 +265,31 @@ within KEYIN, rather than a separate subroutine.
     {"address": "FE80", "name": "SETINV", "description": "Set INVFLG ($32) to $3F for inverse characters."},
     {"address": "FE84", "name": "SETNORM", "description": "Set INVFLG ($32) to $FF for normal characters."},
     {"address": "FE89", "name": "SETKBD", "description": "Point the input hook at KEYIN."},
-    {"address": "FE93", "name": "SETVID", "description": "Point the output hook at COUT1."}
+    {"address": "FE93", "name": "SETVID", "description": "Point the output hook at COUT1."},
+    {"address": "F819", "name": "HLINE", "description": "Draw a horizontal low-resolution line, ending at H2."},
+    {"address": "F828", "name": "VLINE", "description": "Draw a vertical low-resolution line, ending at V2."},
+    {"address": "F832", "name": "CLRSCR", "description": "Clear the low-resolution graphics screen."},
+    {"address": "F836", "name": "CLRTOP", "description": "Clear the graphics area above the mixed-mode text window."},
+    {"address": "F8D0", "name": "INSTDSP", "description": "Print the decoded instruction."},
+    {"address": "F941", "name": "PRNTAX", "description": "Print A and X as a hexadecimal word."},
+    {"address": "F948", "name": "PRBLNK", "description": "Print three spaces."},
+    {"address": "FAA6", "name": "PWRUP", "description": "Continue initialization after detecting a cold start."},
+    {"address": "FB1E", "name": "PREAD", "description": "Measure a paddle timer."},
+    {"address": "FB39", "name": "SETTXT", "description": "Select text display and a full-height text window."},
+    {"address": "FB40", "name": "SETGR", "description": "Select mixed graphics and its bottom text window."},
+    {"address": "FB4B", "name": "SETWND", "description": "Set window top from A and initialize its other bounds."},
+    {"address": "FB60", "name": "APPLEII", "description": "Clear the screen and display the startup title."},
+    {"address": "FC42", "name": "CLREOP", "description": "Clear from the cursor through the text window."},
+    {"address": "FC62", "name": "CR", "description": "Return the cursor to the left edge, then advance its row."},
+    {"address": "FC66", "name": "LF", "description": "Advance the cursor row, scrolling when necessary."},
+    {"address": "FCA8", "name": "WAIT", "description": "Delay according to A."},
+    {"address": "FDDA", "name": "PRBYTE", "description": "Print A as two hexadecimal digits."},
+    {"address": "FDE3", "name": "PRHEX", "description": "Print the low nibble of A as a hexadecimal digit."},
+    {"address": "FE2C", "name": "MOVE", "description": "Copy the Monitor-selected memory range."},
+    {"address": "FE36", "name": "VFY", "description": "Compare the Monitor-selected memory ranges."},
+    {"address": "FE5E", "name": "LIST", "description": "Disassemble instructions at the Monitor pointer."},
+    {"address": "FF3A", "name": "BELL", "description": "Request the bell sound."},
+    {"address": "FF65", "name": "MON", "description": "Enter the Monitor command prompt."}
   ],
   "labels": [
     {"address": "0020", "name": "WNDLFT", "description": "window left edge", "scope": "workspace"},
@@ -236,47 +298,51 @@ within KEYIN, rather than a separate subroutine.
     {"address": "0023", "name": "WNDBTM", "description": "window bottom", "scope": "workspace"},
     {"address": "0024", "name": "CH", "description": "cursor horizontal position", "scope": "workspace"},
     {"address": "0025", "name": "CV", "description": "cursor vertical position", "scope": "workspace"},
-    {"address": "0026", "name": "GBASL", "description": "graphics base address low", "scope": "workspace"},
+    {"address": "0026", "name": "GBASL", "description": "graphics base address low", "scope": "workspace", "bytes": 2},
     {"address": "0027", "name": "GBASH", "description": "graphics base address high", "scope": "workspace"},
-    {"address": "0028", "name": "BASL", "description": "text base address low", "scope": "workspace"},
+    {"address": "0028", "name": "BASL", "description": "text base address low", "scope": "workspace", "bytes": 2},
     {"address": "0029", "name": "BASH", "description": "text base address high", "scope": "workspace"},
-    {"address": "002A", "name": "BAS2L", "description": "secondary text base low", "scope": "workspace"},
+    {"address": "002A", "name": "BAS2L", "description": "secondary text base low", "scope": "workspace", "bytes": 2},
     {"address": "002B", "name": "BAS2H", "description": "secondary text base high", "scope": "workspace"},
+    {"address": "002C", "name": "H2 / LMNEM", "description": "Line endpoint or left mnemonic byte; shared scratch storage.", "scope": "workspace"},
+    {"address": "002D", "name": "V2 / RMNEM", "description": "Line endpoint or right mnemonic byte; shared scratch storage.", "scope": "workspace"},
+    {"address": "002E", "name": "MASK / FORMAT / CHKSUM", "description": "Graphics mask, instruction format, or tape checksum.", "scope": "workspace"},
+    {"address": "002F", "name": "LENGTH / LASTIN", "description": "Decoded instruction length or previous input byte.", "scope": "workspace"},
     {"address": "0030", "name": "COLOR", "description": "lo-res colour / HMASK (hi-res bit mask)", "scope": "workspace"},
     {"address": "0031", "name": "MODE", "description": "monitor mode", "scope": "workspace"},
     {"address": "0032", "name": "INVFLG", "description": "inverse flag ($FF=normal, $7F=flash, $3F=inverse)", "scope": "workspace"},
     {"address": "0033", "name": "PROMPT", "description": "prompt character", "scope": "workspace"},
     {"address": "0034", "name": "YSAV", "description": "Y register save", "scope": "workspace"},
     {"address": "0035", "name": "YSAV1", "description": "Y register save (secondary)", "scope": "workspace"},
-    {"address": "0036", "name": "CSWL", "description": "character output hook low", "scope": "workspace"},
+    {"address": "0036", "name": "CSWL", "description": "character output hook low", "scope": "workspace", "bytes": 2},
     {"address": "0037", "name": "CSWH", "description": "character output hook high", "scope": "workspace"},
-    {"address": "0038", "name": "KSWL", "description": "character input hook low", "scope": "workspace"},
+    {"address": "0038", "name": "KSWL", "description": "character input hook low", "scope": "workspace", "bytes": 2},
     {"address": "0039", "name": "KSWH", "description": "character input hook high", "scope": "workspace"},
-    {"address": "003A", "name": "PCL", "description": "program counter low", "scope": "workspace"},
+    {"address": "003A", "name": "PCL", "description": "program counter low", "scope": "workspace", "bytes": 2},
     {"address": "003B", "name": "PCH", "description": "program counter high", "scope": "workspace"},
-    {"address": "003C", "name": "A1L", "description": "general purpose address 1 low", "scope": "workspace"},
+    {"address": "003C", "name": "A1L", "description": "general purpose address 1 low", "scope": "workspace", "bytes": 2},
     {"address": "003D", "name": "A1H", "description": "general purpose address 1 high", "scope": "workspace"},
-    {"address": "003E", "name": "A2L", "description": "general purpose address 2 low", "scope": "workspace"},
+    {"address": "003E", "name": "A2L", "description": "general purpose address 2 low", "scope": "workspace", "bytes": 2},
     {"address": "003F", "name": "A2H", "description": "general purpose address 2 high", "scope": "workspace"},
-    {"address": "0040", "name": "A3L", "description": "general purpose address 3 low", "scope": "workspace"},
+    {"address": "0040", "name": "A3L", "description": "general purpose address 3 low", "scope": "workspace", "bytes": 2},
     {"address": "0041", "name": "A3H", "description": "general purpose address 3 high", "scope": "workspace"},
-    {"address": "0042", "name": "A4L", "description": "general purpose address 4 low", "scope": "workspace"},
+    {"address": "0042", "name": "A4L", "description": "general purpose address 4 low", "scope": "workspace", "bytes": 2},
     {"address": "0043", "name": "A4H", "description": "general purpose address 4 high", "scope": "workspace"},
-    {"address": "0044", "name": "A5L", "description": "general purpose address 5 low", "scope": "workspace"},
+    {"address": "0044", "name": "A5L", "description": "general purpose address 5; its high byte also saves the accumulator", "scope": "workspace", "bytes": 2},
     {"address": "0045", "name": "A5H / ACC", "description": "address 5 high / accumulator save (overlap)", "scope": "workspace"},
     {"address": "0046", "name": "XREG", "description": "X register save", "scope": "workspace"},
     {"address": "0047", "name": "YREG", "description": "Y register save", "scope": "workspace"},
     {"address": "0048", "name": "STATUS", "description": "processor status save", "scope": "workspace"},
     {"address": "0049", "name": "SPNT", "description": "stack pointer save", "scope": "workspace"},
-    {"address": "004E", "name": "RNDL", "description": "random number low", "scope": "workspace"},
+    {"address": "004E", "name": "RNDL", "description": "random number low", "scope": "workspace", "bytes": 2},
     {"address": "004F", "name": "RNDH", "description": "random number high", "scope": "workspace"},
     {"address": "0200", "name": "INPUT_BUFFER", "description": "Input buffer (256 bytes)", "scope": "workspace"},
-    {"address": "03F0", "name": "BRKV", "description": "BRK vector (2 bytes)", "scope": "workspace"},
-    {"address": "03F2", "name": "SOFTEV", "description": "Soft entry (warm start) vector (2 bytes)", "scope": "workspace"},
+    {"address": "03F0", "name": "BRKV", "description": "BRK vector (2 bytes)", "scope": "workspace", "bytes": 2},
+    {"address": "03F2", "name": "SOFTEV", "description": "Soft entry (warm start) vector (2 bytes)", "scope": "workspace", "bytes": 2},
     {"address": "03F4", "name": "PWREDUP", "description": "Power-up check byte (must = EOR #$A5 of SOFTEV+1)", "scope": "workspace"},
     {"address": "03F8", "name": "USRADR", "description": "USR() jump address (3 bytes)", "scope": "workspace"},
     {"address": "03FB", "name": "NMI", "description": "NMI vector on page 3 (3 bytes)", "scope": "workspace"},
-    {"address": "03FE", "name": "IRQLOC", "description": "IRQ location vector (2 bytes)", "scope": "workspace"},
+    {"address": "03FE", "name": "IRQLOC", "description": "IRQ location vector (2 bytes)", "scope": "workspace", "bytes": 2},
     {"address": "C000", "name": "KBD", "description": "R: last key pressed + 128", "scope": "hardware"},
     {"address": "C010", "name": "KBDSTRB", "description": "RW: keyboard strobe (clear)", "scope": "hardware"},
     {"address": "C020", "name": "TAPEOUT", "description": "RW: toggle cassette tape output", "scope": "hardware"},
@@ -309,7 +375,32 @@ within KEYIN, rather than a separate subroutine.
     {"address": "F9B4", "name": "CHAR1", "description": "Addressing mode character table 1", "scope": "rom"},
     {"address": "F9BA", "name": "CHAR2", "description": "Addressing mode character table 2", "scope": "rom"},
     {"address": "F9C0", "name": "MNEML", "description": "Mnemonic table (left bytes)", "scope": "rom"},
-    {"address": "FA00", "name": "MNEMR", "description": "Mnemonic table (right bytes)", "scope": "rom"}
+    {"address": "FA00", "name": "MNEMR", "description": "Mnemonic table (right bytes)", "scope": "rom"},
+    {"address": "F80E", "name": "PLOT1", "description": "Continue plotting with the prepared screen pointer.", "scope": "rom"},
+    {"address": "F81C", "name": "HLINE1", "description": "Continue the horizontal line loop.", "scope": "rom"},
+    {"address": "FA9B", "name": "FIXSEV", "description": "Repair the warm-start vector.", "scope": "rom"},
+    {"address": "FAA3", "name": "NOFIX", "description": "Continue with an existing warm-start vector.", "scope": "rom"},
+    {"address": "FAA9", "name": "SETPG3", "description": "Initialize page-three vectors.", "scope": "rom"},
+    {"address": "FABA", "name": "SLOOP", "description": "Search slot ROMs.", "scope": "rom"},
+    {"address": "FAC7", "name": "NXTBYT", "description": "Check the next slot-ROM signature byte.", "scope": "rom"},
+    {"address": "FB5B", "name": "TABV", "description": "Set CV from A, then recompute its screen pointer.", "scope": "rom"},
+    {"address": "FBD0", "name": "BASCLC2", "description": "Complete text-row address calculation.", "scope": "rom"},
+    {"address": "FBF4", "name": "ADVANCE", "description": "Advance the cursor after a character.", "scope": "rom"},
+    {"address": "FBFD", "name": "VIDOUT", "description": "Dispatch the screen character handler.", "scope": "rom"},
+    {"address": "FC10", "name": "BS", "description": "Move the cursor left.", "scope": "rom"},
+    {"address": "FC1A", "name": "UP", "description": "Move the cursor up.", "scope": "rom"},
+    {"address": "FC24", "name": "VTABZ", "description": "Continue vertical positioning.", "scope": "rom"},
+    {"address": "FC76", "name": "SCRL1", "description": "Copy the next scrolling row.", "scope": "rom"},
+    {"address": "FC9E", "name": "CLEOLZ", "description": "Clear the line starting at column Y.", "scope": "rom"},
+    {"address": "FD35", "name": "RDCHAR", "description": "Process the input character.", "scope": "rom"},
+    {"address": "FD67", "name": "GETLNZ", "description": "Read a line without first printing the prompt.", "scope": "rom"},
+    {"address": "FD6F", "name": "GETLN1", "description": "Continue the line-input loop.", "scope": "rom"},
+    {"address": "FD71", "name": "BCKSPC", "description": "Handle backspace during line input.", "scope": "rom"},
+    {"address": "FD75", "name": "NXTCHAR", "description": "Read the next line-input character.", "scope": "rom"},
+    {"address": "FD84", "name": "ADDINP", "description": "Store the line-input character.", "scope": "rom"},
+    {"address": "FDF6", "name": "COUTZ", "description": "Continue the screen output handler.", "scope": "rom"},
+    {"address": "FE75", "name": "A1PC", "description": "Copy the Monitor address into its execution pointer.", "scope": "rom"},
+    {"address": "FF69", "name": "MONZ", "description": "Read and dispatch a Monitor command.", "scope": "rom"}
   ]
 }
 ```

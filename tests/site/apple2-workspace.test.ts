@@ -48,3 +48,17 @@ test("execution controls are accessible when an older workspace has no screen or
   migrateApple2Workspace(fresh, ids);
   assert.equal(fresh.getItem(apple2WorkspaceKey), null, "new visitors use the default layout");
 });
+
+test("saved layouts gain a watch tab once while preserving memory selection, collapse, and hidden execution controls", () => {
+  const ids = ["screen", "execution", "memory", "watches"];
+  const layout: WorkspaceLayout = { root: { kind: "tabs", id: "memory-tools", panels: ["memory"], active: "memory", collapsed: true } };
+  const storage = preferences();
+  storage.setItem("dromaios:workspace:apple2:2", encodeWorkspaceState(layout));
+  migrateApple2Workspace(storage, ids);
+  const updated = decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, ids);
+  assert.deepEqual(panelGroup(updated, "memory"), { ...layout.root, panels: ["memory", "watches"] });
+  assert.equal(panelGroup(updated, "execution"), undefined);
+  storage.setItem(apple2WorkspaceKey, encodeWorkspaceState(closePanel(updated, "watches")));
+  migrateApple2Workspace(storage, ids);
+  assert.equal(panelGroup(decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, ids), "watches"), undefined);
+});

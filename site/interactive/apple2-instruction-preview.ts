@@ -2,6 +2,7 @@ import { Cpu6502 } from "../../src/components/cpus/generated/6502-cpu.js";
 import type { Cpu6502Snapshot, Cpu6502StepRecord, Cpu6502MemoryAccess } from "../../src/components/cpus/generated/6502-cpu.js";
 import { disassemble6502, hex } from "./apple2-explorer.js";
 import type { InstructionCatalogue } from "./apple2-explorer.js";
+import { explain6502Address } from "./6502-address-explanation.js";
 
 /** Run one copied CPU against storage observations and private writes, never the guest bus. */
 export function preview6502(state: Cpu6502Snapshot, read: (address: number) => number | undefined, instructions: InstructionCatalogue) {
@@ -37,13 +38,15 @@ export function preview6502(state: Cpu6502Snapshot, read: (address: number) => n
         `${label} is ${+current}: branch ${current === set ? "taken" : "not taken"}.`);
     }
     for (const name of ["a", "x", "y", "sp"] as const) {
-      if (state[name] !== record.after[name]) effects.push(`${name.toUpperCase()}  $${hex(state[name], 2)} → $${hex(record.after[name], 2)}`);
+      if (state[name] !== record.after[name] || info?.writes?.registers.includes(name)) effects.push(`${name.toUpperCase()}  $${hex(state[name], 2)} → $${hex(record.after[name], 2)}`);
     }
-    const flags = (["n", "v", "d", "i", "z", "c"] as const).filter(flag => state.flags[flag] !== record!.after.flags[flag]);
+    const flags = (["n", "v", "d", "i", "z", "c"] as const).filter(flag => state.flags[flag] !== record!.after.flags[flag] || info?.writes?.flags.includes(flag));
     if (flags.length) effects.push(flags.map(flag => `${flag.toUpperCase()} ${+state.flags[flag]} → ${+record!.after.flags[flag]}`).join("   "));
     for (const access of accesses) if (access.kind === "write") effects.push(`Write $${hex(access.address)} ← $${hex(access.value, 2)}`);
     if (!effects.length) effects.push("Registers and flags unchanged.");
     effects.push(`PC → $${hex(record.after.pc)}`);
   }
-  return { assembly, effects, accesses, record, blocked };
+  const addressing = explain6502Address(state, info, bytes, accesses, blocked);
+  return { assembly, effects, accesses, record, blocked, addressing: addressing.lines,
+    explanation: info?.explanation, calculations: info?.calculations ?? [] };
 }

@@ -45,13 +45,16 @@ def rom_annotations(source, firmware):
     if not isinstance(labels, list):
         raise ValueError("The ROM guide's address labels must be a list.")
     for label in labels:
-        if (not isinstance(label, dict) or set(label) != {"address", "name", "description", "scope"}
-                or not all(isinstance(value, str) and value.strip() for value in label.values())
+        if (not isinstance(label, dict) or set(label) not in ({"address", "name", "description", "scope"}, {"address", "name", "description", "scope", "bytes"})
+                or not all(isinstance(label[key], str) and label[key].strip() for key in ("address", "name", "description", "scope"))
                 or not re.fullmatch(r"[0-9A-F]{4}", label["address"])
                 or label["address"] in addresses or label["name"] in names
                 or label["scope"] not in {"workspace", "hardware", "rom"}):
             raise ValueError("Address labels need unique names and addresses, descriptions, and a known scope.")
         address = int(label["address"], 16)
+        if "bytes" in label and (type(label["bytes"]) is not int or label["bytes"] != 2
+                                or label["scope"] != "workspace" or address + 1 >= 0xc000):
+            raise ValueError("Workspace words need two bytes within RAM.")
         if not (label["scope"] == "workspace" and address < 0xc000
                 or label["scope"] == "hardware" and 0xc000 <= address <= 0xcfff
                 or label["scope"] == "rom" and any(int(region["start"], 16) <= address <= int(region["end"], 16) for region in regions)):

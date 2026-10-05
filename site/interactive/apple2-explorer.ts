@@ -7,6 +7,8 @@ export interface AddressLabel {
 }
 export interface MemoryLabel extends AddressLabel {
   readonly scope: "workspace" | "hardware" | "rom";
+  /** An explicit little-endian workspace word; omitted labels describe individual bytes. */
+  readonly bytes?: 2;
 }
 export interface RomRegion {
   readonly start: string;
@@ -28,6 +30,10 @@ export type InstructionCatalogue = Readonly<Partial<Record<number, {
   readonly length: 1 | 2 | 3;
   readonly controlFlow: InstructionControlFlow;
   readonly branchCondition?: BranchCondition6502;
+  readonly explanation?: string;
+  readonly calculations?: readonly string[];
+  readonly accesses?: readonly ("fetch" | "read" | "write")[];
+  readonly writes?: { readonly registers: readonly string[]; readonly flags: readonly string[] };
 }>>>;
 export const hex = (value: number, width = 4): string => value.toString(16).toUpperCase().padStart(width, "0");
 

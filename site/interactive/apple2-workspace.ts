@@ -1,4 +1,4 @@
-import { movePanel, openPanel, panelGroup, parentSplit, resizeSplit } from "./workspace/layout.js";
+import { activatePanel, collapseGroup, movePanel, openPanel, panelGroup, parentSplit, resizeSplit } from "./workspace/layout.js";
 import type { LayoutNode, SplitItem, WorkspaceLayout } from "./workspace/layout.js";
 import { decodeWorkspaceState, encodeWorkspaceState } from "./workspace/state.js";
 
@@ -13,19 +13,20 @@ export const apple2DefaultLayout: WorkspaceLayout = {
       area(.5, split("cpu-details", "horizontal",
         area(.35, split("execution-and-cpu", "vertical", area(.4, group("execution")), area(.35, group("registers")), area(.25, group("instruction")))),
         area(.65, group("code")))))),
-    area(.2632, split("zero-and-memory", "vertical", area(.36, group("zero")), area(.352, group("memory")), area(.288, group("stack")))),
+    area(.2632, split("zero-and-memory", "vertical", area(.36, group("zero")), area(.352, group("memory", "watches")), area(.288, group("stack")))),
     area(.2968, group("rom", "trace", "log", "system", "disk"))),
 };
 
-export const apple2WorkspaceKey = "dromaios:workspace:apple2:2";
+export const apple2WorkspaceKey = "dromaios:workspace:apple2:3";
 
-/** Replace the former global control bar once, preserving later choices to move or hide its panel. */
+/** Introduce new instruments once, retaining the saved arrangement and later choices to hide them. */
 export function migrateApple2Workspace(storage: { getItem(key: string): string | null; setItem(key: string, value: string): void }, ids: readonly string[]): void {
   if (storage.getItem(apple2WorkspaceKey) !== null) return;
-  const saved = storage.getItem("dromaios:workspace:apple2");
+  const previous = storage.getItem("dromaios:workspace:apple2:2");
+  const saved = previous ?? storage.getItem("dromaios:workspace:apple2");
   if (saved === null) return;
   let layout = decodeWorkspaceState(saved, ids);
-  if (!panelGroup(layout, "execution")) {
+  if (previous === null && !panelGroup(layout, "execution")) {
     const screen = panelGroup(layout, "screen");
     if (screen) {
       layout = movePanel(layout, "execution", { group: screen.id, side: "below" });
@@ -35,6 +36,12 @@ export function migrateApple2Workspace(storage: { getItem(key: string): string |
     } else {
       layout = openPanel(layout, "execution");
     }
+  }
+  const memory = panelGroup(layout, "memory");
+  if (ids.includes("watches") && memory && !panelGroup(layout, "watches")) {
+    layout = movePanel(layout, "watches", { group: memory.id, side: "tab" });
+    layout = activatePanel(layout, memory.active);
+    layout = collapseGroup(layout, memory.id, memory.collapsed);
   }
   storage.setItem(apple2WorkspaceKey, encodeWorkspaceState(layout));
 }

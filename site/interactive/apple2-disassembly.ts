@@ -17,7 +17,8 @@ export function apple2CodeReferences(row: Apple2CodeRow, instructions: Instructi
     ?? labels.find(label => parseInt(label.address, 16) === operand.address && (label.scope === "hardware"
       || row.romMapped && (label.scope === "rom" || row.address >= 0xd000)));
   return {
-    entry: romRoutine(row.address, row.romMapped, routines),
+    entry: romRoutine(row.address, row.romMapped, routines)
+      ?? (row.romMapped ? labels.find(label => label.scope === "rom" && parseInt(label.address, 16) === row.address) : undefined),
     operand: operand && label ? { label, text: operand.target ? `→ ${label.name}`
       : operand.mode === "indirect" ? `(${label.name})` : operand.mode.replace(/absolute|zero page/, label.name),
       target: operand.target } : undefined,

@@ -27,7 +27,7 @@ test("the reference finds exact workspace and hardware labels without treating t
   assert.equal(reference.at(0xc001), undefined);
   assert.ok(reference.search("text base").some(entry => entry.name === "BASL"));
   assert.equal(reference.at(0xf962)?.name, "FMT1");
-  assert.equal(reference.locate(0xf962, true)?.entry?.name, "INSDS1");
+  assert.equal(reference.locate(0xf962, true)?.entry?.name, "PRBLNK");
   assert.equal(reference.locate(0x32, true), undefined);
 });
 

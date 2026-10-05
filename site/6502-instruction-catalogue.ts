@@ -1,5 +1,6 @@
 import type { FlagExpression, InstructionDefinition, Statement } from "../src/components/cpus/semantics/model.ts";
 import type { BranchCondition6502, InstructionCatalogue, InstructionControlFlow } from "./interactive/apple2-explorer.ts";
+import { instructionExplanation6502 } from "./6502-instruction-explanation.ts";
 
 interface InstructionLayout {
   readonly operandBytes: number;
@@ -65,6 +66,6 @@ export function instructionCatalogue6502(entries: readonly (readonly [number, In
   return Object.fromEntries(entries.map(([opcode, definition]) => {
     const { operandBytes, controlFlow, branchCondition } = instructionLayout(definition.steps), length = 1 + operandBytes;
     if (length !== 1 && length !== 2 && length !== 3) throw new Error(`Invalid 6502 instruction length for ${definition.name}.`);
-    return [opcode, { name: definition.name, length, controlFlow, ...(branchCondition && { branchCondition }) }];
+    return [opcode, { name: definition.name, length, controlFlow, ...instructionExplanation6502(definition), ...(branchCondition && { branchCondition }) }];
   }));
 }

@@ -2,7 +2,8 @@ import type { createApple2Session } from "./apple2-session.js";
 import { apple2CodeReferences, apple2CodeRows } from "./apple2-disassembly.js";
 import type { Apple2CodeRow } from "./apple2-disassembly.js";
 import { apple2StorageReader } from "./apple2-inspection.js";
-import { hex, parseApple2Address } from "./apple2-explorer.js";
+import { memoryLink } from "./memory-link.js";
+import { address6502Operand, hex, parseApple2Address } from "./apple2-explorer.js";
 import type { Apple2TraceEntry, InstructionCatalogue, AddressLabel, MemoryLabel } from "./apple2-explorer.js";
 import { createInspectorChoices } from "./inspector-controls.js";
 
@@ -12,7 +13,7 @@ type Machine = ReturnType<typeof createApple2Session>["machine"];
 export function createApple2Disassembly(root: HTMLElement, catalogue: {
   readonly instructions: InstructionCatalogue; readonly routines: readonly AddressLabel[]; readonly labels: readonly MemoryLabel[];
 }, runTo: (address: number) => void, showReference: (address: number) => void, memory: {
-  readonly address: () => number; readonly browse: (address: number) => void;
+  readonly address: () => number; readonly browse: (address: number) => void; readonly show: () => void;
 }) {
   const panel = root.querySelector<HTMLElement>("[data-disassembly]");
   if (panel === null) return undefined;
@@ -106,7 +107,14 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: {
       view.button.setAttribute("aria-label", `Run to $${hex(row.address)}: ${row.assembly}`);
       view.button.disabled = !canRun || !row.complete;
       view.bytes.textContent = row.bytes.map(byte => byte === undefined ? "--" : hex(byte, 2)).join(" ");
-      view.assembly.textContent = row.assembly;
+      const operand = row.complete ? address6502Operand(row.address, row.bytes, catalogue.instructions) : undefined;
+      const encoded = row.assembly.match(/\$[0-9A-F]{2,4}/);
+      if (operand && encoded) {
+        const offset = encoded.index!;
+        view.assembly.replaceChildren(row.assembly.slice(0, offset),
+          memoryLink(operand.address, address => { memory.browse(address); memory.show(); }, encoded[0]),
+          row.assembly.slice(offset + encoded[0].length));
+      } else view.assembly.textContent = row.assembly;
       view.label.show(references.entry);
       view.operand.show(references.operand?.label, references.operand?.text);
     });

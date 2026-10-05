@@ -43,6 +43,7 @@
     <section class="lab-tool lab-tool-registers" data-workspace-panel="registers" data-panel-live="true" data-panel-title="Registers" data-panel-heading="MOS 6502"><div class="lab-panel-body"><div data-machine-inspect>Preparing the processor…</div></div></section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="instruction" data-panel-live="true" data-panel-title="Instruction">
       <p data-instruction-location class="lab-hint"></p><pre data-instruction-preview>Preparing the processor…</pre>
+      <details><summary>How this instruction works</summary><p data-instruction-explanation class="lab-hint"></p><pre data-instruction-calculations class="lab-instruction-calculations"></pre><p class="lab-hint">From the CPU specification. Byte and word arithmetic wraps at its declared width; word(high, low) joins two bytes. Predicted values above come from the emulator.</p></details>
       <details><summary>Previewed memory accesses</summary><pre data-instruction-accesses></pre></details>
     </section>
     <section class="lab-tool lab-tool-trace" data-workspace-panel="trace" data-panel-live="true" data-panel-title="Execution history" data-execution-history><div class="lab-panel-body lab-scroll">
@@ -58,6 +59,12 @@
       <p data-memory-position class="visually-hidden"></p>
       <div data-memory-scroll class="lab-memory-scroll" tabindex="0" role="region" aria-label="Memory contents"><div class="lab-memory-space"><pre data-memory-view></pre></div></div>
     </div></section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="watches" data-panel-live="true" data-panel-title="Watches" data-memory-watches>
+      <form class="lab-watch-form"><label>Address (hex)<input name="address" maxlength="5" size="5" placeholder="0028" required autocomplete="off" spellcheck="false"></label><label>Label (optional)<input name="label" maxlength="64" autocomplete="off"></label><button type="submit">Watch</button></form>
+      <p data-watch-status class="lab-hint" role="status"></p>
+      <div data-watch-rows></div>
+      <p class="lab-hint">Hex · decimal. Highlights compare displayed samples. Addresses and labels are saved; values follow current memory mapping. Device reads are never performed.</p>
+    </section>
     <section class="lab-tool lab-tool-stack" data-workspace-panel="stack" data-panel-live="true" data-panel-title="Stack"><div class="lab-panel-body lab-scroll"><p data-stack-status class="lab-hint" title="Entries above SP in page $0100–01FF; software can change SP or wrap the stack."></p><pre data-stack-view></pre><pre data-stack-page hidden></pre></div></section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="rom" data-panel-live="true" data-panel-title="ROM">
       {{ media_picker('rom', 'ROM') }}

@@ -1,3 +1,4 @@
+import { editApple2Register } from "./apple2-register-edit.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { createExecutionController } from "./execution-controller.js";
 import { createApple2Session, apple2ControlKey, apple2ScreenKey, apple2Input } from "./apple2-session.js";
@@ -42,7 +43,13 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   let requestedPanels: readonly string[] = [];
   const updates = createPanelUpdates(root, id => refreshPanels([id]));
   const shouldUpdate = (id: string) => requestedPanels.includes(id) || updates.shouldUpdate(id, execution.running);
-  const inspection = createApple2Inspection(root, shouldUpdate, () => refreshPanels(["rom", "code"]));
+  const inspection = createApple2Inspection(root, shouldUpdate, () => refreshPanels(["rom", "code"]), (register, text) => {
+    if (execution.running || selecting) throw new Error("Pause execution before editing a register.");
+    editApple2Register(session.machine, register, text);
+    explorer.cancel(); execution.reset(); changeLog?.reset();
+    message.textContent = `${register.toUpperCase()} edited. Execution history cleared; RAM and devices preserved.`;
+    refresh();
+  }, showPanel);
   const changeLog = createApple2ChangeLogView(root, () => session.machine);
   const inputTarget = keyboard ?? screen;
   const execution = createExecutionController({
@@ -87,7 +94,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (execution.error !== undefined) explorer.cancel();
     if (execution.error !== undefined) message.textContent = execution.error;
     const latest = execution.error === undefined ? execution.records.at(-1)?.record : undefined;
-    inspection.refresh(session.machine, latest, changeLog?.memoryChanges(latest));
+    inspection.refresh(session.machine, latest, changeLog?.memoryChanges(latest), !execution.running && !selecting);
     explorer.refresh(execution.records, available && execution.error === undefined, execution.running);
     if (shouldUpdate("log")) changeLog?.refresh();
     const now = performance.now();

@@ -92,3 +92,47 @@ test("preview distinguishes unsupported opcodes and unavailable instruction byte
   assert.ok(missingOffset.effects.includes("Result cannot be previewed without executing."));
   assert.ok(missingOffset.effects.every(line => !line.includes("taken") && !line.startsWith("PC")));
 });
+
+test("explanations identify real operand accesses for all 151 instructions, including late JSR fetches", () => {
+  for (const [opcode, info] of Object.entries(instructions)) {
+    assert.ok(info);
+    const ram = new Uint8Array(0x10000); ram.set([Number(opcode), 0xff, 0x12], 0x200);
+    const preview = preview6502(state(), address => ram[address], instructions);
+    assert.equal(preview.record?.outcome, "executed", info.name);
+    assert.equal(info.accesses!.length, preview.accesses.length, info.name);
+    assert.deepEqual(preview.accesses.filter((_, index) => info.accesses![index] === "fetch").map(access => access.value), preview.record!.instruction.bytes, info.name);
+    assert.deepEqual(info.accesses!.map(kind => kind === "fetch" ? "read" : kind), preview.accesses.map(access => access.kind), info.name);
+    assert.ok(info.explanation?.length); assert.ok(info.calculations);
+  }
+  const ram = new Uint8Array(0x10000); ram.set([0x20, 0x34, 0x12], 0x1fd);
+  const preview = preview6502(state({ pc: 0x1fd }), address => ram[address], instructions);
+  assert.deepEqual(preview.addressing, ["Write $01FF ← $01", "Write $01FE ← $FF"]);
+});
+
+test("address explanations expose indexed wrapping and the actual NMOS pointer reads", () => {
+  const ram = new Uint8Array(0x10000);
+  ram.set([0xb5, 0xfe], 0x200); ram[2] = 0x80;
+  assert.ok(preview6502(state(), address => ram[address], instructions).addressing.includes("$FE + X($04) → $0002 (zero page)."));
+  ram.set([0xa1, 0xff], 0x200); ram[0xff] = 0xfe; ram[0] = 0xff; ram[0xfffe] = 0x55;
+  const indirect = preview6502(state({ x: 0 }), address => ram[address], instructions);
+  assert.ok(indirect.addressing.includes("Pointer $00FF/$0000 → $FFFE (low byte first)."));
+  ram[0x200] = 0xb1; ram[1] = 0x77;
+  const indexed = preview6502(state(), address => ram[address], instructions);
+  assert.ok(indexed.addressing.includes("$FFFE + Y($03) → $0001."));
+  ram.set([0x6c, 0xff, 0x30], 0x200); ram[0x30ff] = 0x78; ram[0x3000] = 0x56;
+  assert.ok(preview6502(state(), address => ram[address], instructions).addressing.includes("Pointer $30FF/$3000 → $5678 (low byte first)."));
+});
+
+test("chapter-derived explanations retain unchanged assignments and respond to specification edits", () => {
+  const clear = preview6502(state(), () => 0xd8, instructions);
+  assert.ok(clear.effects.includes("D 0 → 0")); assert.ok(clear.calculations.includes("D ← 0"));
+  const definition = structuredClone(Object.values(families).flat().find(([opcode]) => opcode === 0xd8)![1]);
+  const step = definition.steps[0]!;
+  assert.equal(step.kind, "update-flags");
+  if (step.kind === "update-flags") {
+    const edited = { ...definition, explanation: "A changed chapter explanation.", steps: [{ ...step, arguments: { value: { kind: "flag-literal" as const, value: true } } }] };
+    const catalogue = instructionCatalogue6502([[0xd8, edited]]);
+    assert.equal(catalogue[0xd8]!.explanation, edited.explanation);
+    assert.ok(catalogue[0xd8]!.calculations!.includes("D ← 1"));
+  }
+});

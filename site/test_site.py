@@ -44,11 +44,15 @@ class PublishingTests(unittest.TestCase):
     def test_rom_walkthrough_owns_versioned_stops_and_uses_cpu_instruction_names(self):
         catalogue = explorer_catalogue()
         self.assertEqual(len(catalogue["instructions"]), 151)
-        self.assertEqual(catalogue["instructions"]["16"], {"name": "BPL relative", "length": 2, "controlFlow": "conditional",
+        layouts = {opcode: {key: value for key, value in info.items() if key in ("name", "length", "controlFlow", "branchCondition")}
+                   for opcode, info in catalogue["instructions"].items()}
+        self.assertIn("D ← 0", catalogue["instructions"]["216"]["calculations"])
+        self.assertEqual(catalogue["instructions"]["32"]["accesses"], ["fetch", "fetch", "write", "write", "fetch"])
+        self.assertEqual(layouts["16"], {"name": "BPL relative", "length": 2, "controlFlow": "conditional",
                                                        "branchCondition": {"flag": "n", "set": False}})
-        self.assertEqual(catalogue["instructions"]["32"], {"name": "JSR absolute", "length": 3, "controlFlow": "unconditional"})
-        self.assertEqual(catalogue["instructions"]["0"], {"name": "BRK", "length": 2, "controlFlow": "unconditional"})
-        self.assertEqual(catalogue["instructions"]["234"], {"name": "NOP", "length": 1, "controlFlow": "sequential"})
+        self.assertEqual(layouts["32"], {"name": "JSR absolute", "length": 3, "controlFlow": "unconditional"})
+        self.assertEqual(layouts["0"], {"name": "BRK", "length": 2, "controlFlow": "unconditional"})
+        self.assertEqual(layouts["234"], {"name": "NOP", "length": 1, "controlFlow": "sequential"})
         source = APPLE2_ROM.read_text()
         self.assertEqual(chapter_link("../software/apple2p-rom.md#rom-walkthrough", APPLE2_ROM.parent.parent / "machines/apple2.md", "/demo/"),
                          "/demo/machines/apple-ii-plus/#rom-walkthrough")
@@ -90,7 +94,13 @@ class PublishingTests(unittest.TestCase):
         self.assertEqual(labels["KBD"]["address"], "C000")
         self.assertEqual(labels["INVFLG"]["address"], "0032")
         self.assertEqual(labels["FMT1"]["scope"], "rom")
+        self.assertEqual(labels["BASL"]["bytes"], 2)
         invalid = [None, {}, [labels["KBD"], labels["KBD"]],
+                   [{**labels["BASL"], "bytes": 3}],
+                   [{**labels["BASL"], "bytes": True}],
+                   [{**labels["BASL"], "bytes": 2.0}],
+                   [{**labels["BASL"], "address": "BFFF"}],
+                   [{**labels["KBD"], "bytes": 2}],
                    [{**labels["KBD"], "scope": "workspace"}],
                    [{**labels["INVFLG"], "scope": "rom"}],
                    [{**labels["FMT1"], "scope": "hardware"}],
