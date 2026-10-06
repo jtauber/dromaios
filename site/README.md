@@ -293,6 +293,14 @@ retention, clear/reset, and interpretation rules.
 character set on a 280-by-192 raster. Its fixed RGB palettes also follow that
 reference. `apple2-screen-view.ts` presents the pixels with a transparent,
 selectable text layer and a switchable scanline overlay, shared by both views.
+The laboratory adds `apple2-screen-inspector-view.ts`: an explicit text-cell selection
+mode with Memory/watch navigation and a last-writer strip. The pure
+`apple2-screen-inspection.ts` reuses generated video address/visibility views and
+shared character decoding. It retains at most one observed store per byte of the
+two text pages. `apple2-change-log.ts` supplies all physical RAM stores separately
+from changed-byte highlights and log entries; unchanged stores still establish
+provenance. Selection never accesses the guest bus. The ROM guide owns the
+interaction and history-reset contract and the output/scrolling walkthrough.
 Both offer a Monochrome toggle: green bitmap text, individual high-resolution
 dots, and five low-resolution brightness levels, with immediate redraw while paused.
 The device chapter owns the glyph, flashing, and high-resolution colour-pair

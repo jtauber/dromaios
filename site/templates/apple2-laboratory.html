@@ -31,7 +31,15 @@
         </div>
         <div class="lab-display-footer">
           <p data-display-status class="basic-readout">Text · page 1</p>
+          <button type="button" data-screen-inspect aria-pressed="false" title="Inspect text cells; Escape returns to typing">Inspect</button>
           {{ display_controls() }}
+        </div>
+        <div class="lab-screen-inspector" data-screen-inspector hidden aria-live="polite">
+          <div data-screen-cell></div>
+          <div data-screen-writer></div>
+          <div class="lab-screen-actions"><span class="lab-hint">Rows/columns start at 0 · arrows select · Esc types</span>
+            <button type="button" data-screen-watch>Watch writes</button></div>
+          <div class="lab-hint" data-screen-notice></div>
         </div>
       </div>
     </section>

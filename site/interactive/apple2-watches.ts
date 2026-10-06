@@ -19,10 +19,11 @@ export function decodeMemoryWatches(saved: string | null): readonly MemoryWatch[
   } catch { return []; }
 }
 
-export function addMemoryWatch(watches: readonly MemoryWatch[], address: string, label: string): readonly MemoryWatch[] {
+export function addMemoryWatch(watches: readonly MemoryWatch[], address: string, label: string, stop?: MemoryWatchMode): readonly MemoryWatch[] {
   const value = parseApple2Address(address), existing = watches.find(watch => watch.address === value);
   if (!existing && watches.length >= 64) throw new RangeError("Keep at most 64 watched addresses.");
-  const watch = { ...existing, address: value, label: label.trim().slice(0, 64) };
+  const watch = { ...existing, address: value, label: label.trim().slice(0, 64),
+    ...(stop && { stop: [...new Set([...existing?.stop ?? [], stop])] }) };
   return existing ? watches.map(item => item.address === value ? watch : item) : [...watches, watch];
 }
 

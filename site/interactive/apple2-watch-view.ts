@@ -1,6 +1,7 @@
 import type { MemoryLabel } from "./apple2-explorer.js";
 import { hex } from "./apple2-explorer.js";
 import { addMemoryWatch, decodeMemoryWatches, memoryWatchModes, sampleMemoryWatches } from "./apple2-watches.js";
+import type { MemoryWatchMode } from "./apple2-watches.js";
 import { memoryLink } from "./memory-link.js";
 
 export function createApple2Watches(root: HTMLElement, labels: readonly MemoryLabel[], browse: (address: number) => void) {
@@ -78,9 +79,9 @@ export function createApple2Watches(root: HTMLElement, labels: readonly MemoryLa
   layout();
   return {
     get watches() { return watches; },
-    add(value: number): void {
+    add(value: number, stop?: MemoryWatchMode): void {
       try {
-        if (!watches.some(watch => watch.address === value)) watches = addMemoryWatch(watches, hex(value), "");
+        watches = addMemoryWatch(watches, hex(value), watches.find(watch => watch.address === value)?.label ?? "", stop);
         save(); layout(); render();
         rows.get(value)!.row.scrollIntoView({ block: "nearest" });
         rows.get(value)!.row.querySelector<HTMLButtonElement>(".lab-watch-stops button")!.focus({ preventScroll: true });

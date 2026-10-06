@@ -15,6 +15,7 @@ import type { Apple2MemoryMode } from "./apple2-memory-position.js";
 import { createInspectorChoices } from "./inspector-controls.js";
 import { createApple2Registers } from "./apple2-register-view.js";
 import type { Editable6502Register } from "./apple2-register-edit.js";
+import type { MemoryWatchMode } from "./apple2-watches.js";
 import { hex, parseApple2Address } from "./apple2-explorer.js";
 import { createApple2SystemView } from "./apple2-system-view.js";
 import type { Apple2HardwareCatalogue } from "./apple2-hardware.js";
@@ -52,9 +53,12 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
   const instruction = createApple2InstructionView(root, browse);
   const zeroView = createApple2ZeroPage(zero, labels, browse), stackView = createApple2StackView(stack, element("stack-page"));
   const watches = createApple2Watches(root, labels, browse);
+  function watchMemory(address: number, stop?: MemoryWatchMode): void {
+    showPanel("watches"); watches?.add(address, stop);
+  }
   root.addEventListener("click", event => {
     const button = (event.target as Element).closest<HTMLElement>("[data-watch-address]");
-    if (button && watches) { showPanel("watches"); watches.add(parseInt(button.dataset.watchAddress!, 16)); }
+    if (button) watchMemory(parseInt(button.dataset.watchAddress!, 16));
   });
   const memoryView = createApple2MemoryScrollView(memory, value => {
     position.browse(value); displayedStart = value; follow.select("fixed");
@@ -120,7 +124,7 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
       : id === "zero" ? zeroView?.control : id === "stack" ? stackView?.control : undefined,
     get memoryAddress() { return displayedStart; },
     get watches() { return watches?.watches ?? []; },
-    browseMemory,
+    browseMemory, watchMemory,
     observe(selected: Machine, writes: readonly Apple2MemoryChange[]): void {
       if (memory) position.observe(selected, writes);
       zeroView?.observe(writes);

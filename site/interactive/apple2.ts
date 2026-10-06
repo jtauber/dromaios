@@ -2,6 +2,7 @@ import { editApple2Register } from "./apple2-register-edit.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { createExecutionController } from "./execution-controller.js";
 import { createApple2Session, apple2ControlKey, apple2ScreenKey, apple2Input } from "./apple2-session.js";
+import { createApple2ScreenInspector } from "./apple2-screen-inspector-view.js";
 import { createApple2Screen } from "./apple2-screen-view.js";
 import { readApple2Disk } from "./apple2-media.js";
 import type { Apple2RomFile, Apple2DiskFile } from "./apple2-media.js";
@@ -48,7 +49,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const inspection = createApple2Inspection(root, shouldUpdate, () => refreshPanels(["rom", "code"]), (register, text) => {
     if (execution.running || selecting) throw new Error("Pause execution before editing a register.");
     editApple2Register(session.machine, register, text);
-    explorer.reset(); execution.reset(); changeLog?.reset();
+    explorer.reset(); execution.reset(); changeLog?.reset(); screenInspector?.reset();
     message.textContent = `${register.toUpperCase()} edited. Execution history cleared; RAM and devices preserved.`;
     refresh();
   }, showPanel);
@@ -62,6 +63,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       const changes = changeLog?.memoryChanges(record) ?? [];
       explorer.observe(record, before, inspection.watches, changes);
       inspection.observe(session.machine, changes);
+      screenInspector?.observe(record, before, changeLog?.memoryWrites(record) ?? []);
       // Complete manual stepping before its single refresh, preserving sample-based highlights.
       if (!execution.running) explorer.pauseBeforeStep();
       return { record, romMapped };
@@ -73,6 +75,10 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   });
   const explorer = createApple2Explorer(root, () => session.machine, () => { message.textContent = ""; execution.run(); }, shouldUpdate, {
     memoryAddress: () => inspection.memoryAddress, browseMemory: address => inspection.browseMemory(address), showPanel,
+  });
+  const screenInspector = createApple2ScreenInspector(root, () => session.machine, {
+    memory: address => { inspection.browseMemory(address); showPanel("memory"); refreshPanels(["memory"]); },
+    watch: address => inspection.watchMemory(address, "write"), code: explorer.browseCode,
   });
   root.querySelector<HTMLElement>("[data-rom-explorer]")?.addEventListener("toggle", refresh);
   execution.setDelay(1);
@@ -102,7 +108,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     element<HTMLElement>("disk-status").textContent = disk ? `Loaded: ${disk.name} · drive 1 · write protected`
       : rom?.bootstrap ? "No disk loaded. Fresh power-on boots Applesoft." : "Disk boot needs the 20 KiB ROM container, which includes the Disk II bootstrap.";
     if (inputStatus) inputStatus.textContent = `${session.pendingInput} keyboard characters queued`;
-    if (execution.error !== undefined) explorer.fail(execution.error);
+    if (execution.error !== undefined) { explorer.fail(execution.error); screenInspector?.reset(); }
     if (execution.error !== undefined) message.textContent = execution.error;
     const latest = execution.error === undefined ? execution.records.at(-1)?.record : undefined;
     inspection.refresh(session.machine, latest, changeLog?.memoryChanges(latest), !execution.running && !selecting);
@@ -112,6 +118,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (execution.running && now >= nextFlash) { flash = !flash; nextFlash = now + 500; }
     const { ram, video } = session.machine;
     renderScreen(ram, video, flash, monochrome.checked);
+    screenInspector?.refresh(execution.running);
     const display = video.snapshot();
     const mode = display.text ? "Text" : display.hires ? "High-resolution graphics" : "Low-resolution graphics";
     element<HTMLElement>("display-status").textContent = `${mode} · page ${display.page2 ? 2 : 1}${!display.text && display.mixed ? " · bottom four text rows shown" : ""}`
@@ -141,7 +148,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       const verified = await verify(chosen);
       if (token !== selection) return;
       apply(verified);
-      execution.reset(); changeLog?.reset(); flash = false; nextFlash = 0;
+      execution.reset(); changeLog?.reset(); screenInspector?.reset(); flash = false; nextFlash = 0;
       if (keyboard) keyboard.value = "";
     } catch (cause) {
       if (token === selection) message.textContent = cause instanceof Error ? cause.message : String(cause);
@@ -193,12 +200,12 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   over?.addEventListener("click", () => { explorer.over(); message.textContent = ""; execution.run(); });
   out?.addEventListener("click", () => action(() => { explorer.out(); message.textContent = ""; execution.run(); }));
   reset.addEventListener("click", () => action(() => {
-    explorer.reset(); execution.reset(); session.reset(); changeLog?.reset();
+    explorer.reset(); execution.reset(); session.reset(); changeLog?.reset(); screenInspector?.reset();
     message.textContent = "CPU reset. RAM and device state are preserved; Run continues through the reset firmware.";
     refresh();
   }));
   power.addEventListener("click", () => action(() => {
-    explorer.reset(); execution.reset(); session.powerOn(); changeLog?.reset(); flash = false; nextFlash = 0;
+    explorer.reset(); execution.reset(); session.powerOn(); changeLog?.reset(); screenInspector?.reset(); flash = false; nextFlash = 0;
     if (keyboard) keyboard.value = "";
     message.textContent = session.hasFirmware
       ? `Fresh power-on. The previous program is gone; Run boots ${disk ? "DOS 3.3 from the retained disk" : "Applesoft"} again.`
@@ -220,10 +227,11 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   keyboard?.addEventListener("input", event => { if (!event.isComposing) { sendText(keyboard.value); keyboard.value = ""; } });
   keyboard?.addEventListener("paste", event => { event.preventDefault(); sendText(event.clipboardData?.getData("text/plain") ?? ""); });
   screen.addEventListener("keydown", event => {
+    if (screenInspector?.active) { if (event.key !== "Tab") event.preventDefault(); return; }
     const byte = apple2ScreenKey(event);
     if (byte !== undefined) { event.preventDefault(); action(() => send([byte])); }
   });
-  screen.addEventListener("paste", event => { event.preventDefault(); sendText(event.clipboardData?.getData("text/plain") ?? ""); });
+  screen.addEventListener("paste", event => { event.preventDefault(); if (screenInspector?.active) return; sendText(event.clipboardData?.getData("text/plain") ?? ""); });
   function suspend(): void {
     // A saved ROM may finish restoring in a hidden tab, but never starts execution.
     if (!restoring) { selection++; selecting = false; file.value = diskFile.value = ""; }
@@ -238,7 +246,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       const saved = await romStorage.restore();
       if (saved !== undefined) {
         installRom(saved);
-        execution.reset(); changeLog?.reset();
+        execution.reset(); changeLog?.reset(); screenInspector?.reset();
         storageStatus.textContent = "Remembered ROM restored and verified. Run starts a fresh machine.";
       } else {
         storageStatus.textContent = "Your ROM will be remembered in this browser. RAM and disks are not saved.";

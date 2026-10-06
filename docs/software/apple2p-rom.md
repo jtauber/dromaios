@@ -64,6 +64,88 @@ trace. Finally run to **KEYIN2** again: the display shows `]A`, and the firmware
 is waiting for another character. This was line editing and echo; Applesoft has
 not executed a command because no Enter has arrived.
 
+### Inspect the cell that received A
+
+In the laboratory, turn on **Inspect** beside the screen's display options, then
+select the `A` just echoed. The strip below the screen shows row `2`, column `1`,
+page `1`, address `$0501`, byte `$C1`, and **normal**. Rows and columns count from
+zero. The generated video specification supplies the address and character
+interpretation; the inspector reads physical RAM, without a guest bus access.
+Arrow keys move the selection. **Escape** or turning Inspect off returns the
+screen to typing. While Inspect is on, keys and paste do not enter the machine.
+
+The address opens Memory at that byte. **Watch writes** opens Watches and enables
+its **W** stop, preserving any existing label or other stop choices. Subsequent
+Run stops *after* an instruction writes that address, even if the byte stays the
+same. Disable W when continuing a walkthrough that would otherwise stop there.
+
+**Last write** identifies the last completed CPU instruction observed writing
+this physical byte, with its instruction number, captured assembly, memory
+mapping, and before/after values. Immediately after the echo, `$FBF2` is
+`STA ($28),Y`: `STORADV` loaded column `CH` from `$24` into Y; `BASL/BASH`
+(`$28/$29`) held `$0500`; adding Y selected `$0501`. Clicking the writer address
+browses Disassembly's current bytes if the recorded bank is still visible.
+The captured instruction remains evidence even if RAM code has since changed.
+
+This is the last *store*, not necessarily the instruction that introduced the
+character. Cursor animation can overwrite a cell repeatedly. Scrolling later
+copies characters with a different instruction. A store of the same value still
+becomes the last writer. Read-modify-write instructions retain their final store.
+
+The observer keeps one writer per byte of both text pages, independently of the
+Changes log's recording switch, Clear button, or retention limit. Reset, fresh
+power-on, successful media replacement, register editing, and execution errors
+clear this history. A cell with no captured store says so; it does not attribute
+initial RAM to an instruction. If an external change differs from the captured
+value, the strip marks that difference. Selecting a coordinate follows the
+currently displayed page, while each page retains its own writers. Graphics
+pixels have no text-cell interpretation; mixed mode still exposes its four text
+rows. The observer does not retain a complete history of a cell.
+
+### Carriage return is cursor work
+
+For this part, use **Fresh power-on**, then run to **KEYIN2** again. Leave Inspect
+off to type. Press Enter on the empty prompt and run to **COUT**. A contains
+`$8D`, the carriage-return code with its high bit set. Run to **CR** (`$FC62`).
+Two steps execute `LDA #$00` and `STA $24`, setting `CH` to zero. The next
+instruction, at **LF** (`$FC66`), increments `CV` at `$25` from `2` to `3`.
+
+These are cursor-variable writes, not screen-character writes. The ROM compares
+the new row with `WNDBTM` at `$23`; below that boundary it calculates the new
+screen base. Follow `$24`, `$25`, and `$28/$29` in Zero page or Watches. Screen
+rows are interleaved in RAM: the first eight begin `$0400`, `$0480`, `$0500`, and
+so on, but row 8 begins `$0428`. The base cannot advance by a constant forty
+bytes at every row boundary.
+
+Run to **KEYIN2** to reach the next prompt. Its row is now `4`, because the
+Applesoft path back to the prompt emitted another newline after the echoed
+carriage return. A ROM routine's local effect and the whole command-input path
+are different observations.
+
+### Scrolling is a sequence of ordinary stores
+
+Starting at that fresh empty prompt on row `4`, repeat Enter, **Step** once to leave the
+current polling address, then **Run to KEYIN2**, nine times. The prompt reaches row `22`. Press Enter once
+more, then run to **SCROLL** (`$FC70`). The ROM has reached the bottom of the
+window: `WNDTOP` (`$22`) is `0`, `WNDWDTH` (`$21`) is `40` (`$28` in hex),
+`WNDBTM` (`$23`) is `24` (`$18`), and `CV` is held at `23`.
+
+Run to address `$FC8E`. The preceding `LDA ($28),Y` has read from the next row;
+`STA ($2A),Y` will write into the preceding row. On this first iteration Y is
+`39`, the source is `$04A7` (row 1, column 39), and the destination is `$0427`
+(row 0, column 39). Select that destination in Inspect and Step. Its last writer
+now names `$FC8E`, even if both bytes were spaces.
+
+Run to address `$FC95` to finish the copy loops. Rows 0–22 now contain the old
+rows 1–23; each copied cell's writer is `$FC8E`. Run to `$FCA0` and Step to see
+`STA ($28),Y` begin clearing the bottom row with normal spaces (`$A0`), starting
+at `$07D0`. This store belongs to `CLEOLZ`, not `STORADV`. Finally run to
+**KEYIN2**: the prompt is on the bottom row and the machine is waiting again.
+
+There is no browser scroll command in this path. The CPU executes the ROM's
+loads and stores, RAM changes, and the display renders those bytes. Screen
+inspection connects each visible result to that execution.
+
 ### Explore beyond the walkthrough
 
 **Run to address** accepts one to four hexadecimal digits, optionally preceded

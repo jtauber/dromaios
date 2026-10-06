@@ -48,12 +48,14 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     navigation.showPanel(tool);
   });
   const history = createApple2History(root, catalogue);
-  const devices = createApple2DeviceHistoryView(root, catalogue.hardware, catalogue.instructions, target => {
+  function browseCode(target: DebugLocation): string | undefined {
     if (apple2DebugLocation(machine()!, target.address).space !== target.space) {
       return `Cannot browse $${hex(target.address)}: its observed ${target.space} mapping is no longer visible.`;
     }
     disassembly?.browse(target.address); navigation.showPanel("code");
-  }, address => { navigation.browseMemory(address); navigation.showPanel("memory"); });
+  }
+  const devices = createApple2DeviceHistoryView(root, catalogue.hardware, catalogue.instructions, browseCode,
+    address => { navigation.browseMemory(address); navigation.showPanel("memory"); });
   const calls = createApple2CallStack(root, catalogue.routines, address => {
     disassembly?.browse(address); navigation.showPanel("code");
   });
@@ -78,6 +80,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     if (event.key === "Enter" && toAddress && !toAddress.disabled) { event.preventDefault(); start(address.value, false); }
   });
   return {
+    browseCode,
     controls: (id: string) => id === "code" ? disassembly?.controls : undefined,
     get canStepOut() { return debuggerState.canStepOut; },
     reset(): void { debuggerState.reset(); devices?.reset(); },

@@ -41,6 +41,7 @@ export function createApple2ChangeLogView(root: HTMLElement, machine: () => Retu
   return {
     capture(step: () => Cpu6502StepRecord): Cpu6502StepRecord { return current().capture(step); },
     memoryChanges(record: Cpu6502StepRecord | undefined) { return current().memoryChanges(record); },
+    memoryWrites(record: Cpu6502StepRecord) { return current().memoryWrites(record); },
     reset(): void { current().clear(); },
     refresh,
   };

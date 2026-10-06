@@ -165,10 +165,19 @@
 .laboratory { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .lab-tool { position: relative; height: 100%; width: 100%; overflow: auto; background: #18253b; scrollbar-color: #435674 #18253b; }
 .lab-tool-trace pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
-.lab-tool-screen .lab-panel-body { height: 100%; display: grid; grid-template-rows: minmax(120px, 1fr) auto; gap: 6px; }
+.lab-tool-screen .lab-panel-body { height: 100%; display: grid; grid-template-rows: minmax(120px, 1fr) auto auto; gap: 6px; }
 .lab-display-area { container-type: size; display: grid; place-items: center; min-width: 0; min-height: 0; }
 .lab-display-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
 .lab-display-footer .apple2-display-options { margin-left: auto; }
 /* Fit the 4:3 screen plus its surround's 10px padding and 1px border into the available area. */
 .lab-tool-screen .apple2-display-surround { width: min(100cqw, calc((100cqh - 22px) * 4 / 3 + 22px)); margin: 0; }
 .lab-tool-screen .basic-readout { margin: 0; }
+
+/* Inspection overlays the existing text cells without changing the display raster. */
+.apple2-screen.is-inspecting .apple2-row > span { cursor: crosshair; }
+.apple2-screen .apple2-row > span.is-inspected { outline: 2px solid #ffcf66; outline-offset: -1px; z-index: 1; }
+.lab-screen-inspector { display: grid; gap: 5px; padding-top: 6px; border-top: 1px solid var(--line); font: 12px/1.5 var(--mono); }
+.lab-screen-inspector[hidden] { display: none; }
+.lab-screen-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.lab-screen-inspector [data-screen-notice]:empty { display: none; }
+.lab-display-footer [data-screen-inspect][aria-pressed="true"] { color: #ffcf66; border-color: #ffcf66; }

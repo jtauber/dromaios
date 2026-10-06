@@ -41,9 +41,9 @@ export function createApple2ChangeLog(machine: Machine, capacity = 500) {
   const entries: Apple2InstructionChanges[] = [];
   let cursor = 0, sequence = 0, captured = 0, recording = true;
   let writes: Apple2MemoryChange[] | undefined;
-  let latest: { readonly record: Cpu6502StepRecord | undefined; readonly writes: readonly Apple2MemoryChange[] } | undefined;
+  let latest: { readonly record: Cpu6502StepRecord | undefined; readonly writes: readonly Apple2MemoryChange[]; readonly changes: readonly Apple2MemoryChange[] } | undefined;
   const detach = apple2RamRegions.map(({ part, base }) => machine[part].observeWrites(({ address, before, after }) => {
-    if (writes !== undefined && before !== after) writes.push({ region: part, address: base + address, before, after });
+    if (writes !== undefined) writes.push({ region: part, address: base + address, before, after });
   }));
 
   return {
@@ -54,6 +54,10 @@ export function createApple2ChangeLog(machine: Machine, capacity = 500) {
     get discarded() { return Math.max(0, captured - capacity); },
     /** Last-step observation remains live when history recording is paused or cleared. */
     memoryChanges(record: Cpu6502StepRecord | undefined): readonly Apple2MemoryChange[] {
+      return record?.outcome === "executed" && latest?.record === record ? latest.changes : [];
+    },
+    /** All completed physical stores, including unchanged and read-modify-write dummy stores. */
+    memoryWrites(record: Cpu6502StepRecord | undefined): readonly Apple2MemoryChange[] {
       return record?.outcome === "executed" && latest?.record === record ? latest.writes : [];
     },
     /** Newest instruction first; memory changes within it retain write order. */
@@ -67,9 +71,9 @@ export function createApple2ChangeLog(machine: Machine, capacity = 500) {
       let record: Cpu6502StepRecord | undefined;
       try { return record = step(); }
       finally {
-        const changes = writes;
+        const changes = writes.filter(write => write.before !== write.after);
+        latest = { record, writes, changes };
         writes = undefined;
-        latest = { record, writes: changes };
         // Even a host error can follow completed writes. Keep those effects, explicitly marked incomplete.
         if (before !== undefined) {
           entries[cursor] = { sequence, instruction: record?.instruction ?? { address: before.pc, bytes: [] },

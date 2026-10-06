@@ -1,3 +1,5 @@
+import { apple2ScreenCell, createApple2ScreenWrites } from "../../site/interactive/apple2-screen-inspection.js";
+import { createApple2ChangeLog } from "../../site/interactive/apple2-change-log.js";
 import { createApple2DeviceHistory } from "../../site/interactive/apple2-device-history.js";
 import { createInstructionDebugger } from "../../site/interactive/instruction-debugger.js";
 import { apple2DebugLocation, apple2DebugStep } from "../../site/interactive/apple2-debugger.js";
@@ -128,13 +130,14 @@ test("the published ROM walkthrough reaches the prompt and follows A through pol
   const container = JSON.parse(readFileSync("src/machines/6502/apple2.md", "utf8").match(/```json\n([\s\S]*?)```/)![1]!);
   const rom = await readRomFile({ name: "local ROM", size: buffer.byteLength, async arrayBuffer() { return buffer; } }, romImages.firmware, container);
   const session = createApple2Session(rom.image), { machine } = session, target = createInstructionDebugger();
-  const devices = createApple2DeviceHistory(instructions);
+  const devices = createApple2DeviceHistory(instructions), screenWrites = createApple2ScreenWrites(), log = createApple2ChangeLog(machine);
   const entries: Apple2TraceEntry[] = [];
   function step() {
-    const before = apple2DebugLocation(machine), romMapped = !machine.language.ramRead(), record = session.step();
+    const before = apple2DebugLocation(machine), romMapped = !machine.language.ramRead(), record = log.capture(() => session.step());
     assert.equal(record.outcome, "executed");
     target.observe(apple2DebugStep(record, before, apple2DebugLocation(machine), instructions));
     devices.observe(record, before);
+    screenWrites.observe(record, before, log.memoryWrites(record));
     entries.push({ record, romMapped });
     if (entries.length > 12) entries.shift();
     return record;
@@ -201,9 +204,61 @@ test("the published ROM walkthrough reaches the prompt and follows A through pol
   assert.deepEqual(step().instruction.bytes, [0xa4, 0x24]);
   const stored = step(), write = stored.accesses.find(access => access.kind === "write")!;
   assert.ok(write.address >= 0x400 && write.address < 0x800); assert.equal(write.value, 0xc1);
+  const cell = apple2ScreenCell(machine.ram, machine.video, 2, 1)!;
+  assert.equal(cell.address, 0x501); assert.equal(cell.byte, 0xc1); assert.equal(cell.attribute, "normal");
+  assert.equal(screenWrites.at(cell.address)!.caller.address, 0xfbf2);
+  assert.equal(screenWrites.at(cell.address)!.after, 0xc1);
   runTo("KEYIN2"); assert.match(screen(), /\]A$/);
   assert.ok(rendered.some(text => /read \$C000 = \$C1/.test(text)));
   assert.match(formatApple2Trace({ record: poll, romMapped: true }, instructions, annotations.routines), /N 0→1/);
   session.reset(); assert.equal(session.pendingInput, 0);
   session.powerOn(); assert.equal(session.machine.cpu.snapshot().pc, 0xfa62);
+});
+
+test("the ROM carriage-return and scrolling walkthrough attributes copies and clearing to their actual instructions", {
+  skip: romPath === undefined ? "Set APPLE2_ROM to the selected local firmware" : false,
+}, async () => {
+  assert.ok(romPath);
+  const buffer = new Uint8Array(readFileSync(romPath)).buffer;
+  const container = JSON.parse(readFileSync("src/machines/6502/apple2.md", "utf8").match(/```json\n([\s\S]*?)```/)![1]!);
+  const rom = await readRomFile({ name: "local ROM", size: buffer.byteLength, async arrayBuffer() { return buffer; } }, romImages.firmware, container);
+  const session = createApple2Session(rom.image), { machine } = session;
+  const log = createApple2ChangeLog(machine), screen = createApple2ScreenWrites();
+  log.recording = false;
+  function step() {
+    const caller = apple2DebugLocation(machine), record = log.capture(() => session.step());
+    assert.equal(record.outcome, "executed"); screen.observe(record, caller, log.memoryWrites(record)); return record;
+  }
+  function runTo(address: number): void {
+    for (let steps = 0; steps < 2000000; steps++) {
+      if (machine.cpu.snapshot().pc === address) return;
+      step();
+    }
+    assert.fail(`ROM did not reach $${address.toString(16)}`);
+  }
+  runTo(0xfd21); assert.equal(machine.ram.read(0x25), 2);
+  session.send([13]); runTo(0xfded); assert.equal(machine.cpu.snapshot().a, 0x8d);
+  runTo(0xfc62); step(); step(); assert.equal(machine.ram.read(0x24), 0);
+  assert.equal(machine.cpu.snapshot().pc, 0xfc66); step(); assert.equal(machine.ram.read(0x25), 3);
+  runTo(0xfd21);
+  assert.equal(machine.ram.read(0x25), 4, "Returning to the Applesoft prompt emits another newline");
+  session.send(Array(10).fill(13)); runTo(0xfc70);
+  assert.equal(machine.ram.read(0x25), 23); assert.equal(machine.ram.read(0x23), 24);
+  const previousRows = Array.from({ length: 24 }, (_, row) => Array.from({ length: 40 }, (_, col) =>
+    machine.ram.read(machine.video.textAddress(row, col))));
+  runTo(0xfc8e); const copy = step();
+  assert.deepEqual(copy.instruction.bytes, [0x91, 0x2a]);
+  assert.deepEqual(log.memoryWrites(copy), [{ region: "ram", address: 0x427, before: previousRows[0]![39], after: previousRows[1]![39] }]);
+  runTo(0xfc95);
+  for (let row = 0; row < 23; row++) for (let col = 0; col < 40; col++) {
+    const cell = apple2ScreenCell(machine.ram, machine.video, row, col)!;
+    assert.equal(cell.byte, previousRows[row + 1]![col]);
+    assert.equal(screen.at(cell.address)!.caller.address, 0xfc8e, "Even copying a space over a space updates provenance");
+  }
+  runTo(0xfca0); const clear = step();
+  assert.deepEqual(log.memoryWrites(clear), [{ region: "ram", address: 0x7d0, before: previousRows[23]![0], after: 0xa0 }]);
+  assert.equal(screen.at(0x7d0)!.caller.address, 0xfca0);
+  runTo(0xfd21); assert.equal(session.pendingInput, 0); assert.equal(machine.ram.read(0x25), 23);
+  assert.equal(screen.at(0x427)!.caller.address, 0xfc8e);
+  assert.deepEqual(log.entries(), []); log.dispose();
 });

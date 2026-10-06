@@ -8,10 +8,12 @@ export function createApple2Screen(screen: HTMLElement, scanlines: HTMLInputElem
   canvas.setAttribute("role", "img");
   const context = canvas.getContext("2d")!;
   raster.append(canvas);
-  const cells = Array.from({ length: 24 }, () => {
+  const cells = Array.from({ length: 24 }, (_, y) => {
     const row = document.createElement("div"); row.className = "apple2-row";
-    const cells = Array.from({ length: 40 }, () => {
-      const cell = document.createElement("span"); cell.textContent = " "; row.append(cell); return cell;
+    const cells = Array.from({ length: 40 }, (_, x) => {
+      const cell = document.createElement("span"); cell.textContent = " ";
+      cell.dataset.screenRow = String(y); cell.dataset.screenColumn = String(x);
+      row.append(cell); return cell;
     });
     raster.append(row); return cells;
   });
