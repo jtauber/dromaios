@@ -62,3 +62,16 @@ test("saved layouts gain a watch tab once while preserving memory selection, col
   migrateApple2Workspace(storage, ids);
   assert.equal(panelGroup(decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, ids), "watches"), undefined);
 });
+
+test("version 3 gains Call stack beside Stack without reopening hidden Watches or other instruments", () => {
+  const ids = ["stack", "calls", "memory", "watches", "execution"];
+  const layout: WorkspaceLayout = { root: { kind: "tabs", id: "tools", panels: ["stack", "memory"], active: "memory", collapsed: true } };
+  const storage = preferences(); storage.setItem("dromaios:workspace:apple2:3", encodeWorkspaceState(layout));
+  migrateApple2Workspace(storage, ids);
+  const updated = decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, ids);
+  assert.deepEqual(panelGroup(updated, "calls"), { ...layout.root, panels: ["stack", "memory", "calls"] });
+  assert.equal(panelGroup(updated, "watches"), undefined); assert.equal(panelGroup(updated, "execution"), undefined);
+  storage.setItem(apple2WorkspaceKey, encodeWorkspaceState(closePanel(updated, "calls")));
+  migrateApple2Workspace(storage, ids);
+  assert.equal(panelGroup(decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, ids), "calls"), undefined);
+});

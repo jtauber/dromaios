@@ -10,6 +10,7 @@ import { createApple2Inspection } from "./apple2-inspection-view.js";
 import { createApple2ChangeLogView } from "./apple2-change-log-view.js";
 import { createApple2Explorer } from "./apple2-explorer-view.js";
 import { createPanelUpdates } from "./panel-updates.js";
+import { apple2DebugLocation } from "./apple2-debugger.js";
 
 /** File controls, host scheduling, and screen presentation around the generated machine. */
 export function mountApple2(root: HTMLElement, showPanel: (id: string) => void = () => {}) {
@@ -55,11 +56,12 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const inputTarget = keyboard ?? screen;
   const execution = createExecutionController({
     step: () => {
-      const romMapped = !session.machine.language.ramRead();
+      const before = apple2DebugLocation(session.machine), romMapped = !session.machine.language.ramRead();
       const record = changeLog ? changeLog.capture(() => session.step()) : session.step();
       if (record.outcome !== "executed") throw new Error(`Processor stopped: ${record.outcome}.`);
-      explorer.observe(record);
-      inspection.observe(session.machine, changeLog?.memoryChanges(record) ?? []);
+      const changes = changeLog?.memoryChanges(record) ?? [];
+      explorer.observe(record, before, inspection.watches, changes);
+      inspection.observe(session.machine, changes);
       // Complete manual stepping before its single refresh, preserving sample-based highlights.
       if (!execution.running) explorer.pauseBeforeStep();
       return { record, romMapped };

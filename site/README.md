@@ -253,7 +253,15 @@ shared `instruction-debugger.ts` policy for bounded run-to, Step over / Step out
 persistent breakpoint matching, and observed caller tracking. The policy has no
 machine, memory, DOM, or scheduler connection. `apple2-debugger.ts` supplies mapping
 and completed-step observations; `apple2-breakpoint-view.ts` owns the saved address
-preferences and controls. ROM labels remain in the versioned software guide. The [replacement plan](../docs/machines/apple2.md#replacement-progress)
+preferences and controls. `apple2-watchpoints.ts` matches saved stop choices against
+completed instruction accesses, using chapter-derived fetch/read/write roles and
+physical RAM observations from the change log, independently of its recording
+switch. The debugger cancels temporary requests when a watchpoint stops execution
+after an instruction. `apple2-call-stack-view.ts` displays detached observed frames,
+including captured mappings and persistent lost-history notices; it never reads
+the hardware stack. Workspace version 4 introduces Call stack beside Stack once,
+preserving existing arrangements and deliberately hidden instruments. ROM labels
+remain in the versioned software guide. The [replacement plan](../docs/machines/apple2.md#replacement-progress)
 tracks feature gaps separately from the layout. The Machines navigation opens the
 home-page machine index. `rom-file.ts` checks the complete container and extracted
 ROM; `apple2-session.ts` creates hardware immediately with an explicit empty

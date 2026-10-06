@@ -48,6 +48,10 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
   const instruction = createApple2InstructionView(root, browse);
   const zeroView = createApple2ZeroPage(zero, labels, browse), stackView = createApple2StackView(stack, element("stack-page"));
   const watches = createApple2Watches(root, labels, browse);
+  root.addEventListener("click", event => {
+    const button = (event.target as Element).closest<HTMLElement>("[data-watch-address]");
+    if (button && watches) { showPanel("watches"); watches.add(parseInt(button.dataset.watchAddress!, 16)); }
+  });
   const memoryView = createApple2MemoryScrollView(memory, value => {
     position.browse(value); displayedStart = value; follow.select("fixed");
     if (document.activeElement !== address) address!.value = hex(value);
@@ -110,6 +114,7 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
     controls: (id: string): HTMLElement | undefined => id === "memory" && memoryView ? memoryControls
       : id === "zero" ? zeroView?.control : id === "stack" ? stackView?.control : undefined,
     get memoryAddress() { return displayedStart; },
+    get watches() { return watches?.watches ?? []; },
     browseMemory,
     observe(selected: Machine, writes: readonly Apple2MemoryChange[]): void {
       if (memory) position.observe(selected, writes);

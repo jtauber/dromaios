@@ -1,6 +1,6 @@
 import type { MemoryLabel } from "./apple2-explorer.js";
 import { hex } from "./apple2-explorer.js";
-import { addMemoryWatch, decodeMemoryWatches, sampleMemoryWatches } from "./apple2-watches.js";
+import { addMemoryWatch, decodeMemoryWatches, memoryWatchModes, sampleMemoryWatches } from "./apple2-watches.js";
 import { memoryLink } from "./memory-link.js";
 
 export function createApple2Watches(root: HTMLElement, labels: readonly MemoryLabel[], browse: (address: number) => void) {
@@ -30,7 +30,24 @@ export function createApple2Watches(root: HTMLElement, labels: readonly MemoryLa
         watches = watches.filter(item => item.address !== watch.address); previous.delete(watch.address);
         save(); layout(); render();
       });
-      row.append(memoryLink(watch.address, browse), label, value, remove); output.append(row);
+      const stops = document.createElement("span"), choices = document.createElement("span");
+      stops.className = "lab-watch-stops"; choices.className = "lab-inspector-choices";
+      stops.append("Stop on ", choices);
+      for (const mode of memoryWatchModes) {
+        const button = document.createElement("button"); button.type = "button";
+        button.textContent = { read: "R", write: "W", change: "Δ" }[mode];
+        button.title = { read: "Data read (excludes instruction fetches)", write: "Bus write (including unchanged or ignored writes)", change: "Changed RAM byte (any bank)" }[mode];
+        button.setAttribute("aria-label", `Stop on ${mode} at $${hex(watch.address)}`);
+        button.setAttribute("aria-pressed", String(watch.stop?.includes(mode) ?? false));
+        button.addEventListener("click", () => {
+          watches = watches.map(item => item.address !== watch.address ? item : { ...item,
+            stop: item.stop?.includes(mode) ? item.stop.filter(value => value !== mode) : [...item.stop ?? [], mode] });
+          button.setAttribute("aria-pressed", String(watches.find(item => item.address === watch.address)!.stop!.includes(mode)));
+          save();
+        });
+        choices.append(button);
+      }
+      row.append(memoryLink(watch.address, browse), label, value, remove, stops); output.append(row);
       rows.set(watch.address, { row, value, label });
     }
     if (!watches.length) output.textContent = "No watched addresses.";
@@ -60,6 +77,15 @@ export function createApple2Watches(root: HTMLElement, labels: readonly MemoryLa
   address.addEventListener("input", () => address.setCustomValidity(""));
   layout();
   return {
+    get watches() { return watches; },
+    add(value: number): void {
+      try {
+        if (!watches.some(watch => watch.address === value)) watches = addMemoryWatch(watches, hex(value), "");
+        save(); layout(); render();
+        rows.get(value)!.row.scrollIntoView({ block: "nearest" });
+        rows.get(value)!.row.querySelector<HTMLButtonElement>(".lab-watch-stops button")!.focus({ preventScroll: true });
+      } catch (error) { status.textContent = (error as Error).message; }
+    },
     refresh(source: object, reader: (address: number) => number | undefined, installed: boolean, romMapped: boolean): void {
       if (identity !== source) { identity = source; previous.clear(); }
       read = reader; firmware = installed; mapped = romMapped; render();

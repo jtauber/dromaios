@@ -5,6 +5,7 @@ import { createInspectorChoices } from "./inspector-controls.js";
 import type { UpcomingMemoryAccesses } from "./apple2-memory-accesses.js";
 import { markMemoryAccess } from "./memory-access-view.js";
 import { apple2MemoryCharacter } from "./apple2-memory-characters.js";
+import { memoryWatchButton } from "./memory-link.js";
 
 /** Byte presentation and its header control; receives observations, never the machine or guest bus. */
 export function createApple2MemoryView(container: HTMLElement | null, length: number, onWidthChange?: () => void) {
@@ -20,9 +21,10 @@ export function createApple2MemoryView(container: HTMLElement | null, length: nu
   try { showCharacters = window.localStorage.getItem(`${key}:characters`) === "true"; }
   catch { /* Start with hexadecimal bytes. */ }
   let start: number | undefined;
-  function field() {
-    const element = document.createElement("span"), value = document.createTextNode(""), description = document.createElement("span");
-    element.className = "apple2-memory-byte"; description.className = "visually-hidden";
+  function field(address?: number) {
+    const element = address === undefined ? document.createElement("span") : memoryWatchButton(address);
+    const value = document.createTextNode(""), description = document.createElement("span");
+    element.classList.add("apple2-memory-byte"); description.className = "visually-hidden";
     element.append(value, description); return { element, value, description };
   }
   let cells: { address: number; byte: ReturnType<typeof field>; character: ReturnType<typeof field> }[] = [];
@@ -66,7 +68,7 @@ export function createApple2MemoryView(container: HTMLElement | null, length: nu
       if (start !== address || cells.length !== Math.min(count, 0x10000 - address)) {
         start = address;
         cells = apple2MemoryAddresses(start, count).map(address => {
-          const byte = field(), character = field();
+          const byte = field(address), character = field();
           byte.element.dataset.memoryByte = hex(address); character.element.dataset.memoryCharacter = hex(address);
           character.element.classList.add("lab-memory-character");
           return { address, byte, character };
@@ -79,13 +81,14 @@ export function createApple2MemoryView(container: HTMLElement | null, length: nu
         const changed = change !== undefined && value === change.after;
         const previous = changed ? `$${hex(address)} changed ${hex(change.before, 2)} → ${current} in the last instruction` : "";
         byte.value.textContent = current; character.value.textContent = glyph?.character ?? "·";
+        byte.element.setAttribute("aria-label", `Watch $${hex(address)}: ${value === undefined ? "unavailable" : `$${current}`}`);
         character.element.classList.toggle("is-inverse", glyph?.inverse ?? false);
         character.element.classList.toggle("is-flashing", glyph?.flashing ?? false);
         const attribute = glyph ? `${glyph.inverse ? "Inverse" : glyph.flashing ? "Flashing" : "Normal"} Apple II character · $${current}` : "Unavailable storage";
         for (const item of [byte, character]) {
           item.element.classList.toggle("is-changed", changed);
           const description = markMemoryAccess(item.element, upcoming, address, 1,
-            [item === character ? attribute : "", previous].filter(Boolean).join("\n"));
+            [item === character ? attribute : `Watch $${hex(address)}`, previous].filter(Boolean).join("\n"));
           item.description.textContent = description ? ` (${description})` : "";
         }
       }

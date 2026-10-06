@@ -4,7 +4,7 @@ import type { MemoryLabel } from "./apple2-explorer.js";
 import { hex } from "./apple2-explorer.js";
 import type { Apple2MemoryChange } from "./apple2-inspection.js";
 import { createWorkspacePosition, monitorWorkspace, workspaceValue } from "./apple2-workspace-values.js";
-import { memoryLink } from "./memory-link.js";
+import { memoryLink, memoryWatchButton } from "./memory-link.js";
 import type { UpcomingMemoryAccesses } from "./apple2-memory-accesses.js";
 import { markMemoryAccess } from "./memory-access-view.js";
 
@@ -21,6 +21,8 @@ export function createApple2ZeroPage(container: HTMLElement | null, labels: read
     value.className = "lab-workspace-number";
     const description = document.createElement("span"); description.className = "lab-workspace-description";
     description.textContent = label.description;
+    const watch = memoryWatchButton(label.address); watch.textContent = "Watch";
+    description.append(" · ", watch);
     row.append(memoryLink(label.address, browse), value, name, description); names.append(row);
     return { ...label, row, value };
   });

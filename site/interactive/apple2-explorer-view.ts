@@ -1,4 +1,9 @@
 import { createInstructionDebugger } from "./instruction-debugger.js";
+import type { DebugLocation } from "./instruction-debugger.js";
+import { createApple2CallStack } from "./apple2-call-stack-view.js";
+import { apple2Watchpoint, describeApple2Watchpoint } from "./apple2-watchpoints.js";
+import type { MemoryWatch } from "./apple2-watches.js";
+import type { Apple2MemoryChange } from "./apple2-inspection.js";
 import { apple2DebugLocation, apple2DebugStep } from "./apple2-debugger.js";
 import { apple2StorageReader } from "./apple2-inspection.js";
 import { createApple2Breakpoints } from "./apple2-breakpoint-view.js";
@@ -40,6 +45,9 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     navigation.showPanel(tool);
   });
   const history = createApple2History(root, catalogue);
+  const calls = createApple2CallStack(root, catalogue.routines, address => {
+    disassembly?.browse(address); navigation.showPanel("code");
+  });
   const stopMessages = root.querySelectorAll<HTMLElement>("[data-rom-stop-status], [data-disassembly-stop-status], [data-debugger-status]");
   function showStopStatus(value: string, running = false): void {
     for (const message of stopMessages) {
@@ -73,7 +81,11 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     out(): void { debuggerState.out(location()); },
     pause(detail?: string): void { debuggerState.pause(location(), detail); },
     fail(detail: string): void { debuggerState.fail(location(), detail); },
-    observe(record: Cpu6502StepRecord): void { debuggerState.observe(apple2DebugStep(record, location(), catalogue.instructions)); },
+    observe(record: Cpu6502StepRecord, before: DebugLocation, watches: readonly MemoryWatch[], changes: readonly Apple2MemoryChange[]): void {
+      debuggerState.observe(apple2DebugStep(record, before, location(), catalogue.instructions));
+      const hit = apple2Watchpoint(watches, record, catalogue.instructions, changes);
+      if (hit) debuggerState.watchpoint(location(), describeApple2Watchpoint(hit, record.instruction.address));
+    },
     pauseBeforeStep(): boolean { return debuggerState.beforeStep(location()); },
     refresh(records: readonly Apple2TraceEntry[], available: boolean, running: boolean): void {
       for (const control of [routine, address, toRoutine, toAddress, step, resume]) {
@@ -81,12 +93,13 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
       }
       if (pause) pause.disabled = !running;
       const stopped = debuggerState.stop;
-      const reasons = { breakpoint: "Breakpoint", step: "Step complete", over: "Step over complete", out: "Step out complete",
+      const reasons = { breakpoint: "Breakpoint", watchpoint: "Watchpoint", step: "Step complete", over: "Step over complete", out: "Step out complete",
         target: "Run-to address reached", limit: "Instruction limit reached; destination not reached", pause: "Paused",
         error: "Execution error", "tracking-lost": "Caller tracking lost" };
       showStopStatus(stopped ? `${reasons[stopped.kind]} at $${hex(stopped.location.address)}${stopped.location.space === "rom" ? " in ROM" : ""}.${stopped.detail ? ` ${stopped.detail}` : ""}`
         : running && debuggerState.request ? `Running · ${debuggerState.request === "target" ? "to address" : `step ${debuggerState.request}`}…` : "", running);
       const selected = machine();
+      if (selected && shouldUpdate("calls")) calls?.refresh(debuggerState.frames, debuggerState.trackingNote, address => apple2DebugLocation(selected, address));
       disassembly?.refresh(selected, records, available, running, shouldUpdate("code"));
       history?.refresh(records, shouldUpdate("trace"));
       if (selected) reference?.refresh({ pc: selected.cpu.snapshot().pc, memory: navigation.memoryAddress(),

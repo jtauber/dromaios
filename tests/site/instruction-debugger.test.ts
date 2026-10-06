@@ -17,8 +17,8 @@ function program(parts: Readonly<Record<number, readonly number[]>>, budget = 10
   const cpu = new Cpu6502(ram, { pc: 0x200, sp, x: 2, a: 0, y: 0, flags: { n: false, v: false, d: false, i: false, z: false, c: false } });
   const debug = createInstructionDebugger(budget), location = () => at(cpu.snapshot().pc);
   function step() {
-    const record = cpu.step(); assert.equal(record.outcome, "executed");
-    debug.observe(apple2DebugStep(record, location(), catalogue));
+    const before = location(), record = cpu.step(); assert.equal(record.outcome, "executed");
+    debug.observe(apple2DebugStep(record, before, location(), catalogue));
     return record;
   }
   function run(maximum = 100): number {
@@ -46,6 +46,30 @@ test("Step over follows nested calls and tail jumps, including wrapped stack poi
     assert.equal(p.cpu.snapshot().sp, sp); assert.equal(p.cpu.snapshot().x, 3);
     assert.equal(p.debug.canStepOut, false);
   }
+});
+
+test("observed frames expose callers, entries and return addresses, and retain history limitations", () => {
+  const p = program(nested); p.step(); p.step();
+  assert.deepEqual(p.debug.frames.map(({ caller, entry, returnAddress, stack, kind }) => ({ caller, entry, returnAddress, stack, kind })), [
+    { caller: at(0x200), entry: at(0x300), returnAddress: 0x203, stack: 0xff, kind: "call" },
+    { caller: at(0x300), entry: at(0x400), returnAddress: 0x303, stack: 0xfd, kind: "call" },
+  ]);
+  const captured = p.debug.frames;
+  p.step(); p.step(); assert.equal(p.debug.frames.length, 1); assert.equal(captured.length, 2);
+  p.ram.write(0x303, 0x9a); p.step();
+  assert.equal(p.debug.frames.length, 0); assert.match(p.debug.trackingNote!, /stack pointer/);
+  // Later observations can form a new partial stack; the loss notice remains.
+  p.ram.write(0x304, 0x20); p.ram.write(0x305, 0); p.ram.write(0x306, 4); p.step();
+  assert.equal(p.debug.frames.length, 1); assert.match(p.debug.trackingNote!, /stack pointer/);
+  p.debug.reset(); assert.deepEqual(p.debug.frames, []); assert.equal(p.debug.trackingNote, undefined);
+});
+
+test("observed call mappings are snapshots, and BRK records its padding-byte continuation", () => {
+  const p = program({ 0x200: [0, 0], 0xfffe: [0, 3] });
+  const before = at(0x200, "rom"), after = at(0x300, "lc-bank1"), record = p.cpu.step();
+  p.debug.observe(apple2DebugStep(record, before, after, catalogue));
+  before.space = after.space = "changed";
+  assert.deepEqual(p.debug.frames[0], { id: 0, kind: "interrupt", caller: at(0x200, "rom"), entry: at(0x300, "lc-bank1"), returnAddress: 0x202, stack: 0xff });
 });
 
 test("Step out uses observed frames even after manual stepping, and supports recursion", () => {

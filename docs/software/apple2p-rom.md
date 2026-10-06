@@ -118,13 +118,26 @@ step stops and reports that caller tracking was lost. This matters for software
 that uses the stack for dispatch or edits return addresses. Hardware interrupt
 entry is not automatically polled by this machine.
 
-Breakpoints take precedence over a completed step or run-to request. A breakpoint,
+**Call stack**, initially a tab beside Stack, shows the active observed calls,
+innermost first. Each entry names the call target, call site, continuation address,
+and SP before the call. `BRK` frames are distinguished from `JSR` calls. ROM labels
+come from this guide. Click an address to browse Disassembly without running it.
+Call-site and entry mappings are captured when the instruction executes; their
+links are disabled if a different bank is now mapped. Continuation links browse
+current memory: a program may overwrite the saved return address. A lost-history
+notice remains visible even if later calls establish a new partial stack. Reset,
+power-on, media replacement, or a register edit starts a new observation history.
+The view does not reconstruct calls that were not observed.
+
+A watchpoint stops after the matching instruction, before the next instruction
+breakpoint or completed step/run-to request is checked. Instruction breakpoints
+then take precedence over a completed step or run-to request. A breakpoint,
 Pause, or leaving the page cancels the temporary request; Step out can be selected
 again using the retained call history. Run-to, Step over, and Step out have a
 two-million-instruction limit so a polling loop cannot run indefinitely as a step.
 The Execution and Disassembly panels distinguish breakpoint stops, completed
 steps, reached addresses, manual pauses, instruction limits, lost callers, and
-execution errors. Ordinary Run continues until paused, stopped at a breakpoint,
+execution errors. Ordinary Run continues until paused, stopped at a breakpoint or watchpoint,
 or an execution error occurs.
 
 ### Live disassembly
@@ -259,10 +272,35 @@ bytes and access marks; it does not sample newer machine state.
 **Watches**, initially a tab beside Memory, keeps a saved list of byte
 addresses and optional labels. Values show hex and decimal. A highlight means
 the value changed since the previous displayed sample, which can span many
-instructions during Run. These watches do not stop execution, and do not observe
-every intermediate write. Language Card addresses follow the currently mapped
-bank; a bank switch may therefore change a displayed value without a write.
-Hardware addresses show unavailable storage rather than reading a device.
+instructions during Run. Language Card values follow the currently mapped bank;
+a bank switch may therefore change a displayed value without a write. Hardware
+addresses show unavailable storage rather than reading a device.
+
+Each watch also has independent **R / W / Δ** stop toggles, saved with its address
+and label. R matches recorded data reads, including pointer and stack reads, but
+excludes instruction and operand fetches. W matches bus writes, including unchanged
+stores and requests ignored by ROM or protected memory. Δ matches actual changed
+RAM bytes, including either Language Card bank and upper RAM hidden behind ROM.
+It observes individual writes, not differences between displayed samples; merely
+switching banks is not a RAM change. With all three toggles off, the watch only
+displays values. Earlier saved watches keep that behavior.
+
+Click a hexadecimal byte in Memory, Zero page, or Stack to add it to Watches, then
+choose its stop toggles. NAMES also offers Watch beside each workspace description
+(for the first byte of a word; either byte can be watched in HEX). Watching an
+existing address preserves its label and stop choices. At most 64 addresses are
+saved.
+
+Stops happen after the complete instruction, even with Watches hidden, Live off,
+or change-log recording paused. The first matching access in instruction order
+wins; when W and Δ both match a write, the stop is reported as W. Execution and
+Disassembly identify the responsible instruction, watched address, captured value,
+and physical RAM bank and before/after values when a changed write provides them.
+Read and unchanged/ignored-write stops do not invent earlier values or reread
+memory. A stop cancels temporary stepping or run-to requests while retaining
+observed callers. Run resumes at the next boundary, where a separate instruction
+breakpoint may still stop it. Manual Step can trigger another watchpoint. Failed
+instructions remain execution errors; partial effects stay in the change log.
 
 Click A, X, Y, SP, or PC in **MOS 6502** while paused to edit a hexadecimal value.
 Enter applies it; Escape or leaving the field cancels. An edit clears execution

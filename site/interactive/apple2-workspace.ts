@@ -13,20 +13,20 @@ export const apple2DefaultLayout: WorkspaceLayout = {
       area(.5, split("cpu-details", "horizontal",
         area(.35, split("execution-and-cpu", "vertical", area(.4, group("execution")), area(.35, group("registers")), area(.25, group("instruction")))),
         area(.65, group("code")))))),
-    area(.2632, split("zero-and-memory", "vertical", area(.36, group("zero")), area(.352, group("memory", "watches")), area(.288, group("stack")))),
+    area(.2632, split("zero-and-memory", "vertical", area(.36, group("zero")), area(.352, group("memory", "watches")), area(.288, group("stack", "calls")))),
     area(.2968, group("rom", "trace", "log", "system", "disk"))),
 };
 
-export const apple2WorkspaceKey = "dromaios:workspace:apple2:3";
+export const apple2WorkspaceKey = "dromaios:workspace:apple2:4";
 
 /** Introduce new instruments once, retaining the saved arrangement and later choices to hide them. */
 export function migrateApple2Workspace(storage: { getItem(key: string): string | null; setItem(key: string, value: string): void }, ids: readonly string[]): void {
   if (storage.getItem(apple2WorkspaceKey) !== null) return;
-  const previous = storage.getItem("dromaios:workspace:apple2:2");
-  const saved = previous ?? storage.getItem("dromaios:workspace:apple2");
+  const version3 = storage.getItem("dromaios:workspace:apple2:3"), version2 = storage.getItem("dromaios:workspace:apple2:2");
+  const saved = version3 ?? version2 ?? storage.getItem("dromaios:workspace:apple2");
   if (saved === null) return;
   let layout = decodeWorkspaceState(saved, ids);
-  if (previous === null && !panelGroup(layout, "execution")) {
+  if (version3 === null && version2 === null && !panelGroup(layout, "execution")) {
     const screen = panelGroup(layout, "screen");
     if (screen) {
       layout = movePanel(layout, "execution", { group: screen.id, side: "below" });
@@ -37,11 +37,15 @@ export function migrateApple2Workspace(storage: { getItem(key: string): string |
       layout = openPanel(layout, "execution");
     }
   }
-  const memory = panelGroup(layout, "memory");
-  if (ids.includes("watches") && memory && !panelGroup(layout, "watches")) {
-    layout = movePanel(layout, "watches", { group: memory.id, side: "tab" });
-    layout = activatePanel(layout, memory.active);
-    layout = collapseGroup(layout, memory.id, memory.collapsed);
+  function addTab(tool: string, beside: string): void {
+    const existing = panelGroup(layout, beside);
+    if (ids.includes(tool) && existing && !panelGroup(layout, tool)) {
+      layout = movePanel(layout, tool, { group: existing.id, side: "tab" });
+      layout = activatePanel(layout, existing.active);
+      layout = collapseGroup(layout, existing.id, existing.collapsed);
+    }
   }
+  if (version3 === null) addTab("watches", "memory");
+  addTab("calls", "stack");
   storage.setItem(apple2WorkspaceKey, encodeWorkspaceState(layout));
 }

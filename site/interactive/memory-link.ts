@@ -1,5 +1,14 @@
 import { hex } from "./apple2-explorer.js";
 
+/** The inspection host handles this action, independently of memory rendering. */
+export function memoryWatchButton(address: number): HTMLButtonElement {
+  const button = document.createElement("button"); button.type = "button";
+  button.dataset.watchAddress = hex(address);
+  button.className = "lab-watch-byte";
+  button.title = `Watch $${hex(address)}`; button.setAttribute("aria-label", button.title);
+  return button;
+}
+
 /** Navigation belongs to the host; a link never reads or executes guest memory. */
 export function memoryLink(address: number, browse: (address: number) => void, text = `$${hex(address)}`): HTMLButtonElement {
   const button = document.createElement("button"); button.type = "button";

@@ -129,9 +129,9 @@ test("the published ROM walkthrough reaches the prompt and follows A through pol
   const session = createApple2Session(rom.image), { machine } = session, target = createInstructionDebugger();
   const entries: Apple2TraceEntry[] = [];
   function step() {
-    const romMapped = !machine.language.ramRead(), record = session.step();
+    const before = apple2DebugLocation(machine), romMapped = !machine.language.ramRead(), record = session.step();
     assert.equal(record.outcome, "executed");
-    target.observe(apple2DebugStep(record, apple2DebugLocation(machine), instructions));
+    target.observe(apple2DebugStep(record, before, apple2DebugLocation(machine), instructions));
     entries.push({ record, romMapped });
     if (entries.length > 12) entries.shift();
     return record;

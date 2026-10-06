@@ -3,6 +3,7 @@ export interface DebugLocation { readonly address: number; readonly space: strin
 export interface InstructionBreakpoint { readonly address: number; readonly space?: string; readonly enabled: boolean }
 export type StackFlow = "call" | "return" | "interrupt" | "interrupt-return";
 export interface DebugStep {
+  readonly before: DebugLocation;
   readonly after: DebugLocation;
   readonly stackBefore: number;
   readonly stackAfter: number;
@@ -11,11 +12,18 @@ export interface DebugStep {
   readonly resetsStack: boolean;
 }
 export interface DebugStop {
-  readonly kind: "breakpoint" | "step" | "over" | "out" | "target" | "limit" | "pause" | "error" | "tracking-lost";
+  readonly kind: "breakpoint" | "watchpoint" | "step" | "over" | "out" | "target" | "limit" | "pause" | "error" | "tracking-lost";
   readonly location: DebugLocation;
   readonly detail?: string;
 }
-interface Frame { readonly id: number; readonly kind: "call" | "interrupt"; readonly address: number; readonly stack: number }
+export interface ObservedFrame {
+  readonly id: number;
+  readonly kind: "call" | "interrupt";
+  readonly caller: DebugLocation;
+  readonly entry: DebugLocation;
+  readonly returnAddress: number;
+  readonly stack: number;
+}
 type Plan = { readonly kind: "step" } | { readonly kind: "over"; frame?: number }
   | { readonly kind: "out"; readonly frame: number } | { readonly kind: "target"; readonly address: number; readonly space?: string };
 const sameLocation = (a: DebugLocation, b: DebugLocation) => a.address === b.address && a.space === b.space;
@@ -27,7 +35,8 @@ export function createInstructionDebugger(budget = 2_000_000) {
   if (!Number.isSafeInteger(budget) || budget < 1) throw new RangeError("The instruction limit must be positive.");
   let breakpoints: readonly InstructionBreakpoint[] = [], plan: Plan | undefined, stop: DebugStop | undefined;
   let skip: DebugLocation | undefined, completed = false, remaining = budget, nextFrame = 0;
-  const frames: Frame[] = [];
+  const frames: ObservedFrame[] = [];
+  let trackingNote: string | undefined;
   function finish(kind: DebugStop["kind"], location: DebugLocation, detail?: string): void {
     stop = { kind, location, ...(detail && { detail }) }; plan = undefined; skip = undefined; completed = false;
   }
@@ -37,7 +46,7 @@ export function createInstructionDebugger(budget = 2_000_000) {
     stop = undefined; plan = request; completed = false; remaining = budget;
   }
   function loseTracking(location: DebugLocation, detail: string): void {
-    frames.length = 0;
+    frames.length = 0; trackingNote = detail;
     if (plan?.kind === "out" || plan?.kind === "over" && plan.frame !== undefined) finish("tracking-lost", location, detail);
   }
   return {
@@ -45,6 +54,8 @@ export function createInstructionDebugger(budget = 2_000_000) {
     get stop() { return stop; },
     get request() { return plan?.kind; },
     get canStepOut() { return frames.length > 0; },
+    get frames(): readonly ObservedFrame[] { return frames.map(frame => ({ ...frame, caller: { ...frame.caller }, entry: { ...frame.entry } })); },
+    get trackingNote() { return trackingNote; },
     setBreakpoints(values: readonly InstructionBreakpoint[]): void { breakpoints = values.map(value => ({ ...value })); },
     run(location: DebugLocation): void { start(location); },
     step(location: DebugLocation): void { start(location, { kind: "step" }, true); },
@@ -59,8 +70,9 @@ export function createInstructionDebugger(budget = 2_000_000) {
       start(location, { kind: "target", address, space });
     },
     pause(location: DebugLocation, detail?: string): void { finish("pause", location, detail); },
-    fail(location: DebugLocation, detail: string): void { frames.length = 0; finish("error", location, detail); },
-    reset(): void { frames.length = 0; plan = undefined; stop = undefined; skip = undefined; completed = false; },
+    watchpoint(location: DebugLocation, detail: string): void { finish("watchpoint", location, detail); },
+    fail(location: DebugLocation, detail: string): void { frames.length = 0; trackingNote = "Execution failed; earlier callers are no longer tracked."; finish("error", location, detail); },
+    reset(): void { frames.length = 0; trackingNote = undefined; plan = undefined; stop = undefined; skip = undefined; completed = false; },
     beforeStep(location: DebugLocation): boolean {
       if (stop) return true;
       const bypass = skip !== undefined && sameLocation(skip, location); skip = undefined;
@@ -77,12 +89,13 @@ export function createInstructionDebugger(budget = 2_000_000) {
       if (step.resetsStack) loseTracking(step.after, "The program replaced the stack pointer; the caller is no longer known.");
       if (step.flow === "call" || step.flow === "interrupt") {
         if (frames.length === 128) loseTracking(step.after, "The observed call history reached its limit.");
-        const frame = { id: nextFrame++, kind: step.flow, address: step.returnAddress, stack: step.stackBefore };
+        const frame = { id: nextFrame++, kind: step.flow, caller: { ...step.before }, entry: { ...step.after },
+          returnAddress: step.returnAddress, stack: step.stackBefore };
         frames.push(frame);
         if (plan?.kind === "over" && plan.frame === undefined) plan.frame = frame.id;
       } else if (step.flow === "return" || step.flow === "interrupt-return") {
         const frame = frames.at(-1), kind = step.flow === "return" ? "call" : "interrupt";
-        if (frame?.kind === kind && frame.stack === step.stackAfter && frame.address === step.after.address) {
+        if (frame?.kind === kind && frame.stack === step.stackAfter && frame.returnAddress === step.after.address) {
           frames.pop();
           if ((plan?.kind === "over" || plan?.kind === "out") && plan.frame === frame.id) completed = true;
         } else loseTracking(step.after, "The return did not match the observed caller; the program may have changed its return address or stack.");
