@@ -67,4 +67,4 @@ def rom_annotations(source, firmware):
 def explorer_catalogue():
     result = subprocess.run(["node", "site/apple2-instructions.ts"], cwd=ROOT, check=True, stdout=subprocess.PIPE, text=True)
     cpu = json.loads(result.stdout)
-    return {**rom_annotations(APPLE2_ROM.read_text(), cpu["firmware"]), "instructions": cpu["instructions"]}
+    return {**rom_annotations(APPLE2_ROM.read_text(), cpu["firmware"]), "instructions": cpu["instructions"], "hardware": cpu["hardware"]}

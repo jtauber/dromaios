@@ -239,6 +239,46 @@ is actually mapped. The Monitor uses scratch addresses such as `$28–$29` and
 `$3A–$3B`; these are software variables, distinct from CPU registers. Other
 software can reuse them.
 
+## Watching the hardware
+
+**System** separates the live memory map's read and write destinations. At
+power-on, ROM supplies `$D000–FFFF` reads while Language Card RAM accepts
+writes. The lower window identifies bank 1 or bank 2; the upper window uses
+shared RAM. Protection, bank selection, and absent hardware are visible without
+performing guest reads. These are routing destinations: individual device
+bindings may ignore a transfer. Unanswered reads supply `$00` in this model,
+not a simulated floating-bus value.
+
+Below the map, Keyboard, Display switches, and Language Card show their retained
+state. Amber marks a change since the previous displayed sample; hover for the
+previous value. During Run this can span multiple instructions, so an unchanged
+field does not prove there was no intervening activity. Live controls sampling;
+pausing or stepping refreshes it. Each device links to its executable description.
+
+**Device activity**, initially beside System, shows actual CPU transfers in
+`$C000–CFFF`, newest first. Follow the keypress above: `BIT $C000` at `$FD21`
+observes `$C1`, then `BIT $C010` at `$FD2B` acknowledges it. Entries retain the
+instruction bytes and mapping, accessed address, direction, and transferred
+value. Slot-ROM fetches are distinguished from data reads. Click the instruction
+to browse Disassembly, or the accessed address to open Memory. Disassembly
+navigation refuses an instruction whose observed bank is no longer mapped;
+it displays current code, which may differ from the captured bytes.
+
+The device filter selects Keyboard, Display, Language Card, Disk II, or unmapped
+accesses. Descriptions come from the declared bindings and link to the
+specification. They explain the operation; the byte beside it is the actual
+recorded transfer. Host key delivery has no responsible instruction and is not
+invented as a CPU event. Failed instructions are excluded; their partial effects
+remain available in Changes.
+
+The latest 128 groups are retained even while the panel is hidden or Live is
+off. Successive identical device accesses from the same instruction coalesce,
+retaining their count and first/last instruction numbers; ordinary instructions
+between polls do not split a group. Different instruction bytes, mappings,
+addresses, directions, or values do. The status reports discarded older accesses.
+Clear restarts counts without restarting instruction numbering. Reset, fresh
+power-on, replacement media, and register edits start a new history.
+
 ## Experimenting with the Monitor workspace
 
 In the laboratory, **Zero page → NAMES** shows the Monitor's named bytes and

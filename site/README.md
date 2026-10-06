@@ -259,8 +259,9 @@ physical RAM observations from the change log, independently of its recording
 switch. The debugger cancels temporary requests when a watchpoint stops execution
 after an instruction. `apple2-call-stack-view.ts` displays detached observed frames,
 including captured mappings and persistent lost-history notices; it never reads
-the hardware stack. Workspace version 4 introduces Call stack beside Stack once,
-preserving existing arrangements and deliberately hidden instruments. ROM labels
+the hardware stack. Workspace migrations introduce Call stack beside Stack and,
+in version 5, Device activity beside System, preserving existing arrangements
+and deliberately hidden instruments. ROM labels
 remain in the versioned software guide. The [replacement plan](../docs/machines/apple2.md#replacement-progress)
 tracks feature gaps separately from the layout. The Machines navigation opens the
 home-page machine index. `rom-file.ts` checks the complete container and extracted
@@ -272,6 +273,21 @@ selection performs both steps, while later selections keep the fresh-machine
 workflow. RAM and devices are inspectable before boot, with missing ROM shown
 as unavailable. Browser execution and keyboard input remain disabled until
 firmware is installed.
+`apple2-hardware-catalogue.ts` exports the machine chapter's read/write routes and
+compiled device binding descriptions at build time. `apple2-hardware.ts` evaluates
+those routes against detached selector snapshots for the laboratory System map;
+`apple2-system-view.ts` displays keyboard, video, and Language Card state with
+changes since the previous displayed sample. Neither reads the guest bus nor
+copies disk media. These remain concrete Apple II adapters; no new peripheral
+language or runtime compiler is introduced. Disk II descriptions use its existing
+binding metadata and the machine chapter.
+`apple2-device-history.ts` retains bounded completed-instruction I/O transfers,
+including slot-ROM fetches, coalescing identical polls with counts. The explorer
+observes it on every successful step, independently of visibility and Live.
+`apple2-device-history-view.ts` owns filtering, links, and rendering. Code navigation
+checks the captured mapping before browsing current bytes. The
+[ROM guide](../docs/software/apple2p-rom.md#watching-the-hardware) owns the UI's
+retention, clear/reset, and interpretation rules.
 `apple2-screen.ts` reads RAM using generated, read-only video views.
 `apple2-raster.ts` combines decoded graphics with the pinned reference's bitmap
 character set on a 280-by-192 raster. Its fixed RGB palettes also follow that

@@ -146,9 +146,34 @@
       <pre data-log-output aria-label="Recorded changes">No instructions recorded yet.</pre>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="system" data-panel-live="true" data-panel-title="System">
-      <h2>Device state</h2><pre data-system-inspect>Preparing devices…</pre>
-      <p class="lab-hint">Snapshots of the keyboard, display switches, Language Card, and Disk II. Reading these views never operates a soft switch.</p>
-      <p><a href="{{ source_url }}" target="_blank" rel="noopener">Read the executable machine description ↗</a></p>
+      <div data-hardware-inspect>
+        <h2>Memory map</h2>
+        <table class="lab-hardware-map"><thead><tr><th>Address</th><th>Reads</th><th>Writes</th></tr></thead><tbody data-hardware-map></tbody></table>
+        <p class="lab-hint">Routes from the machine specification; unbound device transfers may be ignored. ROM can supply reads while Language Card RAM receives writes. Unanswered reads supply $00; this model does not simulate the floating bus.</p>
+        <div class="lab-hardware-cards">
+          <section class="lab-hardware-card"><h3>Keyboard</h3><dl>
+            <dt>Key latch</dt><dd data-hardware-field="key"></dd><dt>Strobe</dt><dd data-hardware-field="strobe"></dd>
+          </dl><p class="lab-hint">Host delivery sets the strobe. Reading the key preserves it; acknowledgement clears it.</p><a target="_blank" rel="noopener" href="{{ repository }}/blob/main/src/components/devices/specifications/apple2-keyboard.md">Keyboard description ↗</a></section>
+          <section class="lab-hardware-card"><h3>Display switches</h3><dl>
+            <dt>Mode</dt><dd data-hardware-field="text"></dd><dt>Mixed</dt><dd data-hardware-field="mixed"></dd>
+            <dt>Page</dt><dd data-hardware-field="page"></dd><dt>Graphics</dt><dd data-hardware-field="hires"></dd>
+          </dl><p class="lab-hint">The graphics and mixed latches remain stored while Text is selected.</p><a target="_blank" rel="noopener" href="{{ repository }}/blob/main/src/components/devices/specifications/apple2-video.md">Video description ↗</a></section>
+          <section class="lab-hardware-card"><h3>Language Card</h3><dl>
+            <dt>D000 bank</dt><dd data-hardware-field="bank"></dd><dt>Read source</dt><dd data-hardware-field="ramRead"></dd>
+            <dt>RAM writes</dt><dd data-hardware-field="ramWrite"></dd><dt>Prewrite</dt><dd data-hardware-field="prewrite"></dd>
+          </dl><p class="lab-hint">Prewrite remembers an odd control read. The next odd read can enable writes.</p><a target="_blank" rel="noopener" href="{{ repository }}/blob/main/src/components/devices/specifications/apple2-language-card.md">Language Card description ↗</a></section>
+          <section class="lab-hardware-card"><h3>Installed hardware</h3><dl>
+            <dt>Motherboard ROM</dt><dd data-hardware-field="firmware"></dd><dt>Disk II ROM/card</dt><dd data-hardware-field="disk"></dd>
+          </dl><p class="lab-hint">An absent card does not respond to its mapped windows. Drive state is in Disk.</p><a href="{{ calc_url(apple2_url ~ '#components-and-address-decoding') }}" target="_blank" rel="noopener">Machine description ↗</a></section>
+        </div>
+        <p class="lab-hint">Amber means changed since the previous displayed sample; hover for the previous value. Inspecting these fields never reads a soft switch.</p>
+      </div>
+    </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="activity" data-panel-live="true" data-panel-title="Device activity" data-device-activity data-repository="{{ repository }}">
+      <div class="lab-device-controls"><label>Device <select data-device-filter><option value="all">All</option><option value="keyboard">Keyboard</option><option value="video">Display</option><option value="language">Language Card</option><option value="disk">Disk II</option><option value="unmapped">Unmapped</option></select></label><button type="button" data-device-clear>Clear</button></div>
+      <p data-device-status class="lab-hint" role="status"></p>
+      <div data-device-events></div>
+      <details><summary>About device activity</summary><p class="lab-hint">Captured accesses from completed CPU instructions in $C000–CFFF, including slot ROM and unmapped addresses. Newest first; identical consecutive accesses from the same instruction are grouped, retaining their count. Keeps the latest 128 groups, even with Live off or this panel hidden. Clear keeps instruction numbering; reset, fresh power-on, media replacement and register edits start new history.</p><p class="lab-hint">Instruction links browse current Disassembly only if the observed mapping is still visible; code bytes may have changed. Address links open Memory, and descriptions link to the specification. Descriptions explain the declared operation; the displayed byte is the actual transferred value. Host keyboard delivery is separate and has no responsible CPU instruction. No device reads are performed by this view.</p></details>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="disk" data-panel-live="true" data-panel-title="Disk">
       <h2>Drive 1</h2>

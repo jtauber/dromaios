@@ -1,3 +1,4 @@
+import { createApple2DeviceHistory } from "../../site/interactive/apple2-device-history.js";
 import { createInstructionDebugger } from "../../site/interactive/instruction-debugger.js";
 import { apple2DebugLocation, apple2DebugStep } from "../../site/interactive/apple2-debugger.js";
 import assert from "node:assert/strict";
@@ -127,11 +128,13 @@ test("the published ROM walkthrough reaches the prompt and follows A through pol
   const container = JSON.parse(readFileSync("src/machines/6502/apple2.md", "utf8").match(/```json\n([\s\S]*?)```/)![1]!);
   const rom = await readRomFile({ name: "local ROM", size: buffer.byteLength, async arrayBuffer() { return buffer; } }, romImages.firmware, container);
   const session = createApple2Session(rom.image), { machine } = session, target = createInstructionDebugger();
+  const devices = createApple2DeviceHistory(instructions);
   const entries: Apple2TraceEntry[] = [];
   function step() {
     const before = apple2DebugLocation(machine), romMapped = !machine.language.ramRead(), record = session.step();
     assert.equal(record.outcome, "executed");
     target.observe(apple2DebugStep(record, before, apple2DebugLocation(machine), instructions));
+    devices.observe(record, before);
     entries.push({ record, romMapped });
     if (entries.length > 12) entries.shift();
     return record;
@@ -162,6 +165,8 @@ test("the published ROM walkthrough reaches the prompt and follows A through pol
   const poll = step();
   assert.deepEqual(poll.accesses.slice(3), [{ kind: "read", address: 0xc000, value: 0xc1 }]);
   assert.equal(poll.after.flags.n, true);
+  assert.deepEqual(devices.entries()[0], { first: devices.entries()[0]!.first, last: devices.entries()[0]!.last, count: 1,
+    caller: { address: 0xfd21, space: "rom" }, bytes: [0x2c, 0, 0xc0], kind: "read", role: "read", address: 0xc000, value: 0xc1 });
   assert.equal(step().after.pc, 0xfd26); // BPL falls through.
   runTo("Acknowledge key");
   assert.equal(machine.cpu.snapshot().a, 0xc1); assert.equal(machine.keyboard.snapshot().strobe, true);
@@ -188,6 +193,8 @@ test("the published ROM walkthrough reaches the prompt and follows A through pol
   const acknowledged = step();
   assert.equal(acknowledged.accesses.at(-1)!.address, 0xc010);
   assert.equal(machine.keyboard.snapshot().strobe, false);
+  assert.equal(devices.entries()[0]!.address, 0xc010);
+  assert.equal(devices.entries()[0]!.caller.address, 0xfd2b);
   assert.match(formatApple2Trace({ record: acknowledged, romMapped: true }, instructions, annotations.routines), /BIT \$C010.*Acknowledge key/s);
   assert.doesNotMatch(formatApple2Trace({ record: acknowledged, romMapped: false }, instructions, annotations.routines), /Acknowledge key/);
   runTo("STORADV");

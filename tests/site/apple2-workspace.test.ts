@@ -75,3 +75,17 @@ test("version 3 gains Call stack beside Stack without reopening hidden Watches o
   migrateApple2Workspace(storage, ids);
   assert.equal(panelGroup(decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, ids), "calls"), undefined);
 });
+
+
+test("version 4 gains Device activity beside System without reopening hidden instruments or changing its active tab", () => {
+  const ids = ["system", "activity", "rom", "calls", "watches", "execution"];
+  const layout: WorkspaceLayout = { root: { kind: "tabs", id: "tools", panels: ["system", "rom"], active: "rom", collapsed: true } };
+  const storage = preferences(); storage.setItem("dromaios:workspace:apple2:4", encodeWorkspaceState(layout));
+  migrateApple2Workspace(storage, ids);
+  const updated = decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, ids);
+  assert.deepEqual(panelGroup(updated, "activity"), { ...layout.root, panels: ["system", "rom", "activity"] });
+  for (const id of ["calls", "watches", "execution"]) assert.equal(panelGroup(updated, id), undefined);
+  storage.setItem(apple2WorkspaceKey, encodeWorkspaceState(closePanel(updated, "activity")));
+  migrateApple2Workspace(storage, ids);
+  assert.equal(panelGroup(decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, ids), "activity"), undefined);
+});

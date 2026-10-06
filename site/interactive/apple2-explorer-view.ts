@@ -14,6 +14,8 @@ import type { Apple2TraceEntry, InstructionCatalogue, AddressLabel, MemoryLabel,
 import { createApple2Disassembly } from "./apple2-disassembly-view.js";
 import { createApple2History } from "./apple2-history-view.js";
 import { createApple2RomReference } from "./apple2-rom-reference-view.js";
+import { createApple2DeviceHistoryView } from "./apple2-device-history-view.js";
+import type { Apple2HardwareCatalogue } from "./apple2-hardware.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 
@@ -26,6 +28,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   const catalogue = JSON.parse(element("rom-catalogue").textContent!) as {
     readonly instructions: InstructionCatalogue; readonly routines: readonly AddressLabel[];
     readonly labels: readonly MemoryLabel[]; readonly regions: readonly RomRegion[];
+    readonly hardware: Apple2HardwareCatalogue;
   };
   const optional = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`);
   const details = optional("rom-explorer"), current = optional("rom-current"), trace = optional("machine-trace");
@@ -45,6 +48,12 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     navigation.showPanel(tool);
   });
   const history = createApple2History(root, catalogue);
+  const devices = createApple2DeviceHistoryView(root, catalogue.hardware, catalogue.instructions, target => {
+    if (apple2DebugLocation(machine()!, target.address).space !== target.space) {
+      return `Cannot browse $${hex(target.address)}: its observed ${target.space} mapping is no longer visible.`;
+    }
+    disassembly?.browse(target.address); navigation.showPanel("code");
+  }, address => { navigation.browseMemory(address); navigation.showPanel("memory"); });
   const calls = createApple2CallStack(root, catalogue.routines, address => {
     disassembly?.browse(address); navigation.showPanel("code");
   });
@@ -71,7 +80,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   return {
     controls: (id: string) => id === "code" ? disassembly?.controls : undefined,
     get canStepOut() { return debuggerState.canStepOut; },
-    reset(): void { debuggerState.reset(); },
+    reset(): void { debuggerState.reset(); devices?.reset(); },
     run(): void { debuggerState.run(location()); },
     step(): void { debuggerState.step(location()); },
     over(): void {
@@ -82,6 +91,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     pause(detail?: string): void { debuggerState.pause(location(), detail); },
     fail(detail: string): void { debuggerState.fail(location(), detail); },
     observe(record: Cpu6502StepRecord, before: DebugLocation, watches: readonly MemoryWatch[], changes: readonly Apple2MemoryChange[]): void {
+      devices?.observe(record, before);
       debuggerState.observe(apple2DebugStep(record, before, location(), catalogue.instructions));
       const hit = apple2Watchpoint(watches, record, catalogue.instructions, changes);
       if (hit) debuggerState.watchpoint(location(), describeApple2Watchpoint(hit, record.instruction.address));
@@ -99,6 +109,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
       showStopStatus(stopped ? `${reasons[stopped.kind]} at $${hex(stopped.location.address)}${stopped.location.space === "rom" ? " in ROM" : ""}.${stopped.detail ? ` ${stopped.detail}` : ""}`
         : running && debuggerState.request ? `Running · ${debuggerState.request === "target" ? "to address" : `step ${debuggerState.request}`}…` : "", running);
       const selected = machine();
+      if (selected && shouldUpdate("activity")) devices?.refresh(selected.disk.inspect().installed);
       if (selected && shouldUpdate("calls")) calls?.refresh(debuggerState.frames, debuggerState.trackingNote, address => apple2DebugLocation(selected, address));
       disassembly?.refresh(selected, records, available, running, shouldUpdate("code"));
       history?.refresh(records, shouldUpdate("trace"));

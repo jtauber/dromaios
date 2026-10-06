@@ -16,6 +16,8 @@ import { createInspectorChoices } from "./inspector-controls.js";
 import { createApple2Registers } from "./apple2-register-view.js";
 import type { Editable6502Register } from "./apple2-register-edit.js";
 import { hex, parseApple2Address } from "./apple2-explorer.js";
+import { createApple2SystemView } from "./apple2-system-view.js";
+import type { Apple2HardwareCatalogue } from "./apple2-hardware.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 
@@ -39,12 +41,14 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
   let machine: Machine | undefined;
   let latest: Cpu6502StepRecord | undefined, editable = false;
   let memoryChanges: readonly Apple2MemoryChange[] = [];
-  const { labels, instructions } = JSON.parse(element("rom-catalogue")!.textContent!) as { labels: readonly MemoryLabel[]; instructions: InstructionCatalogue };
+  const { labels, instructions, hardware } = JSON.parse(element("rom-catalogue")!.textContent!) as {
+    labels: readonly MemoryLabel[]; instructions: InstructionCatalogue; hardware: Apple2HardwareCatalogue };
   let preview: Apple2InstructionPreview | undefined;
   function nextInstruction(): Apple2InstructionPreview {
     return preview ??= preview6502(machine!.cpu.snapshot(), apple2StorageReader(machine!), instructions);
   }
   const browse = (value: number) => { browseMemory(value); showPanel("memory"); onMemoryPosition(); };
+  const hardwareView = createApple2SystemView(root, hardware, browse);
   const instruction = createApple2InstructionView(root, browse);
   const zeroView = createApple2ZeroPage(zero, labels, browse), stackView = createApple2StackView(stack, element("stack-page"));
   const watches = createApple2Watches(root, labels, browse);
@@ -89,7 +93,8 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
     if (shouldUpdate("system") || shouldUpdate("disk")) {
       const drive = machine.disk.inspect(), on = (value: boolean) => value ? "on" : "off";
       const disk = `Disk II ${drive.installed ? "installed" : "absent"}\nMedia ${drive.loaded ? "loaded · protected" : "absent"}\nDrive ${drive.drive} · motor ${on(drive.motor)}\nTrack ${drive.halfTrack / 2} · byte ${drive.position}\nPhase ${drive.phase} · Q6 ${+drive.q6} · Q7 ${+drive.q7}\nLatch $${hex(drive.latch, 2)}`;
-      if (shouldUpdate("system")) {
+      if (shouldUpdate("system") && hardwareView) hardwareView.refresh(machine, latest);
+      else if (shouldUpdate("system")) {
         const key = machine.keyboard.snapshot(), language = machine.language.snapshot(), video = machine.video.snapshot();
         system.textContent = `KEYBOARD\nKey $${hex(key.key, 2)} · strobe ${key.strobe ? "set" : "clear"}\n\nDISPLAY\nText ${on(video.text)} · mixed ${on(video.mixed)}\nHi-res ${on(video.hires)} · page ${video.page2 ? 2 : 1}\n\nLANGUAGE CARD\nRAM read ${on(language.ram_read)}\nRAM write ${on(language.ram_write)}\nBank ${language.bank2 ? 2 : 1} · prewrite ${on(language.prewrite)}\n\n${disk}`;
       }
