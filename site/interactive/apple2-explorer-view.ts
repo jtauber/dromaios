@@ -1,5 +1,10 @@
+import { createInstructionDebugger } from "./instruction-debugger.js";
+import { apple2DebugLocation, apple2DebugStep } from "./apple2-debugger.js";
+import { apple2StorageReader } from "./apple2-inspection.js";
+import { createApple2Breakpoints } from "./apple2-breakpoint-view.js";
+import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 import type { createApple2Session } from "./apple2-session.js";
-import { createApple2RunTarget, formatApple2Trace, hex, parseApple2Address, romRoutine } from "./apple2-explorer.js";
+import { formatApple2Trace, hex, parseApple2Address, romRoutine } from "./apple2-explorer.js";
 import type { Apple2TraceEntry, InstructionCatalogue, AddressLabel, MemoryLabel, RomRegion } from "./apple2-explorer.js";
 import { createApple2Disassembly } from "./apple2-disassembly-view.js";
 import { createApple2History } from "./apple2-history-view.js";
@@ -23,17 +28,19 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   const address = optional<HTMLInputElement>("rom-address"), toAddress = optional<HTMLButtonElement>("rom-run-address");
   const step = optional<HTMLButtonElement>("rom-step"), resume = optional<HTMLButtonElement>("rom-continue");
   const pause = optional<HTMLButtonElement>("rom-pause");
-  const target = createApple2RunTarget();
-  const disassembly = createApple2Disassembly(root, catalogue, address => { target.arm(address, false); run(); }, address => {
+  const debuggerState = createInstructionDebugger();
+  const location = () => apple2DebugLocation(machine()!);
+  const breakpoints = createApple2Breakpoints(root, debuggerState, () => disassembly?.refreshBreakpoints());
+  const disassembly = createApple2Disassembly(root, catalogue, address => { debuggerState.runTo(location(), address); run(); }, address => {
     reference?.select(address); navigation.showPanel("rom");
-  }, { address: navigation.memoryAddress, browse: navigation.browseMemory, show: () => navigation.showPanel("memory") });
+  }, { address: navigation.memoryAddress, browse: navigation.browseMemory, show: () => navigation.showPanel("memory") }, breakpoints);
   const reference = createApple2RomReference(root, catalogue, (tool, address) => {
     if (tool === "code") disassembly?.browse(address);
     else navigation.browseMemory(address);
     navigation.showPanel(tool);
   });
   const history = createApple2History(root, catalogue);
-  const stopMessages = root.querySelectorAll<HTMLElement>("[data-rom-stop-status], [data-disassembly-stop-status]");
+  const stopMessages = root.querySelectorAll<HTMLElement>("[data-rom-stop-status], [data-disassembly-stop-status], [data-debugger-status]");
   function showStopStatus(value: string, running = false): void {
     for (const message of stopMessages) {
       message.setAttribute("aria-live", running ? "off" : "polite");
@@ -44,7 +51,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   resume?.addEventListener("click", () => element<HTMLButtonElement>("machine-run").click());
   pause?.addEventListener("click", () => element<HTMLButtonElement>("machine-pause").click());
   function start(value: string, romOnly: boolean): void {
-    try { target.arm(parseApple2Address(value), romOnly); }
+    try { debuggerState.runTo(location(), parseApple2Address(value), romOnly ? "rom" : undefined); }
     catch (error) { showStopStatus((error as Error).message); return; }
     run();
   }
@@ -55,18 +62,30 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   });
   return {
     controls: (id: string) => id === "code" ? disassembly?.controls : undefined,
-    cancel(): void { target.cancel(); showStopStatus(""); },
-    pauseBeforeStep(): boolean {
-      if (!target.active) return false;
-      const selected = machine()!;
-      return target.pauseBeforeStep(selected.cpu.snapshot().pc, !selected.language.ramRead());
+    get canStepOut() { return debuggerState.canStepOut; },
+    reset(): void { debuggerState.reset(); },
+    run(): void { debuggerState.run(location()); },
+    step(): void { debuggerState.step(location()); },
+    over(): void {
+      const selected = machine()!, opcode = apple2StorageReader(selected)(selected.cpu.snapshot().pc);
+      debuggerState.over(location(), opcode === undefined ? undefined : catalogue.instructions[opcode]?.stackFlow);
     },
+    out(): void { debuggerState.out(location()); },
+    pause(detail?: string): void { debuggerState.pause(location(), detail); },
+    fail(detail: string): void { debuggerState.fail(location(), detail); },
+    observe(record: Cpu6502StepRecord): void { debuggerState.observe(apple2DebugStep(record, location(), catalogue.instructions)); },
+    pauseBeforeStep(): boolean { return debuggerState.beforeStep(location()); },
     refresh(records: readonly Apple2TraceEntry[], available: boolean, running: boolean): void {
       for (const control of [routine, address, toRoutine, toAddress, step, resume]) {
         if (control) control.disabled = !available || running;
       }
       if (pause) pause.disabled = !running;
-      showStopStatus(target.status, running);
+      const stopped = debuggerState.stop;
+      const reasons = { breakpoint: "Breakpoint", step: "Step complete", over: "Step over complete", out: "Step out complete",
+        target: "Run-to address reached", limit: "Instruction limit reached; destination not reached", pause: "Paused",
+        error: "Execution error", "tracking-lost": "Caller tracking lost" };
+      showStopStatus(stopped ? `${reasons[stopped.kind]} at $${hex(stopped.location.address)}${stopped.location.space === "rom" ? " in ROM" : ""}.${stopped.detail ? ` ${stopped.detail}` : ""}`
+        : running && debuggerState.request ? `Running · ${debuggerState.request === "target" ? "to address" : `step ${debuggerState.request}`}…` : "", running);
       const selected = machine();
       disassembly?.refresh(selected, records, available, running, shouldUpdate("code"));
       history?.refresh(records, shouldUpdate("trace"));

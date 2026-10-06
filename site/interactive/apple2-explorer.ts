@@ -1,4 +1,5 @@
 import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
+import type { StackFlow } from "./instruction-debugger.js";
 
 export interface AddressLabel {
   readonly address: string;
@@ -29,6 +30,7 @@ export type InstructionCatalogue = Readonly<Partial<Record<number, {
   readonly name: string;
   readonly length: 1 | 2 | 3;
   readonly controlFlow: InstructionControlFlow;
+  readonly stackFlow?: StackFlow;
   readonly branchCondition?: BranchCondition6502;
   readonly explanation?: string;
   readonly calculations?: readonly string[];
@@ -113,31 +115,4 @@ export function formatApple2Trace({ record, romMapped }: Apple2TraceEntry, instr
     `  PC → ${hex(after.pc)}${changes.length ? " · " + changes.join(" · ") : ""} · ${record.outcome}`,
     ...accesses.map(access => `  ${access.kind} $${hex(access.address)} = $${hex(access.value, 2)}`),
   ].join("\n");
-}
-
-/** One-shot stops are consumed before the target instruction or queued input is executed. */
-export function createApple2RunTarget() {
-  let target: { address: number; romOnly: boolean; remaining: number } | undefined;
-  let status = "";
-  return {
-    get active() { return target !== undefined; },
-    get status() { return status; },
-    arm(address: number, romOnly: boolean, budget = 2_000_000): void {
-      if (!Number.isInteger(address) || address < 0 || address > 0xffff) throw new RangeError("Use a hexadecimal address from 0000 to FFFF.");
-      if (!Number.isSafeInteger(budget) || budget < 1) throw new RangeError("The instruction limit must be positive.");
-      target = { address, romOnly, remaining: budget };
-      status = `Running to $${hex(address)}${romOnly ? " in ROM" : ""}…`;
-    },
-    cancel(): void { target = undefined; status = ""; },
-    pauseBeforeStep(pc: number, romMapped: boolean): boolean {
-      if (target === undefined) return false;
-      if (pc === target.address && (!target.romOnly || romMapped)) {
-        status = `Stopped before $${hex(pc)}${target.romOnly ? " in ROM" : ""}. Step executes this instruction; Run continues.`;
-      } else if (target.remaining === 0) {
-        status = `Paused at the instruction limit; $${hex(target.address)} was not reached. The machine is unchanged by the pause.`;
-      } else { target.remaining--; return false; }
-      target = undefined;
-      return true;
-    },
-  };
 }

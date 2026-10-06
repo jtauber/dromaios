@@ -85,6 +85,48 @@ uses execution records; the separate Instruction panel previews a copied CPU
 against safe storage observations. The machine's
 [model limitations](../../src/machines/6502/apple2.md#components-and-address-decoding) still apply.
 
+### Breakpoints and subroutine stepping
+
+In the laboratory, the circle beside each Disassembly row toggles an instruction
+breakpoint. A filled circle is enabled; an empty circle is inactive. **Breakpoints**
+below the listing also accepts addresses directly, with individual enable and
+remove controls. Choose **ROM only** for motherboard firmware or **Any mapping**
+for an address regardless of its current bank. Row markers in mapped motherboard
+ROM default to ROM-only stops. Up to 64 breakpoints are remembered in this browser;
+reset, fresh power-on, and loading media retain them. These are address preferences,
+not saved machine state or proof that the same software still occupies RAM.
+
+Breakpoints stop before the instruction and before offering queued keyboard input.
+After a breakpoint stops execution, **Run** crosses that boundary once, then stops
+again on the next visit. Run stops immediately at a newly added breakpoint at PC.
+The stepping controls cross the current boundary once; **Step** always executes
+exactly one instruction, even at an enabled breakpoint.
+
+The Execution panel adds **Step over** and **Step out**. Step over a `JSR` follows
+execution until that particular call returns, including nested calls and tail
+jumps; on another instruction it executes one step. Step out finishes the most
+recent observed call (or interrupt frame). It is unavailable until a caller has
+been observed. Neither control changes PC or reconstructs callers from arbitrary
+stack bytes. Reset, fresh power-on, media replacement, register editing, and
+execution errors clear the observed history.
+
+Calls are recognized from the CPU specification's PC/SP writes and ordered stack
+accesses. The tracker checks the returning PC and stack pointer against the
+observed call, handles nested `BRK`/`RTI` frames, and retains at most 128 frames.
+If software replaces SP or returns somewhere unexpected, a pending subroutine
+step stops and reports that caller tracking was lost. This matters for software
+that uses the stack for dispatch or edits return addresses. Hardware interrupt
+entry is not automatically polled by this machine.
+
+Breakpoints take precedence over a completed step or run-to request. A breakpoint,
+Pause, or leaving the page cancels the temporary request; Step out can be selected
+again using the retained call history. Run-to, Step over, and Step out have a
+two-million-instruction limit so a polling loop cannot run indefinitely as a step.
+The Execution and Disassembly panels distinguish breakpoint stops, completed
+steps, reached addresses, manual pauses, instruction limits, lost callers, and
+execution errors. Ordinary Run continues until paused, stopped at a breakpoint,
+or an execution error occurs.
+
 ### Live disassembly
 
 The laboratory's **Disassembly** panel shows a sixteen-row listing. Its

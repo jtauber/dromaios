@@ -35,9 +35,10 @@
         </div>
       </div>
     </section>
-    <section class="lab-tool lab-panel-body lab-machine-controls" data-workspace-panel="execution" data-panel-title="Execution">
-      {{ execution_controls() }}
+    <section class="lab-tool lab-panel-body lab-scroll lab-machine-controls" data-workspace-panel="execution" data-panel-title="Execution">
+      {{ execution_controls(debugger=true) }}
       <p data-machine-status class="basic-readout" role="status">Preparing hardware…</p>
+      <p data-debugger-status class="basic-message" role="status"></p>
       <p data-machine-message class="basic-message" role="status"></p>
     </section>
     <section class="lab-tool lab-tool-registers" data-workspace-panel="registers" data-panel-live="true" data-panel-title="Registers" data-panel-heading="MOS 6502"><div class="lab-panel-body"><div data-machine-inspect>Preparing the processor…</div></div></section>
@@ -94,9 +95,15 @@
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="code" data-panel-live="true" data-panel-title="Disassembly" data-disassembly>
       <p data-disassembly-status class="lab-hint" role="status"></p>
       <table class="lab-code"><caption class="visually-hidden">· executed &nbsp; → next instruction</caption>
-        <thead><tr><th scope="col">PC</th><th scope="col">Routine</th><th scope="col">Address</th><th scope="col">Bytes</th><th scope="col">Instruction</th><th scope="col">Operand</th></tr></thead>
+        <thead><tr><th scope="col" aria-label="Breakpoint">●</th><th scope="col">PC</th><th scope="col">Routine</th><th scope="col">Address</th><th scope="col">Bytes</th><th scope="col">Instruction</th><th scope="col">Operand</th></tr></thead>
         <tbody data-disassembly-rows></tbody>
       </table>
+      <details data-breakpoints>
+        <summary>Breakpoints<span data-breakpoint-count></span></summary>
+        <form class="lab-watch-form"><label>Address (hex)<input name="address" maxlength="5" size="5" placeholder="FD21" required autocomplete="off" spellcheck="false"></label><label>Mapping<select name="scope"><option value="any">Any mapping</option><option value="rom">ROM only</option></select></label><button type="submit">Add</button></form>
+        <div data-breakpoint-rows></div><p data-breakpoint-status class="lab-hint" role="status"></p>
+        <p class="lab-hint">Saved in this browser. Run crosses a breakpoint that just stopped execution once, then stops on the next visit. Step executes one instruction.</p>
+      </details>
       <details class="lab-code-navigation-details"><summary>Navigate or run to an address</summary>
       <form data-disassembly-form class="lab-address"><label>Address (hex) <input data-disassembly-address value="0000" maxlength="5" spellcheck="false" autocomplete="off"></label><button type="submit">Browse</button><button type="button" data-disassembly-run disabled>Run to address</button></form>
       <div class="lab-code-navigation">

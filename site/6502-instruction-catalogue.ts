@@ -1,6 +1,7 @@
 import type { FlagExpression, InstructionDefinition, Statement } from "../src/components/cpus/semantics/model.ts";
 import type { BranchCondition6502, InstructionCatalogue, InstructionControlFlow } from "./interactive/apple2-explorer.ts";
 import { instructionExplanation6502 } from "./6502-instruction-explanation.ts";
+import type { StackFlow } from "./interactive/instruction-debugger.ts";
 
 interface InstructionLayout {
   readonly operandBytes: number;
@@ -66,6 +67,22 @@ export function instructionCatalogue6502(entries: readonly (readonly [number, In
   return Object.fromEntries(entries.map(([opcode, definition]) => {
     const { operandBytes, controlFlow, branchCondition } = instructionLayout(definition.steps), length = 1 + operandBytes;
     if (length !== 1 && length !== 2 && length !== 3) throw new Error(`Invalid 6502 instruction length for ${definition.name}.`);
-    return [opcode, { name: definition.name, length, controlFlow, ...instructionExplanation6502(definition), ...(branchCondition && { branchCondition }) }];
+    const explanation = instructionExplanation6502(definition);
+    // The chapter's PC/SP writes and ordered data accesses distinguish stacked
+    // transfers. Fetches may be interleaved (JSR fetches its high operand late).
+    // Reject new shapes rather than guessing from an opcode or mnemonic.
+    let stackFlow: StackFlow | undefined;
+    if (controlFlow === "unconditional" && explanation.writes.registers.includes("sp")) {
+      const data = explanation.accesses.filter(access => access !== "fetch").join(" ");
+      switch (data) {
+        case "write write": stackFlow = "call"; break;
+        case "read read": stackFlow = "return"; break;
+        case "write write write read read": stackFlow = "interrupt"; break;
+        case "read read read": stackFlow = "interrupt-return"; break;
+        default: throw new Error(`Unrecognized 6502 stacked transfer in ${definition.name}: ${data}.`);
+      }
+    }
+    return [opcode, { name: definition.name, length, controlFlow, ...explanation,
+      ...(stackFlow && { stackFlow }), ...(branchCondition && { branchCondition }) }];
   }));
 }

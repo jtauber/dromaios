@@ -4,11 +4,13 @@ data-bootstrap-bytes="{{ media.bootstrap.bytes }}" data-bootstrap-sha256="{{ med
 data-disk-bytes="{{ media.disk.bytes }}" data-disk-sha256="{{ media.disk.sha256 }}"
 {%- endmacro %}
 
-{% macro execution_controls() %}
+{% macro execution_controls(debugger=false) %}
 <div class="basic-controls" role="group" aria-label="Apple II controls">
   <button type="button" data-machine-run disabled>Run</button>
   <button type="button" data-machine-pause disabled>Pause</button>
   <button type="button" data-machine-step disabled>Step</button>
+  {% if debugger %}<button type="button" data-machine-over disabled>Step over</button>
+  <button type="button" data-machine-out disabled>Step out</button>{% endif %}
   <button type="button" data-machine-reset disabled>Reset CPU</button>
   <button type="button" data-machine-power disabled>Fresh power-on</button>
 </div>

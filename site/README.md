@@ -245,10 +245,15 @@ refreshes. Its tests cover batches ending with a non-writing instruction,
 recording disabled, repeated writes, bank visibility, and address boundaries.
 `6502-instruction-catalogue.ts` derives fixed instruction lengths and control flow
 from the chapter's operand fetches and explicit PC writes at build time, including
-BRK's padding byte. The browser receives names, lengths, and transfer kinds
+BRK's padding byte. PC/SP writes and ordered data accesses also identify the four
+stacked control transfers without consulting their mnemonics. The browser receives names, lengths, and transfer kinds
 alongside the versioned ROM labels; it does not load the
 semantic compiler or maintain a second opcode table. Address buttons share the
-explorer's bounded run-to controller. The [replacement plan](../docs/machines/apple2.md#replacement-progress)
+shared `instruction-debugger.ts` policy for bounded run-to, Step over / Step out,
+persistent breakpoint matching, and observed caller tracking. The policy has no
+machine, memory, DOM, or scheduler connection. `apple2-debugger.ts` supplies mapping
+and completed-step observations; `apple2-breakpoint-view.ts` owns the saved address
+preferences and controls. ROM labels remain in the versioned software guide. The [replacement plan](../docs/machines/apple2.md#replacement-progress)
 tracks feature gaps separately from the layout. The Machines navigation opens the
 home-page machine index. `rom-file.ts` checks the complete container and extracted
 ROM; `apple2-session.ts` creates hardware immediately with an explicit empty

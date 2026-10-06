@@ -1,3 +1,4 @@
+import type { createApple2Breakpoints } from "./apple2-breakpoint-view.js";
 import type { createApple2Session } from "./apple2-session.js";
 import { apple2CodeReferences, apple2CodeRows } from "./apple2-disassembly.js";
 import type { Apple2CodeRow } from "./apple2-disassembly.js";
@@ -14,7 +15,7 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: {
   readonly instructions: InstructionCatalogue; readonly routines: readonly AddressLabel[]; readonly labels: readonly MemoryLabel[];
 }, runTo: (address: number) => void, showReference: (address: number) => void, memory: {
   readonly address: () => number; readonly browse: (address: number) => void; readonly show: () => void;
-}) {
+}, breakpoints?: ReturnType<typeof createApple2Breakpoints>) {
   const panel = root.querySelector<HTMLElement>("[data-disassembly]");
   if (panel === null) return undefined;
   const element = <T extends HTMLElement>(name: string) => panel.querySelector<T>(`[data-disassembly-${name}]`)!;
@@ -47,14 +48,17 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: {
   }
   // Stable rows preserve keyboard focus as execution updates the view.
   const views = Array.from({ length: 16 }, (_, index) => {
-    const row = body.insertRow(), pointer = row.insertCell(), routine = row.insertCell(), location = row.insertCell();
+    const row = body.insertRow(), stop = row.insertCell(), pointer = row.insertCell(), routine = row.insertCell(), location = row.insertCell();
     const bytes = row.insertCell(), instruction = row.insertCell(), reference = row.insertCell();
     const button = document.createElement("button"), assembly = document.createElement("span");
     const label = referenceLink("entry"), operand = referenceLink("operand");
     button.type = "button";
+    const breakpoint = document.createElement("button"); breakpoint.type = "button"; breakpoint.className = "lab-breakpoint-marker";
+    breakpoint.addEventListener("click", () => { const row = rows[index]; if (row) breakpoints?.toggle(row.address, row.romMapped); });
+    stop.append(breakpoint);
     routine.append(label.button); location.append(button); instruction.append(assembly); reference.append(operand.button);
     button.addEventListener("click", () => { if (canRun && rows[index]?.complete) runTo(rows[index]!.address); });
-    return { row, pointer, button, bytes, assembly, label, operand };
+    return { row, pointer, button, breakpoint, bytes, assembly, label, operand };
   });
   function go(value: number): void {
     if (value !== start) history.push(start);
@@ -118,11 +122,23 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: {
       view.label.show(references.entry);
       view.operand.show(references.operand?.label, references.operand?.text);
     });
+    refreshBreakpoints();
     back.disabled = history.length === 0; next.disabled = nextAddress() === undefined; run.disabled = !canRun;
     status.setAttribute("aria-live", running ? "off" : "polite");
     status.textContent = `${mode.value === "pc" ? "PC" : "MEM"} · $${hex(start)}`;
   }
+  function refreshBreakpoints(): void {
+    views.forEach((view, index) => {
+      const row = rows[index]; if (!row) return;
+      const point = breakpoints?.at(row.address, row.romMapped);
+      view.breakpoint.textContent = point?.enabled ? "●" : "○";
+      view.breakpoint.setAttribute("aria-pressed", String(point?.enabled ?? false));
+      view.breakpoint.setAttribute("aria-label", `${point?.enabled ? "Disable" : "Enable"} breakpoint at $${hex(row.address)}${row.romMapped && row.address >= 0xd000 ? " in ROM" : ""}`);
+      view.breakpoint.title = view.breakpoint.getAttribute("aria-label")!;
+    });
+  }
   return {
+    refreshBreakpoints,
     controls: mode.element,
     browse: go,
     refresh(selected: Machine | undefined, records: readonly Apple2TraceEntry[], available: boolean, active: boolean, update: boolean): void {

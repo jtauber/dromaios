@@ -216,8 +216,10 @@ The **ROM execution explorer** and its
 the first observation tools. The software guide owns its routine annotations,
 stops, and acceptance path. Captured CPU records explain completed instructions;
 the laboratory's Disassembly panel also decodes current mapped storage, follows PC or Memory, and
-browses addresses without guest device reads. Address breakpoints and ROM routine stops are bounded, one-shot
-requests. The tested path follows reset to the Applesoft prompt, then a keypress
+browses addresses without guest device reads. Run-to-address and ROM routine stops
+are bounded, one-shot requests. The laboratory also has saved instruction
+breakpoints and Step over / Step out, with explicit stop reasons and caller
+tracking from completed execution records. The tested path follows reset to the Applesoft prompt, then a keypress
 through acknowledgement and echo.
 
 ## Classroom and laboratory
@@ -256,7 +258,7 @@ paths before a shared peripheral-inspection abstraction is designed.
 | --- | --- | --- |
 | Workspace | Dark workspace with draggable panels, resizable splits, tab groups, collapse/expand and close/reopen controls, keyboard arrangement, saved layout, and per-inspector Live toggles. | — |
 | Execution and display | Reference bitmap characters, shared text/graphics raster, colour/green monochrome and scanline toggles, direct screen typing, local media selection, a dockable Execution panel below Screen by default. | Reference speed controls require an explicit timing model; do not label instruction batching as a hardware clock. |
-| CPU inspection | Registers and flags with last-instruction change highlights and previous values; paused register editing; next-instruction preview with branch tests, address calculations, declared assignments, and chapter-derived explanations; disassembly with PC/MEM selection, address browsing and run-to stops; captured disassembly of the last twelve instructions, selectable captured changes and ordered accesses for each retained step. | — |
+| CPU inspection | Registers and flags with last-instruction change highlights and previous values; paused register editing; next-instruction preview with branch tests, address calculations, declared assignments, and chapter-derived explanations; disassembly with PC/MEM selection, address browsing, run-to stops and saved mapping-aware breakpoints; Step over / Step out with bounded observed caller tracking and explicit stop reasons; captured disassembly of the last twelve instructions, selectable captured changes and ordered accesses for each retained step. | — |
 | Memory | Zero page, full-address-space scrolling memory with a header address field and fixed/PC/changed-RAM following, stack entries/full-page toggle and push/pull addresses; per-panel 8/16-byte rows with optional Apple II characters; last-instruction changes and next-instruction fetch/read/write marks across all three views, including named workspace words and pending stack accesses; clickable operand addresses and saved byte watches. | — |
 | Change history | Instruction-attributed before/after values for registers, flags, PC, and physical RAM, including Language Card banks; bounded history with recording and display filters. | — |
 | ROM and system | Searchable Monitor reference with PC/Memory following, mapping-aware context, and navigation to Disassembly and Memory; versioned routine stops; keyboard, display, Language Card, and disk snapshots. | Further annotations and visual activity indicators. |

@@ -1,10 +1,12 @@
+import { createInstructionDebugger } from "../../site/interactive/instruction-debugger.js";
+import { apple2DebugLocation, apple2DebugStep } from "../../site/interactive/apple2-debugger.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { families } from "../../src/components/cpus/semantics/generated/6502.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { createApple2Session } from "../../site/interactive/apple2-session.js";
-import { createApple2RunTarget, disassemble6502, formatApple2Trace, romRoutine } from "../../site/interactive/apple2-explorer.js";
+import { disassemble6502, formatApple2Trace, romRoutine } from "../../site/interactive/apple2-explorer.js";
 import type { AddressLabel, MemoryLabel, RomRegion, Apple2TraceEntry } from "../../site/interactive/apple2-explorer.js";
 import { createRomReference } from "../../site/interactive/apple2-rom-reference.js";
 import { readRomFile } from "../../site/interactive/rom-file.js";
@@ -82,28 +84,6 @@ test("6502 disassembly uses chapter names and captured operands for all addressi
   }
 });
 
-test("one-shot stops distinguish mapped ROM, stop at the current PC, and enforce a budget", () => {
-  const target = createApple2RunTarget();
-  target.arm(0xfd21, true, 2);
-  assert.equal(target.pauseBeforeStep(0xfd21, false), false);
-  assert.equal(target.pauseBeforeStep(0x1234, true), false);
-  // Reaching the target on the last permitted instruction wins over exhaustion.
-  assert.equal(target.pauseBeforeStep(0xfd21, true), true);
-  assert.match(target.status, /Stopped before/);
-  assert.equal(target.active, false);
-  assert.equal(target.pauseBeforeStep(0xfd21, true), false);
-  target.arm(0xfd21, false);
-  assert.equal(target.pauseBeforeStep(0xfd21, false), true);
-  target.arm(0xfd21, false, 1);
-  assert.equal(target.pauseBeforeStep(0, true), false);
-  assert.equal(target.pauseBeforeStep(0, true), true);
-  assert.match(target.status, /not reached/);
-  target.arm(0, false); target.cancel();
-  assert.equal(target.active, false); assert.equal(target.status, "");
-  for (const invalid of [-1, 65536, 1.5, NaN]) assert.throws(() => target.arm(invalid, false), RangeError);
-  assert.equal(romRoutine(0xfd21, false, annotations.routines), undefined);
-});
-
 test("trace formatting retains captured bytes, changes, and access order after memory changes", () => {
   const memory = new Ram(65536);
   [0xad, 0x00, 0xc0].forEach((byte, index) => memory.write(0x200 + index, byte));
@@ -146,11 +126,12 @@ test("the published ROM walkthrough reaches the prompt and follows A through pol
   const buffer = new Uint8Array(readFileSync(romPath)).buffer;
   const container = JSON.parse(readFileSync("src/machines/6502/apple2.md", "utf8").match(/```json\n([\s\S]*?)```/)![1]!);
   const rom = await readRomFile({ name: "local ROM", size: buffer.byteLength, async arrayBuffer() { return buffer; } }, romImages.firmware, container);
-  const session = createApple2Session(rom.image), { machine } = session, target = createApple2RunTarget();
+  const session = createApple2Session(rom.image), { machine } = session, target = createInstructionDebugger();
   const entries: Apple2TraceEntry[] = [];
   function step() {
     const romMapped = !machine.language.ramRead(), record = session.step();
     assert.equal(record.outcome, "executed");
+    target.observe(apple2DebugStep(record, apple2DebugLocation(machine), instructions));
     entries.push({ record, romMapped });
     if (entries.length > 12) entries.shift();
     return record;
@@ -158,9 +139,9 @@ test("the published ROM walkthrough reaches the prompt and follows A through pol
   function runTo(name: string): void {
     const routine = annotations.routines.find(routine => routine.name === name)!;
     assert.ok(routine);
-    target.arm(parseInt(routine.address, 16), true);
-    while (!target.pauseBeforeStep(machine.cpu.snapshot().pc, !machine.language.ramRead())) step();
-    assert.match(target.status, /Stopped before/);
+    target.runTo(apple2DebugLocation(machine), parseInt(routine.address, 16), "rom");
+    while (!target.beforeStep(apple2DebugLocation(machine))) step();
+    assert.equal(target.stop?.kind, "target");
   }
   function screen() { return apple2TextFrame(machine.ram, machine.video, false).map(row => row.map(cell => cell.character).join("").trimEnd()).join("\n").trim(); }
   assert.equal(machine.cpu.snapshot().pc, 0xfa62);
