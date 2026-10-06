@@ -62,6 +62,34 @@ class PublishingTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 rom_annotations(broken, {"sha256": catalogue["sha256"]})
 
+    def test_rom_details_notes_and_walkthroughs_have_checked_cross_references(self):
+        record = json.loads(re.search(r"```json\n(.*?)\n```", APPLE2_ROM.read_text(), re.S)[1])
+        firmware = {"sha256": record["sha256"]}
+        self.assertEqual([tour["id"] for tour in rom_annotations(APPLE2_ROM.read_text(), firmware)["walkthroughs"]],
+                         ["echo", "carriage-return", "scroll"])
+        self.assertEqual(sum("details" in routine for routine in record["routines"]), 4)
+        changes = [
+            ("routines", lambda value: value[2]["details"].update(workspace=["KBD"])),
+            ("routines", lambda value: value[2]["details"].update(related=["Missing"])),
+            ("routines", lambda value: value[2]["details"].update(inputs="")),
+            ("notes", lambda value: value.append(value[0])),
+            ("notes", lambda value: value[0].update(address="C000")),
+            ("notes", lambda value: value[0].update(bytes="6c 36 00")),
+            ("notes", lambda value: value[0].update(bytes="6C 36 00 00")),
+            ("notes", lambda value: value[0].update(text="")),
+            ("walkthroughs", lambda value: value.append(value[0])),
+            ("walkthroughs", lambda value: value[0].update(steps=[])),
+            ("walkthroughs", lambda value: value[0]["steps"][0].update(address="C000")),
+            ("walkthroughs", lambda value: value[0]["steps"][0].update(address="FA61")),
+            ("walkthroughs", lambda value: value[0]["steps"][0].update(routine="Missing")),
+            ("walkthroughs", lambda value: value[0]["steps"][0].update(prepare="")),
+        ]
+        for field, change in changes:
+            broken = json.loads(json.dumps(record))
+            change(broken[field])
+            with self.subTest(field=field, value=broken[field]), self.assertRaises(ValueError):
+                rom_annotations("```json\n" + json.dumps(broken) + "\n```", firmware)
+
     def test_basic_lessons_publish_the_same_inputs_as_the_checked_transcripts(self):
         for slug, chapter in basic_lesson_catalogue().items():
             with self.subTest(lesson=slug):

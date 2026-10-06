@@ -14,20 +14,21 @@ export const apple2DefaultLayout: WorkspaceLayout = {
         area(.35, split("execution-and-cpu", "vertical", area(.4, group("execution")), area(.35, group("registers")), area(.25, group("instruction")))),
         area(.65, group("code")))))),
     area(.2632, split("zero-and-memory", "vertical", area(.36, group("zero")), area(.352, group("memory", "watches")), area(.288, group("stack", "calls")))),
-    area(.2968, group("rom", "trace", "log", "system", "activity", "disk"))),
+    area(.2968, group("rom", "walkthrough", "trace", "log", "system", "activity", "disk"))),
 };
 
-export const apple2WorkspaceKey = "dromaios:workspace:apple2:5";
+export const apple2WorkspaceKey = "dromaios:workspace:apple2:6";
 
 /** Introduce new instruments once, retaining the saved arrangement and later choices to hide them. */
 export function migrateApple2Workspace(storage: { getItem(key: string): string | null; setItem(key: string, value: string): void }, ids: readonly string[]): void {
   if (storage.getItem(apple2WorkspaceKey) !== null) return;
+  const version5 = storage.getItem("dromaios:workspace:apple2:5");
   const version4 = storage.getItem("dromaios:workspace:apple2:4");
   const version3 = storage.getItem("dromaios:workspace:apple2:3"), version2 = storage.getItem("dromaios:workspace:apple2:2");
-  const saved = version4 ?? version3 ?? version2 ?? storage.getItem("dromaios:workspace:apple2");
+  const saved = version5 ?? version4 ?? version3 ?? version2 ?? storage.getItem("dromaios:workspace:apple2");
   if (saved === null) return;
   let layout = decodeWorkspaceState(saved, ids);
-  if (version4 === null && version3 === null && version2 === null && !panelGroup(layout, "execution")) {
+  if (version5 === null && version4 === null && version3 === null && version2 === null && !panelGroup(layout, "execution")) {
     const screen = panelGroup(layout, "screen");
     if (screen) {
       layout = movePanel(layout, "execution", { group: screen.id, side: "below" });
@@ -46,8 +47,9 @@ export function migrateApple2Workspace(storage: { getItem(key: string): string |
       layout = collapseGroup(layout, existing.id, existing.collapsed);
     }
   }
-  if (version4 === null && version3 === null) addTab("watches", "memory");
-  if (version4 === null) addTab("calls", "stack");
-  addTab("activity", "system");
+  if (version5 === null && version4 === null && version3 === null) addTab("watches", "memory");
+  if (version5 === null && version4 === null) addTab("calls", "stack");
+  if (version5 === null) addTab("activity", "system");
+  addTab("walkthrough", "rom");
   storage.setItem(apple2WorkspaceKey, encodeWorkspaceState(layout));
 }

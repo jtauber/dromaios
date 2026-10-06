@@ -97,6 +97,7 @@
           <h3 data-reference-heading></h3>
           <p data-reference-description></p>
           <p data-reference-offset class="lab-hint"></p>
+          <dl data-reference-details class="lab-routine-details" hidden></dl>
           <div class="basic-controls"><button type="button" data-reference-code disabled>Browse code</button><button type="button" data-reference-memory disabled>View memory</button></div>
         </div>
         <label>Search ROM reference <input type="search" data-reference-search placeholder="Name, address, or description" autocomplete="off" spellcheck="false"></label>
@@ -106,10 +107,24 @@
       </div>
       <p><a href="{{ calc_url(apple2_url ~ '#exploring-the-rom-reference') }}" target="_blank" rel="noopener">Read the reference guide ↗</a> · <a href="{{ calc_url(apple2_url ~ '#rom-walkthrough') }}" target="_blank" rel="noopener">ROM walkthrough ↗</a></p>
     </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="walkthrough" data-panel-title="Walkthrough" data-rom-walkthrough>
+      <label>ROM walkthrough <select data-walkthrough-choice aria-label="ROM walkthrough"></select></label>
+      <p data-walkthrough-setup class="lab-walkthrough-setup"></p>
+      <label>Checkpoint <select data-walkthrough-checkpoints aria-label="Checkpoint"></select></label>
+      <div class="lab-walkthrough-navigation"><button type="button" data-walkthrough-previous>Previous</button><button type="button" data-walkthrough-next>Next</button></div>
+      <h2 data-walkthrough-heading></h2>
+      <h3>Before running</h3><p data-walkthrough-prepare></p>
+      <div class="basic-controls"><button type="button" data-walkthrough-run disabled>Run to checkpoint</button><button type="button" data-walkthrough-browse>Browse code</button><button type="button" data-walkthrough-reference>Routine reference</button></div>
+      <p data-walkthrough-position class="lab-hint" role="status"></p>
+      <p data-walkthrough-stop-status class="basic-message" role="status"></p>
+      <h3>What to observe</h3><p data-walkthrough-observe></p>
+      <p class="lab-hint">Selecting a checkpoint changes only the guide. Run stops before its address in ROM, with the usual breakpoints, watchpoints, and instruction limit. Reaching the address does not verify the setup. Step, Pause, and reset remain in Execution.</p>
+      <p><a href="{{ calc_url(apple2_url ~ '#rom-walkthrough') }}" target="_blank" rel="noopener">Read the full walkthrough ↗</a></p>
+    </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="code" data-panel-live="true" data-panel-title="Disassembly" data-disassembly>
       <p data-disassembly-status class="lab-hint" role="status"></p>
       <table class="lab-code"><caption class="visually-hidden">· executed &nbsp; → next instruction</caption>
-        <thead><tr><th scope="col" aria-label="Breakpoint">●</th><th scope="col">PC</th><th scope="col">Routine</th><th scope="col">Address</th><th scope="col">Bytes</th><th scope="col">Instruction</th><th scope="col">Operand</th></tr></thead>
+        <thead><tr><th scope="col" aria-label="Breakpoint">●</th><th scope="col">PC</th><th scope="col">Routine</th><th scope="col">Address</th><th scope="col">Bytes</th><th scope="col">Instruction</th><th scope="col">Operand</th><th scope="col" data-rom-notes-heading>ROM comment</th></tr></thead>
         <tbody data-disassembly-rows></tbody>
       </table>
       <details data-breakpoints>

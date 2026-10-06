@@ -89,3 +89,16 @@ test("version 4 gains Device activity beside System without reopening hidden ins
   migrateApple2Workspace(storage, ids);
   assert.equal(panelGroup(decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, ids), "activity"), undefined);
 });
+
+test("version 5 gains Walkthrough beside ROM without reopening hidden instruments or changing selection", () => {
+  const ids = ["rom", "walkthrough", "system", "activity", "calls", "watches", "execution"];
+  const layout: WorkspaceLayout = { root: { kind: "tabs", id: "tools", panels: ["rom", "system"], active: "system", collapsed: true } };
+  const storage = preferences(); storage.setItem("dromaios:workspace:apple2:5", encodeWorkspaceState(layout));
+  migrateApple2Workspace(storage, ids);
+  const updated = decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, ids);
+  assert.deepEqual(panelGroup(updated, "walkthrough"), { ...layout.root, panels: ["rom", "system", "walkthrough"] });
+  for (const id of ["activity", "calls", "watches", "execution"]) assert.equal(panelGroup(updated, id), undefined);
+  storage.setItem(apple2WorkspaceKey, encodeWorkspaceState(closePanel(updated, "walkthrough")));
+  migrateApple2Workspace(storage, ids);
+  assert.equal(panelGroup(decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, ids), "walkthrough"), undefined);
+});

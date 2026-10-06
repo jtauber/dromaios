@@ -260,7 +260,7 @@ switch. The debugger cancels temporary requests when a watchpoint stops executio
 after an instruction. `apple2-call-stack-view.ts` displays detached observed frames,
 including captured mappings and persistent lost-history notices; it never reads
 the hardware stack. Workspace migrations introduce Call stack beside Stack and,
-in version 5, Device activity beside System, preserving existing arrangements
+in version 5, Device activity beside System; version 6 adds Walkthrough beside ROM, preserving existing arrangements
 and deliberately hidden instruments. ROM labels
 remain in the versioned software guide. The [replacement plan](../docs/machines/apple2.md#replacement-progress)
 tracks feature gaps separately from the layout. The Machines navigation opens the
@@ -281,6 +281,16 @@ changes since the previous displayed sample. Neither reads the guest bus nor
 copies disk media. These remain concrete Apple II adapters; no new peripheral
 language or runtime compiler is introduced. Disk II descriptions use its existing
 binding metadata and the machine chapter.
+`apple2-rom-guide.ts` types the versioned guide and supplies byte/mapping-checked
+instruction notes and checkpoint position text. `apple2-rom-reference-view.ts`
+renders optional routine inputs, effects, workspace links, and related entries;
+`apple2-walkthrough-view.ts` renders authored checkpoints and requests the existing
+ROM-only debugger stops. Selecting a checkpoint is read-only. The guide contains
+no setup scripts, assertions that an address match proves a scenario, or hidden
+machine mutations. `apple2_rom.py` validates addresses, references, and instruction
+lengths during the site build; optional real-ROM tests follow every authored
+checkpoint and compare each note's bytes against the verified image.
+
 `apple2-device-history.ts` retains bounded completed-instruction I/O transfers,
 including slot-ROM fetches, coalescing identical polls with counts. The explorer
 observes it on every successful step, independently of visibility and Live.

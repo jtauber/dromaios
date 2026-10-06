@@ -124,10 +124,10 @@
 .lab-code-navigation label { display: flex; align-items: center; gap: 5px; margin-right: auto; }
 .lab-code { width: 100%; border-collapse: collapse; font: 11px/1.7 var(--mono); }
 .lab-code caption { text-align: left; }
-.lab-code th { text-align: left; font-size: 10px; color: var(--muted); font-weight: 400; }
+.lab-code th { padding: 0 8px 0 2px; white-space: nowrap; text-align: left; font-size: 10px; color: var(--muted); font-weight: 400; }
 .lab-code th:first-child { padding-right: 6px; }
-.lab-code td { padding: 3px 2px; vertical-align: top; white-space: nowrap; }
-.lab-code th:last-child, .lab-code td:last-child { padding-left: 12px; }
+.lab-code td { padding: 3px 8px 3px 2px; vertical-align: top; white-space: nowrap; }
+.lab-code th:nth-child(7), .lab-code td:nth-child(7), .lab-code th:last-child, .lab-code td:last-child { padding-left: 12px; }
 .lab-code th:nth-child(3), .lab-code td:nth-child(3) { padding-right: 12px; }
 .lab-code td:first-child { color: var(--accent); }
 .lab-code button { border: 0; padding: 0; background: transparent; color: var(--accent); font: inherit; text-decoration: underline; text-underline-offset: .2em; }
@@ -181,3 +181,15 @@
 .lab-screen-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .lab-screen-inspector [data-screen-notice]:empty { display: none; }
 .lab-display-footer [data-screen-inspect][aria-pressed="true"] { color: #ffcf66; border-color: #ffcf66; }
+
+.lab-code td.lab-rom-note { white-space: normal; min-width: 23ch; max-width: 32ch; font: 11px/1.5 system-ui, sans-serif; color: #b4cce8; }
+.lab-routine-details { margin: 12px 0; font-size: 12px; }
+.lab-routine-details dt { color: var(--accent); font-weight: 600; margin-top: 10px; }
+.lab-routine-details dd { margin: 4px 0 0; }
+.lab-reference-links { display: flex; flex-wrap: wrap; gap: 5px; }
+.lab-reference-links button { font: 11px/1.5 var(--mono); padding: 3px 6px; }
+[data-rom-walkthrough] h2 { font: 600 14px/1.5 var(--mono); color: #ffd18a; margin: 16px 0 10px; }
+[data-rom-walkthrough] h3 { color: var(--accent); font-size: 12px; margin: 16px 0 6px; }
+[data-rom-walkthrough] p { font-size: 12px; line-height: 1.6; }
+.lab-walkthrough-setup { padding: 10px; background: #131f33; border-left: 2px solid var(--line); }
+.lab-walkthrough-navigation { display: flex; gap: 6px; margin-top: 8px; }

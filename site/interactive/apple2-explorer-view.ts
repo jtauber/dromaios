@@ -10,7 +10,9 @@ import { createApple2Breakpoints } from "./apple2-breakpoint-view.js";
 import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 import type { createApple2Session } from "./apple2-session.js";
 import { formatApple2Trace, hex, parseApple2Address, romRoutine } from "./apple2-explorer.js";
-import type { Apple2TraceEntry, InstructionCatalogue, AddressLabel, MemoryLabel, RomRegion } from "./apple2-explorer.js";
+import type { Apple2TraceEntry, InstructionCatalogue } from "./apple2-explorer.js";
+import { createApple2Walkthrough } from "./apple2-walkthrough-view.js";
+import type { Apple2RomGuide } from "./apple2-rom-guide.js";
 import { createApple2Disassembly } from "./apple2-disassembly-view.js";
 import { createApple2History } from "./apple2-history-view.js";
 import { createApple2RomReference } from "./apple2-rom-reference-view.js";
@@ -25,9 +27,8 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   readonly showPanel: (id: string) => void;
 }) {
   const element = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
-  const catalogue = JSON.parse(element("rom-catalogue").textContent!) as {
-    readonly instructions: InstructionCatalogue; readonly routines: readonly AddressLabel[];
-    readonly labels: readonly MemoryLabel[]; readonly regions: readonly RomRegion[];
+  const catalogue = JSON.parse(element("rom-catalogue").textContent!) as Apple2RomGuide & {
+    readonly instructions: InstructionCatalogue;
     readonly hardware: Apple2HardwareCatalogue;
   };
   const optional = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`);
@@ -47,6 +48,11 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     else navigation.browseMemory(address);
     navigation.showPanel(tool);
   });
+  const walkthrough = createApple2Walkthrough(root, catalogue, {
+    runTo: address => start(address, true),
+    browse: address => { disassembly?.browse(address); navigation.showPanel("code"); },
+    reference: address => { reference?.select(address); navigation.showPanel("rom"); },
+  });
   const history = createApple2History(root, catalogue);
   function browseCode(target: DebugLocation): string | undefined {
     if (apple2DebugLocation(machine()!, target.address).space !== target.space) {
@@ -59,7 +65,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   const calls = createApple2CallStack(root, catalogue.routines, address => {
     disassembly?.browse(address); navigation.showPanel("code");
   });
-  const stopMessages = root.querySelectorAll<HTMLElement>("[data-rom-stop-status], [data-disassembly-stop-status], [data-debugger-status]");
+  const stopMessages = root.querySelectorAll<HTMLElement>("[data-rom-stop-status], [data-disassembly-stop-status], [data-debugger-status], [data-walkthrough-stop-status]");
   function showStopStatus(value: string, running = false): void {
     for (const message of stopMessages) {
       message.setAttribute("aria-live", running ? "off" : "polite");
@@ -112,6 +118,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
       showStopStatus(stopped ? `${reasons[stopped.kind]} at $${hex(stopped.location.address)}${stopped.location.space === "rom" ? " in ROM" : ""}.${stopped.detail ? ` ${stopped.detail}` : ""}`
         : running && debuggerState.request ? `Running · ${debuggerState.request === "target" ? "to address" : `step ${debuggerState.request}`}…` : "", running);
       const selected = machine();
+      walkthrough?.refresh(selected && apple2DebugLocation(selected), available, running);
       if (selected && shouldUpdate("activity")) devices?.refresh(selected.disk.inspect().installed);
       if (selected && shouldUpdate("calls")) calls?.refresh(debuggerState.frames, debuggerState.trackingNote, address => apple2DebugLocation(selected, address));
       disassembly?.refresh(selected, records, available, running, shouldUpdate("code"));

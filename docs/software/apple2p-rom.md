@@ -321,6 +321,38 @@ is actually mapped. The Monitor uses scratch addresses such as `$28–$29` and
 `$3A–$3B`; these are software variables, distinct from CPU registers. Other
 software can reuse them.
 
+## Guided exploration in the laboratory
+
+**Walkthrough**, initially a tab beside ROM, brings three paths into the workspace:
+reset and echo, carriage return, and scrolling. Choose a walkthrough and a
+checkpoint in any order. Previous and Next change only the selected explanation;
+they never execute, queue keys, reset hardware, or claim a step is complete.
+Each checkpoint describes its preparation and the observations to compare.
+
+**Run to checkpoint** uses the existing ROM-only run-to request, with its
+instruction limit and normal breakpoint/watchpoint handling. It stops before
+the target instruction. If already there, it stops without executing; Step once
+when you want to leave a polling address before returning to it. Other stops
+remain visible, and selecting another checkpoint during execution does not
+retarget the pending run. Matching PC and ROM mapping means only that the
+address has been reached, not that the described setup or result has been verified.
+Reset and media changes retain the selected reading position, without preserving
+any claim about previous execution.
+
+**Browse code** opens the checkpoint in Disassembly without running it.
+**Routine reference** opens its documented routine. The reference gives inputs,
+effects, workspace-address links, and related routines for COUT, STORADV, CR,
+and SCROLL. These describe this ROM's conventions, not additional CPU registers
+or inferred routine boundaries. They remain readable without installing firmware.
+
+Disassembly's **Notes** toggle shows a separate **ROM comment** column beside
+the operands. Its comments explain selected instructions in their software
+context. They appear only for complete instructions in the identified ROM,
+with bytes matching the guide. Executed rows use the bytes and mapping captured
+at execution time; Language Card RAM at the same address never inherits a ROM
+comment. The CPU specification still owns instruction decoding and general
+instruction explanations.
+
 ## Watching the hardware
 
 **System** separates the live memory map's read and write destinations. At
@@ -444,7 +476,12 @@ to open the ROM reference.
 ## ROM identity and stops
 
 This record supplies the browser's searchable reference, routine selector, trace,
-and live-code annotations. The region bounds describe ROM areas, not routine ends.
+and live-code annotations. Optional routine `details` provide inputs, outputs,
+workspace names, and related routine names. Instruction `notes` bind prose to
+an exact ROM address and instruction bytes. `walkthroughs` own selectable
+checkpoints with preparation and observation text; they contain no executable
+setup scripts. The build validates their cross-references and instruction lengths.
+The region bounds describe ROM areas, not routine ends.
 Routine entries and software labels describe the motherboard image identified
 below; hardware labels describe machine addresses. The build checks the image
 identity against the machine's firmware declaration and validates each label's
@@ -462,12 +499,47 @@ within KEYIN, rather than a separate subroutine.
   "routines": [
     {"address": "FA62", "name": "RESET", "description": "Begin the autostart firmware's reset path."},
     {"address": "FC58", "name": "HOME", "description": "Clear the text window and move its cursor home."},
-    {"address": "FDED", "name": "COUT", "description": "Send A through the output hook at $0036–$0037."},
+    {
+      "address": "FDED",
+      "name": "COUT",
+      "description": "Send A through the output hook at $0036–$0037.",
+      "details": {
+        "inputs": "A contains the character or control code to send. CSWL/CSWH selects the output handler.",
+        "outputs": "Jumps through the output hook without interpreting the character itself. Register preservation and output effects belong to the selected handler; the normal screen hook is COUT1.",
+        "workspace": [
+          "CSWL"
+        ],
+        "related": [
+          "COUT1",
+          "STORADV",
+          "CR"
+        ]
+      }
+    },
     {"address": "FD0C", "name": "RDKEY", "description": "Prepare the cursor and enter the input hook at $0038–$0039."},
     {"address": "FD1B", "name": "KEYIN", "description": "Wait for a key while updating the random-number seed."},
     {"address": "FD21", "name": "KEYIN2", "description": "Test the keyboard ready bit with BIT $C000."},
     {"address": "FD2B", "name": "Acknowledge key", "description": "Read $C010 to clear the keyboard strobe."},
-    {"address": "FBF0", "name": "STORADV", "description": "Store A at the text cursor, then advance it."},
+    {
+      "address": "FBF0",
+      "name": "STORADV",
+      "description": "Store A at the text cursor, then advance it.",
+      "details": {
+        "inputs": "A is the screen byte to store. CH is the column within the text window; BASL/BASH points to the current row at its left edge.",
+        "outputs": "Loads CH into Y, stores A through (BASL),Y, and increments CH. Reaching WNDWDTH takes the carriage-return path; that can advance the row or scroll the window.",
+        "workspace": [
+          "CH",
+          "BASL",
+          "WNDWDTH",
+          "CV"
+        ],
+        "related": [
+          "COUT1",
+          "CR",
+          "SCROLL"
+        ]
+      }
+    },
     {"address": "F800", "name": "PLOT", "description": "Draw a low-resolution pixel using row A and column Y."},
     {"address": "F847", "name": "GBASCALC", "description": "Convert a graphics row into its screen-memory base address."},
     {"address": "F864", "name": "SETCOL", "description": "Expand the colour in A into both halves of COLOR ($30)."},
@@ -476,7 +548,30 @@ within KEYIN, rather than a separate subroutine.
     {"address": "FB2F", "name": "INIT", "description": "Initialize the text window and cursor."},
     {"address": "FBC1", "name": "BASCALC", "description": "Compute a text row address in BASL/BASH ($28–$29)."},
     {"address": "FC22", "name": "VTAB", "description": "Recompute the text pointer from CV and WNDLFT."},
-    {"address": "FC70", "name": "SCROLL", "description": "Move the text window upward by one row."},
+    {
+      "address": "FC70",
+      "name": "SCROLL",
+      "description": "Move the text window upward by one row.",
+      "details": {
+        "inputs": "WNDTOP, WNDBTM, WNDLFT, and WNDWDTH define the text window. The normal LF path enters with CV at the last row.",
+        "outputs": "Copies each following row into the preceding row, then clears the bottom row to normal spaces ($A0). BASL/BASH and BAS2L/BAS2H serve as source and destination pointers during copying; these are ordinary CPU loads and stores.",
+        "workspace": [
+          "WNDTOP",
+          "WNDBTM",
+          "WNDLFT",
+          "WNDWDTH",
+          "CV",
+          "BASL",
+          "BAS2L"
+        ],
+        "related": [
+          "CR",
+          "LF",
+          "VTAB",
+          "CLREOL"
+        ]
+      }
+    },
     {"address": "FC9C", "name": "CLREOL", "description": "Fill the remainder of the current text row with spaces."},
     {"address": "FD6A", "name": "GETLN", "description": "Print the prompt and collect an edited line at $0200."},
     {"address": "FD8E", "name": "CROUT", "description": "Send a carriage return through COUT."},
@@ -499,7 +594,27 @@ within KEYIN, rather than a separate subroutine.
     {"address": "FB4B", "name": "SETWND", "description": "Set window top from A and initialize its other bounds."},
     {"address": "FB60", "name": "APPLEII", "description": "Clear the screen and display the startup title."},
     {"address": "FC42", "name": "CLREOP", "description": "Clear from the cursor through the text window."},
-    {"address": "FC62", "name": "CR", "description": "Return the cursor to the left edge, then advance its row."},
+    {
+      "address": "FC62",
+      "name": "CR",
+      "description": "Return the cursor to the left edge, then advance its row.",
+      "details": {
+        "inputs": "The text window and cursor variables describe the current output position.",
+        "outputs": "Sets CH to zero and falls through to LF, which increments CV. Below WNDBTM the ROM recalculates the row pointer; at the bottom it restores CV to the last row and enters SCROLL. No carriage-return byte is stored on screen.",
+        "workspace": [
+          "CH",
+          "CV",
+          "WNDBTM",
+          "WNDLFT",
+          "BASL"
+        ],
+        "related": [
+          "LF",
+          "VTAB",
+          "SCROLL"
+        ]
+      }
+    },
     {"address": "FC66", "name": "LF", "description": "Advance the cursor row, scrolling when necessary."},
     {"address": "FCA8", "name": "WAIT", "description": "Delay according to A."},
     {"address": "FDDA", "name": "PRBYTE", "description": "Print A as two hexadecimal digits."},
@@ -620,6 +735,182 @@ within KEYIN, rather than a separate subroutine.
     {"address": "FDF6", "name": "COUTZ", "description": "Continue the screen output handler.", "scope": "rom"},
     {"address": "FE75", "name": "A1PC", "description": "Copy the Monitor address into its execution pointer.", "scope": "rom"},
     {"address": "FF69", "name": "MONZ", "description": "Read and dispatch a Monitor command.", "scope": "rom"}
+  ],
+  "notes": [
+    {"address": "FDED", "bytes": "6C 36 00", "text": "Dispatch through CSWL/CSWH; the hook chooses where output goes."},
+    {"address": "FDF4", "bytes": "25 32", "text": "Apply INVFLG to printable output before the screen handler."},
+    {"address": "FBF0", "bytes": "A4 24", "text": "Load the column within the text window into Y."},
+    {"address": "FBF2", "bytes": "91 28", "text": "Store the character at the row pointer plus the cursor column."},
+    {"address": "FBF4", "bytes": "E6 24", "text": "Advance the cursor one column after storing the character."},
+    {"address": "FBF8", "bytes": "C5 21", "text": "Compare the new column with the text-window width."},
+    {"address": "FBFA", "bytes": "B0 66", "text": "At the right edge, take the carriage-return path."},
+    {"address": "FC62", "bytes": "A9 00", "text": "Prepare column zero: the left edge of the text window."},
+    {"address": "FC64", "bytes": "85 24", "text": "Return the cursor column to zero; no screen byte is written."},
+    {"address": "FC66", "bytes": "E6 25", "text": "Advance the cursor row."},
+    {"address": "FC6A", "bytes": "C5 23", "text": "Compare the new row with the exclusive bottom boundary."},
+    {"address": "FC6C", "bytes": "90 B6", "text": "Below the bottom boundary, recalculate the row pointer."},
+    {"address": "FC6E", "bytes": "C6 25", "text": "Keep CV on the last row before scrolling the window."},
+    {"address": "FC70", "bytes": "A5 22", "text": "Start scrolling at the top row of the text window."},
+    {"address": "FC78", "bytes": "85 2A", "text": "Save the destination row pointer low byte in BAS2L."},
+    {"address": "FC7C", "bytes": "85 2B", "text": "Save the destination row pointer high byte in BAS2H."},
+    {"address": "FC7E", "bytes": "A4 21", "text": "Start at the window width; DEY selects its last column."},
+    {"address": "FC89", "bytes": "20 24 FC", "text": "Calculate the next row pointer to use as the copy source."},
+    {"address": "FC8C", "bytes": "B1 28", "text": "Read a character from the following screen row."},
+    {"address": "FC8E", "bytes": "91 2A", "text": "Copy that character into the preceding screen row."},
+    {"address": "FC90", "bytes": "88", "text": "Move left to the preceding column."},
+    {"address": "FC91", "bytes": "10 F9", "text": "Keep copying columns while Y is non-negative."},
+    {"address": "FC95", "bytes": "A0 00", "text": "Begin clearing the bottom row at its first column."},
+    {"address": "FC9E", "bytes": "A9 A0", "text": "Use a normal space as the clearing byte."},
+    {"address": "FCA0", "bytes": "91 28", "text": "Clear a cell through the current row pointer."}
+  ],
+  "walkthroughs": [
+    {
+      "id": "echo",
+      "title": "From reset to an echoed A",
+      "setup": "Load the verified ROM, eject any disk, and use Fresh power-on. Disable instruction breakpoints and watchpoint stops that would interrupt these checkpoints. Leave Screen Inspect off when typing.",
+      "steps": [
+        {
+          "title": "The reset vector",
+          "address": "FA62",
+          "prepare": "Fresh power-on pauses here before any ordinary instruction.",
+          "observe": "Step executes CLD, clearing decimal mode. The CPU read the reset vector to obtain this address.",
+          "routine": "RESET"
+        },
+        {
+          "title": "Clear the text window",
+          "address": "FC58",
+          "prepare": "Run to this checkpoint from reset.",
+          "observe": "HOME will clear the text window and position its cursor. The screen changes because the ROM writes RAM.",
+          "routine": "HOME"
+        },
+        {
+          "title": "The output hook",
+          "address": "FDED",
+          "prepare": "Run to this checkpoint to stop before the first output dispatch.",
+          "observe": "Step follows JMP ($0036). The output hook is a RAM word, not a destination hard-coded in the CPU.",
+          "routine": "COUT"
+        },
+        {
+          "title": "Ready for a key",
+          "address": "FD21",
+          "prepare": "Run to this checkpoint. The screen should show the Apple banner and an empty prompt.",
+          "observe": "Type A without Enter, then Step twice: BIT $C000 sees $C1 and sets N; BPL falls through. Typing only queues input until execution resumes.",
+          "routine": "KEYIN2"
+        },
+        {
+          "title": "Acknowledge the key",
+          "address": "FD2B",
+          "prepare": "After those two steps, run to this checkpoint.",
+          "observe": "A holds $C1. Step executes BIT $C010, clearing the keyboard strobe.",
+          "routine": "Acknowledge key"
+        },
+        {
+          "title": "Store the echoed character",
+          "address": "FBF2",
+          "prepare": "Run to this checkpoint. STORADV has loaded CH into Y.",
+          "observe": "For this fresh prompt, CH is 1 and BASL/BASH is $0500. Step writes $C1 to $0501. Turn on Screen Inspect and select row 2, column 1 to see this instruction as its writer.",
+          "routine": "STORADV"
+        },
+        {
+          "title": "Wait for another key",
+          "address": "FD21",
+          "prepare": "Run to this checkpoint after the store.",
+          "observe": "The display shows ]A. This is line editing and echo; no command has been submitted.",
+          "routine": "KEYIN2"
+        }
+      ]
+    },
+    {
+      "id": "carriage-return",
+      "title": "Carriage return and cursor movement",
+      "setup": "Start again with Fresh power-on, no disk, and no enabled breakpoint/watchpoint stops. This experiment uses an empty prompt; do not submit the A from the echo walkthrough.",
+      "steps": [
+        {
+          "title": "An empty prompt",
+          "address": "FD21",
+          "prepare": "Run to this checkpoint from fresh power-on.",
+          "observe": "The cursor is on row 2. With Inspect off, press Enter, then select the next checkpoint.",
+          "routine": "KEYIN2"
+        },
+        {
+          "title": "Dispatch a control character",
+          "address": "FDED",
+          "prepare": "After queuing Enter, run to this checkpoint.",
+          "observe": "A is $8D. COUT sends control characters through the same output hook as printable characters.",
+          "routine": "COUT"
+        },
+        {
+          "title": "Return to the left edge",
+          "address": "FC62",
+          "prepare": "Run to this checkpoint.",
+          "observe": "Two steps execute LDA #$00 and STA $24. CH becomes zero without writing a screen character.",
+          "routine": "CR"
+        },
+        {
+          "title": "Advance the row",
+          "address": "FC66",
+          "prepare": "After those two steps, this is the current address.",
+          "observe": "Step increments CV from 2 to 3. The following comparison decides whether the ROM must scroll.",
+          "routine": "LF"
+        },
+        {
+          "title": "Back at the prompt",
+          "address": "FD21",
+          "prepare": "Run to this checkpoint.",
+          "observe": "CV is now 4: the Applesoft path back to the prompt emitted another newline after the echoed carriage return. A routine’s effect differs from the whole input path.",
+          "routine": "KEYIN2"
+        }
+      ]
+    },
+    {
+      "id": "scroll",
+      "title": "How the ROM scrolls the screen",
+      "setup": "Start at the fresh empty prompt on row 4 at the end of the carriage-return walkthrough. With Inspect off, repeat Enter, Step once, then Run to the first checkpoint nine times to reach row 22. Disable breakpoint/watchpoint stops for an uninterrupted walkthrough.",
+      "steps": [
+        {
+          "title": "Prepare the bottom of the window",
+          "address": "FD21",
+          "prepare": "At each prompt, Step once after Enter before running here again; run-to stops immediately if already at its target. After nine empty lines from row 4, queue Enter once more and select the next checkpoint.",
+          "observe": "CH is 1 and CV is 22 before that final Enter. WNDTOP is 0, WNDWDTH is $28 (40), and WNDBTM is $18 (24).",
+          "routine": "KEYIN2"
+        },
+        {
+          "title": "Enter the scroll routine",
+          "address": "FC70",
+          "prepare": "With the final Enter queued, run to this checkpoint.",
+          "observe": "CV is held at 23. The ROM will copy the next row over each preceding row within the window.",
+          "routine": "SCROLL"
+        },
+        {
+          "title": "Copy one character",
+          "address": "FC8E",
+          "prepare": "Run to this checkpoint. The preceding load fetched a character from the next row.",
+          "observe": "Y is 39; the source is $04A7 and destination $0427. Inspect row 0, column 39, then Step. The last writer becomes $FC8E even when a space replaces a space.",
+          "routine": "SCROLL"
+        },
+        {
+          "title": "Rows have moved",
+          "address": "FC95",
+          "prepare": "Run to this checkpoint to finish the copy loops.",
+          "observe": "Rows 0–22 now contain the old rows 1–23. Their last writer is the copy instruction at $FC8E.",
+          "routine": "SCROLL"
+        },
+        {
+          "title": "Clear the last row",
+          "address": "FCA0",
+          "prepare": "Run to this checkpoint.",
+          "observe": "A is $A0, a normal space, and Y is zero. Step begins clearing the bottom row at $07D0. The same store is also used for other clearing operations.",
+          "routine": "CLREOL"
+        },
+        {
+          "title": "The prompt at the bottom",
+          "address": "FD21",
+          "prepare": "Run to this checkpoint.",
+          "observe": "The machine is waiting on row 23. Scrolling came from ordinary ROM loads and stores; the browser rendered the resulting RAM.",
+          "routine": "KEYIN2"
+        }
+      ]
+    }
   ]
 }
 ```
@@ -628,7 +919,7 @@ The labels were checked against the Apple II Reference Manual's autostart
 listing, available as a [searchable disassembly][monitor], and the pinned
 [dromaios-apple2 ROM annotations][reference]. The walkthrough's register,
 keyboard, screen, and stopping behavior is tested by executing the selected
-ROM; no firmware bytes are distributed with this guide. The
+ROM; no firmware image is distributed with this guide. The
 [6502 specification](../../src/components/cpus/specifications/6502.md) supplies
 the instruction names and addressing notation used in the explorer.
 

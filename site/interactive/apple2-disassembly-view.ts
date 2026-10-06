@@ -5,15 +5,15 @@ import type { Apple2CodeRow } from "./apple2-disassembly.js";
 import { apple2StorageReader } from "./apple2-inspection.js";
 import { memoryLink } from "./memory-link.js";
 import { address6502Operand, hex, parseApple2Address } from "./apple2-explorer.js";
-import type { Apple2TraceEntry, InstructionCatalogue, AddressLabel, MemoryLabel } from "./apple2-explorer.js";
+import type { Apple2TraceEntry, InstructionCatalogue, AddressLabel } from "./apple2-explorer.js";
+import type { Apple2RomGuide } from "./apple2-rom-guide.js";
+import { createRomNotes } from "./apple2-rom-guide.js";
 import { createInspectorChoices } from "./inspector-controls.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 
 /** A laboratory instrument: navigation changes the view; address buttons request normal execution. */
-export function createApple2Disassembly(root: HTMLElement, catalogue: {
-  readonly instructions: InstructionCatalogue; readonly routines: readonly AddressLabel[]; readonly labels: readonly MemoryLabel[];
-}, runTo: (address: number) => void, showReference: (address: number) => void, memory: {
+export function createApple2Disassembly(root: HTMLElement, catalogue: Apple2RomGuide & { readonly instructions: InstructionCatalogue }, runTo: (address: number) => void, showReference: (address: number) => void, memory: {
   readonly address: () => number; readonly browse: (address: number) => void; readonly show: () => void;
 }, breakpoints?: ReturnType<typeof createApple2Breakpoints>) {
   const panel = root.querySelector<HTMLElement>("[data-disassembly]");
@@ -30,6 +30,17 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: {
   const mode = createInspectorChoices("Disassembly source", [
     { value: "pc", label: "PC", title: "Disassemble from PC" }, { value: "mem", label: "MEM", title: "Disassemble from Memory" },
   ], "pc", () => { history.length = 0; address.setCustomValidity(""); render(); });
+  const noteFor = createRomNotes(catalogue.notes), notes = document.createElement("button");
+  notes.type = "button"; notes.textContent = "Notes"; notes.setAttribute("aria-label", "Show ROM comments");
+  notes.setAttribute("aria-pressed", "true");
+  let showNotes = true;
+  notes.addEventListener("click", () => {
+    showNotes = !showNotes; notes.setAttribute("aria-pressed", String(showNotes));
+    panel.querySelector<HTMLElement>("[data-rom-notes-heading]")!.hidden = !showNotes;
+    views.forEach(view => { view.note.hidden = !showNotes; });
+  });
+  const controls = document.createElement("span"); controls.className = "lab-inspector-controls";
+  controls.append(mode.element, notes);
   function referenceLink(kind: "entry" | "operand") {
     const button = document.createElement("button");
     button.type = "button"; button.className = "lab-code-label";
@@ -49,7 +60,8 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: {
   // Stable rows preserve keyboard focus as execution updates the view.
   const views = Array.from({ length: 16 }, (_, index) => {
     const row = body.insertRow(), stop = row.insertCell(), pointer = row.insertCell(), routine = row.insertCell(), location = row.insertCell();
-    const bytes = row.insertCell(), instruction = row.insertCell(), reference = row.insertCell();
+    const bytes = row.insertCell(), instruction = row.insertCell(), reference = row.insertCell(), note = row.insertCell();
+    note.className = "lab-rom-note";
     const button = document.createElement("button"), assembly = document.createElement("span");
     const label = referenceLink("entry"), operand = referenceLink("operand");
     button.type = "button";
@@ -58,7 +70,7 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: {
     stop.append(breakpoint);
     routine.append(label.button); location.append(button); instruction.append(assembly); reference.append(operand.button);
     button.addEventListener("click", () => { if (canRun && rows[index]?.complete) runTo(rows[index]!.address); });
-    return { row, pointer, button, breakpoint, bytes, assembly, label, operand };
+    return { row, pointer, button, breakpoint, bytes, assembly, label, operand, note };
   });
   function go(value: number): void {
     if (value !== start) history.push(start);
@@ -121,6 +133,7 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: {
       } else view.assembly.textContent = row.assembly;
       view.label.show(references.entry);
       view.operand.show(references.operand?.label, references.operand?.text);
+      view.note.textContent = noteFor(row) ?? "";
     });
     refreshBreakpoints();
     back.disabled = history.length === 0; next.disabled = nextAddress() === undefined; run.disabled = !canRun;
@@ -139,7 +152,7 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: {
   }
   return {
     refreshBreakpoints,
-    controls: mode.element,
+    controls,
     browse: go,
     refresh(selected: Machine | undefined, records: readonly Apple2TraceEntry[], available: boolean, active: boolean, update: boolean): void {
       machine = selected; recent = records; canRun = available && !active; running = active;
