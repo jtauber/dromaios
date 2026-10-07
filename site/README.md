@@ -237,6 +237,12 @@ physical `Ram` stores for old/new memory values, independently of the display
 refresh rate. Its bounded history includes Language Card bank identities and
 completed effects of interrupted steps. `apple2-change-log-view.ts` provides the
 laboratory's Changes tab; the machine chapter owns capture and lifetime behavior.
+`apple2-watches.ts` keeps byte/word widths with saved watch preferences; older
+entries remain byte-sized. It shares consecutive little-endian sampling with
+named workspace values. `memory-link.ts` owns navigation using a displayed word
+as an address, while `apple2-watchpoints.ts` matches either byte against captured
+accesses without rereading the machine. Named Watch actions take their width
+from the ROM guide's existing word declarations.
 `apple2-memory-edit.ts` validates byte edits against the displayed physical bank,
 machine identity, and old value before writing RAM directly. The per-inspector
 `apple2-memory-editor.ts` owns Edit mode and a cancellable draft. Memory, named
@@ -376,6 +382,14 @@ device addresses reject edits, Run exits Edit mode, and normal byte clicks still
 add watches. Follow **Move the cursor by editing RAM** with the verified ROM,
 including Save, Compare, and Restore; its checkpoint behavior also has an
 automated real-ROM regression test.
+
+Check BYTE/WORD changes and reload persistence, high-byte highlights and stops,
+and pointer navigation from both Watches and named Zero page. Existing byte
+watches must retain their stop choices; an unavailable half makes the entire
+word unavailable. Try a word at FFFF (rejected) and FFFE (accepted). Follow
+**Redirect the ROM's character output**, stepping its RAM handler and restoring
+the original saved state; its exact bytes and both output paths are checked
+against the real ROM.
 
 ## Build and preview
 

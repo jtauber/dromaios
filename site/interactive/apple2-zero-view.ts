@@ -4,8 +4,8 @@ import { createInspectorChoices } from "./inspector-controls.js";
 import type { MemoryLabel } from "./apple2-explorer.js";
 import { hex } from "./apple2-explorer.js";
 import type { Apple2MemoryChange } from "./apple2-inspection.js";
-import { createWorkspacePosition, monitorWorkspace, workspaceValue } from "./apple2-workspace-values.js";
-import { memoryLink, memoryWatchButton } from "./memory-link.js";
+import { createWorkspacePosition, monitorWorkspace, memoryValue } from "./apple2-workspace-values.js";
+import { memoryLink, memoryPointerButton, memoryWatchButton } from "./memory-link.js";
 import type { UpcomingMemoryAccesses } from "./apple2-memory-accesses.js";
 import { markMemoryAccess } from "./memory-access-view.js";
 
@@ -20,9 +20,11 @@ export function createApple2ZeroPage(container: HTMLElement | null, labels: read
     const row = document.createElement("div"), value = document.createElement("span"), name = document.createElement("span");
     row.className = "lab-workspace-value"; name.textContent = label.name; name.title = label.description;
     value.className = "lab-workspace-number";
+    const pointer = label.bytes === 2 ? memoryPointerButton(browse) : undefined;
+    if (pointer) value.append(pointer.button);
     const description = document.createElement("span"); description.className = "lab-workspace-description";
     description.textContent = label.description;
-    const watch = memoryWatchButton(label.address); watch.textContent = "Watch";
+    const watch = memoryWatchButton(label.address, label.bytes); watch.textContent = "Watch";
     description.append(" · ", watch);
     const editable = document.createElement("span"); editable.className = "lab-memory-edit-bytes";
     editable.append(" · Bytes: ");
@@ -32,7 +34,7 @@ export function createApple2ZeroPage(container: HTMLElement | null, labels: read
     });
     description.append(editable);
     row.append(memoryLink(label.address, browse), value, name, description); names.append(row);
-    return { ...label, row, value, byteButtons };
+    return { ...label, row, value, byteButtons, pointer };
   });
   const position = createWorkspacePosition(rows), scroller = container.closest<HTMLElement>("[data-workspace-panel]")!;
   let displayedTarget: number | undefined;
@@ -84,10 +86,11 @@ export function createApple2ZeroPage(container: HTMLElement | null, labels: read
           const byte = read(row.address + offset); button.textContent = byte === undefined ? "--" : hex(byte, 2);
           describeMemoryByte(button, byte);
         });
-        const value = workspaceValue(row.address, row.bytes, read);
-        const before = workspaceValue(row.address, row.bytes, address => changes.get(address)?.before ?? read(address));
+        const value = memoryValue(row.address, row.bytes, read);
+        const before = memoryValue(row.address, row.bytes, address => changes.get(address)?.before ?? read(address));
         const changed = value !== undefined && before !== undefined && value !== before;
-        row.value.textContent = value === undefined ? "—" : `$${hex(value, row.bytes * 2)}`;
+        if (row.pointer) row.pointer.refresh(value);
+        else row.value.textContent = value === undefined ? "—" : `$${hex(value, 2)}`;
         row.value.classList.toggle("is-changed", changed);
         markMemoryAccess(row.value, upcoming, row.address, row.bytes,
           changed ? `Changed from $${hex(before, row.bytes * 2)} in the last instruction` : "");

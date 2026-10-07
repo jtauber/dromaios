@@ -127,3 +127,27 @@ test("watch preferences preserve legacy display-only rows and stop modes when re
   }
   assert.deepEqual(decodeMemoryWatches(JSON.stringify([{ ...active, stop: ["read", "read"] }]))[0]?.stop, ["read"]);
 });
+
+test("word watch stops cover either byte and report the actual accessed address", () => {
+  const p = example([0xa5, 0x36, 0xa5, 0x37, 0xa9, 0x55, 0x85, 0x37, 0x85, 0x36]);
+  p.setWatches([{ ...watch(0x36, "read", "change"), bytes: 2 }]);
+  assert.equal(p.step().hit?.address, 0x36); assert.equal(p.step().hit?.address, 0x37);
+  assert.equal(p.step().hit, undefined);
+  for (const address of [0x37, 0x36]) {
+    assert.deepEqual(p.step().hit, { address, mode: "change", value: 0x55,
+      change: { region: "ram", address, before: 0, after: 0x55 } });
+  }
+});
+
+test("overlapping word and byte watches combine modes without hiding reads or changing bus-write precedence", () => {
+  for (const reverse of [false, true]) {
+    const p = example([0xa5, 0x37, 0xe6, 0x37, 0x85, 0x37, 0xea]);
+    const overlapping = [{ ...watch(0x36, "write"), bytes: 2 as const }, watch(0x37, "read", "change")];
+    p.setWatches(reverse ? overlapping.reverse() : overlapping);
+    assert.equal(p.step().hit?.mode, "read");
+    assert.equal(p.step().hit?.mode, "read", "The read-modify-write's read precedes its writes");
+    assert.equal(p.step().hit?.mode, "write", "Write takes precedence over change at the same access");
+    p.setWatches([{ ...watch(0x206, "read"), bytes: 2 }]);
+    assert.equal(p.step().hit, undefined, "Fetching an opcode inside a watched word is still excluded");
+  }
+});

@@ -89,12 +89,13 @@
 .lab-workspace-description { grid-column: 2 / -1; color: var(--muted); font: 10px/1.5 system-ui, sans-serif; }
 .lab-workspace-number { color: #7ac9a1; justify-self: start; }
 .lab-workspace-number.is-changed, .lab-watch-value.is-changed { background: #594420; color: #ffe0a2; }
+.lab-workspace-number .lab-memory-link, .lab-watch-value.is-changed .lab-memory-link { color: inherit; }
 .lab-watch-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin-bottom: 12px; }
 .lab-watch-form label:nth-child(2) { flex: 1; }
 .lab-watch-row { display: grid; grid-template-columns: 6ch minmax(0, 1fr) auto 24px; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #263750; font: 12px/1.5 var(--mono); }
 .lab-watch-row > span:nth-child(2) { overflow-wrap: anywhere; color: var(--muted); }
 .lab-watch-row > button { padding: 0 4px; }
-.lab-watch-stops { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.lab-watch-stops { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); }
 .laboratory-page .lab-watch-byte { border: 0; border-radius: 0; padding: 0; background: transparent; color: inherit; font: inherit; }
 .lab-call-frame { padding: 7px 0; border-bottom: 1px solid #263750; font: 12px/1.6 var(--mono); }
 .lab-call-frame .lab-hint { margin: 3px 0 0; }

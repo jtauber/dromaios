@@ -1,12 +1,30 @@
 import { hex } from "./apple2-explorer.js";
 
 /** The inspection host handles this action, independently of memory rendering. */
-export function memoryWatchButton(address: number): HTMLButtonElement {
+export function memoryWatchButton(address: number, bytes?: 1 | 2): HTMLButtonElement {
   const button = document.createElement("button"); button.type = "button";
   button.dataset.watchAddress = hex(address);
+  if (bytes !== undefined) button.dataset.watchBytes = String(bytes);
   button.className = "lab-watch-byte";
-  button.title = `Watch $${hex(address)}`; button.setAttribute("aria-label", button.title);
+  button.title = `Watch $${hex(address)}${bytes === 2 ? `–${hex(address + 1)} as a word` : ""}`; button.setAttribute("aria-label", button.title);
   return button;
+}
+
+/** Follow the displayed word, including in a held inspector; never re-read its source or target. */
+export function memoryPointerButton(browse: (address: number) => void) {
+  const button = document.createElement("button"); button.type = "button"; button.className = "lab-memory-link";
+  let address: number | undefined;
+  button.addEventListener("click", () => { if (address !== undefined) browse(address); });
+  return {
+    button,
+    refresh(value: number | undefined): void {
+      address = value; button.disabled = value === undefined;
+      button.textContent = value === undefined ? "—" : `$${hex(value)}`;
+      button.title = value === undefined ? "Unavailable word; no guest read is performed."
+        : `View value $${hex(value)} as an address in Memory`;
+      button.setAttribute("aria-label", button.title);
+    },
+  };
 }
 
 /** Navigation belongs to the host; a link never reads or executes guest memory. */

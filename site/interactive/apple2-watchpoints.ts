@@ -18,15 +18,16 @@ export function apple2Watchpoint(watches: readonly MemoryWatch[], record: Cpu650
   if (record.outcome !== "executed" || !watches.some(watch => watch.stop?.length)) return undefined;
   const roles = catalogue[record.instruction.bytes[0]!]?.accesses;
   for (const [index, access] of record.accesses.entries()) {
-    const watch = watches.find(watch => watch.address === access.address && watch.stop?.length);
-    if (!watch) continue;
-    if (access.kind === "read" && roles?.[index] === "read" && watch.stop!.includes("read")) {
+    // Overlapping byte/word watches contribute independently; list order must not mask a stop.
+    const stops = (mode: MemoryWatchMode) => watches.some(watch => access.address >= watch.address
+      && access.address < watch.address + (watch.bytes ?? 1) && watch.stop?.includes(mode));
+    if (access.kind === "read" && roles?.[index] === "read" && stops("read")) {
       return { address: access.address, mode: "read", value: access.value };
     }
     if (access.kind !== "write") continue;
     const change = changes.find(change => change.address === access.address && change.after === access.value);
-    if (watch.stop!.includes("write")) return { address: access.address, mode: "write", value: access.value, ...(change && { change }) };
-    if (change && watch.stop!.includes("change")) return { address: access.address, mode: "change", value: access.value, change };
+    if (stops("write")) return { address: access.address, mode: "write", value: access.value, ...(change && { change }) };
+    if (change && stops("change")) return { address: access.address, mode: "change", value: access.value, change };
   }
   return undefined;
 }

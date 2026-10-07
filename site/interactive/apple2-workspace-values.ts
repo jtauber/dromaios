@@ -8,13 +8,15 @@ export function monitorWorkspace(labels: readonly MemoryLabel[]) {
   return bytes.filter(label => !bytes.some(word => word.bytes === 2 && parseInt(word.address, 16) + 1 === parseInt(label.address, 16)))
     .map(label => {
       const address = parseInt(label.address, 16), high = bytes.find(byte => parseInt(byte.address, 16) === address + 1);
-      return { ...label, address, bytes: label.bytes ?? 1,
+      return { ...label, address, bytes: label.bytes ?? (1 as const),
         description: label.bytes === 2 ? label.description.replace(/ low$/, "") : label.description,
         name: label.bytes === 2 && high ? `${label.name}/${high.name}` : label.name };
     });
 }
 
-export function workspaceValue(address: number, bytes: number, read: (address: number) => number | undefined): number | undefined {
+/** Consecutive little-endian storage, without the CPU's zero-page or JMP-indirect wrapping rules. */
+export function memoryValue(address: number, bytes: 1 | 2, read: (address: number) => number | undefined): number | undefined {
+  if (address + bytes > 0x10000) return undefined;
   const low = read(address), high = bytes === 2 ? read(address + 1) : 0;
   return low === undefined || high === undefined ? undefined : low + (high << 8);
 }

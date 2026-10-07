@@ -69,11 +69,11 @@
       <div data-memory-scroll class="lab-memory-scroll" tabindex="0" role="region" aria-label="Memory contents"><div class="lab-memory-space"><pre data-memory-view></pre></div></div>
     </div></section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="watches" data-panel-live="true" data-panel-title="Watches" data-memory-watches>
-      <form class="lab-watch-form"><label>Address (hex)<input name="address" maxlength="5" size="5" placeholder="0028" required autocomplete="off" spellcheck="false"></label><label>Label (optional)<input name="label" maxlength="64" autocomplete="off"></label><button type="submit">Watch</button></form>
+      <form class="lab-watch-form"><label>Address (hex)<input name="address" maxlength="5" size="5" placeholder="0028" required autocomplete="off" spellcheck="false"></label><label>Label (optional)<input name="label" maxlength="64" autocomplete="off"></label><span data-watch-size></span><button type="submit">Watch</button></form>
       <p data-watch-status class="lab-hint" role="status"></p>
       <div data-watch-rows></div>
       <p class="lab-hint">R: data read · W: bus write · Δ: changed RAM, in any bank. Stops happen after the instruction, even with Live or recording off. Fetches do not trigger R. All toggles off keeps a display-only watch.</p>
-      <p class="lab-hint">Click a byte in a memory inspector to watch it. Values follow current mapping; highlights compare displayed samples. Addresses, labels and stop choices are saved. Inspectors never read devices.</p>
+      <p class="lab-hint">Words are low byte first; their stops cover either byte. Click a word value to browse it as an address. Values follow current mapping; highlights compare displayed samples. Inspectors never read devices.</p>
     </section>
     <section class="lab-tool lab-tool-stack" data-workspace-panel="stack" data-panel-live="true" data-panel-title="Stack"><div class="lab-panel-body lab-scroll"><p data-stack-status class="lab-hint" title="Entries above SP in page $0100–01FF; software can change SP or wrap the stack."></p><pre data-stack-view></pre><pre data-stack-page hidden></pre></div></section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="calls" data-panel-live="true" data-panel-title="Call stack">

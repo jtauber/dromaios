@@ -11,6 +11,7 @@ import { apple2DebugLocation, apple2DebugStep } from "../../site/interactive/app
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { readRomFile } from "../../site/interactive/rom-file.js";
 import { apple2EditableMemory, editApple2Memory } from "../../site/interactive/apple2-memory-edit.js";
+import { memoryValue } from "../../site/interactive/apple2-workspace-values.js";
 import { apple2StorageReader } from "../../site/interactive/apple2-inspection.js";
 
 const guide: Apple2RomGuide = JSON.parse(readFileSync("docs/software/apple2p-rom.md", "utf8").match(/```json\n([\s\S]*?)```/)![1]!);
@@ -47,7 +48,7 @@ test("checkpoint position reports only an available paused ROM boundary, not com
 });
 
 const romPath = process.env.APPLE2_ROM;
-test("the guide's authored checkpoints reach reset, echo, carriage return, and scroll through the real ROM", {
+test("the guide's authored checkpoints exercise reset, echo, cursor work, and output-hook redirection through the real ROM", {
   skip: romPath === undefined ? "Set APPLE2_ROM to the selected local firmware" : false,
 }, async () => {
   const buffer = new Uint8Array(readFileSync(romPath!)).buffer;
@@ -62,7 +63,10 @@ test("the guide's authored checkpoints reach reset, echo, carriage return, and s
   function checkpoint(tour: number, index: number): void {
     const checkpoint = guide.walkthroughs[tour]!.steps[index]!, address = parseInt(checkpoint.address, 16);
     debuggerState.runTo(location(), address, "rom");
-    while (!debuggerState.beforeStep(location())) step();
+    let remaining = 1_000_000;
+    while (!debuggerState.beforeStep(location())) {
+      assert.ok(remaining-- > 0, `Checkpoint did not stop: ${checkpoint.title}`); step();
+    }
     assert.equal(debuggerState.stop?.kind, "target", checkpoint.title);
     assert.equal(location().address, address); assert.equal(location().space, "rom");
   }
@@ -106,4 +110,36 @@ test("the guide's authored checkpoints reach reset, echo, carriage return, and s
   session.send([65]); checkpoint(3, 2); step(); checkpoint(3, 3);
   const originalEcho = step();
   assert.ok(originalEcho.accesses.some(access => access.kind === "write" && access.address === 0x501 && access.value === 0xc1));
+
+  session.powerOn(); debuggerState.reset(); checkpoint(4, 0);
+  const originalHook = session.snapshot();
+  const word = (address: number) => memoryValue(address, 2, apple2StorageReader(session.machine));
+  assert.equal(word(0x36), 0xfdf0); assert.equal(word(0x28), 0x500);
+  checkpoint(4, 1);
+  // The prose and in-lab instructions must both describe the tested RAM handler and hook.
+  const source = readFileSync("docs/software/apple2p-rom.md", "utf8");
+  assert.match(source, /0300: 8D 10 03 60\n0036: 00 03/);
+  assert.match(guide.walkthroughs[4]!.steps[1]!.prepare, /\$0300: 8D 10 03 60/);
+  assert.match(guide.walkthroughs[4]!.steps[1]!.prepare, /\$0036: 00 03/);
+  for (const [base, bytes] of [[0x300, [0x8d, 0x10, 0x03, 0x60]], [0x36, [0, 3]]] as const) {
+    bytes.forEach((byte, offset) => {
+      const address = base + offset;
+      editApple2Memory(session.machine, apple2EditableMemory(session.machine)(address, session.machine.ram.read(address)), byte.toString(16));
+    });
+  }
+  assert.equal(word(0x36), 0x300); session.send([65]); checkpoint(4, 2);
+  const jump = step();
+  assert.equal(jump.after.pc, 0x300); assert.equal(jump.after.sp, jump.before.sp);
+  assert.equal(jump.after.a, 0xc1);
+  assert.deepEqual(jump.accesses.slice(-2), [{ kind: "read", address: 0x36, value: 0 }, { kind: "read", address: 0x37, value: 3 }]);
+  const capture = step();
+  assert.equal(capture.instruction.address, 0x300); assert.equal(session.machine.ram.read(0x310), 0xc1);
+  const returned = step(); assert.equal(returned.after.pc, 0xfd4a); assert.equal(returned.after.sp, jump.before.sp + 2);
+  checkpoint(4, 3);
+  assert.equal(session.machine.ram.read(0x24), 1); assert.equal(session.machine.ram.read(0x200), 0xc1);
+  assert.equal(session.machine.ram.read(0x501), originalHook.hardware.ram[0x501], "The handler did not echo A or move the cursor");
+  session.restore(originalHook); debuggerState.reset();
+  assert.deepEqual(session.snapshot(), originalHook, "Restore removes the handler, hook change, captured byte, and queued input");
+  session.send([65]); checkpoint(4, 4); assert.equal(step().after.pc, 0xfdf0);
+  checkpoint(4, 0); assert.equal(session.machine.ram.read(0x501), 0xc1); assert.equal(session.machine.ram.read(0x24), 2);
 });
