@@ -102,3 +102,16 @@ test("version 5 gains Walkthrough beside ROM without reopening hidden instrument
   migrateApple2Workspace(storage, ids);
   assert.equal(panelGroup(decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, ids), "walkthrough"), undefined);
 });
+
+test("version 6 adds Saved states beside ROM once and preserves hidden tools and selection", () => {
+  const ids = ["rom", "states", "walkthrough", "activity", "execution"];
+  const layout: WorkspaceLayout = { root: { kind: "tabs", id: "tools", panels: ["rom"], active: "rom", collapsed: true } };
+  const storage = preferences(); storage.setItem("dromaios:workspace:apple2:6", encodeWorkspaceState(layout));
+  migrateApple2Workspace(storage, ids);
+  const updated = decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, ids);
+  assert.deepEqual(panelGroup(updated, "states"), { ...layout.root, panels: ["rom", "states"] });
+  for (const id of ["walkthrough", "activity", "execution"]) assert.equal(panelGroup(updated, id), undefined);
+  storage.setItem(apple2WorkspaceKey, encodeWorkspaceState(closePanel(updated, "states")));
+  migrateApple2Workspace(storage, ids);
+  assert.equal(panelGroup(decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, ids), "states"), undefined);
+});

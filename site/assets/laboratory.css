@@ -193,3 +193,10 @@
 [data-rom-walkthrough] p { font-size: 12px; line-height: 1.6; }
 .lab-walkthrough-setup { padding: 10px; background: #131f33; border-left: 2px solid var(--line); }
 .lab-walkthrough-navigation { display: flex; gap: 6px; margin-top: 8px; }
+
+.lab-state-form { display: flex; flex-wrap: wrap; align-items: end; gap: .5rem; margin-bottom: .8rem; }
+.lab-state-form label { flex: 1; }
+.lab-state-form input { width: 100%; }
+.lab-state-differences { font: .85rem/1.6 var(--mono); overflow-wrap: anywhere; }
+.lab-state-differences > div { border-bottom: 1px solid var(--line); padding: .15rem 0; }
+.lab-state-differences pre { white-space: pre-wrap; }

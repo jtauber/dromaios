@@ -363,8 +363,8 @@ A failed ROM selection preserves the previous machine, paused. A successful
 first selection installs firmware into the existing hardware, then resets the
 CPU without changing RAM or devices. Selecting a ROM again prepares a fresh,
 paused machine, as does disk selection. Refreshing or leaving the page loses
-RAM, programs, and the disk selection; only the ROM file is remembered. There is
-no saved browser checkpoint yet.
+the current experiment unless you explicitly save it in the laboratory. The ROM
+is remembered independently; saved states never resume automatically.
 
 For DOS, open **Boot DOS 3.3 from disk** and choose the matching local image.
 A successful selection replaces the running machine with a fresh, paused disk
@@ -383,6 +383,51 @@ independently, redraw while paused, and leave the machine state unchanged.
 Low-resolution graphics draws coloured blocks; high-resolution graphics uses
 the reference's approximate colour pairs. Mixed mode keeps four text rows. The
 video chapter defines those choices, the RGB palettes, and host flashing.
+
+### Saving and comparing an experiment
+
+The laboratory's **Saved states** panel stores named experiments in this
+browser and site origin. Pause, give the state a name, and choose **Save new
+state**. Each state includes the complete hardware snapshot, the host keyboard
+queue, selected disk name, and paused flashing phase. Main RAM, both Language
+Card banks and common upper RAM are included even when hidden by the current
+mapping. Panel arrangement, watches, breakpoints, and display preferences belong
+to the workspace and are not part of the saved machine.
+
+**Restore** checks the saved machine version, complete component state, firmware
+identity, and any stored bootstrap/disk identities before replacing the current
+experiment. Load the matching verified ROM first; its bytes are not duplicated
+inside a saved state. Restoration executes no instruction or reset and always
+leaves the machine paused. It clears executed-instruction history, the Changes
+log, observed calls, device activity, last-writer attribution, and temporary
+run-to requests. The instruction counter restarts at zero. Layout and saved
+breakpoint/watchpoint preferences remain; Fresh power-on uses the restored
+experiment's media selection. Invalid data or failed verification leaves the
+current machine and its queued input untouched.
+
+**Compare** captures saved → current differences while paused: registers,
+flags, physical RAM bytes, device fields, and the host input queue. It does not
+change either machine. This is a net comparison, so a byte changed and then
+restored to its saved value is absent. Memory links browse the current mapped
+bank; a link to hidden Language Card RAM explains the mismatch without changing
+mapping. Large differences show 128 RAM bytes at a time, with **Show more** for
+the rest. The result stays a captured comparison until Compare is pressed
+again; replacing the machine clears it. Use the Changes log for instruction
+attribution.
+
+Saved states survive reloads but do not replace the machine until Restore is
+pressed. Names must be unique. **Delete saved state** removes only the selected
+saved copy; it does not affect the current machine. A failed save reports the
+storage problem and retains existing states. Browser storage limits apply,
+especially to states containing disk images. Clearing this site's browser data
+removes the states. Incompatible future machine versions are rejected rather
+than partially restored.
+
+A repeatable ROM experiment: stop at KEYIN2 (`FD21`), type A while paused, and
+save before executing BIT. Step twice, then Compare: the queue has delivered
+its character, the keyboard strobe is set, flags reflect BIT, and PC has passed
+the branch. Restore, then repeat those steps; the same results should appear.
+A reload followed by Restore must reproduce the same continuation.
 
 ## Drawing with Applesoft
 

@@ -12,6 +12,10 @@ import { createApple2ChangeLogView } from "./apple2-change-log-view.js";
 import { createApple2Explorer } from "./apple2-explorer-view.js";
 import { createPanelUpdates } from "./panel-updates.js";
 import { apple2DebugLocation } from "./apple2-debugger.js";
+import { createApple2SavedStateView } from "./apple2-saved-state-view.js";
+import { prepareApple2SavedState } from "./apple2-saved-state.js";
+import type { Apple2SavedState } from "./apple2-saved-state.js";
+import { apple2MemoryHighlights } from "./apple2-inspection.js";
 
 /** File controls, host scheduling, and screen presentation around the generated machine. */
 export function mountApple2(root: HTMLElement, showPanel: (id: string) => void = () => {}) {
@@ -80,8 +84,45 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     memory: address => { inspection.browseMemory(address); showPanel("memory"); refreshPanels(["memory"]); },
     watch: address => inspection.watchMemory(address, "write"), code: explorer.browseCode,
   });
+  const savedStates = createApple2SavedStateView(root, {
+    capture() {
+      requirePaused();
+      return { state: session.snapshot(), diskName: disk?.name ?? null, flash };
+    },
+    restore: saved => withSavedState(saved, prepared => {
+      session = prepared.session; disk = prepared.disk; flash = prepared.flash; nextFlash = 0;
+      explorer.reset(); execution.reset(); changeLog?.reset(); screenInspector?.reset();
+      if (keyboard) keyboard.value = "";
+      message.textContent = `Restored “${saved.name}”. Paused; instruction count restarted.`;
+    }),
+    compare: saved => withSavedState(saved, prepared => ({ saved: prepared.session.snapshot(), current: session.snapshot() })),
+    memory: change => {
+      if (!apple2MemoryHighlights(session.machine, [change]).has(change.address)) {
+        return "That physical RAM bank is not currently mapped. Its saved and current values are shown here; mapping is unchanged.";
+      }
+      inspection.browseMemory(change.address); showPanel("memory"); refreshPanels(["memory"]);
+    },
+    registers: () => { showPanel("registers"); refreshPanels(["registers"]); },
+  });
   root.querySelector<HTMLElement>("[data-rom-explorer]")?.addEventListener("toggle", refresh);
   execution.setDelay(1);
+
+  function requirePaused(): void {
+    if (execution.running || selecting) throw new Error("Pause execution before saving, restoring, or comparing a state.");
+  }
+  async function withSavedState<T>(saved: Apple2SavedState,
+    apply: (prepared: Awaited<ReturnType<typeof prepareApple2SavedState>>) => T): Promise<T> {
+    requirePaused();
+    const token = ++selection;
+    selecting = true; refresh();
+    try {
+      const prepared = await prepareApple2SavedState(saved, rom?.image ?? null, media);
+      if (token !== selection) throw new Error("Saved state operation cancelled because the page was hidden.");
+      return apply(prepared);
+    } finally {
+      if (token === selection) { selecting = false; refresh(); }
+    }
+  }
 
   function refresh(): void {
     const available = session.hasFirmware && !selecting;
@@ -119,6 +160,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     const { ram, video } = session.machine;
     renderScreen(ram, video, flash, monochrome.checked);
     screenInspector?.refresh(execution.running);
+    savedStates?.refresh(session.machine, !execution.running && !selecting);
     const display = video.snapshot();
     const mode = display.text ? "Text" : display.hires ? "High-resolution graphics" : "Low-resolution graphics";
     element<HTMLElement>("display-status").textContent = `${mode} · page ${display.page2 ? 2 : 1}${!display.text && display.mixed ? " · bottom four text rows shown" : ""}`
@@ -249,7 +291,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
         execution.reset(); changeLog?.reset(); screenInspector?.reset();
         storageStatus.textContent = "Remembered ROM restored and verified. Run starts a fresh machine.";
       } else {
-        storageStatus.textContent = "Your ROM will be remembered in this browser. RAM and disks are not saved.";
+        storageStatus.textContent = "Your ROM will be remembered in this browser. Use Saved states in the laboratory to keep an experiment.";
       }
     } catch {
       storageStatus.textContent = "The saved ROM could not be restored. Choose a ROM file to continue, or forget the saved copy.";

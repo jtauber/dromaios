@@ -87,7 +87,7 @@
       <details><summary>ROM file and browser storage</summary>
         {{ rom_storage_controls() }}
         <p class="lab-hint">Choose the verified Apple II Plus ROM. Files stay on your computer. <a href="{{ calc_url(apple2_url ~ '#firmware-supplied-by-the-caller') }}" target="_blank" rel="noopener">Which file? ↗</a></p>
-        <p class="lab-hint">Both views remember the same ROM. RAM, programs, and disks are not saved on reload.</p>
+        <p class="lab-hint">Both views remember the same ROM. Use Saved states to keep RAM, programs, devices, and the selected disk across reloads.</p>
       </details>
       <div data-rom-reference class="lab-rom-reference">
         <h2>ROM reference</h2>
@@ -106,6 +106,20 @@
         <p class="lab-hint">Selected ROM entries, workspace names, and hardware addresses. Other software may reuse the workspace.</p>
       </div>
       <p><a href="{{ calc_url(apple2_url ~ '#exploring-the-rom-reference') }}" target="_blank" rel="noopener">Read the reference guide ↗</a> · <a href="{{ calc_url(apple2_url ~ '#rom-walkthrough') }}" target="_blank" rel="noopener">ROM walkthrough ↗</a></p>
+    </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="states" data-panel-title="Saved states" data-saved-states>
+      <form data-state-form class="lab-state-form"><label>Name <input data-state-name maxlength="80" required placeholder="Waiting for a key" autocomplete="off"></label><button type="submit" data-state-save>Save new state</button></form>
+      <label>Saved state <select data-state-choice aria-label="Saved state"></select></label>
+      <p data-state-details class="lab-hint"></p>
+      <div class="basic-controls"><button type="button" data-state-restore>Restore</button><button type="button" data-state-compare>Compare</button><button type="button" data-state-delete>Delete saved state</button></div>
+      <p data-state-status class="basic-message" role="status"></p>
+      <p class="lab-hint">Pause to save, restore, or compare. Saved states stay in this browser across reloads.</p>
+      <details><summary>What is saved?</summary><p class="lab-hint">RAM, CPU, devices, disk, and queued keys. Restore replaces the current experiment and leaves it paused. Layout, watches, and breakpoints stay as they are; execution histories are cleared. Load the matching ROM before restoring.</p></details>
+      <h2>Saved → current</h2>
+      <p class="lab-hint">Compare captures net changes, including hidden RAM banks. Values are hex; device fields use their snapshot values.</p>
+      <p data-state-summary class="lab-hint"></p>
+      <div data-state-differences class="lab-state-differences"></div>
+      <button type="button" data-state-more hidden>Show more</button>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="walkthrough" data-panel-title="Walkthrough" data-rom-walkthrough>
       <label>ROM walkthrough <select data-walkthrough-choice aria-label="ROM walkthrough"></select></label>
@@ -164,7 +178,7 @@
       <details class="lab-log-help"><summary>About this log</summary>
         <p class="lab-hint">Values are hex; flags use 0 and 1. Filters only change what is shown. Records every instruction, even with this tab closed. Keeps the latest 500 recorded instructions.</p>
         <p class="lab-hint">Pause recording to keep a capture while the CPU runs. Instruction numbers leave gaps for unrecorded steps. Clear log restarts numbering.</p>
-        <p class="lab-hint">Memory lists actual RAM changes in write order, including Language Card banks. Unchanged stores, ROM and device writes are omitted. Reset, power-on and successful media replacement clear the log.</p>
+        <p class="lab-hint">Memory lists actual RAM changes in write order, including Language Card banks. Unchanged stores, ROM and device writes are omitted. Reset, power-on, state restoration and successful media replacement clear the log.</p>
       </details>
       <pre data-log-output aria-label="Recorded changes">No instructions recorded yet.</pre>
     </section>

@@ -142,13 +142,14 @@ as the **classroom**, with local ROM selection, text, both graphics resolutions,
 reference's screen/CPU, memory, and tabbed-tool columns as its starting layout.
 It targets a large screen (roughly 1200 CSS pixels wide); smaller windows scroll
 across the workspace. `apple2-page.ts` and `apple2-laboratory.ts` both mount `apple2.ts`
-and share the machine/session and control templates. They have independent,
-unsaved machine state; classroom links from the laboratory open a separate tab.
+and share the machine/session and control templates. They have independent
+machine state; classroom links from the laboratory open a separate tab.
 `apple2-rom-storage.ts` remembers the selected ROM file in `localStorage`, shared
 by both views on the same origin. It retains the complete container for Disk II
 boot, revalidates every restored file, and keeps storage failures separate from
 loading usable media. Forget saved ROM removes only the stored copy. RAM,
-programs, and disk selections are not persisted.
+programs, and disk selections persist only when explicitly saved in the
+laboratory’s Saved states panel.
 `workspace/` and `workspace.css` own docking presentation independently of the
 machine. Drag a tab into the middle of a group to combine tools, onto its tab
 strip to reorder tabs, or between panels to reorder a row or column. A line marks
@@ -260,7 +261,8 @@ switch. The debugger cancels temporary requests when a watchpoint stops executio
 after an instruction. `apple2-call-stack-view.ts` displays detached observed frames,
 including captured mappings and persistent lost-history notices; it never reads
 the hardware stack. Workspace migrations introduce Call stack beside Stack and,
-in version 5, Device activity beside System; version 6 adds Walkthrough beside ROM, preserving existing arrangements
+in version 5, Device activity beside System; version 6 adds Walkthrough beside
+ROM; version 7 adds Saved states there. These preserve existing arrangements
 and deliberately hidden instruments. ROM labels
 remain in the versioned software guide. The [replacement plan](../docs/machines/apple2.md#replacement-progress)
 tracks feature gaps separately from the layout. The Machines navigation opens the
@@ -290,6 +292,18 @@ no setup scripts, assertions that an address match proves a scenario, or hidden
 machine mutations. `apple2_rom.py` validates addresses, references, and instruction
 lengths during the site build; optional real-ROM tests follow every authored
 checkpoint and compare each note's bytes against the verified image.
+
+`apple2-saved-state.ts` stores named states in separate browser entries and
+validates the versioned envelope, generated component snapshots, and media
+identities before use. `apple2-session.ts` adds the host keyboard queue and
+restores independent hardware without reset; `apple2.ts` installs a verified
+candidate only while paused and clears histories from the previous execution.
+`apple2-state-comparison.ts` compares detached snapshots, including physical RAM
+banks. `apple2-saved-state-view.ts` owns explicit Save/Restore/Compare controls,
+bounded rendering, and navigation requests; it has no machine execution or
+workspace dependency. The [machine chapter](../src/machines/6502/apple2.md#saving-and-comparing-an-experiment)
+owns the persistence and restoration contract. Increment the saved-state version
+when a machine or host continuation change makes old snapshots incompatible.
 
 `apple2-device-history.ts` retains bounded completed-instruction I/O transfers,
 including slot-ROM fetches, coalescing identical polls with counts. The explorer

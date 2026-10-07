@@ -2,12 +2,18 @@ import { create6502Apple2 } from "../../src/machines/generated/6502/apple2.js";
 import type { RomImage } from "../../src/machines/rom-image.js";
 import { checkUnsigned } from "../../src/components/validation.js";
 import { terminalInput } from "./serial-terminal.js";
-import type { Dos33Disk } from "../../src/components/devices/dos33-disk.js";
+import { Dos33Disk } from "../../src/components/devices/dos33-disk.js";
+import { checkMachineSnapshot } from "../../src/machines/snapshot.js";
+
+export interface Apple2SessionState {
+  readonly hardware: ReturnType<ReturnType<typeof create6502Apple2>["snapshot"]>;
+  readonly input: readonly number[];
+}
 
 /** Host keyboard transport for a generated machine; all BASIC behavior still executes in ROM. */
 export function createApple2Session(firmware: RomImage | null = null, disk?: { readonly bootstrap: readonly number[]; readonly image: Dos33Disk }) {
   // Fresh power-on retains selected media; eject changes that selection as well as the live drive.
-  let selected = disk === undefined ? undefined : { bootstrap: [...disk.bootstrap], image: disk.image };
+  let selected: typeof disk = disk === undefined ? undefined : { bootstrap: [...disk.bootstrap], image: disk.image };
   let machine = powerOn(), input: number[] = [];
   function powerOn() {
     const machine = create6502Apple2({ firmware });
@@ -22,6 +28,19 @@ export function createApple2Session(firmware: RomImage | null = null, disk?: { r
     get machine() { return machine; },
     get hasFirmware() { return machine.firmware.loaded; },
     get pendingInput() { return input.length; },
+    snapshot(): Apple2SessionState { return { hardware: machine.snapshot(), input: [...input] }; },
+    restore(value: unknown): void {
+      checkMachineSnapshot(value, ["hardware", "input"]);
+      const state = value as Apple2SessionState;
+      if (!Array.isArray(state.input) || state.input.length > 4096) throw new Error("Invalid saved keyboard queue.");
+      for (const byte of state.input) checkUnsigned("Saved keyboard character", byte, 0x7f);
+      // Construct and validate everything before replacing any part of the live session.
+      const restored = create6502Apple2({ firmware }, state.hardware);
+      const { bootstrap, media } = restored.disk.snapshot();
+      if (media !== null && bootstrap === null) throw new Error("Saved disk requires its bootstrap.");
+      const retained = media === null ? undefined : { bootstrap: bootstrap!, image: new Dos33Disk(media) };
+      machine = restored; input = [...state.input]; selected = retained;
+    },
     installFirmware(image: RomImage): void { machine.firmware.install(image); firmware = image; },
     send(bytes: readonly number[]): void {
       if (input.length + bytes.length > 4096) throw new Error("The keyboard queue is full. Let the machine catch up.");

@@ -2,6 +2,12 @@
 
 ## ROM walkthrough
 
+For repeatable experiments, use the laboratory's
+[Saved states](../../src/machines/6502/apple2.md#saving-and-comparing-an-experiment)
+panel at any paused boundary. Save before a routine, step through it, and
+Compare to see net changes; Restore lets you try the same starting point again.
+
+
 The Apple II can reach its Applesoft prompt without a disk. Follow that path in
 the [browser machine](../../src/machines/6502/apple2.md#using-the-browser-machine), then watch one
 keypress travel from the keyboard latch to the screen. In the classroom, open
