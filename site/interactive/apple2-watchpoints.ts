@@ -4,6 +4,7 @@ import { hex } from "./apple2-explorer.js";
 import type { Apple2MemoryChange } from "./apple2-inspection.js";
 import { apple2RamRegions } from "./apple2-inspection.js";
 import type { MemoryWatch, MemoryWatchMode } from "./apple2-watches.js";
+import { memoryWatchIncludes } from "./apple2-watches.js";
 
 export interface MemoryWatchHit {
   readonly address: number;
@@ -19,8 +20,7 @@ export function apple2Watchpoint(watches: readonly MemoryWatch[], record: Cpu650
   const roles = catalogue[record.instruction.bytes[0]!]?.accesses;
   for (const [index, access] of record.accesses.entries()) {
     // Overlapping byte/word watches contribute independently; list order must not mask a stop.
-    const stops = (mode: MemoryWatchMode) => watches.some(watch => access.address >= watch.address
-      && access.address < watch.address + (watch.bytes ?? 1) && watch.stop?.includes(mode));
+    const stops = (mode: MemoryWatchMode) => watches.some(watch => memoryWatchIncludes(watch, access.address) && watch.stop?.includes(mode));
     if (access.kind === "read" && roles?.[index] === "read" && stops("read")) {
       return { address: access.address, mode: "read", value: access.value };
     }

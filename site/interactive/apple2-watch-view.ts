@@ -1,7 +1,7 @@
 import type { MemoryLabel } from "./apple2-explorer.js";
 import { hex } from "./apple2-explorer.js";
 import { addMemoryWatch, decodeMemoryWatches, memoryWatchModes, sampleMemoryWatches } from "./apple2-watches.js";
-import type { MemoryWatchBytes, MemoryWatchMode } from "./apple2-watches.js";
+import type { MemoryWatch, MemoryWatchBytes, MemoryWatchMode } from "./apple2-watches.js";
 import { memoryLink, memoryPointerButton } from "./memory-link.js";
 import { monitorWorkspace } from "./apple2-workspace-values.js";
 import { createInspectorChoices } from "./inspector-controls.js";
@@ -11,7 +11,8 @@ const sizes = [
   { value: 2, label: "WORD", title: "Two bytes, low byte first" },
 ] as const;
 
-export function createApple2Watches(root: HTMLElement, labels: readonly MemoryLabel[], browse: (address: number) => void) {
+export function createApple2Watches(root: HTMLElement, labels: readonly MemoryLabel[], browse: (address: number) => void,
+  showHistory: (watch: MemoryWatch) => void, changed: (watches: readonly MemoryWatch[]) => void) {
   const panel = root.querySelector<HTMLElement>("[data-memory-watches]");
   if (!panel) return undefined;
   const form = panel.querySelector<HTMLFormElement>("form")!, address = form.querySelector<HTMLInputElement>("[name=address]")!;
@@ -28,6 +29,7 @@ export function createApple2Watches(root: HTMLElement, labels: readonly MemoryLa
   const rows = new Map<number, { row: HTMLElement; value: HTMLElement; label: HTMLElement;
     text: Text; pointer: ReturnType<typeof memoryPointerButton> | undefined }>();
   function save(): void {
+    changed(watches);
     try { window.localStorage.setItem(key, JSON.stringify(watches)); status.textContent = ""; }
     catch { status.textContent = "Watches are available for this visit; browser storage is unavailable."; }
   }
@@ -75,6 +77,9 @@ export function createApple2Watches(root: HTMLElement, labels: readonly MemoryLa
         });
         choices.append(button);
       }
+      const history = document.createElement("button"); history.type = "button"; history.textContent = "History";
+      history.setAttribute("aria-label", `History for watch at ${range}`);
+      history.addEventListener("click", () => showHistory(watch)); stops.append(history);
       row.append(memoryLink(watch.address, browse), label, value, remove, stops); output.append(row);
       rows.set(watch.address, { row, value, label, text, pointer });
     }

@@ -2,6 +2,7 @@ import { createRomReference } from "./apple2-rom-reference.js";
 import { hex } from "./apple2-explorer.js";
 import type { Apple2RomGuide, RomRoutine } from "./apple2-rom-guide.js";
 import type { AddressLabel } from "./apple2-explorer.js";
+import type { InspectorTool } from "./inspector-history.js";
 
 interface ReferenceState {
   readonly pc: number;
@@ -11,7 +12,7 @@ interface ReferenceState {
 }
 
 /** Reference selection and navigation never run code or change the processor's PC. */
-export function createApple2RomReference(root: HTMLElement, catalogue: Apple2RomGuide, navigate: (tool: "code" | "memory", address: number) => void) {
+export function createApple2RomReference(root: HTMLElement, catalogue: Apple2RomGuide, navigate: (tool: InspectorTool, address: number) => void) {
   const panel = root.querySelector<HTMLElement>("[data-rom-reference]");
   if (!panel) return undefined;
   const element = <T extends HTMLElement>(name: string) => panel.querySelector<T>(`[data-reference-${name}]`)!;
@@ -21,10 +22,11 @@ export function createApple2RomReference(root: HTMLElement, catalogue: Apple2Rom
   const code = element<HTMLButtonElement>("code"), memory = element<HTMLButtonElement>("memory");
   const reference = createRomReference(catalogue.regions, catalogue.routines, catalogue.labels);
   let state: ReferenceState | undefined, selection: number | undefined, displayed: AddressLabel | undefined;
+  let displayedAddress = 0;
   const buttons = new Map(reference.search("").map(entry => {
     const button = document.createElement("button");
     button.type = "button"; button.textContent = `$${entry.address} · ${entry.name}`; button.title = entry.description;
-    button.addEventListener("click", () => select(parseInt(entry.address, 16)));
+    button.addEventListener("click", () => navigate("rom", parseInt(entry.address, 16)));
     list.append(button); return [entry, button] as const;
   }));
   function renderList(): void {
@@ -54,7 +56,7 @@ export function createApple2RomReference(root: HTMLElement, catalogue: Apple2Rom
         const entry = (kind === "workspace" ? catalogue.labels : catalogue.routines).find(entry => entry.name === name)!;
         const button = document.createElement("button"); button.type = "button";
         button.textContent = `${name} · $${entry.address}`; button.title = entry.description;
-        button.addEventListener("click", () => kind === "workspace" ? navigate("memory", parseInt(entry.address, 16)) : select(parseInt(entry.address, 16)));
+        button.addEventListener("click", () => navigate(kind === "workspace" ? "memory" : "rom", parseInt(entry.address, 16)));
         value.append(button);
       }
       details.append(term, value);
@@ -64,6 +66,7 @@ export function createApple2RomReference(root: HTMLElement, catalogue: Apple2Rom
     if (!state) return;
     const browsing = mode.value === "selection";
     const address = browsing ? selection : mode.value === "memory" ? state.memory : state.pc;
+    displayedAddress = address ?? 0;
     const mapped = state.installed && state.mapped;
     const location = address === undefined ? undefined : reference.locate(address, browsing || mapped);
     displayed = browsing && address !== undefined ? reference.at(address) : location?.entry;
@@ -90,6 +93,7 @@ export function createApple2RomReference(root: HTMLElement, catalogue: Apple2Rom
   memory.addEventListener("click", () => { if (displayed) navigate("memory", parseInt(displayed.address, 16)); });
   return {
     select,
+    get address() { return displayedAddress; },
     refresh(current: ReferenceState, update: boolean): void { state = current; if (update) render(); },
   };
 }

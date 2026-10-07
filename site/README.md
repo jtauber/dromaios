@@ -243,6 +243,16 @@ named workspace values. `memory-link.ts` owns navigation using a displayed word
 as an address, while `apple2-watchpoints.ts` matches either byte against captured
 accesses without rereading the machine. Named Watch actions take their width
 from the ROM guide's existing word declarations.
+`apple2-watch-history.ts` captures an independent bounded ring of data accesses for each watched
+addresses. It combines CPU access records with the change log's ordered physical
+writes, including unchanged stores, without reading the bus again. Its view stays
+inside Watches; capture is independent of panel visibility and stop choices.
+`inspector-history.ts` retains explicit address navigation across Memory,
+Disassembly, and ROM. `inspector-navigation.ts` renders the shared header arrows;
+the composition layer applies destinations through the tools' browsing APIs.
+Automatic following and scrolling never append history, and returning only
+selects an address in the current mapping. The ROM guide owns these controls'
+capture, retention, and navigation contracts.
 `apple2-memory-edit.ts` validates byte edits against the displayed physical bank,
 machine identity, and old value before writing RAM directly. The per-inspector
 `apple2-memory-editor.ts` owns Edit mode and a cancellable draft. Memory, named
@@ -390,6 +400,15 @@ word unavailable. Try a word at FFFF (rejected) and FFFE (accepted). Follow
 **Redirect the ROM's character output**, stepping its RAM handler and restoring
 the original saved state; its exact bytes and both output paths are checked
 against the real ROM.
+
+Add the hook watch before boot to capture its initialization, then inspect its
+reads and the handler's store during the output-hook walkthrough. Check History
+with Live and Changes recording off, and verify that a word includes both bytes.
+Follow a captured instruction, a ROM reference, and a word value; Back/Forward
+must restore the selected inspector address without changing PC, RAM, devices,
+or execution count. A new address after Back replaces the forward path; automatic
+following and scrolling must not fill it. Check histories after reset, restoration,
+and edits, and ensure discarded-access counts are visible when retention fills.
 
 ## Build and preview
 

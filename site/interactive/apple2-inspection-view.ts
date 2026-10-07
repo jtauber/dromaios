@@ -17,7 +17,7 @@ import type { Apple2MemoryMode } from "./apple2-memory-position.js";
 import { createInspectorChoices } from "./inspector-controls.js";
 import { createApple2Registers } from "./apple2-register-view.js";
 import type { Editable6502Register } from "./apple2-register-edit.js";
-import type { MemoryWatchMode, MemoryWatchBytes } from "./apple2-watches.js";
+import type { MemoryWatch, MemoryWatchMode, MemoryWatchBytes } from "./apple2-watches.js";
 import { hex, parseApple2Address } from "./apple2-explorer.js";
 import { createApple2SystemView } from "./apple2-system-view.js";
 import type { Apple2HardwareCatalogue } from "./apple2-hardware.js";
@@ -25,7 +25,12 @@ import type { Apple2HardwareCatalogue } from "./apple2-hardware.js";
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 
 /** Both views observe the same machine. Only the laboratory includes memory instruments. */
-export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: string) => boolean, onMemoryPosition: () => void, edit: (register: Editable6502Register, text: string) => void, showPanel: (id: string) => void,
+export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: string) => boolean, onMemoryPosition: () => void, edit: (register: Editable6502Register, text: string) => void, navigation: {
+  readonly showPanel: (id: string) => void;
+  readonly memory: (address: number) => void;
+  readonly history: (watch: MemoryWatch) => void;
+  readonly watchesChanged: (watches: readonly MemoryWatch[]) => void;
+},
   memoryEditing: { apply: (edit: Apple2MemoryEdit, text: string) => void; refresh: (id: string) => void }) {
   const element = (name: string) => root.querySelector<HTMLElement>(`[data-${name}]`);
   const cpuView = element("machine-inspect")!, system = element("system-inspect")!;
@@ -51,13 +56,13 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
   function nextInstruction(): Apple2InstructionPreview {
     return preview ??= preview6502(machine!.cpu.snapshot(), apple2StorageReader(machine!), instructions);
   }
-  const browse = (value: number) => { browseMemory(value); showPanel("memory"); onMemoryPosition(); };
+  const browse = navigation.memory;
   const hardwareView = createApple2SystemView(root, hardware, browse);
   const instruction = createApple2InstructionView(root, browse);
   const zeroView = createApple2ZeroPage(zero, labels, browse), stackView = createApple2StackView(stack, element("stack-page"));
-  const watches = createApple2Watches(root, labels, browse);
+  const watches = createApple2Watches(root, labels, browse, navigation.history, navigation.watchesChanged);
   function watchMemory(address: number, stop?: MemoryWatchMode, bytes?: MemoryWatchBytes): void {
-    showPanel("watches"); watches?.add(address, stop, bytes);
+    navigation.showPanel("watches"); watches?.add(address, stop, bytes);
   }
   root.addEventListener("click", event => {
     const button = (event.target as Element).closest<HTMLElement>("[data-watch-address]");
@@ -81,9 +86,8 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
   const registers = createApple2Registers(cpuView, root.matches("[data-laboratory]") ? edit : undefined);
   form?.addEventListener("submit", event => {
     event.preventDefault();
-    try { position.browse(parseApple2Address(address!.value)); follow.select("fixed"); }
+    try { browse(parseApple2Address(address!.value)); }
     catch (error) { address!.setCustomValidity((error as Error).message); address!.reportValidity(); return; }
-    renderMemoryWindow(); onMemoryPosition();
   });
   address?.addEventListener("input", () => address.setCustomValidity(""));
   function renderMemoryWindow(): void {

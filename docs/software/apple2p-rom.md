@@ -248,9 +248,18 @@ and press Enter, or scroll its contents.
 
 **Navigate or run to an address** exposes explicit navigation and execution
 controls. Enter an address and choose **Browse** to select MEM and move Memory
-there. **Next 16** continues after the last displayed instruction; **Back**
-returns to the previous view. Browsing never executes or changes the processor's
+there. **Next 16** continues after the last displayed instruction. Browsing never executes or changes the processor's
 PC. **Run to address** instead executes until PC reaches that address.
+
+The laboratory header's **← / →** buttons move back and forward through explicit
+address browsing in Memory, Disassembly, and the ROM reference. Following a
+pointer or a reference records the address you left, so you can return without
+typing it again. PC following, memory scrolling, and selecting PC/MEM modes do
+not add entries. A new destination after Back replaces the forward path.
+The latest 64 locations last for this visit; they are addresses, not machine
+snapshots. Returning selects the captured address in the current storage mapping,
+without running instructions or restoring a bank. Disassembly returns in MEM
+mode, Memory in FIX, and ROM to a selected address.
 
 The dimmed rows marked `·` show actual execution in chronological order, including
 repeated visits to an address. A solid horizontal line appears below an
@@ -451,8 +460,8 @@ excludes instruction and operand fetches. W matches bus writes, including unchan
 stores and requests ignored by ROM or protected memory. Δ matches actual changed
 RAM bytes, including either Language Card bank and upper RAM hidden behind ROM.
 It observes individual writes, not differences between displayed samples; merely
-switching banks is not a RAM change. With all three toggles off, the watch only
-displays values. Earlier saved watches keep that behavior.
+switching banks is not a RAM change. With all three toggles off, the watch
+observes without stopping execution. Earlier saved watches keep that stop behavior.
 
 Outside Edit mode, click a hexadecimal byte in Memory, Zero page, or Stack to
 add it to Watches, then choose its stop toggles. **Watch** beside a NAMES entry
@@ -488,6 +497,36 @@ observed callers. Run resumes at the next boundary, where a separate instruction
 breakpoint may still stop it. Manual Step can trigger another watchpoint. Failed
 instructions remain execution errors; partial effects stay in the change log.
 
+### History of watched addresses
+
+Each watch's **History** button shows captured data reads and bus writes to that
+byte or word, oldest first and in instruction access order. Add the watch before
+running: the tool cannot reconstruct earlier use. Stop toggles do not affect
+capture. It continues with Watches hidden, Live off, or Changes recording paused;
+fetching instructions and operands does not count as a data read.
+
+Each entry identifies the executed instruction and accessed byte. Reads show the
+captured bus value. Physical RAM writes include their bank and before/after
+values, including unchanged stores and the two stores of a read-modify-write
+instruction. A device or protected-ROM write shows its bus value without
+inventing a previous value. Word watches include either byte, and overlapping
+watches never duplicate an access within a watch's history.
+
+The latest 256 accesses for each watch are retained, with an explicit count
+of older discarded accesses. A busy watch does not displace another watch's records.
+Removing a watch releases its history; changing its width cannot supply earlier
+accesses to the newly included byte. **History** selects the range to display;
+choose it again after changing a watch's width. **Clear all watch history** clears
+the retained entries without restarting instruction numbering. Reset, fresh
+power-on, state restoration, media changes, and register/RAM edits start a new
+history. Only completed instructions are included; failed instructions remain
+execution errors with partial effects in Changes.
+
+Instruction links browse current Disassembly if the recorded bank remains
+visible; the captured instruction bytes remain in history even if RAM changes.
+Address links browse current Memory. Neither action rereads a device or changes
+PC. Use the header arrows to return from these address jumps.
+
 Click A, X, Y, SP, or PC in **MOS 6502** while paused to edit a hexadecimal value.
 Enter applies it; Escape or leaving the field cancels. An edit clears execution
 history and run-to stops, preserving RAM, peripherals, media, and queued input.
@@ -508,8 +547,14 @@ to open the ROM reference.
 ## Redirecting character output
 
 The laboratory's **Redirect the ROM's character output** walkthrough replaces
-the output hook with a tiny RAM routine. Start at the fresh ROM-only keyboard
-prompt, save the machine, then enter these bytes with **Memory → EDIT**:
+the output hook with a tiny RAM routine. Before running from fresh ROM-only
+power-on, add a word watch at `$0036` and a byte watch at `$0310`, with stops off.
+At the keyboard prompt, open the word's **History**: `$FEA9` stored `$F0` at
+`$0036`, then `$FEAB` stored `$FD` at `$0037`. The ROM has installed its original
+`$FDF0` output handler. Browse either instruction and try Back/Forward.
+
+Save the machine, then enter these bytes with **Memory → EDIT**. Inspect the
+initialization history first: RAM edits start a new capture.
 
 ```text
 0300: 8D 10 03 60
@@ -528,6 +573,10 @@ and `RTS` consumes the caller's existing return address, continuing at `$FD4A`.
 The indirect jump itself did not make another stack frame. Back in **KEYIN2**,
 the line editor has accepted the character but the handler did not advance CH
 or echo it to the screen. No Enter is needed.
+
+The word's History now shows two reads by `$FDED`, in low/high order. The byte
+watch's History shows `$0300` writing `$00 → $C1` at `$0310`. These observations
+connect the hook's value to its use and then to the custom handler's effect.
 
 This illustrates a software hook: ROM code chooses its destination through a
 RAM word. The custom routine captures the character; it does not reproduce the
@@ -1024,36 +1073,36 @@ within KEYIN, rather than a separate subroutine.
         {
           "title": "Save the original output hook",
           "address": "FD21",
-          "prepare": "Run to this checkpoint from fresh power-on. Save a state named Output hook original. In Zero page → Names, Watch CSWL/CSWH and BASL/BASH.",
-          "observe": "Watches uses the guide's two-byte definitions: CSWL/CSWH = $FDF0 and BASL/BASH = $0500. Click a word's value to browse that address in Memory; its source-address link still opens the word itself. Browsing does not run the machine.",
+          "prepare": "Before running from fresh power-on, add a WORD watch at $0036 and a BYTE watch at $0310, with stops off. Run to this checkpoint. Save a state named Output hook original. In Zero page → Names, Watch BASL/BASH too.",
+          "observe": "CSWL/CSWH = $FDF0 and BASL/BASH = $0500. History beside CSWL/CSWH shows $FEA9 writing $F0 to $0036 and $FEAB writing $FD to $0037. Browse an instruction or follow a word's value to Memory, then use the header's Back/Forward arrows to return. Browsing does not run the machine.",
           "routine": "KEYIN2"
         },
         {
           "title": "Install a small output handler",
           "address": "FD21",
           "prepare": "Stay paused. Use Memory EDIT to write $0300: 8D 10 03 60 (four separate bytes). This is STA $0310 followed by RTS. Then set $0036: 00 03 (low byte, then high byte). Turn EDIT off after applying all six bytes.",
-          "observe": "CSWL/CSWH now reads $0300. Follow that word to Memory and select MEM in Disassembly to see STA $0310 and RTS. Add a byte watch at $0310, with all stops off. The handler will capture A in RAM rather than send it to the screen. No ROM bytes have changed.",
+          "observe": "CSWL/CSWH now reads $0300. Follow that word to Memory and select MEM in Disassembly to see STA $0310 and RTS. The watches remain, but edits cleared their old history. The handler will capture A at $0310 rather than send it to the screen. No ROM bytes have changed.",
           "routine": "KEYIN2"
         },
         {
           "title": "Follow the indirect output jump",
           "address": "FDED",
           "prepare": "Click the screen and type A without Enter. Run to this checkpoint, then Step once.",
-          "observe": "COUT executes JMP ($0036): it reads $00 and $03 and reaches $0300. A holds $C1. The jump does not push a new return address; SP is unchanged. With Disassembly following PC, the next instruction is the RAM handler's STA $0310.",
+          "observe": "COUT executes JMP ($0036): History for CSWL/CSWH shows two reads by $FDED, $00 from $0036 then $03 from $0037. PC reaches $0300 and A holds $C1. The jump does not push a new return address; SP is unchanged. Select PC in Disassembly to follow execution again after browsing.",
           "routine": "COUT"
         },
         {
           "title": "Capture the character and return",
           "address": "FD21",
           "prepare": "From $0300, Step once to store A at $0310, then Step once for RTS. Inspect those two history records before running to this checkpoint.",
-          "observe": "The watch at $0310 shows $C1. RTS uses the existing caller's stack return and continues at $FD4A; SP increases by two. Back at the keyboard loop, CH is still $01 and no A has been echoed, although the line editor accepted it. Compare with the saved state to inspect the accumulated changes; do not press Enter.",
+          "observe": "History for $0310 identifies $0300's STA: RAM $0310 changed $00 → $C1. Its instruction link browses the handler; Back returns to the previous code address. RTS uses the existing caller's return and continues at $FD4A; SP increases by two. Back at the keyboard loop, CH is still $01 and no A was echoed, although the line editor accepted it. Compare with the saved state; do not press Enter.",
           "routine": "KEYIN2"
         },
         {
           "title": "Restore normal screen output",
           "address": "FDED",
           "prepare": "Restore Output hook original, then Compare: there should be no differences. Type A without Enter and run to this checkpoint. Step once, then run to the first checkpoint to finish the echo.",
-          "observe": "The restored CSWL/CSWH is $FDF0. The same JMP ($0036) now enters COUT1, and the prompt becomes ]A. Restore also removed the RAM handler and captured byte. Watch preferences remain part of the workspace, independent of the saved machine.",
+          "observe": "The restored CSWL/CSWH is $FDF0. Its fresh History shows $FDED reading $F0 then $FD; the same JMP now enters COUT1, and the prompt becomes ]A. Restore removed the RAM handler, captured byte, and prior execution history. Watch preferences and inspector navigation remain part of the workspace, independent of the saved machine.",
           "routine": "COUT"
         }
       ]

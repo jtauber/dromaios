@@ -9,27 +9,27 @@ import type { Apple2TraceEntry, InstructionCatalogue, AddressLabel } from "./app
 import type { Apple2RomGuide } from "./apple2-rom-guide.js";
 import { createRomNotes } from "./apple2-rom-guide.js";
 import { createInspectorChoices } from "./inspector-controls.js";
+import type { InspectorTool } from "./inspector-history.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 
 /** A laboratory instrument: navigation changes the view; address buttons request normal execution. */
-export function createApple2Disassembly(root: HTMLElement, catalogue: Apple2RomGuide & { readonly instructions: InstructionCatalogue }, runTo: (address: number) => void, showReference: (address: number) => void, memory: {
-  readonly address: () => number; readonly browse: (address: number) => void; readonly show: () => void;
+export function createApple2Disassembly(root: HTMLElement, catalogue: Apple2RomGuide & { readonly instructions: InstructionCatalogue }, runTo: (address: number) => void,
+  navigate: (tool: InspectorTool, address: number) => void, memory: {
+  readonly address: () => number; readonly browse: (address: number) => void;
 }, breakpoints?: ReturnType<typeof createApple2Breakpoints>) {
   const panel = root.querySelector<HTMLElement>("[data-disassembly]");
   if (panel === null) return undefined;
   const element = <T extends HTMLElement>(name: string) => panel.querySelector<T>(`[data-disassembly-${name}]`)!;
   const form = element<HTMLFormElement>("form"), address = element<HTMLInputElement>("address");
   const run = element<HTMLButtonElement>("run");
-  const back = element<HTMLButtonElement>("back");
   const next = element<HTMLButtonElement>("next"), status = element("status"), body = element<HTMLTableSectionElement>("rows");
   let start = 0, machine: Machine | undefined, canRun = false, running = false;
-  const history: number[] = [];
   let rows: readonly Apple2CodeRow[] = [];
   let recent: readonly Apple2TraceEntry[] = [];
   const mode = createInspectorChoices("Disassembly source", [
     { value: "pc", label: "PC", title: "Disassemble from PC" }, { value: "mem", label: "MEM", title: "Disassemble from Memory" },
-  ], "pc", () => { history.length = 0; address.setCustomValidity(""); render(); });
+  ], "pc", () => { address.setCustomValidity(""); render(); });
   const noteFor = createRomNotes(catalogue.notes), notes = document.createElement("button");
   notes.type = "button"; notes.textContent = "Notes"; notes.setAttribute("aria-label", "Show ROM comments");
   notes.setAttribute("aria-pressed", "true");
@@ -45,7 +45,7 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: Apple2RomG
     const button = document.createElement("button");
     button.type = "button"; button.className = "lab-code-label";
     let label: AddressLabel | undefined;
-    button.addEventListener("click", () => { if (label) showReference(parseInt(label.address, 16)); });
+    button.addEventListener("click", () => { if (label) navigate("rom", parseInt(label.address, 16)); });
     return {
       button,
       show(value: AddressLabel | undefined, text = value?.name): void {
@@ -73,7 +73,6 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: Apple2RomG
     return { row, pointer, button, breakpoint, bytes, assembly, label, operand, note };
   });
   function go(value: number): void {
-    if (value !== start) history.push(start);
     address.setCustomValidity("");
     mode.select("mem"); memory.browse(value); start = value; address.value = hex(start); render();
   }
@@ -86,17 +85,11 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: Apple2RomG
     catch (error) { address.setCustomValidity((error as Error).message); address.reportValidity(); }
   }
   form.addEventListener("submit", event => {
-    event.preventDefault(); useAddress(go);
+    event.preventDefault(); useAddress(value => navigate("code", value));
   });
   run.addEventListener("click", () => { if (canRun) useAddress(runTo); });
   address.addEventListener("input", () => address.setCustomValidity(""));
-  back.addEventListener("click", () => {
-    const previous = history.pop();
-    if (previous !== undefined) {
-      mode.select("mem"); memory.browse(previous); start = previous; address.value = hex(start); address.setCustomValidity(""); render();
-    }
-  });
-  next.addEventListener("click", () => { const address = nextAddress(); if (address !== undefined) go(address); });
+  next.addEventListener("click", () => { const address = nextAddress(); if (address !== undefined) navigate("code", address); });
 
   function render(): void {
     if (machine === undefined) return;
@@ -128,7 +121,7 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: Apple2RomG
       if (operand && encoded) {
         const offset = encoded.index!;
         view.assembly.replaceChildren(row.assembly.slice(0, offset),
-          memoryLink(operand.address, address => { memory.browse(address); memory.show(); }, encoded[0]),
+          memoryLink(operand.address, address => navigate("memory", address), encoded[0]),
           row.assembly.slice(offset + encoded[0].length));
       } else view.assembly.textContent = row.assembly;
       view.label.show(references.entry);
@@ -136,7 +129,7 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: Apple2RomG
       view.note.textContent = noteFor(row) ?? "";
     });
     refreshBreakpoints();
-    back.disabled = history.length === 0; next.disabled = nextAddress() === undefined; run.disabled = !canRun;
+    next.disabled = nextAddress() === undefined; run.disabled = !canRun;
     status.setAttribute("aria-live", running ? "off" : "polite");
     status.textContent = `${mode.value === "pc" ? "PC" : "MEM"} · $${hex(start)}`;
   }
@@ -154,6 +147,7 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: Apple2RomG
     refreshBreakpoints,
     controls,
     browse: go,
+    get address() { return start; },
     refresh(selected: Machine | undefined, records: readonly Apple2TraceEntry[], available: boolean, active: boolean, update: boolean): void {
       machine = selected; recent = records; canRun = available && !active; running = active;
       // Execution controls must stay safe even while the displayed code is frozen.

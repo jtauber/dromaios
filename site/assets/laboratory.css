@@ -18,6 +18,8 @@
 .laboratory-page pre { color: var(--ink); background: none; border: 0; border-radius: 0; padding: 0; margin: 0; font: 12px/1.6 var(--mono); white-space: pre; }
 .laboratory-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 24px; padding: 6px 14px; border-bottom: 1px solid var(--line); background: #0c1322; }
 .laboratory-brand { font-weight: 700; text-decoration: none; }
+.lab-navigation { display: flex; gap: 3px; }
+.lab-navigation button { font-size: 16px; line-height: 1; min-width: 28px; }
 .laboratory-header h1 { flex: 1; font: 600 14px/1.4 system-ui, sans-serif; margin: 0; letter-spacing: 0; }
 .laboratory-header h1 span { color: var(--muted); font-weight: 400; }
 .lab-panel-body { padding: 10px; min-height: 0; min-width: 0; }
@@ -96,6 +98,8 @@
 .lab-watch-row > span:nth-child(2) { overflow-wrap: anywhere; color: var(--muted); }
 .lab-watch-row > button { padding: 0 4px; }
 .lab-watch-stops { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); }
+.lab-watch-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.lab-watch-history-heading h2 { margin: 0; font: 600 14px/1.4 system-ui, sans-serif; }
 .laboratory-page .lab-watch-byte { border: 0; border-radius: 0; padding: 0; background: transparent; color: inherit; font: inherit; }
 .lab-call-frame { padding: 7px 0; border-bottom: 1px solid #263750; font: 12px/1.6 var(--mono); }
 .lab-call-frame .lab-hint { margin: 3px 0 0; }

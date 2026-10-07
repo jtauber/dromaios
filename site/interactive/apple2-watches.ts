@@ -12,6 +12,10 @@ export interface MemoryWatch {
   readonly stop?: readonly MemoryWatchMode[];
 }
 
+export function memoryWatchIncludes(watch: Pick<MemoryWatch, "address" | "bytes">, address: number): boolean {
+  return address >= watch.address && address < watch.address + (watch.bytes ?? 1);
+}
+
 /** Saved addresses, labels and stop choices; never captured machine values. */
 export function decodeMemoryWatches(saved: string | null): readonly MemoryWatch[] {
   try {

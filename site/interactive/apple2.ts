@@ -17,6 +17,7 @@ import { createApple2SavedStateView } from "./apple2-saved-state-view.js";
 import { prepareApple2SavedState } from "./apple2-saved-state.js";
 import type { Apple2SavedState } from "./apple2-saved-state.js";
 import { apple2MemoryHighlights } from "./apple2-inspection.js";
+import { createInspectorNavigation } from "./inspector-navigation.js";
 
 /** File controls, host scheduling, and screen presentation around the generated machine. */
 export function mountApple2(root: HTMLElement, showPanel: (id: string) => void = () => {}) {
@@ -51,13 +52,19 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   let requestedPanels: readonly string[] = [];
   const updates = createPanelUpdates(root, id => refreshPanels([id]));
   const shouldUpdate = (id: string) => requestedPanels.includes(id) || updates.shouldUpdate(id, execution.running);
+  const navigation = createInspectorNavigation(root, tool => tool === "memory" ? inspection.memoryAddress : explorer.address(tool), location => {
+    if (location.tool === "memory") inspection.browseMemory(location.address);
+    else explorer.browse(location.tool, location.address);
+    showPanel(location.tool); refreshPanels([location.tool, "rom", "code"]);
+  });
   const inspection = createApple2Inspection(root, shouldUpdate, () => refreshPanels(["rom", "code"]), (register, text) => {
     if (execution.running || selecting) throw new Error("Pause execution before editing a register.");
     editApple2Register(session.machine, register, text);
     explorer.reset(); execution.reset(); changeLog?.reset(); screenInspector?.reset();
     message.textContent = `${register.toUpperCase()} edited. Execution history cleared; RAM and devices preserved.`;
     refresh();
-  }, showPanel, {
+  }, { showPanel, memory: address => navigation.browse("memory", address), history: watch => explorer.watchHistory(watch),
+    watchesChanged: watches => explorer.watchesChanged(watches) }, {
     apply(edit, text) {
       if (execution.running || selecting) throw new Error("Pause execution before editing RAM.");
       const change = editApple2Memory(session.machine, edit, text);
@@ -77,9 +84,10 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       const record = changeLog ? changeLog.capture(() => session.step()) : session.step();
       if (record.outcome !== "executed") throw new Error(`Processor stopped: ${record.outcome}.`);
       const changes = changeLog?.memoryChanges(record) ?? [];
-      explorer.observe(record, before, inspection.watches, changes);
+      const writes = changeLog?.memoryWrites(record) ?? [];
+      explorer.observe(record, before, inspection.watches, changes, writes);
       inspection.observe(session.machine, changes);
-      screenInspector?.observe(record, before, changeLog?.memoryWrites(record) ?? []);
+      screenInspector?.observe(record, before, writes);
       // Complete manual stepping before its single refresh, preserving sample-based highlights.
       if (!execution.running) explorer.pauseBeforeStep();
       return { record, romMapped };
@@ -90,10 +98,10 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     onChange: refresh, batchSize: 10000,
   });
   const explorer = createApple2Explorer(root, () => session.machine, () => { message.textContent = ""; execution.run(); }, shouldUpdate, {
-    memoryAddress: () => inspection.memoryAddress, browseMemory: address => inspection.browseMemory(address), showPanel,
+    memoryAddress: () => inspection.memoryAddress, browseMemory: address => inspection.browseMemory(address), browse: navigation.browse,
   });
   const screenInspector = createApple2ScreenInspector(root, () => session.machine, {
-    memory: address => { inspection.browseMemory(address); showPanel("memory"); refreshPanels(["memory"]); },
+    memory: address => navigation.browse("memory", address),
     watch: address => inspection.watchMemory(address, "write"), code: explorer.browseCode,
   });
   const savedStates = createApple2SavedStateView(root, {
@@ -112,7 +120,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       if (!apple2MemoryHighlights(session.machine, [change]).has(change.address)) {
         return "That physical RAM bank is not currently mapped. Its saved and current values are shown here; mapping is unchanged.";
       }
-      inspection.browseMemory(change.address); showPanel("memory"); refreshPanels(["memory"]);
+      navigation.browse("memory", change.address);
     },
     registers: () => { showPanel("registers"); refreshPanels(["registers"]); },
   });
