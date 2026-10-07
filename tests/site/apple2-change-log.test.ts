@@ -17,7 +17,7 @@ test("the change log attributes register, cleared/set flag, PC and memory change
   const { machine, log, step } = example([0xa9, 0x80, 0x8d, 0x00, 0x04, 0xee, 0x00, 0x04, 0xa9, 0x00]);
   step(); step(); step(); step();
   const entries = log.entries();
-  assert.deepEqual(entries.map(entry => entry.instruction.address), [0x208, 0x205, 0x202, 0x200]);
+  assert.deepEqual(entries.map(entry => entry.instruction!.address), [0x208, 0x205, 0x202, 0x200]);
   assert.deepEqual(entries[0]!.changes, [
     { kind: "register", target: "A", before: 0x80, after: 0, width: 2 },
     { kind: "pc", target: "PC", before: 0x208, after: 0x20a, width: 4 },
@@ -31,7 +31,7 @@ test("the change log attributes register, cleared/set flag, PC and memory change
     { kind: "memory", target: "RAM $0400", before: 0, after: 0x80, width: 2 },
   ]);
   machine.ram.write(0x200, 0xea); // Disassembly must use captured bytes, not current memory.
-  assert.deepEqual(entries[3]!.instruction.bytes, [0xa9, 0x80]);
+  assert.deepEqual(entries[3]!.instruction!.bytes, [0xa9, 0x80]);
   assert.equal(log.entries().length, 4, "Host writes outside an instruction are not attributed to it");
 });
 
@@ -98,8 +98,8 @@ test("partial effects remain visible on errors, without attributing later host w
   const failure = new Error("Host failure after a completed store");
   assert.throws(() => log.capture(() => { machine.cpu.step(); throw failure; }), error => error === failure);
   const entry = log.entries()[0]!;
-  assert.equal(entry.outcome, "interrupted"); assert.equal(entry.instruction.address, 0x200);
-  assert.deepEqual(entry.instruction.bytes, []);
+  assert.equal(entry.outcome, "interrupted"); assert.equal(entry.instruction!.address, 0x200);
+  assert.deepEqual(entry.instruction!.bytes, []);
   assert.equal(entry.changes.filter(change => change.kind === "memory").length, 2);
   machine.ram.write(0x300, 0xea);
   assert.equal(entry.changes.filter(change => change.kind === "memory").length, 2);

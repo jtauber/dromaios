@@ -1,3 +1,5 @@
+import { createApple2MemoryEditor } from "./apple2-memory-editor.js";
+import type { Apple2MemoryEdit } from "./apple2-memory-edit.js";
 import type { createApple2Session } from "./apple2-session.js";
 import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 import { apple2MemoryHighlights, apple2StorageReader } from "./apple2-inspection.js";
@@ -23,7 +25,8 @@ import type { Apple2HardwareCatalogue } from "./apple2-hardware.js";
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 
 /** Both views observe the same machine. Only the laboratory includes memory instruments. */
-export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: string) => boolean, onMemoryPosition: () => void, edit: (register: Editable6502Register, text: string) => void, showPanel: (id: string) => void) {
+export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: string) => boolean, onMemoryPosition: () => void, edit: (register: Editable6502Register, text: string) => void, showPanel: (id: string) => void,
+  memoryEditing: { apply: (edit: Apple2MemoryEdit, text: string) => void; refresh: (id: string) => void }) {
   const element = (name: string) => root.querySelector<HTMLElement>(`[data-${name}]`);
   const cpuView = element("machine-inspect")!, system = element("system-inspect")!;
   const diskView = element("disk-inspect"), zero = element("zero-page"), stack = element("stack-view");
@@ -67,6 +70,13 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
   });
   const memoryControls = document.createElement("span"); memoryControls.className = "lab-inspector-controls";
   if (form && memoryView) memoryControls.append(form, follow.element, memoryView.control);
+  const editors = new Map(["memory", "zero", "stack"].flatMap(id => {
+    const panel = root.querySelector<HTMLElement>(`[data-workspace-panel=${id}]`);
+    if (!panel) return [];
+    const editor = createApple2MemoryEditor(panel, memoryEditing.apply, () => memoryEditing.refresh(id));
+    (id === "memory" ? memoryControls : id === "zero" ? zeroView!.control : stackView!.control).append(editor.control);
+    return [[id, editor] as const];
+  }));
   const registers = createApple2Registers(cpuView, root.matches("[data-laboratory]") ? edit : undefined);
   form?.addEventListener("submit", event => {
     event.preventDefault();
@@ -88,6 +98,7 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
   }
   function render(): void {
     for (const control of memoryControls.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input, button")) control.disabled = machine === undefined;
+    for (const [id, editor] of editors) editor.refresh(machine, editable, shouldUpdate(id));
     if (machine === undefined) return;
     const details = cpuView.closest("details");
     if (details !== null && !details.open) return;

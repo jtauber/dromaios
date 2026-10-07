@@ -1,3 +1,4 @@
+import { describeMemoryByte } from "./apple2-memory-editor.js";
 import { createApple2MemoryView } from "./apple2-memory-view.js";
 import { createInspectorChoices } from "./inspector-controls.js";
 import type { MemoryLabel } from "./apple2-explorer.js";
@@ -23,8 +24,15 @@ export function createApple2ZeroPage(container: HTMLElement | null, labels: read
     description.textContent = label.description;
     const watch = memoryWatchButton(label.address); watch.textContent = "Watch";
     description.append(" · ", watch);
+    const editable = document.createElement("span"); editable.className = "lab-memory-edit-bytes";
+    editable.append(" · Bytes: ");
+    const byteButtons = Array.from({ length: label.bytes }, (_, offset) => {
+      const button = memoryWatchButton(label.address + offset); button.dataset.memoryByte = hex(label.address + offset);
+      editable.append(button, " "); return button;
+    });
+    description.append(editable);
     row.append(memoryLink(label.address, browse), value, name, description); names.append(row);
-    return { ...label, row, value };
+    return { ...label, row, value, byteButtons };
   });
   const position = createWorkspacePosition(rows), scroller = container.closest<HTMLElement>("[data-workspace-panel]")!;
   let displayedTarget: number | undefined;
@@ -72,6 +80,10 @@ export function createApple2ZeroPage(container: HTMLElement | null, labels: read
       notice.textContent = installed ? "Monitor workspace conventions; other software may reuse these bytes. Words are low byte first."
         : "No ROM installed. These are the Monitor's workspace conventions, shown against initial RAM.";
       for (const row of rows) {
+        row.byteButtons.forEach((button, offset) => {
+          const byte = read(row.address + offset); button.textContent = byte === undefined ? "--" : hex(byte, 2);
+          describeMemoryByte(button, byte);
+        });
         const value = workspaceValue(row.address, row.bytes, read);
         const before = workspaceValue(row.address, row.bytes, address => changes.get(address)?.before ?? read(address));
         const changed = value !== undefined && before !== undefined && value !== before;

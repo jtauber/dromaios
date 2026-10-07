@@ -3,6 +3,7 @@ import type { createApple2Session } from "./apple2-session.js";
 import { createApple2ChangeLog } from "./apple2-change-log.js";
 import { disassemble6502, hex } from "./apple2-explorer.js";
 import type { InstructionCatalogue } from "./apple2-explorer.js";
+import type { Apple2MemoryChange } from "./apple2-inspection.js";
 
 /** A laboratory instrument; capture runs for every step, independently of display refreshes. */
 export function createApple2ChangeLogView(root: HTMLElement, machine: () => ReturnType<typeof createApple2Session>["machine"]) {
@@ -25,15 +26,19 @@ export function createApple2ChangeLogView(root: HTMLElement, machine: () => Retu
     const lines: string[] = [];
     for (const entry of entries) {
       const changes = entry.changes.filter(change => kinds.has(change.kind));
-      if (!changes.length && entry.outcome === "executed") continue;
-      const { address, bytes } = entry.instruction;
-      const assembly = bytes.length ? disassemble6502(address, bytes, instructions) : "Incomplete instruction";
-      lines.push(`#${entry.sequence}  $${hex(address)}  ${assembly}${entry.outcome === "executed" ? "" : ` [${entry.outcome}]`}`,
+      if (!changes.length && (entry.outcome === "executed" || entry.source === "user")) continue;
+      let title = "User RAM edit";
+      if (entry.source === "cpu") {
+        const { address, bytes } = entry.instruction;
+        const assembly = bytes.length ? disassemble6502(address, bytes, instructions) : "Incomplete instruction";
+        title = `$${hex(address)}  ${assembly}${entry.outcome === "executed" ? "" : ` [${entry.outcome}]`}`;
+      }
+      lines.push(`#${entry.sequence}  ${title}`,
         ...changes.map(change => `  ${change.target}  ${hex(change.before, change.width)} → ${hex(change.after, change.width)}`), "");
     }
-    status.textContent = `${log.recording ? "Recording" : "Recording paused"} · ${entries.length} / ${log.capacity} instructions retained`
+    status.textContent = `${log.recording ? "Recording" : "Recording paused"} · ${entries.length} / ${log.capacity} events retained`
       + (log.discarded ? ` · ${log.discarded.toLocaleString()} older discarded` : "");
-    output.textContent = lines.join("\n") || (entries.length ? "No changes match these filters." : "No instructions recorded yet. Step or Run to begin.");
+    output.textContent = lines.join("\n") || (entries.length ? "No changes match these filters." : "No events recorded yet. Step, Run, or edit RAM to begin.");
   }
   recording.addEventListener("change", refresh);
   for (const filter of filters) filter.addEventListener("change", refresh);
@@ -43,6 +48,7 @@ export function createApple2ChangeLogView(root: HTMLElement, machine: () => Retu
     memoryChanges(record: Cpu6502StepRecord | undefined) { return current().memoryChanges(record); },
     memoryWrites(record: Cpu6502StepRecord) { return current().memoryWrites(record); },
     reset(): void { current().clear(); },
+    recordEdit(change: Apple2MemoryChange): void { current().recordEdit(change); },
     refresh,
   };
 }

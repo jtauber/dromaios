@@ -1,4 +1,5 @@
 import { editApple2Register } from "./apple2-register-edit.js";
+import { editApple2Memory } from "./apple2-memory-edit.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { createExecutionController } from "./execution-controller.js";
 import { createApple2Session, apple2ControlKey, apple2ScreenKey, apple2Input } from "./apple2-session.js";
@@ -56,7 +57,18 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     explorer.reset(); execution.reset(); changeLog?.reset(); screenInspector?.reset();
     message.textContent = `${register.toUpperCase()} edited. Execution history cleared; RAM and devices preserved.`;
     refresh();
-  }, showPanel);
+  }, showPanel, {
+    apply(edit, text) {
+      if (execution.running || selecting) throw new Error("Pause execution before editing RAM.");
+      const change = editApple2Memory(session.machine, edit, text);
+      if (!change) return;
+      explorer.reset(); execution.reset(); changeLog?.reset(); screenInspector?.reset();
+      changeLog?.recordEdit(change);
+      message.textContent = "RAM edited. Execution history cleared; the user edit is recorded in Changes.";
+      refreshPanels(["memory", "zero", "stack", "watches", "instruction", "code", "log"]);
+    },
+    refresh: id => refreshPanels([id]),
+  });
   const changeLog = createApple2ChangeLogView(root, () => session.machine);
   const inputTarget = keyboard ?? screen;
   const execution = createExecutionController({

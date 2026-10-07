@@ -237,6 +237,11 @@ physical `Ram` stores for old/new memory values, independently of the display
 refresh rate. Its bounded history includes Language Card bank identities and
 completed effects of interrupted steps. `apple2-change-log-view.ts` provides the
 laboratory's Changes tab; the machine chapter owns capture and lifetime behavior.
+`apple2-memory-edit.ts` validates byte edits against the displayed physical bank,
+machine identity, and old value before writing RAM directly. The per-inspector
+`apple2-memory-editor.ts` owns Edit mode and a cancellable draft. Memory, named
+zero page, and stack views share its byte selection; the composition layer clears
+invalidated histories and records a user event after a successful change.
 Last-step RAM observations also feed the inspection panels' byte highlights,
 independently of log recording. The inspector matches physical banks to the
 currently displayed storage, without reading a soft switch or treating bank
@@ -365,6 +370,12 @@ twelve-entry window, and reset. Closing Screen must leave machine controls usabl
 Check Changes across steps and running batches, filtering, paused recording, clear,
 reset, power-on, and media replacement. Memory before-values must come from the
 written bank even when ROM is mapped for reads.
+Try Edit in Memory, Zero page (HEX and NAMES), and Stack (entries and PAGE):
+Apply/Enter, Cancel/Escape, invalid hex, and an unchanged value. Check ROM and
+device addresses reject edits, Run exits Edit mode, and normal byte clicks still
+add watches. Follow **Move the cursor by editing RAM** with the verified ROM,
+including Save, Compare, and Restore; its checkpoint behavior also has an
+automated real-ROM regression test.
 
 ## Build and preview
 

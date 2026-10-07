@@ -7,6 +7,15 @@ For repeatable experiments, use the laboratory's
 panel at any paused boundary. Save before a routine, step through it, and
 Compare to see net changes; Restore lets you try the same starting point again.
 
+The laboratory's **Move the cursor by editing RAM** walkthrough changes `CH`
+at `$0024`, follows the ROM's indirect screen store, and repeats the experiment
+after restoring the original cursor position. **EDIT** in Memory, Zero page, or
+Stack enables paused byte editing; turn it off to resume click-to-watch behavior.
+The laboratory’s **Move the cursor by editing RAM** walkthrough uses these tools
+to change `CH` at `$0024`, follow the ROM’s indirect screen store, and repeat
+the experiment after restoring the original cursor position. **EDIT** in Memory,
+Zero page, or Stack enables paused byte editing; turn it off to resume the usual
+click-to-watch behavior.
 
 The Apple II can reach its Applesoft prompt without a disk. Follow that path in
 the [browser machine](../../src/machines/6502/apple2.md#using-the-browser-machine), then watch one
@@ -913,6 +922,48 @@ within KEYIN, rather than a separate subroutine.
           "address": "FD21",
           "prepare": "Run to this checkpoint.",
           "observe": "The machine is waiting on row 23. Scrolling came from ordinary ROM loads and stores; the browser rendered the resulting RAM.",
+          "routine": "KEYIN2"
+        }
+      ]
+    },
+    {
+      "id": "cursor-edit",
+      "title": "Move the cursor by editing RAM",
+      "setup": "Use the laboratory. Load the verified ROM, eject any disk, use Fresh power-on, and disable breakpoint/watchpoint stops. Leave Screen Inspect off for typing. This experiment edits one Monitor workspace byte, then restores a saved state.",
+      "steps": [
+        {
+          "title": "Save the empty prompt",
+          "address": "FD21",
+          "prepare": "Run to this checkpoint from fresh power-on. In Saved states, save a state named Cursor before move, without typing a key.",
+          "observe": "Zero page → Names shows CH = $01, CV = $02, and BASL/BASH = $0500. The saved state includes RAM, CPU, devices, and the empty keyboard queue.",
+          "routine": "KEYIN2"
+        },
+        {
+          "title": "Change the cursor column",
+          "address": "FD21",
+          "prepare": "Stay paused here. In Zero page, turn EDIT on. In the CH row, select the byte beside Bytes, enter 08, and Apply. Turn EDIT off. In Saved states, Compare with Cursor before move.",
+          "observe": "Only RAM $0024 differs: $01 → $08. No instruction ran and Y is still $01. Changes labels the action User RAM edit; earlier execution history has been cleared. Columns count from zero.",
+          "routine": "KEYIN2"
+        },
+        {
+          "title": "Reload the changed column",
+          "address": "FBF0",
+          "prepare": "Click the screen and type A without Enter. Run to this checkpoint.",
+          "observe": "STORADV starts with LDY $24. Step loads the edited CH into Y, making it $08. The keyboard loop restored its old cursor cell before reaching this routine.",
+          "routine": "STORADV"
+        },
+        {
+          "title": "Store at column eight",
+          "address": "FBF2",
+          "prepare": "After that step, this is the current address. Step once to execute STA ($28),Y.",
+          "observe": "The ROM writes $C1 to $0508: row base $0500 plus column $08. The A appears at row 2, column 8. Compare again to see the accumulated effects; this comparison is a net difference, not an instruction trace.",
+          "routine": "STORADV"
+        },
+        {
+          "title": "Restore and repeat",
+          "address": "FD21",
+          "prepare": "In Saved states, Restore Cursor before move. Stay paused: Restore itself returns here. Compare again, then type A and repeat the last two checkpoints without editing CH.",
+          "observe": "After Restore, Compare shows no differences and CH is $01 again. Repeating the echo writes $C1 to $0501. The same ROM code uses the workspace supplied to it; the emulator did not special-case the character or cursor.",
           "routine": "KEYIN2"
         }
       ]

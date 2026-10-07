@@ -288,8 +288,8 @@ highlights along with those on the processor.
 
 The laboratory's **Changes** records every instruction while **Record changes** is
 enabled, including steps between display refreshes and while another tab is
-selected. It retains the latest 500 recorded instructions, newest first, and
-reports how many older instructions were discarded. Each group identifies the
+selected. It retains the latest 500 events (instructions or explicit RAM edits),
+newest first, and reports how many older events were discarded. Each CPU group identifies the
 instruction's starting address and fetched bytes decoded as assembly. Register,
 flag, and PC changes compare instruction boundaries; memory changes preserve
 the order of actual stores. Values are hexadecimal, with flags shown as 0 or 1.
@@ -383,6 +383,34 @@ independently, redraw while paused, and leave the machine state unchanged.
 Low-resolution graphics draws coloured blocks; high-resolution graphics uses
 the reference's approximate colour pairs. Mixed mode keeps four text rows. The
 video chapter defines those choices, the RGB palettes, and host flashing.
+
+### Editing RAM
+
+In the laboratory, **EDIT** in Memory, Zero page, or Stack enables byte editing
+while paused. Select a byte, enter a hexadecimal value from `00` to `FF`
+(an optional `$` is accepted), and choose **Apply** or press Enter. Cancel or
+Escape discards the draft. In named Zero page, **Bytes** exposes each byte of a
+workspace value, low byte first. Outside Edit mode, byte clicks retain their
+usual watch action; the explicit **Watch** links also remain available in Names.
+
+Edits write the physical RAM currently displayed: main RAM, the selected
+Language Card bank, or its common upper RAM. ROM, bootstrap, and device addresses
+are read-only. A debugger edit can change visible Language Card RAM even when
+CPU writes are protected; it neither changes that protection nor operates the
+guest bus. The editor rejects a draft whose byte, mapped bank, or machine has
+changed. Starting Run or selecting media leaves Edit mode and cancels its draft.
+RAM editing is available even without firmware.
+
+A changed byte clears execution history, observed calls, device activity,
+temporary execution targets, and screen-writer attribution, and restarts the
+instruction count. Changes starts a new history with **User RAM edit**, naming
+the physical bank and before/after values without inventing an instruction
+address. This explicit action is recorded even with instruction recording off.
+An unchanged value has no effect on history. Other RAM, registers, device
+latches, queued keyboard input, and saved states are preserved. Save an
+experiment first to restore it after editing; the
+[cursor walkthrough](../../../docs/software/apple2p-rom.md#rom-walkthrough)
+demonstrates this with the Monitor's `CH` workspace byte.
 
 ### Saving and comparing an experiment
 

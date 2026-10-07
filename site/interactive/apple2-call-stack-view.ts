@@ -10,7 +10,7 @@ export function createApple2CallStack(root: HTMLElement, routines: readonly Addr
   return {
     refresh(frames: readonly ObservedFrame[], trackingNote: string | undefined, location: (address: number) => DebugLocation): void {
       output.replaceChildren();
-      note.textContent = trackingNote ?? "Only calls observed since reset or the last register edit are shown.";
+      note.textContent = trackingNote ?? "Only calls observed since reset, restore, or the last register/RAM edit are shown.";
       if (!frames.length) { output.textContent = "No active observed calls."; return; }
       function link(address: number, captured?: DebugLocation): HTMLButtonElement {
         const current = location(address), space = captured?.space ?? current.space;

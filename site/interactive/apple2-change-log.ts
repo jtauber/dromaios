@@ -16,10 +16,24 @@ export interface Apple2Change {
 }
 
 export interface Apple2InstructionChanges {
+  readonly source: "cpu";
   readonly sequence: number;
   readonly instruction: Cpu6502StepRecord["instruction"];
   readonly outcome: Cpu6502StepRecord["outcome"] | "interrupted";
   readonly changes: readonly Apple2Change[];
+}
+
+export interface Apple2UserChanges {
+  readonly source: "user";
+  readonly sequence: number;
+  readonly instruction: undefined;
+  readonly outcome: "edited";
+  readonly changes: readonly Apple2Change[];
+}
+
+function memoryChange(change: Apple2MemoryChange): Apple2Change {
+  return { kind: "memory", target: `${apple2RamRegions.find(region => region.part === change.region)!.label} $${hex(change.address)}`,
+    before: change.before, after: change.after, width: 2 };
 }
 
 function processorChanges(before: Cpu6502Snapshot, after: Cpu6502Snapshot): Apple2Change[] {
@@ -38,13 +52,16 @@ function processorChanges(before: Cpu6502Snapshot, after: Cpu6502Snapshot): Appl
 /** Bounded instruction history, observing physical storage rather than re-reading guest addresses. */
 export function createApple2ChangeLog(machine: Machine, capacity = 500) {
   if (!Number.isSafeInteger(capacity) || capacity < 1) throw new RangeError("Change log capacity must be a positive integer.");
-  const entries: Apple2InstructionChanges[] = [];
+  const entries: (Apple2InstructionChanges | Apple2UserChanges)[] = [];
   let cursor = 0, sequence = 0, captured = 0, recording = true;
   let writes: Apple2MemoryChange[] | undefined;
   let latest: { readonly record: Cpu6502StepRecord | undefined; readonly writes: readonly Apple2MemoryChange[]; readonly changes: readonly Apple2MemoryChange[] } | undefined;
   const detach = apple2RamRegions.map(({ part, base }) => machine[part].observeWrites(({ address, before, after }) => {
     if (writes !== undefined) writes.push({ region: part, address: base + address, before, after });
   }));
+  function append(entry: Apple2InstructionChanges | Apple2UserChanges): void {
+    entries[cursor] = entry; cursor = (cursor + 1) % capacity; captured++;
+  }
 
   return {
     get capacity() { return capacity; },
@@ -60,9 +77,14 @@ export function createApple2ChangeLog(machine: Machine, capacity = 500) {
     memoryWrites(record: Cpu6502StepRecord | undefined): readonly Apple2MemoryChange[] {
       return record?.outcome === "executed" && latest?.record === record ? latest.writes : [];
     },
-    /** Newest instruction first; memory changes within it retain write order. */
-    entries(): readonly Apple2InstructionChanges[] {
+    /** Newest event first; memory changes within an instruction retain write order. */
+    entries(): readonly (Apple2InstructionChanges | Apple2UserChanges)[] {
       return Array.from({ length: entries.length }, (_, index) => entries[(cursor - 1 - index + entries.length) % entries.length]!);
+    },
+    /** Explicit user actions are retained even when CPU history recording is paused. */
+    recordEdit(change: Apple2MemoryChange): void {
+      latest = undefined;
+      append({ source: "user", sequence: ++sequence, instruction: undefined, outcome: "edited", changes: [memoryChange(change)] });
     },
     capture(step: () => Cpu6502StepRecord): Cpu6502StepRecord {
       sequence++;
@@ -76,14 +98,9 @@ export function createApple2ChangeLog(machine: Machine, capacity = 500) {
         writes = undefined;
         // Even a host error can follow completed writes. Keep those effects, explicitly marked incomplete.
         if (before !== undefined) {
-          entries[cursor] = { sequence, instruction: record?.instruction ?? { address: before.pc, bytes: [] },
+          append({ source: "cpu", sequence, instruction: record?.instruction ?? { address: before.pc, bytes: [] },
             outcome: record?.outcome ?? "interrupted",
-            changes: [...processorChanges(before, record?.after ?? machine.cpu.snapshot()), ...changes.map(change => ({
-              kind: "memory" as const, target: `${apple2RamRegions.find(region => region.part === change.region)!.label} $${hex(change.address)}`,
-              before: change.before, after: change.after, width: 2,
-            }))] };
-          cursor = (cursor + 1) % capacity;
-          captured++;
+            changes: [...processorChanges(before, record?.after ?? machine.cpu.snapshot()), ...changes.map(memoryChange)] });
         }
       }
     },

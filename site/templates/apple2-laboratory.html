@@ -173,10 +173,10 @@
         <label><input type="checkbox" data-log-filter="memory" checked> Memory</label>
         <label><input type="checkbox" data-log-filter="pc" checked> PC</label>
       </fieldset>
-      <p data-log-status class="lab-hint">Recording · 0 / 500 instructions retained</p>
-      <p class="lab-hint">Instruction address · before → after · newest first</p>
+      <p data-log-status class="lab-hint">Recording · 0 / 500 events retained</p>
+      <p class="lab-hint">CPU address or user action · before → after · newest first</p>
       <details class="lab-log-help"><summary>About this log</summary>
-        <p class="lab-hint">Values are hex; flags use 0 and 1. Filters only change what is shown. Records every instruction, even with this tab closed. Keeps the latest 500 recorded instructions.</p>
+        <p class="lab-hint">Values are hex; flags use 0 and 1. Filters only change what is shown. Records every instruction, even with this tab closed. Keeps the latest 500 events. Explicit RAM edits start a new history and are recorded even when instruction recording is off.</p>
         <p class="lab-hint">Pause recording to keep a capture while the CPU runs. Instruction numbers leave gaps for unrecorded steps. Clear log restarts numbering.</p>
         <p class="lab-hint">Memory lists actual RAM changes in write order, including Language Card banks. Unchanged stores, ROM and device writes are omitted. Reset, power-on, state restoration and successful media replacement clear the log.</p>
       </details>
@@ -210,7 +210,7 @@
       <div class="lab-device-controls"><label>Device <select data-device-filter><option value="all">All</option><option value="keyboard">Keyboard</option><option value="video">Display</option><option value="language">Language Card</option><option value="disk">Disk II</option><option value="unmapped">Unmapped</option></select></label><button type="button" data-device-clear>Clear</button></div>
       <p data-device-status class="lab-hint" role="status"></p>
       <div data-device-events></div>
-      <details><summary>About device activity</summary><p class="lab-hint">Captured accesses from completed CPU instructions in $C000–CFFF, including slot ROM and unmapped addresses. Newest first; identical consecutive accesses from the same instruction are grouped, retaining their count. Keeps the latest 128 groups, even with Live off or this panel hidden. Clear keeps instruction numbering; reset, fresh power-on, media replacement and register edits start new history.</p><p class="lab-hint">Instruction links browse current Disassembly only if the observed mapping is still visible; code bytes may have changed. Address links open Memory, and descriptions link to the specification. Descriptions explain the declared operation; the displayed byte is the actual transferred value. Host keyboard delivery is separate and has no responsible CPU instruction. No device reads are performed by this view.</p></details>
+      <details><summary>About device activity</summary><p class="lab-hint">Captured accesses from completed CPU instructions in $C000–CFFF, including slot ROM and unmapped addresses. Newest first; identical consecutive accesses from the same instruction are grouped, retaining their count. Keeps the latest 128 groups, even with Live off or this panel hidden. Clear keeps instruction numbering; reset, fresh power-on, restore, media replacement and register/RAM edits start new history.</p><p class="lab-hint">Instruction links browse current Disassembly only if the observed mapping is still visible; code bytes may have changed. Address links open Memory, and descriptions link to the specification. Descriptions explain the declared operation; the displayed byte is the actual transferred value. Host keyboard delivery is separate and has no responsible CPU instruction. No device reads are performed by this view.</p></details>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="disk" data-panel-live="true" data-panel-title="Disk">
       <h2>Drive 1</h2>

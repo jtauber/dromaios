@@ -66,7 +66,7 @@ class PublishingTests(unittest.TestCase):
         record = json.loads(re.search(r"```json\n(.*?)\n```", APPLE2_ROM.read_text(), re.S)[1])
         firmware = {"sha256": record["sha256"]}
         self.assertEqual([tour["id"] for tour in rom_annotations(APPLE2_ROM.read_text(), firmware)["walkthroughs"]],
-                         ["echo", "carriage-return", "scroll"])
+                         ["echo", "carriage-return", "scroll", "cursor-edit"])
         self.assertEqual(sum("details" in routine for routine in record["routines"]), 4)
         changes = [
             ("routines", lambda value: value[2]["details"].update(workspace=["KBD"])),

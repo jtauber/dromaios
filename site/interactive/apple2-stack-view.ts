@@ -5,6 +5,7 @@ import type { Apple2MemoryChange } from "./apple2-inspection.js";
 import { apple2StackAddresses } from "./apple2-memory-accesses.js";
 import type { UpcomingMemoryAccesses } from "./apple2-memory-accesses.js";
 import { markMemoryAccess } from "./memory-access-view.js";
+import { describeMemoryByte } from "./apple2-memory-editor.js";
 import { memoryWatchButton } from "./memory-link.js";
 
 /** SP identifies the next push slot, so conventional stack entries begin at SP + 1. */
@@ -32,12 +33,12 @@ export function createApple2StackView(container: HTMLElement | null, page: HTMLE
         const field = memoryWatchButton(address); field.dataset.memoryByte = hex(address);
         field.classList.add("apple2-memory-byte");
         field.textContent = value === undefined ? "--" : hex(value, 2);
-        field.setAttribute("aria-label", `Watch $${hex(address)}: ${value === undefined ? "unavailable" : `$${hex(value, 2)}`}`);
         if (change && value === change.after) {
           field.classList.add("is-changed"); field.title = `Changed ${hex(change.before, 2)} → ${hex(change.after, 2)} in the last instruction`;
         }
         markMemoryAccess(field, upcoming, address, 1, field.title);
         output.append(`$${hex(address)}  `, field, offset <= sp ? " ← next access\n" : offset === sp + 1 ? " ← SP+1\n" : "\n");
+        describeMemoryByte(field, value);
       }
     },
   };

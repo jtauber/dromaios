@@ -5,6 +5,7 @@ import { createInspectorChoices } from "./inspector-controls.js";
 import type { UpcomingMemoryAccesses } from "./apple2-memory-accesses.js";
 import { markMemoryAccess } from "./memory-access-view.js";
 import { apple2MemoryCharacter } from "./apple2-memory-characters.js";
+import { describeMemoryByte } from "./apple2-memory-editor.js";
 import { memoryWatchButton } from "./memory-link.js";
 
 /** Byte presentation and its header control; receives observations, never the machine or guest bus. */
@@ -81,7 +82,6 @@ export function createApple2MemoryView(container: HTMLElement | null, length: nu
         const changed = change !== undefined && value === change.after;
         const previous = changed ? `$${hex(address)} changed ${hex(change.before, 2)} → ${current} in the last instruction` : "";
         byte.value.textContent = current; character.value.textContent = glyph?.character ?? "·";
-        byte.element.setAttribute("aria-label", `Watch $${hex(address)}: ${value === undefined ? "unavailable" : `$${current}`}`);
         character.element.classList.toggle("is-inverse", glyph?.inverse ?? false);
         character.element.classList.toggle("is-flashing", glyph?.flashing ?? false);
         const attribute = glyph ? `${glyph.inverse ? "Inverse" : glyph.flashing ? "Flashing" : "Normal"} Apple II character · $${current}` : "Unavailable storage";
@@ -91,6 +91,7 @@ export function createApple2MemoryView(container: HTMLElement | null, length: nu
             [item === character ? attribute : `Watch $${hex(address)}`, previous].filter(Boolean).join("\n"));
           item.description.textContent = description ? ` (${description})` : "";
         }
+        describeMemoryByte(byte.element, value);
       }
     },
   };

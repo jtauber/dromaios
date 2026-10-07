@@ -64,6 +64,12 @@
 .lab-memory-character { display: inline-block; width: 1ch; text-align: center; color: #7ac9a1; }
 .lab-memory-character.is-inverse { background: #a3b0c5; color: #132139; }
 .lab-memory-character.is-flashing { color: #ffd18a; }
+.lab-memory-editor { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; color: #ffd18a; font: 11px/1.5 var(--mono); }
+.laboratory-page .lab-memory-editor input { width: 6ch; font: inherit; }
+.laboratory-page .lab-memory-editor button { padding: 2px 5px; font-size: 11px; }
+[data-memory-editing=true] [data-memory-byte] { cursor: cell; }
+.lab-memory-edit-bytes { display: none; }
+[data-memory-editing=true] .lab-memory-edit-bytes { display: inline; }
 .is-next-fetch { text-decoration: underline dotted #99aef4; text-underline-offset: 3px; }
 .is-next-read { text-decoration: underline solid #68d9e8 2px; text-underline-offset: 3px; }
 .is-next-write { outline: 1px solid #e3a1df; outline-offset: 1px; }
