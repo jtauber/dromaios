@@ -94,9 +94,10 @@ lessons retain their teaching devices.
 
 The [Apple II Plus](docs/machines/apple2.md) also runs ROM BASIC and read-only
 DOS 3.3, with a separate laboratory for execution and inspection. The next
-machine is the [TRS-80 Color Computer](docs/machines/coco.md): its reference
-audit and acceptance plan target ROM BASIC, keyboard, text, and a laboratory
-using the existing 6809. CoCo machine implementation is not yet present.
+machine is the [TRS-80 Color Computer](src/machines/6809/coco.md): its native,
+untimed 32 KiB profile runs Color BASIC with matrix keyboard input and text/
+semigraphics decoding on the existing 6809. Its laboratory is the next milestone;
+the [reference audit and acceptance plan](docs/machines/coco.md) records that work.
 
 All eight documented instruction sets now use shared definitions that generate
 execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)

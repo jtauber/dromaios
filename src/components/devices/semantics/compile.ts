@@ -53,7 +53,6 @@ export function compileDeviceChapter(markdown: string, file = "<device>"): Devic
         if (ownsState) header.fail("State is already declared.");
         header.expect("{"); header.end();
         const { body, end } = chapterBody(lines, index); index = end;
-        if (!body.length) header.fail("Device state must not be empty.");
         const declarations = body.map(tokens => {
           const kind = tokens.word(), name = tokens.word();
           if (kind !== "register" && kind !== "latch") tokens.fail("Device state currently supports registers and latches.");

@@ -222,16 +222,19 @@ test("reset declarations separate machine reset from the 68000 device signal", (
   assert.deepEqual(noDevices.resetDevices, []);
 });
 
-test("6502 maps require an explicit bus policy and retain their full address-space size", () => {
-  const cpu = `cpu 6502 { A=0 X=0 Y=0 SP=FF PC=0 flags { N=0 V=0 D=0 I=0 Z=0 C=0 } }`;
+for (const [model, cpu] of [
+  ["6502", `cpu 6502 { A=0 X=0 Y=0 SP=FF PC=0 flags { N=0 V=0 D=0 I=0 Z=0 C=0 } }`],
+  ["6809", `cpu 6809 { A=0 B=0 DP=0 X=0 Y=0 S=0 U=0 PC=0 waitMode=none nmiArmed=false
+    flags { E=0 F=0 H=0 I=0 N=0 Z=0 V=0 C=0 } }`],
+]) test(`${model} maps require an explicit bus policy and retain their full address-space size`, () => {
   const source = `${cpu} components { ram=ram C000 rom=rom 3000 }
 map 10000 { 0000=ram D000=rom unmapped=00 }`;
   const machine = parseMachine(source);
   assert.ok("components" in machine);
   assert.deepEqual(machine.connection, { kind: "mapped", size: 65536, unmapped: 0,
     regions: [{ start: 0, component: "ram" }, { start: 0xd000, component: "rom" }] });
-  assert.throws(() => parseMachine(source.replace("unmapped=00", "")), /6502 map requires an explicit/);
-  assert.throws(() => parseMachine(source.replace("map 10000", "map FFFF")), /Address-space size for 6502/);
+  assert.throws(() => parseMachine(source.replace("unmapped=00", "")), new RegExp(`${model} map requires an explicit`));
+  assert.throws(() => parseMachine(source.replace("map 10000", "map FFFF")), new RegExp(`Address-space size for ${model}`));
   assert.throws(() => parseMachine(source.replace("D000=rom", "BFFF=rom")), /overlap/);
 });
 

@@ -102,6 +102,8 @@ examples add polling and consuming input reads with the same devices.
 
 - [TRS-80 Color Computer target](machines/coco.md): selected first configuration,
   pinned dromaios-coco audit, real-ROM comparison, and acceptance checks.
+- [TRS-80 Color Computer chapter](../src/machines/6809/coco.md): native 6809,
+  PIAs, SAM, text/semigraphics, and the verified Color BASIC transcript.
 - [Apple II Plus ROM walkthrough](software/apple2p-rom.md): versioned routine stops
   and an execution path from reset to the prompt, keyboard acknowledgement, and echo.
 

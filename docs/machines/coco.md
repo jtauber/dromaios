@@ -5,65 +5,12 @@ using the existing generated 6809. The first milestone is native ROM boot, keybo
 text and semigraphics, a small stored BASIC program, and a usable laboratory.
 This broadens the platform before further Apple II DOS exploration.
 
-The PIA and keyboard foundation below is implemented; native machine composition,
-SAM/video, and the laboratory are still to come. This document is the acceptance
-specification, not a claim of a complete CoCo. As implementation proceeds, move
-implemented contracts and acceptance examples into the executable machine and
-device chapters; retain the reference audit here. Do not keep two copies of
-those contracts.
-
-## Selected first configuration
-
-| Part | Target |
-| --- | --- |
-| Processor | Existing [6809 model](../../src/components/cpus/specifications/6809.md), used in the MC6809E system context. No second CPU implementation. |
-| Machine | NTSC CoCo 1, 32 KiB RAM profile, normal ROM-based address map. |
-| Firmware | The audited caller-supplied 8 KiB Color BASIC 1.3 ROM at `A000–BFFF`; identity below. No Extended Color BASIC. |
-| RAM | `0000–7FFF`; deterministic zero fill on fresh power-on is an emulator convention. |
-| I/O | Two MC6821 PIAs, including the port directions, control lines, and interrupt behavior required by the selected configuration. |
-| Address/video control | MC6883 SAM register state, normal-map decoding, and text display address generation. |
-| Display | MC6847 internal characters, inverse characters, both text colour sets, and semigraphics-4. The ordinary text page has 32 columns and 16 rows. |
-| Keyboard | The CoCo matrix, with distinct press/release events, Shift, Enter, editing keys, and Break. |
-| Unattached hardware | No cartridge, disk controller, cassette transport, printer, or joystick. Their disconnected input levels must be specified. |
-
-Color BASIC 1.3 is a later ROM revision: [MAME identifies this image][mame-roms]
-with its CoCo 2B configuration. Here it is a specified ROM upgrade on the
-CoCo 1 hardware profile, not a claim about an original factory combination.
-The [Tandy technical reference][technical] describes the system memory map,
-video connections, and keyboard interface. The first profile is deliberately
-smaller than the reference emulator's collection of modes. Extended BASIC,
-full graphics, other RAM configurations, all-RAM operation, cartridges, storage,
-audio, and CoCo 2/3 variants are later milestones. Unsupported modes must remain
-visible as limitations rather than silently presenting an invented result.
-
-### Memory and connections
-
-The executable chapter should declare these regions and aliases explicitly:
-
-| Addresses | First-profile connection |
-| --- | --- |
-| `0000–7FFF` | RAM. The ROM normally places the text screen at `0400–05FF`; the renderer follows SAM state instead of hard-coding that page. |
-| `8000–9FFF` | Unpopulated Extended BASIC socket. |
-| `A000–BFFF` | Verified Color BASIC ROM. Writes do not alter it. |
-| `C000–FEFF` | Unpopulated cartridge region. |
-| `FF00–FF1F` | PIA 0; its four registers repeat every four addresses. |
-| `FF20–FF3F` | PIA 1, with the same register mirroring. |
-| `FF40–FFBF` | Unpopulated peripheral space. |
-| `FFC0–FFDF` | SAM control writes: paired addresses clear/set individual bits, independently of the written byte. |
-| `FFE0–FFFF` | Color BASIC ROM tail, including the big-endian CPU vectors; `FFFE–FFFF` selects ROM offsets `1FFE–1FFF`. |
-
-The [SAM allocation table][sam] selects the BASIC ROM for `FFE0–FFFF`, even
-though only `FFF2–FFFF` contains the documented CPU vectors. Unanswered guest
-reads return `FF` and writes are ignored in this initial model; that is an
-explicit undriven-bus approximation. Inspectors show absent storage as
-unavailable rather than presenting the guest fallback as stored ROM data.
-
-Name matrix connections by pins: PIA 0 PB0–PB7 select the eight keyboard
-columns; PA0–PA6 sense seven rows. PA7 is a joystick-comparator input, not an
-eighth keyboard row. PIA 1 PB3 controls CSS, PB4–PB6 control GM0–GM2, and PB7
-controls A/G. These assignments follow the Tandy map (printed pages 6–7 and 33).
-Device chapters must distinguish output latches, direction registers, and
-resolved pin levels.
+The [native executable chapter](../../src/machines/6809/coco.md) now owns the
+implemented component, memory, reset, firmware, display, and snapshot contracts.
+It passes the full Color BASIC conversation headlessly on native Dromaios
+hardware. The laboratory and browser acceptance checks below remain to be done.
+This document retains the reference audit and future acceptance work, rather
+than duplicating the executable chapter's contracts.
 
 ## Reference audit
 
@@ -150,7 +97,7 @@ published site.
 | Reset vector | `A0 27`, entering at `A027` |
 | Observed banner | `COLOR BASIC 1.3`, `(C) 1982 TANDY`, then `OK` |
 
-The full conversation in checkpoint 2 ran headlessly with the reference CPU
+The full conversation now recorded in the native chapter ran headlessly with the reference CPU
 and with Dromaios's generated 6809, each connected to fresh copies of the
 unchanged reference memory/devices. It covered arithmetic, stored lines, LIST,
 RUN, replacing line 20, NEW, editing with the left-arrow key, an infinite loop,
@@ -180,106 +127,36 @@ already identified the omitted CLR access. Do not suppress that documented read
 to force device-state parity.
 
 The comparison does not establish full bus-trace equivalence or validate the
-shared reference peripherals. A native Dromaios CoCo, browser input/rendering,
-and snapshot continuation still need the acceptance checks below.
+shared reference peripherals. Native behavior is checked separately in the
+executable chapter; browser input/rendering and laboratory acceptance still
+need the checks below.
 
 Only this exact 8 KiB image is selected. If later accepting combined images,
 identify and hash their constituent ROMs and document normalization explicitly;
 do not silently enable Extended BASIC or a cartridge from extra bytes.
 
-## Literate implementation boundaries
-
-The machine chapter will own component selection, RAM and ROM requirements,
-memory routing, pin connections, reset wiring, and acceptance examples. Device
-chapters will own PIA register behavior, SAM state/addressing, and selected VDG
-decoding. Use [existing device declarations](../devices/literate-specifications.md)
-where they express the behavior clearly. Concrete support code is appropriate
-where new connections or event handling are needed; do not design a universal
-peripheral language before implementing these cases.
-
-Browser code owns file selection, host-key translation, drawing, and scheduling
-work. It does not patch firmware, inject BASIC tokens into RAM, or supply ROM
-routine traps. Pure device views supply inspection; execution records supply
-observed accesses. Software workspace names belong to a versioned ROM guide.
-
-### Implemented PIA and keyboard foundation
-
-The [MC6821 chapter](../../src/components/devices/specifications/mc6821.md)
-owns the generated chip's register, pin, reset, and interrupt contracts. Its
-current profile supports interrupt inputs and software-controlled C2 outputs;
-hardware strobe modes reject writes before effects. The device language's
-`input` binding supplies typed external events without using guest accesses.
-
-[CoCo PIA wiring](../../src/machines/6809/coco/pias.ts) connects two generated
-chips at local offsets `00–3F`, corresponding to `FF00–FF3F`. Each chip's four
-registers repeat across its 32-byte window. PIA 0's combined interrupt output
-supplies the current `irq` level; PIA 1 supplies `firq`. Explicit horizontal
-and field-sync inputs reach PIA 0 CA1/CB1; serial carrier detect and the
-cartridge line reach PIA 1 CA1/CB1. These inputs exercise wiring, not a serial
-or cartridge emulator. The future machine runner must sample their current
-levels at instruction boundaries, including after guest acknowledgement.
-
-The [keyboard matrix](../../src/machines/6809/coco/keyboard.ts) contains 52
-physical switches, named independently of browser key codes. PB0–PB7 drive
-columns and PA0–PA6 sense rows. `setKey` changes a held switch, repeated presses
-are idempotent, and `releaseKeys` clears all switches for focus loss. Enter,
-Clear, Break, arrows, Space, and Shift are physical keys; punctuation and host
-keyboard layout translation belong to the caller. For example, Shift with
-the CoCo `;` key produces `+` in Color BASIC. No character FIFO, debounce,
-typematic timer, paste scheduler, or browser keyboard handler is implemented.
-
-The matrix resolves low levels through connected switches in either direction,
-including multi-key ghost paths. Undriven lines are treated as high. Low wins
-if connected outputs disagree; this is a digital approximation, not a model of
-electrical contention. With no joystick attached, its comparator and fire-button
-inputs are held high. PIA 1's external port inputs and external C2 inputs on
-both chips are also held high in this foundation. This does not model cassette
-or serial signal conditioning. No periodic input events occur automatically.
-
-Every keyboard change and guest write recomputes the matrix inputs, so changing
-DDRB exposes retained output bits immediately. Video control comes from the
-pure PIA 1 pin view and also responds to direction changes. A video decoder is
-not present yet. Inspection and snapshots neither read guest data registers
-nor consume keys or pending interrupt flags.
-
-The wiring snapshot owns both chip states and all seven rows of held switches.
-Restoration rejects missing components, unpopulated switches, and external port
-levels inconsistent with the wiring. Reset clears both chips while preserving
-keys and external control levels; it is distinct from CPU-only reset or a
-fresh machine with released input. A future host queue must be saved separately.
-
-[Component tests](../../tests/components/devices/mc6821.test.ts) check the chip;
-[keyboard](../../tests/machines/6809/coco/keyboard.test.ts) and
-[wiring tests](../../tests/machines/6809/coco/pias.test.ts) check every key and
-mirror, direction changes, shared switch paths, both interrupt lines, snapshots,
-and a generated 6809 program that scans a key and acknowledges CB1 through CLR's
-read-before-write transfer.
+## Native implementation and remaining acceptance
 
 On **2026-10-29**, a temporary integration harness replaced the reference's PIAs
-and keyboard with these components while retaining its RAM/ROM/SAM scaffold.
-The generated 6809 completed the pinned Color BASIC transcript above, including
+and keyboard with the generated MC6821 and native CoCo wiring while retaining
+its RAM/ROM/SAM scaffold. The generated 6809 completed the pinned Color BASIC
+transcript now recorded in the native chapter, including
 line editing and Break, in **3,660,000 instructions**, with no automatic sync
 events. Each batch contained 4,000 instructions, with the same 180-batch boot
 sample, three-batch key holds/releases, and five-batch post-command waits as
 the earlier audit. Literal screen-RAM expectations were checked after each
-relevant command. This verifies the new input path with firmware; it does not establish
-native SAM/video support or browser acceptance. No ROM bytes are tracked.
+relevant command. This verified the input path with firmware; it did not
+establish native SAM/video support or browser acceptance. No ROM bytes are tracked.
 
-### Timing and interrupt boundary
+The subsequent native implementation replaced the remaining reference RAM,
+ROM, and SAM scaffold. Its optional ROM test uses the same instruction
+schedule and passes the transcript with native PIAs, keyboard, SAM, VDG, and
+machine composition. The native chapter records the functional model's limits,
+including fixed logical RAM rather than physical DRAM multiplexing. Synthetic
+tests independently cover explicit interrupts, restoration, and video reads.
+The ROM remains caller-supplied; no firmware bytes are tracked.
 
-The selected BASIC transcript works with sync events absent, despite the
-reference's comment that BASIC requires its browser-frame interrupt. The first
-milestone therefore uses an explicit **untimed functional profile**: no automatic
-horizontal/field-sync events, audio, or claim of a MHz rate. Keyboard input is
-an ordered sequence of physical matrix changes. Host batching controls response
-and presentation speed, not emulated hardware time. This profile does not claim
-to run software that depends on video interrupts or real-time delays correctly.
-
-PIA edge detection, masking, flag latching, acknowledgement, and current IRQ/FIRQ
-levels still need independent checks with explicit input edges. PIA 0 connects
-to IRQ and PIA 1 to FIRQ. Use the CPU's existing interrupt interface at instruction
-boundaries, including its masked and waiting outcomes; no stale latched request
-should survive device acknowledgement. Rendering must never inject an event.
+### Before adding hardware time
 
 Before enabling periodic sync or timing-dependent software, add a separately
 reviewed emulated-time contract: independently checked 6809 instruction and
@@ -292,73 +169,21 @@ the same CPU/device results with single steps, small or large batches, and no
 rendering. A paused machine consumes neither queued input nor execution steps.
 Browser focus-loss release handling must not leave a key stuck on resume.
 
-## Acceptance checkpoints
+### Browser input and observation
 
-### 1. Components and native reset
-
-Use independent literal expectations for the memory map, vector byte order,
-PIA aliases, DDR/data selection, pin levels, edge polarity, and acknowledgement.
-Check data-latch and direction changes in either order. Verify SAM address-pair
-writes with different data bytes and an explicitly documented reset state.
-Unsupported map/display choices must be reported as such.
-
-With the pinned ROM, reset must fetch `FFFE–FFFF` and execute the firmware
-without patching PC or RAM to skip initialization. Within a one-million-instruction
-boot budget, the ROM must reach its keyboard scan and display the audited banner
-and `OK`. Check actual screen RAM as well
-as the wait location; an arbitrary PC or a hard-coded screen string is not
-evidence of boot. Without firmware, the machine remains stopped and inspectable;
-a rejected replacement preserves the existing session.
-
-### 2. Keyboard and a stored program
-
-Drive physical matrix press/release events, including the modifiers needed to
-type punctuation. Use this acceptance conversation; numeric output occupies a
-row as ` 5 ` or ` 6 `, with the arithmetic values checked independently:
-
-```text
-PRINT 2+3
-    -> 5, then OK
-10 A=2
-20 PRINT A+3
-30 END
-LIST
-    -> those three lines, in order
-RUN
-    -> 5, then OK
-20 PRINT A+4
-RUN
-    -> 6, then OK
-NEW
-LIST
-    -> no program lines, then OK
-```
-
-Also enter `PRINT 2+4`, erase the final `4` with the editing key, type `3`,
-and submit: it must print `5`. Enter and run `10 GOTO 10`; Break must return
-control with the ROM's break indication, after which another immediate command
-works. Test Shift, Enter, repeated keys separated by releases, and release on
-browser focus loss. Host key repeat must not be confused with the ROM's own
-held-key behavior. Pasting, if offered, must use the same matrix path.
-
-No cassette or disk is needed to meet this checkpoint. Saving a named emulator
-state is not a claim of implementing BASIC's external-media SAVE command.
-
-### 3. Display and observation
-
-Check every cell in the 512-byte text page, selected glyph shapes, inverse
-polarity, colour-set selection, and all SG4 block/color combinations against
-independent expectations. Test a different SAM page with a known RAM pattern.
-The decoder must read physical video storage; CPU ROM/I/O mapping must not
-change the bytes it sees or cause device effects. Fixed RGB colours and absent
-composite artifacts must be declared as presentation approximations.
+Repeat the native chapter's BASIC conversation through host key handling,
+including Shift, Enter, editing, Break, repeated keys separated by releases,
+and focus-loss release. Pasting, if offered, must use the matrix path. Host
+key repeat is distinct from the ROM's held-key behavior.
 
 Repaint, inspect registers, preview memory, and browse code with a PIA interrupt
-pending and keys held. These operations must leave CPU, RAM, PIA/SAM state and
-keyboard matrix unchanged. Repeat with panels hidden and Live
-disabled; the execution result must be identical.
+pending and keys held. These operations must leave CPU, RAM, PIA/SAM state,
+and keyboard matrix unchanged. Repeat with panels hidden and Live disabled.
+Fixed RGB colours and absent composite artifacts must be declared as
+presentation approximations. Invalid media must preserve the session; hardware
+remains stopped and inspectable until the host has a valid boot configuration.
 
-### 4. Laboratory and repeatable sessions
+### Laboratory and repeatable sessions
 
 Provide Screen, Execution, Registers, Instruction, Disassembly, Memory, Stack,
 and device-state views within the existing docking workspace. Both S and U
@@ -385,21 +210,18 @@ preferences distinct from the Apple II's. Changes to shared tools must retain
 existing Apple II behavior. Use the CoCo to identify small shared tool contracts;
 do not make its devices imitate the Apple II's keyboard latch or memory banks.
 
-## First implementation sequence
+## Next implementation sequence
 
-1. Retain the audited ROM identity and transcript as integration fixtures,
-   without treating reference shortcuts as hardware requirements.
-2. Implement and independently test the PIA behavior and concrete CoCo wiring,
-   then the selected SAM/video profile in literate chapters.
-3. Bring up the native composition under the declared untimed profile and
-   verify repeatable ROM, keyboard, and explicit-interrupt behavior.
-4. Connect the shared workspace, complete the browser acceptance checks, and
-   publish the executable machine chapter beside it.
+1. Connect the native machine to the shared docking workspace, including local
+   verified ROM loading, matrix key events, and its own saved layout.
+2. Complete the browser conversation and observation checks, and publish the
+   executable machine chapter beside the laboratory.
+3. Review the untimed profile's remaining limitations before broadening software
+   support or adding a timed SAM/VDG/CPU schedule.
 
 The first milestone is complete only when the selected ROM runs the conversation
-headlessly and in the laboratory, the observation checks pass, and the remaining
-fidelity limits are explicit. A screenshot of `OK`, a passing CPU comparison, or
-a reference emulator feature list alone is insufficient.
+headlessly and in the laboratory, observation checks pass, and remaining fidelity
+limits are explicit. Native ROM boot alone does not complete that milestone.
 
 ## Hardware references
 

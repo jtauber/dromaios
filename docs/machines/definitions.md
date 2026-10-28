@@ -47,6 +47,10 @@ The [Apple II chapter](../../src/machines/6502/apple2.md) adds conditional memor
 windows: device views choose separate read/write destinations, including RAM
 behind ROM. Windows own no storage or snapshot fields. The generated closures
 route transfers directly, and the chapter owns the hardware's bank-selection rules.
+The [CoCo chapter](../../src/machines/6809/coco.md) composes the generated 6809,
+PIAs, SAM, and VDG with physical RAM and an externally verified Color BASIC ROM.
+Its concrete board helpers sample interrupt levels and render physical RAM;
+they do not require a general-purpose peripheral wiring language.
 
 The [68000 ROM-output example](../cpus/68000/examples/output.md) also maps a
 byte-output register and connects device reset to the CPU's RESET instruction.

@@ -229,7 +229,7 @@ component at two disjoint addresses explicitly aliases the same instance.
 Unmapped accesses and ROM writes follow the [memory-map contract](memory-map.md).
 Mapping a device preserves its read/write side effects.
 
-The 8080 and 6502 also accept maps, but require an explicit unanswered-bus value:
+The 8080, 6502, and 6809 also accept maps, but require an explicit unanswered-bus value:
 
 ```text
 map 10000 {
@@ -404,7 +404,7 @@ lesson.machine:3:6: Memory block extends beyond address FFFF
 ## Scope and future extensions
 
 This version describes named components with an optional CPU, RAM/ROM images,
-6502/8080/68000 memory maps with conditional windows, 8080 byte ports,
+6502/6809/8080/68000 memory maps with conditional windows, 8080 byte ports,
 chapter-defined devices, and explicit reset wiring. Interrupt wiring, clocks,
 and scripted host input are not currently expressed. The
 [Apple II target](apple2.md) drives the next extensions:

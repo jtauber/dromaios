@@ -251,6 +251,9 @@ The next target is the [TRS-80 Color Computer](docs/machines/coco.md), using
 Its first milestone is a selected CoCo 1 configuration running ROM BASIC with
 keyboard, text/semigraphics, and a laboratory. The acceptance plan records the
 reference audit, required ROM evidence, device boundaries, and timing work.
+The [native executable chapter](src/machines/6809/coco.md) now passes the
+headless BASIC transcript on its untimed 32 KiB profile; the laboratory and
+browser acceptance checks remain.
 Use this third historical machine to test shared inspection conventions;
 introduce abstractions through concrete requirements.
 

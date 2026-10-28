@@ -17,7 +17,10 @@ are reserved.
 
 A `state` block declares uppercase registers with widths and Boolean latches.
 It uses the [CPU state syntax](../cpus/literate-specifications.md#state-ownership),
-currently limited to registers and latches. `source` and `action` declarations
+currently limited to registers and latches. An explicit empty `state` block
+describes a combinational device with no retained state, as in the
+[MC6847 decoder](../../src/components/devices/specifications/mc6847.md).
+`source` and `action` declarations
 reuse the CPU language's typed captures, expressions, and ordered state effects.
 Sources return a typed value; actions have no result. Declare referenced sources
 and actions before using them. Device behavior cannot fetch instructions, access
