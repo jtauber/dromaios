@@ -92,6 +92,12 @@ memory and sense-switch controls. Literate BASIC lessons use that machine, with
 authored conversations checked against the interpreter. The earlier introductory
 lessons retain their teaching devices.
 
+The [Apple II Plus](docs/machines/apple2.md) also runs ROM BASIC and read-only
+DOS 3.3, with a separate laboratory for execution and inspection. The next
+machine is the [TRS-80 Color Computer](docs/machines/coco.md): its reference
+audit and acceptance plan target ROM BASIC, keyboard, text, and a laboratory
+using the existing 6809. CoCo machine implementation is not yet present.
+
 All eight documented instruction sets now use shared definitions that generate
 execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)
 tracks literate authoring, source footprint, supported features, and remaining

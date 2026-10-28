@@ -100,6 +100,8 @@ examples add polling and consuming input reads with the same devices.
 
 ## Machine definitions
 
+- [TRS-80 Color Computer target](machines/coco.md): selected first configuration,
+  pinned dromaios-coco audit, real-ROM comparison, and acceptance checks.
 - [Apple II Plus ROM walkthrough](software/apple2p-rom.md): versioned routine stops
   and an execution path from reset to the prompt, keyboard acknowledgement, and echo.
 

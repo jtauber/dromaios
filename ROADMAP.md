@@ -246,11 +246,19 @@ of representative software for each machine, then carry it through boot,
 loading, interaction, and repeatable use. Agree those acceptance criteria before
 implementation, using the existing emulator projects as references.
 
-The next target is the [Apple II Plus](docs/machines/apple2.md), with
-**dromaios-apple2** as its primary reference. Its plan starts with ROM, keyboard,
-and text, then adds graphics, Language Card banking, DOS 3.3, writable disks,
-and sound. The existing generated 6502 remains the CPU implementation; new
-hardware behavior should be authored in executable machine and device chapters.
+The next target is the [TRS-80 Color Computer](docs/machines/coco.md), using
+**dromaios-coco** as its primary reference and the existing generated 6809.
+Its first milestone is a selected CoCo 1 configuration running ROM BASIC with
+keyboard, text/semigraphics, and a laboratory. The acceptance plan records the
+reference audit, required ROM evidence, device boundaries, and timing work.
+Use this third historical machine to test shared inspection conventions;
+introduce abstractions through concrete requirements.
+
+The [Apple II Plus](docs/machines/apple2.md) already has ROM BASIC, graphics,
+Language Card banking, read-only DOS 3.3, and a laboratory. Further DOS exploration,
+writable disks, and sound remain planned while the immediate effort broadens
+the machine lineup. New hardware behavior should be authored in executable
+machine and device chapters where the existing language expresses it clearly.
 
 "Fully working" is measured against that selected configuration and software:
 the required display, keyboard, sound, storage, and other devices work together,

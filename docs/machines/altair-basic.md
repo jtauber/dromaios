@@ -2,7 +2,8 @@
 
 The first historical-machine milestone is complete: a usable Altair with BASIC
 at the declared modeling fidelity. Its introductory programming path is also
-complete. The next machine target is the [Apple II Plus](apple2.md).
+complete. The [Apple II Plus](apple2.md) followed this milestone; the
+[roadmap](../../ROADMAP.md#6-broaden-the-platform) tracks subsequent machines.
 
 The [executable machine chapter](../../src/machines/8080/altair-basic.md) owns
 the selected hardware, bus responses, serial and panel connections, bootstrap,

@@ -1,6 +1,6 @@
 # Apple II Plus: target and acceptance plan
 
-The current historical-machine target is an **Apple II Plus**, using
+The Apple II target is an **Apple II Plus**, using
 [dromaios-apple2][reference] as the primary reference for behavior, devices,
 browser interaction, and software targets. The initial
 [executable chapter](../../src/machines/6502/apple2.md) now boots ROM and runs
@@ -204,9 +204,10 @@ independent of browser frame rate and host scheduling. Address the necessary
 cannot establish those properties.
 
 These four checkpoints define the first usable Apple II Plus release. Writable
-disks and sound remain unfinished. The current priority is to make the working
-ROM and read-only DOS configuration understandable before moving on to games
-such as Mystery House and Ultima IV. Playing a game and explaining its software
+disks and sound remain unfinished. Further DOS exploration and these extensions
+remain planned while the immediate effort broadens to the [CoCo](coco.md).
+Understanding the working ROM and DOS configuration still precedes games such
+as Mystery House and Ultima IV. Playing a game and explaining its software
 remain separate acceptance targets.
 
 ## Software exploration
