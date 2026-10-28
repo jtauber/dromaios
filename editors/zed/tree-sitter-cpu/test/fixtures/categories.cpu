@@ -419,6 +419,7 @@ family incrementByte "00000000" {
 }
 interface AddressedDevice {
   size 16
+  input setPins
   read * readSwitch
   write * writeSwitch
 }

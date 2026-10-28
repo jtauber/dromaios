@@ -9,6 +9,37 @@ import { generateDevices } from "../../scripts/generate-devices.js";
 import { parseMachine } from "../../src/machines/machine-language.js";
 
 const source = readFileSync("src/components/devices/specifications/mc6850-polling.md", "utf8");
+const pinSource = source.replace("interface Mc6850Polling {", `action setPins "Sample external data and a pin" (byte: 8, high: flag) {
+  RX <- byte
+  FULL <- high
+}
+
+interface Mc6850Polling {
+  input setPins`);
+
+test("public device inputs bind actions with typed arguments and reject invalid declarations", () => {
+  assert.deepEqual(compileDeviceChapter(pinSource).interface.inputs, ["setPins"]);
+  for (const [binding, expected] of [
+    ["input missing", /Unknown action/],
+    ["input status", /Unknown action/],
+    ["input setPins\n  input setPins", /Duplicate input/],
+    ["view setPins", /Unknown source/],
+  ] as const) assert.throws(() => compileDeviceChapter(pinSource.replace("input setPins", binding), "pins.md"), error => {
+    assert.ok(error instanceof Error); assert.match(error.message, /^pins\.md:\d+:\d+:/);
+    assert.match(error.message, expected); return true;
+  });
+  for (const name of ["read", "snapshot", "then", "constructor"]) {
+    assert.throws(() => compileDeviceChapter(pinSource.replaceAll("setPins", name)), /conflicts/);
+  }
+  const rejecting = pinSource.replace("  RX <- byte\n  FULL <- high", `  selected = match byte: 8 {
+    case "0000 0000" {
+      return u8(0)
+    }
+    otherwise unsupported
+  }
+  RX <- selected`);
+  assert.throws(() => compileDeviceChapter(rejecting), /cannot reject/);
+});
 
 test("addressed device bindings require byte-address signatures and cannot overlap individual bindings", () => {
   const chapter = readFileSync("src/components/devices/specifications/apple2-language-card.md", "utf8");
@@ -58,7 +89,7 @@ test("generated device code follows chapter edits and failed regeneration preser
   cpSync("src/components/validation.ts", join(root, "src/components/validation.ts"));
   writeFileSync(join(root, "package.json"), '{"type":"module"}');
   const path = join(specifications, "probe.md");
-  writeFileSync(path, source.replace("RX <- byte", "RX <- xor(byte, u8($FF))").replace("size 2", "size 3\n  view status"));
+  writeFileSync(path, pinSource.replace("RX <- byte", "RX <- xor(byte, u8($FF))").replace("size 2", "size 3\n  view status"));
   generateDevices(directory);
   const files = ["catalogue.ts", "probe-effects.ts", "probe-state.ts", "probe.ts"];
   assert.deepEqual(readdirSync(join(directory, "generated")).sort(), files);
@@ -67,6 +98,16 @@ test("generated device code follows chapter edits and failed regeneration preser
   device.write(0, 0x15); device.offer(0x42);
   assert.equal(device.status(), device.read(0));
   assert.equal(device.read(1), 0xbd); // Changed formal effect reaches the public device API.
+  device.setPins(0x35, true);
+  const pins = device.snapshot();
+  assert.equal(pins.rx, 0x35); assert.equal(pins.full, true);
+  for (const value of [-1, 256, 0.5, NaN, Infinity, "42"]) {
+    assert.throws(() => device.setPins(value, false), RangeError);
+  }
+  assert.throws(() => device.setPins(0x99, 1), TypeError); // Validate both inputs before writing RX.
+  assert.deepEqual(device.snapshot(), pins);
+  device.setPins(0x12, false);
+  assert.equal(device.snapshot().rx, 0x12); assert.equal(device.snapshot().full, false);
   assert.equal(device.size, 3);
   assert.equal(device.read(2), "bus-error");
   assert.equal(device.write(2, 42), "bus-error");

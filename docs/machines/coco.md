@@ -5,10 +5,12 @@ using the existing generated 6809. The first milestone is native ROM boot, keybo
 text and semigraphics, a small stored BASIC program, and a usable laboratory.
 This broadens the platform before further Apple II DOS exploration.
 
-This document is the acceptance specification, not a claim of implemented CoCo
-support. As implementation proceeds, move implemented contracts and acceptance
-examples into the executable machine and device chapters; retain the reference
-audit here. Do not keep two copies of those contracts.
+The PIA and keyboard foundation below is implemented; native machine composition,
+SAM/video, and the laboratory are still to come. This document is the acceptance
+specification, not a claim of a complete CoCo. As implementation proceeds, move
+implemented contracts and acceptance examples into the executable machine and
+device chapters; retain the reference audit here. Do not keep two copies of
+those contracts.
 
 ## Selected first configuration
 
@@ -199,6 +201,69 @@ Browser code owns file selection, host-key translation, drawing, and scheduling
 work. It does not patch firmware, inject BASIC tokens into RAM, or supply ROM
 routine traps. Pure device views supply inspection; execution records supply
 observed accesses. Software workspace names belong to a versioned ROM guide.
+
+### Implemented PIA and keyboard foundation
+
+The [MC6821 chapter](../../src/components/devices/specifications/mc6821.md)
+owns the generated chip's register, pin, reset, and interrupt contracts. Its
+current profile supports interrupt inputs and software-controlled C2 outputs;
+hardware strobe modes reject writes before effects. The device language's
+`input` binding supplies typed external events without using guest accesses.
+
+[CoCo PIA wiring](../../src/machines/6809/coco/pias.ts) connects two generated
+chips at local offsets `00–3F`, corresponding to `FF00–FF3F`. Each chip's four
+registers repeat across its 32-byte window. PIA 0's combined interrupt output
+supplies the current `irq` level; PIA 1 supplies `firq`. Explicit horizontal
+and field-sync inputs reach PIA 0 CA1/CB1; serial carrier detect and the
+cartridge line reach PIA 1 CA1/CB1. These inputs exercise wiring, not a serial
+or cartridge emulator. The future machine runner must sample their current
+levels at instruction boundaries, including after guest acknowledgement.
+
+The [keyboard matrix](../../src/machines/6809/coco/keyboard.ts) contains 52
+physical switches, named independently of browser key codes. PB0–PB7 drive
+columns and PA0–PA6 sense rows. `setKey` changes a held switch, repeated presses
+are idempotent, and `releaseKeys` clears all switches for focus loss. Enter,
+Clear, Break, arrows, Space, and Shift are physical keys; punctuation and host
+keyboard layout translation belong to the caller. For example, Shift with
+the CoCo `;` key produces `+` in Color BASIC. No character FIFO, debounce,
+typematic timer, paste scheduler, or browser keyboard handler is implemented.
+
+The matrix resolves low levels through connected switches in either direction,
+including multi-key ghost paths. Undriven lines are treated as high. Low wins
+if connected outputs disagree; this is a digital approximation, not a model of
+electrical contention. With no joystick attached, its comparator and fire-button
+inputs are held high. PIA 1's external port inputs and external C2 inputs on
+both chips are also held high in this foundation. This does not model cassette
+or serial signal conditioning. No periodic input events occur automatically.
+
+Every keyboard change and guest write recomputes the matrix inputs, so changing
+DDRB exposes retained output bits immediately. Video control comes from the
+pure PIA 1 pin view and also responds to direction changes. A video decoder is
+not present yet. Inspection and snapshots neither read guest data registers
+nor consume keys or pending interrupt flags.
+
+The wiring snapshot owns both chip states and all seven rows of held switches.
+Restoration rejects missing components, unpopulated switches, and external port
+levels inconsistent with the wiring. Reset clears both chips while preserving
+keys and external control levels; it is distinct from CPU-only reset or a
+fresh machine with released input. A future host queue must be saved separately.
+
+[Component tests](../../tests/components/devices/mc6821.test.ts) check the chip;
+[keyboard](../../tests/machines/6809/coco/keyboard.test.ts) and
+[wiring tests](../../tests/machines/6809/coco/pias.test.ts) check every key and
+mirror, direction changes, shared switch paths, both interrupt lines, snapshots,
+and a generated 6809 program that scans a key and acknowledges CB1 through CLR's
+read-before-write transfer.
+
+On **2026-10-29**, a temporary integration harness replaced the reference's PIAs
+and keyboard with these components while retaining its RAM/ROM/SAM scaffold.
+The generated 6809 completed the pinned Color BASIC transcript above, including
+line editing and Break, in **3,660,000 instructions**, with no automatic sync
+events. Each batch contained 4,000 instructions, with the same 180-batch boot
+sample, three-batch key holds/releases, and five-batch post-command waits as
+the earlier audit. Literal screen-RAM expectations were checked after each
+relevant command. This verifies the new input path with firmware; it does not establish
+native SAM/video support or browser acceptance. No ROM bytes are tracked.
 
 ### Timing and interrupt boundary
 

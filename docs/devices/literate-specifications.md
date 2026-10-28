@@ -32,6 +32,7 @@ The final `interface ClassName` block selects public operations:
 | `reset action` | An action without inputs | Called by the device's `reset()` method. |
 | `validate source` | A read-only flag source without inputs | Checks initialized or restored state; false rejects construction. |
 | `view source` | A read-only source, with optional typed inputs | Public method with the source's name, input types, and result type. |
+| `input action` | An action with optional typed inputs | Public method with the action's name and input types, returning nothing; applies an external event without a guest register transfer. |
 | `offer source` | A flag source with one eight-bit input | Optional host `offer(value)` operation; returns acceptance. |
 | `read address source` | An eight-bit source without inputs | Read the selected local register. |
 | `write address source` | A flag source with one eight-bit input | Write the register; false throws `RangeError`. |
@@ -63,6 +64,16 @@ it does not initialize or reset them. Snapshots are detached, readonly views.
 Notification follows the declared effects. A throwing callback propagates without
 undoing effects or retrying the notification. Host queues, clocks, and output
 history are not implicit device state.
+
+The [MC6821 chapter](../../src/components/devices/specifications/mc6821.md)
+uses `input` methods for external port and control-pin levels. Every argument
+is checked before the action runs, including multi-argument actions; invalid
+inputs cannot partially change state. Input methods have the same reserved-name
+and uniqueness rules as views. They return no rejection outcome, so actions
+that can reject through byte matches cannot be bound as inputs, including
+through nested calls. They do not become memory-window selectors or
+imply clocks, callbacks, queued events, or automatic connections between devices.
+The machine owns when inputs change and how it samples output views.
 
 ## Generation and validation
 

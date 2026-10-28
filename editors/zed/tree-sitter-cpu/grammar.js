@@ -22,7 +22,7 @@ module.exports = grammar({
     device_interface: $ => seq('interface', field('name', $.identifier), '{', repeat(choice(
       seq('size', $.number),
       seq(choice('initialize', 'reset', 'validate', 'offer'), $.identifier),
-      seq('view', $.identifier),
+      seq(choice('view', 'input'), $.identifier),
       seq('read', choice($.number, '*'), $.identifier),
       seq('write', choice($.number, '*'), $.identifier, optional('notify')),
     )), '}'),

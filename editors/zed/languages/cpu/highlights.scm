@@ -1,5 +1,5 @@
 [
-  "cpu" "device" "size" "initialize" "state" "bank" "group" "register" "flag" "array" "latch" "choice" "source" "view" "action" "perform" "exchange"
+  "cpu" "device" "size" "initialize" "input" "state" "bank" "group" "register" "flag" "array" "latch" "choice" "source" "view" "action" "perform" "exchange"
   "policy" "operands" "pair" "codes" "conditions" "family" "page" "encoding" "for" "in"
   "with" "named" "except" "fetch" "operand" "apply" "replace" "when" "test" "return"
   "segmented" "segment" "shift" "record" "address" "prefixes" "limit" "repeat" "ignore" "pending" "vector" "sampling" "restore"
