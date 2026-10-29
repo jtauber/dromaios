@@ -1,7 +1,11 @@
 import { romImages } from "../../src/machines/generated/6809/coco.js";
 import { createCocoSession } from "./coco-session.js";
 import { cocoScreenKey, cocoTextInput } from "./coco-input.js";
-import { cocoHex } from "./coco-inspection.js";
+import { cocoHex, readCocoStorage } from "./coco-inspection.js";
+import type { Catalogue6809 } from "./6809-catalogue.js";
+import { create6809CodeView } from "./6809-code-view.js";
+import { create6809InstructionView } from "./6809-instruction-view.js";
+import { previewCocoInstruction } from "./coco-instruction-preview.js";
 import { createCocoScreen } from "./coco-screen-view.js";
 import { createCocoInspectors } from "./coco-inspector-view.js";
 import { cocoSavedState } from "./coco-saved-state.js";
@@ -12,7 +16,7 @@ import { createExecutionController } from "./execution-controller.js";
 import { createPanelUpdates } from "./panel-updates.js";
 import { createWorkspace } from "./workspace/dock.js";
 import { mountWorkspaceControls } from "./workspace/controls.js";
-import { cocoDefaultLayout, cocoWorkspaceKey } from "./coco-workspace.js";
+import { cocoDefaultLayout, cocoWorkspaceKey, migrateCocoWorkspace } from "./coco-workspace.js";
 
 for (const root of document.querySelectorAll<HTMLElement>("[data-coco-laboratory]")) mountCoco(root);
 
@@ -32,7 +36,11 @@ function mountCoco(root: HTMLElement): void {
   let requested: readonly string[] = [];
   const panels = [...root.querySelectorAll<HTMLElement>("[data-workspace-panel]")];
   const updates = createPanelUpdates(root, id => refreshPanels([id]), "dromaios:inspectors:coco:live");
-  const inspectors = createCocoInspectors(root), display = createCocoScreen(root);
+  const catalogue: Catalogue6809 = JSON.parse(at("coco-instructions").textContent!);
+  const inspectors = createCocoInspectors(root, () => code.memoryMoved()), display = createCocoScreen(root);
+  function browse(address: number): void { inspectors.memory.browse(address); workspace.show("memory"); }
+  const code = create6809CodeView(at("coco-code"), catalogue, { address: () => inspectors.memory.address, browse });
+  const instruction = create6809InstructionView(at("coco-instruction"), browse);
   const execution = createExecutionController({
     step: () => session.step(), canStep: () => session.hasFirmware && !selecting,
     pauseBeforeStep: (): boolean => execution.records.at(-1)?.outcome === "waiting" && !session.machine.pias.irq && !session.machine.pias.firq,
@@ -63,6 +71,9 @@ function mountCoco(root: HTMLElement): void {
       ? `$${cocoHex(record.instruction.address)}   ${record.instruction.bytes.map(byte => cocoHex(byte, 2)).join(" ")}   ${record.outcome}`
       : `${"source" in record ? record.source.toUpperCase() + " · " : ""}${record.outcome}` : "No steps recorded";
     inspectors.refresh(session.machine, shouldUpdate);
+    if (shouldUpdate("code")) code.refresh(address => readCocoStorage(session.machine, address), session.machine.cpu.snapshot().pc, execution.records);
+    if (shouldUpdate("instruction")) instruction(session.machine.sam.supportedMemory()
+      ? previewCocoInstruction(session.machine, catalogue) : "Unsupported SAM memory configuration.");
     if (shouldUpdate("screen")) display.refresh(session.machine);
   }
   function action(work: () => void): void {
@@ -136,9 +147,11 @@ function mountCoco(root: HTMLElement): void {
 
   const status = document.createElement("span"); status.className = "workspace-status"; status.setAttribute("role", "status");
   const pending = new Set<string>();
+  try { migrateCocoWorkspace(localStorage, panels.map(panel => panel.dataset.workspacePanel!)); }
+  catch { /* Use the default arrangement if browser storage or a previous layout is unavailable. */ }
   const workspace = createWorkspace(at("workspace-root"), at("workspace-panels"), panels.map(content => {
     const id = content.dataset.workspacePanel!, controls = document.createElement("span"); controls.className = "lab-inspector-controls";
-    for (const control of [inspectors.controls(id), updates.controls(id)]) if (control) controls.append(control);
+    for (const control of [inspectors.controls(id), id === "code" ? code.controls : undefined, updates.controls(id)]) if (control) controls.append(control);
     return { id, title: content.dataset.panelTitle!, heading: content.dataset.panelHeading, detail: content.dataset.panelDetail, content, controls };
   }), { defaults: cocoDefaultLayout, storageKey: cocoWorkspaceKey,
     onShow(id) {

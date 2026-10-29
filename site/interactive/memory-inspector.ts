@@ -5,7 +5,7 @@ const hex = (value: number, width = 4) => value.toString(16).toUpperCase().padSt
 type Follow = "fixed" | "pc" | "changed";
 
 /** A scrolling 16-bit storage inspector. Its controls and repainting use detached observations. */
-export function createMemoryInspector(panel: HTMLElement, storageKey: string) {
+export function createMemoryInspector(panel: HTMLElement, storageKey: string, moved: () => void = () => {}) {
   const scroller = panel.querySelector<HTMLElement>("[data-memory-scroll]")!;
   const space = panel.querySelector<HTMLElement>("[data-memory-space]")!;
   const output = panel.querySelector<HTMLElement>("[data-memory-output]")!;
@@ -57,10 +57,10 @@ export function createMemoryInspector(panel: HTMLElement, storageKey: string) {
     output.replaceChildren(contents);
   }
   function jump(value: number): void {
-    address = value; input.value = hex(address);
+    const changed = address !== value; address = value; input.value = hex(address);
     space.style.height = `${0x10000 / rowWidth * lineHeight()}px`;
     scroller.scrollTop = Math.floor(address / rowWidth) * lineHeight();
-    expectedScroll = scroller.scrollTop; draw();
+    expectedScroll = scroller.scrollTop; draw(); if (changed) moved();
   }
   form.addEventListener("submit", event => {
     event.preventDefault();
@@ -74,7 +74,7 @@ export function createMemoryInspector(panel: HTMLElement, storageKey: string) {
     if (height !== scroller.clientHeight) return;
     if (expectedScroll !== undefined && Math.abs(scroller.scrollTop - expectedScroll) < .5) { expectedScroll = undefined; draw(); return; }
     expectedScroll = undefined;
-    follow = "fixed"; modes.select(follow); address = viewport().address; input.value = hex(address); draw();
+    follow = "fixed"; modes.select(follow); address = viewport().address; input.value = hex(address); draw(); moved();
   });
   new ResizeObserver(() => {
     const resized = height !== scroller.clientHeight; height = scroller.clientHeight;
@@ -82,6 +82,8 @@ export function createMemoryInspector(panel: HTMLElement, storageKey: string) {
   }).observe(scroller);
   return {
     controls,
+    get address() { return address; },
+    browse(value: number): void { follow = "fixed"; modes.select(follow); jump(value); },
     reset(): void { initialized = false; changed.clear(); },
     refresh(read: (address: number) => number | undefined, pc: number): void {
       observedPc = pc;

@@ -17,6 +17,7 @@
 {% block footer %}{% endblock %}
 {% block main %}
 <main id="main" class="laboratory coco-laboratory" data-coco-laboratory>
+  <script type="application/json" data-coco-instructions>{{ coco_instructions | tojson }}</script>
   <noscript><p>Enable JavaScript to use the laboratory. <a href="{{ calc_url(coco_url) }}">Read the machine guide</a>.</p></noscript>
   <div class="workspace-scroll"><div class="workspace-dock" data-workspace-root aria-label="CoCo laboratory workspace"></div></div>
   <div data-workspace-panels hidden>
@@ -53,6 +54,15 @@
     <section class="lab-tool lab-tool-memory" data-workspace-panel="memory" data-panel-title="Memory" data-panel-live="true" data-coco-memory>
       <div class="lab-panel-body"><div class="lab-memory-scroll" data-memory-scroll><div class="lab-memory-space" data-memory-space><pre data-memory-output aria-label="Observed memory"></pre></div></div>
         <p class="lab-hint">RAM and loaded ROM · -- means no storage · I/O is never read</p></div>
+    </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="code" data-panel-title="Disassembly" data-panel-live="true" data-coco-code>
+      <p class="basic-readout" data-code-status></p>
+      <table class="lab-code"><thead><tr><th aria-label="Execution position"></th><th>Address</th><th>Bytes</th><th>Instruction</th></tr></thead><tbody data-code-rows></tbody></table>
+    </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="instruction" data-panel-title="Instruction" data-panel-live="true" data-coco-instruction>
+      <p class="basic-readout" data-instruction-location></p><pre class="lab-instruction-preview" data-instruction-preview></pre>
+      <details><summary>From the CPU specification</summary><p class="lab-hint" data-instruction-explanation></p></details>
+      <details><summary>Previewed storage accesses</summary><p class="lab-hint">Prediction on a private CPU copy; devices are never accessed.</p><pre data-instruction-accesses></pre></details>
     </section>
     <section class="lab-tool lab-panel-body" data-workspace-panel="sam" data-panel-title="SAM / video" data-panel-heading="MC6883 / MC6847" data-panel-live="true">
       <div class="coco-device-fields" data-coco-sam></div>

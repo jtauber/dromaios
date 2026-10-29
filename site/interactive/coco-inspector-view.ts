@@ -3,7 +3,7 @@ import { cocoHex, readCocoStorage } from "./coco-inspection.js";
 import { createMemoryInspector } from "./memory-inspector.js";
 
 /** CoCo-specific observation tools; docking and machine execution remain outside this module. */
-export function createCocoInspectors(root: HTMLElement) {
+export function createCocoInspectors(root: HTMLElement, memoryMoved: () => void = () => {}) {
   const at = (name: string) => root.querySelector<HTMLElement>(`[data-${name}]`)!;
   type Update = (machine: Coco) => void;
   const updates: Record<string, Update[]> = { registers: [], sam: [], pias: [] };
@@ -58,8 +58,9 @@ export function createCocoInspectors(root: HTMLElement) {
     at("coco-pias").append(row);
   }
   updates.pias!.push(machine => { at("coco-interrupts").textContent = `IRQ ${+machine.pias.irq} · FIRQ ${+machine.pias.firq}`; });
-  const memory = createMemoryInspector(at("coco-memory"), "dromaios:inspectors:coco:memory");
+  const memory = createMemoryInspector(at("coco-memory"), "dromaios:inspectors:coco:memory", memoryMoved);
   return {
+    memory,
     controls: (id: string): HTMLElement | undefined => id === "memory" ? memory.controls : undefined,
     reset(): void { resetters.forEach(reset => reset()); memory.reset(); },
     refresh(machine: Coco, shouldUpdate: (id: string) => boolean): void {

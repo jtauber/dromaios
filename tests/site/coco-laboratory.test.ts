@@ -4,8 +4,8 @@ import { test } from "node:test";
 import { createCocoSession } from "../../site/interactive/coco-session.js";
 import { cocoSavedState } from "../../site/interactive/coco-saved-state.js";
 import { cocoScreenText, readCocoStorage } from "../../site/interactive/coco-inspection.js";
-import { cocoDefaultLayout, cocoWorkspaceKey } from "../../site/interactive/coco-workspace.js";
-import { groups } from "../../site/interactive/workspace/layout.js";
+import { cocoDefaultLayout, cocoWorkspaceKey, migrateCocoWorkspace } from "../../site/interactive/coco-workspace.js";
+import { groups, closePanel, collapseGroup, panelGroup } from "../../site/interactive/workspace/layout.js";
 import { decodeWorkspaceState, encodeWorkspaceState } from "../../site/interactive/workspace/state.js";
 import { romFileStorage } from "../../site/interactive/rom-storage.js";
 import { readRomFile } from "../../site/interactive/rom-file.js";
@@ -60,9 +60,19 @@ test("CoCo ROM storage verifies bytes again and uses a key separate from Apple I
   assert.equal(storage.getItem("dromaios:apple2-rom:v1"), "unrelated media");
 });
 
-test("the CoCo workspace restores all eight tools independently of Apple II layout preferences", () => {
-  const ids = ["screen", "execution", "registers", "memory", "sam", "pias", "rom", "states"];
+test("the CoCo workspace restores all ten tools independently of Apple II layout preferences", () => {
+  const ids = ["screen", "execution", "registers", "memory", "sam", "pias", "rom", "states", "code", "instruction"];
   const restored = decodeWorkspaceState(encodeWorkspaceState(cocoDefaultLayout), ids);
   assert.deepEqual(groups(restored).flatMap(group => group.panels).sort(), [...ids].sort());
   assert.match(cocoWorkspaceKey, /:coco:/);
+  const storage = memoryStorage();
+  let previous = closePanel(closePanel(closePanel(cocoDefaultLayout, "code"), "instruction"), "pias");
+  previous = collapseGroup(previous, panelGroup(previous, "sam")!.id, true);
+  storage.setItem("dromaios:workspace:coco:1", encodeWorkspaceState(previous));
+  migrateCocoWorkspace(storage, ids);
+  const migrated = decodeWorkspaceState(storage.getItem(cocoWorkspaceKey)!, ids);
+  assert.ok(panelGroup(migrated, "code")); assert.ok(panelGroup(migrated, "instruction"));
+  assert.equal(panelGroup(migrated, "pias"), undefined); assert.equal(panelGroup(migrated, "sam")?.collapsed, true);
+  const hidden = encodeWorkspaceState(closePanel(migrated, "code")); storage.setItem(cocoWorkspaceKey, hidden);
+  migrateCocoWorkspace(storage, ids); assert.equal(storage.getItem(cocoWorkspaceKey), hidden);
 });

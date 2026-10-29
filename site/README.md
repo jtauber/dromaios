@@ -41,6 +41,14 @@ independent of the DOM. `coco-keyboard-transport.ts` delivers bounded physical
 press/release phases; `coco-input.ts` maps browser keys and single-line paste.
 `coco-laboratory.ts` connects those to execution controls and local media.
 The screen and inspector modules observe hardware without guest I/O reads.
+`coco-instructions.ts` compiles the executable 6809 chapter into compact lengths,
+postbyte validity, branch tests, control flow, and authored explanations at build
+time. Browser modules supply Motorola operand spelling and present the last
+three captured instructions alongside forward disassembly. Instruction preview
+reuses the generated CPU and native CoCo boundary arbitration with a private
+memory overlay; it stops at device accesses. The 6502 preview shares that overlay,
+and both decoders share forward-window traversal. Compiler data never ships as
+an executable semantics interpreter in the browser.
 `memory-inspector.ts` provides an unbanked scrolling 16-bit storage view;
 Apple II retains its richer bank-aware tools. Shared ROM persistence,
 memory-window calculations, execution scheduling, and docking do not depend
@@ -52,6 +60,10 @@ For browser checks, load the local image, run the chapter's conversation, pause
 and save a snapshot, alter the program, restore, and run it again. Check focus-loss
 release, remembered-ROM reload, memory scrolling and Live controls, and the
 independent saved layout.
+Also check PC/MEM following, captured history, branch separators, and Instruction
+predictions while stepping. Held Disassembly controls use detached observations;
+address links browse Memory without executing. Existing CoCo layouts gain the
+two tools once and retain later choices to hide them.
 
 ## Altair BASIC
 

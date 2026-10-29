@@ -188,6 +188,26 @@ Turning off a panel's Live square holds its display during Run. Pause, Step,
 and showing the panel refresh it. Scrolling or changing row width uses the held
 memory image.
 
+**Disassembly** follows PC or the Memory panel's selected address (PC/MEM).
+PC mode includes the last three instructions actually executed, decoded from
+their captured bytes even if memory has since changed. A solid separator marks
+unconditional transfers and intervening external CPU boundaries; a dotted one
+marks conditional branches, whether taken or not. Address and destination links
+browse Memory without executing. Instruction lengths, supported postbytes, and
+control flow come from the executable 6809 chapter; the display supplies
+Motorola assembly notation. Unknown bytes and unavailable storage stay explicit.
+
+**Instruction** explains the next CPU boundary: the authored description,
+branch flag test and outcome, effective-address formation, and predicted changes
+to registers, flags, and memory. A copied CPU uses storage observations and
+private RAM writes, including native IRQ/FIRQ arbitration. Device reads and
+writes stop the preview, and ignored ROM writes are identified. An interrupt or
+wait boundary is shown instead of the opcode at PC when applicable. Expanding
+the storage-access list shows predictions, not another execution trace. Neither
+panel acknowledges a PIA interrupt, consumes queued keys, or changes hardware.
+Disassembly navigation uses its held storage image while Live is off; Pause,
+Step, and showing either panel refresh its observations.
+
 **Snapshot** saves one explicit browser checkpoint: native hardware plus the
 queued chords, current press/release phase, and remaining input budget.
 Save and Restore require a paused machine. Restoring validates the complete
@@ -197,10 +217,9 @@ The checkpoint contains the ROM identity, not its bytes; the ROM must be loaded
 separately. Failed restoration preserves the current session, and failed saving
 preserves the previous checkpoint. Layout and Live choices are not machine state.
 
-The first laboratory has no 6809 disassembly, instruction explanation, or
-specialized stack/direct-page view. S, U, and DP remain visible and their memory
-can be inspected by address. Those tools, graphics modes, and an independently
-checked timing model are subsequent work.
+Specialized stack/direct-page views remain subsequent work. S, U, and DP are
+visible and their memory can be inspected by address. ROM annotations, graphics
+modes, and an independently checked timing model also remain subsequent work.
 
 ## Snapshots and acceptance
 

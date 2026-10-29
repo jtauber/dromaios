@@ -135,7 +135,10 @@ def build(base):
     site.render_template("apple2-laboratory.html", f"{apple2['apple2_lab_url']}index.html", {**apple2, "title": "Apple II Plus laboratory"})
     coco = {**render_guide(COCO), "coco_url": MACHINES[COCO], "coco_lab_url": f"{MACHINES[COCO]}laboratory/"}
     site.render_template("coco.html", f"{coco['coco_url']}index.html", coco)
-    site.render_template("coco-laboratory.html", f"{coco['coco_lab_url']}index.html", {**coco, "title": "Color Computer laboratory"})
+    coco_instructions = json.loads(subprocess.run(["node", "site/coco-instructions.ts"], cwd=ROOT,
+                                                  check=True, capture_output=True, text=True).stdout)
+    site.render_template("coco-laboratory.html", f"{coco['coco_lab_url']}index.html",
+                         {**coco, "title": "Color Computer laboratory", "coco_instructions": coco_instructions})
     loading_source = SITE / "content/basic-loading.md"
     loading = Markup(lesson_markdown(loading_source, base).convert(loading_source.read_text()))
     for index, lesson in enumerate(lessons):

@@ -17,4 +17,7 @@
 .coco-laboratory [data-last-step] { white-space: pre-wrap; }
 .coco-laboratory .lab-inspector-controls { gap: 6px; }
 .coco-laboratory .lab-memory-address { margin-right: 8px; }
-.coco-laboratory .workspace-dock { min-height: 600px; }
+.coco-laboratory .workspace-dock { min-height: 800px; }
+.coco-laboratory [data-instruction-preview] { white-space: pre-wrap; font-size: 12px; line-height: 1.6; }
+.coco-laboratory .lab-code { width: 100%; }
+.coco-laboratory .lab-code th:last-child, .coco-laboratory .lab-code td:last-child { padding-left: 4px; }
