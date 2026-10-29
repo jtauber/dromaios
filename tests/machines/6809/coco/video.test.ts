@@ -23,7 +23,7 @@ const storedByte = (address: number): number => (address * 73 ^ (address >>> 5))
 test("all eight CoCo bitmap formats render complete independent rasters in both palettes and across RAM wrapping", () => {
   modes.forEach(({ width, height, bits, v }, gm) => {
     for (const css of [0, 1]) for (const page of [0, 0x30, 0x3f, 0x7f]) {
-      const machine = create6809Coco({ firmware: null });
+      const machine = create6809Coco({ firmware: null, extended: null });
       configure(machine, v, 0x80 + gm * 16 + css * 8, page);
       for (let i = 0; i < 0x8000; i++) machine.ram.write(i, storedByte(i));
       machine.pias.setKey("A", true); machine.pias.write(3, 5); machine.pias.setFieldSync(false);
@@ -52,7 +52,7 @@ test("all eight CoCo bitmap formats render complete independent rasters in both 
 
 test("unsupported SAM/VDG pairings and INT/EXT high reject before reading RAM", () => {
   for (const graphics of [false, true]) for (let gm = 0; gm < 8; gm++) for (let v = 0; v < 8; v++) {
-    const machine = create6809Coco({ firmware: null }); configure(machine, v, (graphics ? 0x80 : 0) + gm * 16);
+    const machine = create6809Coco({ firmware: null, extended: null }); configure(machine, v, (graphics ? 0x80 : 0) + gm * 16);
     machine.ram.read = () => { throw new Error("Unsupported display must not read RAM"); };
     const supported = graphics ? v === modes[gm]!.v : v === 0 && gm % 2 === 0;
     if (supported) assert.equal(cocoDisplayMode(machine).kind, graphics ? "bitmap" : "text");
@@ -65,8 +65,8 @@ test("unsupported SAM/VDG pairings and INT/EXT high reject before reading RAM", 
 });
 
 test("6809 stores select bitmap video through the native bus, snapshots retain it, and text can be restored", () => {
-  const initial = create6809Coco({ firmware: null }).snapshot();
-  const machine = create6809Coco({ firmware: null }, { ...initial, cpu: { ...initial.cpu, pc: 0x200 } });
+  const initial = create6809Coco({ firmware: null, extended: null }).snapshot();
+  const machine = create6809Coco({ firmware: null, extended: null }, { ...initial, cpu: { ...initial.cpu, pc: 0x200 } });
   const program = [
     0x86, 0, 0xb7, 0xff, 0x23, // LDA #0; STA $FF23: DDR selection.
     0x86, 0xf8, 0xb7, 0xff, 0x22, // DDRB drives video bits, lower three remain inputs.
@@ -83,7 +83,7 @@ test("6809 stores select bitmap video through the native bus, snapshots retain i
   assert.equal(machine.sam.videoMode(), 6); assert.equal(machine.sam.displayStart(), 0x6000);
   const frame = renderCocoFrame(machine);
   assert.deepEqual([...frame.slice(0, 8)], [4, 4, 5, 5, 6, 6, 7, 7]);
-  const restored = create6809Coco({ firmware: null }, machine.snapshot());
+  const restored = create6809Coco({ firmware: null, extended: null }, machine.snapshot());
   assert.deepEqual(renderCocoFrame(restored), frame);
   configure(restored, 0, 0, 2); restored.ram.write(0x400, 0x41);
   assert.equal(cocoDisplayMode(restored).kind, "text"); assert.match(cocoScreenText(restored), /^A/);

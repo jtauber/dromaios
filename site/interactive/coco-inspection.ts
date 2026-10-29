@@ -9,6 +9,10 @@ export function readCocoStorage(machine: Coco, address: number): number | undefi
   checkUnsigned("Memory address", address, 0xffff);
   if (!machine.sam.supportedMemory()) return undefined;
   if (address < 0x8000) return machine.ram.read(address);
+  if (address < 0xa000 && machine.extended.loaded) {
+    const value = machine.extended.read(address - 0x8000);
+    return value === "bus-error" ? undefined : value;
+  }
   if (machine.firmware.loaded && (address >= 0xa000 && address <= 0xbfff || address >= 0xffe0)) {
     const value = machine.firmware.read(address & 0x1fff);
     return value === "bus-error" ? undefined : value;

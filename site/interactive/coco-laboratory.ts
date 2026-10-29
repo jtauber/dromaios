@@ -23,19 +23,28 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-coco-laboratory
 
 function mountCoco(root: HTMLElement): void {
   const at = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
-  const file = at<HTMLInputElement>("rom-file"), screen = at<HTMLElement>("coco-screen");
-  const message = at("machine-message"), storageStatus = at("rom-storage-status");
+  const screen = at<HTMLElement>("coco-screen"), message = at("machine-message");
   const run = at<HTMLButtonElement>("machine-run"), pause = at<HTMLButtonElement>("machine-pause");
   const step = at<HTMLButtonElement>("machine-step"), reset = at<HTMLButtonElement>("machine-reset"), power = at<HTMLButtonElement>("machine-power");
   const targetForm = at<HTMLFormElement>("run-target"), targetInput = at<HTMLInputElement>("run-target-address");
   const targetButton = at<HTMLButtonElement>("run-target-button"), target = createExecutionTarget();
-  const load = at<HTMLButtonElement>("rom-load"), forget = at<HTMLButtonElement>("rom-forget");
+  const removeExtended = at<HTMLButtonElement>("extended-rom-remove");
   const save = at<HTMLButtonElement>("snapshot-save"), restore = at<HTMLButtonElement>("snapshot-restore");
   const forgetState = at<HTMLButtonElement>("snapshot-forget");
-  const romStorage = romFileStorage(() => localStorage, "dromaios:coco-rom:v1", romImages.firmware.size,
-    file => readRomFile(file, romImages.firmware));
+  type RomSlot = keyof typeof romImages;
+  const roms: Record<RomSlot, RomFile | undefined> = { firmware: undefined, extended: undefined };
+  const slots = ([
+    { id: "firmware", prefix: "rom", label: "Color BASIC 1.3", key: "dromaios:coco-rom:v1" },
+    { id: "extended", prefix: "extended-rom", label: "Extended Color BASIC 1.1", key: "dromaios:coco-extended-rom:v1" },
+  ] as const).map(slot => ({ ...slot,
+    file: at<HTMLInputElement>(`${slot.prefix}-file`), load: at<HTMLButtonElement>(`${slot.prefix}-load`),
+    forget: at<HTMLButtonElement>(`${slot.prefix}-forget`), status: at(`${slot.prefix}-status`),
+    storageStatus: at(`${slot.prefix}-storage-status`),
+    storage: romFileStorage(() => localStorage, slot.key, romImages[slot.id].size,
+      file => readRomFile(file, romImages[slot.id])),
+  }));
   const saved = cocoSavedState(() => localStorage);
-  let session = createCocoSession(), rom: RomFile | undefined, selecting = true, hasSaved = false;
+  let session = createCocoSession(), selecting = true, hasSaved = false;
   let requested: readonly string[] = [];
   const panels = [...root.querySelectorAll<HTMLElement>("[data-workspace-panel]")];
   const updates = createPanelUpdates(root, id => refreshPanels([id]), "dromaios:inspectors:coco:live");
@@ -64,10 +73,15 @@ function mountCoco(root: HTMLElement): void {
     pause.disabled = !running; step.disabled = !ready || running || execution.error !== undefined;
     reset.disabled = !ready || running; power.disabled = selecting || running;
     targetButton.disabled = targetInput.disabled = !ready || running || execution.error !== undefined;
-    load.disabled = selecting; forget.disabled = selecting;
+    for (const slot of slots) {
+      slot.load.disabled = slot.forget.disabled = selecting;
+      const rom = roms[slot.id];
+      slot.status.textContent = rom ? `${rom.name} · verified ${slot.label}`
+        : slot.id === "firmware" ? "No Color BASIC ROM loaded · RAM and devices are available" : "No extension loaded · Color BASIC only";
+    }
+    removeExtended.disabled = selecting || running || roms.extended === undefined;
     save.disabled = !ready || running; restore.disabled = !ready || running || !hasSaved;
     forgetState.disabled = selecting || !hasSaved;
-    at("rom-status").textContent = rom ? `${rom.name} · verified Color BASIC 1.3` : "No ROM loaded · RAM and devices are available";
     at("machine-status").textContent = `${running ? "Running" : ready ? "Paused" : "Ready for ROM"} · ${execution.steps.toLocaleString()} steps`
       + (session.pendingInput ? ` · ${session.pendingInput} keys queued` : "");
     at("machine-error").textContent = execution.error ?? "";
@@ -91,25 +105,37 @@ function mountCoco(root: HTMLElement): void {
     refresh();
   }
   function changedMachine(): void { execution.reset(); target.cancel(); inspectors.reset(); }
-  function installRom(verified: RomFile): void {
-    if (session.hasFirmware) session = createCocoSession(verified.image);
-    else { session.installFirmware(verified.image); session.reset(); }
-    rom = verified; changedMachine();
-    message.textContent = "ROM loaded. Run boots Color BASIC; click the screen to type.";
+  function installRom(id: RomSlot, verified: RomFile): void {
+    const firmware = id === "firmware" ? verified : roms.firmware;
+    const extended = id === "extended" ? verified : roms.extended;
+    if (id === "firmware" && !session.hasFirmware) { session.installFirmware(verified.image); session.reset(); }
+    else session = createCocoSession(firmware?.image ?? null, extended?.image ?? null);
+    roms[id] = verified; changedMachine();
+    message.textContent = session.hasFirmware ? "ROM loaded. Run boots BASIC; click the screen to type."
+      : "Extension loaded. Load Color BASIC 1.3 to boot.";
   }
-  load.addEventListener("click", () => file.click());
-  file.addEventListener("change", () => { void (async () => {
-    const chosen = file.files?.[0]; if (!chosen) return;
-    execution.stop(); selecting = true; message.textContent = `Checking ${chosen.name}…`; refresh();
-    try {
-      const prepared = await romStorage.prepare(chosen); installRom(prepared.rom);
-      try { romStorage.remember(prepared.stored); storageStatus.textContent = "ROM remembered on this device. Files are never uploaded."; }
-      catch { storageStatus.textContent = "ROM loaded, but this browser could not remember it."; }
-    } catch (cause) { message.textContent = cause instanceof Error ? cause.message : String(cause); }
-    finally { selecting = false; file.value = ""; refreshPanels(panels.map(panel => panel.dataset.workspacePanel!)); }
-  })(); });
-  forget.addEventListener("click", () => action(() => {
-    romStorage.forget(); storageStatus.textContent = "Remembered ROM removed. The current machine keeps its loaded ROM.";
+  for (const slot of slots) {
+    slot.load.addEventListener("click", () => slot.file.click());
+    slot.file.addEventListener("change", () => { void (async () => {
+      const chosen = slot.file.files?.[0]; if (!chosen) return;
+      execution.stop(); selecting = true; message.textContent = `Checking ${chosen.name}…`; refresh();
+      try {
+        const prepared = await slot.storage.prepare(chosen); installRom(slot.id, prepared.rom);
+        try { slot.storage.remember(prepared.stored); slot.storageStatus.textContent = "ROM remembered on this device. Files are never uploaded."; }
+        catch { slot.storageStatus.textContent = "ROM loaded, but this browser could not remember it."; }
+      } catch (cause) { message.textContent = cause instanceof Error ? cause.message : String(cause); }
+      finally { selecting = false; slot.file.value = ""; refreshPanels(panels.map(panel => panel.dataset.workspacePanel!)); }
+    })(); });
+    slot.forget.addEventListener("click", () => action(() => {
+      slot.storage.forget(); slot.storageStatus.textContent = "Remembered ROM removed. The current machine keeps its loaded ROM.";
+    }));
+  }
+  removeExtended.addEventListener("click", () => action(() => {
+    // Forget first: if storage rejects removal, keep the current configuration intact.
+    const slot = slots.find(slot => slot.id === "extended")!;
+    slot.storage.forget(); session = createCocoSession(roms.firmware?.image ?? null); roms.extended = undefined;
+    slot.storageStatus.textContent = "Extension removed and forgotten. Fresh hardware is ready for Color BASIC.";
+    changedMachine();
   }));
   run.addEventListener("click", () => { target.cancel(); message.textContent = ""; execution.run(); screen.focus(); });
   pause.addEventListener("click", () => { target.cancel(); execution.stop(); });
@@ -180,10 +206,13 @@ function mountCoco(root: HTMLElement): void {
   mountWorkspaceControls(document.getElementById("coco-layout-controls")!, workspace, status);
   savedStatus(); refreshPanels(panels.map(panel => panel.dataset.workspacePanel!));
   void (async () => {
-    try {
-      const remembered = await romStorage.restore();
-      if (remembered) { installRom(remembered); storageStatus.textContent = "Remembered ROM verified. Paused and ready to run."; }
-    } catch { storageStatus.textContent = "The remembered ROM could not be restored. Choose your local Color BASIC file."; }
-    finally { selecting = false; refreshPanels(panels.map(panel => panel.dataset.workspacePanel!)); }
+    await Promise.all(slots.map(async slot => {
+      try {
+        roms[slot.id] = await slot.storage.restore();
+        if (roms[slot.id]) slot.storageStatus.textContent = "Remembered ROM verified. Paused and ready.";
+      } catch { slot.storageStatus.textContent = `The remembered ROM could not be restored. Choose your local ${slot.label} file.`; }
+    }));
+    session = createCocoSession(roms.firmware?.image ?? null, roms.extended?.image ?? null); changedMachine();
+    selecting = false; refreshPanels(panels.map(panel => panel.dataset.workspacePanel!));
   })();
 }

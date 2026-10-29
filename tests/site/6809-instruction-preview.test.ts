@@ -47,7 +47,7 @@ test("branch explanations distinguish taken zero-offset branches from not-taken 
 });
 
 test("stores stay private and ignored ROM writes are identified; previews stop at device reads and writes", () => {
-  const machine = create6809Coco({ firmware: null });
+  const machine = create6809Coco({ firmware: null, extended: null });
   const cpu = new Cpu6809(machine.memory, state());
   const viewed = { ...machine, cpu };
   machine.memory.read = machine.memory.write = () => { throw new Error("Inspector accessed the guest bus"); };
@@ -68,7 +68,7 @@ test("stores stay private and ignored ROM writes are identified; previews stop a
 });
 
 test("native interrupt arbitration and waiting are shown instead of pretending the next opcode executes", () => {
-  const machine = create6809Coco({ firmware: null }); machine.ram.write(0x2000, 0x12);
+  const machine = create6809Coco({ firmware: null, extended: null }); machine.ram.write(0x2000, 0x12);
   machine.pias.write(1, 5); machine.pias.setHorizontalSync(false);
   const cpu = new Cpu6809(machine.memory, state({ flags: { ...state().flags, i: false } }));
   const before = machine.snapshot(), processor = cpu.snapshot();

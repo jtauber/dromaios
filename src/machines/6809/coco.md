@@ -3,9 +3,11 @@
 Tandy introduced the Color Computer in 1980. Its 6809, television display,
 and built-in BASIC offered a very different starting point from the Altair's
 front panel or the Apple II's 6502 and expansion slots. This chapter describes
-a **CoCo 1 NTSC profile with 32 KiB RAM and a Color BASIC 1.3 ROM upgrade**.
-The later ROM is deliberate: [MAME's ROM catalogue][rom-catalogue] associates
-it with the CoCo 2B, rather than this original factory configuration.
+a **CoCo 1 NTSC profile with 32 KiB RAM, Color BASIC 1.3, and optional
+Extended Color BASIC 1.1**.
+The later ROMs are deliberate: [MAME's ROM catalogue][rom-catalogue] pairs
+these versions for the CoCo 2B. This is a firmware upgrade on the selected
+CoCo 1 hardware profile, not a claim about its original factory configuration.
 
 The native machine boots the supplied ROM, scans physical keyboard switches,
 and produces text, semigraphics-4, and all eight standard bitmap graphics modes.
@@ -30,6 +32,7 @@ and colour decoding. The VDG has no CPU-addressable registers.
 components {
     ram = ram 8000
     firmware = rom 2000
+    extended = rom 2000
     pias = coco-pias
     sam = mc6883
     vdg = mc6847
@@ -37,6 +40,7 @@ components {
 
 map 10000 {
     0000 = ram
+    8000 = extended
     A000 = firmware
     FF00 = pias
     FFC0 = sam
@@ -49,9 +53,10 @@ map 10000 {
 ```
 
 The entire FFE0–FFFF window aliases the BASIC ROM tail, not just the reset
-vector at FFFE–FFFF. ROM writes leave it unchanged. The Extended BASIC socket
-at 8000–9FFF, cartridge region C000–FEFF, and peripheral region FF40–FFBF
-are empty. Unanswered reads return FF and writes are ignored: this is an
+vector at FFFE–FFFF. ROM writes leave both images unchanged. The extension
+socket at 8000–9FFF is either empty or contains the selected Extended Color
+BASIC image; it does not replace Color BASIC at A000–BFFF. The cartridge region
+C000–FEFF and peripheral region FF40–FFBF are empty. Unanswered reads return FF and writes are ignored: this is an
 undriven-bus approximation. It does not turn an empty socket into stored ROM.
 SAM reads likewise return FF without changing its control word.
 
@@ -66,13 +71,24 @@ ordinary CPU execution, and clock selection does not imply timing accuracy.
 
 ## External firmware and reset
 
-Only this exact 8,192-byte image is accepted. Combined images, Extended BASIC,
-and cartridges are outside the profile. No firmware bytes are tracked or
-published. The SHA-1 cross-check in MAME is
-`28b92bebe35fa4f026a084416d6ea3b1552b63d3` (`bas13.rom`).
+Each socket accepts one exact, separate 8,192-byte image. Combined dumps,
+other versions, and cartridges are outside the profile. Color BASIC is required
+to boot; the extension alone has no reset vector. With the extension absent,
+the same machine runs Color BASIC alone. The ROM's own initialization detects
+and enters the extension; the host does not patch vectors, BASIC tokens, or RAM.
+No firmware bytes are tracked or published.
+
+| Socket | Image | MAME SHA-1 cross-check |
+| --- | --- | --- |
+| A000–BFFF | Color BASIC 1.3 (`bas13.rom`) | `28b92bebe35fa4f026a084416d6ea3b1552b63d3` |
+| 8000–9FFF | Extended Color BASIC 1.1 (`extbas11.rom`) | `ad927fb4f30746d820cb8b860ebb585e7f095dea` |
+
+The extension was checked against MAME's SHA-1 and CRC32 (`a82a6254`);
+the SHA-256 below was calculated from those verified bytes.
 
 ```machine
 image firmware external sha256 5375b1caef9df815b781d9cd6df81ecdaddd2642b06a01adac521e40f1329751
+image extended external sha256 a18f270d3495d82b9f515de049f46253a623a2d9b1bb226c9ad338508344c5ee
 
 cpu 6809 {
     A = 00  B = 00  DP = 00
@@ -84,10 +100,14 @@ cpu 6809 {
 reset { cpu }
 ```
 
-`create6809Coco({ firmware: null })` allocates inspectable hardware before
+`create6809Coco({ firmware: null, extended: null })` allocates inspectable hardware before
 firmware is available. Verify media with `RomImage.verify` and the generated
 `romImages.firmware` identity, then install it with `firmware.install(image)`.
-Installation preserves the machine. The separate `reset()` reads FFFE and
+Verify the optional extension against `romImages.extended` and bind it under
+`extended`, or explicitly bind `null` for an empty socket. Native installation
+preserves the machine; changing ROMs underneath a running interpreter is not
+a supported session transition. The laboratory starts fresh hardware when the
+extension changes. The separate `reset()` reads FFFE and
 FFFF through the declared map and enters at A027 for this ROM. It is a
 **CPU-only reset**, preserving RAM, SAM, PIAs, and held keys; it does not claim
 to reproduce the motherboard reset-button circuitry. Fresh power-on means a
@@ -152,21 +172,27 @@ overlay. Both are presentation approximations, not composite video or hardware t
 
 The [CoCo laboratory](https://microcomputer.world/machines/color-computer/laboratory/)
 uses the shared docking workspace with its own saved layout and Live preferences.
-Load the Color BASIC image identified above, then choose **Run**. The ROM is
-verified before installation and remembered locally when browser storage is
-available. It is never uploaded. Reload verifies the remembered bytes again and
+Load the Color BASIC image identified above and, optionally, the separate
+Extended BASIC image, then choose **Run**. The ROM panel has one load control
+and status per socket. Each image is verified independently and remembered
+locally when browser storage is available. Files are never uploaded. Reload
+verifies both remembered images independently and
 opens a fresh, paused machine; it does not automatically execute or restore a
-saved program. **Forget remembered ROM** removes the saved file while keeping
-the current machine's verified ROM.
+saved program. **Forget remembered Color BASIC** and **Forget remembered Extended BASIC**
+remove only the corresponding saved file, keeping the current loaded image.
 
-RAM and device inspectors work before firmware is loaded. Loading the first ROM
-preserves that hardware and resets the CPU; replacing a loaded ROM starts a fresh
-machine. A rejected file leaves CPU, RAM, and device state intact and execution
+RAM and device inspectors work before firmware is loaded. Loading Color BASIC for the first time
+preserves that hardware and resets the CPU; replacing the base ROM or loading
+the extension starts fresh hardware with the selected ROM pair. The extension
+may be loaded first, but execution waits for Color BASIC. **Use Color BASIC only**
+removes and forgets the extension and starts a fresh BASIC-only machine. If
+forgetting fails, the current configuration is preserved. A rejected file leaves
+CPU, RAM, and device state intact and execution
 paused. **Step** advances one native machine boundary, which may be an instruction,
 interrupt entry, or wait result. **Pause** finishes the current batch and stops
 before another. **Reset CPU** preserves RAM and devices; the host also cancels queued
 input and releases keyboard switches. **Fresh power-on** constructs new hardware,
-clears RAM and input, and retains the verified ROM.
+clears RAM and input, and retains the installed ROM pair.
 
 Click the screen to type. Letters become uppercase; Enter submits a line,
 Backspace sends the CoCo's left arrow, Home sends Clear, and Escape or Ctrl-C
@@ -237,11 +263,16 @@ Step, and showing either panel refresh its observations.
 **Snapshot** saves one explicit browser checkpoint: native hardware plus the
 queued chords, current press/release phase, and remaining input budget.
 Save and Restore require a paused machine. Restoring validates the complete
-state and matching ROM before replacing the session, stays paused, and clears
+state and matching ROM pair before replacing the session, stays paused, and clears
 the recent-step display. It does not issue a reset or inject another key.
-The checkpoint contains the ROM identity, not its bytes; the ROM must be loaded
-separately. Failed restoration preserves the current session, and failed saving
-preserves the previous checkpoint. Layout and Live choices are not machine state.
+The checkpoint contains both ROM identities or explicit absence, not their
+bytes. Restoration requires the same pair: a BASIC-only checkpoint cannot
+silently acquire an extension, and an Extended BASIC checkpoint cannot lose it.
+Version-1 browser checkpoints predate the extension socket; their exact former
+hardware shape is upgraded to an empty socket before normal validation. New
+version-2 checkpoints must supply the field explicitly. Failed restoration
+preserves the current session, and failed saving preserves the previous checkpoint.
+Layout and Live choices are not machine state.
 
 **Run to address**, in Execution, accepts a hexadecimal PC and runs normal
 machine boundaries until that PC is reached. It pauses **before** the next
@@ -260,7 +291,8 @@ subsequent work.
 
 ## Following Color BASIC
 
-This short walkthrough uses the exact Color BASIC 1.3 image identified above.
+This short walkthrough uses the exact Color BASIC 1.3 image identified above,
+with the extension socket empty (**Use Color BASIC only**).
 Keep **Execution**, **Disassembly** in PC mode, **Instruction**, **Direct Page**,
 both stack panels, and **PIAs / keyboard** visible. Open this guide beside the
 laboratory: moving focus to another window pauses it, so return before choosing
@@ -308,7 +340,8 @@ the ROM is never part of the published guide.
 Color BASIC lacks Extended BASIC's high-resolution drawing commands, but
 `POKE` can still operate the hardware. This experiment uses ordinary interpreted
 BASIC and physical keyboard input. No graphics helper paints RAM on its behalf.
-Start with **Fresh power-on**, choose **Run**, and wait for `OK`. Open the
+Use **Color BASIC only**, start with **Fresh power-on**, choose **Run**, and
+wait for `OK`. Open the
 SAM / video and Memory panels; browse Memory at `$6000`. Paste each line into
 the screen separately, including Enter, and let it finish before sending the
 next. Moving focus to the guide pauses execution; resume Run after returning.
@@ -373,12 +406,65 @@ it does not invent a hardware picture for it. The [graphics acceptance test](../
 types these exact guide lines through the real ROM, checks the bitmap and colour
 changes, restores a graphics snapshot, and returns to working BASIC text.
 
+## Draw with Extended Color BASIC
+
+Load both ROMs above and choose **Run**. The banner should identify
+`EXTENDED COLOR BASIC 1.1` and finish at `OK`. This experiment uses the drawing
+commands documented in Tandy's [Getting Started with Extended Color BASIC][extended-manual],
+chapters 14–19. It needs no `POKE` commands or host drawing routines.
+
+Enter the following program **one line at a time**, then enter `RUN`. The screen
+shows an orange box around a cyan circle, with a magenta centre point on buff.
+It remains visible until you press a key; Space returns to the text prompt.
+The laboratory's **Pause** stops execution without consuming a key.
+
+```text
+10 PMODE3,1
+20 PCLS5
+30 COLOR8,5
+40 LINE(16,16)-(239,175),PSET,B
+50 CIRCLE(128,96),48,6,1
+60 PSET(128,96,7)
+70 SCREEN1,1
+80 IFINKEY$=""THEN80
+90 SCREEN0,0
+100 END
+```
+
+`PMODE3,1` selects a 128 × 192 four-colour bitmap beginning at graphics page 1.
+BASIC graphics page numbers are 1,536-byte units; page 1 starts at `$0600`.
+This mode uses four pages, or 6,144 bytes. BASIC still accepts x coordinates
+0–255: neighbouring x positions share a pixel in this mode. Inspect Memory at
+`$0600` and the SAM / video panel: V=110, GM=110, CSS=1. The interpreter, not
+the host, performs the RAM and device writes that produce that selection.
+
+`PCLS5` fills the bitmap. `COLOR8,5` selects the box colours, and `LINE` with
+`,B` draws its outline. `CIRCLE` specifies colour 6 and a height/width ratio
+of 1; `PSET` specifies colour 7. BASIC colour numbers 5–8 name buff, cyan,
+magenta, and orange; these are one greater than the renderer's palette indices.
+`SCREEN1,1` displays the bitmap with that colour set. The `INKEY$` loop keeps
+the program running so the graphics stay visible; `SCREEN0,0` returns to text.
+The bitmap remains in RAM after returning to the prompt.
+
+While the picture is displayed, pause and save a snapshot. Run and press Space,
+then restore the snapshot while paused: the same picture and key-waiting program
+return. Run again and press Space to finish, then try `PRINT 2+3` or `LIST`.
+**Reset CPU** retains the installed ROM pair and RAM; **Fresh power-on** retains
+the ROMs but clears the program. Sound, cassette commands, and timing-dependent
+programs remain outside this untimed profile even though the ROM recognizes
+their BASIC keywords.
+
+The optional [Extended BASIC test](../../../tests/site/coco-extended.test.ts)
+uses these exact program lines, independently checks the bitmap, exercises all
+five `PMODE` settings, and compares restored continuation through the native
+keyboard path. Set `COCO_ROM` and `COCO_EXTENDED_ROM` to the separate images.
+
 ## Snapshots and acceptance
 
 `snapshot()` owns copies of CPU and RAM state, both PIAs' latches and edge
-history, pressed keys, the SAM control word, and the firmware identity (or
+history, pressed keys, the SAM control word, and both ROM identities (or
 explicit absence). The stateless VDG contributes an empty snapshot. Restoring
-requires matching verified media; it does not reapply power-on or CPU reset.
+requires matching verified media in both sockets; it does not reapply power-on or CPU reset.
 Taking a snapshot or rendering a frame must neither acknowledge a pending
 interrupt nor release a held key.
 
@@ -386,6 +472,9 @@ The [synthetic tests](../../../tests/machines/6809/coco/machine.test.ts) run
 without private media. They cover the full vector alias, ROM protection and
 empty sockets, generated CPU transfers, live IRQ/FIRQ levels, snapshots with
 held keys, frame decoding, page changes, and refusal of unsupported modes.
+The [extension tests](../../../tests/machines/6809/coco/extended.test.ts) use a
+synthetic ROM to check the second socket's mapping, write protection, native
+calls and returns, independent inspection, and snapshot identity requirements.
 The [bitmap tests](../../../tests/machines/6809/coco/video.test.ts) compare all
 eight formats and both colour sets with independent complete rasters, including
 physical RAM wrapping, all SAM/VDG mode pairings, and changes made by 6809 stores.
@@ -429,3 +518,5 @@ and explicit release without firmware.
 
 [rom-catalogue]: https://github.com/mamedev/mame/blob/master/src/mame/trs/coco12.cpp
 [technical]: https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Color%20Computer%20Technical%20Reference%20Manual%20%28Tandy%29.pdf
+
+[extended-manual]: https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Getting%20Started%20With%20Extended%20Color%20Basic%20%28Tandy%29.pdf

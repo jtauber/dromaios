@@ -10,7 +10,8 @@ implemented component, memory, reset, firmware, display, and snapshot contracts.
 It passes the full Color BASIC conversation headlessly on native Dromaios
 hardware. The laboratory now connects this machine to the shared docking
 workspace, with local verified ROM storage, matrix input, CPU/memory/device
-inspection, and a saved checkpoint.
+inspection, and a saved checkpoint. The chapter also owns the optional
+Extended Color BASIC 1.1 ROM upgrade and its native graphics acceptance tests.
 This document retains the reference audit and acceptance plan, rather
 than duplicating the executable chapter's contracts.
 

@@ -12,10 +12,10 @@ export interface CocoSessionState extends CocoKeyboardTransportState {
 }
 
 /** Native machine and host continuation, independent of DOM, docking, and drawing. */
-export function createCocoSession(firmware: RomImage | null = null) {
+export function createCocoSession(firmware: RomImage | null = null, extended: RomImage | null = null) {
   let machine = powerOn(), input = createCocoKeyboardTransport(machine.pias);
   function powerOn() {
-    const result = create6809Coco({ firmware });
+    const result = create6809Coco({ firmware, extended });
     if (firmware !== null) result.reset();
     return result;
   }
@@ -41,7 +41,7 @@ export function createCocoSession(firmware: RomImage | null = null) {
     restore(value: unknown): void {
       checkMachineSnapshot(value, ["hardware", "input", "pressed", "remaining"]);
       const state = value as CocoSessionState;
-      const restored = create6809Coco({ firmware }, state.hardware);
+      const restored = create6809Coco({ firmware, extended }, state.hardware);
       const transport = createCocoKeyboardTransport(restored.pias, { input: state.input, pressed: state.pressed, remaining: state.remaining });
       machine = restored; input = transport;
     },

@@ -12,7 +12,7 @@ test("native CoCo boots verified Color BASIC, edits and runs programs, and resum
 }, async () => {
   const firmware = await RomImage.verify(readFileSync(process.env.COCO_ROM!), romImages.firmware,
     async bytes => createHash("sha256").update(bytes).digest("hex"));
-  let machine = create6809Coco({ firmware }); machine.reset();
+  let machine = create6809Coco({ firmware, extended: null }); machine.reset();
   assert.equal(machine.cpu.snapshot().pc, 0xa027);
   let instructions = 0;
   function run(count: number): void {
@@ -54,9 +54,9 @@ test("native CoCo boots verified Color BASIC, edits and runs programs, and resum
   line("RUN", /\n 5\nOK\n#$/);
 
   // Restore a live interpreter and continue on the restored native hardware.
-  const saved = machine.snapshot(), restored = create6809Coco({ firmware }, saved);
+  const saved = machine.snapshot(), restored = create6809Coco({ firmware, extended: null }, saved);
   for (let i = 0; i < 100; i++) assert.deepEqual(stepCoco(restored), stepCoco(machine));
-  assert.deepEqual(restored.snapshot(), machine.snapshot()); machine = create6809Coco({ firmware }, saved);
+  assert.deepEqual(restored.snapshot(), machine.snapshot()); machine = create6809Coco({ firmware, extended: null }, saved);
 
   line("20 PRINT A+4"); line("RUN", /\n 6\nOK\n#$/);
   line("NEW"); line("LIST", /LIST\nOK\n#$/);

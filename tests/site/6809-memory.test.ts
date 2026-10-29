@@ -22,7 +22,7 @@ test("held 6809 observations own pointers and bytes; changes compare physical ad
 });
 
 test("S and U windows wrap, preserve odd alignment, and reflect real pushes and pulls in high/low order", () => {
-  const machine = create6809Coco({ firmware: null });
+  const machine = create6809Coco({ firmware: null, extended: null });
   const cpu = new Cpu6809(machine.memory, { ...machine.cpu.snapshot(), pc: 0x2000, s: 0x101, u: 0x303, a: 0x12, b: 0x34 });
   [0x34, 0x06, 0x36, 0x06, 0x35, 0x06, 0x37, 0x06].forEach((byte, i) => machine.ram.write(0x2000 + i, byte)); // Push/pull D on each stack.
   const view = create6809MemoryObservation(), read = (address: number) => readCocoStorage(machine, address);
@@ -45,7 +45,7 @@ test("S and U windows wrap, preserve odd alignment, and reflect real pushes and 
 });
 
 test("pointer views observe a CoCo with pending IRQ and held keys without reading its guest bus", () => {
-  const machine = create6809Coco({ firmware: null }), view = create6809MemoryObservation();
+  const machine = create6809Coco({ firmware: null, extended: null }), view = create6809MemoryObservation();
   machine.pias.write(1, 5); machine.pias.setHorizontalSync(false); machine.pias.setKey("A", true);
   assert.equal(machine.pias.irq, true); const before = machine.snapshot();
   machine.memory.read = machine.memory.write = () => { throw new Error("Guest bus accessed"); };

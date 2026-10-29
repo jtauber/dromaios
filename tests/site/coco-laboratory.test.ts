@@ -42,7 +42,7 @@ test("one browser checkpoint preserves native state, rejects stale formats, and 
   const [key, text] = [...storage.values][0]!;
   storage.setItem = () => { throw new Error("Quota"); };
   assert.throws(() => checkpoint.save(createCocoSession().snapshot()), /Quota/); assert.equal(storage.values.get(key), text);
-  for (const invalid of ["{", "null", " ".repeat(1_000_001), JSON.stringify({ ...JSON.parse(text), version: 2 }),
+  for (const invalid of ["{", "null", " ".repeat(1_000_001), JSON.stringify({ ...JSON.parse(text), version: 3 }),
     JSON.stringify({ ...JSON.parse(text), machine: "apple2" }), JSON.stringify({ ...JSON.parse(text), savedAt: "never" })]) {
     storage.values.set(key, invalid); assert.throws(() => checkpoint.read());
   }
@@ -87,4 +87,21 @@ test("the CoCo workspace restores all thirteen tools and migrates older layouts 
   assert.equal(panelGroup(updated, "memory")?.active, "memory");
   const hiddenStack = encodeWorkspaceState(closePanel(updated, "stack-u")); version2.setItem(cocoWorkspaceKey, hiddenStack);
   migrateCocoWorkspace(version2, ids); assert.equal(version2.getItem(cocoWorkspaceKey), hiddenStack);
+});
+
+test("old BASIC-only checkpoints migrate to an empty extension socket, while new snapshots must specify it", () => {
+  const storage = memoryStorage(), checkpoint = cocoSavedState(() => storage), session = createCocoSession();
+  session.machine.ram.write(0x3456, 0x78); checkpoint.save(session.snapshot());
+  const [key, current] = [...storage.values][0]!, envelope = JSON.parse(current);
+  assert.equal(envelope.version, 2);
+  const { extended, ...oldHardware } = envelope.state.hardware;
+  const old = { ...envelope, version: 1, state: { ...envelope.state, hardware: oldHardware } };
+  storage.setItem(key, JSON.stringify(old));
+  const migrated = checkpoint.read()!; assert.equal(migrated.version, 2); assert.equal(migrated.state.hardware.extended, null);
+  session.powerOn(); session.restore(migrated.state); assert.equal(session.machine.ram.read(0x3456), 0x78);
+  assert.equal(storage.getItem(key), JSON.stringify(old), "reading does not overwrite a recoverable old checkpoint");
+  storage.setItem(key, JSON.stringify({ ...old, version: 2 }));
+  assert.throws(() => session.restore(checkpoint.read()!.state), /Machine snapshot requires/);
+  storage.setItem(key, JSON.stringify({ ...envelope, version: 1 }));
+  assert.throws(() => checkpoint.read(), /Machine snapshot requires/, "a v1 record cannot claim an extension");
 });

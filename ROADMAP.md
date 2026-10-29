@@ -257,8 +257,10 @@ matrix keyboard input, text/SG4 and all eight standard bitmap modes,
 CPU/memory/device inspectors, remembered ROMs, and snapshot continuation.
 6809 disassembly, instruction explanations, independent S/U stack and direct-page
 tools, and a ROM walkthrough are in place. A Color BASIC POKE experiment connects
-the video specifications to the laboratory. Hardware timing, extended semigraphics,
-and additional media remain separate fidelity milestones.
+the video specifications to the laboratory. Optional Extended Color BASIC adds
+a verified second ROM, native drawing commands, and a graphics-program
+walkthrough. Hardware timing, extended semigraphics, and additional media
+remain separate fidelity milestones.
 Use this third historical machine to test shared inspection conventions;
 introduce abstractions through concrete requirements.
 
