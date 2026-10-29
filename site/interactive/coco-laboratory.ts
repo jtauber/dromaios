@@ -13,6 +13,7 @@ import { readRomFile } from "./rom-file.js";
 import type { RomFile } from "./rom-file.js";
 import { romFileStorage } from "./rom-storage.js";
 import { createExecutionController } from "./execution-controller.js";
+import { createExecutionTarget } from "./execution-target.js";
 import { createPanelUpdates } from "./panel-updates.js";
 import { createWorkspace } from "./workspace/dock.js";
 import { mountWorkspaceControls } from "./workspace/controls.js";
@@ -26,6 +27,8 @@ function mountCoco(root: HTMLElement): void {
   const message = at("machine-message"), storageStatus = at("rom-storage-status");
   const run = at<HTMLButtonElement>("machine-run"), pause = at<HTMLButtonElement>("machine-pause");
   const step = at<HTMLButtonElement>("machine-step"), reset = at<HTMLButtonElement>("machine-reset"), power = at<HTMLButtonElement>("machine-power");
+  const targetForm = at<HTMLFormElement>("run-target"), targetInput = at<HTMLInputElement>("run-target-address");
+  const targetButton = at<HTMLButtonElement>("run-target-button"), target = createExecutionTarget();
   const load = at<HTMLButtonElement>("rom-load"), forget = at<HTMLButtonElement>("rom-forget");
   const save = at<HTMLButtonElement>("snapshot-save"), restore = at<HTMLButtonElement>("snapshot-restore");
   const forgetState = at<HTMLButtonElement>("snapshot-forget");
@@ -37,13 +40,14 @@ function mountCoco(root: HTMLElement): void {
   const panels = [...root.querySelectorAll<HTMLElement>("[data-workspace-panel]")];
   const updates = createPanelUpdates(root, id => refreshPanels([id]), "dromaios:inspectors:coco:live");
   const catalogue: Catalogue6809 = JSON.parse(at("coco-instructions").textContent!);
-  const inspectors = createCocoInspectors(root, () => code.memoryMoved()), display = createCocoScreen(root);
+  const inspectors = createCocoInspectors(root, () => code.memoryMoved(), browse), display = createCocoScreen(root);
   function browse(address: number): void { inspectors.memory.browse(address); workspace.show("memory"); }
   const code = create6809CodeView(at("coco-code"), catalogue, { address: () => inspectors.memory.address, browse });
   const instruction = create6809InstructionView(at("coco-instruction"), browse);
   const execution = createExecutionController({
     step: () => session.step(), canStep: () => session.hasFirmware && !selecting,
-    pauseBeforeStep: (): boolean => execution.records.at(-1)?.outcome === "waiting" && !session.machine.pias.irq && !session.machine.pias.firq,
+    pauseBeforeStep: (): boolean => target.address !== undefined && target.beforeStep(session.machine.cpu.snapshot().pc, execution.steps)
+      || execution.records.at(-1)?.outcome === "waiting" && !session.machine.pias.irq && !session.machine.pias.firq,
     schedule(callback, delay) { const id = window.setTimeout(callback, delay); return () => window.clearTimeout(id); },
     onChange: refresh, batchSize: 10_000,
   });
@@ -59,6 +63,7 @@ function mountCoco(root: HTMLElement): void {
     run.disabled = !ready || running || execution.error !== undefined;
     pause.disabled = !running; step.disabled = !ready || running || execution.error !== undefined;
     reset.disabled = !ready || running; power.disabled = selecting || running;
+    targetButton.disabled = targetInput.disabled = !ready || running || execution.error !== undefined;
     load.disabled = selecting; forget.disabled = selecting;
     save.disabled = !ready || running; restore.disabled = !ready || running || !hasSaved;
     forgetState.disabled = selecting || !hasSaved;
@@ -66,6 +71,10 @@ function mountCoco(root: HTMLElement): void {
     at("machine-status").textContent = `${running ? "Running" : ready ? "Paused" : "Ready for ROM"} · ${execution.steps.toLocaleString()} steps`
       + (session.pendingInput ? ` · ${session.pendingInput} keys queued` : "");
     at("machine-error").textContent = execution.error ?? "";
+    if (!running && !target.stopped) target.cancel();
+    at("run-target-status").textContent = target.address === undefined ? "" : target.stopped === "reached"
+      ? `Paused before the boundary at $${cocoHex(target.address)}.` : target.stopped === "limit"
+      ? `Stopped after 2,000,000 boundaries; $${cocoHex(target.address)} was not reached.` : `Running to $${cocoHex(target.address)}…`;
     const record = execution.records.at(-1);
     at("last-step").textContent = record ? record.instruction
       ? `$${cocoHex(record.instruction.address)}   ${record.instruction.bytes.map(byte => cocoHex(byte, 2)).join(" ")}   ${record.outcome}`
@@ -81,7 +90,7 @@ function mountCoco(root: HTMLElement): void {
     catch (cause) { message.textContent = cause instanceof Error ? cause.message : String(cause); }
     refresh();
   }
-  function changedMachine(): void { execution.reset(); inspectors.reset(); }
+  function changedMachine(): void { execution.reset(); target.cancel(); inspectors.reset(); }
   function installRom(verified: RomFile): void {
     if (session.hasFirmware) session = createCocoSession(verified.image);
     else { session.installFirmware(verified.image); session.reset(); }
@@ -102,9 +111,18 @@ function mountCoco(root: HTMLElement): void {
   forget.addEventListener("click", () => action(() => {
     romStorage.forget(); storageStatus.textContent = "Remembered ROM removed. The current machine keeps its loaded ROM.";
   }));
-  run.addEventListener("click", () => { message.textContent = ""; execution.run(); screen.focus(); });
-  pause.addEventListener("click", () => execution.stop());
-  step.addEventListener("click", () => { message.textContent = ""; execution.step(); });
+  run.addEventListener("click", () => { target.cancel(); message.textContent = ""; execution.run(); screen.focus(); });
+  pause.addEventListener("click", () => { target.cancel(); execution.stop(); });
+  step.addEventListener("click", () => { target.cancel(); message.textContent = ""; execution.step(); });
+  targetForm.addEventListener("submit", event => {
+    event.preventDefault(); if (targetButton.disabled) return;
+    const text = targetInput.value.trim().replace(/^\$|^0x/i, "");
+    if (!/^[0-9a-f]{1,4}$/i.test(text)) {
+      targetInput.setCustomValidity("Enter a hexadecimal address from 0000 to FFFF."); targetInput.reportValidity(); return;
+    }
+    target.start(parseInt(text, 16), execution.steps); message.textContent = ""; execution.run();
+  });
+  targetInput.addEventListener("input", () => targetInput.setCustomValidity(""));
   reset.addEventListener("click", () => action(() => { session.reset(); changedMachine(); }));
   power.addEventListener("click", () => action(() => { session.powerOn(); changedMachine(); }));
   screen.addEventListener("keydown", event => {
@@ -124,7 +142,7 @@ function mountCoco(root: HTMLElement): void {
   });
   function releaseFocus(): void {
     const hadInput = session.pendingInput > 0;
-    execution.stop(); session.releaseInput();
+    target.cancel(); execution.stop(); session.releaseInput();
     if (hadInput) message.textContent = "Paused after focus left the window; queued keys were released.";
     refresh();
   }

@@ -188,6 +188,27 @@ Turning off a panel's Live square holds its display during Run. Pause, Step,
 and showing the panel refresh it. Scrolling or changing row width uses the held
 memory image.
 
+**Direct Page** follows DP: a value of `$30` selects `$3000–$30FF`, not page
+zero. FIX holds the currently displayed page while DP changes; DP resumes
+following. The 8/16 toggle changes bytes per row. **System Stack · S** and
+**User Stack · U** are independent dockable tools. Each shows two bytes below
+its pointer and 32 bytes beginning there, wrapping at `$FFFF`. BYTE shows
+individual bytes; WORD groups pairs starting at the pointer, high byte first,
+even when the pointer is odd. The arrow marks the observed pointer. Push
+decrements before storing; pull reads before incrementing. The views do not
+infer frames, stack bounds, or an empty stack from arbitrary memory. In
+particular, software can use U as an ordinary index register.
+
+All three tools highlight changed bytes by address since their last observation;
+moving a pointer alone does not mark different bytes as changed. Their controls
+redraw the held observations when Live is off. Address links browse Memory
+without execution. Missing storage remains `--`, and a word with either byte
+missing remains `----`. Reset, fresh power-on, and snapshot restoration establish
+a new comparison baseline. Existing saved layouts gain these tools once as
+tabs alongside Memory, preserving its size and selected tab. The default layout
+shows them separately; drag or use Arrange panels to give each its own space.
+Subsequent choices to hide them are retained.
+
 **Disassembly** follows PC or the Memory panel's selected address (PC/MEM).
 PC mode includes the last three instructions actually executed, decoded from
 their captured bytes even if memory has since changed. A solid separator marks
@@ -217,9 +238,62 @@ The checkpoint contains the ROM identity, not its bytes; the ROM must be loaded
 separately. Failed restoration preserves the current session, and failed saving
 preserves the previous checkpoint. Layout and Live choices are not machine state.
 
-Specialized stack/direct-page views remain subsequent work. S, U, and DP are
-visible and their memory can be inspected by address. ROM annotations, graphics
-modes, and an independently checked timing model also remain subsequent work.
+**Run to address**, in Execution, accepts a hexadecimal PC and runs normal
+machine boundaries until that PC is reached. It pauses **before** the next
+boundary, including when PC already matches. It does not change PC, inject a
+return, or bypass devices. A request stops after 2,000,000 boundaries if the
+address is not reached. Run, Step, Pause, a machine replacement/reset, and loss
+of window focus cancel the target. An error or an unserviceable wait also ends
+the request. A matching PC is not a promise that an ordinary instruction will
+run next: Instruction still explains any pending interrupt or wait boundary.
+
+Broader ROM annotations, graphics modes, and an independently checked timing
+model remain subsequent work.
+
+## Following Color BASIC
+
+This short walkthrough uses the exact Color BASIC 1.3 image identified above.
+Keep **Execution**, **Disassembly** in PC mode, **Instruction**, **Direct Page**,
+both stack panels, and **PIAs / keyboard** visible. Open this guide beside the
+laboratory: moving focus to another window pauses it, so return before choosing
+Run to address. The addresses below are observations of this ROM, not names
+or locations shared by every BASIC version.
+
+1. **Start with Fresh power-on.** PC is `$A027`, fetched from `$FFFE–$FFFF`.
+   Step the `LEAY -28,PCR` and watch Y become `$A00E`. The ROM saves a later
+   continuation address while it initializes the hardware. S and U begin at
+   zero by this model's power-on convention; the stack tools correctly show
+   memory around zero rather than claiming that either stack is empty.
+2. **Run to `$A051`.** Earlier stores have configured the PIAs. Step
+   `LDU #$FFC0`: the U view moves to the SAM control area and shows `--`.
+   U is an index here, not a stack. At `$A056`, `STA ,U++` writes a paired
+   SAM control address and advances U by two. The Instruction preview stops
+   at hardware writes; only Step or Run performs them. Run to `$A05E`, then
+   Step `TFR B,DP`. B is now zero, and Direct Page selects `$0000–$00FF`.
+3. **Run to `$A00E`.** Step `LDS #$03D7`. The system-stack arrow moves to
+   `$03D7`; nothing has been pushed merely by assigning the pointer. Run to
+   `$A07D`, skipping the RAM-clearing loop. Instruction now predicts the
+   `JSR $A928`, including its stack writes.
+4. **Step into the call.** PC becomes `$A928`, S becomes `$03D5`, and the
+   word at S is `$A080`: the return address, stored as `A0 80`. Switch
+   BYTE/WORD to see the same held bytes in both presentations. Step three more
+   times through `LDB #$60`, `LDX #$0400`, and `STX <$88`. Direct Page now
+   shows `04 00` at `$0088–$0089`, a high-byte-first screen pointer. The
+   following loop fills `$0400–$05FF` with `$60`, the VDG's blank character.
+5. **Run to `$A936`, then Step the RTS.** PC returns to `$A080` and S to
+   `$03D7`. The old `A0 80` bytes still exist below S; pulling does not erase
+   RAM. This is why the stack window does not present every word as a caller.
+6. **Run to `$A1D9` to inspect keyboard polling.** U is now `$FF00`.
+   Step `ROL 2,U`: the column output becomes `$FE`, selecting the first column
+   with a low bit. Run to `$A23A`, then Step `LDA ,U` to sense the keyboard
+   rows. With no keys queued or held, A is `$FF`. The PIAs panel shows the
+   resolved inputs; inspecting it did not itself perform the read. Resume with
+   Run and type `PRINT 2+3` followed by Enter to finish at BASIC's `5` and `OK`.
+
+The [walkthrough test](../../../tests/site/coco-walkthrough.test.ts) follows
+these stops through the real ROM and independently checks the pointers, return
+bytes, direct-page store, screen fill, and keyboard read. It requires `COCO_ROM`;
+the ROM is never part of the published guide.
 
 ## Snapshots and acceptance
 

@@ -62,8 +62,15 @@ release, remembered-ROM reload, memory scrolling and Live controls, and the
 independent saved layout.
 Also check PC/MEM following, captured history, branch separators, and Instruction
 predictions while stepping. Held Disassembly controls use detached observations;
-address links browse Memory without executing. Existing CoCo layouts gain the
-two tools once and retain later choices to hide them.
+address links browse Memory without executing. The S/U stack and Direct Page
+tools each own detached observations in `6809-memory.ts`; pointer movement does
+not fabricate changes at other addresses. Check WORD/BYTE, DP/FIX, 8/16, and
+independent docking and Live settings. Existing CoCo layouts gain newly introduced
+tools once and retain later choices to hide them.
+The chapter's **Following Color BASIC** walkthrough uses the bounded Run to
+address control in Execution. `execution-target.ts` only observes PC and the
+host's boundary count; target checks never access memory. The optional real-ROM
+walkthrough test checks the stated stops and memory effects.
 
 ## Altair BASIC
 

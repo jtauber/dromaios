@@ -60,19 +60,31 @@ test("CoCo ROM storage verifies bytes again and uses a key separate from Apple I
   assert.equal(storage.getItem("dromaios:apple2-rom:v1"), "unrelated media");
 });
 
-test("the CoCo workspace restores all ten tools independently of Apple II layout preferences", () => {
-  const ids = ["screen", "execution", "registers", "memory", "sam", "pias", "rom", "states", "code", "instruction"];
+test("the CoCo workspace restores all thirteen tools and migrates older layouts only once", () => {
+  const ids = ["screen", "execution", "registers", "memory", "sam", "pias", "rom", "states", "code", "instruction", "direct-page", "stack-s", "stack-u"];
   const restored = decodeWorkspaceState(encodeWorkspaceState(cocoDefaultLayout), ids);
   assert.deepEqual(groups(restored).flatMap(group => group.panels).sort(), [...ids].sort());
   assert.match(cocoWorkspaceKey, /:coco:/);
   const storage = memoryStorage();
-  let previous = closePanel(closePanel(closePanel(cocoDefaultLayout, "code"), "instruction"), "pias");
+  let previous = ["code", "instruction", "pias", "direct-page", "stack-s", "stack-u"].reduce(closePanel, cocoDefaultLayout);
   previous = collapseGroup(previous, panelGroup(previous, "sam")!.id, true);
   storage.setItem("dromaios:workspace:coco:1", encodeWorkspaceState(previous));
   migrateCocoWorkspace(storage, ids);
   const migrated = decodeWorkspaceState(storage.getItem(cocoWorkspaceKey)!, ids);
   assert.ok(panelGroup(migrated, "code")); assert.ok(panelGroup(migrated, "instruction"));
+  for (const id of ["direct-page", "stack-s", "stack-u"]) assert.ok(panelGroup(migrated, id));
   assert.equal(panelGroup(migrated, "pias"), undefined); assert.equal(panelGroup(migrated, "sam")?.collapsed, true);
   const hidden = encodeWorkspaceState(closePanel(migrated, "code")); storage.setItem(cocoWorkspaceKey, hidden);
   migrateCocoWorkspace(storage, ids); assert.equal(storage.getItem(cocoWorkspaceKey), hidden);
+
+  const version2 = memoryStorage();
+  version2.setItem("dromaios:workspace:coco:2", encodeWorkspaceState(previous));
+  migrateCocoWorkspace(version2, ids);
+  const updated = decodeWorkspaceState(version2.getItem(cocoWorkspaceKey)!, ids);
+  for (const id of ["code", "instruction", "pias"]) assert.equal(panelGroup(updated, id), undefined, `Keep ${id} hidden`);
+  for (const id of ["direct-page", "stack-s", "stack-u"]) assert.ok(panelGroup(updated, id));
+  assert.deepEqual(panelGroup(updated, "memory")?.panels, ["memory", "direct-page", "stack-s", "stack-u"]);
+  assert.equal(panelGroup(updated, "memory")?.active, "memory");
+  const hiddenStack = encodeWorkspaceState(closePanel(updated, "stack-u")); version2.setItem(cocoWorkspaceKey, hiddenStack);
+  migrateCocoWorkspace(version2, ids); assert.equal(version2.getItem(cocoWorkspaceKey), hiddenStack);
 });

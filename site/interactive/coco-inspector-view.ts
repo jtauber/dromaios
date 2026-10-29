@@ -1,9 +1,10 @@
 import type { Coco } from "../../src/machines/6809/coco/runtime.js";
 import { cocoHex, readCocoStorage } from "./coco-inspection.js";
 import { createMemoryInspector } from "./memory-inspector.js";
+import { create6809MemoryView } from "./6809-memory-view.js";
 
 /** CoCo-specific observation tools; docking and machine execution remain outside this module. */
-export function createCocoInspectors(root: HTMLElement, memoryMoved: () => void = () => {}) {
+export function createCocoInspectors(root: HTMLElement, memoryMoved: () => void, browse: (address: number) => void) {
   const at = (name: string) => root.querySelector<HTMLElement>(`[data-${name}]`)!;
   type Update = (machine: Coco) => void;
   const updates: Record<string, Update[]> = { registers: [], sam: [], pias: [] };
@@ -59,13 +60,16 @@ export function createCocoInspectors(root: HTMLElement, memoryMoved: () => void 
   }
   updates.pias!.push(machine => { at("coco-interrupts").textContent = `IRQ ${+machine.pias.irq} · FIRQ ${+machine.pias.firq}`; });
   const memory = createMemoryInspector(at("coco-memory"), "dromaios:inspectors:coco:memory", memoryMoved);
+  const pointerViews = ([["direct-page", "dp"], ["stack-s", "s"], ["stack-u", "u"]] as const)
+    .map(([id, register]) => ({ id, view: create6809MemoryView(at(`coco-${id}`), register, browse) }));
   return {
     memory,
-    controls: (id: string): HTMLElement | undefined => id === "memory" ? memory.controls : undefined,
-    reset(): void { resetters.forEach(reset => reset()); memory.reset(); },
+    controls: (id: string): HTMLElement | undefined => id === "memory" ? memory.controls : pointerViews.find(tool => tool.id === id)?.view.controls,
+    reset(): void { resetters.forEach(reset => reset()); memory.reset(); pointerViews.forEach(tool => tool.view.reset()); },
     refresh(machine: Coco, shouldUpdate: (id: string) => boolean): void {
       for (const [panel, methods] of Object.entries(updates)) if (shouldUpdate(panel)) methods.forEach(update => update(machine));
       if (shouldUpdate("memory")) memory.refresh(address => readCocoStorage(machine, address), machine.cpu.snapshot().pc);
+      for (const { id, view } of pointerViews) if (shouldUpdate(id)) view.refresh(address => readCocoStorage(machine, address), machine.cpu.snapshot());
     },
   };
 }

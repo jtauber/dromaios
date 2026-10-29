@@ -40,12 +40,18 @@
         <button type="button" data-machine-step disabled>Step</button><button type="button" data-machine-reset disabled>Reset CPU</button>
         <button type="button" data-machine-power disabled>Fresh power-on</button>
       </div>
+      <form class="basic-controls coco-run-target" data-run-target>
+        <label>Address <input data-run-target-address aria-label="Run to address" placeholder="A027" maxlength="6" spellcheck="false" disabled></label>
+        <button type="submit" data-run-target-button disabled>Run to address</button>
+      </form>
+      <p class="basic-readout" data-run-target-status role="status"></p>
       <p class="basic-readout" data-machine-status role="status">Preparing hardware…</p>
       <p class="basic-message" data-machine-error role="alert"></p><p class="basic-message" data-machine-message role="status"></p>
       <p class="lab-hint">Last step</p><pre data-last-step></pre>
       <details class="coco-help"><summary>Keyboard and execution</summary>
         <p id="coco-keys" class="lab-hint">Click the screen to type or paste one line. Enter submits; Backspace edits; Escape or Ctrl-C sends Break; Home sends Clear. Host key repeat is ignored. Leaving the window pauses and releases queued keys.</p>
         <p class="lab-hint">Reset CPU preserves RAM and device settings. Fresh power-on clears them and keeps the ROM. This profile is untimed: steps are not clock cycles.</p>
+        <p class="lab-hint">Run to address executes normally and pauses before the next boundary at that PC, or after 2,000,000 boundaries. Run, Step, Pause, reset, and leaving the window cancel the target.</p>
       </details>
     </section>
     <section class="lab-tool lab-tool-registers lab-panel-body" data-workspace-panel="registers" data-panel-title="Registers" data-panel-heading="Motorola 6809" data-panel-live="true">
@@ -59,6 +65,15 @@
       <p class="basic-readout" data-code-status></p>
       <table class="lab-code"><thead><tr><th aria-label="Execution position"></th><th>Address</th><th>Bytes</th><th>Instruction</th></tr></thead><tbody data-code-rows></tbody></table>
     </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="direct-page" data-panel-title="Direct Page" data-panel-live="true" data-coco-direct-page>
+      <p class="basic-readout" data-register-memory-status></p><div data-register-memory-output></div>
+    </section>
+    {% for register, name in [('s', 'System'), ('u', 'User')] %}
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="stack-{{ register }}" data-panel-title="{{ name }} Stack · {{ register | upper }}" data-panel-live="true" data-coco-stack-{{ register }}>
+      <p class="basic-readout" data-register-memory-status></p><div data-register-memory-output></div>
+      <p class="lab-hint">Push moves down; pull moves up. Words are high byte first. This is a pointer window, not a list of frames; no empty-stack boundary is known.</p>
+    </section>
+    {% endfor %}
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="instruction" data-panel-title="Instruction" data-panel-live="true" data-coco-instruction>
       <p class="basic-readout" data-instruction-location></p><pre class="lab-instruction-preview" data-instruction-preview></pre>
       <details><summary>From the CPU specification</summary><p class="lab-hint" data-instruction-explanation></p></details>
@@ -78,6 +93,7 @@
       <p class="basic-readout" data-rom-status>No ROM loaded.</p>
       <p class="lab-hint" data-rom-storage-status>Choose the 8 KiB Color BASIC 1.3 ROM. The file stays on this device.</p>
       <p class="lab-hint"><a href="{{ calc_url(coco_url) }}" target="_blank" rel="noopener">Read the machine guide ↗</a></p>
+      <p class="lab-hint"><a href="{{ calc_url(coco_url) }}#following-color-basic" target="_blank" rel="noopener">Follow Color BASIC from reset ↗</a></p>
     </section>
     <section class="lab-tool lab-panel-body" data-workspace-panel="states" data-panel-title="Snapshot">
       <div class="basic-controls"><button type="button" data-snapshot-save disabled>Save snapshot</button><button type="button" data-snapshot-restore disabled>Restore snapshot</button><button type="button" data-snapshot-forget disabled>Forget snapshot</button></div>

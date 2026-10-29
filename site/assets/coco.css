@@ -21,3 +21,13 @@
 .coco-laboratory [data-instruction-preview] { white-space: pre-wrap; font-size: 12px; line-height: 1.6; }
 .coco-laboratory .lab-code { width: 100%; }
 .coco-laboratory .lab-code th:last-child, .coco-laboratory .lab-code td:last-child { padding-left: 4px; }
+.coco-stack { width: 100%; border-collapse: collapse; font: 12px/1.6 var(--mono); }
+.coco-stack th { color: var(--muted); font-size: 10px; font-weight: 400; }
+.coco-stack th, .coco-stack td { padding: 2px 8px 2px 0; text-align: left; white-space: nowrap; }
+.coco-stack .is-pointer { background: #263c56; }
+.coco-stack td:first-child { color: var(--accent); }
+.coco-stack td:last-child { color: #7ac9a1; }
+.coco-laboratory .coco-direct-page { font: 12px/1.8 var(--mono); }
+.coco-run-target { margin-top: 8px; }
+.coco-run-target label { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.coco-run-target input { width: 7ch; font: 12px/1.4 var(--mono); }

@@ -199,12 +199,13 @@ remains stopped and inspectable until the host has a valid boot configuration.
 
 ### Laboratory and repeatable sessions
 
-The first workspace provides Screen, Execution, Registers, Memory, SAM/video,
-PIAs/keyboard, ROM, and Snapshot. Instruction, Disassembly, and specialized
-Stack/direct-page views remain follow-up work. Both S and U
-must be inspectable; direct-page browsing follows DP rather than assuming page
-zero. A/B and derived D must agree, and word views must use 6809 byte order.
-The first workspace need not duplicate every Apple II specialist tool.
+The workspace's tools and behavior are defined in the
+[executable machine chapter](../../src/machines/6809/coco.md#using-the-laboratory).
+Both S and U must be independently inspectable; direct-page browsing follows
+DP rather than assuming page zero. A/B and derived D must agree, and word
+views must use 6809 byte order. Stack inspection must not infer frames or
+empty-stack bounds from arbitrary bytes. The workspace need not duplicate
+every Apple II specialist tool.
 
 Run, Pause, Step, reset, and fresh power-on must have explicit effects. CPU-only
 reset preserves RAM and peripherals according to the CPU contract; fresh
@@ -227,12 +228,9 @@ do not make its devices imitate the Apple II's keyboard latch or memory banks.
 
 ## Next implementation sequence
 
-1. Add 6809 disassembly and instruction explanations derived from its executable
-   CPU specification, preserving the separation between tools and machine state.
-2. Add views for both stacks and the selected direct page, using the existing
-   memory observer rather than guest bus reads.
-3. Review the untimed profile's remaining limitations before broadening software
-   support or adding a timed SAM/VDG/CPU schedule.
+Use the chapter's Color BASIC walkthrough to review the inspection tools as
+a coherent laboratory. Then review the untimed profile's remaining limitations
+before broadening software support or adding a timed SAM/VDG/CPU schedule.
 
 Keep the selected conversation working headlessly and in the laboratory as
 the model expands. New inspectors must retain the observation guarantees and
