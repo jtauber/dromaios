@@ -41,6 +41,11 @@ independent of the DOM. `coco-keyboard-transport.ts` delivers bounded physical
 press/release phases; `coco-input.ts` maps browser keys and single-line paste.
 `coco-laboratory.ts` connects those to execution controls and local media.
 The screen and inspector modules observe hardware without guest I/O reads.
+The native renderer combines generated SAM row addressing and VDG pixel decoding
+for text/SG4 and the eight standard bitmap modes. Both the screen footer and
+SAM panel describe the same validated selection; unsupported combinations stay
+explicit. The chapter's bitmap experiment uses Color BASIC POKE commands, with
+a real-ROM test checking those exact lines and a return to text.
 `coco-instructions.ts` compiles the executable 6809 chapter into compact lengths,
 postbyte validity, branch tests, control flow, and authored explanations at build
 time. Browser modules supply Motorola operand spelling and present the last

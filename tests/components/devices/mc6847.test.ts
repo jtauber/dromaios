@@ -3,11 +3,12 @@ import { test } from "node:test";
 import { Mc6847 } from "../../../src/components/devices/generated/mc6847.js";
 import { characterRows } from "../../../src/components/devices/mc6847-character-set.js";
 
-test("VDG internal text ignores GM, chooses CSS colours, and inverts whole cells", () => {
+test("VDG alpha mode exposes INT/EXT separately, chooses CSS colours, and inverts whole cells", () => {
   const vdg = new Mc6847();
   for (let byte = 0; byte < 128; byte++) for (let gm = 0; gm < 8; gm++) for (const css of [0, 1]) {
     const pins = gm * 16 + css * 8;
     assert.equal(vdg.alphaMode(pins), true); assert.equal(vdg.alphaMode(pins | 0x80), false);
+    assert.equal(vdg.internalText(pins), gm % 2 === 0); assert.equal(vdg.internalText(pins | 0x80), false);
     assert.equal(vdg.semigraphics(byte), false); assert.equal(vdg.glyph(byte), byte % 64);
     assert.equal(vdg.characterCode(byte), byte % 64 < 32 ? byte % 64 + 64 : byte % 64);
     assert.equal(vdg.foreground(byte, pins), css ? 7 : 0); assert.equal(vdg.background(byte, pins), css ? 10 : 9);
@@ -44,4 +45,31 @@ test("the original character ROM has 64 cells with the documented margins and ar
   assert.deepEqual(characterRows.slice(2 * 12, 3 * 12), [0, 0, 0, 0x3c, 0x12, 0x12, 0x1c, 0x12, 0x12, 0x3c, 0, 0]);
   assert.deepEqual(characterRows.slice(0x1e * 12 + 3, 0x1e * 12 + 10), [8, 0x1c, 0x2a, 8, 8, 8, 8]);
   assert.deepEqual(characterRows.slice(0x20 * 12, 0x21 * 12), Array(12).fill(0));
+});
+
+// Motorola bitmap mode table; these literal expectations are independent of the DSL expressions.
+const graphics = [
+  [64, 64, 2], [128, 64, 1], [128, 64, 2], [128, 96, 1],
+  [128, 96, 2], [128, 192, 1], [128, 192, 2], [256, 192, 1],
+] as const;
+
+test("VDG bitmap modes select geometry and unpack every byte MSB first in both colour sets", () => {
+  const vdg = new Mc6847();
+  graphics.forEach(([width, height, bits], gm) => {
+    for (const css of [0, 1]) {
+      const pins = 0x80 + gm * 16 + css * 8;
+      assert.equal(vdg.graphicsMode(pins), gm);
+      assert.equal(vdg.graphicsWidth(pins), width); assert.equal(vdg.graphicsHeight(pins), height);
+      assert.equal(vdg.graphicsBitsPerPixel(pins), bits);
+      const palette = bits === 1 ? [8, css ? 4 : 0] : css ? [4, 5, 6, 7] : [0, 1, 2, 3];
+      for (let byte = 0; byte < 256; byte++) {
+        const digits = byte.toString(bits === 1 ? 2 : 4).padStart(8 / bits, "0");
+        for (let pixel = 0; pixel < digits.length; pixel++) {
+          assert.equal(vdg.graphicsColour(byte, pixel, pins), palette[Number(digits[pixel])]);
+        }
+        if (bits === 2) for (let pixel = 4; pixel < 8; pixel++) assert.equal(vdg.graphicsColour(byte, pixel, pins), palette[0]);
+      }
+    }
+  });
+  assert.throws(() => vdg.graphicsColour(0, 8, 0x80), RangeError);
 });

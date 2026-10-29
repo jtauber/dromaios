@@ -1,6 +1,6 @@
 import { renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
 import type { Coco } from "../../src/machines/6809/coco/runtime.js";
-import { cocoHex, cocoScreenText } from "./coco-inspection.js";
+import { cocoDisplayStatus, cocoScreenText } from "./coco-inspection.js";
 
 // Fixed presentation colours, not a composite signal or measured NTSC palette.
 const colours = [0x00dc00, 0xffff00, 0x3030ff, 0xff3030, 0xffffc8, 0x00ffff, 0xff00ff, 0xff8c00, 0x000000, 0x003c00, 0x462300];
@@ -29,7 +29,7 @@ export function createCocoScreen(root: HTMLElement) {
         image.data[i * 4 + 2] = rgb & 255; image.data[i * 4 + 3] = 255;
       }
       context.putImageData(image, 0, 0); text.textContent = cocoScreenText(machine);
-      status.textContent = `Text / SG4 · $${cocoHex(machine.sam.displayStart())}`;
+      status.textContent = cocoDisplayStatus(machine);
     },
   };
 }

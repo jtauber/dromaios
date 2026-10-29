@@ -1,5 +1,5 @@
 import type { Coco } from "../../src/machines/6809/coco/runtime.js";
-import { cocoHex, readCocoStorage } from "./coco-inspection.js";
+import { cocoDisplayStatus, cocoHex, readCocoStorage } from "./coco-inspection.js";
 import { createMemoryInspector } from "./memory-inspector.js";
 import { create6809MemoryView } from "./6809-memory-view.js";
 
@@ -39,8 +39,11 @@ export function createCocoInspectors(root: HTMLElement, memoryMoved: () => void,
     ["R", (m: Coco) => m.sam.clockMode().toString(2).padStart(2, "0")],
     ["P1", (m: Coco) => String(+m.sam.page())],
     ["TY", (m: Coco) => String(+!m.sam.normalMap())],
+    ["GM", (m: Coco) => m.vdg.graphicsMode(m.pias.videoPins).toString(2).padStart(3, "0")],
     ["VDG pins", (m: Coco) => `$${cocoHex(m.pias.videoPins, 2)}`],
   ] as const) number(at("coco-sam"), label, "sam", read);
+
+  updates.sam!.push(machine => { at("coco-video-mode").textContent = cocoDisplayStatus(machine); });
 
   type Pia = ReturnType<Coco["pias"]["snapshot"]>["pia0"];
   const piaFields: readonly (readonly [string, (pia: Pia) => string])[] = [

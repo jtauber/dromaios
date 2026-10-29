@@ -22,7 +22,7 @@ test("native CoCo boots verified Color BASIC, edits and runs programs, and resum
   }
   function screen(): string {
     return Array.from({ length: 16 }, (_, row) => Array.from({ length: 32 }, (_, column) => {
-      const byte = machine.ram.read(machine.sam.textAddress(row, column));
+      const byte = machine.ram.read(machine.sam.displayAddress(row, column));
       return machine.vdg.semigraphics(byte) ? "#" : String.fromCharCode(machine.vdg.characterCode(byte));
     }).join("").trimEnd()).join("\n").trimEnd();
   }

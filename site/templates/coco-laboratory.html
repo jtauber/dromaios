@@ -79,9 +79,11 @@
       <details><summary>From the CPU specification</summary><p class="lab-hint" data-instruction-explanation></p></details>
       <details><summary>Previewed storage accesses</summary><p class="lab-hint">Prediction on a private CPU copy; devices are never accessed.</p><pre data-instruction-accesses></pre></details>
     </section>
-    <section class="lab-tool lab-panel-body" data-workspace-panel="sam" data-panel-title="SAM / video" data-panel-heading="MC6883 / MC6847" data-panel-live="true">
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="sam" data-panel-title="SAM / video" data-panel-heading="MC6883 / MC6847" data-panel-live="true">
       <div class="coco-device-fields" data-coco-sam></div>
-      <p class="lab-hint">V: display · M: memory · R: clock · TY: map<br>32 KiB logical RAM · text and SG4 · untimed</p>
+      <p class="basic-readout" data-coco-video-mode></p>
+      <p class="lab-hint">V: SAM sequence · GM: VDG format · CSS: colour set<br>M: memory · R: clock · TY: map · untimed</p>
+      <p class="lab-hint"><a href="{{ calc_url(coco_url) }}#try-bitmap-graphics" target="_blank" rel="noopener">Try bitmap graphics ↗</a></p>
     </section>
     <section class="lab-tool lab-panel-body" data-workspace-panel="pias" data-panel-title="PIAs / keyboard" data-panel-heading="MC6821 × 2" data-panel-live="true">
       <table class="coco-pia-table"><thead><tr><th>Register / input</th><th>PIA 0</th><th>PIA 1</th></tr></thead><tbody data-coco-pias></tbody></table>

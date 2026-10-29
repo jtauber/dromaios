@@ -8,8 +8,8 @@ The later ROM is deliberate: [MAME's ROM catalogue][rom-catalogue] associates
 it with the CoCo 2B, rather than this original factory configuration.
 
 The native machine boots the supplied ROM, scans physical keyboard switches,
-and produces text and semigraphics-4. Its [reference audit](../../../docs/machines/coco.md)
-records comparisons with dromaios-coco; this implementation runs entirely on
+and produces text, semigraphics-4, and all eight standard bitmap graphics modes.
+Its [reference audit](../../../docs/machines/coco.md) records comparisons with dromaios-coco; this implementation runs entirely on
 Dromaios components. No ROM traps, injected BASIC tokens, browser callbacks,
 or reference-emulator devices are needed.
 
@@ -130,13 +130,18 @@ writes as described in the PIA chapter.
 ## An instantaneous screen
 
 [renderCocoFrame](coco/runtime.ts) reads the resolved PIA video pins and current
-SAM page. With V=000 and A/G=0, it decodes 512 physical RAM bytes into
-256-by-192 colour indices. It never calls the CPU memory connection or reads
-PIA registers. Even F=7F reads physical 7E00–7FFF rather than FF00 I/O.
+SAM page. With V=000, A/G=0, and INT/EXT=0, it decodes 512 physical RAM
+bytes into 256-by-192 colour indices. With A/G=1, the VDG chapter defines
+the eight bitmap formats and palettes; the SAM chapter defines their matching
+byte-row strides and raster repetitions. The renderer expands logical pixels
+to the same 256-by-192 raster, reading each bitmap byte once. It never calls
+the CPU memory connection or reads PIA registers. Even F=7F reads physical 7E00–7FFF rather than FF00 I/O.
 Inverse characters include their blank margins; semigraphics blocks use all
 eight colours independently of CSS. The font bitmap and palette-index contract
 are linked from the VDG chapter. Unsupported SAM/VDG combinations report an
-error instead of displaying a plausible but incorrect text screen.
+error before reading screen data. These include V=111 DMA, external
+characters/SG6, extended semigraphics, and mismatched bitmap settings. Graphics
+can wrap through physical $7FFF to $0000 without visiting CPU I/O or ROM.
 
 The frame has no scan position or elapsed time. There is no automatic field
 interrupt, CRT/composite simulation, dynamic RAM refresh, or cycle accuracy.
@@ -247,8 +252,11 @@ of window focus cancel the target. An error or an unserviceable wait also ends
 the request. A matching PC is not a promise that an ordinary instruction will
 run next: Instruction still explains any pending interrupt or wait boundary.
 
-Broader ROM annotations, graphics modes, and an independently checked timing
-model remain subsequent work.
+The screen footer and SAM / video panel show the selected resolution, colour
+count, CSS, and start address. The SAM panel also exposes GM beside V, making
+the two chips' separate responsibilities visible. Broader ROM annotations,
+extended semigraphics, and an independently checked timing model remain
+subsequent work.
 
 ## Following Color BASIC
 
@@ -295,6 +303,76 @@ these stops through the real ROM and independently checks the pointers, return
 bytes, direct-page store, screen fill, and keyboard read. It requires `COCO_ROM`;
 the ROM is never part of the published guide.
 
+## Try bitmap graphics
+
+Color BASIC lacks Extended BASIC's high-resolution drawing commands, but
+`POKE` can still operate the hardware. This experiment uses ordinary interpreted
+BASIC and physical keyboard input. No graphics helper paints RAM on its behalf.
+Start with **Fresh power-on**, choose **Run**, and wait for `OK`. Open the
+SAM / video and Memory panels; browse Memory at `$6000`. Paste each line into
+the screen separately, including Enter, and let it finish before sending the
+next. Moving focus to the guide pauses execution; resume Run after returning.
+
+First fill `$6000–$63FF` (1 KiB) with decimal 27, or binary `00011011`.
+Each two-bit pair describes one of the four colours. This address range is free
+in this freshly started session; the demonstration does not reserve it against
+an existing BASIC program or its variables. The loop takes a few seconds; wait
+for `OK` before continuing.
+
+```text
+FOR I=24576 TO 25599:POKE I,27:NEXT
+```
+
+Move the SAM's start from `$0400` to `$6000`: clear F1, then set F4 and F5.
+The addresses, rather than the written zero, select those bits. The text screen
+will change because the VDG still interprets these bytes as characters.
+
+```text
+POKE65480,0:POKE65487,0:POKE65489,0
+```
+
+Select V=001, then A/G=1 and GM=000: CG1, a 64 × 64 four-colour bitmap.
+Preserve the unrelated low three PIA output bits. The screen becomes repeating
+green, yellow, blue, and red stripes, each four raster pixels wide. The SAM
+panel shows V=001, GM=000; the screen footer shows the geometry and `$6000`.
+
+```text
+POKE65473,0:POKE65314,(PEEK(65314)AND7)OR128
+```
+
+CSS selects the second palette without touching the bitmap. With graphics
+showing, the BASIC prompt still exists at `$0400` but is not visible; click the
+screen, paste the following line, and press Enter as before.
+
+```text
+POKE65314,PEEK(65314)OR8
+```
+
+The same stripes are now buff, cyan, magenta, and orange. Set GM0 to reinterpret
+each byte as **eight one-bit pixels**, still using SAM V=001. RG1 shows 128 × 64
+black/buff pixels, each two raster pixels wide. `00011011` now means three black,
+two buff, one black, two buff pixels, repeated across the screen. Pause and save
+a snapshot if you want to return to this exact display and interpreter state.
+
+```text
+POKE65314,PEEK(65314)OR16
+```
+
+Return to text by clearing V0 and F4/F5, restoring F1, and clearing the video
+control outputs. This preserves the other SAM fields and PIA bits. The text
+screen and prompt reappear; `PRINT 2+3` should still produce `5` and `OK`.
+Fresh power-on is also available, but clears the RAM you just filled.
+
+```text
+POKE65472,0:POKE65486,0:POKE65488,0:POKE65481,0:POKE65314,PEEK(65314)AND7
+```
+
+Between writes the SAM and VDG can briefly disagree. The laboratory reports
+that unsupported intermediate configuration while the CPU continues executing;
+it does not invent a hardware picture for it. The [graphics acceptance test](../../../tests/site/coco-graphics.test.ts)
+types these exact guide lines through the real ROM, checks the bitmap and colour
+changes, restores a graphics snapshot, and returns to working BASIC text.
+
 ## Snapshots and acceptance
 
 `snapshot()` owns copies of CPU and RAM state, both PIAs' latches and edge
@@ -308,6 +386,9 @@ The [synthetic tests](../../../tests/machines/6809/coco/machine.test.ts) run
 without private media. They cover the full vector alias, ROM protection and
 empty sockets, generated CPU transfers, live IRQ/FIRQ levels, snapshots with
 held keys, frame decoding, page changes, and refusal of unsupported modes.
+The [bitmap tests](../../../tests/machines/6809/coco/video.test.ts) compare all
+eight formats and both colour sets with independent complete rasters, including
+physical RAM wrapping, all SAM/VDG mode pairings, and changes made by 6809 stores.
 The optional [real-ROM test](../../../tests/machines/6809/coco/rom.test.ts),
 enabled with `COCO_ROM`, verifies the exact digest and exercises this transcript:
 

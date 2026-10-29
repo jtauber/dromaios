@@ -253,10 +253,12 @@ keyboard, text/semigraphics, and a laboratory. The acceptance plan records the
 reference audit, required ROM evidence, device boundaries, and timing work.
 The [native executable chapter](src/machines/6809/coco.md) now passes the
 headless BASIC transcript on its untimed 32 KiB profile. Its laboratory adds
-matrix keyboard input, native text/SG4 rendering, CPU/memory/device inspectors,
-remembered ROMs, and snapshot continuation. The next inspection work is 6809
-disassembly and instruction explanations, followed by stack/direct-page tools.
-Timing and additional graphics modes remain separate fidelity milestones.
+matrix keyboard input, text/SG4 and all eight standard bitmap modes,
+CPU/memory/device inspectors, remembered ROMs, and snapshot continuation.
+6809 disassembly, instruction explanations, independent S/U stack and direct-page
+tools, and a ROM walkthrough are in place. A Color BASIC POKE experiment connects
+the video specifications to the laboratory. Hardware timing, extended semigraphics,
+and additional media remain separate fidelity milestones.
 Use this third historical machine to test shared inspection conventions;
 introduce abstractions through concrete requirements.
 
