@@ -93,11 +93,12 @@ authored conversations checked against the interpreter. The earlier introductory
 lessons retain their teaching devices.
 
 The [Apple II Plus](docs/machines/apple2.md) also runs ROM BASIC and read-only
-DOS 3.3, with a separate laboratory for execution and inspection. The next
-machine is the [TRS-80 Color Computer](src/machines/6809/coco.md): its native,
+DOS 3.3, with a separate laboratory for execution and inspection. The
+[TRS-80 Color Computer](src/machines/6809/coco.md) now has its own laboratory: its native,
 untimed 32 KiB profile runs Color BASIC with matrix keyboard input and text/
-semigraphics decoding on the existing 6809. Its laboratory is the next milestone;
-the [reference audit and acceptance plan](docs/machines/coco.md) records that work.
+semigraphics decoding on the existing 6809. The workspace adds CPU, memory,
+PIA/SAM inspection, remembered local ROM loading, and snapshots. The
+[reference audit and acceptance plan](docs/machines/coco.md) records the remaining work.
 
 All eight documented instruction sets now use shared definitions that generate
 execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)

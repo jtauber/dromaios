@@ -13,7 +13,7 @@ from markdown import Markdown
 from check import check_site
 from diagrams import state_diagram
 from rendering import CHAPTERS, REPOSITORY, ChapterRendering, chapter_link, github_slug
-from machines import ALTAIR, APPLE2, MACHINES, media_record, rom_container_record
+from machines import ALTAIR, APPLE2, COCO, MACHINES, media_record, rom_container_record
 from lessons import BASIC_LESSONS
 from lesson_rendering import basic_lesson_catalogue, lesson_markdown
 from apple2_rom import APPLE2_ROM, rom_annotations, explorer_catalogue
@@ -179,6 +179,15 @@ class PublishingTests(unittest.TestCase):
                          ('"bytes": 143360', '"bytes": 8192')]:
             with self.assertRaises(ValueError):
                 rom_container_record(source.replace(old, new))
+
+    def test_coco_guide_preserves_machine_definitions_and_local_navigation(self):
+        source = COCO.read_text()
+        markdown = Markdown(extensions=["fenced_code", ChapterRendering(COCO, "/demo/", lambda *_: "")])
+        output = markdown.convert(source)
+        self.assertEqual(CpuBlocks(output, "machine").blocks, re.findall(r"^```machine\n(.*?)^```$", source, re.M | re.S))
+        self.assertEqual(chapter_link("coco.md#using-the-laboratory", COCO, "/demo/"),
+                         f"/demo/{MACHINES[COCO]}#using-the-laboratory")
+        self.assertIn("5375b1caef9df815b781d9cd6df81ecdaddd2642b06a01adac521e40f1329751", output)
 
     def test_every_cpu_block_survives_highlighting_verbatim(self):
         for path in CHAPTERS.glob("*.md"):

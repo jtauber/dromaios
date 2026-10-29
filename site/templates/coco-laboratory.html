@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block description %}Run Color BASIC on a native Dromaios CoCo, with a dockable screen, processor, memory, and device inspectors.{% endblock %}
+{% block body_class %}laboratory-page{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(coco_lab_script) }}"></script>{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ calc_url('assets/laboratory.css') }}">
+<link rel="stylesheet" href="{{ calc_url('assets/workspace.css') }}">
+<link rel="stylesheet" href="{{ calc_url('assets/coco.css') }}">
+{% endblock %}
+{% block header %}
+<header class="laboratory-header">
+  <a class="laboratory-brand" href="{{ calc_url('') }}">microcomputer.world</a>
+  <h1>TRS-80 Color Computer <span>/ Laboratory</span></h1>
+  <div id="coco-layout-controls" class="workspace-toolbar" data-workspace-controls role="group" aria-label="Workspace layout"></div>
+</header>
+{% endblock %}
+{% block footer %}{% endblock %}
+{% block main %}
+<main id="main" class="laboratory coco-laboratory" data-coco-laboratory>
+  <noscript><p>Enable JavaScript to use the laboratory. <a href="{{ calc_url(coco_url) }}">Read the machine guide</a>.</p></noscript>
+  <div class="workspace-scroll"><div class="workspace-dock" data-workspace-root aria-label="CoCo laboratory workspace"></div></div>
+  <div data-workspace-panels hidden>
+    <section class="lab-tool lab-tool-screen" data-workspace-panel="screen" data-panel-title="Screen" data-panel-heading="TRS-80 Color Computer" data-panel-detail="32K · Color BASIC" data-panel-live="true">
+      <div class="lab-panel-body">
+        <div class="lab-display-area">
+          <div class="coco-screen scanlines" data-coco-screen tabindex="0" role="region" aria-label="CoCo display and keyboard" aria-describedby="coco-keys">
+            <canvas width="256" height="192" data-coco-canvas aria-hidden="true"></canvas>
+            <pre class="visually-hidden" data-coco-text aria-label="CoCo screen text"></pre>
+            <div class="coco-screen-notice" data-screen-notice>Preparing display…</div>
+          </div>
+        </div>
+        <div class="lab-display-footer"><p class="basic-readout" data-display-status></p>
+          <label class="coco-inline"><input type="checkbox" data-coco-scanlines checked> Scanlines</label></div>
+      </div>
+    </section>
+    <section class="lab-tool lab-panel-body lab-scroll lab-machine-controls" data-workspace-panel="execution" data-panel-title="Execution">
+      <div class="basic-controls" role="group" aria-label="CoCo controls">
+        <button type="button" data-machine-run disabled>Run</button><button type="button" data-machine-pause disabled>Pause</button>
+        <button type="button" data-machine-step disabled>Step</button><button type="button" data-machine-reset disabled>Reset CPU</button>
+        <button type="button" data-machine-power disabled>Fresh power-on</button>
+      </div>
+      <p class="basic-readout" data-machine-status role="status">Preparing hardware…</p>
+      <p class="basic-message" data-machine-error role="alert"></p><p class="basic-message" data-machine-message role="status"></p>
+      <p class="lab-hint">Last step</p><pre data-last-step></pre>
+      <details class="coco-help"><summary>Keyboard and execution</summary>
+        <p id="coco-keys" class="lab-hint">Click the screen to type or paste one line. Enter submits; Backspace edits; Escape or Ctrl-C sends Break; Home sends Clear. Host key repeat is ignored. Leaving the window pauses and releases queued keys.</p>
+        <p class="lab-hint">Reset CPU preserves RAM and device settings. Fresh power-on clears them and keeps the ROM. This profile is untimed: steps are not clock cycles.</p>
+      </details>
+    </section>
+    <section class="lab-tool lab-tool-registers lab-panel-body" data-workspace-panel="registers" data-panel-title="Registers" data-panel-heading="Motorola 6809" data-panel-live="true">
+      <div class="lab-registers" data-coco-registers></div><div class="lab-flags" data-coco-flags></div>
+    </section>
+    <section class="lab-tool lab-tool-memory" data-workspace-panel="memory" data-panel-title="Memory" data-panel-live="true" data-coco-memory>
+      <div class="lab-panel-body"><div class="lab-memory-scroll" data-memory-scroll><div class="lab-memory-space" data-memory-space><pre data-memory-output aria-label="Observed memory"></pre></div></div>
+        <p class="lab-hint">RAM and loaded ROM · -- means no storage · I/O is never read</p></div>
+    </section>
+    <section class="lab-tool lab-panel-body" data-workspace-panel="sam" data-panel-title="SAM / video" data-panel-heading="MC6883 / MC6847" data-panel-live="true">
+      <div class="coco-device-fields" data-coco-sam></div>
+      <p class="lab-hint">V: display · M: memory · R: clock · TY: map<br>32 KiB logical RAM · text and SG4 · untimed</p>
+    </section>
+    <section class="lab-tool lab-panel-body" data-workspace-panel="pias" data-panel-title="PIAs / keyboard" data-panel-heading="MC6821 × 2" data-panel-live="true">
+      <table class="coco-pia-table"><thead><tr><th>Register / input</th><th>PIA 0</th><th>PIA 1</th></tr></thead><tbody data-coco-pias></tbody></table>
+      <p class="basic-readout" data-coco-interrupts></p>
+    </section>
+    <section class="lab-tool lab-panel-body" data-workspace-panel="rom" data-panel-title="ROM">
+      <div class="basic-controls"><button type="button" data-rom-load disabled>Load ROM…</button><button type="button" data-rom-forget disabled>Forget remembered ROM</button></div>
+      <input type="file" data-rom-file hidden accept=".rom,.bin">
+      <p class="basic-readout" data-rom-status>No ROM loaded.</p>
+      <p class="lab-hint" data-rom-storage-status>Choose the 8 KiB Color BASIC 1.3 ROM. The file stays on this device.</p>
+      <p class="lab-hint"><a href="{{ calc_url(coco_url) }}" target="_blank" rel="noopener">Read the machine guide ↗</a></p>
+    </section>
+    <section class="lab-tool lab-panel-body" data-workspace-panel="states" data-panel-title="Snapshot">
+      <div class="basic-controls"><button type="button" data-snapshot-save disabled>Save snapshot</button><button type="button" data-snapshot-restore disabled>Restore snapshot</button><button type="button" data-snapshot-forget disabled>Forget snapshot</button></div>
+      <p class="basic-readout" data-snapshot-status>No snapshot saved.</p>
+      <p class="lab-hint">One local checkpoint, replaced by Save. Pause first. Includes RAM, processor, devices, and queued input; restoring requires the same ROM. ROM bytes and panel layout are stored separately.</p>
+    </section>
+  </div>
+</main>
+{% endblock %}

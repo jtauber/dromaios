@@ -34,18 +34,18 @@
 .laboratory-page .basic-message { min-height: 0; margin: 8px 0 0; font: 12px/1.5 system-ui, sans-serif; color: #ffd18a; }
 .lab-machine-controls .basic-message:empty { display: none; }
 .laboratory-page .basic-controls button:first-child { background: #304e73; color: #eff6ff; }
-.laboratory-page .apple2-memory-byte.is-changed { background: #594420; color: #ffe0a2; }
-.lab-tool-registers .apple2-registers { display: grid; grid-template-columns: repeat(auto-fit, minmax(8ch, 1fr)); gap: 3px 16px; font: 21px/1.25 var(--mono); }
-.lab-tool-registers .apple2-registers .apple2-cpu-value { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; min-width: 0; }
-.lab-tool-registers .apple2-registers .apple2-cpu-label { color: #a3b0c5; }
-.lab-tool-registers .apple2-registers .apple2-cpu-number { color: #65ef8b; padding: 0 2px; border-radius: 3px; }
-.lab-tool-registers .apple2-registers .is-changed { background: transparent; text-decoration: none; }
-.lab-tool-registers .apple2-registers .is-changed .apple2-cpu-number { background: #594420; color: #ffe0a2; }
-.lab-tool-registers .apple2-flags { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; max-width: 193px; margin-top: 12px; }
-.lab-tool-registers .apple2-cpu-flag, .lab-tool-registers .apple2-cpu-flag.is-changed { display: grid; place-items: center; height: 30px; padding-bottom: 3px; border: 1px solid #435674; border-radius: 3px; background: #101c30; color: #d5deec; font: 700 16px/1 var(--mono); text-decoration: none; }
-.lab-tool-registers .apple2-cpu-flag.is-set { background: #962740; border-color: #e94560; color: #fff; }
-.lab-tool-registers .apple2-cpu-flag.is-changed { border-color: #ffd18a; box-shadow: inset 0 -3px #ffd18a; }
-.lab-tool-registers .apple2-cpu-flag .apple2-cpu-number { display: none; }
+.laboratory-page :is(.apple2-memory-byte, .lab-memory-byte).is-changed { background: #594420; color: #ffe0a2; }
+.lab-tool-registers :is(.apple2-registers, .lab-registers) { display: grid; grid-template-columns: repeat(auto-fit, minmax(8ch, 1fr)); gap: 3px 16px; font: 21px/1.25 var(--mono); }
+.lab-tool-registers :is(.apple2-registers, .lab-registers) :is(.apple2-cpu-value, .lab-cpu-value) { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; min-width: 0; }
+.lab-tool-registers :is(.apple2-registers, .lab-registers) :is(.apple2-cpu-label, .lab-cpu-label) { color: #a3b0c5; }
+.lab-tool-registers :is(.apple2-registers, .lab-registers) :is(.apple2-cpu-number, .lab-cpu-number) { color: #65ef8b; padding: 0 2px; border-radius: 3px; }
+.lab-tool-registers :is(.apple2-registers, .lab-registers) .is-changed { background: transparent; text-decoration: none; }
+.lab-tool-registers :is(.apple2-registers, .lab-registers) .is-changed :is(.apple2-cpu-number, .lab-cpu-number) { background: #594420; color: #ffe0a2; }
+.lab-tool-registers :is(.apple2-flags, .lab-flags) { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; max-width: 193px; margin-top: 12px; }
+.lab-tool-registers :is(.apple2-cpu-flag, .lab-cpu-flag), .lab-tool-registers :is(.apple2-cpu-flag, .lab-cpu-flag).is-changed { display: grid; place-items: center; height: 30px; padding-bottom: 3px; border: 1px solid #435674; border-radius: 3px; background: #101c30; color: #d5deec; font: 700 16px/1 var(--mono); text-decoration: none; }
+.lab-tool-registers :is(.apple2-cpu-flag, .lab-cpu-flag).is-set { background: #962740; border-color: #e94560; color: #fff; }
+.lab-tool-registers :is(.apple2-cpu-flag, .lab-cpu-flag).is-changed { border-color: #ffd18a; box-shadow: inset 0 -3px #ffd18a; }
+.lab-tool-registers :is(.apple2-cpu-flag, .lab-cpu-flag) :is(.apple2-cpu-number, .lab-cpu-number) { display: none; }
 .lab-address { display: flex; align-items: end; gap: 8px; margin-bottom: 8px; }
 .lab-address input { width: 85px; font-family: var(--mono); }
 .laboratory-page .lab-live-toggle { width: 11px; height: 11px; margin: 0 4px; padding: 0; border: 1px solid #58677c; border-radius: 2px; background: #273245; }
@@ -62,7 +62,7 @@
 .lab-memory-scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-color: #435674 #18253b; }
 .lab-memory-space { position: relative; min-width: 100%; }
 .lab-memory-space pre { position: absolute; left: 0; min-width: 100%; width: max-content; }
-.apple2-memory-byte.is-selected { box-shadow: inset 0 -1px #83c9f4; }
+:is(.apple2-memory-byte, .lab-memory-byte).is-selected { box-shadow: inset 0 -1px #83c9f4; }
 .lab-memory-character { display: inline-block; width: 1ch; text-align: center; color: #7ac9a1; }
 .lab-memory-character.is-inverse { background: #a3b0c5; color: #132139; }
 .lab-memory-character.is-flashing { color: #ffd18a; }
@@ -83,8 +83,8 @@
 .lab-instruction-purpose { color: var(--muted); font: 11px/1.5 system-ui, sans-serif; }
 .laboratory-page .lab-instruction-calculations { white-space: pre-wrap; overflow-wrap: anywhere; }
 .laboratory-page .lab-memory-link { border: 0; padding: 0; background: transparent; color: var(--accent); font: inherit; text-decoration: underline; text-underline-offset: .2em; }
-.lab-tool-registers button.apple2-cpu-number { border: 0; background: transparent; font: inherit; }
-.lab-tool-registers button.apple2-cpu-number:disabled { opacity: 1; }
+.lab-tool-registers button:is(.apple2-cpu-number, .lab-cpu-number) { border: 0; background: transparent; font: inherit; }
+.lab-tool-registers button:is(.apple2-cpu-number, .lab-cpu-number):disabled { opacity: 1; }
 .lab-tool-registers .lab-register-edit { width: 5.5ch; padding: 0 2px; font: inherit; }
 .lab-workspace-value { display: grid; grid-template-columns: 6ch 6ch 1fr; column-gap: 8px; padding: 4px 0; border-bottom: 1px solid #263750; font: 11px/1.6 var(--mono); }
 .lab-workspace-value > button { justify-self: start; }

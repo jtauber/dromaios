@@ -1,9 +1,9 @@
 /** Inspector refresh preferences. The docking workspace only hosts the returned controls. */
-export function createPanelUpdates(root: HTMLElement, refresh: (id: string) => void) {
+export function createPanelUpdates(root: HTMLElement, refresh: (id: string) => void,
+  storageKey = "dromaios:inspectors:apple2:live") {
   const panels = [...root.querySelectorAll<HTMLElement>("[data-panel-live]")];
   const live = new Map(panels.map(panel => [panel.dataset.workspacePanel!, panel.dataset.panelLive === "true"]));
   const controls = new Map<string, HTMLButtonElement>();
-  const storageKey = "dromaios:inspectors:apple2:live";
   try {
     const saved: unknown = JSON.parse(window.localStorage.getItem(storageKey) ?? "null");
     if (saved && typeof saved === "object") {

@@ -7,7 +7,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 ALTAIR = ROOT / "src/machines/8080/altair-basic.md"
 APPLE2 = ROOT / "src/machines/6502/apple2.md"
-MACHINES = {ALTAIR: "machines/altair-8800/", APPLE2: "machines/apple-ii-plus/"}
+COCO = ROOT / "src/machines/6809/coco.md"
+MACHINES = {ALTAIR: "machines/altair-8800/", APPLE2: "machines/apple-ii-plus/", COCO: "machines/color-computer/"}
 
 
 def media_record(source):

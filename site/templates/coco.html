@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block head %}<link rel="stylesheet" href="{{ calc_url('assets/highlight.css') }}">{% endblock %}
+{% block description %}Explore the TRS-80 Color Computer's executable specification and run Color BASIC in its laboratory.{% endblock %}
+{% block main %}
+<main id="main" class="chapter-layout">
+  <aside class="chapter-sidebar" aria-label="Machine contents">
+    <a class="back-link" href="{{ calc_url('#machines') }}">← Machines</a>
+    <p class="eyebrow">In this guide</p><nav><ol>{% for item in toc %}<li><a href="#{{ item.id }}">{{ item.name }}</a></li>{% endfor %}</ol></nav>
+  </aside>
+  <div class="chapter-main">
+    <header class="chapter-header"><p class="eyebrow">Historical machine · Motorola 6809</p><h1>{{ title }}</h1>
+      <p><a class="button button-primary" href="{{ calc_url(coco_lab_url) }}">Open the CoCo laboratory →</a></p>
+      <p class="chapter-source"><a href="{{ source_url }}">Executable source ↗</a></p>
+    </header>
+    <article class="chapter-prose" aria-label="Color Computer guide">{{ content }}</article>
+  </div>
+</main>
+{% endblock %}

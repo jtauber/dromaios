@@ -1,6 +1,6 @@
 # TRS-80 Color Computer: target and acceptance plan
 
-The next machine is a **CoCo 1 hardware profile with 32 KiB RAM and Color BASIC 1.3**,
+The selected machine is a **CoCo 1 hardware profile with 32 KiB RAM and Color BASIC 1.3**,
 using the existing generated 6809. The first milestone is native ROM boot, keyboard input,
 text and semigraphics, a small stored BASIC program, and a usable laboratory.
 This broadens the platform before further Apple II DOS exploration.
@@ -8,8 +8,10 @@ This broadens the platform before further Apple II DOS exploration.
 The [native executable chapter](../../src/machines/6809/coco.md) now owns the
 implemented component, memory, reset, firmware, display, and snapshot contracts.
 It passes the full Color BASIC conversation headlessly on native Dromaios
-hardware. The laboratory and browser acceptance checks below remain to be done.
-This document retains the reference audit and future acceptance work, rather
+hardware. The laboratory now connects this machine to the shared docking
+workspace, with local verified ROM storage, matrix input, CPU/memory/device
+inspection, and a saved checkpoint.
+This document retains the reference audit and acceptance plan, rather
 than duplicating the executable chapter's contracts.
 
 ## Reference audit
@@ -128,8 +130,8 @@ to force device-state parity.
 
 The comparison does not establish full bus-trace equivalence or validate the
 shared reference peripherals. Native behavior is checked separately in the
-executable chapter; browser input/rendering and laboratory acceptance still
-need the checks below.
+executable chapter. Browser input/rendering and laboratory checks are a
+separate layer, described below.
 
 Only this exact 8 KiB image is selected. If later accepting combined images,
 identify and hash their constituent ROMs and document normalization explicitly;
@@ -155,6 +157,18 @@ machine composition. The native chapter records the functional model's limits,
 including fixed logical RAM rather than physical DRAM multiplexing. Synthetic
 tests independently cover explicit interrupts, restoration, and video reads.
 The ROM remains caller-supplied; no firmware bytes are tracked.
+
+The laboratory repeats that conversation through browser paste and physical
+editing keys, including a stored program, line replacement, NEW, and Break from
+an infinite loop. Restoring a saved program after NEW recovers its previous
+output and execution. Focus loss pauses and clears the host queue. The optional
+browser-session ROM test additionally compares execution after restoration in
+the middle of a key press; hermetic tests check queue bounds, release phases,
+invalid snapshots, and observation with a pending PIA interrupt.
+
+These checks establish the first untimed BASIC laboratory, not a complete
+hardware emulator. The executable chapter owns the current browser contract;
+the following criteria remain the guide when adding inspectors or timing.
 
 ### Before adding hardware time
 
@@ -185,8 +199,9 @@ remains stopped and inspectable until the host has a valid boot configuration.
 
 ### Laboratory and repeatable sessions
 
-Provide Screen, Execution, Registers, Instruction, Disassembly, Memory, Stack,
-and device-state views within the existing docking workspace. Both S and U
+The first workspace provides Screen, Execution, Registers, Memory, SAM/video,
+PIAs/keyboard, ROM, and Snapshot. Instruction, Disassembly, and specialized
+Stack/direct-page views remain follow-up work. Both S and U
 must be inspectable; direct-page browsing follows DP rather than assuming page
 zero. A/B and derived D must agree, and word views must use 6809 byte order.
 The first workspace need not duplicate every Apple II specialist tool.
@@ -212,16 +227,16 @@ do not make its devices imitate the Apple II's keyboard latch or memory banks.
 
 ## Next implementation sequence
 
-1. Connect the native machine to the shared docking workspace, including local
-   verified ROM loading, matrix key events, and its own saved layout.
-2. Complete the browser conversation and observation checks, and publish the
-   executable machine chapter beside the laboratory.
+1. Add 6809 disassembly and instruction explanations derived from its executable
+   CPU specification, preserving the separation between tools and machine state.
+2. Add views for both stacks and the selected direct page, using the existing
+   memory observer rather than guest bus reads.
 3. Review the untimed profile's remaining limitations before broadening software
    support or adding a timed SAM/VDG/CPU schedule.
 
-The first milestone is complete only when the selected ROM runs the conversation
-headlessly and in the laboratory, observation checks pass, and remaining fidelity
-limits are explicit. Native ROM boot alone does not complete that milestone.
+Keep the selected conversation working headlessly and in the laboratory as
+the model expands. New inspectors must retain the observation guarantees and
+new hardware behavior must declare its fidelity limits.
 
 ## Hardware references
 

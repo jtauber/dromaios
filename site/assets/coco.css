@@ -1,0 +1,20 @@
+.coco-laboratory .lab-tool-screen .lab-panel-body { grid-template-rows: minmax(120px, 1fr) auto; }
+.coco-screen { position: relative; width: min(100cqw, calc(100cqh * 4 / 3)); aspect-ratio: 4 / 3; background: #001800; overflow: hidden; border: 1px solid #40563e; }
+.coco-screen canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.coco-screen.scanlines::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(transparent 50%, #0003 50%); background-size: 100% calc(100% / 192); }
+.coco-screen-notice { position: absolute; inset: 0; display: grid; place-items: center; color: #9ac39a; font: 13px/1.4 var(--mono); padding: 20px; text-align: center; }
+.coco-laboratory .coco-inline { display: flex; align-items: center; gap: 5px; }
+.coco-laboratory .lab-flags { grid-template-columns: repeat(8, minmax(0, 1fr)); max-width: 270px; }
+.coco-device-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 16px; font: 13px/1.5 var(--mono); }
+.coco-device-fields .lab-cpu-value { display: flex; justify-content: space-between; gap: 8px; }
+.coco-device-fields .lab-cpu-label { color: var(--muted); }
+.coco-device-fields .lab-cpu-number, .coco-pia-table .lab-cpu-number { color: #7ac9a1; }
+.coco-device-fields .is-changed .lab-cpu-number, .coco-pia-table .is-changed .lab-cpu-number { color: #ffe0a2; background: #594420; }
+.coco-pia-table { width: 100%; border-collapse: collapse; font: 12px/1.4 var(--mono); }
+.coco-pia-table th, .coco-pia-table td { padding: 3px 6px; border-bottom: 1px solid #30415d; text-align: right; }
+.coco-pia-table th:first-child { text-align: left; font-weight: 400; color: var(--muted); }
+.coco-help { margin-top: 12px; color: var(--muted); font-size: 11px; }
+.coco-laboratory [data-last-step] { white-space: pre-wrap; }
+.coco-laboratory .lab-inspector-controls { gap: 6px; }
+.coco-laboratory .lab-memory-address { margin-right: 8px; }
+.coco-laboratory .workspace-dock { min-height: 600px; }

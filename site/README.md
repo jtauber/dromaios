@@ -5,7 +5,8 @@ the processor models and executable specifications; it is credited alongside
 the site’s other tools, Ryland and Sauvignon.
 
 Ryland builds the home page, the lesson index, the introductory lessons, one
-guide per processor, and the Altair and Apple II Plus machine guides from executable specifications. Sauvignon renders both
+guide per processor, and the Altair, Apple II Plus, and Color Computer machine
+guides from executable specifications. Sauvignon renders both
 architecture diagrams and state maps
 derived from the CPU compiler. Pages use ordinary HTML, CSS, and SVG, with
 small TypeScript modules for the lesson interactions. Processor guides need no
@@ -25,6 +26,32 @@ The build uses this catalogue both to render the lesson pages and to populate
 catalogue in their intended learning order; the shared navigation supplies their
 neighbors. BASIC lessons use the Markdown format below; earlier lessons retain
 their individual templates. The index works without JavaScript.
+
+## Color Computer laboratory
+
+`/machines/color-computer/` publishes the executable
+[CoCo chapter](../src/machines/6809/coco.md), which owns the selected hardware,
+ROM identity, browser behavior, and limitations.
+`/machines/color-computer/laboratory/` connects that native machine to the shared
+docking workspace. Its layout, Live choices, ROM, and snapshot use separate CoCo
+storage keys.
+
+`coco-session.ts` owns native execution and the queued keyboard continuation,
+independent of the DOM. `coco-keyboard-transport.ts` delivers bounded physical
+press/release phases; `coco-input.ts` maps browser keys and single-line paste.
+`coco-laboratory.ts` connects those to execution controls and local media.
+The screen and inspector modules observe hardware without guest I/O reads.
+`memory-inspector.ts` provides an unbanked scrolling 16-bit storage view;
+Apple II retains its richer bank-aware tools. Shared ROM persistence,
+memory-window calculations, execution scheduling, and docking do not depend
+on either machine.
+
+`COCO_ROM=/path/to/color-basic-1.3.rom npm test` additionally runs the native and
+browser-session BASIC transcripts. No ROM bytes are included in tests or output.
+For browser checks, load the local image, run the chapter's conversation, pause
+and save a snapshot, alter the program, restore, and run it again. Check focus-loss
+release, remembered-ROM reload, memory scrolling and Live controls, and the
+independent saved layout.
 
 ## Altair BASIC
 

@@ -20,7 +20,7 @@ from check import check_site
 from diagrams import state_diagram
 from lessons import BASIC_LESSONS, LESSON_GROUPS
 from lesson_rendering import basic_lesson_catalogue, lesson_markdown
-from machines import ALTAIR, APPLE2, MACHINES, media_record, rom_container_record
+from machines import ALTAIR, APPLE2, COCO, MACHINES, media_record, rom_container_record
 from apple2_rom import APPLE2_ROM, explorer_catalogue
 from rendering import CHAPTERS, REPOSITORY, ChapterRendering, github_slug
 
@@ -82,10 +82,12 @@ def build(base):
     site.set_global("altair_script", f"{interactive}/site/interactive/altair-basic.js")
     site.set_global("apple2_script", f"{interactive}/site/interactive/apple2-page.js")
     site.set_global("apple2_lab_script", f"{interactive}/site/interactive/apple2-laboratory.js")
+    site.set_global("coco_lab_script", f"{interactive}/site/interactive/coco-laboratory.js")
     site.write_output("assets/highlight.css", HtmlFormatter(style="friendly").get_style_defs(".code-block"))
     site.add_hash("assets/style.css")
     site.add_hash("assets/laboratory.css")
     site.add_hash("assets/workspace.css")
+    site.add_hash("assets/coco.css")
     site.set_global("chapters", chapters)
     site.set_global("lesson_groups", lesson_groups)
     site.set_global("lesson_count", len(lessons))
@@ -131,6 +133,9 @@ def build(base):
     }
     site.render_template("apple2.html", f"{apple2['apple2_url']}index.html", apple2)
     site.render_template("apple2-laboratory.html", f"{apple2['apple2_lab_url']}index.html", {**apple2, "title": "Apple II Plus laboratory"})
+    coco = {**render_guide(COCO), "coco_url": MACHINES[COCO], "coco_lab_url": f"{MACHINES[COCO]}laboratory/"}
+    site.render_template("coco.html", f"{coco['coco_url']}index.html", coco)
+    site.render_template("coco-laboratory.html", f"{coco['coco_lab_url']}index.html", {**coco, "title": "Color Computer laboratory"})
     loading_source = SITE / "content/basic-loading.md"
     loading = Markup(lesson_markdown(loading_source, base).convert(loading_source.read_text()))
     for index, lesson in enumerate(lessons):
@@ -160,7 +165,7 @@ def build(base):
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + lesson index + {len(lessons)} introductory lessons + {len(chapters)} CPU chapters + {len(MACHINES)} machine guides + Apple II laboratory in {site.output_dir} (base {base}).")
+    print(f"Built home + lesson index + {len(lessons)} introductory lessons + {len(chapters)} CPU chapters + {len(MACHINES)} machine guides + Apple II and CoCo laboratories in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

@@ -118,7 +118,8 @@ if connected outputs disagree. This is a digital approximation, not an electrica
 contention model. Repeated presses are idempotent, and `pias.releaseKeys()` releases
 all switches. Every key change and guest PIA write recomputes the resolved inputs.
 Snapshot restoration rejects impossible switches and PIA inputs inconsistent
-with the board wiring. A future host queue must be saved separately.
+with the board wiring. The browser saves its host queue separately, alongside
+the native snapshot.
 
 PIA 1 ports have high external inputs, so direction registers determine which
 output latch bits reach the video controls. Both PIAs' unconnected C2 inputs
@@ -139,7 +140,67 @@ error instead of displaying a plausible but incorrect text screen.
 
 The frame has no scan position or elapsed time. There is no automatic field
 interrupt, CRT/composite simulation, dynamic RAM refresh, or cycle accuracy.
-The laboratory and host drawing/keyboard controls are subsequent work.
+The laboratory maps these indices to fixed RGB colours and offers a scanline
+overlay. Both are presentation approximations, not composite video or hardware time.
+
+## Using the laboratory
+
+The [CoCo laboratory](https://microcomputer.world/machines/color-computer/laboratory/)
+uses the shared docking workspace with its own saved layout and Live preferences.
+Load the Color BASIC image identified above, then choose **Run**. The ROM is
+verified before installation and remembered locally when browser storage is
+available. It is never uploaded. Reload verifies the remembered bytes again and
+opens a fresh, paused machine; it does not automatically execute or restore a
+saved program. **Forget remembered ROM** removes the saved file while keeping
+the current machine's verified ROM.
+
+RAM and device inspectors work before firmware is loaded. Loading the first ROM
+preserves that hardware and resets the CPU; replacing a loaded ROM starts a fresh
+machine. A rejected file leaves CPU, RAM, and device state intact and execution
+paused. **Step** advances one native machine boundary, which may be an instruction,
+interrupt entry, or wait result. **Pause** finishes the current batch and stops
+before another. **Reset CPU** preserves RAM and devices; the host also cancels queued
+input and releases keyboard switches. **Fresh power-on** constructs new hardware,
+clears RAM and input, and retains the verified ROM.
+
+Click the screen to type. Letters become uppercase; Enter submits a line,
+Backspace sends the CoCo's left arrow, Home sends Clear, and Escape or Ctrl-C
+sends Break. Paste accepts one ASCII line, with an optional trailing newline.
+Unsupported characters and multiline pastes are rejected before anything is
+queued. Text becomes physical keyboard chords, including Shift where needed.
+Browser key repeat is ignored.
+
+The host holds each queued chord for 12,000 execution boundaries and releases it
+for another 12,000 before the next chord. These generous budgets serve this
+untimed ROM profile; they do not claim real keyboard timing. Up to 1,024 chords
+may be queued. Pausing consumes no input. Losing window focus or hiding the
+page pauses execution, releases switches, and clears the queue, preventing a
+stuck key or unattended continuation. Moving between panels in the same window
+does not discard input.
+
+The 6809 panel shows A, B, their combined D, X, Y, DP, S, U, PC, and all eight
+condition-code flags. Changed displayed values are highlighted. Memory offers
+8/16-byte rows, an address field, and FIX/PC/CHG following; CHG follows the first
+changed byte since the previous observation. RAM and loaded ROM are observed
+directly. Empty regions and I/O show `--`; drawing never reads PIA data registers
+or acknowledges interrupts. The PIA and SAM panels likewise use observations.
+Turning off a panel's Live square holds its display during Run. Pause, Step,
+and showing the panel refresh it. Scrolling or changing row width uses the held
+memory image.
+
+**Snapshot** saves one explicit browser checkpoint: native hardware plus the
+queued chords, current press/release phase, and remaining input budget.
+Save and Restore require a paused machine. Restoring validates the complete
+state and matching ROM before replacing the session, stays paused, and clears
+the recent-step display. It does not issue a reset or inject another key.
+The checkpoint contains the ROM identity, not its bytes; the ROM must be loaded
+separately. Failed restoration preserves the current session, and failed saving
+preserves the previous checkpoint. Layout and Live choices are not machine state.
+
+The first laboratory has no 6809 disassembly, instruction explanation, or
+specialized stack/direct-page view. S, U, and DP remain visible and their memory
+can be inspected by address. Those tools, graphics modes, and an independently
+checked timing model are subsequent work.
 
 ## Snapshots and acceptance
 
@@ -184,6 +245,13 @@ line. These are generous instruction budgets for a reproducible acceptance
 check, **not** clock cycles, key-repeat timing, or the earliest prompt time.
 No sync events are required for this transcript. Separate synthetic tests
 cover the interrupt wiring, which the polling transcript alone cannot verify.
+
+The optional [browser-session test](../../../tests/site/coco-rom.test.ts) repeats
+the conversation through the same queued matrix transport used by the page,
+including editing and Break. It also restores mid-key and compares subsequent
+execution records and complete state. [Host tests](../../../tests/site/coco-input.test.ts)
+check repeated chords, release gaps, bounded queues, invalid continuation state,
+and explicit release without firmware.
 
 [rom-catalogue]: https://github.com/mamedev/mame/blob/master/src/mame/trs/coco12.cpp
 [technical]: https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Color%20Computer%20Technical%20Reference%20Manual%20%28Tandy%29.pdf
