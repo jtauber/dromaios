@@ -19,7 +19,10 @@ import { createApple2History } from "./apple2-history-view.js";
 import { createApple2RomReference } from "./apple2-rom-reference-view.js";
 import { createApple2DeviceHistoryView } from "./apple2-device-history-view.js";
 import type { Apple2HardwareCatalogue } from "./apple2-hardware.js";
-import { createApple2WatchHistoryView } from "./apple2-watch-history-view.js";
+import { createApple2WatchHistory } from "./apple2-watch-history.js";
+import { createMemoryWatchHistoryView } from "./memory-watch-history-view.js";
+import { disassemble6502 } from "./apple2-explorer.js";
+import { apple2RamRegions } from "./apple2-inspection.js";
 import type { InspectorTool } from "./inspector-history.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
@@ -65,8 +68,12 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   }
   const devices = createApple2DeviceHistoryView(root, catalogue.hardware, catalogue.instructions, browseCode,
     address => navigation.browse("memory", address));
-  const watchHistory = createApple2WatchHistoryView(root, catalogue.instructions, browseCode,
-    address => navigation.browse("memory", address));
+  const watchHistory = createApple2WatchHistory(catalogue.instructions);
+  const watchView = createMemoryWatchHistoryView(root, watchHistory, {
+    assembly: entry => disassemble6502(entry.caller.address, entry.bytes, catalogue.instructions),
+    storageLabel: write => apple2RamRegions.find(region => region.part === write.region)!.label,
+    browseCode, browseMemory: address => navigation.browse("memory", address),
+  });
   const calls = createCallStack(root, {
     stackName: "SP", stackWidth: 2,
     label: location => romRoutine(location.address, location.space === "rom", catalogue.routines)?.name,
@@ -88,8 +95,8 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   });
   return {
     browseCode,
-    watchHistory: (watch: MemoryWatch) => watchHistory?.select(watch),
-    watchesChanged(watches: readonly MemoryWatch[]): void { watchHistory?.configure(watches); watchHistory?.refresh(); },
+    watchHistory: (watch: MemoryWatch) => watchView?.select(watch),
+    watchesChanged(watches: readonly MemoryWatch[]): void { watchHistory.configure(watches); watchView?.refresh(); },
     address: (tool: "code" | "rom") => (tool === "code" ? disassembly?.address : reference?.address) ?? 0,
     browse(tool: "code" | "rom", address: number): void {
       if (tool === "code") disassembly?.browse(address);
@@ -97,7 +104,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     },
     controls: (id: string) => id === "code" ? disassembly?.controls : undefined,
     get canStepOut() { return debuggerState.canStepOut; },
-    reset(): void { debuggerState.reset(); devices?.reset(); watchHistory?.reset(); },
+    reset(): void { debuggerState.reset(); devices?.reset(); watchHistory.reset(); },
     run(): void { debuggerState.run(location()); },
     step(): void { debuggerState.step(location()); },
     over(): void {
@@ -109,7 +116,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     fail(detail: string): void { debuggerState.fail(location(), detail); },
     observe(record: Cpu6502StepRecord, before: DebugLocation, watches: readonly MemoryWatch[], changes: readonly Apple2MemoryChange[], writes: readonly Apple2MemoryChange[]): void {
       devices?.observe(record, before);
-      watchHistory?.observe(record, before, watches, writes);
+      watchHistory.observe(record, before, watches, writes);
       debuggerState.observe(apple2DebugStep(record, before, location(), catalogue.instructions));
       const hit = apple2Watchpoint(watches, record, catalogue.instructions, changes);
       if (hit) debuggerState.watchpoint(location(), describeApple2Watchpoint(hit, record.instruction.address));
@@ -124,7 +131,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
       const selected = machine();
       walkthrough?.refresh(selected && apple2DebugLocation(selected), available, running);
       if (selected && shouldUpdate("activity")) devices?.refresh(selected.disk.inspect().installed);
-      if (shouldUpdate("watches")) watchHistory?.refresh();
+      if (shouldUpdate("watches")) watchView?.refresh();
       if (selected && shouldUpdate("calls")) calls?.refresh(debuggerState.frames, debuggerState.trackingNote, address => apple2DebugLocation(selected, address));
       disassembly?.refresh(selected, records, available, running, shouldUpdate("code"));
       history?.refresh(records, shouldUpdate("trace"));

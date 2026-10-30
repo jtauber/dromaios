@@ -339,6 +339,37 @@ from the instruction at PC. CWAI's previously observed saved frame is reused;
 restoring a machine already waiting in CWAI cannot recreate its lost caller
 history. Later calls can build a new partial history, retaining the loss notice.
 
+**Changes**, initially a tab beside Disassembly, uses the same recorder,
+controls, and view as the Apple II laboratory. It retains the latest 500 CPU
+boundaries, newest first, with fetched instructions and register, flag, PC,
+and actual RAM changes in store order. Field widths and flags come from the
+CPU state description; A/B are recorded without duplicating their D alias.
+External interrupt entry is labelled by source and interrupted PC, never as
+an instruction fetched at that PC. Unchanged stores, ROM, and device writes
+are not RAM changes. Completed effects of a failed boundary remain visible,
+marked incomplete. Control latches and device state remain in their own
+inspectors; this log is not a complete machine-state delta.
+
+**Record changes** can be paused while execution continues. Filters and Live
+change only the display; hidden panels still capture. **Clear log** empties
+this log and restarts its event numbering. Reset, fresh power-on, restoration,
+and successful ROM replacement clear history and stale last-step observations.
+Saved arrangements gain Changes once without changing selected/collapsed tabs
+or reopening hidden tools.
+
+Every configured RAM write watch now has **History**, using the shared history
+recorder and view. It retains the latest 256 completed physical writes per
+address, oldest first, including unchanged stores and interrupt stack writes.
+History captures even when that watch's stop toggle, Live, or Changes recording
+is off. Each transfer retains its writer/interrupt identity, fetched bytes,
+and before/after values; links browse code and RAM without executing or
+repeating a device access. Clearing Changes does not clear watch history.
+**Clear all** clears all watched histories; removing a watch clears its own
+capture. Reset, fresh power-on, restoration, and ROM replacement clear every
+capture. Addresses and stop choices remain saved separately from machine state.
+These CoCo watches cover physical RAM writes only; Apple II's read/bus-write
+watch modes retain their existing semantics in the same shared presentation.
+
 The screen footer and SAM / video panel show the selected resolution, colour
 count, CSS, and start address. The SAM panel also exposes GM beside V, making
 the two chips' separate responsibilities visible. Broader ROM annotations,
@@ -397,6 +428,10 @@ to `$60`. Restore the snapshot, Step into the call, then open **Call stack**:
 its entry is `$A928` and its continuation is `$A080`. **Step out** reaches the
 same complete machine state as Step over. Disable unrelated breakpoints and
 watchpoints for this exercise; either can deliberately stop the run earlier.
+Add a RAM write watch at `$0400`, turn its stop toggle off, and repeat the call.
+Its History should retain the store at `$A92F` from `$00` to `$60`, even with
+Changes recording paused. The code and RAM links browse `$A92F` and `$0400`.
+
 
 ## Try bitmap graphics
 

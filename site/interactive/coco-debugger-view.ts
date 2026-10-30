@@ -7,6 +7,8 @@ export function createCocoDebuggerView(root: HTMLElement, debug: ReturnType<type
   readonly changed: () => void;
   readonly code: (address: number) => void;
   readonly memory: (address: number) => void;
+  readonly history: (address: number) => void;
+  readonly watchesChanged: () => void;
 }) {
   const breakpoints = createBreakpointView(root.querySelector("[data-coco-breakpoints]"), {
     kind: "breakpoint", key: "dromaios:debugger:coco:breakpoints", maximum: 0xffff,
@@ -14,7 +16,7 @@ export function createCocoDebuggerView(root: HTMLElement, debug: ReturnType<type
   })!;
   createBreakpointView(root.querySelector("[data-coco-watchpoints]"), {
     kind: "watchpoint", key: "dromaios:debugger:coco:watchpoints", maximum: 0x7fff,
-    values: () => debug.watchpoints, set: debug.setWatchpoints, changed: actions.changed,
+    values: () => debug.watchpoints, set: debug.setWatchpoints, changed: actions.watchesChanged, history: actions.history,
   });
   const status = createDebuggerStatus(root);
   const code = root.querySelector<HTMLButtonElement>("[data-watchpoint-code]")!;

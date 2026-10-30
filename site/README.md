@@ -324,21 +324,31 @@ navigation callbacks to the concrete tools. Only the composition layer opens
 the destination panel; no machine objects enter the docking system.
 Screen accepts keyboard and paste directly; only the classroom has a separate
 keyboard field.
-`apple2-change-log.ts` captures instruction-boundary CPU changes and observes
-physical `Ram` stores for old/new memory values, independently of the display
-refresh rate. Its bounded history includes Language Card bank identities and
-completed effects of interrupted steps. `apple2-change-log-view.ts` provides the
-laboratory's Changes tab; the machine chapter owns capture and lifetime behavior.
+`change-log.ts` records bounded boundary histories and physical RAM writes for
+both laboratories. Generated CPU state descriptions supply register widths and
+flag names; derived aliases are not repeated. `apple2-change-log.ts` supplies
+Language Card bank identity; `coco-change-log.ts` distinguishes 6809 instructions,
+external interrupt entry, and waiting. The shared `change-log-view.ts` and
+`instruments/change-log.html` own the Changes controls and presentation.
+Capture continues independently of display refresh, and completed effects of
+failed boundaries remain explicitly incomplete. Each machine chapter owns
+capture and lifetime behavior.
 `apple2-watches.ts` keeps byte/word widths with saved watch preferences; older
 entries remain byte-sized. It shares consecutive little-endian sampling with
 named workspace values. `memory-link.ts` owns navigation using a displayed word
 as an address, while `apple2-watchpoints.ts` matches either byte against captured
 accesses without rereading the machine. Named Watch actions take their width
 from the ROM guide's existing word declarations.
-`apple2-watch-history.ts` captures an independent bounded ring of data accesses for each watched
-addresses. It combines CPU access records with the change log's ordered physical
-writes, including unchanged stores, without reading the bus again. Its view stays
-inside Watches; capture is independent of panel visibility and stop choices.
+`memory-watch-history.ts` owns independent bounded rings for watched ranges;
+`memory-watch-history-view.ts` and its template share history display and navigation.
+`apple2-watch-history.ts` classifies captured data accesses using the 6502
+catalogue and combines them with ordered physical writes, including unchanged
+stores and Language Card banks. `coco-watch-history.ts` supplies physical RAM
+writes from instructions and interrupt entries. Neither rereads the bus.
+Apple II presents history inside Watches; CoCo adds History to each RAM write
+watch in Debugger. Capture is independent of panel visibility and stop choices.
+CoCo's version-7 layout adds Changes beside Disassembly while preserving saved
+arrangements and deliberately hidden tools.
 `inspector-history.ts` retains explicit address navigation across Memory,
 Disassembly, and ROM. `inspector-navigation.ts` renders the shared header arrows;
 the composition layer applies destinations through the tools' browsing APIs.

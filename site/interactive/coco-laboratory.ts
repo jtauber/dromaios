@@ -1,3 +1,8 @@
+import { createCocoChangeLog } from "./coco-change-log.js";
+import { createChangeLogView } from "./change-log-view.js";
+import { createCocoWatchHistory } from "./coco-watch-history.js";
+import { createMemoryWatchHistoryView } from "./memory-watch-history-view.js";
+import { decode6809 } from "./6809-disassembly.js";
 import { createCallStack } from "./call-stack-view.js";
 import { createDebuggerStepControls } from "./debugger-step-controls.js";
 import { cocoDebugLocation } from "./coco-debugger.js";
@@ -61,8 +66,24 @@ function mountCoco(root: HTMLElement): void {
   const inspectors = createCocoInspectors(root, () => code.memoryMoved(), browse), display = createCocoScreen(root);
   function browse(address: number): void { inspectors.memory.browse(address); workspace.show("memory"); }
   const debug = createCocoDebugger(() => session.machine, catalogue);
+  const assembly = (address: number, bytes: readonly number[]) => decode6809(index => bytes[(index - address) & 0xffff], address, catalogue).assembly;
+  const changeLog = createChangeLogView(root, () => session.machine, createCocoChangeLog,
+    instruction => assembly(instruction.address, instruction.bytes))!;
+  const watchHistory = createCocoWatchHistory();
+  const watchView = createMemoryWatchHistoryView(root, watchHistory, {
+    assembly: entry => assembly(entry.caller.address, entry.bytes), storageLabel: () => "RAM",
+    browseMemory: browse,
+    browseCode(location) {
+      if (cocoDebugLocation(session.machine, location.address).space !== location.space) {
+        return `Cannot browse $${cocoHex(location.address)}: its observed ${location.space} mapping is no longer visible.`;
+      }
+      code.browse(location.address); workspace.show("code");
+    },
+  })!;
   const debugView = createCocoDebuggerView(root, debug, {
     changed: () => code.refreshBreakpoints(), memory: browse,
+    history: address => watchView.select({ address }),
+    watchesChanged: () => { watchHistory.configure(debug.watchpoints); watchView.refresh(); },
     code: address => { code.browse(address); workspace.show("code"); },
   });
   const code = create6809CodeView(at("coco-code"), catalogue, { address: () => inspectors.memory.address, browse }, debugView);
@@ -73,7 +94,13 @@ function mountCoco(root: HTMLElement): void {
   });
   const instruction = create6809InstructionView(at("coco-instruction"), browse);
   const execution = createExecutionController({
-    step: () => debug.capture(() => session.step()), canStep: () => session.hasFirmware && !selecting,
+    step() {
+      const caller = cocoDebugLocation(session.machine), log = changeLog.current();
+      const record = log.capture(() => debug.capture(() => session.step()));
+      watchHistory.observe(record, caller, debug.watchpoints, log.memoryWrites(record));
+      return record;
+    },
+    canStep: () => session.hasFirmware && !selecting,
     pauseBeforeStep(): boolean {
       if (debug.beforeStep()) return true;
       if (execution.records.at(-1)?.outcome === "waiting" && !session.machine.pias.irq && !session.machine.pias.firq) {
@@ -127,6 +154,8 @@ function mountCoco(root: HTMLElement): void {
       + (session.pendingInput ? ` · ${session.pendingInput} keys queued` : "");
     at("machine-error").textContent = execution.error ?? "";
     debugView.refresh(running);
+    if (shouldUpdate("log")) changeLog.refresh();
+    if (shouldUpdate("debugger")) watchView.refresh();
     stepControls(step.disabled, debug.canStepOut);
     if (shouldUpdate("calls")) calls?.refresh(debug.frames, debug.trackingNote, address => cocoDebugLocation(session.machine, address));
     const record = execution.records.at(-1);
@@ -147,7 +176,8 @@ function mountCoco(root: HTMLElement): void {
     catch (cause) { message.textContent = cause instanceof Error ? cause.message : String(cause); }
     refresh();
   }
-  function changedMachine(): void { execution.reset(); debug.reset(); inspectors.reset(); }
+  function changedMachine(): void {
+    changeLog.reset(); watchHistory.reset(); execution.reset(); debug.reset(); inspectors.reset(); }
   function installRom(id: RomSlot, verified: RomFile): void {
     const firmware = id === "firmware" ? verified : roms.firmware;
     const extended = id === "extended" ? verified : roms.extended;

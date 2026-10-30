@@ -56,7 +56,7 @@
         <p class="lab-hint">Run to address executes normally and pauses before the next boundary at that PC, or after 2,000,000 boundaries. Breakpoints and RAM write watchpoints can stop it earlier. Run, Step, Pause, reset, and leaving the window cancel the target.</p>
       </details>
     </section>
-    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="debugger" data-panel-title="Debugger">
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="debugger" data-panel-title="Debugger" data-panel-live="true">
       <p class="basic-readout" data-debugger-status role="status"></p>
       <div class="basic-controls" data-watchpoint-navigation hidden><button type="button" data-watchpoint-code disabled>View writer</button><button type="button" data-watchpoint-memory disabled>View written RAM</button></div>
       {% for kind, title, maximum, example in [('breakpoint', 'Breakpoints', 'FFFF', '9386'), ('watchpoint', 'RAM write watchpoints', '7FFF', '1210')] %}
@@ -68,6 +68,9 @@
       </section>
       {% endfor %}
       <p class="lab-hint">Stops are remembered in this browser, separately from snapshots. Step crosses the current breakpoint. Reset and Restore clear the stop report and keep configured stops. Click a circle in Disassembly to toggle a breakpoint.</p>
+      {% with watch_history_help='Oldest first. Captures physical RAM writes to every configured watch, even with stopping disabled, Live off, or Changes recording paused. Unchanged writes and interrupt entry are included; reads, ROM, and device writes are excluded. Removing a watch clears its history. Reset, power-on, restoration, and ROM replacement clear all history. Links browse current storage.' %}
+        {% include "instruments/watch-history.html" %}
+      {% endwith %}
     </section>
     <section class="lab-tool lab-tool-registers lab-panel-body" data-workspace-panel="registers" data-panel-title="Registers" data-panel-heading="Motorola 6809" data-panel-live="true">
       <div class="lab-registers" data-coco-registers></div><div class="lab-flags" data-coco-flags></div>
@@ -92,6 +95,9 @@
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="calls" data-panel-title="Call stack" data-panel-live="true">
       <p data-call-stack-status class="lab-hint"></p><div data-call-stack></div>
     </section>
+    {% with log_memory_detail='from instructions and external interrupt entry', log_ram_edits=false %}
+      {% include "instruments/change-log.html" %}
+    {% endwith %}
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="instruction" data-panel-title="Instruction" data-panel-live="true" data-coco-instruction>
       <p class="basic-readout" data-instruction-location></p><pre class="lab-instruction-preview" data-instruction-preview></pre>
       <details><summary>From the CPU specification</summary><p class="lab-hint" data-instruction-explanation></p></details>

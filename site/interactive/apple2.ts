@@ -70,7 +70,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       const change = editApple2Memory(session.machine, edit, text);
       if (!change) return;
       explorer.reset(); execution.reset(); changeLog?.reset(); screenInspector?.reset();
-      changeLog?.recordEdit(change);
+      changeLog?.current().recordEdit(change);
       message.textContent = "RAM edited. Execution history cleared; the user edit is recorded in Changes.";
       refreshPanels(["memory", "zero", "stack", "watches", "instruction", "code", "log"]);
     },
@@ -81,10 +81,10 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const execution = createExecutionController({
     step: () => {
       const before = apple2DebugLocation(session.machine), romMapped = !session.machine.language.ramRead();
-      const record = changeLog ? changeLog.capture(() => session.step()) : session.step();
+      const record = changeLog ? changeLog.current().capture(() => session.step()) : session.step();
       if (record.outcome !== "executed") throw new Error(`Processor stopped: ${record.outcome}.`);
-      const changes = changeLog?.memoryChanges(record) ?? [];
-      const writes = changeLog?.memoryWrites(record) ?? [];
+      const changes = changeLog?.current().memoryChanges(record) ?? [];
+      const writes = changeLog?.current().memoryWrites(record) ?? [];
       explorer.observe(record, before, inspection.watches, changes, writes);
       inspection.observe(session.machine, changes);
       screenInspector?.observe(record, before, writes);
@@ -168,7 +168,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (execution.error !== undefined) { explorer.fail(execution.error); screenInspector?.reset(); }
     if (execution.error !== undefined) message.textContent = execution.error;
     const latest = execution.error === undefined ? execution.records.at(-1)?.record : undefined;
-    inspection.refresh(session.machine, latest, changeLog?.memoryChanges(latest), !execution.running && !selecting);
+    inspection.refresh(session.machine, latest, changeLog?.current().memoryChanges(latest), !execution.running && !selecting);
     explorer.refresh(execution.records, available && execution.error === undefined, execution.running);
     if (shouldUpdate("log")) changeLog?.refresh();
     const now = performance.now();

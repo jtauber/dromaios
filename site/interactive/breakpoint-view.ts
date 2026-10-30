@@ -13,6 +13,7 @@ export function createBreakpointView(panel: HTMLElement | null, options: {
   readonly values: () => readonly InstructionBreakpoint[];
   readonly set: (values: readonly InstructionBreakpoint[]) => void;
   readonly changed: () => void;
+  readonly history?: (address: number) => void;
 }) {
   if (!panel) return undefined;
   const { kind, key, maximum, values, set, changed, spaces = [] } = options;
@@ -42,7 +43,13 @@ export function createBreakpointView(panel: HTMLElement | null, options: {
       const remove = document.createElement("button"); remove.type = "button"; remove.textContent = "×";
       remove.setAttribute("aria-label", `Remove ${kind} at ${name}`);
       remove.addEventListener("click", () => save(points.filter(item => item !== point)));
-      row.append(label, remove); output.append(row);
+      row.append(label);
+      if (options.history) {
+        const history = document.createElement("button"); history.type = "button"; history.textContent = "History";
+        history.setAttribute("aria-label", `History for watch at $${hex(point.address)}`);
+        history.addEventListener("click", () => options.history!(point.address)); row.append(history);
+      }
+      row.append(remove); output.append(row);
     }
     if (!points.length) output.textContent = `No ${kind}s.`;
   }

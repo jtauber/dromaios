@@ -75,13 +75,9 @@
       <div data-watch-rows></div>
       <p class="lab-hint">R: data read · W: bus write · Δ: changed RAM, in any bank. Stops happen after the instruction, even with Live or recording off. Fetches do not trigger R. All toggles off: observe without stopping.</p>
       <p class="lab-hint">Words are low byte first; their stops cover either byte. Click a word value to browse it as an address. Values follow current mapping; highlights compare displayed samples. Inspectors never read devices.</p>
-      <section data-watch-history hidden>
-        <div class="lab-watch-history-heading"><h2 data-watch-history-heading></h2>
-          <button type="button" data-watch-history-clear aria-label="Clear all watch history">Clear all</button></div>
-        <p data-watch-history-status class="lab-hint" role="status"></p>
-        <div data-watch-history-entries></div>
-        <details><summary>About this history</summary><p class="lab-hint">Oldest first. Captured only while an address is watched; instruction fetches excluded. Hidden panels, Live off, and paused Changes recording do not stop capture. Resets, restoration, media changes, and register/RAM edits clear history. Links browse current storage.</p></details>
-      </section>
+      {% with watch_history_help='Oldest first. Captured only while an address is watched; instruction fetches excluded. Hidden panels, Live off, and paused Changes recording do not stop capture. Resets, restoration, media changes, and register/RAM edits clear history. Links browse current storage.' %}
+        {% include "instruments/watch-history.html" %}
+      {% endwith %}
     </section>
     <section class="lab-tool lab-tool-stack" data-workspace-panel="stack" data-panel-live="true" data-panel-title="Stack"><div class="lab-panel-body lab-scroll"><p data-stack-status class="lab-hint" title="Entries above SP in page $0100–01FF; software can change SP or wrap the stack."></p><pre data-stack-view></pre><pre data-stack-page hidden></pre></div></section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="calls" data-panel-live="true" data-panel-title="Call stack">
@@ -171,24 +167,9 @@
       </details>
       <p data-disassembly-stop-status class="basic-message" role="status"></p>
     </section>
-    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="log" data-panel-live="true" data-panel-title="Changes" data-change-log>
-      <h2>Recorded changes</h2>
-      <div class="lab-log-controls"><label><input type="checkbox" data-log-recording checked> Record changes</label><button type="button" data-log-clear>Clear log</button></div>
-      <fieldset class="lab-log-filters"><legend>Show changes to</legend>
-        <label><input type="checkbox" data-log-filter="register" checked> Registers</label>
-        <label><input type="checkbox" data-log-filter="flag" checked> Flags</label>
-        <label><input type="checkbox" data-log-filter="memory" checked> Memory</label>
-        <label><input type="checkbox" data-log-filter="pc" checked> PC</label>
-      </fieldset>
-      <p data-log-status class="lab-hint">Recording · 0 / 500 events retained</p>
-      <p class="lab-hint">CPU address or user action · before → after · newest first</p>
-      <details class="lab-log-help"><summary>About this log</summary>
-        <p class="lab-hint">Values are hex; flags use 0 and 1. Filters only change what is shown. Records every instruction, even with this tab closed. Keeps the latest 500 events. Explicit RAM edits start a new history and are recorded even when instruction recording is off.</p>
-        <p class="lab-hint">Pause recording to keep a capture while the CPU runs. Instruction numbers leave gaps for unrecorded steps. Clear log restarts numbering.</p>
-        <p class="lab-hint">Memory lists actual RAM changes in write order, including Language Card banks. Unchanged stores, ROM and device writes are omitted. Reset, power-on, state restoration and successful media replacement clear the log.</p>
-      </details>
-      <pre data-log-output aria-label="Recorded changes">No instructions recorded yet.</pre>
-    </section>
+    {% with log_memory_detail='including Language Card banks', log_ram_edits=true %}
+      {% include "instruments/change-log.html" %}
+    {% endwith %}
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="system" data-panel-live="true" data-panel-title="System">
       <div data-hardware-inspect>
         <h2>Memory map</h2>
