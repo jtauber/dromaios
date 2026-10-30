@@ -24,9 +24,11 @@ will be organized for learning, exploration, and reference as support develops.
   [Apple II Plus](../machines/apple2.md) runs ROM BASIC and read-only DOS with
   the existing 6502. The [TRS-80 Color Computer](../machines/coco.md) has completed
   its first untimed ROM BASIC laboratory milestone, using the existing 6809 and
-  dromaios-coco as its primary reference. Introduce
-  CPU teaching comparisons when useful during machine work; the order of
-  subsequent historical machines remains open.
+  dromaios-coco as its primary reference. The
+  [IBM PC/XT](../machines/pc-xt.md) is next, using the existing 8088 and
+  dromaios-pc as its primary reference: original-ROM startup and ROM BASIC,
+  then floppy DOS. Introduce CPU teaching comparisons when useful during
+  machine work; the order of subsequent historical machines remains open.
 - Apply a **rule of three**: use evidence from three distinct architectures to
   judge generalizations, including examples that expose their differences.
 - Keep changes small and reviewable. The initial examples used minimal

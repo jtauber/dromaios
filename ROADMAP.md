@@ -261,9 +261,17 @@ the video specifications to the laboratory. Optional Extended Color BASIC adds
 a verified second ROM, native drawing commands, and a graphics-program
 walkthrough. Hardware timing, extended semigraphics, and additional media
 remain separate fidelity milestones. Shared debugger tools now serve both
-Apple II and CoCo. The next historical machine can begin with a reference audit
-and selected software acceptance criteria; its identity and implementation order
-remain open. Introduce further abstractions through concrete requirements.
+Apple II and CoCo.
+
+The next historical machine is the **IBM PC/XT**, using **dromaios-pc** as the
+primary reference and the existing generated 8088. Its
+[reference audit and acceptance specification](docs/machines/pc-xt.md) select
+original XT firmware reaching ROM BASIC with CGA text, then DOS through a native
+360 KiB floppy-controller/DMA path. The reference's host BIOS services establish
+useful software examples but do not establish native hardware boot. Begin with
+PIC and PPI/keyboard behavior; a tested timing contract and PIT/DMA support are
+needed for POST. EGA and further software are later configurations. Introduce
+further abstractions through concrete requirements.
 
 The [Apple II Plus](docs/machines/apple2.md) already has ROM BASIC, graphics,
 Language Card banking, read-only DOS 3.3, and a laboratory. Further DOS exploration,

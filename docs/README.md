@@ -100,6 +100,8 @@ examples add polling and consuming input reads with the same devices.
 
 ## Machine definitions
 
+- [IBM PC/XT target](machines/pc-xt.md): pinned dromaios-pc audit, selected XT
+  firmware and hardware, and acceptance from ROM BASIC to native floppy DOS.
 - [TRS-80 Color Computer target](machines/coco.md): selected first configuration,
   pinned dromaios-coco audit, real-ROM comparison, and acceptance checks.
 - [TRS-80 Color Computer chapter](../src/machines/6809/coco.md): native 6809,
