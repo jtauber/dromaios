@@ -150,10 +150,10 @@ interface IbmXtKeyboard {
 The model's `reset()` represents a fresh receiver/keyboard session, not a CPU
 reset or the unused keyboard-connector reset pin. CPU reset leaves it alone.
 Snapshots preserve a partial clock-low interval and any queued self-test byte.
-No time passes through reads, inspection, or CPU instruction counts. A future
-timed board must supply elapsed microseconds from its emulated clock, including
-saved fractional phase; the current example supplies time only in explicit
-component tests. This profile does not establish timed keyboard fidelity or
+No time passes through reads, inspection, or CPU instruction counts. The
+[XT board clock](../../../machines/8088/xt-timer.md) supplies elapsed microseconds with saved fractional phase from explicit oscillator intervals;
+component tests can still supply whole microseconds directly. CPU execution
+remains untimed. This profile does not establish serial keyboard fidelity or
 successful BIOS POST.
 
 [Tests](../../../../tests/components/devices/ibm-xt-keyboard.test.ts) check all

@@ -19,7 +19,7 @@ test("XT switches, diagnostic outputs, and timer/speaker pins follow PPI directi
   io.setEquipmentSwitches(0x96);
   assert.equal(io.read(0x62), 9);
   io.write(0x61, 0xa5); assert.equal(io.read(0x62), 6);
-  io.setTimer2Output(true); assert.equal(io.read(0x62), 0x26);
+  io.write(0x43, 0xb6); assert.equal(io.read(0x62), 0x26);
   io.write(0x63, 0x99); // Mode change clears B, immediately holding the clock low.
   assert.equal(io.offerScanCode(0x1e), false);
   io.write(0x61, 0x43); assert.equal(io.timer2Gate, true); assert.equal(io.speakerData, true);
@@ -47,7 +47,7 @@ test("keyboard read, receiver clear, and PIC EOI have separate effects", () => {
 
 test("a keyboard reset pulse uses supplied time and the self-test response follows IRQ1", () => {
   const io = configured();
-  io.write(0x61, 0x08); io.advanceMicroseconds(20000); io.write(0x61, 0xc8);
+  io.write(0x61, 0x08); io.advanceOscillatorTicks(286364); io.write(0x61, 0xc8);
   assert.equal(io.irq, false); assert.equal(io.offerScanCode(0x1e), false);
   const restored = new XtIo(io.snapshot());
   restored.write(0x61, 0x48);
@@ -57,7 +57,7 @@ test("a keyboard reset pulse uses supplied time and the self-test response follo
 });
 
 test("XT snapshots preserve wiring and reject disagreement without repairing it", () => {
-  const io = configured(); io.setTimer2Output(true); io.offerScanCode(0x1e);
+  const io = configured(); io.write(0x43, 0xb6); io.offerScanCode(0x1e);
   const saved = io.snapshot(), restored = new XtIo(saved);
   assert.deepEqual(restored.snapshot(), saved);
   restored.write(0x61, 0xcc); assert.deepEqual(io.snapshot(), saved);
@@ -70,13 +70,12 @@ test("XT snapshots preserve wiring and reject disagreement without repairing it"
     assert.throws(() => io.setEquipmentSwitches(invalid), RangeError);
     assert.throws(() => io.offerScanCode(invalid), RangeError);
   }
-  assert.throws(() => io.setInterruptLine(1, true), /belongs/);
-  assert.throws(() => io.setTimer2Output(1 as never), TypeError);
-  assert.throws(() => io.setInterruptLine(0, 1 as never), TypeError);
+  assert.throws(() => io.setInterruptLine(1, true), /belong/);
+  assert.throws(() => io.setInterruptLine(2, 1 as never), TypeError);
   assert.throws(() => io.write(0x63, 0xff), /Unsupported/);
   assert.deepEqual(io.snapshot(), saved);
-  io.setInterruptLine(0, true); io.reset();
+  io.setInterruptLine(2, true); io.reset();
   assert.equal(io.keyboardPending, false); assert.equal(io.irq, false);
-  assert.equal(io.snapshot().pic.levels, 1);
-  assert.equal(io.snapshot().equipmentSwitches, 0x2d); assert.equal(io.snapshot().timer2, true);
+  assert.equal(io.snapshot().pic.levels, 4);
+  assert.equal(io.snapshot().equipmentSwitches, 0x2d); assert.equal(io.snapshot().pit.channels[2].out, false);
 });

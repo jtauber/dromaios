@@ -10,7 +10,7 @@ not a complete PC or an original-BIOS boot. It needs no external ROM or disk.
 ## Board connections
 
 The concrete [XT I/O wiring](pc-xt/io.ts) owns the connections between the
-three generated components. Device specifications own register behavior.
+chips and receiver. Device specifications own register behavior.
 No port or interrupt has a host BIOS shortcut.
 
 | Port | Connection |
@@ -23,9 +23,10 @@ No port or interrupt has a host BIOS shortcut.
 
 PB6 releases the keyboard clock when high. PB7 clears/disables the keyboard
 receiver when high. PB3 selects the high switch nibble when high and low nibble
-otherwise. PB0/PB1 expose timer-2 gate and speaker data. PC5 receives an explicit
-timer-2 output; spare PC4 and the two error inputs are held low in this slice.
-Parity checking, NMI, timers, DMA, and port aliases remain subsequent work.
+otherwise. PB0/PB1 expose timer-2 gate and speaker data. PC5 receives timer 2
+OUT; spare PC4 and the two error inputs are held low.
+The [timer chapter](xt-timer.md) owns PIT wiring and explicit board time.
+Parity checking, NMI, DMA, and port aliases remain subsequent work.
 These are the original XT connections in [IBM's manual][manual], pages 1-10
 and 1-67, not the AT's 8042 interface.
 
@@ -120,19 +121,20 @@ An interrupt record is its own boundary, including the stack/vector accesses.
 
 `snapshot()`, `keyboardData`, `keyboardPending`, timer/speaker views, and status
 reads do not consume input, change interrupt state, or advance time. Snapshots
-include all three devices, switch configuration, external timer-2 level, CPU,
-and RAM. Restoration checks that stored PPI inputs and PIC IRQ1 agree with the
-keyboard and board controls; inconsistent wiring is rejected, not repaired.
+include the PIC, PIT, PPI, keyboard, switch configuration, clock, CPU, and RAM.
+Restoration checks that stored PPI inputs, timer gates, and PIC IRQ0/IRQ1 agree
+with their connected devices; inconsistent wiring is rejected, not repaired.
 
 CPU-only reset preserves the board. Machine `reset()` resets CPU, PPI, PIC,
-and keyboard receiver while retaining RAM, switches, and external timer/other
-IRQ levels. CPU reset enters `FFFF:0000`, not this example's `0000:0100`;
+PIT, keyboard receiver, and clock while retaining RAM, switches, and external
+IRQ2–IRQ7 levels. CPU reset enters `FFFF:0000`, not this example's `0000:0100`;
 construct a fresh example to restart its program. Fresh construction resets
 all external levels and reloads the authored RAM image. Host input queues are
 caller-owned and must accompany a session snapshot if used.
 
-The explicit `advanceMicroseconds()` input only measures a held-low keyboard
-clock for reset tests. No CPU timing or automatic self-test delay is claimed.
+The board’s `advanceOscillatorTicks()` input advances the PIT and keyboard
+reset-pulse detector from saved integer clock phase. This example never infers
+time from a CPU step. No CPU timing or automatic self-test delay is claimed.
 It is not called once per instruction. Timing and original-ROM POST remain
 separate acceptance work.
 
