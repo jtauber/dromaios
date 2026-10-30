@@ -1,8 +1,9 @@
 # TRS-80 Color Computer: target and acceptance plan
 
 The selected machine is a **CoCo 1 hardware profile with 32 KiB RAM and Color BASIC 1.3**,
-using the existing generated 6809. The first milestone is native ROM boot, keyboard input,
-text and semigraphics, a small stored BASIC program, and a usable laboratory.
+using the existing generated 6809. The first untimed milestone is complete: native
+ROM boot, keyboard input, text and semigraphics, a small stored BASIC program,
+and a usable laboratory.
 This broadens the platform before further Apple II DOS exploration.
 
 The [native executable chapter](../../src/machines/6809/coco.md) now owns the
@@ -227,11 +228,35 @@ preferences distinct from the Apple II's. Changes to shared tools must retain
 existing Apple II behavior. Use the CoCo to identify small shared tool contracts;
 do not make its devices imitate the Apple II's keyboard latch or memory banks.
 
-## Next implementation sequence
+## First untimed milestone accepted
 
-Use the chapter's Color BASIC walkthrough to review the inspection tools as
-a coherent laboratory. Then review the untimed profile's remaining limitations
-before broadening software support or adding a timed SAM/VDG/CPU schedule.
+The integrated acceptance pass on **2026-10-30** found no blockers in the
+selected profile. All 75 CoCo machine, browser-session, and 6809 inspector tests
+passed with both verified ROMs supplied, with no skipped tests. This includes
+independent raster expectations, all five Extended BASIC PMODE settings,
+interrupt observation, and continuation from a snapshot taken mid-key.
+
+The browser pass additionally exercised the tools together:
+
+- Color BASIC boot, arithmetic, stored-program entry and listing, line
+  replacement, Backspace editing, Break from an infinite loop, and subsequent
+  commands; saving, NEW, restoration, and restoration after page reload.
+- Extended BASIC boot and the chapter's complete drawing program; Space back
+  to text, restoration of the picture and key-waiting program, and rejection of a
+  snapshot from the base-ROM-only configuration.
+- An earlier RAM write watch stopping PCLS before the PSET breakpoint;
+  Instruction predicting the pixel store, Step performing it, and restoration
+  reproducing the stop. Watch history retained the writes with Changes recording
+  paused and Memory Live off, and its instruction link browsed the captured code.
+- Run to the screen-clear call, Step over, and Step into followed by Step out;
+  both paths returned to the declared PC and S, with an observed caller entry.
+
+The [executable chapter](../../src/machines/6809/coco.md#snapshots-and-acceptance)
+owns the repeatable examples and test links. This checkpoint accepts the
+declared untimed ROM BASIC laboratory. It does not establish game compatibility,
+cassette or disk loading, cartridge support, sound, joystick conversion, extended
+semigraphics, or hardware timing. Those are separate milestones and need not
+precede an audit and acceptance specification for the next historical machine.
 
 Keep the selected conversation working headlessly and in the laboratory as
 the model expands. New inspectors must retain the observation guarantees and

@@ -22,8 +22,9 @@ will be organized for learning, exploration, and reference as support develops.
 - The first [working Altair with BASIC](../machines/altair-basic.md) milestone is
   complete, including its introductory BASIC path. The
   [Apple II Plus](../machines/apple2.md) runs ROM BASIC and read-only DOS with
-  the existing 6502. The next target is the [TRS-80 Color Computer](../machines/coco.md),
-  using the existing 6809 and dromaios-coco as its primary reference. Introduce
+  the existing 6502. The [TRS-80 Color Computer](../machines/coco.md) has completed
+  its first untimed ROM BASIC laboratory milestone, using the existing 6809 and
+  dromaios-coco as its primary reference. Introduce
   CPU teaching comparisons when useful during machine work; the order of
   subsequent historical machines remains open.
 - Apply a **rule of three**: use evidence from three distinct architectures to

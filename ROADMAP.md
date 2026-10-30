@@ -246,11 +246,11 @@ of representative software for each machine, then carry it through boot,
 loading, interaction, and repeatable use. Agree those acceptance criteria before
 implementation, using the existing emulator projects as references.
 
-The current target is the [TRS-80 Color Computer](docs/machines/coco.md), using
-**dromaios-coco** as its primary reference and the existing generated 6809.
-Its first milestone is a selected CoCo 1 configuration running ROM BASIC with
+The [TRS-80 Color Computer](docs/machines/coco.md) has completed its first
+untimed milestone, using **dromaios-coco** as its primary reference and the
+existing generated 6809: a selected CoCo 1 configuration running ROM BASIC with
 keyboard, text/semigraphics, and a laboratory. The acceptance plan records the
-reference audit, required ROM evidence, device boundaries, and timing work.
+reference audit, integrated acceptance, device boundaries, and remaining timing work.
 The [native executable chapter](src/machines/6809/coco.md) now passes the
 headless BASIC transcript on its untimed 32 KiB profile. Its laboratory adds
 matrix keyboard input, text/SG4 and all eight standard bitmap modes,
@@ -260,9 +260,10 @@ tools, and a ROM walkthrough are in place. A Color BASIC POKE experiment connect
 the video specifications to the laboratory. Optional Extended Color BASIC adds
 a verified second ROM, native drawing commands, and a graphics-program
 walkthrough. Hardware timing, extended semigraphics, and additional media
-remain separate fidelity milestones.
-Use this third historical machine to test shared inspection conventions;
-introduce abstractions through concrete requirements.
+remain separate fidelity milestones. Shared debugger tools now serve both
+Apple II and CoCo. The next historical machine can begin with a reference audit
+and selected software acceptance criteria; its identity and implementation order
+remain open. Introduce further abstractions through concrete requirements.
 
 The [Apple II Plus](docs/machines/apple2.md) already has ROM BASIC, graphics,
 Language Card banking, read-only DOS 3.3, and a laboratory. Further DOS exploration,
