@@ -60,13 +60,13 @@ test("CoCo ROM storage verifies bytes again and uses a key separate from Apple I
   assert.equal(storage.getItem("dromaios:apple2-rom:v1"), "unrelated media");
 });
 
-test("the CoCo workspace restores all fifteen tools and migrates older layouts only once", () => {
-  const ids = ["screen", "execution", "registers", "memory", "sam", "pias", "rom", "states", "code", "instruction", "direct-page", "stack-s", "stack-u", "walkthrough", "debugger"];
+test("the CoCo workspace restores all sixteen tools and migrates older layouts only once", () => {
+  const ids = ["screen", "execution", "registers", "memory", "sam", "pias", "rom", "states", "code", "instruction", "direct-page", "stack-s", "stack-u", "walkthrough", "debugger", "calls"];
   const restored = decodeWorkspaceState(encodeWorkspaceState(cocoDefaultLayout), ids);
   assert.deepEqual(groups(restored).flatMap(group => group.panels).sort(), [...ids].sort());
   assert.match(cocoWorkspaceKey, /:coco:/);
   const storage = memoryStorage();
-  let previous = ["code", "instruction", "pias", "direct-page", "stack-s", "stack-u", "debugger"].reduce(closePanel, cocoDefaultLayout);
+  let previous = ["code", "instruction", "pias", "direct-page", "stack-s", "stack-u", "debugger", "calls"].reduce(closePanel, cocoDefaultLayout);
   previous = collapseGroup(previous, panelGroup(previous, "sam")!.id, true);
   storage.setItem("dromaios:workspace:coco:1", encodeWorkspaceState(previous));
   migrateCocoWorkspace(storage, ids);
@@ -83,7 +83,7 @@ test("the CoCo workspace restores all fifteen tools and migrates older layouts o
   const updated = decodeWorkspaceState(version2.getItem(cocoWorkspaceKey)!, ids);
   for (const id of ["code", "instruction", "pias"]) assert.equal(panelGroup(updated, id), undefined, `Keep ${id} hidden`);
   for (const id of ["direct-page", "stack-s", "stack-u"]) assert.ok(panelGroup(updated, id));
-  assert.deepEqual(panelGroup(updated, "memory")?.panels, ["memory", "direct-page", "stack-s", "stack-u"]);
+  assert.deepEqual(panelGroup(updated, "memory")?.panels, ["memory", "direct-page", "stack-s", "stack-u", "calls"]);
   assert.equal(panelGroup(updated, "memory")?.active, "memory");
   const hiddenStack = encodeWorkspaceState(closePanel(updated, "stack-u")); version2.setItem(cocoWorkspaceKey, hiddenStack);
   migrateCocoWorkspace(version2, ids); assert.equal(version2.getItem(cocoWorkspaceKey), hiddenStack);
@@ -108,7 +108,7 @@ test("old BASIC-only checkpoints migrate to an empty extension socket, while new
 
 test("the CoCo walkthrough joins a version-3 ROM tab set once and preserves its selection and hidden tools", () => {
   const ids = groups(cocoDefaultLayout).flatMap(group => group.panels);
-  const previous = ["walkthrough", "pias", "debugger"].reduce(closePanel, cocoDefaultLayout);
+  const previous = ["walkthrough", "pias", "debugger", "calls"].reduce(closePanel, cocoDefaultLayout);
   const rom = panelGroup(previous, "rom")!, collapsed = collapseGroup(previous, rom.id, true), storage = memoryStorage();
   storage.setItem("dromaios:workspace:coco:3", encodeWorkspaceState(collapsed));
   migrateCocoWorkspace(storage, ids);
@@ -122,7 +122,7 @@ test("the CoCo walkthrough joins a version-3 ROM tab set once and preserves its 
 
 test("the debugger joins version-4 Execution once without reopening hidden tools or changing its selection", () => {
   const ids = groups(cocoDefaultLayout).flatMap(group => group.panels);
-  const previous = ["debugger", "walkthrough", "pias"].reduce(closePanel, cocoDefaultLayout);
+  const previous = ["debugger", "walkthrough", "pias", "calls"].reduce(closePanel, cocoDefaultLayout);
   const execution = panelGroup(previous, "execution")!, storage = memoryStorage();
   storage.setItem("dromaios:workspace:coco:4", encodeWorkspaceState(collapseGroup(previous, execution.id, true)));
   migrateCocoWorkspace(storage, ids);
@@ -131,5 +131,19 @@ test("the debugger joins version-4 Execution once without reopening hidden tools
   assert.equal(panelGroup(migrated, "execution")?.active, "execution"); assert.equal(panelGroup(migrated, "execution")?.collapsed, true);
   for (const id of ["walkthrough", "pias"]) assert.equal(panelGroup(migrated, id), undefined);
   const hidden = encodeWorkspaceState(closePanel(migrated, "debugger")); storage.setItem(cocoWorkspaceKey, hidden);
+  migrateCocoWorkspace(storage, ids); assert.equal(storage.getItem(cocoWorkspaceKey), hidden);
+});
+
+test("Call stack joins version-5 System Stack once, retaining collapsed groups and deliberately hidden tools", () => {
+  const ids = groups(cocoDefaultLayout).flatMap(group => group.panels), storage = memoryStorage();
+  const previous = ["calls", "debugger", "walkthrough"].reduce(closePanel, cocoDefaultLayout);
+  const stack = panelGroup(previous, "stack-s")!;
+  storage.setItem("dromaios:workspace:coco:5", encodeWorkspaceState(collapseGroup(previous, stack.id, true)));
+  migrateCocoWorkspace(storage, ids);
+  const migrated = decodeWorkspaceState(storage.getItem(cocoWorkspaceKey)!, ids);
+  assert.deepEqual(panelGroup(migrated, "calls")?.panels, ["stack-s", "calls"]);
+  assert.equal(panelGroup(migrated, "calls")?.active, "stack-s"); assert.equal(panelGroup(migrated, "calls")?.collapsed, true);
+  assert.equal(panelGroup(migrated, "debugger"), undefined); assert.equal(panelGroup(migrated, "walkthrough"), undefined);
+  const hidden = encodeWorkspaceState(closePanel(migrated, "calls")); storage.setItem(cocoWorkspaceKey, hidden);
   migrateCocoWorkspace(storage, ids); assert.equal(storage.getItem(cocoWorkspaceKey), hidden);
 });

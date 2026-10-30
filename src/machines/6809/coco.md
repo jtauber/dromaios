@@ -278,7 +278,7 @@ Layout and Live choices are not machine state.
 machine boundaries until that PC is reached. It pauses **before** the next
 boundary, including when PC already matches. It does not change PC, inject a
 return, or bypass devices. A request stops after 2,000,000 boundaries if the
-address is not reached. Run, Step, Pause, a machine replacement/reset, and loss
+address is not reached. Run, Step, Step over/out, Pause, a machine replacement/reset, and loss
 of window focus cancel the target. An error or an unserviceable wait also ends
 the request. A matching PC is not a promise that an ordinary instruction will
 run next: Instruction still explains any pending interrupt or wait boundary.
@@ -302,8 +302,8 @@ values. It names the instruction address or interrupt source, distinguishing
 interrupt entry from executing an opcode at the interrupted PC. **View writer**
 and **View written RAM** browse the captured addresses without executing.
 
-Both kinds of stop interrupt Run to address and guided checkpoints, cancelling
-the temporary target. Execution and Debugger show the reason. A failed boundary
+Both kinds of stop interrupt Run to address, guided checkpoints, and Step
+over/out, cancelling the temporary request. Execution and Debugger show the reason. A failed boundary
 reports its error rather than claiming a successfully completed watchpoint;
 any partial machine effects remain visible. Configure at most 64 addresses in
 each list. Enable/disable and remove controls work independently of the panel's
@@ -312,6 +312,32 @@ Apple II debugger settings. Reset, fresh power-on, ROM changes, and successful
 snapshot restoration clear the current stop report but preserve those lists.
 Existing layouts gain Debugger once as a tab beside Execution, preserving the
 selected tab, collapsed state, and deliberately hidden tools.
+
+**Step over** follows an ordinary call until its observed return; other
+instructions and pending interrupt boundaries take one step. **Step out** follows
+the most recently observed call or interrupt frame. Both use the same shared
+policy and controls as the Apple II laboratory, retain the 2,000,000-boundary
+limit, and can be interrupted by breakpoints, watchpoints, Pause, or errors.
+Neither changes the PC or inserts a return.
+
+**Call stack**, initially a tab beside System Stack, lists only observed calls
+and interrupt entries, with entry, caller, continuation, and saved S values.
+Its links browse Disassembly and show ROM labels when applicable. Capture
+continues while the panel is hidden or Live is off. The raw S/U windows retain
+their independent byte views; arbitrary words in RAM are never guessed to be
+callers. Reset, restoration, fresh power-on, and ROM changes clear observed
+frames. Existing arrangements gain the new tab once without reopening hidden
+tools or changing their active/collapsed state.
+
+Call/return metadata comes from the CPU chapter's effects, including BSR/LBSR,
+indexed JSR, RTS, RTI, and PULS/PULU with PC selected. A return must match both
+the observed stack register/position and continuation. Replacing S or returning
+through altered bytes clears uncertain history and stops an active Step over/out
+with an explanation. Arithmetic stack adjustments remain observable; a later
+return must still match. The 6809's interrupt records distinguish external entry
+from the instruction at PC. CWAI's previously observed saved frame is reused;
+restoring a machine already waiting in CWAI cannot recreate its lost caller
+history. Later calls can build a new partial history, retaining the loss notice.
 
 The screen footer and SAM / video panel show the selected resolution, colour
 count, CSS, and start address. The SAM panel also exposes GM beside V, making
@@ -364,6 +390,13 @@ The [walkthrough test](../../../tests/site/coco-walkthrough.test.ts) follows
 these stops through the real ROM and independently checks the pointers, return
 bytes, direct-page store, screen fill, and keyboard read. It requires `COCO_ROM`;
 the ROM is never part of the published guide.
+
+To try the shared debugger, save a snapshot at `$A07D` before its JSR. **Step
+over** should stop at `$A080`, with S back at `$03D7` and every text cell cleared
+to `$60`. Restore the snapshot, Step into the call, then open **Call stack**:
+its entry is `$A928` and its continuation is `$A080`. **Step out** reaches the
+same complete machine state as Step over. Disable unrelated breakpoints and
+watchpoints for this exercise; either can deliberately stop the run earlier.
 
 ## Try bitmap graphics
 

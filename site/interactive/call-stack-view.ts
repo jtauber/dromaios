@@ -1,9 +1,12 @@
 import type { DebugLocation, ObservedFrame } from "./instruction-debugger.js";
-import type { AddressLabel } from "./apple2-explorer.js";
-import { hex, romRoutine } from "./apple2-explorer.js";
+const hex = (value: number, width = 4) => value.toString(16).toUpperCase().padStart(width, "0");
 
 /** Observed calls, never a guess based on the bytes currently on the hardware stack. */
-export function createApple2CallStack(root: HTMLElement, routines: readonly AddressLabel[], browse: (address: number) => void) {
+export function createCallStack(root: HTMLElement, options: {
+  readonly stackName: string; readonly stackWidth: number;
+  readonly label: (location: DebugLocation) => string | undefined;
+  readonly browse: (address: number) => void;
+}) {
   const output = root.querySelector<HTMLElement>("[data-call-stack]");
   if (!output) return undefined;
   const note = root.querySelector<HTMLElement>("[data-call-stack-status]")!;
@@ -14,9 +17,9 @@ export function createApple2CallStack(root: HTMLElement, routines: readonly Addr
       if (!frames.length) { output.textContent = "No active observed calls."; return; }
       function link(address: number, captured?: DebugLocation): HTMLButtonElement {
         const current = location(address), space = captured?.space ?? current.space;
-        const label = romRoutine(address, space === "rom", routines);
+        const label = options.label({ address, space });
         const button = document.createElement("button"); button.type = "button"; button.className = "lab-memory-link";
-        button.textContent = `$${hex(address)}${label ? ` ${label.name}` : ""}`;
+        button.textContent = `$${hex(address)}${label ? ` ${label}` : ""}`;
         button.title = `Browse $${hex(address)} in Disassembly · ${space}`;
         // Historical ROM labels must not silently navigate to a different mapped bank.
         button.disabled = captured !== undefined && current.space !== captured.space;
@@ -27,15 +30,15 @@ export function createApple2CallStack(root: HTMLElement, routines: readonly Addr
             note.textContent = `Cannot browse $${hex(address)}: its observed ${captured.space} mapping is no longer visible.`;
             button.disabled = true; return;
           }
-          browse(address);
+          options.browse(address);
         });
         return button;
       }
       for (const frame of [...frames].reverse()) {
         const row = document.createElement("div"), heading = document.createElement("div"), detail = document.createElement("div");
         row.className = "lab-call-frame"; detail.className = "lab-hint";
-        heading.append(frame.kind === "call" ? "JSR → " : "BRK → ", link(frame.entry.address, frame.entry));
-        detail.append("From ", link(frame.caller.address, frame.caller), " · return ", link(frame.returnAddress), ` · SP $${hex(frame.stack, 2)}`);
+        heading.append(frame.kind === "call" ? "Call → " : "Interrupt → ", link(frame.entry.address, frame.entry));
+        detail.append("From ", link(frame.caller.address, frame.caller), " · return ", link(frame.returnAddress), ` · ${options.stackName} $${hex(frame.stack, options.stackWidth)}`);
         row.append(heading, detail); output.append(row);
       }
     },

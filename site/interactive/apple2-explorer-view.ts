@@ -1,12 +1,13 @@
 import { createInstructionDebugger } from "./instruction-debugger.js";
 import type { DebugLocation } from "./instruction-debugger.js";
-import { createApple2CallStack } from "./apple2-call-stack-view.js";
+import { createCallStack } from "./call-stack-view.js";
+import { createDebuggerStatus } from "./debugger-status-view.js";
 import { apple2Watchpoint, describeApple2Watchpoint } from "./apple2-watchpoints.js";
 import type { MemoryWatch } from "./apple2-watches.js";
 import type { Apple2MemoryChange } from "./apple2-inspection.js";
 import { apple2DebugLocation, apple2DebugStep } from "./apple2-debugger.js";
 import { apple2StorageReader } from "./apple2-inspection.js";
-import { createApple2Breakpoints } from "./apple2-breakpoint-view.js";
+import { createBreakpointView } from "./breakpoint-view.js";
 import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 import type { createApple2Session } from "./apple2-session.js";
 import { formatApple2Trace, hex, parseApple2Address, romRoutine } from "./apple2-explorer.js";
@@ -41,7 +42,12 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   const pause = optional<HTMLButtonElement>("rom-pause");
   const debuggerState = createInstructionDebugger();
   const location = () => apple2DebugLocation(machine()!);
-  const breakpoints = createApple2Breakpoints(root, debuggerState, () => disassembly?.refreshBreakpoints());
+  const breakpoints = createBreakpointView(root.querySelector("[data-breakpoints]"), {
+    kind: "breakpoint", key: "dromaios:debugger:apple2:breakpoints", maximum: 0xffff,
+    spaces: [{ value: "rom", label: "ROM only", accepts: address => address >= 0xd000 }],
+    defaultSpace: (address, space) => address >= 0xd000 && space === "rom" ? "rom" : undefined,
+    values: () => debuggerState.breakpoints, set: debuggerState.setBreakpoints, changed: () => disassembly?.refreshBreakpoints(),
+  });
   const disassembly = createApple2Disassembly(root, catalogue, address => { debuggerState.runTo(location(), address); run(); },
     (tool, address) => navigation.browse(tool, address, "code"), { address: navigation.memoryAddress, browse: navigation.browseMemory }, breakpoints);
   const reference = createApple2RomReference(root, catalogue, (tool, address) => navigation.browse(tool, address, "rom"));
@@ -61,20 +67,18 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     address => navigation.browse("memory", address));
   const watchHistory = createApple2WatchHistoryView(root, catalogue.instructions, browseCode,
     address => navigation.browse("memory", address));
-  const calls = createApple2CallStack(root, catalogue.routines, address => navigation.browse("code", address));
-  const stopMessages = root.querySelectorAll<HTMLElement>("[data-rom-stop-status], [data-disassembly-stop-status], [data-debugger-status], [data-walkthrough-stop-status]");
-  function showStopStatus(value: string, running = false): void {
-    for (const message of stopMessages) {
-      message.setAttribute("aria-live", running ? "off" : "polite");
-      if (message.textContent !== value) message.textContent = value;
-    }
-  }
+  const calls = createCallStack(root, {
+    stackName: "SP", stackWidth: 2,
+    label: location => romRoutine(location.address, location.space === "rom", catalogue.routines)?.name,
+    browse: address => navigation.browse("code", address),
+  });
+  const stopStatus = createDebuggerStatus(root);
   step?.addEventListener("click", () => element<HTMLButtonElement>("machine-step").click());
   resume?.addEventListener("click", () => element<HTMLButtonElement>("machine-run").click());
   pause?.addEventListener("click", () => element<HTMLButtonElement>("machine-pause").click());
   function start(value: string, romOnly: boolean): void {
     try { debuggerState.runTo(location(), parseApple2Address(value), romOnly ? "rom" : undefined); }
-    catch (error) { showStopStatus((error as Error).message); return; }
+    catch (error) { stopStatus.show((error as Error).message); return; }
     run();
   }
   toRoutine.addEventListener("click", () => start(routine.value, true));
@@ -116,12 +120,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
         if (control) control.disabled = !available || running;
       }
       if (pause) pause.disabled = !running;
-      const stopped = debuggerState.stop;
-      const reasons = { breakpoint: "Breakpoint", watchpoint: "Watchpoint", step: "Step complete", over: "Step over complete", out: "Step out complete",
-        target: "Run-to address reached", limit: "Instruction limit reached; destination not reached", pause: "Paused",
-        error: "Execution error", "tracking-lost": "Caller tracking lost" };
-      showStopStatus(stopped ? `${reasons[stopped.kind]} at $${hex(stopped.location.address)}${stopped.location.space === "rom" ? " in ROM" : ""}.${stopped.detail ? ` ${stopped.detail}` : ""}`
-        : running && debuggerState.request ? `Running · ${debuggerState.request === "target" ? "to address" : `step ${debuggerState.request}`}…` : "", running);
+      stopStatus.refresh(debuggerState.stop, debuggerState.request, running);
       const selected = machine();
       walkthrough?.refresh(selected && apple2DebugLocation(selected), available, running);
       if (selected && shouldUpdate("activity")) devices?.refresh(selected.disk.inspect().installed);

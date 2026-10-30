@@ -29,10 +29,10 @@ export function instructionCatalogue6809(chapter: ReturnType<typeof compileCpuCh
   const instructions = Object.fromEntries(Object.values(chapter.families).flat().map(([opcode, definition]) => {
     const bytes = opcode > 255 ? 2 : 1, operand = operandNotation(definition.name);
     let shape: number | number[];
-    try { shape = intern(instructionShape(definition.steps, bytes)); }
+    try { shape = intern(instructionShape(definition.steps, bytes, undefined, ["s", "u"])); }
     catch (error) {
       if (!(error instanceof NeedsPostbyte)) throw error;
-      shape = Array.from({ length: 256 }, (_, byte) => intern(instructionShape(definition.steps, bytes, byte)));
+      shape = Array.from({ length: 256 }, (_, byte) => intern(instructionShape(definition.steps, bytes, byte, ["s", "u"])));
     }
     const forms = (Array.isArray(shape) ? shape : [shape]).map(id => shapes[id]!);
     for (const form of forms) {

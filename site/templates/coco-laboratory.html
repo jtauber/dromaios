@@ -38,7 +38,8 @@
     <section class="lab-tool lab-panel-body lab-scroll lab-machine-controls" data-workspace-panel="execution" data-panel-title="Execution">
       <div class="basic-controls" role="group" aria-label="CoCo controls">
         <button type="button" data-machine-run disabled>Run</button><button type="button" data-machine-pause disabled>Pause</button>
-        <button type="button" data-machine-step disabled>Step</button><button type="button" data-machine-reset disabled>Reset CPU</button>
+        <button type="button" data-machine-step disabled>Step</button>
+        <button type="button" data-machine-over disabled>Step over</button><button type="button" data-machine-out disabled>Step out</button><button type="button" data-machine-reset disabled>Reset CPU</button>
         <button type="button" data-machine-power disabled>Fresh power-on</button>
       </div>
       <form class="basic-controls coco-run-target" data-run-target>
@@ -61,7 +62,7 @@
       {% for kind, title, maximum, example in [('breakpoint', 'Breakpoints', 'FFFF', '9386'), ('watchpoint', 'RAM write watchpoints', '7FFF', '1210')] %}
       <section data-coco-{{ kind }}s>
         <h2>{{ title }}</h2>
-        <form class="lab-watch-form"><label>Address (hex)<input aria-label="{{ title }} address" maxlength="6" size="6" placeholder="{{ example }}" required autocomplete="off" spellcheck="false"></label><button type="submit">Add {{ kind }}</button></form>
+        <form class="lab-watch-form"><label>Address (hex)<input name="address" aria-label="{{ title }} address" maxlength="6" size="6" placeholder="{{ example }}" required autocomplete="off" spellcheck="false"></label><button type="submit">Add {{ kind }}</button></form>
         <div data-stop-rows></div><p data-stop-status class="lab-hint" role="status"></p>
         <p class="lab-hint">$0000–${{ maximum }} · {% if kind == 'breakpoint' %}Stops before the CPU boundary at this PC. Run crosses the breakpoint that just stopped once; a later visit stops again.{% else %}Stops after a complete instruction or interrupt entry writes this RAM byte, even when its value stays the same. ROM and device writes do not match.{% endif %}</p>
       </section>
@@ -88,6 +89,9 @@
       <p class="lab-hint">Push moves down; pull moves up. Words are high byte first. This is a pointer window, not a list of frames; no empty-stack boundary is known.</p>
     </section>
     {% endfor %}
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="calls" data-panel-title="Call stack" data-panel-live="true">
+      <p data-call-stack-status class="lab-hint"></p><div data-call-stack></div>
+    </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="instruction" data-panel-title="Instruction" data-panel-live="true" data-coco-instruction>
       <p class="basic-readout" data-instruction-location></p><pre class="lab-instruction-preview" data-instruction-preview></pre>
       <details><summary>From the CPU specification</summary><p class="lab-hint" data-instruction-explanation></p></details>

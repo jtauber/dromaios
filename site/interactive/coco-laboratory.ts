@@ -1,3 +1,6 @@
+import { createCallStack } from "./call-stack-view.js";
+import { createDebuggerStepControls } from "./debugger-step-controls.js";
+import { cocoDebugLocation } from "./coco-debugger.js";
 import { romImages } from "../../src/machines/generated/6809/coco.js";
 import { createRomWalkthrough } from "./rom-walkthrough-view.js";
 import { createCocoRomAnnotations, observeCocoRoms, cocoWalkthroughAvailable } from "./coco-rom-guide.js";
@@ -57,12 +60,17 @@ function mountCoco(root: HTMLElement): void {
   const catalogue: Catalogue6809 = JSON.parse(at("coco-instructions").textContent!);
   const inspectors = createCocoInspectors(root, () => code.memoryMoved(), browse), display = createCocoScreen(root);
   function browse(address: number): void { inspectors.memory.browse(address); workspace.show("memory"); }
-  const debug = createCocoDebugger(() => session.machine);
+  const debug = createCocoDebugger(() => session.machine, catalogue);
   const debugView = createCocoDebuggerView(root, debug, {
     changed: () => code.refreshBreakpoints(), memory: browse,
     code: address => { code.browse(address); workspace.show("code"); },
   });
   const code = create6809CodeView(at("coco-code"), catalogue, { address: () => inspectors.memory.address, browse }, debugView);
+  const calls = createCallStack(root, {
+    stackName: "S", stackWidth: 4,
+    label: location => location.space === "rom" ? annotations.reference.at(location.address)?.name : undefined,
+    browse: address => { code.browse(address); workspace.show("code"); },
+  });
   const instruction = create6809InstructionView(at("coco-instruction"), browse);
   const execution = createExecutionController({
     step: () => debug.capture(() => session.step()), canStep: () => session.hasFirmware && !selecting,
@@ -118,7 +126,9 @@ function mountCoco(root: HTMLElement): void {
     at("machine-status").textContent = `${running ? "Running" : ready ? "Paused" : "Ready for ROM"} · ${execution.steps.toLocaleString()} steps`
       + (session.pendingInput ? ` · ${session.pendingInput} keys queued` : "");
     at("machine-error").textContent = execution.error ?? "";
-    debugView.refresh();
+    debugView.refresh(running);
+    stepControls(step.disabled, debug.canStepOut);
+    if (shouldUpdate("calls")) calls?.refresh(debug.frames, debug.trackingNote, address => cocoDebugLocation(session.machine, address));
     const record = execution.records.at(-1);
     at("last-step").textContent = record ? record.instruction
       ? `$${cocoHex(record.instruction.address)}   ${record.instruction.bytes.map(byte => cocoHex(byte, 2)).join(" ")}   ${record.outcome}`
@@ -174,6 +184,11 @@ function mountCoco(root: HTMLElement): void {
   run.addEventListener("click", () => { debug.run(); message.textContent = ""; execution.run(); screen.focus(); });
   pause.addEventListener("click", () => { debug.pause(); execution.stop(); });
   step.addEventListener("click", () => { debug.step(); message.textContent = ""; execution.step(); });
+  const stepControls = createDebuggerStepControls(root, {
+    over: debug.over, out: debug.out,
+    run: () => { message.textContent = ""; execution.run(); },
+    error: text => { message.textContent = text; },
+  });
   targetForm.addEventListener("submit", event => {
     event.preventDefault(); if (targetButton.disabled) return;
     const text = targetInput.value.trim().replace(/^\$|^0x/i, "");

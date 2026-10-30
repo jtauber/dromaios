@@ -1,11 +1,13 @@
 /** A mapped instruction boundary. Space names belong to the machine adapter. */
 export interface DebugLocation { readonly address: number; readonly space: string }
 export interface InstructionBreakpoint { readonly address: number; readonly space?: string; readonly enabled: boolean }
-export type StackFlow = "call" | "return" | "interrupt" | "interrupt-return";
+// Pulling PC through a chosen stack can return from either kind of observed frame.
+export type StackFlow = "call" | "return" | "interrupt" | "interrupt-return" | "stack-return";
 export interface DebugStep {
   readonly before: DebugLocation;
   readonly after: DebugLocation;
   readonly stackBefore: number;
+  readonly stackRegister?: string;
   readonly stackAfter: number;
   readonly flow?: StackFlow;
   readonly returnAddress: number;
@@ -23,6 +25,7 @@ export interface ObservedFrame {
   readonly entry: DebugLocation;
   readonly returnAddress: number;
   readonly stack: number;
+  readonly stackRegister?: string;
 }
 type Plan = { readonly kind: "step" } | { readonly kind: "over"; frame?: number }
   | { readonly kind: "out"; readonly frame: number } | { readonly kind: "target"; readonly address: number; readonly space?: string };
@@ -89,6 +92,7 @@ export function createInstructionDebugger(budget = 2_000_000) {
     },
     /** Count a completed CPU boundary when the adapter does not supply call tracking. */
     observeBoundary,
+    loseTracking,
     observe(step: DebugStep): void {
       // Called for every successful instruction, including manual Step and ordinary Run.
       observeBoundary();
@@ -96,12 +100,13 @@ export function createInstructionDebugger(budget = 2_000_000) {
       if (step.flow === "call" || step.flow === "interrupt") {
         if (frames.length === 128) loseTracking(step.after, "The observed call history reached its limit.");
         const frame = { id: nextFrame++, kind: step.flow, caller: { ...step.before }, entry: { ...step.after },
-          returnAddress: step.returnAddress, stack: step.stackBefore };
+          returnAddress: step.returnAddress, stack: step.stackBefore, ...(step.stackRegister && { stackRegister: step.stackRegister }) };
         frames.push(frame);
         if (plan?.kind === "over" && plan.frame === undefined) plan.frame = frame.id;
-      } else if (step.flow === "return" || step.flow === "interrupt-return") {
+      } else if (step.flow === "return" || step.flow === "interrupt-return" || step.flow === "stack-return") {
         const frame = frames.at(-1), kind = step.flow === "return" ? "call" : "interrupt";
-        if (frame?.kind === kind && frame.stack === step.stackAfter && frame.returnAddress === step.after.address) {
+        if (frame && (step.flow === "stack-return" || frame.kind === kind) && frame.stackRegister === step.stackRegister
+          && frame.stack === step.stackAfter && frame.returnAddress === step.after.address) {
           frames.pop();
           if ((plan?.kind === "over" || plan?.kind === "out") && plan.frame === frame.id) completed = true;
         } else loseTracking(step.after, "The return did not match the observed caller; the program may have changed its return address or stack.");

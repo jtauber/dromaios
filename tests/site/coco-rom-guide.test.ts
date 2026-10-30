@@ -133,7 +133,7 @@ test("the chapter's PSET checkpoints reach the declared states and write exactly
       assert.deepEqual(resumed.step(), record); assert.deepEqual(resumed.snapshot(), session.snapshot());
       // Discover the writer from the command entry, with the same debugger used by the lab.
       resumed.restore(psetStart!);
-      const debug = createCocoDebugger(() => resumed.machine);
+      const debug = createCocoDebugger(() => resumed.machine, catalogue);
       debug.setBreakpoints([{ address: 0x9361, enabled: true }]);
       debug.setWatchpoints([{ address: 0x1210, enabled: true }]);
       debug.run(); assert.equal(debug.beforeStep(), true); assert.equal(debug.stop?.kind, "breakpoint");
@@ -164,6 +164,7 @@ test("the authored base-ROM walkthrough reaches its call, cursor store and retur
   let steps = 0;
   const advance = () => { steps++; return session.step(); };
   const state = () => session.machine.cpu.snapshot();
+  let beforeCall: ReturnType<typeof session.snapshot> | undefined;
   const stops = guides.firmware.walkthroughs[0]!.steps.map(step => parseInt(step.address, 16));
   assert.deepEqual(stops, [0xa027, 0xa07d, 0xa92d, 0xa936]);
   for (const address of stops) {
@@ -171,6 +172,7 @@ test("the authored base-ROM walkthrough reaches its call, cursor store and retur
     assert.equal(target.stopped, "reached");
     if (address === 0xa027) { advance(); assert.equal(state().y, 0xa00e); }
     if (address === 0xa07d) {
+      beforeCall = session.snapshot();
       advance(); assert.equal(state().pc, 0xa928); assert.equal(state().s, 0x3d5);
       assert.equal(session.machine.ram.read(0x3d5) * 256 + session.machine.ram.read(0x3d6), 0xa080);
     }
@@ -183,4 +185,16 @@ test("the authored base-ROM walkthrough reaches its call, cursor store and retur
       advance(); assert.equal(state().pc, 0xa080); assert.equal(state().s, 0x3d7);
     }
   }
+  const returned = session.snapshot(), debug = createCocoDebugger(() => session.machine, catalogue);
+  function finish(): void {
+    let count = 0;
+    while (!debug.beforeStep()) { assert.ok(count++ < 10_000); debug.capture(() => session.step()); }
+  }
+  session.restore(beforeCall!); debug.reset(); debug.over(); finish();
+  assert.equal(debug.stop?.kind, "over"); assert.deepEqual(session.snapshot(), returned);
+  session.restore(beforeCall!); debug.reset(); debug.step(); debug.capture(() => session.step());
+  assert.equal(debug.frames[0]?.entry.address, 0xa928); assert.equal(debug.frames[0]?.returnAddress, 0xa080);
+  debug.out(); finish(); assert.equal(debug.stop?.kind, "out"); assert.deepEqual(session.snapshot(), returned);
+  debug.dispose();
+
 });

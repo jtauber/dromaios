@@ -1,3 +1,5 @@
+import type { StackFlow } from "./instruction-debugger.js";
+
 /** Compact presentation data; no compiler or semantic execution in the browser. */
 export type InstructionControlFlow = "sequential" | "conditional" | "unconditional";
 export type FlagCondition = { readonly kind: "flag"; readonly name: string }
@@ -8,6 +10,8 @@ export interface InstructionShape {
   readonly supported: boolean;
   readonly controlFlow: InstructionControlFlow;
   readonly condition?: FlagCondition;
+  readonly stack?: { readonly flow: StackFlow; readonly register: string };
+  readonly replacedStacks?: readonly string[];
 }
 
 export function testFlagCondition(condition: FlagCondition, flags: Readonly<Record<string, boolean>>): boolean {

@@ -1,13 +1,16 @@
 import type { Expression, Statement } from "../src/components/cpus/semantics/model.ts";
 import type { FlagCondition, InstructionControlFlow, InstructionShape } from "./interactive/instruction-shape.ts";
 
-type Known = number | boolean | FlagCondition | undefined;
+interface Origin { readonly kind: "origin"; readonly source: "register" | "memory"; readonly field: string; readonly offset?: number }
+type Known = number | boolean | FlagCondition | Origin | undefined;
+const origin = (value: Known): value is Origin => typeof value === "object" && value.kind === "origin";
 type Names = ReadonlyMap<string, Known>;
 export class NeedsPostbyte extends Error {}
-const condition = (value: Known): value is FlagCondition => typeof value === "object";
+const condition = (value: Known): value is FlagCondition => typeof value === "object" && value.kind !== "origin";
 const negate = (value: FlagCondition): FlagCondition => value.kind === "not" ? value.value : { kind: "not", value };
 
-/** Fold captured constants and branch flags only. Live registers and data reads stay unknown. */
+/** Track constants, branch tests, and value origins; never evaluate live registers or memory.
+ * Origins identify stack effects, not concrete addresses. */
 function known(value: Expression, names: Names): Known {
   const read = (value: Expression) => known(value, names);
   switch (value.kind) {
@@ -24,10 +27,18 @@ function known(value: Expression, names: Names): Known {
       return value.kind === "xor" ? fixed ? negate(test) : test
         : value.kind === "and" ? fixed ? test : false : fixed ? true : test;
     }
+    case "add-wrap": case "subtract": {
+      const left = read(value.left), right = read(value.right);
+      if (origin(left)) return { ...left, offset: left.offset !== undefined && typeof right === "number"
+        ? left.offset + (value.kind === "add-wrap" ? right : -right) : undefined };
+      return undefined;
+    }
     case "select": { const test = read(value.condition); return typeof test === "boolean" ? read(test ? value.yes : value.no) : undefined; }
     case "bit": case "low-bit": case "zero": case "bits": case "low-byte": case "high-byte":
     case "extend": case "truncate": case "sign-extend": {
-      const v = read(value.value); if (typeof v !== "number") return undefined;
+      const v = read(value.value);
+      if (origin(v) && ["low-byte", "high-byte", "extend", "truncate", "sign-extend"].includes(value.kind)) return v;
+      if (typeof v !== "number") return undefined;
       switch (value.kind) {
         case "bit": return Boolean(v & 2 ** value.position);
         case "low-bit": return Boolean(v & 1);
@@ -43,6 +54,7 @@ function known(value: Expression, names: Names): Known {
     }
     case "bit-and": case "bit-or": case "bit-xor": case "concat": case "equal": case "less-than": {
       const left = read(value.left), right = read(value.right);
+      if (value.kind === "concat" && origin(left) && origin(right) && left.source === right.source && left.field === right.field) return left;
       if (typeof left !== "number" || typeof right !== "number") return undefined;
       switch (value.kind) {
         case "bit-and": return left & right;
@@ -57,9 +69,12 @@ function known(value: Expression, names: Names): Known {
   }
 }
 
-/** Walk declared fetches and PC writes without running a CPU or reading data memory. */
-export function instructionShape(steps: readonly Statement[], opcodeBytes: number, postbyte?: number): InstructionShape {
+/** Derive fetches, PC writes, and selected stack effects without running a CPU or reading memory. */
+export function instructionShape(steps: readonly Statement[], opcodeBytes: number, postbyte?: number, stackRegisters: readonly string[] = []): InstructionShape {
   let fetched = 0, supported = true, flow: InstructionControlFlow = "sequential", branch: FlagCondition | undefined;
+  const savedPC = new Set<string>(), returnedPC = new Set<string>(), replacedStacks = new Set<string>();
+  const stores = new Map<string, number>(), advances = new Set<string>();
+  const stackOrigin = (value: Known) => origin(value) && value.source === "register" && stackRegisters.includes(value.field) ? value.field : undefined;
   function transfer(next: InstructionControlFlow, test?: FlagCondition): void {
     if (flow === "unconditional" || next === "sequential") return;
     // RTI's full and short frames both restore PC, under complementary tests.
@@ -126,13 +141,48 @@ export function instructionShape(steps: readonly Statement[], opcodeBytes: numbe
           transfer(yes.flow === no.flow ? yes.flow : "conditional");
           names.set(step.name, undefined); break;
         }
-        case "write-register": if (step.register.field === "pc") transfer("unconditional"); break;
-        case "read-register": case "read-memory": case "read-latch": case "test-choice": names.set(step.name, undefined); break;
-        case "write-memory": case "write-latch": case "write-choice": case "update-flags": case "replace-flags": break;
+        case "write-register": {
+          const value = known(step.value, names), field = step.register.field;
+          if (field === "pc") {
+            transfer("unconditional");
+            if (origin(value) && value.source === "memory" && stackRegisters.includes(value.field)) returnedPC.add(value.field);
+          } else if (stackRegisters.includes(field)) {
+            if (stackOrigin(value) !== field) replacedStacks.add(field);
+            else if (origin(value) && value.offset !== undefined && value.offset > 0) advances.add(field);
+          }
+          break;
+        }
+        case "read-register": names.set(step.name, { kind: "origin", source: "register", field: step.register.field, offset: 0 }); break;
+        case "read-memory": {
+          const field = stackOrigin(step.address.kind === "address-projection" ? undefined : known(step.address, names));
+          names.set(step.name, field ? { kind: "origin", source: "memory", field } : undefined); break;
+        }
+        case "write-memory": {
+          const field = stackOrigin(step.address.kind === "address-projection" ? undefined : known(step.address, names)), value = known(step.value, names);
+          if (field) {
+            stores.set(field, (stores.get(field) ?? 0) + 1);
+            if (origin(value) && value.source === "register" && value.field === "pc") savedPC.add(field);
+          }
+          break;
+        }
+        case "read-latch": case "test-choice": names.set(step.name, undefined); break;
+        case "write-latch": case "write-choice": case "update-flags": case "replace-flags": break;
         default: throw new Error(`Instruction layout does not support ${step.kind}.`);
       }
     }
   }
   walk(steps, new Map());
-  return { length: opcodeBytes + fetched, supported, controlFlow: flow, ...(branch && { condition: branch }) };
+  // Saving PC plus a full status/register frame distinguishes entry from an ordinary call.
+  // A PC loaded through an advancing stack is a return; the runtime checks the observed frame.
+  const saved = [...savedPC], returned = [...returnedPC].filter(field => advances.has(field));
+  if (saved.length > 1 || returned.length > 1) throw new Error("Ambiguous instruction stack transfer.");
+  function transferShape(): InstructionShape["stack"] {
+    if (flow !== "unconditional") return undefined;
+    const pushed = saved[0], pulled = returned[0];
+    if (pushed) return { flow: stores.get(pushed) === 2 ? "call" : "interrupt", register: pushed };
+    if (pulled) return { flow: "stack-return", register: pulled };
+  }
+  const stack = transferShape();
+  return { length: opcodeBytes + fetched, supported, controlFlow: flow, ...(branch && { condition: branch }),
+    ...(supported && stack && { stack }), ...(supported && replacedStacks.size && { replacedStacks: [...replacedStacks] }) };
 }

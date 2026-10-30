@@ -1,3 +1,4 @@
+import { createDebuggerStepControls } from "./debugger-step-controls.js";
 import { editApple2Register } from "./apple2-register-edit.js";
 import { editApple2Memory } from "./apple2-memory-edit.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
@@ -31,7 +32,6 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const run = element<HTMLButtonElement>("machine-run"), pause = element<HTMLButtonElement>("machine-pause");
   const step = element<HTMLButtonElement>("machine-step"), reset = element<HTMLButtonElement>("machine-reset");
   const power = element<HTMLButtonElement>("machine-power");
-  const over = root.querySelector<HTMLButtonElement>("[data-machine-over]"), out = root.querySelector<HTMLButtonElement>("[data-machine-out]");
   const enter = root.querySelector<HTMLButtonElement>("[data-keyboard-enter]");
   const interrupt = root.querySelector<HTMLButtonElement>("[data-keyboard-break]");
   const status = element<HTMLElement>("machine-status");
@@ -149,11 +149,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     run.disabled = !available || execution.running || execution.error !== undefined;
     pause.disabled = !execution.running;
     step.disabled = !available || execution.running || execution.error !== undefined;
-    if (over) over.disabled = step.disabled;
-    if (out) {
-      out.disabled = step.disabled || !explorer.canStepOut;
-      out.title = explorer.canStepOut ? "Run until the observed call returns" : "No observed caller. Step into a call first.";
-    }
+    stepControls(step.disabled, explorer.canStepOut);
     reset.disabled = !available;
     power.disabled = selecting;
     for (const control of [keyboard, enter, interrupt]) if (control) control.disabled = !available;
@@ -259,8 +255,11 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   step.addEventListener("click", () => {
     explorer.step(); message.textContent = ""; execution.step();
   });
-  over?.addEventListener("click", () => { explorer.over(); message.textContent = ""; execution.run(); });
-  out?.addEventListener("click", () => action(() => { explorer.out(); message.textContent = ""; execution.run(); }));
+  const stepControls = createDebuggerStepControls(root, {
+    over: explorer.over, out: explorer.out,
+    run: () => { message.textContent = ""; execution.run(); },
+    error: text => { message.textContent = text; },
+  });
   reset.addEventListener("click", () => action(() => {
     explorer.reset(); execution.reset(); session.reset(); changeLog?.reset(); screenInspector?.reset();
     message.textContent = "CPU reset. RAM and device state are preserved; Run continues through the reset firmware.";

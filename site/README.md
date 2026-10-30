@@ -87,6 +87,13 @@ walkthrough test checks the stated stops and memory effects. Run it with the
 extension absent. For Extended BASIC, repeat the chapter's **Draw with Extended
 Color BASIC** program, save/restore its graphics, reload the remembered ROM pair,
 and check **Use Color BASIC only** returns to a fresh base-ROM configuration.
+`6809-debugger.ts` feeds the same observed-frame policy as the 6502 adapter.
+The build-time shape walker follows captured register/memory origins to identify
+stacked transfers and stack replacement, including indexed and register-mask
+forms. Completed records supply actual pointers and fetched bytes, with no
+extra bus reads. Step over/out and Call stack share their tools with Apple II;
+CoCo's version-6 layout adds Call stack beside System Stack without reopening
+other hidden panels.
 
 The CoCo chapter also owns checksum-bound ROM annotations and two laboratory
 walkthroughs. `rom_annotations.py`, `rom-reference.ts`, `rom-guide.ts`, and
@@ -359,14 +366,17 @@ semantic compiler or maintain a second opcode table. Address buttons share the
 shared `instruction-debugger.ts` policy for bounded run-to, Step over / Step out,
 persistent breakpoint matching, and observed caller tracking. The policy has no
 machine, memory, DOM, or scheduler connection. `apple2-debugger.ts` supplies mapping
-and completed-step observations; `apple2-breakpoint-view.ts` owns the saved address
-preferences and controls. `apple2-watchpoints.ts` matches saved stop choices against
+and completed-step observations; `breakpoint-view.ts` owns address editing, saved preferences, and controls for
+both laboratories; Apple II supplies its ROM mapping choices. `apple2-watchpoints.ts` matches saved stop choices against
 completed instruction accesses, using chapter-derived fetch/read/write roles and
 physical RAM observations from the change log, independently of its recording
 switch. The debugger cancels temporary requests when a watchpoint stops execution
-after an instruction. `apple2-call-stack-view.ts` displays detached observed frames,
+after an instruction. `call-stack-view.ts` displays detached observed frames for both laboratories,
 including captured mappings and persistent lost-history notices; it never reads
-the hardware stack. Workspace migrations introduce Call stack beside Stack and,
+the hardware stack. Each machine supplies label lookup, navigation, and stack
+formatting. `debugger-step-controls.ts` and `debugger-status-view.ts` share
+Step over/out controls and stop reporting; their execution policy stays in
+`instruction-debugger.ts`. Workspace migrations introduce Call stack beside Stack and,
 in version 5, Device activity beside System; version 6 adds Walkthrough beside
 ROM; version 7 adds Saved states there. These preserve existing arrangements
 and deliberately hidden instruments. ROM labels

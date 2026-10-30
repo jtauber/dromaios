@@ -12,7 +12,7 @@ function fixture(bytes: readonly number[], budget = 100) {
   let machine = create6809Coco({ firmware: null, extended: null });
   machine.cpu = new Cpu6809(machine.memory, state6809({ pc: 0x2000, dp: 0, a: 0x20, b: 0x34, d: 0x2034, s: 0x3100 }));
   bytes.forEach((byte, index) => machine.ram.write(0x2000 + index, byte));
-  const debug = createCocoDebugger(() => machine, budget), jobs: (() => void)[] = [];
+  const debug = createCocoDebugger(() => machine, catalogue, budget), jobs: (() => void)[] = [];
   const step = () => debug.capture(() => stepCoco(machine));
   const execution = createExecutionController({ step, canStep: () => true, pauseBeforeStep: debug.beforeStep,
     onChange() {}, batchSize: 10000, schedule(callback) { jobs.push(callback); return () => {}; } });
@@ -121,4 +121,21 @@ test("targets retain their boundary budget and debugger preferences reject inval
   for (const address of [-1, 0x10000, .5, NaN]) assert.throws(() => p.debug.setBreakpoints([{ address, enabled: true }]));
   assert.throws(() => p.debug.setWatchpoints([points[0]!, points[0]!]), /distinct/);
   p.debug.dispose();
+});
+
+test("CoCo Step over/out shares call tracking and breakpoints/watchpoints cancel temporary requests", () => {
+  const p = fixture([0xbd, 0x21, 0, 0x12]);
+  [0xb7, 0x12, 0x10, 0x39].forEach((byte, index) => p.machine.ram.write(0x2100 + index, byte));
+  p.debug.setBreakpoints([{ address: 0x2100, enabled: true }]);
+  p.debug.over(); p.execution.run(); p.jobs.shift()!();
+  assert.equal(p.debug.stop?.kind, "breakpoint"); assert.equal(p.debug.canStepOut, true);
+  assert.equal(p.debug.frames[0]?.returnAddress, 0x2003);
+  p.debug.setWatchpoints([{ address: 0x1210, enabled: true }]);
+  p.debug.out(); p.execution.run(); p.jobs.shift()!();
+  assert.equal(p.debug.stop?.kind, "watchpoint"); assert.equal(p.debug.request, undefined);
+  assert.equal(p.debug.canStepOut, true);
+  p.debug.out(); p.execution.run(); p.jobs.shift()!();
+  assert.equal(p.debug.stop?.kind, "out"); assert.equal(p.machine.cpu.snapshot().pc, 0x2003);
+  assert.equal(p.debug.canStepOut, false);
+  p.debug.reset(); assert.equal(p.debug.trackingNote, undefined); assert.equal(p.debug.breakpoints.length, 1);
 });

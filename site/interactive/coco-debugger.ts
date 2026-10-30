@@ -3,7 +3,10 @@ import type { RamWrite } from "../../src/components/memory/ram.js";
 import { createInstructionDebugger, decodeInstructionBreakpoints } from "./instruction-debugger.js";
 import type { DebugLocation } from "./instruction-debugger.js";
 import { observeCocoRoms } from "./coco-rom-guide.js";
-import { cocoHex as hex } from "./coco-inspection.js";
+import { cocoHex as hex, readCocoStorage } from "./coco-inspection.js";
+import type { Catalogue6809 } from "./6809-catalogue.js";
+import { decode6809 } from "./6809-disassembly.js";
+import { create6809DebugObserver } from "./6809-debugger.js";
 
 export interface CocoAddressStop { readonly address: number; readonly enabled: boolean }
 type Boundary = ReturnType<typeof stepCoco>;
@@ -12,8 +15,8 @@ export interface CocoWriteHit extends RamWrite {
   readonly record: Boundary;
 }
 
-export function cocoDebugLocation(machine: Coco): DebugLocation {
-  const address = machine.cpu.snapshot().pc, mapping = observeCocoRoms(machine);
+export function cocoDebugLocation(machine: Coco, address = machine.cpu.snapshot().pc): DebugLocation {
+  const mapping = observeCocoRoms(machine);
   return { address, space: !machine.sam.supportedMemory() ? "unavailable" : address < 0x8000 ? "ram"
     : mapping.mapped(address) ? "rom" : "unavailable" };
 }
@@ -24,8 +27,8 @@ export function decodeCocoAddressStops(saved: string | null, maximum: number): r
 }
 
 /** Shared execution policy, with completed physical RAM stores observed only during a CPU boundary. */
-export function createCocoDebugger(machine: () => Coco, budget = 2_000_000) {
-  const policy = createInstructionDebugger(budget);
+export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809, budget = 2_000_000) {
+  const policy = createInstructionDebugger(budget), observer = create6809DebugObserver(policy, catalogue);
   let watches: readonly CocoAddressStop[] = [], watched = new Set<number>();
   let ram: Coco["ram"] | undefined, detach = () => {};
   let capture: { write?: RamWrite } | undefined, hit: CocoWriteHit | undefined;
@@ -51,6 +54,9 @@ export function createCocoDebugger(machine: () => Coco, budget = 2_000_000) {
     get stop() { return policy.stop; },
     get request() { return policy.request; },
     get hit() { return hit; },
+    get frames() { return policy.frames; },
+    get trackingNote() { return policy.trackingNote; },
+    get canStepOut() { return policy.canStepOut; },
     setBreakpoints(points: readonly CocoAddressStop[]): void { policy.setBreakpoints(validate(points, 0xffff)); },
     setWatchpoints(points: readonly CocoAddressStop[]): void {
       watches = validate(points, 0x7fff); watched = new Set(watches.filter(point => point.enabled).map(point => point.address));
@@ -61,6 +67,15 @@ export function createCocoDebugger(machine: () => Coco, budget = 2_000_000) {
       hit = undefined; policy.step(location());
       policy.beforeStep(location()); // Manual Step crosses the current breakpoint once.
     },
+    over(): void {
+      hit = undefined;
+      const selected = machine(), state = selected.cpu.snapshot();
+      const external = selected.pias.firq && !state.flags.f || selected.pias.irq && !state.flags.i;
+      const decoded = !external && state.waitMode === "none"
+        ? decode6809(address => readCocoStorage(selected, address), state.pc, catalogue) : undefined;
+      policy.over(location(), decoded?.complete ? decoded.shape?.stack?.flow : undefined);
+    },
+    out(): void { hit = undefined; policy.out(location()); },
     runTo(address: number, space?: "rom"): void {
       if (!Number.isInteger(address) || address < 0 || address > 0xffff) throw new RangeError("Use a 16-bit target address.");
       hit = undefined; policy.runTo(location(), address, space);
@@ -71,18 +86,18 @@ export function createCocoDebugger(machine: () => Coco, budget = 2_000_000) {
       observeRam(); const caller = location(); capture = {};
       try {
         const record = step();
-        policy.observeBoundary();
-        if (capture.write) {
+        observer.observe(record, caller, location());
+        if (capture.write && policy.stop?.kind !== "error") {
           hit = { ...capture.write, caller, record };
           policy.watchpoint(location(), describeCocoWriteHit(hit));
         } else if (policy.request === "step") policy.beforeStep(location());
         return record;
       } catch (cause) {
-        hit = undefined; policy.fail(location(), cause instanceof Error ? cause.message : String(cause));
+        hit = undefined; observer.reset(); policy.fail(location(), cause instanceof Error ? cause.message : String(cause));
         throw cause;
       } finally { capture = undefined; }
     },
-    reset(): void { policy.reset(); hit = undefined; capture = undefined; observeRam(); },
+    reset(): void { policy.reset(); observer.reset(); hit = undefined; capture = undefined; observeRam(); },
     dispose(): void { detach(); ram = undefined; },
   };
 }

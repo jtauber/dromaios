@@ -70,7 +70,7 @@
       <div data-memory-scroll class="lab-memory-scroll" tabindex="0" role="region" aria-label="Memory contents"><div class="lab-memory-space"><pre data-memory-view></pre></div></div>
     </div></section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="watches" data-panel-live="true" data-panel-title="Watches" data-memory-watches>
-      <form class="lab-watch-form"><label>Address (hex)<input name="address" maxlength="5" size="5" placeholder="0028" required autocomplete="off" spellcheck="false"></label><label>Label (optional)<input name="label" maxlength="64" autocomplete="off"></label><span data-watch-size></span><button type="submit">Watch</button></form>
+      <form class="lab-watch-form"><label>Address (hex)<input name="address" maxlength="6" size="6" placeholder="0028" required autocomplete="off" spellcheck="false"></label><label>Label (optional)<input name="label" maxlength="64" autocomplete="off"></label><span data-watch-size></span><button type="submit">Watch</button></form>
       <p data-watch-status class="lab-hint" role="status"></p>
       <div data-watch-rows></div>
       <p class="lab-hint">R: data read · W: bus write · Δ: changed RAM, in any bank. Stops happen after the instruction, even with Live or recording off. Fetches do not trigger R. All toggles off: observe without stopping.</p>
@@ -150,9 +150,9 @@
         <tbody data-disassembly-rows></tbody>
       </table>
       <details data-breakpoints>
-        <summary>Breakpoints<span data-breakpoint-count></span></summary>
-        <form class="lab-watch-form"><label>Address (hex)<input name="address" maxlength="5" size="5" placeholder="FD21" required autocomplete="off" spellcheck="false"></label><label>Mapping<select name="scope"><option value="any">Any mapping</option><option value="rom">ROM only</option></select></label><button type="submit">Add</button></form>
-        <div data-breakpoint-rows></div><p data-breakpoint-status class="lab-hint" role="status"></p>
+        <summary>Breakpoints<span data-stop-count></span></summary>
+        <form class="lab-watch-form"><label>Address (hex)<input name="address" maxlength="6" size="6" placeholder="FD21" required autocomplete="off" spellcheck="false"></label><label>Mapping<select name="scope"><option value="any">Any mapping</option><option value="rom">ROM only</option></select></label><button type="submit">Add</button></form>
+        <div data-stop-rows></div><p data-stop-status class="lab-hint" role="status"></p>
         <p class="lab-hint">Saved in this browser. Run crosses a breakpoint that just stopped execution once, then stops on the next visit. Step executes one instruction.</p>
       </details>
       <details class="lab-code-navigation-details"><summary>Navigate or run to an address</summary>

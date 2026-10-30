@@ -1,4 +1,4 @@
-import type { createApple2Breakpoints } from "./apple2-breakpoint-view.js";
+import type { createBreakpointView } from "./breakpoint-view.js";
 import type { createApple2Session } from "./apple2-session.js";
 import { apple2CodeReferences, apple2CodeRows } from "./apple2-disassembly.js";
 import type { Apple2CodeRow } from "./apple2-disassembly.js";
@@ -17,7 +17,7 @@ type Machine = ReturnType<typeof createApple2Session>["machine"];
 export function createApple2Disassembly(root: HTMLElement, catalogue: RomGuide & { readonly instructions: InstructionCatalogue }, runTo: (address: number) => void,
   navigate: (tool: InspectorTool, address: number) => void, memory: {
   readonly address: () => number; readonly browse: (address: number) => void;
-}, breakpoints?: ReturnType<typeof createApple2Breakpoints>) {
+}, breakpoints?: ReturnType<typeof createBreakpointView>) {
   const panel = root.querySelector<HTMLElement>("[data-disassembly]");
   if (panel === null) return undefined;
   const element = <T extends HTMLElement>(name: string) => panel.querySelector<T>(`[data-disassembly-${name}]`)!;
@@ -66,7 +66,7 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: RomGuide &
     const label = referenceLink("entry"), operand = referenceLink("operand");
     button.type = "button";
     const breakpoint = document.createElement("button"); breakpoint.type = "button"; breakpoint.className = "lab-breakpoint-marker";
-    breakpoint.addEventListener("click", () => { const row = rows[index]; if (row) breakpoints?.toggle(row.address, row.romMapped); });
+    breakpoint.addEventListener("click", () => { const row = rows[index]; if (row) breakpoints?.toggle(row.address, row.romMapped ? "rom" : undefined); });
     stop.append(breakpoint);
     routine.append(label.button); location.append(button); instruction.append(assembly); reference.append(operand.button);
     button.addEventListener("click", () => { if (canRun && rows[index]?.complete) runTo(rows[index]!.address); });
@@ -136,7 +136,7 @@ export function createApple2Disassembly(root: HTMLElement, catalogue: RomGuide &
   function refreshBreakpoints(): void {
     views.forEach((view, index) => {
       const row = rows[index]; if (!row) return;
-      const point = breakpoints?.at(row.address, row.romMapped);
+      const point = breakpoints?.at(row.address, row.romMapped ? "rom" : undefined);
       view.breakpoint.textContent = point?.enabled ? "●" : "○";
       view.breakpoint.setAttribute("aria-pressed", String(point?.enabled ?? false));
       view.breakpoint.setAttribute("aria-label", `${point?.enabled ? "Disable" : "Enable"} breakpoint at $${hex(row.address)}${row.romMapped && row.address >= 0xd000 ? " in ROM" : ""}`);
