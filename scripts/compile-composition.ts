@@ -89,7 +89,7 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
       for (const direction of ["in", "out"] as const) {
         body.push(direction === "in" ? "  readPort: port => {" : "  writePort: (port, value) => {");
         if (unmapped !== undefined) {
-          body.push('    checkUnsigned("Port", port, 0xff);');
+          body.push(`    checkUnsigned("Port", port, ${machine.cpu === "8088" ? "0xffff" : "0xff"});`);
           if (direction === "out") body.push('    checkUnsigned("Port byte", value, 0xff);');
         }
         body.push("    switch (port) {");
@@ -106,7 +106,8 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
     if (machine.resetDevices !== undefined) body.push("const resetDevices = (): void => {",
       ...machine.resetDevices.map(target => `  ${part(target)}.reset();`), "};");
 
-    const connection = machine.ports !== undefined ? ", ports" : machine.resetDevices !== undefined ? ", { resetDevices }" : "";
+    const connection = machine.ports !== undefined ? (machine.cpu === "8088" ? ", { ports }" : ", ports")
+      : machine.resetDevices !== undefined ? ", { resetDevices }" : "";
     body.push(`const cpu = new ${cpuClass}(${memory}, initialState === undefined ? ${JSON.stringify(machine.initialState, null, 2)} : initialState.cpu${connection});`);
     if (machine.reset !== undefined) {
       body.push("const reset = (): ReturnType<typeof cpu.reset> => {", "  // Follow the current CPU, including one restored from a host snapshot.", "  const record = instance.cpu.reset();",

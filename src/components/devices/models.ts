@@ -2,6 +2,8 @@ import { deviceModels as generated } from "./generated/catalogue.ts";
 
 /** Construction and wiring capabilities, independent of device execution. */
 export const deviceModels = {
+  "xt-io": { name: "XtIo", module: "../machines/8088/pc-xt/io", size: 0x100,
+    reads: [0x20, 0x21, 0x60, 0x61, 0x62], writes: [0x20, 0x21, 0x60, 0x61, 0x62, 0x63], output: false, selectors: [] },
   "coco-pias": { name: "CocoPias", module: "../machines/6809/coco/pias", size: 0x40,
     reads: Array.from({ length: 0x40 }, (_, i) => i), writes: Array.from({ length: 0x40 }, (_, i) => i), output: false, selectors: [] },
   "byte-input": { name: "ByteInput", module: "devices/byte-input", size: 2, reads: [0, 1], writes: [], output: false, selectors: [] },

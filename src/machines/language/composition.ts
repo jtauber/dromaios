@@ -54,7 +54,7 @@ export function compositionSyntax(syntax: MachineSyntax) {
   const externalImages: (ExternalImageDefinition & { token: Token })[] = [];
   const regions: (MappedRegionDefinition & { token: Token })[] = [];
   const windows: (() => void)[] = [];
-  const ports: (PortBinding & { token: Token; addressToken: Token })[] = [];
+  const ports: (PortBinding & { token: Token; portToken: Token; addressToken: Token })[] = [];
   const resets = new Map<string, Token[]>();
   let direct: Token | undefined;
   let mapSize: number | undefined;
@@ -189,13 +189,13 @@ export function compositionSyntax(syntax: MachineSyntax) {
             }
             if (direction.text !== "in" && direction.text !== "out") return fail(direction, 'Expected port direction "in" or "out"');
             const portToken = take();
-            const port = readNumber(portToken, "Port", 0xff);
+            const port = readNumber(portToken, "Port", 0xffff);
             if (ports.some(binding => binding.direction === direction.text && binding.port === port)) {
               fail(portToken, `Duplicate ${direction.text} port ${port.toString(16).toUpperCase()}`);
             }
             expect("=");
             const token = name(), addressToken = take();
-            ports.push({ direction: direction.text, port, component: token.text, token, addressToken,
+            ports.push({ direction: direction.text, port, component: token.text, token, portToken, addressToken,
               address: readNumber(addressToken, "Device address", 0xffffff) });
           });
           break;
@@ -246,8 +246,11 @@ export function compositionSyntax(syntax: MachineSyntax) {
           regions: regions.map(({ token, ...region }) => region) };
       } else return fail(current(), "Missing CPU memory connection: memory = component or map");
 
-      if (declarations.has("ports") && cpu !== "8080") fail(declarations.get("ports")!, "Port bindings currently require CPU 8080");
+      if (declarations.has("ports") && cpu !== "8080" && cpu !== "8088") {
+        fail(declarations.get("ports")!, "Port bindings currently require CPU 8080 or 8088");
+      }
       for (const binding of ports) {
+        if (cpu === "8080" && binding.port > 0xff) fail(binding.portToken, "Port must be in 00–FF for CPU 8080");
         const target = component(binding.token);
         const kind = target.kind;
         if (!isDeviceKind(kind)) return fail(binding.token, "Ports require a device component");

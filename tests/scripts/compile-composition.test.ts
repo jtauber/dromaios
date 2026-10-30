@@ -20,6 +20,38 @@ async function load(source: string, path: string, t: TestContext) {
   return import(pathToFileURL(filename).href);
 }
 
+test("8088 port composition connects 16-bit addresses and word transfers wrap at FFFF", async t => {
+  const example = readFileSync("src/machines/8088/word-sum-example.machine", "utf8");
+  const state = example.slice(example.indexOf("cpu 8088"), example.indexOf("\nmemory ")).replace("DX = 7788", "DX = FFFF");
+  const source = `${state}
+components { ram=ram 100000 first=byte-input second=byte-input sink=byte-output }
+memory=ram
+ports { in FFFF=first 1 in 0000=second 1 out FFFF=sink 0 out 0000=sink 0 unmapped=7E }
+image ram 12540 { EF ED F4 }`;
+  const { createWidePorts } = await load(source, "wide-ports.machine", t);
+  const output: number[] = [];
+  const machine = createWidePorts({ sink: (byte: number) => { output.push(byte); } });
+  machine.first.offer(0xab); machine.second.offer(0xcd);
+  const written = machine.cpu.step();
+  assert.deepEqual(written.accesses.slice(-2), [
+    { kind: "output", port: 0xffff, value: 0x22 }, { kind: "output", port: 0, value: 0x11 },
+  ]);
+  assert.deepEqual(output, [0x22, 0x11]);
+  const read = machine.cpu.step();
+  assert.equal(read.after.ax, 0xcdab);
+  assert.deepEqual(read.accesses.slice(-2), [
+    { kind: "input", port: 0xffff, value: 0xab }, { kind: "input", port: 0, value: 0xcd },
+  ]);
+  assert.equal(machine.ports.readPort(0x1234), 0x7e);
+  machine.ports.writePort(0x1234, 0xff); assert.deepEqual(output, [0x22, 0x11]);
+  for (const port of [-1, 0x10000, 0.5, NaN]) {
+    assert.throws(() => machine.ports.readPort(port), RangeError);
+    assert.throws(() => machine.ports.writePort(port, 0), RangeError);
+  }
+  assert.throws(() => machine.ports.writePort(0x1234, 256), RangeError);
+  assert.throws(() => compileMachine(source.replace("in FFFF", "in 10000"), "bad.machine"), /Port must be in/);
+});
+
 test("window routes select once without fallback after a failed transfer, and discard explicitly", async t => {
   const cpu = readFileSync("src/machines/68000/echo-example.machine", "utf8").split("cpu 68000")[1]!.split("\nmap ")[0]!;
   const { createWindow } = await load(`cpu 68000${cpu}

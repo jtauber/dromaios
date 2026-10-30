@@ -80,6 +80,12 @@ examples add polling and consuming input reads with the same devices.
 
 - [Literate device specifications](devices/literate-specifications.md): executable
   state, register operations, and generated device APIs.
+- [Intel 8259A](../src/components/devices/specifications/i8259a.md): the XT's
+  single interrupt controller, priorities, masking, acknowledgement, and EOI.
+- [Intel 8255A](../src/components/devices/specifications/i8255a.md): mode-0
+  parallel ports, directions, and port-C bit set/reset.
+- [IBM XT keyboard](../src/components/devices/specifications/ibm-xt-keyboard.md):
+  scan-code reception, receiver clear, and the explicit reset-pulse profile.
 - [MC6850 polling profile](../src/components/devices/specifications/mc6850-polling.md):
   the first 88-2SIO serial channel's chip behavior and explicit fidelity limits.
 - [Apple II keyboard](../src/components/devices/specifications/apple2-keyboard.md):
@@ -102,6 +108,8 @@ examples add polling and consuming input reads with the same devices.
 
 - [IBM PC/XT target](machines/pc-xt.md): pinned dromaios-pc audit, selected XT
   firmware and hardware, and acceptance from ROM BASIC to native floppy DOS.
+- [XT keyboard-interrupt example](../src/machines/8088/xt-keyboard.md): an
+  executable 8088 composition with native PIC/PPI wiring and IRQ1 handling.
 - [TRS-80 Color Computer target](machines/coco.md): selected first configuration,
   pinned dromaios-coco audit, real-ROM comparison, and acceptance checks.
 - [TRS-80 Color Computer chapter](../src/machines/6809/coco.md): native 6809,

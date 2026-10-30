@@ -278,10 +278,11 @@ closures, with no runtime parser or rule interpreter.
 
 ### Ports and reset
 
-The optional `ports` block currently connects the 8080's byte ports. `in` entries
+The optional `ports` block connects 8080 or 8088 byte-wide transfers. `in` entries
 require readable device registers; `out` entries require writable registers.
 Generated device chapters supply these capabilities to the parser. Port
-numbers are `00`–`FF`; local addresses must fit the device. Each direction may
+numbers are `00`–`FF` on the 8080 and `0000`–`FFFF` on the 8088; local addresses
+must fit the device. Each direction may
 bind a port once, independently of the other direction. Unconnected accesses
 throw a host error before touching a device. Omitting `ports` retains the CPU's
 default unconnected-port behavior. An explicit `unmapped = FF` inside `ports`
@@ -290,6 +291,10 @@ output writes. The value may be any byte, with only one declaration per block.
 Connected registers retain their own behavior. Port numbers and output bytes
 are validated even when there is no connected device. The
 [Altair BASIC chapter](../../src/machines/8080/altair-basic.md) uses this policy.
+The [XT keyboard example](../../src/machines/8088/xt-keyboard.md) uses the
+8088 connection. Word IN/OUT instructions remain two byte transfers performed
+by the CPU, including wrap from port `FFFF` to `0000`; a binding is always to
+a byte device register.
 
 Reset wiring is explicit and optional:
 
@@ -404,7 +409,7 @@ lesson.machine:3:6: Memory block extends beyond address FFFF
 ## Scope and future extensions
 
 This version describes named components with an optional CPU, RAM/ROM images,
-6502/6809/8080/68000 memory maps with conditional windows, 8080 byte ports,
+6502/6809/8080/68000 memory maps with conditional windows, 8080/8088 byte ports,
 chapter-defined devices, and explicit reset wiring. Interrupt wiring, clocks,
 and scripted host input are not currently expressed. The
 [Apple II target](apple2.md) drives the next extensions:

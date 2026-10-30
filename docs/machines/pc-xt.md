@@ -5,8 +5,10 @@ laboratory. Use **dromaios-pc** as the primary implementation reference and
 IBM's hardware documentation as the authority. Retain Dromaios's generated
 [8088](../../src/components/cpus/specifications/8088.md); a new CPU is not required.
 
-**Status, 2026-10-30:** reference audit and acceptance specification only.
-There is no native PC/XT machine or laboratory yet. The reference's DOS boot
+**Status, 2026-10-30:** reference audit complete; the first native
+[keyboard-interrupt example](../../src/machines/8088/xt-keyboard.md) connects
+the generated 8088, PIC, PPI, and keyboard receiver. There is no complete
+PC/XT machine or laboratory yet. The reference's DOS boot
 works through JavaScript BIOS services; it does not demonstrate original-ROM
 startup or a working floppy controller. The first native milestone is original
 XT firmware reaching ROM BASIC, followed by a separate DOS milestone.
@@ -263,12 +265,15 @@ AT/286 and later x86 remain separate CPU and machine projects.
 
 ## Next implementation slice
 
-Start with the **8259A PIC and XT 8255/keyboard wiring**, with executable
-descriptions and synthetic tests derived from the ROM's initialization and
-IBM's register definitions. Then establish the timing contract and PIT/DMA
-refresh behavior before attempting native POST, followed by CGA and the empty
-diskette controller path. This builds the hardware needed by original firmware
-without depending on host BIOS services or a browser workspace.
+The **8259A PIC and XT 8255/keyboard wiring** now have executable device
+descriptions and a native 8088 example. Its chapter owns the supported chip
+profiles, byte-boundary keyboard/reset limits, snapshots, and acceptance tests.
+The machine language now supports 8088 port bindings as well as the 8080's.
+
+Next establish the timing contract and PIT/DMA refresh behavior before
+attempting native POST, followed by CGA and the empty diskette controller path.
+This builds the hardware needed by original firmware without depending on host
+BIOS services or a browser workspace.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

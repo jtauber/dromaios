@@ -51,6 +51,9 @@ The [CoCo chapter](../../src/machines/6809/coco.md) composes the generated 6809,
 PIAs, SAM, and VDG with physical RAM and an externally verified Color BASIC ROM.
 Its concrete board helpers sample interrupt levels and render physical RAM;
 they do not require a general-purpose peripheral wiring language.
+The [XT keyboard example](../../src/machines/8088/xt-keyboard.md) adds 8088
+port bindings and concrete PIC/PPI/keyboard wiring. Its CPU-boundary helper
+acknowledges the PIC only when the processor accepts INTR.
 
 The [68000 ROM-output example](../cpus/68000/examples/output.md) also maps a
 byte-output register and connects device reset to the CPU's RESET instruction.
