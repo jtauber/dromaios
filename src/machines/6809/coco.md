@@ -283,6 +283,36 @@ of window focus cancel the target. An error or an unserviceable wait also ends
 the request. A matching PC is not a promise that an ordinary instruction will
 run next: Instruction still explains any pending interrupt or wait boundary.
 
+**Debugger** provides persistent PC breakpoints and RAM write watchpoints.
+Breakpoints cover `$0000–$FFFF` and stop before the next CPU boundary, including
+before interrupt arbitration or consumption of queued keyboard input. The
+circles in Disassembly toggle the same breakpoints as the address list. Run
+crosses the breakpoint that just stopped execution once; a later visit stops
+again. Step crosses the current breakpoint and completes one native boundary.
+Breakpoints added at the current PC stop the next Run immediately.
+
+Write watchpoints cover physical RAM `$0000–$7FFF`. They observe completed
+stores, including stores that leave the byte unchanged, without another CPU
+bus read. ROM writes, device writes, reads, instruction previews, and host
+snapshot restoration cannot trigger them. A match stops **after the complete
+instruction or interrupt entry**: a word store or stacked frame is never left
+half-executed. If several watched bytes are written in that boundary, the report
+identifies the first matching store in execution order, with its before/after
+values. It names the instruction address or interrupt source, distinguishing
+interrupt entry from executing an opcode at the interrupted PC. **View writer**
+and **View written RAM** browse the captured addresses without executing.
+
+Both kinds of stop interrupt Run to address and guided checkpoints, cancelling
+the temporary target. Execution and Debugger show the reason. A failed boundary
+reports its error rather than claiming a successfully completed watchpoint;
+any partial machine effects remain visible. Configure at most 64 addresses in
+each list. Enable/disable and remove controls work independently of the panel's
+visibility. Preferences are remembered locally, separately from snapshots and
+Apple II debugger settings. Reset, fresh power-on, ROM changes, and successful
+snapshot restoration clear the current stop report but preserve those lists.
+Existing layouts gain Debugger once as a tab beside Execution, preserving the
+selected tab, collapsed state, and deliberately hidden tools.
+
 The screen footer and SAM / video panel show the selected resolution, colour
 count, CSS, and start address. The SAM panel also exposes GM beside V, making
 the two chips' separate responsibilities visible. Broader ROM annotations,
@@ -469,6 +499,8 @@ Labels are landmarks, not inferred routine boundaries. Clicking a label browses
 memory without executing; selecting a checkpoint changes only the guide.
 **Run to checkpoint** uses the same bounded execution as Run to address.
 Reaching an address does not establish that the setup was followed.
+Disable unrelated breakpoints and RAM write watchpoints before following the
+seven checkpoints in order; an enabled stop can interrupt the tour earlier.
 
 For the pixel walkthrough, load both ROMs and enter this program one line at a
 time at the BASIC prompt. It deliberately draws only one pixel, so the byte
@@ -515,6 +547,18 @@ from a captured executed instruction. Indexed operands are not guessed from the
 current registers; Instruction explains their effective addresses separately.
 Empty sockets and unsupported memory mappings do not acquire ROM annotations.
 Held Disassembly observations retain their labels and bytes together.
+
+To discover the pixel writer yourself, repeat the program with no write
+watchpoints enabled during PCLS. Add a breakpoint at `$9361` in Debugger, then
+queue `RUN` as above and choose Run. It stops at the PSET entry after PCLS has
+cleared the bitmap. Now add a RAM write watchpoint at `$1210` and choose Run
+again. Execution crosses the entry breakpoint once and stops after the pixel
+store: **Instruction `$9386` wrote RAM `$1210`: `$00 → $20`**, with PC at `$9388`.
+View writer shows the instruction in Disassembly; View written RAM shows the
+stored byte. The write watchpoint would also stop PCLS or another routine that
+stores the same value, which is why it is armed only after the clear. Save before
+the store and restore to repeat it; configured stops remain in place, while the
+previous stop report is cleared.
 
 <details>
 <summary>Versioned ROM annotations used by the laboratory</summary>

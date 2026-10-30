@@ -49,6 +49,11 @@ export function createInstructionDebugger(budget = 2_000_000) {
     frames.length = 0; trackingNote = detail;
     if (plan?.kind === "out" || plan?.kind === "over" && plan.frame !== undefined) finish("tracking-lost", location, detail);
   }
+  function observeBoundary(): void {
+    stop = undefined;
+    if (plan) remaining--;
+    if (plan?.kind === "step") completed = true;
+  }
   return {
     get breakpoints() { return breakpoints; },
     get stop() { return stop; },
@@ -82,10 +87,11 @@ export function createInstructionDebugger(budget = 2_000_000) {
       else if (plan && remaining === 0) finish("limit", location);
       return stop !== undefined;
     },
+    /** Count a completed CPU boundary when the adapter does not supply call tracking. */
+    observeBoundary,
     observe(step: DebugStep): void {
       // Called for every successful instruction, including manual Step and ordinary Run.
-      stop = undefined;
-      if (plan) remaining--;
+      observeBoundary();
       if (step.resetsStack) loseTracking(step.after, "The program replaced the stack pointer; the caller is no longer known.");
       if (step.flow === "call" || step.flow === "interrupt") {
         if (frames.length === 128) loseTracking(step.after, "The observed call history reached its limit.");
@@ -100,7 +106,6 @@ export function createInstructionDebugger(budget = 2_000_000) {
           if ((plan?.kind === "over" || plan?.kind === "out") && plan.frame === frame.id) completed = true;
         } else loseTracking(step.after, "The return did not match the observed caller; the program may have changed its return address or stack.");
       }
-      if (plan?.kind === "step") completed = true;
     },
   };
 }

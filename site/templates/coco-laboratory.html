@@ -45,15 +45,28 @@
         <label>Address <input data-run-target-address aria-label="Run to address" placeholder="A027" maxlength="6" spellcheck="false" disabled></label>
         <button type="submit" data-run-target-button disabled>Run to address</button>
       </form>
-      <p class="basic-readout" data-run-target-status role="status"></p>
+      <p class="basic-readout" data-debugger-status role="status"></p>
       <p class="basic-readout" data-machine-status role="status">Preparing hardware…</p>
       <p class="basic-message" data-machine-error role="alert"></p><p class="basic-message" data-machine-message role="status"></p>
       <p class="lab-hint">Last step</p><pre data-last-step></pre>
       <details class="coco-help"><summary>Keyboard and execution</summary>
         <p id="coco-keys" class="lab-hint">Click the screen to type or paste one line. Enter submits; Backspace edits; Escape or Ctrl-C sends Break; Home sends Clear. Host key repeat is ignored. Leaving the window pauses and releases queued keys.</p>
         <p class="lab-hint">Reset CPU preserves RAM and device settings. Fresh power-on clears them and keeps the installed ROMs. This profile is untimed: steps are not clock cycles.</p>
-        <p class="lab-hint">Run to address executes normally and pauses before the next boundary at that PC, or after 2,000,000 boundaries. Run, Step, Pause, reset, and leaving the window cancel the target.</p>
+        <p class="lab-hint">Run to address executes normally and pauses before the next boundary at that PC, or after 2,000,000 boundaries. Breakpoints and RAM write watchpoints can stop it earlier. Run, Step, Pause, reset, and leaving the window cancel the target.</p>
       </details>
+    </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="debugger" data-panel-title="Debugger">
+      <p class="basic-readout" data-debugger-status role="status"></p>
+      <div class="basic-controls" data-watchpoint-navigation hidden><button type="button" data-watchpoint-code disabled>View writer</button><button type="button" data-watchpoint-memory disabled>View written RAM</button></div>
+      {% for kind, title, maximum, example in [('breakpoint', 'Breakpoints', 'FFFF', '9386'), ('watchpoint', 'RAM write watchpoints', '7FFF', '1210')] %}
+      <section data-coco-{{ kind }}s>
+        <h2>{{ title }}</h2>
+        <form class="lab-watch-form"><label>Address (hex)<input aria-label="{{ title }} address" maxlength="6" size="6" placeholder="{{ example }}" required autocomplete="off" spellcheck="false"></label><button type="submit">Add {{ kind }}</button></form>
+        <div data-stop-rows></div><p data-stop-status class="lab-hint" role="status"></p>
+        <p class="lab-hint">$0000–${{ maximum }} · {% if kind == 'breakpoint' %}Stops before the CPU boundary at this PC. Run crosses the breakpoint that just stopped once; a later visit stops again.{% else %}Stops after a complete instruction or interrupt entry writes this RAM byte, even when its value stays the same. ROM and device writes do not match.{% endif %}</p>
+      </section>
+      {% endfor %}
+      <p class="lab-hint">Stops are remembered in this browser, separately from snapshots. Step crosses the current breakpoint. Reset and Restore clear the stop report and keep configured stops. Click a circle in Disassembly to toggle a breakpoint.</p>
     </section>
     <section class="lab-tool lab-tool-registers lab-panel-body" data-workspace-panel="registers" data-panel-title="Registers" data-panel-heading="Motorola 6809" data-panel-live="true">
       <div class="lab-registers" data-coco-registers></div><div class="lab-flags" data-coco-flags></div>
@@ -64,7 +77,7 @@
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="code" data-panel-title="Disassembly" data-panel-live="true" data-coco-code>
       <p class="basic-readout" data-code-status></p>
-      <table class="lab-code"><thead><tr><th aria-label="Execution position"></th><th>Routine</th><th>Address</th><th>Bytes</th><th>Instruction</th><th>Reference</th><th data-code-notes-heading>Comment</th></tr></thead><tbody data-code-rows></tbody></table>
+      <table class="lab-code"><thead><tr><th aria-label="Breakpoint"></th><th aria-label="Execution position"></th><th>Routine</th><th>Address</th><th>Bytes</th><th>Instruction</th><th>Reference</th><th data-code-notes-heading>Comment</th></tr></thead><tbody data-code-rows></tbody></table>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="direct-page" data-panel-title="Direct Page" data-panel-live="true" data-coco-direct-page>
       <p class="basic-readout" data-register-memory-status></p><div data-register-memory-output></div>
@@ -115,7 +128,7 @@
       <p data-walkthrough-position class="lab-hint" role="status"></p>
       <h3>What to observe</h3><p data-walkthrough-observe></p>
       <p data-coco-routine-reference class="lab-hint"></p>
-      <p class="lab-hint">Selecting a checkpoint only changes the guide. Run stops before its address, or after 2,000,000 boundaries. Reaching an address does not verify the setup. Step and Run remain in Execution.</p>
+      <p class="lab-hint">Selecting a checkpoint only changes the guide. Run stops before its address, or after 2,000,000 boundaries. Breakpoints and RAM write watchpoints can stop it earlier; see Execution or Debugger for the reason. Reaching an address does not verify the setup. Step and Run remain in Execution.</p>
       <p><a href="{{ calc_url(coco_url) }}#follow-pset-into-graphics-ram" target="_blank" rel="noopener">Read the walkthrough and program ↗</a></p>
     </section>
     <section class="lab-tool lab-panel-body" data-workspace-panel="states" data-panel-title="Snapshot">

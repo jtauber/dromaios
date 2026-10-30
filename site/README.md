@@ -80,8 +80,9 @@ not fabricate changes at other addresses. Check WORD/BYTE, DP/FIX, 8/16, and
 independent docking and Live settings. Existing CoCo layouts gain newly introduced
 tools once and retain later choices to hide them.
 The chapter's **Following Color BASIC** walkthrough uses the bounded Run to
-address control in Execution. `execution-target.ts` only observes PC and the
-host's boundary count; target checks never access memory. The optional real-ROM
+address control in Execution. `coco-debugger.ts` adapts the shared
+`instruction-debugger.ts` for PC stops and RAM write watchpoints; target and
+breakpoint checks never access memory. The optional real-ROM
 walkthrough test checks the stated stops and memory effects. Run it with the
 extension absent. For Extended BASIC, repeat the chapter's **Draw with Extended
 Color BASIC** program, save/restore its graphics, reload the remembered ROM pair,
@@ -99,6 +100,16 @@ use the current instruction's DP or the executed record's previous DP.
 The new Walkthrough tab is added beside ROM once without rearranging existing
 panels or reopening hidden tools. Check both tours, Notes, unavailable ROMs,
 Live-off navigation, and normal Step/Run in the browser.
+
+Debugger preferences use separate CoCo storage keys and remain outside snapshots.
+The adapter captures completed writes through the RAM observer, only during a
+native boundary, and reconnects it when the machine is replaced. Unchanged
+stores match; multi-byte stores and interrupt frames finish before stopping.
+The optional PSET test discovers the pixel writer from the command entry using
+a breakpoint and write watchpoint, then repeats the stop after restoration.
+Browser checks cover list/gutter toggles, remembered preferences, earlier stops
+during guided runs, and navigation while Disassembly is held. The Debugger tab
+is added beside Execution once, preserving existing layout choices.
 
 ## Altair BASIC
 

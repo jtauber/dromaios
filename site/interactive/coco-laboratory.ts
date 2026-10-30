@@ -16,7 +16,8 @@ import { readRomFile } from "./rom-file.js";
 import type { RomFile } from "./rom-file.js";
 import { romFileStorage } from "./rom-storage.js";
 import { createExecutionController } from "./execution-controller.js";
-import { createExecutionTarget } from "./execution-target.js";
+import { createCocoDebugger } from "./coco-debugger.js";
+import { createCocoDebuggerView } from "./coco-debugger-view.js";
 import { createPanelUpdates } from "./panel-updates.js";
 import { createWorkspace } from "./workspace/dock.js";
 import { mountWorkspaceControls } from "./workspace/controls.js";
@@ -30,7 +31,7 @@ function mountCoco(root: HTMLElement): void {
   const run = at<HTMLButtonElement>("machine-run"), pause = at<HTMLButtonElement>("machine-pause");
   const step = at<HTMLButtonElement>("machine-step"), reset = at<HTMLButtonElement>("machine-reset"), power = at<HTMLButtonElement>("machine-power");
   const targetForm = at<HTMLFormElement>("run-target"), targetInput = at<HTMLInputElement>("run-target-address");
-  const targetButton = at<HTMLButtonElement>("run-target-button"), target = createExecutionTarget();
+  const targetButton = at<HTMLButtonElement>("run-target-button");
   const removeExtended = at<HTMLButtonElement>("extended-rom-remove");
   const save = at<HTMLButtonElement>("snapshot-save"), restore = at<HTMLButtonElement>("snapshot-restore");
   const forgetState = at<HTMLButtonElement>("snapshot-forget");
@@ -56,12 +57,22 @@ function mountCoco(root: HTMLElement): void {
   const catalogue: Catalogue6809 = JSON.parse(at("coco-instructions").textContent!);
   const inspectors = createCocoInspectors(root, () => code.memoryMoved(), browse), display = createCocoScreen(root);
   function browse(address: number): void { inspectors.memory.browse(address); workspace.show("memory"); }
-  const code = create6809CodeView(at("coco-code"), catalogue, { address: () => inspectors.memory.address, browse });
+  const debug = createCocoDebugger(() => session.machine);
+  const debugView = createCocoDebuggerView(root, debug, {
+    changed: () => code.refreshBreakpoints(), memory: browse,
+    code: address => { code.browse(address); workspace.show("code"); },
+  });
+  const code = create6809CodeView(at("coco-code"), catalogue, { address: () => inspectors.memory.address, browse }, debugView);
   const instruction = create6809InstructionView(at("coco-instruction"), browse);
   const execution = createExecutionController({
-    step: () => session.step(), canStep: () => session.hasFirmware && !selecting,
-    pauseBeforeStep: (): boolean => target.address !== undefined && target.beforeStep(session.machine.cpu.snapshot().pc, execution.steps)
-      || execution.records.at(-1)?.outcome === "waiting" && !session.machine.pias.irq && !session.machine.pias.firq,
+    step: () => debug.capture(() => session.step()), canStep: () => session.hasFirmware && !selecting,
+    pauseBeforeStep(): boolean {
+      if (debug.beforeStep()) return true;
+      if (execution.records.at(-1)?.outcome === "waiting" && !session.machine.pias.irq && !session.machine.pias.firq) {
+        debug.pause("CPU waiting for an interrupt."); return true;
+      }
+      return false;
+    },
     schedule(callback, delay) { const id = window.setTimeout(callback, delay); return () => window.clearTimeout(id); },
     onChange: refresh, batchSize: 10_000,
   });
@@ -71,17 +82,17 @@ function mountCoco(root: HTMLElement): void {
     walkthroughs: Object.values(guides).flatMap(guide => guide.walkthroughs),
   }, {
     available: tour => cocoWalkthroughAvailable(tour, guides, observeCocoRoms(session.machine)),
-    runTo: address => runTo(parseInt(address, 16)),
+    runTo: address => runTo(parseInt(address, 16), "rom"),
     browse: address => { code.browse(address); workspace.show("code"); },
     reference: address => {
       const entry = annotations.reference.at(address)!;
       at("coco-routine-reference").textContent = `$${entry.address} · ${entry.name}: ${entry.description}`;
     },
   })!;
-  function runTo(address: number): void {
+  function runTo(address: number, space?: "rom"): void {
     if (!session.hasFirmware || selecting || execution.running || execution.error !== undefined) return;
     targetInput.value = cocoHex(address); targetInput.setCustomValidity("");
-    target.start(address, execution.steps); message.textContent = ""; execution.run();
+    debug.runTo(address, space); message.textContent = ""; execution.run();
   }
 
   function shouldUpdate(id: string): boolean {
@@ -107,10 +118,7 @@ function mountCoco(root: HTMLElement): void {
     at("machine-status").textContent = `${running ? "Running" : ready ? "Paused" : "Ready for ROM"} · ${execution.steps.toLocaleString()} steps`
       + (session.pendingInput ? ` · ${session.pendingInput} keys queued` : "");
     at("machine-error").textContent = execution.error ?? "";
-    if (!running && !target.stopped) target.cancel();
-    at("run-target-status").textContent = target.address === undefined ? "" : target.stopped === "reached"
-      ? `Paused before the boundary at $${cocoHex(target.address)}.` : target.stopped === "limit"
-      ? `Stopped after 2,000,000 boundaries; $${cocoHex(target.address)} was not reached.` : `Running to $${cocoHex(target.address)}…`;
+    debugView.refresh();
     const record = execution.records.at(-1);
     at("last-step").textContent = record ? record.instruction
       ? `$${cocoHex(record.instruction.address)}   ${record.instruction.bytes.map(byte => cocoHex(byte, 2)).join(" ")}   ${record.outcome}`
@@ -129,7 +137,7 @@ function mountCoco(root: HTMLElement): void {
     catch (cause) { message.textContent = cause instanceof Error ? cause.message : String(cause); }
     refresh();
   }
-  function changedMachine(): void { execution.reset(); target.cancel(); inspectors.reset(); }
+  function changedMachine(): void { execution.reset(); debug.reset(); inspectors.reset(); }
   function installRom(id: RomSlot, verified: RomFile): void {
     const firmware = id === "firmware" ? verified : roms.firmware;
     const extended = id === "extended" ? verified : roms.extended;
@@ -143,6 +151,7 @@ function mountCoco(root: HTMLElement): void {
     slot.load.addEventListener("click", () => slot.file.click());
     slot.file.addEventListener("change", () => { void (async () => {
       const chosen = slot.file.files?.[0]; if (!chosen) return;
+      if (execution.running) debug.pause();
       execution.stop(); selecting = true; message.textContent = `Checking ${chosen.name}…`; refresh();
       try {
         const prepared = await slot.storage.prepare(chosen); installRom(slot.id, prepared.rom);
@@ -162,9 +171,9 @@ function mountCoco(root: HTMLElement): void {
     slot.storageStatus.textContent = "Extension removed and forgotten. Fresh hardware is ready for Color BASIC.";
     changedMachine();
   }));
-  run.addEventListener("click", () => { target.cancel(); message.textContent = ""; execution.run(); screen.focus(); });
-  pause.addEventListener("click", () => { target.cancel(); execution.stop(); });
-  step.addEventListener("click", () => { target.cancel(); message.textContent = ""; execution.step(); });
+  run.addEventListener("click", () => { debug.run(); message.textContent = ""; execution.run(); screen.focus(); });
+  pause.addEventListener("click", () => { debug.pause(); execution.stop(); });
+  step.addEventListener("click", () => { debug.step(); message.textContent = ""; execution.step(); });
   targetForm.addEventListener("submit", event => {
     event.preventDefault(); if (targetButton.disabled) return;
     const text = targetInput.value.trim().replace(/^\$|^0x/i, "");
@@ -193,7 +202,8 @@ function mountCoco(root: HTMLElement): void {
   });
   function releaseFocus(): void {
     const hadInput = session.pendingInput > 0;
-    target.cancel(); execution.stop(); session.releaseInput();
+    if (execution.running) debug.pause();
+    execution.stop(); session.releaseInput();
     if (hadInput) message.textContent = "Paused after focus left the window; queued keys were released.";
     refresh();
   }

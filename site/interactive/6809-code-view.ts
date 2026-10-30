@@ -16,7 +16,8 @@ export interface Code6809Annotations {
 
 /** A held code inspector owns its observations; navigating or changing modes never reads a machine. */
 export function create6809CodeView(panel: HTMLElement, catalogue: Catalogue6809,
-  memory: { readonly address: () => number; readonly browse: (address: number) => void }) {
+  memory: { readonly address: () => number; readonly browse: (address: number) => void },
+  breakpoints: { readonly has: (address: number) => boolean; readonly toggle: (address: number) => void }) {
   const body = panel.querySelector<HTMLTableSectionElement>("[data-code-rows]")!;
   const status = panel.querySelector<HTMLElement>("[data-code-status]")!;
   let image: Int16Array = new Int16Array(0x10000).fill(-1), pc = 0, dp = 0, recent: readonly Boundary6809[] = [];
@@ -36,13 +37,18 @@ export function create6809CodeView(panel: HTMLElement, catalogue: Catalogue6809,
   const controls = document.createElement("span"); controls.className = "lab-inspector-controls";
   controls.append(mode.element, notes);
   const views = Array.from({ length: 16 }, () => {
-    const row = body.insertRow(), pointer = row.insertCell(), entry = row.insertCell(), address = row.insertCell(), bytes = row.insertCell(), assembly = row.insertCell();
+    const row = body.insertRow(), stop = row.insertCell(), pointer = row.insertCell(), entry = row.insertCell(), address = row.insertCell(), bytes = row.insertCell(), assembly = row.insertCell();
     const operand = row.insertCell(), note = row.insertCell(); note.className = "lab-rom-note";
     // Keep address buttons stable while execution changes their destinations.
     const button = document.createElement("button"); button.type = "button"; address.append(button);
     let location = 0; button.addEventListener("click", () => memory.browse(location));
+    const breakpoint = document.createElement("button"); breakpoint.type = "button"; breakpoint.className = "lab-breakpoint-marker";
+    breakpoint.addEventListener("click", () => breakpoints.toggle(location)); stop.append(breakpoint);
     return { row, pointer, bytes, assembly, entry, operand, note, show(address: number) {
       location = address; button.textContent = hex(address); button.title = `View $${hex(address)} in Memory`;
+      const enabled = breakpoints.has(address); breakpoint.textContent = enabled ? "●" : "○";
+      breakpoint.setAttribute("aria-pressed", String(enabled));
+      breakpoint.setAttribute("aria-label", `Toggle breakpoint at $${hex(address)}`);
     } };
   });
   function render(): void {
@@ -86,6 +92,7 @@ export function create6809CodeView(panel: HTMLElement, catalogue: Catalogue6809,
   }
   return {
     controls,
+    refreshBreakpoints: render,
     browse(address: number): void { mode.select("mem"); memory.browse(address); render(); },
     memoryMoved(): void { if (mode.value === "mem") render(); },
     refresh(read: (address: number) => number | undefined, state: { readonly pc: number; readonly dp: number }, records: readonly Boundary6809[],

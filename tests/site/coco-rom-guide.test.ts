@@ -12,6 +12,7 @@ import { readCocoStorage, cocoScreenText } from "../../site/interactive/coco-ins
 import { cocoTextInput } from "../../site/interactive/coco-input.js";
 import { previewCocoInstruction } from "../../site/interactive/coco-instruction-preview.js";
 import { createExecutionTarget } from "../../site/interactive/execution-target.js";
+import { createCocoDebugger } from "../../site/interactive/coco-debugger.js";
 import { RomImage } from "../../src/machines/rom-image.js";
 import { romImages } from "../../src/machines/generated/6809/coco.js";
 import { renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
@@ -103,10 +104,11 @@ test("the chapter's PSET checkpoints reach the declared states and write exactly
   const tour = guides.extended.walkthroughs[0]!;
   const checkpoints = tour.steps.map(step => parseInt(step.address, 16));
   assert.deepEqual(checkpoints, [0x9361, 0x9374, 0x92c2, 0x92d9, 0x9377, 0x9386, 0x9388]);
-  let saved: ReturnType<typeof session.snapshot> | undefined;
+  let saved: ReturnType<typeof session.snapshot> | undefined, psetStart: typeof saved;
   for (const address of checkpoints) {
     target.start(address, steps); while (!target.beforeStep(state().pc, steps)) advance();
     assert.equal(target.stopped, "reached"); assert.equal(state().pc, address); assert.equal(state().dp, 0);
+    if (address === 0x9361) psetStart = session.snapshot();
     const row = decode6809(read, address, catalogue); assert.ok(describe(row, state().dp).note);
     if (address === 0x9374) {
       assert.deepEqual([0xb5, 0xb6, 0xb9, 0xba, 0xbb, 0xbd, 0xbe, 0xbf, 0xc0].map(read), [0xaa, 3, 32, 6, 0, 0, 65, 0, 96]);
@@ -129,6 +131,23 @@ test("the chapter's PSET checkpoints reach the declared states and write exactly
       assert.equal(rows[0]!.dp, 0); assert.equal(rows[1]!.dp, undefined);
       const resumed = createCocoSession(firmware, extended); resumed.restore(saved);
       assert.deepEqual(resumed.step(), record); assert.deepEqual(resumed.snapshot(), session.snapshot());
+      // Discover the writer from the command entry, with the same debugger used by the lab.
+      resumed.restore(psetStart!);
+      const debug = createCocoDebugger(() => resumed.machine);
+      debug.setBreakpoints([{ address: 0x9361, enabled: true }]);
+      debug.setWatchpoints([{ address: 0x1210, enabled: true }]);
+      debug.run(); assert.equal(debug.beforeStep(), true); assert.equal(debug.stop?.kind, "breakpoint");
+      assert.deepEqual(resumed.snapshot(), psetStart, "a breakpoint cannot consume a queued keyboard phase");
+      debug.run();
+      let count = 0;
+      while (!debug.beforeStep()) { assert.ok(count++ < 100_000); debug.capture(() => resumed.step()); }
+      assert.equal(debug.stop?.kind, "watchpoint");
+      assert.deepEqual([debug.hit?.record.instruction?.address, debug.hit?.address, debug.hit?.before, debug.hit?.after], [0x9386, 0x1210, 0, 0x20]);
+      assert.deepEqual(resumed.snapshot(), session.snapshot());
+      resumed.restore(saved); debug.reset(); debug.step();
+      assert.deepEqual(debug.capture(() => resumed.step()), record);
+      assert.equal(debug.stop?.kind, "watchpoint"); assert.equal(debug.watchpoints.length, 1); assert.equal(debug.breakpoints.length, 1);
+      debug.dispose();
     }
   }
   settle(); const frame = renderCocoFrame(session.machine);
