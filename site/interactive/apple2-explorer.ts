@@ -1,21 +1,9 @@
 import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 import type { StackFlow } from "./instruction-debugger.js";
 
-export interface AddressLabel {
-  readonly address: string;
-  readonly name: string;
-  readonly description: string;
-}
-export interface MemoryLabel extends AddressLabel {
-  readonly scope: "workspace" | "hardware" | "rom";
-  /** An explicit little-endian workspace word; omitted labels describe individual bytes. */
-  readonly bytes?: 2;
-}
-export interface RomRegion {
-  readonly start: string;
-  readonly end: string;
-  readonly name: string;
-}
+import type { AddressLabel } from "./rom-reference.js";
+export type { AddressLabel, MemoryLabel, RomRegion } from "./rom-reference.js";
+
 export interface Apple2TraceEntry {
   readonly record: Cpu6502StepRecord;
   /** Capture the mapping before execution; a later bank switch must not relabel history. */

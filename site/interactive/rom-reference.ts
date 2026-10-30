@@ -1,5 +1,18 @@
-import type { RomRegion, AddressLabel } from "./apple2-explorer.js";
-
+export interface AddressLabel {
+  readonly address: string;
+  readonly name: string;
+  readonly description: string;
+}
+export interface MemoryLabel extends AddressLabel {
+  readonly scope: "workspace" | "hardware" | "rom";
+  /** An explicit workspace word; byte order belongs to the machine. Omitted labels describe bytes. */
+  readonly bytes?: 2;
+}
+export interface RomRegion {
+  readonly start: string;
+  readonly end: string;
+  readonly name: string;
+}
 /** A software reference, independent of memory reads or instruction execution. */
 export function createRomReference(regions: readonly RomRegion[], routines: readonly AddressLabel[], labels: readonly AddressLabel[] = []) {
   const entries = [...routines, ...labels].sort((a, b) => parseInt(a.address, 16) - parseInt(b.address, 16));

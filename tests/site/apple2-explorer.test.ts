@@ -11,7 +11,7 @@ import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { createApple2Session } from "../../site/interactive/apple2-session.js";
 import { disassemble6502, formatApple2Trace, romRoutine } from "../../site/interactive/apple2-explorer.js";
 import type { AddressLabel, MemoryLabel, RomRegion, Apple2TraceEntry } from "../../site/interactive/apple2-explorer.js";
-import { createRomReference } from "../../site/interactive/apple2-rom-reference.js";
+import { createRomReference } from "../../site/interactive/rom-reference.js";
 import { readRomFile } from "../../site/interactive/rom-file.js";
 import { apple2StorageReader, apple2MemoryAddresses } from "../../site/interactive/apple2-inspection.js";
 import { apple2TextFrame } from "../../site/interactive/apple2-screen.js";

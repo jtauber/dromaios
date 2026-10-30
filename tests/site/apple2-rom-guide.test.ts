@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { createRomNotes, romCheckpointPosition } from "../../site/interactive/apple2-rom-guide.js";
-import type { Apple2RomGuide } from "../../site/interactive/apple2-rom-guide.js";
+import { createRomNotes, romCheckpointPosition } from "../../site/interactive/rom-guide.js";
+import type { RomGuide } from "../../site/interactive/rom-guide.js";
 import { instructionCatalogue6502 } from "../../site/6502-instruction-catalogue.js";
 import { families } from "../../src/components/cpus/semantics/generated/6502.js";
 import { createInstructionDebugger } from "../../site/interactive/instruction-debugger.js";
@@ -16,7 +16,7 @@ import { apple2StorageReader } from "../../site/interactive/apple2-inspection.js
 import { createApple2WatchHistory } from "../../site/interactive/apple2-watch-history.js";
 import { createApple2ChangeLog } from "../../site/interactive/apple2-change-log.js";
 
-const guide: Apple2RomGuide = JSON.parse(readFileSync("docs/software/apple2p-rom.md", "utf8").match(/```json\n([\s\S]*?)```/)![1]!);
+const guide: RomGuide = JSON.parse(readFileSync("docs/software/apple2p-rom.md", "utf8").match(/```json\n([\s\S]*?)```/)![1]!);
 const instructions = instructionCatalogue6502(Object.values(families).flat());
 
 test("ROM comments require the exact address, complete instruction bytes, and observed ROM mapping", () => {

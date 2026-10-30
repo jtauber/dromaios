@@ -459,6 +459,554 @@ uses these exact program lines, independently checks the bitmap, exercises all
 five `PMODE` settings, and compares restored continuation through the native
 keyboard path. Set `COCO_ROM` and `COCO_EXTENDED_ROM` to the separate images.
 
+## Follow PSET into graphics RAM
+
+The laboratory's **Walkthrough** panel now offers the reset-to-text path and
+**Extended BASIC: PSET to a pixel**. Routine names appear before addresses in
+Disassembly; referenced addresses appear beside operands, and **Notes** toggles
+instruction comments. These annotations describe the exact ROM versions above.
+Labels are landmarks, not inferred routine boundaries. Clicking a label browses
+memory without executing; selecting a checkpoint changes only the guide.
+**Run to checkpoint** uses the same bounded execution as Run to address.
+Reaching an address does not establish that the setup was followed.
+
+For the pixel walkthrough, load both ROMs and enter this program one line at a
+time at the BASIC prompt. It deliberately draws only one pixel, so the byte
+calculation can be followed without the many calls made by LINE or CIRCLE.
+
+```text
+10 PMODE3,1:PCLS5
+20 PSET(130,96,7)
+30 SCREEN1,1
+40 IFINKEY$=""THEN40
+50 SCREEN0,0
+60 END
+```
+
+Wait until all input is accepted, then **Pause**. Click the screen and paste
+`RUN` with a trailing newline while paused. Input is queued, so the ROM has not
+yet seen the command. Select **Extended BASIC: PSET to a pixel** and its first
+checkpoint, then choose **Run to checkpoint**. Keep Disassembly, Instruction,
+Direct Page, System Stack, and Memory visible. Each checkpoint explains what
+to do before running and what to observe after it stops. Step and Run remain
+in Execution. A snapshot at a checkpoint preserves the queued keyboard phase.
+
+The seven stops are `$9361`, `$9374`, `$92C2`, `$92D9`, `$9377`, `$9386`, and
+`$9388`. At `$9374`, the interpreter has normalized BASIC x=130 to logical x=65:
+a PMODE 3 pixel spans two raster columns. The row has 32 bytes, and four logical
+pixels fit in each byte. The address is therefore
+`$0600 + 96 × 32 + floor(65 / 4) = $1210`. The remainder, 1, selects mask `$30`
+from `$92E5`. Colour 7 becomes two-bit value `10`, repeated as `$AA` in ALLCOL.
+
+At `$9377`, X points to `$1210` and A holds `$30`. The ROM preserves the other
+pixels and combines the selected colour:
+`($00 & ~$30) | ($AA & $30) = $20`. At `$9386`, **Instruction** predicts the
+store without performing it. **Step** changes RAM from `$00` to `$20` and stops
+at `$9388`. Run normally to reach SCREEN and the key-waiting loop. The small
+magenta mark occupies raster columns 130–131 on row 96; Space returns to text.
+
+The names for the graphics workspace and entry addresses were cross-checked
+with [Extended BASIC Unravelled II][extended-unravelled], Appendix A and Appendix B
+pages B26–B27. The comments and numerical observations here are checked against
+our selected ROMs and the native execution trace. They describe this experiment,
+not all possible inputs to the routines. No ROM is distributed with the guide.
+Direct-page operands are labelled only when DP is known: at the current PC or
+from a captured executed instruction. Indexed operands are not guessed from the
+current registers; Instruction explains their effective addresses separately.
+Empty sockets and unsupported memory mappings do not acquire ROM annotations.
+Held Disassembly observations retain their labels and bytes together.
+
+<details>
+<summary>Versioned ROM annotations used by the laboratory</summary>
+
+```json
+{
+  "firmware": {
+    "sha256": "5375b1caef9df815b781d9cd6df81ecdaddd2642b06a01adac521e40f1329751",
+    "regions": [
+      {
+        "start": "A000",
+        "end": "BFFF",
+        "name": "Color BASIC 1.3"
+      },
+      {
+        "start": "FFE0",
+        "end": "FFFF",
+        "name": "Color BASIC vector alias"
+      }
+    ],
+    "routines": [
+      {
+        "address": "A027",
+        "name": "RESET",
+        "description": "Entry selected by the reset vector. Initializes the board before returning through Y."
+      },
+      {
+        "address": "A00E",
+        "name": "BASIC_START",
+        "description": "Establishes the initial stack and chooses warm or cold BASIC startup."
+      },
+      {
+        "address": "A928",
+        "name": "CLEAR_TEXT",
+        "description": "Fills the text screen with blank characters and initializes the cursor pointer."
+      },
+      {
+        "address": "B267",
+        "name": "CLOSE_PAREN",
+        "description": "Checks the closing parenthesis in a BASIC expression."
+      },
+      {
+        "address": "B26A",
+        "name": "OPEN_PAREN",
+        "description": "Checks the opening parenthesis in a BASIC expression."
+      }
+    ],
+    "labels": [
+      {
+        "address": "0088",
+        "name": "CURSOR",
+        "description": "Address of the next text screen cell, high byte first.",
+        "scope": "workspace",
+        "bytes": 2
+      },
+      {
+        "address": "009F",
+        "name": "GETNCH",
+        "description": "Executable RAM helper that advances the BASIC text pointer.",
+        "scope": "workspace"
+      },
+      {
+        "address": "00A5",
+        "name": "GETCCH",
+        "description": "Executable RAM helper that fetches the current BASIC character.",
+        "scope": "workspace"
+      },
+      {
+        "address": "00A6",
+        "name": "CHARAD",
+        "description": "Operand of the RAM character-fetch instruction; the current BASIC text address, high byte first.",
+        "scope": "workspace",
+        "bytes": 2
+      },
+      {
+        "address": "FF00",
+        "name": "PIA0_A",
+        "description": "Keyboard rows or direction register, selected by control bit 2.",
+        "scope": "hardware"
+      },
+      {
+        "address": "FF02",
+        "name": "PIA0_B",
+        "description": "Keyboard columns or direction register, selected by control bit 2.",
+        "scope": "hardware"
+      },
+      {
+        "address": "FF22",
+        "name": "PIA1_B",
+        "description": "Video control outputs or direction register, selected by control bit 2.",
+        "scope": "hardware"
+      },
+      {
+        "address": "FFC0",
+        "name": "SAM_V0_CLEAR",
+        "description": "Writing clears the low video-mode bit; the written byte is ignored.",
+        "scope": "hardware"
+      },
+      {
+        "address": "FFC1",
+        "name": "SAM_V0_SET",
+        "description": "Writing sets the low video-mode bit; the written byte is ignored.",
+        "scope": "hardware"
+      },
+      {
+        "address": "FFFE",
+        "name": "RESET_VECTOR",
+        "description": "High byte of the reset destination; the following byte supplies its low byte.",
+        "scope": "rom"
+      }
+    ],
+    "notes": [
+      {
+        "address": "A027",
+        "bytes": "31 8C E4",
+        "text": "Save $A00E in Y as the continuation after board initialization."
+      },
+      {
+        "address": "A00E",
+        "bytes": "10 CE 03 D7",
+        "text": "Initialize S to $03D7 before BASIC chooses a startup path."
+      },
+      {
+        "address": "A051",
+        "bytes": "CE FF C0",
+        "text": "Point U at the first SAM control address."
+      },
+      {
+        "address": "A056",
+        "bytes": "A7 C1",
+        "text": "Write a SAM clear address, then advance U by two to the next clear address."
+      },
+      {
+        "address": "A05E",
+        "bytes": "1F 9B",
+        "text": "Set DP from B. The following direct operands use page $00."
+      },
+      {
+        "address": "A07D",
+        "bytes": "BD A9 28",
+        "text": "Call CLEAR_TEXT; the return address $A080 is pushed on S."
+      },
+      {
+        "address": "A928",
+        "bytes": "C6 60",
+        "text": "Choose the blank character used to clear text RAM."
+      },
+      {
+        "address": "A92D",
+        "bytes": "9F 88",
+        "text": "Store the text cursor pointer in RAM at $0088\u2013$0089 when DP is zero."
+      },
+      {
+        "address": "A936",
+        "bytes": "39",
+        "text": "Return to the caller by pulling its address from the system stack."
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "reset-text",
+        "title": "Color BASIC: reset to text",
+        "setup": "Use Color BASIC only, then Fresh power-on. Keep Execution, Disassembly, Instruction, Direct Page, and System Stack visible.",
+        "steps": [
+          {
+            "title": "Reset entry",
+            "address": "A027",
+            "prepare": "Choose Fresh power-on with the extension removed.",
+            "observe": "Step: Y becomes $A00E. The reset vector supplied $A027; the host did not jump to a prompt.",
+            "routine": "RESET"
+          },
+          {
+            "title": "Call the text clear routine",
+            "address": "A07D",
+            "prepare": "Run to this checkpoint after reset.",
+            "observe": "Step: PC becomes $A928; S becomes $03D5 and the stored return address is $A080.",
+            "routine": "CLEAR_TEXT"
+          },
+          {
+            "title": "Establish the cursor",
+            "address": "A92D",
+            "prepare": "Continue from the call; run to this checkpoint.",
+            "observe": "X is $0400. Step stores 04 00 at $0088\u2013$0089, the big-endian cursor pointer.",
+            "routine": "CLEAR_TEXT"
+          },
+          {
+            "title": "Return to initialization",
+            "address": "A936",
+            "prepare": "Run to this checkpoint.",
+            "observe": "All text bytes $0400\u2013$05FF are $60. Step pulls $A080 from S and resumes the caller.",
+            "routine": "CLEAR_TEXT"
+          }
+        ]
+      }
+    ]
+  },
+  "extended": {
+    "sha256": "a18f270d3495d82b9f515de049f46253a623a2d9b1bb226c9ad338508344c5ee",
+    "regions": [
+      {
+        "start": "8000",
+        "end": "9FFF",
+        "name": "Extended Color BASIC 1.1"
+      }
+    ],
+    "routines": [
+      {
+        "address": "9361",
+        "name": "PSET",
+        "description": "Parses coordinates and colour, then changes one graphics pixel."
+      },
+      {
+        "address": "9365",
+        "name": "PRESET",
+        "description": "Uses the same pixel path with the erase selection."
+      },
+      {
+        "address": "931A",
+        "name": "READ_COORDINATES",
+        "description": "Evaluates coordinates and scales them to the current graphics mode."
+      },
+      {
+        "address": "9581",
+        "name": "READ_COLOUR",
+        "description": "Converts the BASIC colour argument into the working colour and repeated pixel pattern."
+      },
+      {
+        "address": "9298",
+        "name": "PIXEL_ADDRESS",
+        "description": "Selects the coordinate-to-byte calculation for the current PMODE."
+      },
+      {
+        "address": "92C2",
+        "name": "FOUR_COLOUR_ADDRESS",
+        "description": "Calculates X and the two-bit pixel mask for a four-colour bitmap."
+      },
+      {
+        "address": "9377",
+        "name": "WRITE_PIXEL",
+        "description": "Merges the selected colour with the other pixels in the byte at X."
+      },
+      {
+        "address": "93BB",
+        "name": "LINE",
+        "description": "Handles LINE, including its drawing and LINE INPUT forms."
+      }
+    ],
+    "labels": [
+      {
+        "address": "00B5",
+        "name": "ALLCOL",
+        "description": "The selected two-bit colour repeated across one byte.",
+        "scope": "workspace"
+      },
+      {
+        "address": "00B6",
+        "name": "PMODE",
+        "description": "The graphics mode chosen by BASIC.",
+        "scope": "workspace"
+      },
+      {
+        "address": "00B9",
+        "name": "HORBYT",
+        "description": "Bytes per logical graphics row.",
+        "scope": "workspace"
+      },
+      {
+        "address": "00BA",
+        "name": "BEGGRP",
+        "description": "Start of the current graphics page, high byte first.",
+        "scope": "workspace",
+        "bytes": 2
+      },
+      {
+        "address": "00BD",
+        "name": "HORBEG",
+        "description": "Current horizontal coordinate; normalized before byte addressing, high byte first.",
+        "scope": "workspace",
+        "bytes": 2
+      },
+      {
+        "address": "00BF",
+        "name": "VERBEG",
+        "description": "Current vertical coordinate, high byte first.",
+        "scope": "workspace",
+        "bytes": 2
+      },
+      {
+        "address": "00C2",
+        "name": "SETFLG",
+        "description": "Pixel operation: 1 for PSET, 0 for PRESET.",
+        "scope": "workspace"
+      },
+      {
+        "address": "00DB",
+        "name": "CHGFLG",
+        "description": "Accumulates whether a graphics byte changed.",
+        "scope": "workspace"
+      },
+      {
+        "address": "92E5",
+        "name": "FOUR_COLOUR_MASKS",
+        "description": "Masks C0, 30, 0C, 03 select successive pixels within a byte.",
+        "scope": "rom"
+      }
+    ],
+    "notes": [
+      {
+        "address": "9361",
+        "bytes": "86 01",
+        "text": "Select the PSET operation before parsing its arguments."
+      },
+      {
+        "address": "9366",
+        "bytes": "97 C2",
+        "text": "Record the set/erase selection in SETFLG when DP is zero."
+      },
+      {
+        "address": "9368",
+        "bytes": "BD B2 6A",
+        "text": "Call the base ROM to check the opening parenthesis."
+      },
+      {
+        "address": "936B",
+        "bytes": "BD 93 1A",
+        "text": "Read and normalize the coordinates for this PMODE."
+      },
+      {
+        "address": "936E",
+        "bytes": "BD 95 81",
+        "text": "Evaluate the colour and prepare ALLCOL."
+      },
+      {
+        "address": "9374",
+        "bytes": "BD 92 98",
+        "text": "Convert normalized coordinates into the byte address X and pixel mask A."
+      },
+      {
+        "address": "9298",
+        "bytes": "8D F5",
+        "text": "Ask the PMODE dispatch table which address calculation to use."
+      },
+      {
+        "address": "929A",
+        "bytes": "6E C4",
+        "text": "Transfer to the calculation selected in U."
+      },
+      {
+        "address": "92C2",
+        "bytes": "34 44",
+        "text": "Preserve B and U while calculating a four-colour pixel address."
+      },
+      {
+        "address": "92C4",
+        "bytes": "D6 B9",
+        "text": "Load the byte width of one graphics row."
+      },
+      {
+        "address": "92C6",
+        "bytes": "96 C0",
+        "text": "Load the low byte of the normalized vertical coordinate."
+      },
+      {
+        "address": "92C8",
+        "bytes": "3D",
+        "text": "Multiply row width by vertical coordinate to get the row offset."
+      },
+      {
+        "address": "92C9",
+        "bytes": "D3 BA",
+        "text": "Add the start of the graphics page to the row offset."
+      },
+      {
+        "address": "92CB",
+        "bytes": "1F 01",
+        "text": "Place the row address in X."
+      },
+      {
+        "address": "92D1",
+        "bytes": "3A",
+        "text": "Add the byte offset within the row to X."
+      },
+      {
+        "address": "92D6",
+        "bytes": "CE 92 E5",
+        "text": "Select the table of four two-bit masks."
+      },
+      {
+        "address": "92D9",
+        "bytes": "A6 C6",
+        "text": "Use A as the mask-table index; the walkthrough selects $30."
+      },
+      {
+        "address": "9377",
+        "bytes": "E6 84",
+        "text": "Read the old screen byte at X before changing one pixel."
+      },
+      {
+        "address": "937D",
+        "bytes": "43",
+        "text": "Invert the pixel mask so the other three pixels can be preserved."
+      },
+      {
+        "address": "937E",
+        "bytes": "A4 84",
+        "text": "Keep the old byte except for the selected pixel bits."
+      },
+      {
+        "address": "9380",
+        "bytes": "D4 B5",
+        "text": "Keep the selected colour only in the pixel-mask positions."
+      },
+      {
+        "address": "9384",
+        "bytes": "AA E0",
+        "text": "Combine the new pixel with the preserved pixels."
+      },
+      {
+        "address": "9386",
+        "bytes": "A7 84",
+        "text": "Write the merged byte to graphics RAM. In this experiment, $1210 changes from $00 to $20."
+      },
+      {
+        "address": "9388",
+        "bytes": "A0 E0",
+        "text": "Compare the new byte with the saved old byte; the screen write has already happened."
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "pset-pixel",
+        "title": "Extended BASIC: PSET to a pixel",
+        "setup": "Load both ROMs. Enter the six-line program in the machine guide and wait for the prompt. Pause, click the screen, and paste RUN followed by Enter while paused. Select the first checkpoint and choose Run to checkpoint.",
+        "steps": [
+          {
+            "title": "Enter PSET",
+            "address": "9361",
+            "prepare": "Queue RUN while paused, then run to this checkpoint.",
+            "observe": "Line 10 has selected PMODE 3 and cleared the bitmap. The pixel byte $1210 is still $00.",
+            "routine": "PSET"
+          },
+          {
+            "title": "Coordinates and colour are ready",
+            "address": "9374",
+            "prepare": "Continue from PSET to this checkpoint.",
+            "observe": "DP=$00; HORBEG at $00BD is $0041 (65), VERBEG at $00BF is $0060 (96), BEGGRP is $0600, HORBYT is $20, and ALLCOL is $AA.",
+            "routine": "PIXEL_ADDRESS"
+          },
+          {
+            "title": "Select the four-colour calculation",
+            "address": "92C2",
+            "prepare": "Continue into the coordinate calculation.",
+            "observe": "U=$92C2: PMODE 3 selected this path. The saved return address leads back to the pixel merge.",
+            "routine": "FOUR_COLOUR_ADDRESS"
+          },
+          {
+            "title": "Select the pixel mask",
+            "address": "92D9",
+            "prepare": "Run through the row and column arithmetic to this checkpoint.",
+            "observe": "X=$1210, A=$01, U=$92E5. Step LDA A,U: A becomes $30, the second two-bit field in a byte.",
+            "routine": "FOUR_COLOUR_ADDRESS"
+          },
+          {
+            "title": "Merge with the old byte",
+            "address": "9377",
+            "prepare": "Run to this checkpoint after loading the mask.",
+            "observe": "X=$1210 and A=$30. The byte is still $00. The next instructions preserve other pixels and select colour bits from ALLCOL=$AA.",
+            "routine": "WRITE_PIXEL"
+          },
+          {
+            "title": "Write the graphics byte",
+            "address": "9386",
+            "prepare": "Run to this checkpoint; do not Step until you have inspected Memory and Instruction.",
+            "observe": "A=$20 and X=$1210. Instruction predicts Write $1210 \u2190 $20. Step performs that single graphics write; Memory changes from $00 to $20.",
+            "routine": "WRITE_PIXEL"
+          },
+          {
+            "title": "After the write",
+            "address": "9388",
+            "prepare": "If you stepped the previous instruction, you are already here.",
+            "observe": "The byte is $20 (00 10 00 00). Run normally to display the magenta pixel at x=130\u2013131, y=96. Press Space to return to BASIC.",
+            "routine": "WRITE_PIXEL"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+</details>
+
 ## Snapshots and acceptance
 
 `snapshot()` owns copies of CPU and RAM state, both PIAs' latches and edge
@@ -520,3 +1068,5 @@ and explicit release without firmware.
 [technical]: https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Color%20Computer%20Technical%20Reference%20Manual%20%28Tandy%29.pdf
 
 [extended-manual]: https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Getting%20Started%20With%20Extended%20Color%20Basic%20%28Tandy%29.pdf
+
+[extended-unravelled]: https://colorcomputerarchive.com/repo/Documents/Books/Unravelled%20Series/extended-basic-unravelled.pdf

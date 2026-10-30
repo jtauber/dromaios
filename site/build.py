@@ -22,6 +22,7 @@ from lessons import BASIC_LESSONS, LESSON_GROUPS
 from lesson_rendering import basic_lesson_catalogue, lesson_markdown
 from machines import ALTAIR, APPLE2, COCO, MACHINES, media_record, rom_container_record
 from apple2_rom import APPLE2_ROM, explorer_catalogue
+from coco_rom import coco_annotations
 from rendering import CHAPTERS, REPOSITORY, ChapterRendering, github_slug
 
 SITE = Path(__file__).resolve().parent
@@ -138,7 +139,8 @@ def build(base):
     coco_instructions = json.loads(subprocess.run(["node", "site/coco-instructions.ts"], cwd=ROOT,
                                                   check=True, capture_output=True, text=True).stdout)
     site.render_template("coco-laboratory.html", f"{coco['coco_lab_url']}index.html",
-                         {**coco, "title": "Color Computer laboratory", "coco_instructions": coco_instructions})
+                         {**coco, "title": "Color Computer laboratory", "coco_instructions": coco_instructions,
+                          "coco_rom_guides": coco_annotations(COCO.read_text(), coco_instructions["romImages"], coco_instructions)})
     loading_source = SITE / "content/basic-loading.md"
     loading = Markup(lesson_markdown(loading_source, base).convert(loading_source.read_text()))
     for index, lesson in enumerate(lessons):

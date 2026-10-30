@@ -87,6 +87,19 @@ extension absent. For Extended BASIC, repeat the chapter's **Draw with Extended
 Color BASIC** program, save/restore its graphics, reload the remembered ROM pair,
 and check **Use Color BASIC only** returns to a fresh base-ROM configuration.
 
+The CoCo chapter also owns checksum-bound ROM annotations and two laboratory
+walkthroughs. `rom_annotations.py`, `rom-reference.ts`, `rom-guide.ts`, and
+`rom-walkthrough-view.ts` serve both Apple II and CoCo; each machine supplies its
+memory bounds, CPU catalogue, and normal run/browse actions. CoCo comments are
+checked against 6809 instruction shapes at publication time and against actual
+ROM bytes in the optional tests. The PSET walkthrough checks every declared
+stop, the predicted and actual pixel store, and snapshot continuation.
+Disassembly holds mapping observations with its bytes; direct-page references
+use the current instruction's DP or the executed record's previous DP.
+The new Walkthrough tab is added beside ROM once without rearranging existing
+panels or reopening hidden tools. Check both tours, Notes, unavailable ROMs,
+Live-off navigation, and normal Step/Run in the browser.
+
 ## Altair BASIC
 
 `/machines/altair-8800/` pairs the executable
@@ -286,7 +299,7 @@ instruction count, and status messages. Below Screen, Execution, MOS 6502, and
 Instruction form a narrow column beside a full-height Disassembly panel.
 Execution can be moved, collapsed, tabbed, or reopened through Panels.
 Disassembly owns execution targets and ROM owns firmware selection
-and reference browsing. `apple2-rom-reference.ts` searches the guide's entries and
+and reference browsing. `rom-reference.ts` searches the guide's entries and
 locates the nearest documented label within its declared ROM region, without
 inventing routine extents. The reference view follows PC or Memory, and exposes
 navigation callbacks to the concrete tools. Only the composition layer opens
@@ -365,10 +378,10 @@ changes since the previous displayed sample. Neither reads the guest bus nor
 copies disk media. These remain concrete Apple II adapters; no new peripheral
 language or runtime compiler is introduced. Disk II descriptions use its existing
 binding metadata and the machine chapter.
-`apple2-rom-guide.ts` types the versioned guide and supplies byte/mapping-checked
+`rom-guide.ts` types the versioned guide and supplies byte/mapping-checked
 instruction notes and checkpoint position text. `apple2-rom-reference-view.ts`
 renders optional routine inputs, effects, workspace links, and related entries;
-`apple2-walkthrough-view.ts` renders authored checkpoints and requests the existing
+`rom-walkthrough-view.ts` renders authored checkpoints and requests the existing
 ROM-only debugger stops. Selecting a checkpoint is read-only. The guide contains
 no setup scripts, assertions that an address match proves a scenario, or hidden
 machine mutations. `apple2_rom.py` validates addresses, references, and instruction

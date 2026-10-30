@@ -6,19 +6,24 @@ const group = (...panels: string[]): LayoutNode => ({ kind: "tabs", id: `coco-${
 const area = (weight: number, node: LayoutNode): SplitItem => ({ weight, node });
 const column = (id: string, ...items: SplitItem[]): LayoutNode => ({ kind: "split", id, axis: "vertical", items });
 
-export const cocoWorkspaceKey = "dromaios:workspace:coco:3";
+export const cocoWorkspaceKey = "dromaios:workspace:coco:4";
 export const cocoDefaultLayout: WorkspaceLayout = {
   root: { kind: "split", id: "coco-columns", axis: "horizontal", items: [
     area(.30, column("coco-screen-controls", area(.5, group("screen")), area(.2, group("execution")), area(.3, group("instruction")))),
     area(.28, column("coco-cpu-code", area(.22, group("registers")), area(.78, group("code")))),
     area(.24, column("coco-memory-tools", area(.3, group("memory")), area(.3, group("direct-page")), area(.2, group("stack-s")), area(.2, group("stack-u")))),
-    area(.18, column("coco-devices", area(.27, group("sam")), area(.45, group("pias")), area(.28, group("rom", "states")))),
+    area(.18, column("coco-devices", area(.27, group("sam")), area(.45, group("pias")), area(.28, group("rom", "walkthrough", "states")))),
   ] },
 };
 
 /** Add tools once per layout version; deliberately hidden older tools stay hidden. */
 export function migrateCocoWorkspace(storage: { getItem(key: string): string | null; setItem(key: string, value: string): void }, ids: readonly string[]): void {
   if (storage.getItem(cocoWorkspaceKey) !== null) return;
+  const version3 = storage.getItem("dromaios:workspace:coco:3");
+  if (version3 !== null) {
+    const layout = decodeWorkspaceState(version3, ids);
+    storage.setItem(cocoWorkspaceKey, encodeWorkspaceState(withWalkthrough(layout))); return;
+  }
   const version2 = storage.getItem("dromaios:workspace:coco:2");
   const saved = version2 ?? storage.getItem("dromaios:workspace:coco:1"); if (saved === null) return;
   let layout = decodeWorkspaceState(saved, ids);
@@ -39,5 +44,13 @@ export function migrateCocoWorkspace(storage: { getItem(key: string): string | n
   }
   if (memory) layout = collapseGroup(activatePanel(layout, memory.active), memory.id, memory.collapsed);
   else if (destination) layout = activatePanel(layout, destination.panels[0]!);
-  storage.setItem(cocoWorkspaceKey, encodeWorkspaceState(layout));
+  storage.setItem(cocoWorkspaceKey, encodeWorkspaceState(withWalkthrough(layout)));
+}
+
+function withWalkthrough(layout: WorkspaceLayout): WorkspaceLayout {
+  if (panelGroup(layout, "walkthrough")) return layout;
+  const rom = panelGroup(layout, "rom");
+  if (!rom) return openPanel(layout, "walkthrough");
+  const added = movePanel(layout, "walkthrough", { group: rom.id, side: "tab" });
+  return collapseGroup(activatePanel(added, rom.active), rom.id, rom.collapsed);
 }

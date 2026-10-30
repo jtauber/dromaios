@@ -11,8 +11,8 @@ import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502
 import type { createApple2Session } from "./apple2-session.js";
 import { formatApple2Trace, hex, parseApple2Address, romRoutine } from "./apple2-explorer.js";
 import type { Apple2TraceEntry, InstructionCatalogue } from "./apple2-explorer.js";
-import { createApple2Walkthrough } from "./apple2-walkthrough-view.js";
-import type { Apple2RomGuide } from "./apple2-rom-guide.js";
+import { createRomWalkthrough } from "./rom-walkthrough-view.js";
+import type { RomGuide } from "./rom-guide.js";
 import { createApple2Disassembly } from "./apple2-disassembly-view.js";
 import { createApple2History } from "./apple2-history-view.js";
 import { createApple2RomReference } from "./apple2-rom-reference-view.js";
@@ -29,7 +29,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   readonly browse: (tool: InspectorTool, address: number, from?: InspectorTool) => void;
 }) {
   const element = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
-  const catalogue = JSON.parse(element("rom-catalogue").textContent!) as Apple2RomGuide & {
+  const catalogue = JSON.parse(element("rom-catalogue").textContent!) as RomGuide & {
     readonly instructions: InstructionCatalogue;
     readonly hardware: Apple2HardwareCatalogue;
   };
@@ -45,7 +45,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   const disassembly = createApple2Disassembly(root, catalogue, address => { debuggerState.runTo(location(), address); run(); },
     (tool, address) => navigation.browse(tool, address, "code"), { address: navigation.memoryAddress, browse: navigation.browseMemory }, breakpoints);
   const reference = createApple2RomReference(root, catalogue, (tool, address) => navigation.browse(tool, address, "rom"));
-  const walkthrough = createApple2Walkthrough(root, catalogue, {
+  const walkthrough = createRomWalkthrough(root, catalogue, {
     runTo: address => start(address, true),
     browse: address => navigation.browse("code", address),
     reference: address => navigation.browse("rom", address),

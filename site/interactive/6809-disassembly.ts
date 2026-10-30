@@ -87,3 +87,15 @@ export function decode6809(read: (address: number) => number | undefined, addres
 
 export const disassemble6809Rows = (read: (address: number) => number | undefined, start: number, catalogue: Catalogue6809, count = 16) =>
   disassemblyRows(start, count, address => decode6809(read, address, catalogue));
+
+/** Encoded addresses only. Direct-page operands require the DP observed at this instruction. */
+export function address6809Operand(row: Decoded6809, dp?: number): number | undefined {
+  if (!row.complete) return undefined;
+  const bytes = row.bytes.slice(row.opcodeBytes);
+  switch (row.info?.operand) {
+    case "relative": return row.target;
+    case "extended": return bytes[0]! * 256 + bytes[1]!;
+    case "direct": return dp === undefined ? undefined : dp * 256 + bytes[0]!;
+    default: return undefined; // Immediate constants and indexed forms are not absolute addresses.
+  }
+}

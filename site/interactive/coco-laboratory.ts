@@ -1,4 +1,7 @@
 import { romImages } from "../../src/machines/generated/6809/coco.js";
+import { createRomWalkthrough } from "./rom-walkthrough-view.js";
+import { createCocoRomAnnotations, observeCocoRoms, cocoWalkthroughAvailable } from "./coco-rom-guide.js";
+import type { CocoRomGuides } from "./coco-rom-guide.js";
 import { createCocoSession } from "./coco-session.js";
 import { cocoScreenKey, cocoTextInput } from "./coco-input.js";
 import { cocoHex, readCocoStorage } from "./coco-inspection.js";
@@ -48,6 +51,8 @@ function mountCoco(root: HTMLElement): void {
   let requested: readonly string[] = [];
   const panels = [...root.querySelectorAll<HTMLElement>("[data-workspace-panel]")];
   const updates = createPanelUpdates(root, id => refreshPanels([id]), "dromaios:inspectors:coco:live");
+  const guides: CocoRomGuides = JSON.parse(at("coco-rom-guides").textContent!);
+  const annotations = createCocoRomAnnotations(guides);
   const catalogue: Catalogue6809 = JSON.parse(at("coco-instructions").textContent!);
   const inspectors = createCocoInspectors(root, () => code.memoryMoved(), browse), display = createCocoScreen(root);
   function browse(address: number): void { inspectors.memory.browse(address); workspace.show("memory"); }
@@ -61,6 +66,23 @@ function mountCoco(root: HTMLElement): void {
     onChange: refresh, batchSize: 10_000,
   });
   execution.setDelay(1);
+  const walkthrough = createRomWalkthrough(root, {
+    routines: Object.values(guides).flatMap(guide => guide.routines),
+    walkthroughs: Object.values(guides).flatMap(guide => guide.walkthroughs),
+  }, {
+    available: tour => cocoWalkthroughAvailable(tour, guides, observeCocoRoms(session.machine)),
+    runTo: address => runTo(parseInt(address, 16)),
+    browse: address => { code.browse(address); workspace.show("code"); },
+    reference: address => {
+      const entry = annotations.reference.at(address)!;
+      at("coco-routine-reference").textContent = `$${entry.address} · ${entry.name}: ${entry.description}`;
+    },
+  })!;
+  function runTo(address: number): void {
+    if (!session.hasFirmware || selecting || execution.running || execution.error !== undefined) return;
+    targetInput.value = cocoHex(address); targetInput.setCustomValidity("");
+    target.start(address, execution.steps); message.textContent = ""; execution.run();
+  }
 
   function shouldUpdate(id: string): boolean {
     return requested.includes(id) || updates.shouldUpdate(id, execution.running)
@@ -94,7 +116,10 @@ function mountCoco(root: HTMLElement): void {
       ? `$${cocoHex(record.instruction.address)}   ${record.instruction.bytes.map(byte => cocoHex(byte, 2)).join(" ")}   ${record.outcome}`
       : `${"source" in record ? record.source.toUpperCase() + " · " : ""}${record.outcome}` : "No steps recorded";
     inspectors.refresh(session.machine, shouldUpdate);
-    if (shouldUpdate("code")) code.refresh(address => readCocoStorage(session.machine, address), session.machine.cpu.snapshot().pc, execution.records);
+    const state = session.machine.cpu.snapshot(), mapping = observeCocoRoms(session.machine);
+    walkthrough.refresh({ address: state.pc, space: mapping.mapped(state.pc) ? "rom" : state.pc < 0x8000 ? "ram" : "unavailable" },
+      ready && execution.error === undefined && session.machine.sam.supportedMemory(), running);
+    if (shouldUpdate("code")) code.refresh(address => readCocoStorage(session.machine, address), state, execution.records, annotations.observe(mapping));
     if (shouldUpdate("instruction")) instruction(session.machine.sam.supportedMemory()
       ? previewCocoInstruction(session.machine, catalogue) : "Unsupported SAM memory configuration.");
     if (shouldUpdate("screen")) display.refresh(session.machine);
@@ -146,7 +171,7 @@ function mountCoco(root: HTMLElement): void {
     if (!/^[0-9a-f]{1,4}$/i.test(text)) {
       targetInput.setCustomValidity("Enter a hexadecimal address from 0000 to FFFF."); targetInput.reportValidity(); return;
     }
-    target.start(parseInt(text, 16), execution.steps); message.textContent = ""; execution.run();
+    runTo(parseInt(text, 16));
   });
   targetInput.addEventListener("input", () => targetInput.setCustomValidity(""));
   reset.addEventListener("click", () => action(() => { session.reset(); changedMachine(); }));

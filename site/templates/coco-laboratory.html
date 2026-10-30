@@ -18,6 +18,7 @@
 {% block main %}
 <main id="main" class="laboratory coco-laboratory" data-coco-laboratory>
   <script type="application/json" data-coco-instructions>{{ coco_instructions | tojson }}</script>
+  <script type="application/json" data-coco-rom-guides>{{ coco_rom_guides | tojson }}</script>
   <noscript><p>Enable JavaScript to use the laboratory. <a href="{{ calc_url(coco_url) }}">Read the machine guide</a>.</p></noscript>
   <div class="workspace-scroll"><div class="workspace-dock" data-workspace-root aria-label="CoCo laboratory workspace"></div></div>
   <div data-workspace-panels hidden>
@@ -63,7 +64,7 @@
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="code" data-panel-title="Disassembly" data-panel-live="true" data-coco-code>
       <p class="basic-readout" data-code-status></p>
-      <table class="lab-code"><thead><tr><th aria-label="Execution position"></th><th>Address</th><th>Bytes</th><th>Instruction</th></tr></thead><tbody data-code-rows></tbody></table>
+      <table class="lab-code"><thead><tr><th aria-label="Execution position"></th><th>Routine</th><th>Address</th><th>Bytes</th><th>Instruction</th><th>Reference</th><th data-code-notes-heading>Comment</th></tr></thead><tbody data-code-rows></tbody></table>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="direct-page" data-panel-title="Direct Page" data-panel-live="true" data-coco-direct-page>
       <p class="basic-readout" data-register-memory-status></p><div data-register-memory-output></div>
@@ -102,6 +103,20 @@
       <p class="lab-hint"><a href="{{ calc_url(coco_url) }}" target="_blank" rel="noopener">Read the machine guide ↗</a></p>
       <p class="lab-hint"><a href="{{ calc_url(coco_url) }}#following-color-basic" target="_blank" rel="noopener">Follow Color BASIC from reset ↗</a></p>
       <p class="lab-hint"><a href="{{ calc_url(coco_url) }}#draw-with-extended-color-basic" target="_blank" rel="noopener">Draw with Extended BASIC ↗</a></p>
+    </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="walkthrough" data-panel-title="Walkthrough" data-rom-walkthrough>
+      <label>ROM walkthrough <select data-walkthrough-choice aria-label="ROM walkthrough"></select></label>
+      <p data-walkthrough-setup class="lab-walkthrough-setup"></p>
+      <label>Checkpoint <select data-walkthrough-checkpoints aria-label="Checkpoint"></select></label>
+      <div class="lab-walkthrough-navigation"><button type="button" data-walkthrough-previous>Previous</button><button type="button" data-walkthrough-next>Next</button></div>
+      <h2 data-walkthrough-heading></h2>
+      <h3>Before running</h3><p data-walkthrough-prepare></p>
+      <div class="basic-controls"><button type="button" data-walkthrough-run disabled>Run to checkpoint</button><button type="button" data-walkthrough-browse>Browse code</button><button type="button" data-walkthrough-reference>Routine reference</button></div>
+      <p data-walkthrough-position class="lab-hint" role="status"></p>
+      <h3>What to observe</h3><p data-walkthrough-observe></p>
+      <p data-coco-routine-reference class="lab-hint"></p>
+      <p class="lab-hint">Selecting a checkpoint only changes the guide. Run stops before its address, or after 2,000,000 boundaries. Reaching an address does not verify the setup. Step and Run remain in Execution.</p>
+      <p><a href="{{ calc_url(coco_url) }}#follow-pset-into-graphics-ram" target="_blank" rel="noopener">Read the walkthrough and program ↗</a></p>
     </section>
     <section class="lab-tool lab-panel-body" data-workspace-panel="states" data-panel-title="Snapshot">
       <div class="basic-controls"><button type="button" data-snapshot-save disabled>Save snapshot</button><button type="button" data-snapshot-restore disabled>Restore snapshot</button><button type="button" data-snapshot-forget disabled>Forget snapshot</button></div>

@@ -11,8 +11,8 @@ export function code6809Rows(read: (address: number) => number | undefined, star
     const decoded = decode6809(address => instruction.bytes[(address - instruction.address) & 0xffff], instruction.address, catalogue);
     const nextIndex = recent[position + 1]?.index ?? records.length;
     return { ...decoded, bytes: instruction.bytes, complete: record.outcome !== "unsupported" && decoded.complete,
-      executed: true, boundaryAfter: records.slice(index + 1, nextIndex).some(record => !record.instruction) };
+      executed: true, dp: record.before.dp, boundaryAfter: records.slice(index + 1, nextIndex).some(record => !record.instruction) };
   });
   return [...previous, ...disassemble6809Rows(read, start, catalogue, 16 - previous.length)
-    .map(row => ({ ...row, executed: false, boundaryAfter: false }))];
+    .map(row => ({ ...row, executed: false, dp: undefined, boundaryAfter: false }))];
 }

@@ -6,15 +6,15 @@ import { apple2StorageReader } from "./apple2-inspection.js";
 import { memoryLink } from "./memory-link.js";
 import { address6502Operand, hex, parseApple2Address } from "./apple2-explorer.js";
 import type { Apple2TraceEntry, InstructionCatalogue, AddressLabel } from "./apple2-explorer.js";
-import type { Apple2RomGuide } from "./apple2-rom-guide.js";
-import { createRomNotes } from "./apple2-rom-guide.js";
+import type { RomGuide } from "./rom-guide.js";
+import { createRomNotes } from "./rom-guide.js";
 import { createInspectorChoices } from "./inspector-controls.js";
 import type { InspectorTool } from "./inspector-history.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 
 /** A laboratory instrument: navigation changes the view; address buttons request normal execution. */
-export function createApple2Disassembly(root: HTMLElement, catalogue: Apple2RomGuide & { readonly instructions: InstructionCatalogue }, runTo: (address: number) => void,
+export function createApple2Disassembly(root: HTMLElement, catalogue: RomGuide & { readonly instructions: InstructionCatalogue }, runTo: (address: number) => void,
   navigate: (tool: InspectorTool, address: number) => void, memory: {
   readonly address: () => number; readonly browse: (address: number) => void;
 }, breakpoints?: ReturnType<typeof createApple2Breakpoints>) {

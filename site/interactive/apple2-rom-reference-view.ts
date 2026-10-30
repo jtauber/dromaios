@@ -1,6 +1,6 @@
-import { createRomReference } from "./apple2-rom-reference.js";
+import { createRomReference } from "./rom-reference.js";
 import { hex } from "./apple2-explorer.js";
-import type { Apple2RomGuide, RomRoutine } from "./apple2-rom-guide.js";
+import type { RomGuide, RomRoutine } from "./rom-guide.js";
 import type { AddressLabel } from "./apple2-explorer.js";
 import type { InspectorTool } from "./inspector-history.js";
 
@@ -12,7 +12,7 @@ interface ReferenceState {
 }
 
 /** Reference selection and navigation never run code or change the processor's PC. */
-export function createApple2RomReference(root: HTMLElement, catalogue: Apple2RomGuide, navigate: (tool: InspectorTool, address: number) => void) {
+export function createApple2RomReference(root: HTMLElement, catalogue: RomGuide, navigate: (tool: InspectorTool, address: number) => void) {
   const panel = root.querySelector<HTMLElement>("[data-rom-reference]");
   if (!panel) return undefined;
   const element = <T extends HTMLElement>(name: string) => panel.querySelector<T>(`[data-reference-${name}]`)!;

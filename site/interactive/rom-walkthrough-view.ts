@@ -1,12 +1,13 @@
 import type { DebugLocation } from "./instruction-debugger.js";
-import type { Apple2RomGuide } from "./apple2-rom-guide.js";
-import { romCheckpointPosition } from "./apple2-rom-guide.js";
+import type { RomGuide, RomWalkthrough } from "./rom-guide.js";
+import { romCheckpointPosition } from "./rom-guide.js";
 
 /** Reading and selecting checkpoints is independent of execution; only Run requests the existing debugger. */
-export function createApple2Walkthrough(root: HTMLElement, guide: Apple2RomGuide, actions: {
+export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "routines" | "walkthroughs">, actions: {
   readonly runTo: (address: string) => void;
   readonly browse: (address: number) => void;
   readonly reference: (address: number) => void;
+  readonly available?: (tour: RomWalkthrough) => boolean;
 }) {
   const panel = root.querySelector<HTMLElement>("[data-rom-walkthrough]");
   if (!panel) return undefined;
@@ -19,9 +20,10 @@ export function createApple2Walkthrough(root: HTMLElement, guide: Apple2RomGuide
   const checkpoint = () => selected().steps[checkpoints.selectedIndex]!;
   for (const tour of guide.walkthroughs) choice.add(new Option(tour.title, tour.id));
   function showPosition(): void {
-    run.disabled = !available || running;
+    const enabled = available && (actions.available?.(selected()) ?? true);
+    run.disabled = !enabled || running;
     position.setAttribute("aria-live", running ? "off" : "polite");
-    const text = romCheckpointPosition(checkpoint(), location, available, running);
+    const text = romCheckpointPosition(checkpoint(), location, enabled, running);
     if (position.textContent !== text) position.textContent = text;
   }
   function showCheckpoint(): void {
@@ -40,7 +42,7 @@ export function createApple2Walkthrough(root: HTMLElement, guide: Apple2RomGuide
   choice.addEventListener("change", showTour); checkpoints.addEventListener("change", showCheckpoint);
   previous.addEventListener("click", () => { checkpoints.selectedIndex--; showCheckpoint(); });
   next.addEventListener("click", () => { checkpoints.selectedIndex++; showCheckpoint(); });
-  run.addEventListener("click", () => { if (available && !running) actions.runTo(checkpoint().address); });
+  run.addEventListener("click", () => { if (!run.disabled) actions.runTo(checkpoint().address); });
   element<HTMLButtonElement>("browse").addEventListener("click", () => actions.browse(parseInt(checkpoint().address, 16)));
   element<HTMLButtonElement>("reference").addEventListener("click", () => {
     const routine = guide.routines.find(routine => routine.name === checkpoint().routine)!;
