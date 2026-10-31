@@ -2,17 +2,17 @@
 
 This executable chapter assembles the selected IBM 5160 board around the
 [8088](../../components/cpus/specifications/8088.md). The current acceptance target
-is **reset through ROM BASIC and native keyboard input**, using the original
+is **a repeatable ROM BASIC programming session**, using the original
 11/08/82 BIOS. The CPU tests itself, tests DMA and the first 16 KiB of RAM,
 discovers 640 KiB, initializes its interrupt vectors, and resets the XT keyboard.
 It then programs CGA, tests video RAM and retrace status, and clears the display.
 The continuation tests RAM and the empty diskette drive's reset and seeks,
 passes the second keyboard reset, and attempts a disk boot. With no disk
 inserted, the BIOS's own timeout leads to ROM BASIC C1.10. BASIC prints its
-prompt and evaluates `PRINT 2+2` entered through the keyboard receiver and IRQ1.
+prompt and accepts immediate commands and stored programs through the keyboard receiver and IRQ1.
 No BIOS service is replaced by host code and no BIOS data area is preloaded.
-Stored-program editing, Ctrl-Break, firmware warm boot, a browser laboratory,
-and disk-image transfers remain subsequent acceptance work.
+The [session checks](#rom-basic-sessions) cover editing, Ctrl-Break, warm boot, and saved input.
+A browser laboratory and disk-image transfers remain ahead.
 
 ## Physical storage and firmware
 
@@ -191,10 +191,33 @@ and the small examples. It grants refresh, offers interrupts, executes one CPU
 boundary, and advances devices using declared instruction clocks. Repeated
 strings use the CPU chapter's explicitly bounded **one-element re-entry timing**;
 this does not reproduce an uninterrupted hardware REP's throughput.
-Timing covers POST, empty-drive bootstrap, the BASIC prompt and immediate
-arithmetic, and the BIOS services below. Unsigned multiplication and division use the CPU chapter's documented
+Timing covers POST, empty-drive bootstrap, the BASIC sessions below, and the
+selected BIOS services. Unsigned multiplication and division use the CPU chapter's documented
 **published-range ceilings**, including memory and word-transfer costs;
 operand-dependent arithmetic microcode remains unmodeled.
+
+### When does the 8088 see INTR?
+
+The PIC can have a timer request pending while its mask keeps INT low. Suppose
+the CPU unmasks that request with `OUT 21h,AL` and the next instruction reads
+the mask. Does the read happen before the timer handler can change it?
+
+Intel describes INTR as sampled in the clock preceding the end of the current
+instruction ([8086 Family User's Manual][intel], figure 4-19 and accompanying text).
+Our board approximates this ordering at instruction boundaries: a PIC output
+that goes high *because of the current CPU bus access* misses that instruction's
+sample. The following instruction can run, then the CPU can accept INTR. The
+PIC pin itself changes immediately; the board saves the missed sample separately.
+An IRQ already asserted before the instruction, or one raised by a later timer
+tick or host key between steps, follows the normal interrupt-offer path.
+This is a board timing convention, not a new interrupt shadow on every `OUT`;
+it does not simulate propagation delays or individual bus clocks.
+
+The distinction matters on warm boot: timer 0 is still running when POST tests
+the PIC mask (`F000:E331`). If IRQ0 is accepted before the following `IN`, the
+diagnostic handler masks it and the BIOS reads back the handler's mask instead
+of the one it wrote. The [board timing test](../../../tests/machines/8088/pc-xt/timed-execution.test.ts)
+checks the same ordering with an independent IRQ and a save immediately after `OUT`.
 
 ## Empty diskette drive
 
@@ -338,14 +361,49 @@ codes type `PRINT 2+2`, including Shift and its release. The command must echo,
 print ` 4`, and return to `Ok`; every supplied byte must traverse native IRQ1.
 The host retains rejected offers rather than overwriting an unconsumed byte.
 
-A snapshot taken with the first key pending in the receiver/PIC, together with
-the remaining host input queue, must resume identically with execution batches
-of 1, 37, or 4096 boundaries. The test compares complete CPU, RAM/video memory,
-device state, and oscillator phase. It never supplies F1 to bypass POST, changes
-the CPU entry registers, seeds BIOS RAM, or replaces a firmware routine.
-This establishes a first interactive ROM BASIC session, not the later stored-program,
-editing, warm-boot, or DOS milestones in the target audit.
+### ROM BASIC sessions
 
+The [session tests](../../../tests/machines/8088/pc-xt/rom-boot.test.ts) continue
+from that authentic prompt. The host supplies one line at a time, as XT scan
+codes, and waits for BASIC to consume it. The assertions read CGA character
+cells; they never inspect or modify BASIC's internal program representation.
+
+| At the keyboard | What the ROM displays |
+| --- | --- |
+| Type `PRINT 2+3`. Type `PRINT 77`, Backspace twice, type `12`, and press Enter. | The first answer is 5; the edited line reads `PRINT 12` and produces 12. The repeated digits and Backspaces have separate makes and breaks. |
+| Enter the three lines below, then `LIST` and `RUN`. | The listing reproduces the three lines in order. The run prints 5 and returns to `Ok`. |
+| Replace line 20 with `20 A=A+4`, list, and run again. | Only line 20 changes; the run prints 6. `NEW` followed by `LIST` returns straight to `Ok` with no program lines. |
+| Run `10 GOTO 10` and press Ctrl-Break (Ctrl + the XT's Scroll Lock/Break key). | BASIC prints `^C`, `Break in 10`, and `Ok`. After the releases, `PRINT 2+3` still produces 5. |
+
+```basic
+10 A=2
+20 A=A+3
+30 PRINT A
+```
+
+While typing `RUN` for the edited program, save after R has been entered, Shift
+is held, and U's make is pending in the receiver and PIC. The machine snapshot
+owns the accepted byte and the emulated hardware; the host saves the unaccepted
+suffix separately. A mismatched BASIC ROM must not restore that session.
+Resuming from serialized data with batches of 37 or 4096 boundaries must match
+single stepping: the same interrupt and boundary counts, output, CPU, RAM,
+video, devices, and oscillator phase.
+
+**Restarting a session.** Ctrl-Alt-Del is firmware behavior on the XT. Its IRQ1
+handler writes `1234` to `0040:0072` and jumps to `F000:E05B` without resetting
+the board clock. The test holds the chord through POST and releases it at the
+new BASIC prompt. POST reaches BASIC again through the empty-drive bootstrap;
+the banner and free space match cold boot, `LIST` is empty, and an immediate
+command works. This schedule matters: the BIOS checks the keyboard for stuck
+keys during POST. Break bytes offered during that check can produce a `301`
+diagnostic. This byte-level fixture does not model the keyboard's internal
+pre-reset queue or a browser's key-release policy.
+
+By contrast, CPU-only reset returns to physical `FFFF0` and clears IF, preserving
+the general registers, RAM, video, devices, pending key, and clock. Fresh power-on starts at the
+same vector with zeroed RAM/video, inactive devices, and oscillator time zero.
+
+[intel]: https://www.ardent-tool.com/CPU/docs/Intel/808x/manuals/9800722-03_alt.pdf
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/
 [font-image]: https://www.pcjs.org/machines/pcx86/ibm/video/cga/

@@ -23,11 +23,10 @@ page-selection, and scrolling services have timed acceptance tests, including
 restoration during a scroll. The literate empty-drive adapter now passes the
 original diskette POST through IRQ6; original INT 13h reads time out without
 DMA transfers, with saved continuation checked. Timed keyboard self-test delivery
-also passes the second keyboard reset. Original firmware now completes POST,
-falls back from an empty drive to ROM BASIC, and evaluates `PRINT 2+2` through
-native keyboard input. The [machine chapter](../../src/machines/8088/pc-xt.md#rom-basic-boot-and-input)
-owns those checks and pending-key snapshot acceptance. Broader BASIC interaction,
-a laboratory, and disk-image boot remain ahead. The reference's DOS
+also passes the second keyboard reset. Original firmware completes POST,
+falls back from an empty drive, and runs [repeatable ROM BASIC sessions](../../src/machines/8088/pc-xt.md#rom-basic-sessions)
+with stored programs and native keyboard input. The laboratory and disk-image
+boot remain ahead. The reference's DOS
 boot works through JavaScript BIOS services; it does not demonstrate original-ROM
 startup or a working floppy controller. Native ROM BASIC is the first milestone;
 DOS remains a separate milestone.
@@ -231,28 +230,11 @@ any expected diagnostics of the selected configuration explicitly.
 
 ### 2. ROM BASIC and repeatable sessions
 
-At the prompt, `PRINT 2+3` must produce 5. Enter and list this program, then run
-it and observe 5:
-
-```basic
-10 A=2
-20 A=A+3
-30 PRINT A
-```
-
-Replace line 20 with `20 A=A+4`, list and run again, and observe 6. Verify NEW,
-Backspace editing, Shift, repeated keys separated by releases, and Ctrl-Break
-from `10 GOTO 10`, followed by another successful immediate command. Capture
-exact screen expectations from the selected ROM when implementing the test.
-Pasted input must follow the same keyboard path as individual keys.
-
-Distinguish CPU-only reset, fresh power-on, and Ctrl-Alt-Del's firmware warm
-boot. Save/restore a stored program and a session with keyboard transfer and
-interrupt work pending. Include CPU state, RAM/video memory, device registers,
-pending events, clock phases, and host input schedule; validate firmware/media
-identity. Replaying the same remaining inputs must reproduce execution and
-output across stepping and different batch sizes. Focus loss must not leave a
-key stuck; rejected media or snapshots preserve the current session.
+The [executable session contract](../../src/machines/8088/pc-xt.md#rom-basic-sessions)
+owns the headless acceptance programs, editing and break behavior, firmware warm
+boot versus CPU reset and power-on, and saved-program/input replay. The browser
+laboratory must exercise the same path for typed and pasted input, release held
+keys on focus loss, and preserve the current session when rejecting files.
 
 ### 3. Shared laboratory
 
@@ -294,18 +276,12 @@ AT/286 and later x86 remain separate CPU and machine projects.
 
 ## Next implementation slice
 
-The PIC, PPI/keyboard, PIT, and bounded DMA profile now have executable device descriptions and
-native 8088 examples. Their chapters own supported profiles, clock/gate behavior,
-snapshots, and acceptance tests. Original IRQ0 and IRQ1 handlers have separate
-ROM-backed fixtures; neither test establishes POST.
-
-The full board now runs original firmware through POST and empty-drive bootstrap
-to a first ROM BASIC command. Next complete the BASIC interaction acceptance
-above: stored programs, editing, Ctrl-Break, firmware warm boot, and snapshots
-with a program and pending input. Let those firmware paths identify any further
-instruction-clock or device gaps before adding the shared laboratory. DMA data
-transfers and page registers belong with the later native disk milestone.
-Keep every firmware operation on the modeled hardware path.
+Build the first shared laboratory around the accepted ROM BASIC session:
+load the verified local firmware, show CGA text, and run, pause, step, type,
+and paste through the native board. Make host key releases, including focus
+loss and keyboard reset, and saving pending input part of that first slice.
+Then add the 8088 inspection tools above. DMA data transfers and page registers
+belong with the later native disk milestone.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

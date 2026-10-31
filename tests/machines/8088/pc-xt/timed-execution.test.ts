@@ -47,6 +47,23 @@ test("masked IRQ0 remains pending while halted time continues; observation is in
   assert.deepEqual(machine.snapshot(), saved);
 });
 
+test("a CPU output that unmasks a pending request misses the current INTR sample", () => {
+  const machine = create8088XtTimer(), { io } = machine;
+  // STI; MOV AL,FB; OUT 21,AL; IN AL,21. The read must finish before IRQ2 entry.
+  [0xfb, 0xb0, 0xfb, 0xe6, 0x21, 0xe4, 0x21].forEach((byte, i) => machine.ram.write(0x100 + i, byte));
+  io.write(0x20, 0x13); io.write(0x21, 8); io.write(0x21, 9); io.write(0x21, 0xff);
+  io.setInterruptLine(2, true);
+  for (let i = 0; i < 3; i++) assert.equal(stepTimedXtCpu(machine).record.outcome, "executed");
+  assert.equal(io.irq, true); assert.equal(io.snapshot().pic.isr, 0);
+  const saved = machine.snapshot();
+  for (const current of [machine, create8088XtTimer(saved)]) {
+    const read = stepTimedXtCpu(current).record;
+    assert.deepEqual(read.instruction?.bytes, [0xe4, 0x21]); assert.equal(read.after.al, 0xfb);
+    const entry = stepTimedXtCpu(current).record;
+    assert.ok(entry.outcome === "accepted"); assert.equal(entry.vector, 10);
+  }
+});
+
 test("an uncovered timed instruction stops the XT without advancing device time", () => {
   const machine = create8088XtTimer(); machine.ram.write(0x100, 0xf6); machine.ram.write(0x101, 0xe8); // IMUL AL remains untimed.
   const before = machine.snapshot();

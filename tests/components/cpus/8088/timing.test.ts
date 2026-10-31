@@ -38,6 +38,7 @@ const examples: readonly [readonly number[], number][] = [
   [[0xf6, 0xd0], 3], [[0xf7, 0xd9], 3], [[0xf6, 0x16, 0, 2], 22], [[0xf7, 0x1e, 0, 2], 30],
   [[0xff, 0xf0], 15], [[0xff, 0xf4], 15], [[0xff, 0x36, 0, 2], 30], [[0x2e, 0xff, 0xb7, 0, 2], 35],
   [[0xd7], 11], [[0x2e, 0xd7], 13],
+  [[0x8f, 0xc0], 12], [[0x8f, 0xc4], 12], [[0x8f, 6, 0, 2], 31], [[0x26, 0x8f, 0x80, 0, 2], 38],
   [[0x26, 0xf7, 0x60, 0], 156], // MUL word ES:[BX+SI+0]: 139 + 4 transfer + 11 EA + 2 prefix.
 ];
 test("8088 nominal clocks include operand transfers without changing instruction semantics or records", () => {
@@ -46,6 +47,16 @@ test("8088 nominal clocks include operand transfers without changing instruction
     const { clocks, ...record } = cpu.stepTimed();
     assert.equal(clocks, expected, code.map(byte => byte.toString(16)).join(" "));
     assert.deepEqual(record, ordinary);
+  }
+});
+
+test("reserved POP group extensions reject timed execution before consuming the stack or writing memory", () => {
+  for (let extension = 1; extension <= 7; extension++) {
+    const { cpu, ram } = fixture([0x8f, extension * 8 + 6, 0, 2], { sp: 0x600 });
+    const before = cpu.snapshot(), writes: number[] = [];
+    ram.observeWrites(write => writes.push(write.address));
+    assert.throws(() => cpu.stepTimed(), InstructionTimingUnavailable);
+    assert.deepEqual(cpu.snapshot(), before); assert.deepEqual(writes, []);
   }
 });
 

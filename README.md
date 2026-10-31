@@ -101,8 +101,9 @@ PIA/SAM inspection, remembered local ROM loading, and snapshots. The
 [reference audit and acceptance plan](docs/machines/coco.md) records the remaining work.
 The [IBM PC/XT](docs/machines/pc-xt.md) now runs original firmware through POST
 and empty-drive bootstrap into ROM BASIC on the existing 8088. Native keyboard
-input evaluates an immediate command with repeatable saved continuation.
-Broader BASIC interaction, its laboratory, and native floppy DOS remain ahead.
+input edits, lists, and runs stored programs, with Ctrl-Break, firmware warm boot,
+and repeatable [saved sessions](src/machines/8088/pc-xt.md#rom-basic-sessions).
+Its laboratory and native floppy DOS remain ahead.
 
 All eight documented instruction sets now use shared definitions that generate
 execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)

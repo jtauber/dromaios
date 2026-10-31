@@ -270,9 +270,8 @@ original XT firmware reaching ROM BASIC with CGA text, then DOS through a native
 360 KiB floppy-controller/DMA path. The reference's host BIOS services establish
 useful software examples but do not establish native hardware boot. The generated
 board now passes original POST and empty-drive bootstrap, reaching ROM BASIC
-and evaluating an immediate command through native keyboard input. Broader BASIC
-interaction and session acceptance precede the shared laboratory and native disk
-transfers. EGA and further software are later configurations. Introduce
+with [stored programs and repeatable keyboard sessions](src/machines/8088/pc-xt.md#rom-basic-sessions).
+The shared laboratory comes next, followed by native disk transfers. EGA and further software are later configurations. Introduce
 further abstractions through concrete requirements.
 
 The [Apple II Plus](docs/machines/apple2.md) already has ROM BASIC, graphics,

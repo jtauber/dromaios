@@ -960389,6 +960389,24 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 000C:u16
+  memoryCost:u16 := 0019:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks when isZero(bits(postbyte, 5, 3)); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {

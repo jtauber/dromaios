@@ -23,7 +23,7 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,788](../../src/components/cpus/specifications/6502.md) | 600 | 151 / 151 | 100% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,911](../../src/components/cpus/specifications/z80.md) | 1,506 | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,576](../../src/components/cpus/specifications/6809.md) | 1,307 | 268 / 268 | 100% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,489](../../src/components/cpus/specifications/8088.md) | 2,868 | 291 / 291 | 100% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,493](../../src/components/cpus/specifications/8088.md) | 2,870 | 291 / 291 | 100% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [0](../../src/components/cpus/specifications/68000.md) | [7,819](../../src/components/cpus/specifications/68000.md) | 4,370 | 36,029 / 36,029 | 100% |
 
 **Literate instruction coverage** measures documented opcode forms authored in
@@ -87,10 +87,10 @@ judging source reduction; all counts include comments and blank lines.
 | Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,972 |
 | **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,972** |
 | Shared CPU/machine Markdown reader (`src/literate.ts`, outside the CPU directory) | 30 |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,422 |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,426 |
 | CPU compilation and generation scripts (`compile-cpu-chapters.ts`, `generate-cpu-chapters.ts`, and `generate-cpu-semantics.ts`) | 166 |
-| Generated executable CPU output, counted separately | 605,879 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,001,093 |
+| Generated executable CPU output, counted separately | 605,895 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,001,133 |
 | Generated state schemas/types, counted separately | 213 |
 
 Chapter-data generation reuses an existing reference when it encounters the same
@@ -1099,10 +1099,10 @@ and [program specifications](../README.md#cpu-examples) for acceptance evidence.
 
 Optional [instruction-clock accounting](../../src/components/cpus/specifications/8088.md#instruction-clocks)
 covers the subset used from XT reset through POST and empty-drive bootstrap to
-ROM BASIC's prompt and immediate arithmetic, plus BIOS disk-reset/read timeouts
+the ROM BASIC session acceptance programs, plus BIOS disk-reset/read timeouts
 and text, cursor, page-selection, and scrolling services,
 including address calculation, word transfers, branches, shifts/rotates, strings,
-prefixes, conditional loops, NOT/NEG, indirect PUSH, XLAT, indirect near jumps,
+prefixes, conditional loops, NOT/NEG, indirect PUSH/POP, XLAT, indirect near jumps,
 far-pointer loads, sign extension, and interrupt
 entry. Unsigned MUL and DIV use Intel's published range ceilings for each operand form;
 their data-dependent microcode is not modeled. DIV retains the nominal cost

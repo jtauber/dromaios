@@ -19,6 +19,7 @@ import { checkUnsigned } from "../../../components/validation.ts";
 
 export interface XtIoSnapshot {
   readonly pic: I8259aSnapshot;
+  readonly intrRaisedDuringCpu: boolean;
   readonly ppi: I8255aSnapshot;
   readonly keyboard: IbmXtKeyboardSnapshot;
   readonly equipmentSwitches: number;
@@ -33,6 +34,7 @@ export interface XtIoSnapshot {
 /** XT device wiring, driven by explicit oscillator intervals and bus grants. */
 export class XtIo implements MemoryConnection {
   readonly #pic: I8259a;
+  #intrRaisedDuringCpu: boolean;
   readonly #ppi: I8255a;
   readonly #keyboard: IbmXtKeyboard;
   #equipmentSwitches: number;
@@ -46,10 +48,11 @@ export class XtIo implements MemoryConnection {
 
   constructor(state?: XtIoSnapshot) {
     if (state !== undefined && (!state.pic || !state.ppi || !state.keyboard || !state.pit || !state.clock || !state.dma || !state.system || !state.diskette
-      || typeof state.refreshPending !== "boolean")) {
-      throw new TypeError("XT I/O state requires the PIC, PIT, PPI, DMA, system control, diskette, keyboard, clock, and refresh latch.");
+      || typeof state.refreshPending !== "boolean" || typeof state.intrRaisedDuringCpu !== "boolean")) {
+      throw new TypeError("XT I/O state requires the board devices, clock, refresh latch, and INTR sample.");
     }
     this.#pic = new I8259a(state?.pic);
+    this.#intrRaisedDuringCpu = state?.intrRaisedDuringCpu ?? false;
     this.#ppi = new I8255a(state?.ppi);
     this.#keyboard = new IbmXtKeyboard(state?.keyboard);
     // 256 KiB planar RAM, no 8087, 80-column colour, one drive, no POST loop.
@@ -90,8 +93,18 @@ export class XtIo implements MemoryConnection {
   get refreshOutput(): boolean { return this.#pit.output(1); }
   get oscillatorTicks(): number { return this.#clock.ticks; }
 
+  /** A request raised by the CPU's own bus transfer misses that instruction's INTR sample. */
+  runCpuBoundary<T>(execute: (intr: boolean) => T): T {
+    const before = this.irq;
+    const result = execute(before && !this.#intrRaisedDuringCpu);
+    // Devices do not advance until after this boundary. A new INT here came from the bus.
+    this.#intrRaisedDuringCpu = !before && this.irq;
+    return result;
+  }
+
   snapshot(): XtIoSnapshot {
-    return { pic: this.#pic.snapshot(), ppi: this.#ppi.snapshot(), keyboard: this.#keyboard.snapshot(),
+    return { pic: this.#pic.snapshot(), intrRaisedDuringCpu: this.#intrRaisedDuringCpu,
+      ppi: this.#ppi.snapshot(), keyboard: this.#keyboard.snapshot(),
       equipmentSwitches: this.#equipmentSwitches, pit: this.#pit.snapshot(), clock: this.#clock.snapshot(),
       dma: this.#dma.snapshot(), refreshPending: this.#refreshPending, system: this.#system.snapshot(),
       diskette: this.#diskette.snapshot() };
@@ -186,7 +199,7 @@ export class XtIo implements MemoryConnection {
 
   reset(): void {
     this.#pit.reset(); this.#clock.reset();
-    this.#pic.reset(); this.#ppi.reset(); this.#keyboard.reset();
+    this.#pic.reset(); this.#intrRaisedDuringCpu = false; this.#ppi.reset(); this.#keyboard.reset();
     this.#dma.reset(); this.#refreshPending = false; this.#refreshOutput = false;
     this.#system.reset();
     this.#diskette.reset();

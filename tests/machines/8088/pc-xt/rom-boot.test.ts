@@ -6,6 +6,8 @@ import { create8088PcXt, romImages } from "../../../../src/machines/generated/80
 import { RomImage } from "../../../../src/machines/rom-image.js";
 import { stepTimedXtCpu } from "../../../../src/machines/8088/pc-xt/interrupts.js";
 
+import { enterLine, expectLastRows, runInput, scanCodes, screen, waitingForKey } from "./rom-basic-input.js";
+
 type Machine = ReturnType<typeof create8088PcXt>;
 type Snapshot = ReturnType<Machine["snapshot"]>;
 const available = Boolean(process.env.XT_BIOS_ROM && process.env.XT_BASIC_ROM);
@@ -16,19 +18,6 @@ let atBasicPrompt: Snapshot;
 const commands: number[] = [], controls: number[] = [];
 let disketteInterrupts = 0, keyboardInterrupts = 0;
 let secondKeyboardReset = false, basicEntry = false;
-
-function screen(machine: Machine): string[] {
-  // BASIC also prints character FF, the blank nonbreaking-space glyph in the CGA ROM.
-  return Array.from({ length: 25 }, (_, row) => String.fromCharCode(...Array.from({ length: 80 }, (_, column) =>
-    machine.video.read((row * 80 + column) * 2)).map(code => code === 0xff ? 0x20 : code)).trimEnd());
-}
-
-function waitingForKey(machine: Machine): boolean {
-  // Original INT 16h/AH=00 blocking loop, with its BIOS circular buffer empty.
-  return machine.cpu.snapshot().pc === 0xfe842
-    && machine.ram.read(0x41a) === machine.ram.read(0x41c)
-    && machine.ram.read(0x41b) === machine.ram.read(0x41d);
-}
 
 before(async () => {
   if (!available) return;
@@ -78,39 +67,94 @@ test("original XT firmware completes POST and empty-drive bootstrap into ROM BAS
 const printCodes = [0x2a, 0x19, 0x99, 0x13, 0x93, 0x17, 0x97, 0x31, 0xb1, 0x14, 0x94, 0xaa,
   0x39, 0xb9, 0x03, 0x83, 0x2a, 0x0d, 0x8d, 0xaa, 0x03, 0x83, 0x1c, 0x9c];
 
-function finishInput(machine: Machine, remaining: readonly number[], batchSize: number) {
-  const queue = [...remaining];
-  let instructions = 0, interrupts = 0;
-  while (instructions < 200000) {
-    for (let batch = 0; batch < batchSize; batch++) {
-      if (queue.length && machine.io.offerScanCode(queue[0]!)) queue.shift();
-      const { record } = stepTimedXtCpu(machine); instructions++;
-      assert.ok(record.outcome === "executed" || record.outcome === "accepted");
-      if (record.outcome === "accepted" && record.vector === 9) interrupts++;
-      if (!queue.length && waitingForKey(machine)) {
-        assert.deepEqual(screen(machine).slice(3, 8), ["Ok", "PRINT 2+2", " 4", "Ok", ""]);
-        return { instructions, interrupts };
-      }
-    }
-  }
-  assert.fail("ROM BASIC did not evaluate the keyboard input and return to its input wait.");
-}
-
-test("ROM BASIC evaluates native keyboard input and restores a pending key identically across execution batches", optional, () => {
+test("ROM BASIC evaluates immediate commands and edits repeated, shifted input at the keyboard", optional, () => {
   const machine = create8088PcXt(bindings, atBasicPrompt);
-  assert.equal(machine.io.offerScanCode(printCodes[0]!), true);
-  const pending = machine.snapshot(), remaining = printCodes.slice(1);
+  assert.equal(runInput(machine, printCodes).keyboardInterrupts, printCodes.length);
+  expectLastRows(machine, "Ok", "PRINT 2+2", " 4", "Ok");
+  enterLine(machine, "PRINT 2+3"); expectLastRows(machine, "PRINT 2+3", " 5", "Ok");
+  enterLine(machine, "PRINT 77\b\b12"); expectLastRows(machine, "PRINT 12", " 12", "Ok");
+  assert.equal(machine.ram.read(0x417) & 3, 0, "Shift must be released in the BIOS keyboard flags.");
+});
+
+const program = ["10 A=2", "20 A=A+3", "30 PRINT A"];
+test("ROM BASIC lists, replaces, runs, and clears a stored program; pending input resumes identically", optional, () => {
+  const machine = create8088PcXt(bindings, atBasicPrompt);
+  for (const line of program) enterLine(machine, line);
+  enterLine(machine, "LIST"); expectLastRows(machine, "LIST", ...program, "Ok");
+  enterLine(machine, "RUN"); expectLastRows(machine, "RUN", " 5", "Ok");
+
+  enterLine(machine, "20 A=A+4");
+  enterLine(machine, "LIST"); expectLastRows(machine, "LIST", "10 A=2", "20 A=A+4", "30 PRINT A", "Ok");
+  // R has already been echoed. U's make is pending in the receiver/PIC with Shift held;
+  // the host still owns U's break, the Shift release, N, and Enter.
+  runInput(machine, [...scanCodes("R"), 0x2a]);
+  assert.equal(machine.io.offerScanCode(0x16), true);
+  const remaining = [0x96, 0xaa, ...scanCodes("N\n")];
+  const pending = machine.snapshot(), saved = JSON.stringify({ machine: pending, remaining });
   assert.equal(pending.io.keyboard.full, true); assert.equal(pending.io.pic.irr & 2, 2);
-  assert.equal(machine.io.offerScanCode(remaining[0]!), false, "An unconsumed key must not be overwritten.");
+  assert.equal(machine.ram.read(0x417) & 2, 2);
+  assert.equal(machine.io.offerScanCode(remaining[0]!), false);
+  assert.throws(() => create8088PcXt({ ...bindings, basic: null }, pending), /identity/);
   assert.deepEqual(machine.snapshot(), pending);
-  const result = finishInput(machine, remaining, 1);
-  assert.equal(result.interrupts, printCodes.length);
+  const result = runInput(machine, remaining, { batchSize: 1 });
+  assert.equal(result.keyboardInterrupts, remaining.length + 1);
+  expectLastRows(machine, "RUN", " 6", "Ok");
   for (const batchSize of [37, 4096]) {
-    const restored = create8088PcXt(bindings, pending);
-    assert.deepEqual(finishInput(restored, remaining, batchSize), result);
+    const session = JSON.parse(saved) as { machine: Snapshot; remaining: number[] };
+    const restored = create8088PcXt(bindings, session.machine);
+    assert.deepEqual(runInput(restored, session.remaining, { batchSize }), result);
     assert.deepEqual(restored.snapshot(), machine.snapshot());
   }
-  assert.equal(machine.ram.read(0x417) & 3, 0, "Shift must be released in the BIOS keyboard flags.");
+
+  enterLine(machine, "NEW"); enterLine(machine, "LIST"); expectLastRows(machine, "NEW", "Ok", "LIST", "Ok");
+});
+
+test("Ctrl-Break interrupts a running ROM BASIC program and the same session accepts another command", optional, () => {
+  const machine = create8088PcXt(bindings, atBasicPrompt);
+  enterLine(machine, "10 GOTO 10");
+  runInput(machine, scanCodes("RUN\n"), { until: boundaries => boundaries >= 50_000 });
+  assert.ok(!waitingForKey(machine));
+  const ctrlBreak = [0x1d, 0x46, 0xc6, 0x9d];
+  assert.equal(runInput(machine, ctrlBreak).keyboardInterrupts, ctrlBreak.length);
+  expectLastRows(machine, "RUN", "^C", "Break in 10", "Ok");
+  assert.equal(machine.ram.read(0x417) & 4, 0, "Ctrl must be released.");
+  enterLine(machine, "PRINT 2+3"); expectLastRows(machine, "PRINT 2+3", " 5", "Ok");
+});
+
+test("CPU reset and fresh XT power-on have different effects on a live ROM BASIC session", optional, () => {
+  const machine = create8088PcXt(bindings, atBasicPrompt);
+  enterLine(machine, "10 GOTO 10");
+  assert.equal(machine.io.offerScanCode(0x1d), true);
+  const { cpu: original, ...board } = machine.snapshot();
+  machine.cpu.reset();
+  const { cpu: reset, ...retained } = machine.snapshot();
+  assert.deepEqual(retained, board);
+  assert.deepEqual([reset.cs, reset.ip], [0xffff, 0]); assert.equal(reset.flags.if, false);
+  const fresh = create8088PcXt(bindings); fresh.reset();
+  const powerOn = fresh.snapshot();
+  assert.deepEqual([powerOn.cpu.cs, powerOn.cpu.ip], [0xffff, 0]);
+  for (const register of ["ax", "bx", "cx", "dx", "sp", "bp", "si", "di"] as const) {
+    assert.equal(reset[register], original[register]); assert.equal(powerOn.cpu[register], 0);
+  }
+  assert.ok(powerOn.ram.every(byte => byte === 0) && powerOn.video.every(byte => byte === 0));
+  assert.equal(fresh.io.keyboardPending, false); assert.equal(fresh.io.oscillatorTicks, 0);
+});
+
+test("Ctrl-Alt-Del runs the original warm POST and starts a fresh BASIC workspace", optional, () => {
+  const machine = create8088PcXt(bindings, atBasicPrompt);
+  enterLine(machine, "10 GOTO 10");
+  const ticks = machine.io.oscillatorTicks;
+  runInput(machine, [0x1d, 0x38, 0x53], { until: () => machine.cpu.snapshot().pc === 0xfe05b });
+  assert.deepEqual([machine.ram.read(0x472), machine.ram.read(0x473)], [0x34, 0x12]);
+  assert.ok(machine.io.oscillatorTicks > ticks); // Firmware jumped; the host did not reset the board.
+  runInput(machine, [], { limit: 5_000_000, until: () => machine.cpu.snapshot().pc === 0xf6000 });
+  runInput(machine, []);
+  assert.deepEqual(screen(machine).slice(0, 5), screen(create8088PcXt(bindings, atBasicPrompt)).slice(0, 5));
+  // Release the three keys once POST has finished polling for stuck keys.
+  runInput(machine, [0xd3, 0xb8, 0x9d]);
+  assert.equal(machine.ram.read(0x417) & 0x0c, 0);
+  enterLine(machine, "LIST"); expectLastRows(machine, "Ok", "LIST", "Ok");
+  enterLine(machine, "PRINT 2+3"); expectLastRows(machine, "PRINT 2+3", " 5", "Ok");
 });
 
 test("original XT diskette POST resets, specifies, recalibrates and seeks an empty drive through native IRQ6", optional, () => {
