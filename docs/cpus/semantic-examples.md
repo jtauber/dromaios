@@ -1002494,10 +1002494,13 @@ segmentOverride:u16 := input
 postbyte:u8 := fetch byte
 operation := bits(postbyte, 5, 3)
 unsignedMultiply:flag := equal(operation, 4:u3)
+unsignedDivide:flag := equal(operation, 6:u3)
+registerCost := select(unsignedDivide, 005A:u16, select(unsignedMultiply, 004D:u16, 0005:u16))
+memoryCost := select(unsignedDivide, 0060:u16, select(unsignedMultiply, 0053:u16, 000B:u16))
 cost:u16 := source "register cost or memory cost plus EA" {
   postbyte:u8 := postbyte
-  registerCost:u16 := select(unsignedMultiply, 004D:u16, 0005:u16)
-  memoryCost:u16 := select(unsignedMultiply, 0053:u16, 000B:u16)
+  registerCost:u16 := registerCost
+  memoryCost:u16 := memoryCost
   ea:u16 := source "8088 effective-address calculation" {
     postbyte:u8 := postbyte
     mode := bitAnd(postbyte, C0:u8)
@@ -1002511,7 +1002514,7 @@ cost:u16 := source "register cost or memory cost plus EA" {
   }
   yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
 }
-instruction timing: cost CPU clocks when or(isZero(operation), unsignedMultiply); otherwise timing unavailable
+instruction timing: cost CPU clocks when or(isZero(operation), or(unsignedMultiply, unsignedDivide)); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -1007662,10 +1007665,13 @@ segmentOverride:u16 := input
 postbyte:u8 := fetch byte
 operation := bits(postbyte, 5, 3)
 unsignedMultiply:flag := equal(operation, 4:u3)
+unsignedDivide:flag := equal(operation, 6:u3)
+registerCost := select(unsignedDivide, 00A2:u16, select(unsignedMultiply, 0085:u16, 0005:u16))
+memoryCost := select(unsignedDivide, 00AC:u16, select(unsignedMultiply, 008F:u16, 000F:u16))
 cost:u16 := source "register cost or memory cost plus EA" {
   postbyte:u8 := postbyte
-  registerCost:u16 := select(unsignedMultiply, 0085:u16, 0005:u16)
-  memoryCost:u16 := select(unsignedMultiply, 008F:u16, 000F:u16)
+  registerCost:u16 := registerCost
+  memoryCost:u16 := memoryCost
   ea:u16 := source "8088 effective-address calculation" {
     postbyte:u8 := postbyte
     mode := bitAnd(postbyte, C0:u8)
@@ -1007679,7 +1007685,7 @@ cost:u16 := source "register cost or memory cost plus EA" {
   }
   yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
 }
-instruction timing: cost CPU clocks when or(isZero(operation), unsignedMultiply); otherwise timing unavailable
+instruction timing: cost CPU clocks when or(isZero(operation), or(unsignedMultiply, unsignedDivide)); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {

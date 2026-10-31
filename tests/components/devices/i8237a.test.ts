@@ -45,6 +45,25 @@ test("8237A shares one byte flip-flop across channels, count/address, and read/w
   dma.write(0x0c, 0xff); assert.equal(dma.snapshot().high_byte, false);
 });
 
+test("8237A single-write setup waits for DREQ and accounts only explicitly completed device-to-memory transfers", () => {
+  const dma = new I8237a();
+  word(dma, 4, 0x7c00); word(dma, 5, 0x1ff); dma.write(0x0b, 0x46); dma.write(0x0a, 2);
+  const idle = dma.snapshot(); assert.equal(dma.pending(), 0); assert.equal(dma.transferReady(), false);
+  dma.completeTransfer(); assert.deepEqual(dma.snapshot(), idle);
+  const restored = new I8237a(idle);
+  for (const target of [dma, restored]) {
+    target.setRequests(false, false, true, false);
+    assert.equal(target.transferChannel(), 2); assert.equal(target.readTransfer(), false); assert.equal(target.writeTransfer(), true);
+    for (let byte = 0; byte < 512; byte++) {
+      assert.equal(target.transferReady(), true); assert.equal(target.transferAddress(), 0x7c00 + byte);
+      target.completeTransfer();
+    }
+    assert.equal(target.snapshot().count[2], 0xffff); assert.equal(target.snapshot().mask & 4, 4);
+    assert.equal(target.read(8), 0x44); assert.equal(target.read(8), 0x40);
+  }
+  assert.deepEqual(restored.snapshot(), dma.snapshot());
+});
+
 test("8237A updates base and current bytes independently after DMA has moved the address", () => {
   const dma = configured(0x48, 0xff, 3);
   dma.completeTransfer();
@@ -119,7 +138,7 @@ test("8237A rejects unsupported modes, commands, host values, and invalid snapsh
   const dma = configured(); const saved = dma.snapshot();
   for (const [port, values] of [
     [8, [1, 2, 8, 16, 32, 64, 128, 255]],
-    [11, [0, 0x44, 0x4c, 0x80, 0xc0, 0xff]],
+    [11, [0, 0x4c, 0x80, 0xc0, 0xff]],
     [9, [4, 5, 6, 7]],
   ] as const) for (const value of values) assert.throws(() => dma.write(port, value), /Unsupported/);
   for (const value of [-1, 256, 1.5, NaN]) assert.throws(() => dma.write(0, value), RangeError);

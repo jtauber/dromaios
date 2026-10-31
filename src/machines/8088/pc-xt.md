@@ -2,13 +2,14 @@
 
 This executable chapter assembles the selected IBM 5160 board around the
 [8088](../../components/cpus/specifications/8088.md). The current acceptance target
-is **reset through early POST and CGA video tests**, using the original
+is **reset through the diskette POST**, using the original
 11/08/82 BIOS. The CPU tests itself, tests DMA and the first 16 KiB of RAM,
 discovers 640 KiB, initializes its interrupt vectors, and resets the XT keyboard.
 It then programs CGA, tests video RAM and retrace status, and clears the display.
+The continuation tests RAM and the empty diskette drive's reset and seeks.
 No BIOS service is replaced by host code and no BIOS data area is preloaded.
-This is not yet a complete POST or ROM BASIC boot: the empty-drive
-diskette-controller path and later POST stages remain ahead.
+This is not yet a clean POST or ROM BASIC boot: the later keyboard reset
+currently produces a `301` diagnostic, described under the acceptance boundary.
 
 ## Physical storage and firmware
 
@@ -95,7 +96,8 @@ reset { cpu io cga }
 
 ## Board ports, checks, and interrupts
 
-The port map connects DMA, PIC, PIT, PPI, CGA, and the write-only NMI-enable latch.
+The port map connects DMA, PIC, PIT, PPI, CGA, the diskette adapter, and the
+write-only NMI-enable latch.
 Unpopulated ports return `FF` and ignore output, including the absent expansion
 box at `0213`. CGA's index/data aliases are declared; extra system-board port
 aliases are not yet decoded. The selected switch byte is `2D`: 256 KiB planar
@@ -163,6 +165,10 @@ ports {
     out 3D8 = cga 8
     out 3D9 = cga 9
     in 3DA = cga A
+    out 3F2 = io F2
+    in 3F4 = io F4
+    in 3F5 = io F5
+    out 3F5 = io F5
     unmapped = FF
 }
 ```
@@ -182,9 +188,50 @@ and the small examples. It grants refresh, offers interrupts, executes one CPU
 boundary, and advances devices using declared instruction clocks. Repeated
 strings use the CPU chapter's explicitly bounded **one-element re-entry timing**;
 this does not reproduce an uninterrupted hardware REP's throughput.
-Timing covers video POST and the text services below. Unsigned multiplication
-uses the CPU chapter's documented **published-range ceiling**, including memory
-and word-transfer costs; operand-dependent multiply microcode remains unmodeled.
+Timing covers the diskette POST, BIOS disk reset/read timeout, and text services
+below. Unsigned multiplication and division use the CPU chapter's documented
+**published-range ceilings**, including memory and word-transfer costs;
+operand-dependent arithmetic microcode remains unmodeled.
+
+## Empty diskette drive
+
+The [diskette chapter](../../components/devices/specifications/ibm-xt-diskette.md)
+owns the adapter latch, µPD765 command/result phases, one-drive scope, mechanical
+head position, and explicit timing limits. Board ports `3F2`, `3F4`, and `3F5`
+route to local `XtIo` offsets `F2`, `F4`, and `F5`. The controller advances from
+the same elapsed microseconds as the keyboard, including refresh grants and
+halted CPU intervals. IRQ6 is a settled device output, alongside timer IRQ0
+and keyboard IRQ1; callers cannot independently drive those three lines.
+PIC acknowledgement/EOI does not acknowledge the diskette controller.
+
+There is one empty 40-cylinder drive. Reset, recalibration, and seeks can
+complete without media. Reads wait for absent index/data pulses, with no
+controller result, IRQ, or DREQ2; the original BIOS's own loop times out.
+The DMA register file accepts the BIOS's single-write setup for channel 2,
+but its address and count do not advance. Channel-2 bus transfers, DMA page
+latches, mounted media, and DOS boot remain unimplemented. In particular,
+port `81` is still unanswered; accepting an empty read is not a working disk
+transfer implementation.
+
+Snapshots retain partial commands/results, reset and seek timing, physical
+head position, and the controller's cylinder estimate. CPU reset preserves
+them. Board reset clears the adapter/controller and cancels in-flight work;
+it preserves the mechanical position and Specify timing registers.
+
+The [board tests](../../../tests/machines/8088/pc-xt/diskette.test.ts) check port
+routing, fractional clock continuation, native IRQ6 entry from HLT, separate
+controller/PIC acknowledgement, and absence of DMA or memory side effects.
+The [original-ROM diskette tests](../../../tests/machines/8088/pc-xt/rom-diskette.test.ts)
+start at reset and require the exact reset/Specify/recalibrate/seek sequence,
+four IRQ6 entries, seeks to cylinders 1 and 34, and `F000:E597` without entering
+the `601` diskette-error path at `F000:E58A`.
+
+After that native setup, small RAM callers invoke original INT 13h. Reset must
+return success and reprogram Specify. A one-sector read must enter the no-index
+wait, return carry set and AH=`80` through the BIOS timeout, and leave the
+sector buffer and channel-2 address/count unchanged. A snapshot taken inside
+that wait must resume to identical complete state. These callers change their
+own code and entry registers; they never patch BIOS, its vectors, or its data.
 
 ## CGA text output
 
@@ -261,6 +308,15 @@ A saved continuation must reach the same boundary with identical CPU, RAM,
 devices, and oscillator time. Independent [rendering tests](../../../tests/machines/8088/pc-xt/video.test.ts)
 cover text pixels, attributes, cursor, wrapping, and saved blink phase.
 The test never patches firmware, seeds RAM, or shortcuts a BIOS routine.
+
+The later diskette continuation establishes that device's POST success, not
+error-free whole-machine startup. The keyboard's current immediate self-test
+response arrives too early during POST's **second** keyboard reset: IRQ1 runs
+after the PIC is unmasked at `F000:FA3D`, before the ROM clears its interrupt
+flag at `F000:FA3F`. The ROM then loses that indication, times out, and reports
+`301`. A subsequent run reaches its F1 recovery prompt rather than the
+bootstrap. Modeling keyboard self-test/byte-delivery latency is the next boot
+blocker; no synthetic F1, BIOS-data patch, or bypass is part of acceptance.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

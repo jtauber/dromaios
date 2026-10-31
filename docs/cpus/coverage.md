@@ -23,7 +23,7 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,788](../../src/components/cpus/specifications/6502.md) | 600 | 151 / 151 | 100% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,911](../../src/components/cpus/specifications/z80.md) | 1,506 | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,576](../../src/components/cpus/specifications/6809.md) | 1,307 | 268 / 268 | 100% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,459](../../src/components/cpus/specifications/8088.md) | 2,852 | 291 / 291 | 100% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,471](../../src/components/cpus/specifications/8088.md) | 2,858 | 291 / 291 | 100% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [0](../../src/components/cpus/specifications/68000.md) | [7,819](../../src/components/cpus/specifications/68000.md) | 4,370 | 36,029 / 36,029 | 100% |
 
 **Literate instruction coverage** measures documented opcode forms authored in
@@ -1098,13 +1098,15 @@ and [program specifications](../README.md#cpu-examples) for acceptance evidence.
 [Specification and model contract](../../src/components/cpus/specifications/8088.md)
 
 Optional [instruction-clock accounting](../../src/components/cpus/specifications/8088.md#instruction-clocks)
-covers the subset used from XT reset through early POST, CGA video tests, and
-the original BIOS's text, cursor, page-selection, and scrolling services,
+covers the subset used from XT reset through diskette POST, CGA video tests,
+BIOS disk-reset/read timeouts, and text, cursor, page-selection, and scrolling services,
 including address calculation, word transfers, branches, shifts/rotates, strings,
 prefixes, indirect near jumps, far-pointer loads, sign extension, and interrupt
-entry. Unsigned MUL uses Intel's published range ceiling for each operand form;
-its data-dependent microcode is not modeled. Repeated strings use an explicitly
-bounded one-element re-entry cost, not uninterrupted hardware REP throughput.
+entry. Unsigned MUL and DIV use Intel's published range ceilings for each operand form;
+their data-dependent microcode is not modeled. DIV retains the nominal cost
+on its type-0 path; separate exception-entry timing remains unmodeled.
+Repeated strings use an explicitly bounded one-element re-entry cost, not
+uninterrupted hardware REP throughput.
 Timing coverage is separate from the complete opcode-form coverage below; uncovered
 timed forms stop explicitly.
 

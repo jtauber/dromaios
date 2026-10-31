@@ -104,7 +104,7 @@ test("snapshot validation rejects broken PIT wiring and CPU-independent board re
   assert.throws(() => new XtIo({ ...saved, pic: { ...saved.pic, levels: saved.pic.levels ^ 1 } }), /wiring/);
   assert.throws(() => new XtIo({ ...saved, pit: { channels: [{ ...saved.pit.channels[0], gate: false },
     saved.pit.channels[1], saved.pit.channels[2]] } }), /wiring/);
-  for (const line of [0, 1]) assert.throws(() => io.setInterruptLine(line, true), /belong/);
+  for (const line of [0, 1, 6]) assert.throws(() => io.setInterruptLine(line, true), /belong/);
   assert.throws(() => io.advanceOscillatorTicks(-1), RangeError); assert.deepEqual(io.snapshot(), saved);
   io.reset(); assert.equal(io.snapshot().clock.ticks, 0); assert.equal(io.irq, false);
   assert.ok(io.snapshot().pit.channels.every(counter => counter.rw === 0));

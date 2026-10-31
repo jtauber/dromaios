@@ -65,6 +65,23 @@ test("8088 unsigned MUL charges the declared Intel range ceiling independently o
   }
 });
 
+test("8088 unsigned DIV charges the declared range ceiling without extra operand reads", () => {
+  // Intel table 2-21: byte 80–90 / 86–96+EA; word 144–162 / 150–168+EA.
+  // Word memory adds four transfer clocks; direct EA adds six. Fault delivery
+  // retains ordinary semantics, with the explicitly declared nominal DIV cost.
+  for (const word of [false, true]) for (const memory of [false, true]) {
+    for (const [high, low, divisor] of [[0, 0, 1], [0, 640, 10], [0, 65535, 255], [1, 0, 2], [0, 1, 0], [65535, 65535, 1]] as const) {
+      const code = [word ? 0xf7 : 0xf6, memory ? 0x36 : 0xf3, ...(memory ? [0, 2] : [])];
+      const state = { ax: low, dx: high, bx: divisor, flags: flags(0x1ff) };
+      const timed = fixture(code, state), plain = fixture(code, state);
+      for (const { ram } of [timed, plain]) { ram.write(0x200, divisor & 255); ram.write(0x201, divisor >>> 8); }
+      const { clocks, ...record } = timed.cpu.stepTimed();
+      assert.equal(clocks, word ? memory ? 178 : 162 : memory ? 102 : 90);
+      assert.deepEqual(record, plain.cpu.step());
+    }
+  }
+});
+
 test("8088 sign-extension clocks preserve ordinary results and flags for both signs", () => {
   for (const [opcode, expected] of [[0x98, 2], [0x99, 5]] as const) for (const ax of [0, 0x7f, 0x80, 0xff, 0x7fff, 0x8000, 0xffff]) {
     const state = { ax, dx: 0xa55a, flags: flags(0x1ff) };
@@ -149,7 +166,7 @@ test("conditional timing follows the captured decision, including LOOP wraparoun
 });
 
 test("uncovered instructions and group forms reject before data effects and do not consume deferrals", () => {
-  for (const code of [[0xf6, 0xe8], [0xf6, 0x2e, 0, 2], [0xf7, 0xf3], [0xff, 0xd0], [0x9b], [0x0f], [0xc4, 0xc0], [0xc5, 0xc0]]) {
+  for (const code of [[0xf6, 0xe8], [0xf6, 0x2e, 0, 2], [0xf7, 0xfb], [0xff, 0xd0], [0x9b], [0x0f], [0xc4, 0xc0], [0xc5, 0xc0]]) {
     const { cpu, ram } = fixture(code, { interruptDeferred: true });
     const before = cpu.snapshot(), writes: number[] = [];
     ram.observeWrites(write => writes.push(write.address));

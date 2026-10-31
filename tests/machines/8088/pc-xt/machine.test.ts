@@ -67,8 +67,8 @@ test("XT firmware installation and unanswered ports have no hidden CPU or RAM in
   machine.bios.install(bios); machine.basic.install(basic);
   assert.deepEqual(machine.cpu.snapshot(), cpu); assert.ok(machine.snapshot().ram.every(byte => byte === 0));
   const before = machine.io.snapshot();
-  for (const port of [0xa0, 0x213, 0x3d8, 0x3f4, 0xffff]) assert.equal(machine.ports.readPort(port), 0xff);
-  for (const port of [0x213, 0x3f2, 0xffff]) machine.ports.writePort(port, 0x80);
+  for (const port of [0xa0, 0x213, 0x3d8, 0x3f2, 0xffff]) assert.equal(machine.ports.readPort(port), 0xff);
+  for (const port of [0x213, 0x3f4, 0xffff]) machine.ports.writePort(port, 0x80);
   assert.deepEqual(machine.io.snapshot(), before);
   machine.ports.writePort(0x63, 0x99); machine.ports.writePort(0x61, 0x40);
   machine.ports.writePort(0xa0, 0x80); machine.io.setCheckErrors(true, false);

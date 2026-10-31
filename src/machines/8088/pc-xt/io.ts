@@ -10,6 +10,8 @@ import { I8237a } from "../../../components/devices/generated/i8237a.ts";
 import type { I8237aSnapshot } from "../../../components/devices/generated/i8237a.ts";
 import { IbmXtSystemControl } from "../../../components/devices/generated/ibm-xt-system-control.ts";
 import type { IbmXtSystemControlSnapshot } from "../../../components/devices/generated/ibm-xt-system-control.ts";
+import { IbmXtDiskette } from "../../../components/devices/generated/ibm-xt-diskette.ts";
+import type { IbmXtDisketteSnapshot } from "../../../components/devices/generated/ibm-xt-diskette.ts";
 import { XtClock } from "./clock.ts";
 import type { XtClockSnapshot } from "./clock.ts";
 import type { MemoryConnection } from "../../../components/memory/connection.ts";
@@ -25,6 +27,7 @@ export interface XtIoSnapshot {
   readonly dma: I8237aSnapshot;
   readonly refreshPending: boolean;
   readonly system: IbmXtSystemControlSnapshot;
+  readonly diskette: IbmXtDisketteSnapshot;
 }
 
 /** XT device wiring, driven by explicit oscillator intervals and bus grants. */
@@ -39,11 +42,12 @@ export class XtIo implements MemoryConnection {
   #refreshPending: boolean;
   #refreshOutput: boolean;
   readonly #system: IbmXtSystemControl;
+  readonly #diskette: IbmXtDiskette;
 
   constructor(state?: XtIoSnapshot) {
-    if (state !== undefined && (!state.pic || !state.ppi || !state.keyboard || !state.pit || !state.clock || !state.dma || !state.system
+    if (state !== undefined && (!state.pic || !state.ppi || !state.keyboard || !state.pit || !state.clock || !state.dma || !state.system || !state.diskette
       || typeof state.refreshPending !== "boolean")) {
-      throw new TypeError("XT I/O state requires the PIC, PIT, PPI, DMA, system control, keyboard, clock, and refresh latch.");
+      throw new TypeError("XT I/O state requires the PIC, PIT, PPI, DMA, system control, diskette, keyboard, clock, and refresh latch.");
     }
     this.#pic = new I8259a(state?.pic);
     this.#ppi = new I8255a(state?.ppi);
@@ -56,6 +60,7 @@ export class XtIo implements MemoryConnection {
     this.#refreshPending = state?.refreshPending ?? false;
     this.#refreshOutput = this.#pit.output(1);
     this.#system = new IbmXtSystemControl(state?.system);
+    this.#diskette = new IbmXtDiskette(state?.diskette);
     checkUnsigned("XT equipment switches", this.#equipmentSwitches, 0xff);
     if (state !== undefined) {
       const pins = this.#ppi.driveB();
@@ -63,6 +68,7 @@ export class XtIo implements MemoryConnection {
         || state.ppi.input_a !== this.#keyboard.data() || state.ppi.input_b !== 0xff
         || state.ppi.input_c !== this.#portCInputs() || Boolean(state.pic.levels & 2) !== this.#keyboard.irq()
         || Boolean(state.pic.levels & 1) !== this.#pit.output(0)
+        || Boolean(state.pic.levels & 0x40) !== this.#diskette.irq()
         || state.dma.levels !== Number(state.refreshPending)
         || state.system.control !== pins
         || !state.pit.channels[0].gate || !state.pit.channels[1].gate
@@ -87,10 +93,11 @@ export class XtIo implements MemoryConnection {
   snapshot(): XtIoSnapshot {
     return { pic: this.#pic.snapshot(), ppi: this.#ppi.snapshot(), keyboard: this.#keyboard.snapshot(),
       equipmentSwitches: this.#equipmentSwitches, pit: this.#pit.snapshot(), clock: this.#clock.snapshot(),
-      dma: this.#dma.snapshot(), refreshPending: this.#refreshPending, system: this.#system.snapshot() };
+      dma: this.#dma.snapshot(), refreshPending: this.#refreshPending, system: this.#system.snapshot(),
+      diskette: this.#diskette.snapshot() };
   }
 
-  read(address: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 13 | 0x20 | 0x21 | 0x40 | 0x41 | 0x42 | 0x60 | 0x61 | 0x62): number;
+  read(address: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 13 | 0x20 | 0x21 | 0x40 | 0x41 | 0x42 | 0x60 | 0x61 | 0x62 | 0xf4 | 0xf5): number;
   read(address: number): number | "bus-error";
   read(address: number): number | "bus-error" {
     checkUnsigned("XT I/O offset", address, 0xff);
@@ -98,6 +105,7 @@ export class XtIo implements MemoryConnection {
     if (address === 0x20 || address === 0x21) return this.#pic.read(address - 0x20);
     if (address >= 0x40 && address <= 0x43) return this.#pit.read(address - 0x40);
     if (address >= 0x60 && address <= 0x63) return this.#ppi.read(address - 0x60);
+    if (address === 0xf4 || address === 0xf5) return this.#diskette.read(address - 0xf2);
     return "bus-error";
   }
 
@@ -109,6 +117,7 @@ export class XtIo implements MemoryConnection {
     else if (address >= 0x40 && address <= 0x43) this.#pit.write(address - 0x40, value);
     else if (address >= 0x60 && address <= 0x63) this.#ppi.write(address - 0x60, value);
     else if (address === 0xa0) this.#system.write(0, value);
+    else if (address === 0xf2 || address === 0xf5) this.#diskette.write(address - 0xf2, value);
     else return "bus-error";
     this.#updateWiring();
   }
@@ -135,7 +144,7 @@ export class XtIo implements MemoryConnection {
 
   setInterruptLine(line: number, high: boolean): void {
     checkUnsigned("XT interrupt line", line, 7);
-    if (line < 2) throw new RangeError("IRQ0/IRQ1 belong to the XT timer and keyboard receiver.");
+    if (line < 2 || line === 6) throw new RangeError("IRQ0/IRQ1/IRQ6 belong to the XT timer, keyboard receiver, and diskette adapter.");
     this.#pic.setLine(line, high);
   }
 
@@ -169,6 +178,7 @@ export class XtIo implements MemoryConnection {
   #advance(ticks: number, refreshAcknowledged: boolean): void {
     this.#clock.advance(ticks, (microseconds, pitClock) => {
       this.#keyboard.advanceMicroseconds(microseconds);
+      this.#diskette.advanceMicroseconds(microseconds);
       if (pitClock) for (let channel = 0; channel < 3; channel++) this.#pit.clock(channel);
       this.#updateWiring(refreshAcknowledged);
     });
@@ -179,6 +189,7 @@ export class XtIo implements MemoryConnection {
     this.#pic.reset(); this.#ppi.reset(); this.#keyboard.reset();
     this.#dma.reset(); this.#refreshPending = false; this.#refreshOutput = false;
     this.#system.reset();
+    this.#diskette.reset();
     this.#updateWiring();
   }
 
@@ -196,6 +207,7 @@ export class XtIo implements MemoryConnection {
     this.#ppi.setPortInputs(this.#keyboard.data(), 0xff, this.#portCInputs());
     this.#pic.setLine(0, this.#pit.output(0));
     this.#pic.setLine(1, this.#keyboard.irq());
+    this.#pic.setLine(6, this.#diskette.irq());
     const refresh = this.#pit.output(1);
     // U73 (74LS74): OUT1 rising clocks in 1; active-low DACK0 holds CLEAR.
     if (refreshAcknowledged) this.#refreshPending = false;

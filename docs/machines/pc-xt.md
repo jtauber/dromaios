@@ -20,8 +20,13 @@ its vectors, receives the keyboard self-test response through IRQ1, and passes
 CGA initialization, video-memory and retrace checks. CGA text rendering uses
 the selected original character ROM. The original BIOS's text, cursor,
 page-selection, and scrolling services have timed acceptance tests, including
-restoration during a scroll. Full POST, diskette boot, ROM BASIC, and
-a laboratory remain ahead. The reference's DOS
+restoration during a scroll. The literate empty-drive adapter now passes the
+original diskette POST through IRQ6; original INT 13h reads time out without
+DMA transfers, with saved continuation checked. The later keyboard reset
+still reports `301` because its self-test response is immediate; the
+[machine chapter](../../src/machines/8088/pc-xt.md#acceptance-boundary) records
+the interrupt race. Clean POST, diskette boot, ROM BASIC, and a laboratory
+remain ahead. The reference's DOS
 boot works through JavaScript BIOS services; it does not demonstrate original-ROM
 startup or a working floppy controller. The first native milestone is original
 XT firmware reaching ROM BASIC, followed by a separate DOS milestone.
@@ -159,7 +164,7 @@ The first board needs these observable behaviors:
   priority, acknowledgement, and EOI. Offer INTR at CPU boundaries, and supply
   the vector only when the 8088 accepts it. An interrupt deferred by IF or an
   instruction's interrupt shadow must not consume the PIC request. Connect
-  timer IRQ0, keyboard IRQ1, and later diskette IRQ6 explicitly.
+  timer IRQ0, keyboard IRQ1, and diskette IRQ6 explicitly.
 - **8255 and XT keyboard:** ports `60–63`, direction changes, equipment switches,
   keyboard clock/clear, reset/self-test, and make/break delivery. POST first uses
   diagnostic configurations before normal keyboard input. Port `61` connects
@@ -177,9 +182,11 @@ The first board needs these observable behaviors:
   and [machine display contract](../../src/machines/8088/pc-xt.md#cga-text-output)
   own text decoding, mode/cursor/start registers, oscillator-driven status and
   blink, the selected font, pure rendering, and explicit graphics limits.
-- **Diskette adapter:** original controller command/result phases, reset,
-  drive selection, no-media errors, and IRQ behavior are needed even for the
-  failed bootstrap that enters BASIC. Add sector/DMA transfers for DOS; do not
+- **Diskette adapter:** the [empty-drive chapter](../../src/components/devices/specifications/ibm-xt-diskette.md)
+  owns controller command/result phases, reset, drive selection, timed seeks,
+  and IRQ behavior. The board's [diskette contract](../../src/machines/8088/pc-xt.md#empty-diskette-drive)
+  covers BIOS timeouts when an empty drive supplies no index pulses.
+  Add sector/DMA transfers for DOS; do not
   skip the controller by recognizing INT 13h or a ROM address.
 
 ### Time is a prerequisite for firmware acceptance
